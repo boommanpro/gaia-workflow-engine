@@ -7,7 +7,7 @@ export const FormOutputsContainer = styled.div`
   border-top: 1px solid var(--semi-color-border);
   width: 100%;
   padding: 10px 10px 10px;
-  background: #f4f4ff;
+  background: #f5f5fc;
 
   :global(.semi-tag .semi-tag-content) {
     font-size: 10px;
