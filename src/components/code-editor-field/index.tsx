@@ -6,6 +6,7 @@ import { Button, Modal } from '@douyinfe/semi-ui';
 import { IconCode } from '@douyinfe/semi-icons';
 
 import { MonacoEditor } from '../monaco-editor';
+import { CodeEditorModal } from '../code-editor-modal';
 
 export const CodeEditorField = ({
   value,
@@ -16,17 +17,12 @@ export const CodeEditorField = ({
   onChange: (value: string) => void;
   language: string;
 }) => {
-  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const [visible, setVisible] = useState(false);
 
   const showDialog = useCallback(() => setVisible(true), []);
   const handleCancel = useCallback(() => setVisible(false), []);
 
   const handleOk = useCallback(() => {
-    const editorValue = editorRef.current?.getValue();
-    if (editorValue) {
-      onChange(editorValue);
-    }
     setVisible(false);
   }, [onChange]);
 
@@ -38,29 +34,14 @@ export const CodeEditorField = ({
           Editor
         </Button>
       </Label>
-      <Modal
-        title="代码编辑器"
+      <CodeEditorModal
+        value={value}
+        onChange={onChange}
+        language={language}
         visible={visible}
-        onOk={handleOk}
-        onCancel={handleCancel}
-        closeOnEsc
-        fullScreen
-        style={{ zIndex: 1000 }}
-        getPopupContainer={() => document.body}
-      >
-        <MonacoEditor
-          value={value}
-          style={{ width: '100%', height: '500px' }}
-          language={language}
-          theme="vs-dark"
-          options={{
-            fontSize: 14,
-            lineNumbers: 'on',
-            minimap: { enabled: false },
-          }}
-          editorRef={editorRef}
-        />
-      </Modal>
+        handleCancel={handleCancel}
+        handleOk={handleOk}
+      />
     </>
   );
 };
