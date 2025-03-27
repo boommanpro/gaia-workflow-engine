@@ -55,8 +55,11 @@ export const initialData: FlowDocumentJSON = {
               },
             },
           ],
+          branches: [],
         },
+        branches: [],
         inputs: {
+          branches: [],
           type: 'object',
           properties: {
             conditions: {

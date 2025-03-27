@@ -11,7 +11,7 @@ export const BaseNodeStyle = styled.div`
   flex-direction: column;
   justify-content: center;
   position: relative;
-  width: 360px;
+  min-width: 360px;
 
   transition: all 0.3s ease;
   &.selected {
