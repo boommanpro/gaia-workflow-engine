@@ -33,6 +33,7 @@ export const Console = () => {
         language={'json'}
         visible={showModal}
         onVisibleChange={setShowModal}
+        options={{ readOnly: true }}
       />
     </>
   );
