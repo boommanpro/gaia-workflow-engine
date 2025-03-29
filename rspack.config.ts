@@ -13,7 +13,7 @@ const targets = ['chrome >= 87', 'edge >= 88', 'firefox >= 78', 'safari >= 14'];
 
 export default defineConfig({
   output: {
-    path: path.resolve(__dirname, 'docs'), // 构建到 docs 目录
+    path: path.resolve(__dirname, 'dist'), // 构建到 docs 目录
     publicPath: '/', // 确保静态资源路径正确
     clean: true,
   },

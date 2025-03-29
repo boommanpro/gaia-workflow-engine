@@ -7,8 +7,6 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -23,13 +21,18 @@ jobs:
         with:
           version: 9.12.0  # 指定 pnpm 版本，建议与本地一致
 
-      - name: Install dependencies
+      - name: Install dependencies And Build
         run: pnpm install --frozen-lockfile  # 替代 npm ci
-
       - run: pnpm run build:gh-pages  # 替换 npm 命令
 
       - name: Deploy
-        uses: peaceiris/actions-gh-pages@v3
+        uses: JamesIves/github-pages-deploy-action@v4.3.4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./docs
+          token: ${{ secrets.DEPLOY_TOKEN }}
+          branch: gh-pages
+          folder: dist
+          force: true
+          commit-message: website deploy
+
+      - name: Cleanup
+        run: rm -rf dist
