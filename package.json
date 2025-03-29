@@ -67,6 +67,7 @@
     "start": "NODE_ENV=development rspack serve",
     "test": "exit",
     "test:cov": "exit",
-    "watch": "exit 0"
+    "watch": "exit 0",
+    "build:gh-pages": "NODE_ENV=production rspack build"
   }
 }

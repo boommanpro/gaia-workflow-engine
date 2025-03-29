@@ -126,3 +126,5 @@ dist-storybook/
 
 # rush standard files
 .eslintcache
+
+docs

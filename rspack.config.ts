@@ -1,3 +1,5 @@
+import * as path from 'node:path';
+
 import * as RefreshPlugin from '@rspack/plugin-react-refresh';
 import { rspack } from '@rspack/core';
 import { defineConfig } from '@rspack/cli';
@@ -10,6 +12,11 @@ const isProd = process.env.NODE_ENV === 'production';
 const targets = ['chrome >= 87', 'edge >= 88', 'firefox >= 78', 'safari >= 14'];
 
 export default defineConfig({
+  output: {
+    path: path.resolve(__dirname, 'docs'), // 构建到 docs 目录
+    publicPath: '/', // 确保静态资源路径正确
+    clean: true,
+  },
   context: __dirname,
   entry: {
     main: './src/main.tsx',
