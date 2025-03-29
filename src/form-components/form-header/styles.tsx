@@ -40,4 +40,7 @@ export const FormTitleDescription = styled.div`
   padding: 10px;
   word-break: break-all;
   white-space: break-spaces;
+  background: #f5f5fc;
+  width: 100%; /* 确保宽度为 100% */
+  box-sizing: border-box; /* 确保 padding 不影响宽度 */
 `;
