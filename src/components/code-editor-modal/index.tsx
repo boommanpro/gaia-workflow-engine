@@ -13,6 +13,7 @@ export const CodeEditorModal = ({
   handleOk,
   handleCancel,
   onVisibleChange, // 新增：用于控制 Modal 的显示/隐藏
+  options: externalOptions, // 新增：支持外部传递 options
 }: {
   value: string;
   onChange?: (value: string) => void;
@@ -21,6 +22,7 @@ export const CodeEditorModal = ({
   handleOk?: () => void;
   handleCancel?: () => void;
   onVisibleChange?: (visible: boolean) => void; // 新增：控制 Modal 的显示/隐藏
+  options?: monaco.editor.IStandaloneEditorConstructionOptions; // 新增：支持外部传递 options
 }) => {
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
 
@@ -46,6 +48,15 @@ export const CodeEditorModal = ({
     }
   }, [handleCancel, onVisibleChange]);
 
+  // 默认配置
+  const defaultOptions: monaco.editor.IStandaloneEditorConstructionOptions = {
+    fontSize: 14,
+    lineNumbers: 'on',
+    minimap: { enabled: false },
+  };
+
+  const mergedOptions = { ...defaultOptions, ...externalOptions };
+
   return (
     <Modal
       title="代码编辑器"
@@ -62,11 +73,7 @@ export const CodeEditorModal = ({
         style={{ width: '100%', height: '100%' }}
         language={language}
         theme="vs-dark"
-        options={{
-          fontSize: 14,
-          lineNumbers: 'on',
-          minimap: { enabled: false },
-        }}
+        options={mergedOptions}
         editorRef={editorRef}
       />
     </Modal>
