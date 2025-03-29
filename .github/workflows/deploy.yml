@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ "main" ] # 根据实际分支修改
+    branches: [ "main" ]
 
 jobs:
   deploy:
@@ -17,9 +17,16 @@ jobs:
         with:
           node-version: 18
 
-      - run: npm ci
+      # 新增 pnpm 安装步骤
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9.12.0  # 指定 pnpm 版本，建议与本地一致
 
-      - run: npm run build:gh-pages
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile  # 替代 npm ci
+
+      - run: pnpm run build:gh-pages  # 替换 npm 命令
 
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
