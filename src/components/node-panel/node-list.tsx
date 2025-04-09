@@ -76,7 +76,7 @@ export const NodeList: FC<NodeListProps> = (props) => {
         .map((registry) => (
           <Node
             key={registry.type}
-            disabled={false} // 由于已经过滤，这里可以设置为 false
+            disabled={!(registry.canAdd?.(context) ?? true)}
             icon={
               <img style={{ width: 10, height: 10, borderRadius: 4 }} src={registry.info.icon} />
             }

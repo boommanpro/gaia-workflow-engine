@@ -1,15 +1,13 @@
-import { useContext } from 'react';
-
 import { nanoid } from 'nanoid';
 import { Field, FieldArray } from '@flowgram.ai/free-layout-editor';
 import { Button } from '@douyinfe/semi-ui';
 import { IconPlus, IconCrossCircleStroked } from '@douyinfe/semi-icons';
 
 import { FlowLiteralValueSchema, FlowRefValueSchema } from '../../../typings';
+import { useIsSidebar } from '../../../hooks';
 import { FxExpression } from '../../../form-components/fx-expression';
 import { FormItem } from '../../../form-components';
 import { Feedback } from '../../../form-components';
-import { NodeRenderContext } from '../../../context';
 import { ConditionPort } from './styles';
 
 interface ConditionValue {
@@ -18,7 +16,7 @@ interface ConditionValue {
 }
 
 export function ConditionInputs() {
-  const { readonly } = useContext(NodeRenderContext);
+  const readonly = !useIsSidebar();
   return (
     <FieldArray name="inputsValues.conditions">
       {({ field }) => (
@@ -38,7 +36,7 @@ export function ConditionInputs() {
                       />
                     }
                     hasError={Object.keys(childState?.errors || {}).length > 0}
-                    disabled={readonly}
+                    readonly={readonly}
                   />
                   <Feedback errors={childState?.errors} invalid={childState?.invalid} />
                   <ConditionPort data-port-id={childField.value.key} data-port-type="output" />

@@ -1,15 +1,13 @@
-import { useContext } from 'react';
-
 import { Field } from '@flowgram.ai/free-layout-editor';
 
 import { FxExpression } from '../fx-expression';
 import { FormItem } from '../form-item';
 import { Feedback } from '../feedback';
 import { JsonSchema } from '../../typings';
-import { NodeRenderContext } from '../../context';
+import { useIsSidebar } from '../../hooks';
 
 export function FormInputs() {
-  const { readonly } = useContext(NodeRenderContext);
+  const readonly = !useIsSidebar();
   return (
     <Field<JsonSchema> name="inputs">
       {({ field: inputsField }) => {
@@ -31,7 +29,7 @@ export function FormInputs() {
                   <FxExpression
                     value={field.value}
                     onChange={field.onChange}
-                    disabled={readonly}
+                    readonly={readonly}
                     hasError={Object.keys(fieldState?.errors || {}).length > 0}
                   />
                   <Feedback errors={fieldState?.errors} />

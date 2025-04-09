@@ -53,7 +53,7 @@ export const PropertyEdit: React.FC<PropertyEditProps> = (props) => {
       {props.useFx ? (
         <VariableSelector
           value={value.default}
-          disabled={disabled}
+          readonly={disabled}
           onChange={(val) => updateProperty('default', val)}
           style={{ flexGrow: 1, height: 32 }}
         />

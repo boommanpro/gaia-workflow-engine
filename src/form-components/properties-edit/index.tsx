@@ -1,10 +1,10 @@
-import React, { useContext, useState } from 'react';
+import React, { useState } from 'react';
 
 import { Button } from '@douyinfe/semi-ui';
 import { IconPlus } from '@douyinfe/semi-icons';
 
 import { JsonSchema } from '../../typings';
-import { NodeRenderContext } from '../../context';
+import { useNodeRenderContext } from '../../hooks';
 import { PropertyEdit } from './property-edit';
 
 export interface PropertiesEditProps {
@@ -15,7 +15,7 @@ export interface PropertiesEditProps {
 
 export const PropertiesEdit: React.FC<PropertiesEditProps> = (props) => {
   const value = (props.value || {}) as Record<string, JsonSchema>;
-  const { readonly } = useContext(NodeRenderContext);
+  const { readonly } = useNodeRenderContext();
   const [newProperty, updateNewPropertyFromCache] = useState<{ key: string; value: JsonSchema }>({
     key: '',
     value: { type: 'string' },

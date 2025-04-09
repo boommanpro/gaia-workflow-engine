@@ -1,6 +1,7 @@
 /* eslint-disable no-console */
 import { useMemo } from 'react';
 
+import { debounce } from 'lodash-es';
 import { createMinimapPlugin } from '@flowgram.ai/minimap-plugin';
 import { createFreeSnapPlugin } from '@flowgram.ai/free-snap-plugin';
 import {
@@ -9,9 +10,11 @@ import {
 } from '@flowgram.ai/free-node-panel-plugin';
 import { createFreeLinesPlugin } from '@flowgram.ai/free-lines-plugin';
 import { FreeLayoutProps } from '@flowgram.ai/free-layout-editor';
+import { createContainerNodePlugin } from '@flowgram.ai/free-container-plugin';
 
 import { FlowNodeRegistry, FlowDocumentJSON } from '../typings';
 import { shortcuts } from '../shortcuts';
+import { CustomService } from '../services';
 import { createSyncVariablePlugin } from '../plugins';
 import { defaultFormMeta } from '../nodes/default-form-meta';
 import { SelectorBoxPopover } from '../components/selector-box-popover';
@@ -54,6 +57,14 @@ export function useEditorProps(
           formMeta: defaultFormMeta,
         };
       },
+      lineColor: {
+        hidden: 'transparent',
+        default: '#4d53e8',
+        drawing: '#5DD6E3',
+        hovered: '#37d0ff',
+        selected: '#37d0ff',
+        error: 'red',
+      },
       /*
        * Check whether the line can be added
        * 判断是否连线
@@ -66,12 +77,23 @@ export function useEditorProps(
         return true;
       },
       /**
-       * Check whether the line can be deleted
-       * 判断是否删除连线
+       * Check whether the line can be deleted, this triggers on the default shortcut `Bakspace` or `Delete`
+       * 判断是否能删除连线, 这个会在默认快捷键 (Backspace or Delete) 触发
        */
       canDeleteLine(ctx, line, newLineInfo, silent) {
         return true;
       },
+      /**
+       * Check whether the node can be deleted, this triggers on the default shortcut `Bakspace` or `Delete`
+       * 判断是否能删除节点, 这个会在默认快捷键 (Backspace or Delete) 触发
+       */
+      canDeleteNode(ctx, node) {
+        return true;
+      },
+      /**
+       * Drag the end of the line to create an add panel (feature optional)
+       * 拖拽线条结束需要创建一个添加面板 （功能可选）
+       */
       async onDragLineEnd(ctx, params) {
         const nodePanelService = ctx.get(WorkflowNodePanelService);
         const { fromPort, toPort, mousePos, line, originLine } = params;
@@ -81,6 +103,7 @@ export function useEditorProps(
         if (toPort) {
           return;
         }
+        // Open add panel
         await nodePanelService.call({
           fromPort,
           toPort: undefined,
@@ -126,13 +149,25 @@ export function useEditorProps(
       /**
        * Content change
        */
-      onContentChange(ctx, event) {
-        // console.log('Auto Save: ', event, ctx.document.toJSON());
-      },
+      onContentChange: debounce((ctx, event) => {
+        console.log('Auto Save: ', event, ctx.document.toJSON());
+      }, 1000),
       /**
        * Shortcuts
        */
       shortcuts,
+      /**
+       * Bind custom service
+       */
+      onBind: ({ bind }) => {
+        bind(CustomService).toSelf().inSingletonScope();
+      },
+      /**
+       * Playground init
+       */
+      onInit() {
+        console.log('--- Playground init ---');
+      },
       /**
        * Playground render
        */
@@ -196,9 +231,18 @@ export function useEditorProps(
           alignLineWidth: 1,
           alignCrossWidth: 8,
         }),
+        /**
+         * NodeAddPanel render plugin
+         * 节点添加面板渲染插件
+         */
         createFreeNodePanelPlugin({
           renderer: NodePanel,
         }),
+        /**
+         * This is used for the rendering of the loop node sub-canvas
+         * 这个用于 loop 节点子画布的渲染
+         */
+        createContainerNodePlugin({}),
       ],
     }),
     []

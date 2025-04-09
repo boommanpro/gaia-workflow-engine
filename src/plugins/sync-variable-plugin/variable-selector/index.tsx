@@ -4,6 +4,7 @@ import { type TreeNodeData } from '@douyinfe/semi-ui/lib/es/tree';
 import { TreeSelect } from '@douyinfe/semi-ui';
 
 import { type JsonSchema } from '../../../typings';
+import { ValueDisplay } from '../../../form-components';
 import { useVariableTree } from './use-variable-tree';
 
 export interface VariableSelectorProps {
@@ -17,18 +18,21 @@ export interface VariableSelectorProps {
   };
   hasError?: boolean;
   style?: React.CSSProperties;
-  disabled?: boolean;
+  readonly?: boolean;
 }
 
 export const VariableSelector = ({
   value,
   onChange,
   options,
-  disabled,
+  readonly,
   style,
   hasError,
 }: VariableSelectorProps) => {
   const { size = 'small', emptyContent, targetSchemas, strongEqualToTargetSchema } = options || {};
+  if (readonly) {
+    return <ValueDisplay value={value as string} hasError={hasError} />;
+  }
 
   const treeData = useVariableTree<TreeNodeData>({
     targetSchemas,
@@ -70,7 +74,6 @@ export const VariableSelector = ({
     <>
       <TreeSelect
         dropdownMatchSelectWidth={false}
-        disabled={disabled}
         treeData={treeData}
         size={size}
         value={value}

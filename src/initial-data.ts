@@ -7,27 +7,18 @@ export const initialData: FlowDocumentJSON = {
       type: 'start',
       meta: {
         position: {
-          x: 181,
-          y: 249.5,
+          x: 180,
+          y: 313.25,
         },
       },
       data: {
         title: 'Start',
-        description: 'Start node',
         outputs: {
           type: 'object',
           properties: {
-            user: {
+            query: {
               type: 'string',
               default: 'Hello Flow.',
-            },
-            mobile: {
-              type: 'string',
-              default: '123',
-            },
-            mis: {
-              type: 'string',
-              default: '123',
             },
           },
         },
@@ -38,28 +29,31 @@ export const initialData: FlowDocumentJSON = {
       type: 'condition',
       meta: {
         position: {
-          x: 594.7362068965517,
-          y: 586.6551724137931,
+          x: 640,
+          y: 298.75,
         },
       },
       data: {
         title: 'Condition',
-        description: 'condition',
         inputsValues: {
           conditions: [
             {
               key: 'if_0',
               value: {
                 type: 'expression',
-                content: 'start_0.outputs.mobile',
+                content: '',
+              },
+            },
+            {
+              key: 'if_f0rOAt',
+              value: {
+                type: 'expression',
+                content: '',
               },
             },
           ],
-          branches: [],
         },
-        branches: [],
         inputs: {
-          branches: [],
           type: 'object',
           properties: {
             conditions: {
@@ -81,49 +75,93 @@ export const initialData: FlowDocumentJSON = {
       },
     },
     {
-      id: 'end_0',
-      type: 'end',
+      id: 'llm_0',
+      type: 'llm',
       meta: {
         position: {
-          x: 1567,
-          y: 335.12931034482756,
+          x: 1430,
+          y: 0,
         },
       },
       data: {
-        title: 'End',
-        description: 'end',
+        title: 'LLM_0',
+        inputsValues: {
+          modelType: 'gpt-3.5-turbo',
+          temperature: 0.5,
+          systemPrompt: 'You are an AI assistant.',
+          prompt: '',
+        },
+        inputs: {
+          type: 'object',
+          required: ['modelType', 'temperature', 'prompt'],
+          properties: {
+            modelType: {
+              type: 'string',
+            },
+            temperature: {
+              type: 'number',
+            },
+            systemPrompt: {
+              type: 'string',
+            },
+            prompt: {
+              type: 'string',
+            },
+          },
+        },
         outputs: {
           type: 'object',
           properties: {
             result: {
               type: 'string',
-              default: 'code_r_Wx-.outputs.result',
             },
           },
         },
       },
     },
     {
-      id: 'code_r_Wx-',
-      type: 'code',
+      id: 'end_0',
+      type: 'end',
       meta: {
         position: {
-          x: 1018.1913793103448,
-          y: 249.5,
+          x: 2220,
+          y: 313.25,
         },
       },
       data: {
-        title: 'Code_1',
-        description: '代码组件',
-        inputsValues: {},
-        config: {
-          language: 'java',
-          code: '',
+        title: 'End',
+        outputs: {
+          type: 'object',
+          properties: {
+            result: {
+              type: 'string',
+            },
+          },
+        },
+      },
+    },
+    {
+      id: 'loop_H8M3U',
+      type: 'loop',
+      meta: {
+        position: {
+          x: 1020,
+          y: 532.5,
+        },
+      },
+      data: {
+        title: 'Loop_2',
+        inputsValues: {
+          loopTimes: 2,
         },
         inputs: {
           type: 'object',
-          required: [],
-          properties: {},
+          required: ['loopTimes'],
+          properties: {
+            loopTimes: {
+              type: 'number',
+            },
+          },
         },
         outputs: {
           type: 'object',
@@ -134,6 +172,94 @@ export const initialData: FlowDocumentJSON = {
           },
         },
       },
+      blocks: [
+        {
+          id: 'llm_CBdCg',
+          type: 'llm',
+          meta: {
+            position: {
+              x: 180,
+              y: 0,
+            },
+          },
+          data: {
+            title: 'LLM_4',
+            inputsValues: {},
+            inputs: {
+              type: 'object',
+              required: ['modelType', 'temperature', 'prompt'],
+              properties: {
+                modelType: {
+                  type: 'string',
+                },
+                temperature: {
+                  type: 'number',
+                },
+                systemPrompt: {
+                  type: 'string',
+                },
+                prompt: {
+                  type: 'string',
+                },
+              },
+            },
+            outputs: {
+              type: 'object',
+              properties: {
+                result: {
+                  type: 'string',
+                },
+              },
+            },
+          },
+        },
+        {
+          id: 'llm_gZafu',
+          type: 'llm',
+          meta: {
+            position: {
+              x: 640,
+              y: 0,
+            },
+          },
+          data: {
+            title: 'LLM_5',
+            inputsValues: {},
+            inputs: {
+              type: 'object',
+              required: ['modelType', 'temperature', 'prompt'],
+              properties: {
+                modelType: {
+                  type: 'string',
+                },
+                temperature: {
+                  type: 'number',
+                },
+                systemPrompt: {
+                  type: 'string',
+                },
+                prompt: {
+                  type: 'string',
+                },
+              },
+            },
+            outputs: {
+              type: 'object',
+              properties: {
+                result: {
+                  type: 'string',
+                },
+              },
+            },
+          },
+        },
+      ],
+      edges: [
+        {
+          sourceNodeID: 'llm_CBdCg',
+          targetNodeID: 'llm_gZafu',
+        },
+      ],
     },
   ],
   edges: [
@@ -143,11 +269,20 @@ export const initialData: FlowDocumentJSON = {
     },
     {
       sourceNodeID: 'condition_0',
-      targetNodeID: 'code_r_Wx-',
+      targetNodeID: 'llm_0',
       sourcePortID: 'if_0',
     },
     {
-      sourceNodeID: 'code_r_Wx-',
+      sourceNodeID: 'condition_0',
+      targetNodeID: 'loop_H8M3U',
+      sourcePortID: 'if_f0rOAt',
+    },
+    {
+      sourceNodeID: 'llm_0',
+      targetNodeID: 'end_0',
+    },
+    {
+      sourceNodeID: 'loop_H8M3U',
       targetNodeID: 'end_0',
     },
   ],

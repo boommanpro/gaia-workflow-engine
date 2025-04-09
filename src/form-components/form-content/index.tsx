@@ -1,19 +1,26 @@
-import React, { useContext, useState, useRef } from 'react';
+import React from 'react';
 
-import { Field, FieldRenderProps, FlowNodeRegistry } from '@flowgram.ai/free-layout-editor';
-import Text from '@douyinfe/semi-ui/lib/es/typography/text';
-import { Divider, Input, TextArea } from '@douyinfe/semi-ui';
+import { FlowNodeRegistry } from '@flowgram.ai/free-layout-editor';
 
-import { NodeRenderContext } from '../../context';
-import { FormWrapper } from './styles';
-import { Feedback } from '../feedback';
+import { useIsSidebar, useNodeRenderContext } from '../../hooks';
+import { FormTitleDescription, FormWrapper } from './styles';
 
 /**
  * @param props
  * @constructor
  */
 export function FormContent(props: { children?: React.ReactNode }) {
-  const { node, expanded, toggleExpand, readonly } = useContext(NodeRenderContext);
-
-  return <FormWrapper>{expanded ? <>{props.children}</> : undefined}</FormWrapper>;
+  const { node, expanded } = useNodeRenderContext();
+  const isSidebar = useIsSidebar();
+  const registry = node.getNodeRegistry<FlowNodeRegistry>();
+  return (
+    <FormWrapper>
+      {expanded ? (
+        <>
+          {isSidebar && <FormTitleDescription>{registry.info?.description}</FormTitleDescription>}
+          {props.children}
+        </>
+      ) : undefined}
+    </FormWrapper>
+  );
 }
