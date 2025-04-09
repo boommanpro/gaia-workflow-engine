@@ -18,4 +18,7 @@ export default defineConfig({
   html: {
     title: 'demo-free-layout',
   },
+  output: {
+    assetPrefix: './',
+  },
 });
