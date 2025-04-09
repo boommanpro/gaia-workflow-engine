@@ -26,8 +26,10 @@ export const CodeNodeRegistry: FlowNodeRegistry = {
         title: `Code_${++index}`,
         description: '代码组件',
         inputsValues: {},
-        language: 'java',
-        code: '',
+        config: {
+          language: 'java',
+          code: '',
+        },
         inputs: {
           type: 'object',
           required: [],

@@ -7,7 +7,8 @@ export const Header = styled.div`
   align-items: center;
   width: 100%;
   column-gap: 8px;
-  border-radius: 8px;
+  border-radius: 8px 8px 0 0;
+  cursor: move;
 
   background: linear-gradient(#f2f2ff 0%, rgba(0, 0, 0, 0.02) 100%);
   overflow: hidden;

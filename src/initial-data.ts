@@ -22,6 +22,7 @@ export const initialData: FlowDocumentJSON = {
             },
           },
         },
+        description: 'start node',
       },
     },
     {
@@ -72,6 +73,7 @@ export const initialData: FlowDocumentJSON = {
             },
           },
         },
+        description: 'condition node',
       },
     },
     {
@@ -117,6 +119,7 @@ export const initialData: FlowDocumentJSON = {
             },
           },
         },
+        description: 'llm node',
       },
     },
     {
@@ -138,6 +141,7 @@ export const initialData: FlowDocumentJSON = {
             },
           },
         },
+        description: 'end node',
       },
     },
     {
@@ -171,6 +175,7 @@ export const initialData: FlowDocumentJSON = {
             },
           },
         },
+        description: 'hello',
       },
       blocks: [
         {

@@ -1,55 +1,96 @@
-import React, { useContext, useRef, useState } from 'react';
+import { useCallback, useState, useRef, type MouseEvent } from 'react';
 
 import {
-  Command,
   Field,
   FieldRenderProps,
   useClientContext,
+  useService,
 } from '@flowgram.ai/free-layout-editor';
-import {
-  Button,
-  Divider,
-  Dropdown,
-  IconButton,
-  Input,
-  TextArea,
-  Typography,
-} from '@douyinfe/semi-ui';
+import { NodeIntoContainerService } from '@flowgram.ai/free-container-plugin';
+import { IconButton, Dropdown, Typography, Button, Input, TextArea } from '@douyinfe/semi-ui';
 import { IconMore, IconSmallTriangleDown, IconSmallTriangleLeft } from '@douyinfe/semi-icons';
 
-import { FormTitleDescription } from './styles.tsx';
 import { Feedback } from '../feedback';
 import { FlowNodeRegistry } from '../../typings';
-import { NodeRenderContext } from '../../context';
+import { FlowCommandId } from '../../shortcuts';
+import { useIsSidebar, useNodeRenderContext } from '../../hooks';
 import { getIcon } from './utils';
-import { Header, Operators, Title } from './styles';
+import { Header, Operators, Title, FormTitleDescription } from './styles';
 
 const { Text } = Typography;
 
 function DropdownContent() {
-  const { node, deleteNode } = useContext(NodeRenderContext);
+  const [key, setKey] = useState(0);
+  const { node, deleteNode } = useNodeRenderContext();
   const clientContext = useClientContext();
   const registry = node.getNodeRegistry<FlowNodeRegistry>();
-  const handleCopy = () => {
-    clientContext.playground.commandService.executeCommand(Command.Default.COPY, node);
-  };
+  const nodeIntoContainerService = useService<NodeIntoContainerService>(NodeIntoContainerService);
+  const canMoveOut = nodeIntoContainerService.canMoveOutContainer(node);
+
+  const rerenderMenu = useCallback(() => {
+    setKey((prevKey) => prevKey + 1);
+  }, []);
+
+  const handleMoveOut = useCallback(
+    (e: MouseEvent) => {
+      e.stopPropagation();
+      nodeIntoContainerService.moveOutContainer({ node });
+      nodeIntoContainerService.removeNodeLines(node);
+      requestAnimationFrame(rerenderMenu);
+    },
+    [nodeIntoContainerService, node, rerenderMenu]
+  );
+
+  const handleCopy = useCallback(
+    (e: React.MouseEvent) => {
+      clientContext.playground.commandService.executeCommand(FlowCommandId.COPY, node);
+      e.stopPropagation(); // Disable clicking prevents the sidebar from opening
+    },
+    [clientContext, node]
+  );
+
+  const handleDelete = useCallback(
+    (e: React.MouseEvent) => {
+      deleteNode();
+      e.stopPropagation(); // Disable clicking prevents the sidebar from opening
+    },
+    [clientContext, node]
+  );
+
   return (
-    <Dropdown.Menu>
-      <Dropdown.Item onClick={handleCopy} disabled={registry.meta!.copyDisable === true}>
-        Copy
-      </Dropdown.Item>
-      <Dropdown.Item
-        onClick={deleteNode}
-        disabled={!!(registry.canDelete?.(clientContext, node) || registry.meta!.deleteDisable)}
-      >
-        Delete
-      </Dropdown.Item>
-    </Dropdown.Menu>
+    <Dropdown
+      trigger="hover"
+      position="bottomRight"
+      onVisibleChange={rerenderMenu}
+      render={
+        <Dropdown.Menu key={key}>
+          {canMoveOut && <Dropdown.Item onClick={handleMoveOut}>Move out</Dropdown.Item>}
+          <Dropdown.Item onClick={handleCopy} disabled={registry.meta!.copyDisable === true}>
+            Copy
+          </Dropdown.Item>
+          <Dropdown.Item
+            onClick={handleDelete}
+            disabled={!!(registry.canDelete?.(clientContext, node) || registry.meta!.deleteDisable)}
+          >
+            Delete
+          </Dropdown.Item>
+        </Dropdown.Menu>
+      }
+    >
+      <IconButton
+        color="secondary"
+        size="small"
+        theme="borderless"
+        icon={<IconMore />}
+        onClick={(e) => e.stopPropagation()}
+      />
+    </Dropdown>
   );
 }
 
 export function FormHeader() {
-  const { node, expanded, toggleExpand, readonly } = useContext(NodeRenderContext);
+  const { node, expanded, toggleExpand, readonly } = useNodeRenderContext();
+  const isSidebar = useIsSidebar();
   const [isEditing, setIsEditing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -65,20 +106,9 @@ export function FormHeader() {
     setIsEditing(false);
   };
 
-  const registry = node.getNodeRegistry<FlowNodeRegistry>();
-  const [isDesEditing, setIsDesEditing] = useState(false);
-  const inputDesRef = useRef<HTMLInputElement>(null);
-
-  const handleDesDoubleClick = () => {
-    if (!readonly) {
-      setIsDesEditing(true);
-      setTimeout(() => inputRef.current?.focus(), 0);
-    }
-  };
-
-  const handleDesBlur = (onChange: (value: string) => void, value: string) => {
-    onChange(value);
-    setIsDesEditing(false);
+  const handleExpand = (e: React.MouseEvent) => {
+    toggleExpand();
+    e.stopPropagation(); // Disable clicking prevents the sidebar from opening
   };
 
   return (
@@ -105,56 +135,21 @@ export function FormHeader() {
           </Field>
         </Title>
         <span>{node.id}</span>
-        <Button
-          type="primary"
-          icon={expanded ? <IconSmallTriangleDown /> : <IconSmallTriangleLeft />}
-          size="small"
-          theme="borderless"
-          onClick={toggleExpand}
-        />
+        {node.renderData.expandable && !isSidebar && (
+          <Button
+            type="primary"
+            icon={expanded ? <IconSmallTriangleDown /> : <IconSmallTriangleLeft />}
+            size="small"
+            theme="borderless"
+            onClick={handleExpand}
+          />
+        )}
         {readonly ? undefined : (
           <Operators>
-            <Dropdown trigger="hover" position="bottomRight" render={<DropdownContent />}>
-              <IconButton
-                color="secondary"
-                size="small"
-                theme="borderless"
-                icon={<IconMore />}
-                onClick={(e) => e.stopPropagation()}
-              />
-            </Dropdown>
+            <DropdownContent />
           </Operators>
         )}
       </Header>
-      <FormTitleDescription onDoubleClick={handleDesDoubleClick}>
-        <Field name="description">
-          {({ field: { value, onChange }, fieldState }: FieldRenderProps<string>) => (
-            <div>
-              {isDesEditing ? (
-                <TextArea
-                  style={{ width: 340 }}
-                  ref={inputRef}
-                  defaultValue={value}
-                  onBlur={() => handleDesBlur(onChange, inputRef.current?.value || '')}
-                  onEnterPress={() => handleDesBlur(onChange, inputRef.current?.value || '')}
-                />
-              ) : (
-                <Text
-                  style={{
-                    color: '#888888',
-                    fontSize: '0.875rem',
-                    lineHeight: '1.25rem',
-                  }}
-                  ellipsis={{ showTooltip: true }}
-                >
-                  {value}
-                </Text>
-              )}
-              <Feedback errors={fieldState?.errors} />
-            </div>
-          )}
-        </Field>
-      </FormTitleDescription>
     </>
   );
 }
