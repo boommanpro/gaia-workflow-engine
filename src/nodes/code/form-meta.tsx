@@ -40,6 +40,7 @@ export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => (
         }: FieldRenderProps<Record<string, JsonSchema>>) => {
           const handleLanguageChange = useCallback(
             (selectedValue: string) => {
+              // @ts-ignore
               onChange({ ...value, language: selectedValue });
             },
             [value, onChange]
