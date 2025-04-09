@@ -266,6 +266,54 @@ export const initialData: FlowDocumentJSON = {
         },
       ],
     },
+    {
+      id: 'code_RLqu_',
+      type: 'code',
+      meta: {
+        position: {
+          x: 2326.0315789473684,
+          y: 768.171052631579,
+        },
+      },
+      data: {
+        title: 'Code_1',
+        description: '代码组件',
+        inputsValues: {},
+        config: {
+          language: 'python',
+          code: '',
+        },
+        inputs: {
+          type: 'object',
+          required: [],
+          properties: {},
+        },
+        outputs: {
+          type: 'object',
+          properties: {
+            '123': {
+              type: 'string',
+            },
+            result: {
+              type: 'string',
+            },
+          },
+        },
+      },
+    },
+    {
+      id: 'note_i0udq4q_1744207814436',
+      type: 'note',
+      meta: {
+        position: {
+          x: 806.9263157894736,
+          y: 920.8631578947368,
+        },
+      },
+      data: {
+        description: '注释能力',
+      },
+    },
   ],
   edges: [
     {
@@ -287,8 +335,12 @@ export const initialData: FlowDocumentJSON = {
       targetNodeID: 'end_0',
     },
     {
-      sourceNodeID: 'loop_H8M3U',
+      sourceNodeID: 'code_RLqu_',
       targetNodeID: 'end_0',
+    },
+    {
+      sourceNodeID: 'loop_H8M3U',
+      targetNodeID: 'code_RLqu_',
     },
   ],
 };
