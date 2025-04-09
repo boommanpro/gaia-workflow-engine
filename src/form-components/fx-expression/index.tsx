@@ -2,6 +2,7 @@ import React, { type SVGProps } from 'react';
 
 import { Input, Button } from '@douyinfe/semi-ui';
 
+import { ValueDisplay } from '../value-display';
 import { FlowRefValueSchema, FlowLiteralValueSchema } from '../../typings';
 import { VariableSelector } from '../../plugins/sync-variable-plugin/variable-selector';
 
@@ -18,18 +19,44 @@ export function FxIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+function InputWrap({
+  value,
+  onChange,
+  readonly,
+  hasError,
+  style,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  readonly?: boolean;
+  hasError?: boolean;
+  style?: React.CSSProperties;
+}) {
+  if (readonly) {
+    return <ValueDisplay value={value} hasError={hasError} />;
+  }
+  return (
+    <Input
+      value={value as string}
+      onChange={onChange}
+      validateStatus={hasError ? 'error' : undefined}
+      style={style}
+    />
+  );
+}
+
 export interface FxExpressionProps {
   value?: FlowLiteralValueSchema | FlowRefValueSchema;
   onChange: (value: FlowLiteralValueSchema | FlowRefValueSchema) => void;
   literal?: boolean;
   hasError?: boolean;
-  disabled?: boolean;
+  readonly?: boolean;
   icon?: React.ReactNode;
 }
 
 export function FxExpression(props: FxExpressionProps) {
-  const { value, onChange, disabled, literal, icon } = props;
-  if (literal) return <Input value={value as string} onChange={onChange} disabled={disabled} />;
+  const { value, onChange, readonly, literal, icon } = props;
+  if (literal) return <InputWrap value={value as string} onChange={onChange} readonly={readonly} />;
   const isExpression = typeof value === 'object' && value.type === 'expression';
   const toggleExpression = () => {
     if (isExpression) {
@@ -39,25 +66,25 @@ export function FxExpression(props: FxExpressionProps) {
     }
   };
   return (
-    <div style={{ display: 'flex' }}>
+    <div style={{ display: 'flex', maxWidth: 300 }}>
       {isExpression ? (
         <VariableSelector
           value={value.content}
           hasError={props.hasError}
           style={{ flexGrow: 1 }}
           onChange={(v) => onChange({ type: 'expression', content: v })}
-          disabled={disabled}
+          readonly={readonly}
         />
       ) : (
-        <Input
+        <InputWrap
           value={value as string}
           onChange={onChange}
-          validateStatus={props.hasError ? 'error' : undefined}
-          disabled={disabled}
+          hasError={props.hasError}
+          readonly={readonly}
           style={{ flexGrow: 1, outline: props.hasError ? '1px solid red' : undefined }}
         />
       )}
-      {!disabled &&
+      {!readonly &&
         (icon || <Button theme="borderless" icon={<FxIcon />} onClick={toggleExpression} />)}
     </div>
   );

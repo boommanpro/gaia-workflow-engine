@@ -2,9 +2,14 @@ import { Field } from '@flowgram.ai/free-layout-editor';
 
 import { TypeTag } from '../type-tag';
 import { JsonSchema } from '../../typings';
+import { useIsSidebar } from '../../hooks';
 import { FormOutputsContainer } from './styles';
 
 export function FormOutputs() {
+  const isSidebar = useIsSidebar();
+  if (isSidebar) {
+    return null;
+  }
   return (
     <Field<JsonSchema> name={'outputs'}>
       {({ field }) => {

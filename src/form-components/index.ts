@@ -6,3 +6,4 @@ export * from './form-header';
 export * from './form-item';
 export * from './type-tag';
 export * from './properties-edit';
+export * from './value-display';

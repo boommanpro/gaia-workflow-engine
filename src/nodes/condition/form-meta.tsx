@@ -1,7 +1,7 @@
 import { FormRenderProps, FormMeta, ValidateTrigger } from '@flowgram.ai/free-layout-editor';
 
 import { FlowNodeJSON } from '../../typings';
-import { FormHeader, FormContent, FormOutputs } from '../../form-components';
+import { FormHeader, FormContent } from '../../form-components';
 import { ConditionInputs } from './condition-inputs';
 
 export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => (
@@ -9,7 +9,6 @@ export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => (
     <FormHeader />
     <FormContent>
       <ConditionInputs />
-      <FormOutputs />
     </FormContent>
   </>
 );

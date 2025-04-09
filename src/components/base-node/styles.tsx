@@ -12,10 +12,11 @@ export const BaseNodeStyle = styled.div`
   justify-content: center;
   position: relative;
   min-width: 360px;
+  width: 100%;
+  height: 100%;
 
-  transition: all 0.3s ease;
   &.selected {
-    border: 1px solid var(--coz-stroke-hglt, #4e40e5);
+    border: 1px solid #4e40e5;
   }
 `;
 

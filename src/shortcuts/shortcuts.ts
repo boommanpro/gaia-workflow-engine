@@ -25,7 +25,7 @@ export function shortcuts(shortcutsRegistry: ShortcutsRegistry, ctx: FreeLayoutP
   shortcutsRegistry.addHandlers({
     commandId: FlowCommandId.COPY,
     shortcuts: ['meta c', 'ctrl c'],
-    execute: async (e) => {
+    execute: async (node) => {
       const document = ctx.get<WorkflowDocument>(WorkflowDocument);
       const selectService = ctx.get<WorkflowSelectService>(WorkflowSelectService);
 
@@ -35,11 +35,11 @@ export function shortcuts(shortcutsRegistry: ShortcutsRegistry, ctx: FreeLayoutP
             content: 'Text copied',
           });
         });
-
-        return e;
       }
-
-      const { selectedNodes } = selectService;
+      let selectedNodes = node instanceof WorkflowNodeEntity ? [node] : [];
+      if (selectedNodes.length == 0) {
+        selectedNodes = selectService.selectedNodes;
+      }
 
       if (selectedNodes.length === 0) {
         return;

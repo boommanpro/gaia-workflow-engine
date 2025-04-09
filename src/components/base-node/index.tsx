@@ -1,14 +1,11 @@
 import { useCallback } from 'react';
 
-import {
-  FlowNodeEntity,
-  useNodeRender,
-  WorkflowNodeRenderer,
-} from '@flowgram.ai/free-layout-editor';
+import { FlowNodeEntity, useNodeRender } from '@flowgram.ai/free-layout-editor';
 import { ConfigProvider } from '@douyinfe/semi-ui';
 
 import { NodeRenderContext } from '../../context';
 import { BaseNodeStyle, ErrorIcon } from './styles';
+import { NodeWrapper } from './node-wrapper';
 
 export const BaseNode = ({ node }: { node: FlowNodeEntity }) => {
   /**
@@ -30,19 +27,20 @@ export const BaseNode = ({ node }: { node: FlowNodeEntity }) => {
 
   return (
     <ConfigProvider getPopupContainer={getPopupContainer}>
-      <WorkflowNodeRenderer node={node}>
-        {form?.state.invalid && <ErrorIcon />}
-        <BaseNodeStyle
-          className={nodeRender.selected ? 'selected' : ''}
-          style={{
-            outline: form?.state.invalid ? '1px solid red' : 'none',
-          }}
-        >
-          <NodeRenderContext.Provider value={nodeRender}>
+      <NodeRenderContext.Provider value={nodeRender}>
+        <NodeWrapper>
+          {form?.state.invalid && <ErrorIcon />}
+          <BaseNodeStyle
+            className={nodeRender.selected ? 'selected' : ''}
+            style={{
+              borderRadius: 8,
+              outline: form?.state.invalid ? '1px solid red' : 'none',
+            }}
+          >
             {form?.render()}
-          </NodeRenderContext.Provider>
-        </BaseNodeStyle>
-      </WorkflowNodeRenderer>
+          </BaseNodeStyle>
+        </NodeWrapper>
+      </NodeRenderContext.Provider>
     </ConfigProvider>
   );
 };
