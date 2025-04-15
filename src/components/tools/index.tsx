@@ -14,6 +14,7 @@ import { Readonly } from './readonly';
 import { MinimapSwitch } from './minimap-switch';
 import { Minimap } from './minimap';
 import { Interactive } from './interactive';
+import { Import } from './import.tsx';
 import { FitView } from './fit-view';
 import { Console } from './console';
 import { AutoLayout } from './auto-layout';
@@ -72,6 +73,7 @@ export const DemoTools = () => {
         <AddNote />
         <Divider layout="vertical" style={{ height: '16px' }} margin={3} />
         <Save disabled={playground.config.readonly} />
+        <Import />
         <Console />
       </ToolSection>
     </ToolContainer>
