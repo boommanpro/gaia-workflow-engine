@@ -66,6 +66,7 @@ export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => (
                   <Select.Option value="javascript">javascript</Select.Option>
                   <Select.Option value="typescript">typescript</Select.Option>
                   <Select.Option value="java">java</Select.Option>
+                  <Select.Option value="aviator">aviator</Select.Option>
                 </Select>
               </Label>
               <CodeEditorField
