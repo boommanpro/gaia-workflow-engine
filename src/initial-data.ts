@@ -7,8 +7,8 @@ export const initialData: FlowDocumentJSON = {
       type: 'start',
       meta: {
         position: {
-          x: 180,
-          y: 313.25,
+          x: 161.82825934250104,
+          y: 363.9269239259368,
         },
       },
       data: {
@@ -26,12 +26,85 @@ export const initialData: FlowDocumentJSON = {
       },
     },
     {
-      id: 'condition_0',
+      id: 'end_0',
+      type: 'end',
+      meta: {
+        position: {
+          x: 2543.676315296969,
+          y: 280.9269239259368,
+        },
+      },
+      data: {
+        title: 'End',
+        outputs: {
+          type: 'object',
+          properties: {
+            result: {
+              type: 'string',
+              default: 'code_cNTn9.outputs.result',
+            },
+          },
+        },
+        description: 'end node',
+      },
+    },
+    {
+      id: 'note_i0udq4q_1744207814436',
+      type: 'note',
+      meta: {
+        position: {
+          x: 698.8404512562362,
+          y: 731.1614364690548,
+        },
+      },
+      data: {
+        description: '注释能力',
+      },
+    },
+    {
+      id: 'code_T5DNl',
+      type: 'code',
+      meta: {
+        position: {
+          x: 614.3820904384166,
+          y: 166.92692392593682,
+        },
+      },
+      data: {
+        title: 'Code_1',
+        description: '代码组件',
+        inputsValues: {},
+        config: {
+          language: 'aviator',
+          code: 'return {\n    "a":"a",\n    "b":"b"\n}',
+        },
+        inputs: {
+          type: 'object',
+          required: [],
+          properties: {},
+        },
+        outputs: {
+          type: 'object',
+          properties: {
+            a: {
+              type: 'string',
+              default: 'a',
+            },
+            b: {
+              type: 'string',
+              default: 'b',
+            },
+          },
+        },
+      },
+    },
+    {
+      id: 'condition_U6nw1',
       type: 'condition',
       meta: {
         position: {
-          x: 640,
-          y: 298.75,
+          x: 1066.9359215343322,
+          y: 327.4269239259369,
         },
       },
       data: {
@@ -39,17 +112,24 @@ export const initialData: FlowDocumentJSON = {
         inputsValues: {
           conditions: [
             {
-              key: 'if_0',
+              key: 'if_fcWqTi',
               value: {
                 type: 'expression',
-                content: '',
+                content: 'start_0.outputs.query',
               },
             },
             {
-              key: 'if_f0rOAt',
+              key: 'if_11gKZL',
               value: {
                 type: 'expression',
-                content: '',
+                content: 'code_T5DNl.outputs.a',
+              },
+            },
+            {
+              key: 'if_z-1XKS',
+              value: {
+                type: 'expression',
+                content: 'code_T5DNl.outputs.b',
               },
             },
           ],
@@ -73,215 +153,24 @@ export const initialData: FlowDocumentJSON = {
             },
           },
         },
-        description: 'condition node',
       },
     },
     {
-      id: 'llm_0',
-      type: 'llm',
-      meta: {
-        position: {
-          x: 1430,
-          y: 0,
-        },
-      },
-      data: {
-        title: 'LLM_0',
-        inputsValues: {
-          modelType: 'gpt-3.5-turbo',
-          temperature: 0.5,
-          systemPrompt: 'You are an AI assistant.',
-          prompt: '',
-        },
-        inputs: {
-          type: 'object',
-          required: ['modelType', 'temperature', 'prompt'],
-          properties: {
-            modelType: {
-              type: 'string',
-            },
-            temperature: {
-              type: 'number',
-            },
-            systemPrompt: {
-              type: 'string',
-            },
-            prompt: {
-              type: 'string',
-            },
-          },
-        },
-        outputs: {
-          type: 'object',
-          properties: {
-            result: {
-              type: 'string',
-            },
-          },
-        },
-        description: 'llm node',
-      },
-    },
-    {
-      id: 'end_0',
-      type: 'end',
-      meta: {
-        position: {
-          x: 2220,
-          y: 313.25,
-        },
-      },
-      data: {
-        title: 'End',
-        outputs: {
-          type: 'object',
-          properties: {
-            result: {
-              type: 'string',
-            },
-          },
-        },
-        description: 'end node',
-      },
-    },
-    {
-      id: 'loop_H8M3U',
-      type: 'loop',
-      meta: {
-        position: {
-          x: 1020,
-          y: 532.5,
-        },
-      },
-      data: {
-        title: 'Loop_2',
-        inputsValues: {
-          loopTimes: 2,
-        },
-        inputs: {
-          type: 'object',
-          required: ['loopTimes'],
-          properties: {
-            loopTimes: {
-              type: 'number',
-            },
-          },
-        },
-        outputs: {
-          type: 'object',
-          properties: {
-            result: {
-              type: 'string',
-            },
-          },
-        },
-        description: 'hello',
-      },
-      blocks: [
-        {
-          id: 'llm_CBdCg',
-          type: 'llm',
-          meta: {
-            position: {
-              x: 180,
-              y: 0,
-            },
-          },
-          data: {
-            title: 'LLM_4',
-            inputsValues: {},
-            inputs: {
-              type: 'object',
-              required: ['modelType', 'temperature', 'prompt'],
-              properties: {
-                modelType: {
-                  type: 'string',
-                },
-                temperature: {
-                  type: 'number',
-                },
-                systemPrompt: {
-                  type: 'string',
-                },
-                prompt: {
-                  type: 'string',
-                },
-              },
-            },
-            outputs: {
-              type: 'object',
-              properties: {
-                result: {
-                  type: 'string',
-                },
-              },
-            },
-          },
-        },
-        {
-          id: 'llm_gZafu',
-          type: 'llm',
-          meta: {
-            position: {
-              x: 640,
-              y: 0,
-            },
-          },
-          data: {
-            title: 'LLM_5',
-            inputsValues: {},
-            inputs: {
-              type: 'object',
-              required: ['modelType', 'temperature', 'prompt'],
-              properties: {
-                modelType: {
-                  type: 'string',
-                },
-                temperature: {
-                  type: 'number',
-                },
-                systemPrompt: {
-                  type: 'string',
-                },
-                prompt: {
-                  type: 'string',
-                },
-              },
-            },
-            outputs: {
-              type: 'object',
-              properties: {
-                result: {
-                  type: 'string',
-                },
-              },
-            },
-          },
-        },
-      ],
-      edges: [
-        {
-          sourceNodeID: 'llm_CBdCg',
-          targetNodeID: 'llm_gZafu',
-        },
-      ],
-    },
-    {
-      id: 'code_RLqu_',
+      id: 'code_2SXWb',
       type: 'code',
       meta: {
         position: {
-          x: 2326.0315789473684,
-          y: 768.171052631579,
+          x: 1519.489752630248,
+          y: -177.98061397030543,
         },
       },
       data: {
-        title: 'Code_1',
+        title: 'Code_2',
         description: '代码组件',
         inputsValues: {},
         config: {
-          language: 'python',
-          code: '',
+          language: 'aviator',
+          code: 'return {\n    "a":"1"\n}',
         },
         inputs: {
           type: 'object',
@@ -291,56 +180,166 @@ export const initialData: FlowDocumentJSON = {
         outputs: {
           type: 'object',
           properties: {
-            '123': {
-              type: 'string',
-            },
             result: {
               type: 'string',
+              default: 'a',
             },
           },
         },
       },
     },
     {
-      id: 'note_i0udq4q_1744207814436',
-      type: 'note',
+      id: 'code_zz31I',
+      type: 'code',
       meta: {
         position: {
-          x: 806.9263157894736,
-          y: 920.8631578947368,
+          x: 1519.489752630248,
+          y: 298.1614364690548,
         },
       },
       data: {
-        description: '注释能力',
+        title: 'Code_3',
+        description: '代码组件',
+        inputsValues: {},
+        config: {
+          language: 'aviator',
+          code: 'return {\n    "a":"b"\n}',
+        },
+        inputs: {
+          type: 'object',
+          required: [],
+          properties: {},
+        },
+        outputs: {
+          type: 'object',
+          properties: {
+            result: {
+              type: 'string',
+              default: 'a',
+            },
+          },
+        },
+      },
+    },
+    {
+      id: 'code_47q41',
+      type: 'code',
+      meta: {
+        position: {
+          x: 1519.489752630248,
+          y: 765.0223125766685,
+        },
+      },
+      data: {
+        title: 'Code_4',
+        description: '代码组件',
+        inputsValues: {},
+        config: {
+          language: 'aviator',
+          code: 'return {\n    "a":"c"\n}',
+        },
+        inputs: {
+          type: 'object',
+          required: [],
+          properties: {},
+        },
+        outputs: {
+          type: 'object',
+          properties: {
+            result: {
+              type: 'string',
+              default: 'a',
+            },
+          },
+        },
+      },
+    },
+    {
+      id: 'code_cNTn9',
+      type: 'code',
+      meta: {
+        position: {
+          x: 2027.9717228271456,
+          y: 83.96858252201957,
+        },
+      },
+      data: {
+        title: 'Code_5',
+        description: '代码组件',
+        inputsValues: {},
+        config: {
+          language: 'aviator',
+          code: 'return a1||a2||a3;',
+        },
+        inputs: {
+          type: 'object',
+          required: [],
+          properties: {
+            a1: {
+              type: 'string',
+              default: 'code_2SXWb.outputs.result',
+            },
+            a2: {
+              type: 'string',
+              default: 'code_zz31I.outputs.result',
+            },
+            a3: {
+              type: 'string',
+              default: 'code_47q41.outputs.result',
+            },
+          },
+        },
+        outputs: {
+          type: 'object',
+          properties: {
+            result: {
+              type: 'string',
+              default: 'a',
+            },
+          },
+        },
       },
     },
   ],
   edges: [
     {
       sourceNodeID: 'start_0',
-      targetNodeID: 'condition_0',
+      targetNodeID: 'code_T5DNl',
     },
     {
-      sourceNodeID: 'condition_0',
-      targetNodeID: 'llm_0',
-      sourcePortID: 'if_0',
-    },
-    {
-      sourceNodeID: 'condition_0',
-      targetNodeID: 'loop_H8M3U',
-      sourcePortID: 'if_f0rOAt',
-    },
-    {
-      sourceNodeID: 'llm_0',
+      sourceNodeID: 'code_cNTn9',
       targetNodeID: 'end_0',
     },
     {
-      sourceNodeID: 'code_RLqu_',
-      targetNodeID: 'end_0',
+      sourceNodeID: 'code_T5DNl',
+      targetNodeID: 'condition_U6nw1',
     },
     {
-      sourceNodeID: 'loop_H8M3U',
-      targetNodeID: 'code_RLqu_',
+      sourceNodeID: 'condition_U6nw1',
+      targetNodeID: 'code_2SXWb',
+      sourcePortID: 'if_fcWqTi',
+    },
+    {
+      sourceNodeID: 'condition_U6nw1',
+      targetNodeID: 'code_zz31I',
+      sourcePortID: 'if_11gKZL',
+    },
+    {
+      sourceNodeID: 'condition_U6nw1',
+      targetNodeID: 'code_47q41',
+      sourcePortID: 'if_z-1XKS',
+    },
+    {
+      sourceNodeID: 'code_2SXWb',
+      targetNodeID: 'code_cNTn9',
+    },
+    {
+      sourceNodeID: 'code_zz31I',
+      targetNodeID: 'code_cNTn9',
+    },
+    {
+      sourceNodeID: 'code_47q41',
+      targetNodeID: 'code_cNTn9',
     },
   ],
 };
