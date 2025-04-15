@@ -1,4 +1,4 @@
-import { useCallback, useState, useRef, type MouseEvent } from 'react';
+import { type MouseEvent, useCallback, useRef, useState } from 'react';
 
 import {
   Field,
@@ -7,15 +7,20 @@ import {
   useService,
 } from '@flowgram.ai/free-layout-editor';
 import { NodeIntoContainerService } from '@flowgram.ai/free-container-plugin';
-import { IconButton, Dropdown, Typography, Button, Input, TextArea } from '@douyinfe/semi-ui';
-import { IconMore, IconSmallTriangleDown, IconSmallTriangleLeft } from '@douyinfe/semi-icons';
+import { Button, Dropdown, IconButton, Input, Typography } from '@douyinfe/semi-ui';
+import {
+  IconMore,
+  IconPlay,
+  IconSmallTriangleDown,
+  IconSmallTriangleLeft,
+} from '@douyinfe/semi-icons';
 
 import { Feedback } from '../feedback';
 import { FlowNodeRegistry } from '../../typings';
 import { FlowCommandId } from '../../shortcuts';
 import { useIsSidebar, useNodeRenderContext } from '../../hooks';
 import { getIcon } from './utils';
-import { Header, Operators, Title, FormTitleDescription } from './styles';
+import { Header, Operators, Title } from './styles';
 
 const { Text } = Typography;
 
@@ -90,6 +95,7 @@ function DropdownContent() {
 
 export function FormHeader() {
   const { node, expanded, toggleExpand, readonly } = useNodeRenderContext();
+  const registry = node.getNodeRegistry<FlowNodeRegistry>();
   const isSidebar = useIsSidebar();
   const [isEditing, setIsEditing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -108,6 +114,10 @@ export function FormHeader() {
 
   const handleExpand = (e: React.MouseEvent) => {
     toggleExpand();
+    e.stopPropagation(); // Disable clicking prevents the sidebar from opening
+  };
+
+  const handleRun = (e: React.MouseEvent) => {
     e.stopPropagation(); // Disable clicking prevents the sidebar from opening
   };
 
@@ -135,16 +145,16 @@ export function FormHeader() {
           </Field>
         </Title>
         <span>{node.id}</span>
-        {node.renderData.expandable && !isSidebar && (
+        {!isSidebar && !registry.meta!.runDisable && (
           <Button
-            type="primary"
-            icon={expanded ? <IconSmallTriangleDown /> : <IconSmallTriangleLeft />}
+            type="tertiary"
+            icon={<IconPlay />}
             size="small"
             theme="borderless"
-            onClick={handleExpand}
+            onClick={handleRun}
           />
         )}
-        {readonly ? undefined : (
+        {readonly || registry.meta!.hiddenOperators ? undefined : (
           <Operators>
             <DropdownContent />
           </Operators>

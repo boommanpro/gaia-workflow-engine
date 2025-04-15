@@ -8,6 +8,8 @@ export const StartNodeRegistry: FlowNodeRegistry = {
     isStart: true,
     deleteDisable: true,
     copyDisable: true,
+    runDisable: true,
+    hiddenOperators: true,
     defaultPorts: [{ type: 'output' }],
     size: {
       width: 360,
