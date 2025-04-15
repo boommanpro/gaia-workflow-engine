@@ -2,12 +2,12 @@ import { useCallback, useContext, useEffect } from 'react';
 
 import {
   PlaygroundEntityContext,
-  useRefresh,
   useClientContext,
+  useRefresh,
 } from '@flowgram.ai/free-layout-editor';
 import { SideSheet } from '@douyinfe/semi-ui';
 
-import { SidebarContext, IsSidebarContext, NodeRenderContext } from '../../context';
+import { IsSidebarContext, NodeRenderContext, SidebarContext } from '../../context';
 
 export const SidebarRenderer = () => {
   const { nodeRender, setNodeRender } = useContext(SidebarContext);
@@ -54,6 +54,10 @@ export const SidebarRenderer = () => {
   }, [nodeRender]);
 
   if (playground.config.readonly) {
+    return null;
+  }
+
+  if (selection.selection.length == 1 && selection.selection[0]._metaCache?.hiddenSidebar) {
     return null;
   }
   /**
