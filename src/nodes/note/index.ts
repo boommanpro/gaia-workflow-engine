@@ -8,6 +8,7 @@ export const NoteNodeRegistry: FlowNodeRegistry = {
     deleteDisable: false,
     useDynamicPort: true,
     copyDisable: false,
+    hiddenSidebar: true,
     size: {
       width: 360,
       height: 211,

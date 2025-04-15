@@ -10,6 +10,7 @@ import {
 import { TextArea } from '@douyinfe/semi-ui';
 
 import { FlowNodeJSON } from '../../typings';
+import { NoteWrapper } from './styles.tsx';
 
 export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => {
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
@@ -25,24 +26,26 @@ export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => {
 
   return (
     <>
-      <Field
-        name="description"
-        render={({ field: { value, onChange }, fieldState }: FieldRenderProps<string>) => (
-          <TextArea
-            ref={textAreaRef}
-            placeholder="输入要添加的注释..."
-            value={value || ''}
-            autosize={{ minRows: 1, maxRows: 10 }}
-            showClear
-            onChange={(value, e) => {
-              onChange(value);
-            }}
-            onClick={handleSelect}
-            onBlur={handleBlur}
-            style={{ width: '100%', height: '300px', background: backgroundColor }}
-          />
-        )}
-      />
+      <NoteWrapper>
+        <Field
+          name="description"
+          render={({ field: { value, onChange }, fieldState }: FieldRenderProps<string>) => (
+            <TextArea
+              ref={textAreaRef}
+              placeholder="输入要添加的注释..."
+              value={value || ''}
+              autosize={{ minRows: 1, maxRows: 10 }}
+              showClear
+              onChange={(value, e) => {
+                onChange(value);
+              }}
+              onClick={handleSelect}
+              onBlur={handleBlur}
+              style={{ width: '100%', height: '300px', background: backgroundColor }}
+            />
+          )}
+        />
+      </NoteWrapper>
     </>
   );
 };
