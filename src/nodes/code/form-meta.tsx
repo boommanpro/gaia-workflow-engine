@@ -23,6 +23,7 @@ export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => {
       <FormContent>
         {isSidebar && (
           <>
+            <Divider margin="12px" />
             <span>输入配置</span>
             <Field
               name="inputs.properties"
