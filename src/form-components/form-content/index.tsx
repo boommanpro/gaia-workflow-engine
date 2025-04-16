@@ -23,7 +23,7 @@ export function FormContent(props: { children?: React.ReactNode }) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleDoubleClick = () => {
-    if (!readonly) {
+    if (!readonly && isSidebar) {
       setIsEditing(true);
       setTimeout(() => inputRef.current?.focus(), 0);
     }
@@ -36,34 +36,30 @@ export function FormContent(props: { children?: React.ReactNode }) {
 
   return (
     <FormWrapper>
-      {expanded ? (
-        <>
-          {isSidebar && (
-            <FormTitleDescription onDoubleClick={handleDoubleClick}>
-              <Field name="description">
-                {({ field: { value, onChange }, fieldState }: FieldRenderProps<string>) => (
-                  <div>
-                    {isEditing ? (
-                      <TextArea
-                        ref={inputRef}
-                        defaultValue={value}
-                        onBlur={() => handleBlur(onChange, inputRef.current?.value || '')}
-                        onEnterPress={() => handleBlur(onChange, inputRef.current?.value || '')}
-                      />
-                    ) : (
-                      <Text ellipsis showTooltip={true}>
-                        {value}
-                      </Text>
-                    )}
-                    <Feedback errors={fieldState?.errors} />
-                  </div>
+      <>
+        <FormTitleDescription onDoubleClick={handleDoubleClick}>
+          <Field name="description">
+            {({ field: { value, onChange }, fieldState }: FieldRenderProps<string>) => (
+              <div>
+                {isEditing ? (
+                  <TextArea
+                    ref={inputRef}
+                    defaultValue={value}
+                    onBlur={() => handleBlur(onChange, inputRef.current?.value || '')}
+                    onEnterPress={() => handleBlur(onChange, inputRef.current?.value || '')}
+                  />
+                ) : (
+                  <Text ellipsis showTooltip={true}>
+                    {value}
+                  </Text>
                 )}
-              </Field>
-            </FormTitleDescription>
-          )}
-          {props.children}
-        </>
-      ) : undefined}
+                <Feedback errors={fieldState?.errors} />
+              </div>
+            )}
+          </Field>
+        </FormTitleDescription>
+        {props.children}
+      </>
     </FormWrapper>
   );
 }

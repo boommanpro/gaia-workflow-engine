@@ -11,90 +11,98 @@ import Label from '@douyinfe/semi-ui/lib/es/form/label';
 import { Divider, Select } from '@douyinfe/semi-ui';
 
 import { FlowNodeJSON, JsonSchema } from '../../typings';
+import { useIsSidebar } from '../../hooks';
 import { FormContent, FormHeader, FormOutputs, PropertiesEdit } from '../../form-components';
 import { CodeEditorField } from '../../components/code-editor-field';
 
-export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => (
-  <>
-    <FormHeader />
-    <FormContent>
-      <span>输入配置</span>
-      <Field
-        name="inputs.properties"
-        render={({
-          field: { value, onChange },
-          fieldState,
-        }: FieldRenderProps<Record<string, JsonSchema>>) => (
+export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => {
+  const isSidebar = useIsSidebar();
+  return (
+    <>
+      <FormHeader />
+      <FormContent>
+        {isSidebar && (
           <>
-            <PropertiesEdit value={value} onChange={onChange} useFx={true} />
+            <span>输入配置</span>
+            <Field
+              name="inputs.properties"
+              render={({
+                field: { value, onChange },
+                fieldState,
+              }: FieldRenderProps<Record<string, JsonSchema>>) => (
+                <>
+                  <PropertiesEdit value={value} onChange={onChange} useFx={true} />
+                </>
+              )}
+            />
+            <Divider margin="12px" />
+            <span>代码配置</span>
+            <Field
+              name="config"
+              render={({
+                field: { value, onChange },
+                fieldState,
+              }: FieldRenderProps<Record<string, JsonSchema>>) => {
+                const handleLanguageChange = useCallback(
+                  (selectedValue: string) => {
+                    // @ts-ignore
+                    onChange({ ...value, language: selectedValue });
+                  },
+                  [value, onChange]
+                );
+
+                const handleCodeChange = useCallback(
+                  (newCode: string) => {
+                    onChange({ ...value, code: newCode });
+                  },
+                  [value, onChange]
+                );
+
+                return (
+                  <>
+                    <Label>
+                      language:
+                      <Select
+                        defaultValue={value.language}
+                        style={{ width: 200, marginLeft: '8px' }}
+                        onChange={handleLanguageChange}
+                      >
+                        <Select.Option value="python">python</Select.Option>
+                        <Select.Option value="javascript">javascript</Select.Option>
+                        <Select.Option value="typescript">typescript</Select.Option>
+                        <Select.Option value="java">java</Select.Option>
+                        <Select.Option value="aviator">aviator</Select.Option>
+                      </Select>
+                    </Label>
+                    <CodeEditorField
+                      value={value.code}
+                      onChange={handleCodeChange}
+                      language={value.language}
+                    />
+                  </>
+                );
+              }}
+            />
+            <Divider margin="12px" />
+            <span>输出配置</span>
+            <Field
+              name="outputs.properties"
+              render={({
+                field: { value, onChange },
+                fieldState,
+              }: FieldRenderProps<Record<string, JsonSchema>>) => (
+                <>
+                  <PropertiesEdit value={value} onChange={onChange} />
+                </>
+              )}
+            />
           </>
         )}
-      />
-      <Divider margin="12px" />
-      <span>代码配置</span>
-      <Field
-        name="config"
-        render={({
-          field: { value, onChange },
-          fieldState,
-        }: FieldRenderProps<Record<string, JsonSchema>>) => {
-          const handleLanguageChange = useCallback(
-            (selectedValue: string) => {
-              // @ts-ignore
-              onChange({ ...value, language: selectedValue });
-            },
-            [value, onChange]
-          );
-
-          const handleCodeChange = useCallback(
-            (newCode: string) => {
-              onChange({ ...value, code: newCode });
-            },
-            [value, onChange]
-          );
-
-          return (
-            <>
-              <Label>
-                language:
-                <Select
-                  defaultValue={value.language}
-                  style={{ width: 200, marginLeft: '8px' }}
-                  onChange={handleLanguageChange}
-                >
-                  <Select.Option value="python">python</Select.Option>
-                  <Select.Option value="javascript">javascript</Select.Option>
-                  <Select.Option value="typescript">typescript</Select.Option>
-                  <Select.Option value="java">java</Select.Option>
-                  <Select.Option value="aviator">aviator</Select.Option>
-                </Select>
-              </Label>
-              <CodeEditorField
-                value={value.code}
-                onChange={handleCodeChange}
-                language={value.language}
-              />
-            </>
-          );
-        }}
-      />
-      <Divider margin="12px" />
-      <span>输出配置</span>
-      <Field
-        name="outputs.properties"
-        render={({
-          field: { value, onChange },
-          fieldState,
-        }: FieldRenderProps<Record<string, JsonSchema>>) => (
-          <>
-            <PropertiesEdit value={value} onChange={onChange} />
-          </>
-        )}
-      />
-    </FormContent>
-    <FormOutputs />
-  </>
-);
+        <FormOutputs />
+      </FormContent>
+    </>
+  );
+};
 
 export const formMeta: FormMeta<FlowNodeJSON> = {
   render: renderForm,
