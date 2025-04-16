@@ -8,12 +8,7 @@ import {
 } from '@flowgram.ai/free-layout-editor';
 import { NodeIntoContainerService } from '@flowgram.ai/free-container-plugin';
 import { Button, Dropdown, IconButton, Input, Typography } from '@douyinfe/semi-ui';
-import {
-  IconMore,
-  IconPlay,
-  IconSmallTriangleDown,
-  IconSmallTriangleLeft,
-} from '@douyinfe/semi-icons';
+import { IconMore, IconPlay } from '@douyinfe/semi-icons';
 
 import { Feedback } from '../feedback';
 import { FlowNodeRegistry } from '../../typings';
@@ -154,7 +149,7 @@ export function FormHeader() {
             onClick={handleRun}
           />
         )}
-        {readonly || registry.meta!.hiddenOperators ? undefined : (
+        {isSidebar || readonly || registry.meta!.hiddenOperators ? undefined : (
           <Operators>
             <DropdownContent />
           </Operators>
