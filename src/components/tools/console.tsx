@@ -1,21 +1,20 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback } from 'react';
 
 import { useClientContext, usePlayground } from '@flowgram.ai/free-layout-editor';
 import { Button, Tooltip } from '@douyinfe/semi-ui';
 import { IconTerminal } from '@douyinfe/semi-icons';
 
-import { CodeEditorModal } from '../code-editor-modal';
+import { useModal } from '../../hooks/use-code-editor-modal';
 
 export const Console = () => {
   const ctx = useClientContext();
-  const [showData, setShowData] = useState('');
   const playground = usePlayground();
-  const [showModal, setShowModal] = useState(false);
+  const { openModal, modal } = useModal('', 'json');
+
   const consoleJSON = useCallback(async () => {
     const jsonData = JSON.stringify(ctx.document.toJSON(), null, 2);
-    setShowData(jsonData); // 先更新 showData
-    setShowModal(true); // 然后再显示 Modal
-  }, [ctx]);
+    openModal(jsonData);
+  }, [ctx, openModal]);
 
   return (
     <>
@@ -28,13 +27,7 @@ export const Console = () => {
           onClick={consoleJSON}
         />
       </Tooltip>
-      <CodeEditorModal
-        value={showData}
-        language={'json'}
-        visible={showModal}
-        onVisibleChange={setShowModal}
-        options={{ readOnly: true }}
-      />
+      {modal}
     </>
   );
 };
