@@ -8,11 +8,12 @@ import {
 } from '@flowgram.ai/free-layout-editor';
 import { NodeIntoContainerService } from '@flowgram.ai/free-container-plugin';
 import { Button, Dropdown, IconButton, Input, Typography } from '@douyinfe/semi-ui';
-import { IconMore, IconPlay } from '@douyinfe/semi-icons';
+import { IconExport, IconMore, IconPlay } from '@douyinfe/semi-icons';
 
 import { Feedback } from '../feedback';
 import { FlowNodeRegistry } from '../../typings';
 import { FlowCommandId } from '../../shortcuts';
+import { useModal } from '../../hooks/use-code-editor-modal.tsx';
 import { useIsSidebar, useNodeRenderContext } from '../../hooks';
 import { getIcon } from './utils';
 import { Header, Operators, Title } from './styles';
@@ -89,6 +90,7 @@ function DropdownContent() {
 }
 
 export function FormHeader() {
+  const { openModal, modal } = useModal('', 'json');
   const { node, expanded, toggleExpand, readonly } = useNodeRenderContext();
   const registry = node.getNodeRegistry<FlowNodeRegistry>();
   const isSidebar = useIsSidebar();
@@ -116,6 +118,10 @@ export function FormHeader() {
     e.stopPropagation(); // Disable clicking prevents the sidebar from opening
   };
 
+  const handleConsole = (e: React.MouseEvent) => {
+    const jsonData = JSON.stringify(node.toJSON(), null, 2);
+    openModal(jsonData);
+  };
   return (
     <>
       <Header>
@@ -140,6 +146,15 @@ export function FormHeader() {
           </Field>
         </Title>
         <span>{node.id}</span>
+        {isSidebar && !registry.meta!.runDisable && (
+          <Button
+            type="tertiary"
+            icon={<IconExport />}
+            size="small"
+            theme="borderless"
+            onClick={handleConsole}
+          />
+        )}
         {!isSidebar && !registry.meta!.runDisable && (
           <Button
             type="tertiary"
@@ -155,6 +170,7 @@ export function FormHeader() {
           </Operators>
         )}
       </Header>
+      {modal}
     </>
   );
 }
