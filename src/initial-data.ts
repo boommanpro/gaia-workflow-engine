@@ -78,11 +78,7 @@ export const initialData: FlowDocumentJSON = {
           language: 'aviator',
           code: 'return {\n    "a":"a",\n    "b":"b"\n}',
         },
-        inputs: {
-          type: 'object',
-          required: [],
-          properties: {},
-        },
+        inputs: [],
         outputs: {
           type: 'object',
           properties: {
@@ -172,11 +168,7 @@ export const initialData: FlowDocumentJSON = {
           language: 'aviator',
           code: 'return {\n    "a":"1"\n}',
         },
-        inputs: {
-          type: 'object',
-          required: [],
-          properties: {},
-        },
+        inputs: [],
         outputs: {
           type: 'object',
           properties: {
@@ -205,11 +197,7 @@ export const initialData: FlowDocumentJSON = {
           language: 'aviator',
           code: 'return {\n    "a":"b"\n}',
         },
-        inputs: {
-          type: 'object',
-          required: [],
-          properties: {},
-        },
+        inputs: [],
         outputs: {
           type: 'object',
           properties: {
@@ -238,11 +226,7 @@ export const initialData: FlowDocumentJSON = {
           language: 'aviator',
           code: 'return {\n    "a":"c"\n}',
         },
-        inputs: {
-          type: 'object',
-          required: [],
-          properties: {},
-        },
+        inputs: [],
         outputs: {
           type: 'object',
           properties: {
@@ -271,24 +255,7 @@ export const initialData: FlowDocumentJSON = {
           language: 'aviator',
           code: 'return a1||a2||a3;',
         },
-        inputs: {
-          type: 'object',
-          required: [],
-          properties: {
-            a1: {
-              type: 'string',
-              default: 'code_2SXWb.outputs.result',
-            },
-            a2: {
-              type: 'string',
-              default: 'code_zz31I.outputs.result',
-            },
-            a3: {
-              type: 'string',
-              default: 'code_47q41.outputs.result',
-            },
-          },
-        },
+        inputs: [],
         outputs: {
           type: 'object',
           properties: {

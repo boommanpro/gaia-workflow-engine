@@ -12,6 +12,7 @@ import { Divider, Select } from '@douyinfe/semi-ui';
 
 import { FlowNodeJSON, JsonSchema } from '../../typings';
 import { useIsSidebar } from '../../hooks';
+import { MixPropertiesEdit } from '../../form-components/mix-properties-edit';
 import { FormContent, FormHeader, FormOutputs, PropertiesEdit } from '../../form-components';
 import { CodeEditorField } from '../../components/code-editor-field';
 
@@ -26,13 +27,13 @@ export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => {
             <Divider margin="12px" />
             <span>输入配置</span>
             <Field
-              name="inputs.properties"
+              name="inputs"
               render={({
                 field: { value, onChange },
                 fieldState,
               }: FieldRenderProps<Record<string, JsonSchema>>) => (
                 <>
-                  <PropertiesEdit value={value} onChange={onChange} useFx={true} />
+                  <MixPropertiesEdit value={value} onChange={onChange} useFx={true} />
                 </>
               )}
             />
