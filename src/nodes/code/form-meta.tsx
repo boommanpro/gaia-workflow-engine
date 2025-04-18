@@ -12,9 +12,14 @@ import { Divider, Select } from '@douyinfe/semi-ui';
 
 import { FlowNodeJSON, JsonSchema } from '../../typings';
 import { useIsSidebar } from '../../hooks';
-import { MixPropertiesEdit } from '../../form-components/mix-properties-edit';
+import { MixPropertiesEdit, PropertyItem } from '../../form-components/mix-properties-edit';
 import { FormContent, FormHeader, FormOutputs, PropertiesEdit } from '../../form-components';
 import { CodeEditorField } from '../../components/code-editor-field';
+
+export interface CodeConfig {
+  language: string;
+  code: string;
+}
 
 export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => {
   const isSidebar = useIsSidebar();
@@ -31,7 +36,7 @@ export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => {
               render={({
                 field: { value, onChange },
                 fieldState,
-              }: FieldRenderProps<Record<string, JsonSchema>>) => (
+              }: FieldRenderProps<PropertyItem[]>) => (
                 <>
                   <MixPropertiesEdit value={value} onChange={onChange} useFx={true} />
                 </>
@@ -44,11 +49,12 @@ export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => {
               render={({
                 field: { value, onChange },
                 fieldState,
-              }: FieldRenderProps<Record<string, JsonSchema>>) => {
+              }: FieldRenderProps<CodeConfig>) => {
                 const handleLanguageChange = useCallback(
-                  (selectedValue: string) => {
-                    // @ts-ignore
-                    onChange({ ...value, language: selectedValue });
+                  (selectedValue: string | number | any[] | Record<string, any> | undefined) => {
+                    if (typeof selectedValue === 'string') {
+                      onChange({ ...value, language: selectedValue });
+                    }
                   },
                   [value, onChange]
                 );

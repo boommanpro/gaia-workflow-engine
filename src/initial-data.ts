@@ -73,7 +73,6 @@ export const initialData: FlowDocumentJSON = {
       data: {
         title: 'Code_1',
         description: '数据过滤',
-        inputsValues: {},
         config: {
           language: 'aviator',
           code: 'return {\n    "a":"a",\n    "b":"b"\n}',
@@ -163,7 +162,6 @@ export const initialData: FlowDocumentJSON = {
       data: {
         title: 'Code_2',
         description: '代码逻辑1',
-        inputsValues: {},
         config: {
           language: 'aviator',
           code: 'return {\n    "a":"1"\n}',
@@ -192,7 +190,6 @@ export const initialData: FlowDocumentJSON = {
       data: {
         title: 'Code_3',
         description: '代码逻辑2',
-        inputsValues: {},
         config: {
           language: 'aviator',
           code: 'return {\n    "a":"b"\n}',
@@ -221,7 +218,6 @@ export const initialData: FlowDocumentJSON = {
       data: {
         title: 'Code_4',
         description: '代码逻辑3',
-        inputsValues: {},
         config: {
           language: 'aviator',
           code: 'return {\n    "a":"c"\n}',
@@ -250,7 +246,6 @@ export const initialData: FlowDocumentJSON = {
       data: {
         title: 'Code_5',
         description: '字段汇总',
-        inputsValues: {},
         config: {
           language: 'aviator',
           code: 'return a1||a2||a3;',
