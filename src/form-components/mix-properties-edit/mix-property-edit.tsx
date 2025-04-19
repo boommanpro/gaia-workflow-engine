@@ -15,7 +15,7 @@ interface PropertyItem {
 export interface PropertyEditProps {
   propertyKey: string;
   value: PropertyItem;
-  useFx?: boolean;
+  onlyFieldName?: boolean;
   disabled?: boolean;
   onChange: (value: PropertyItem, propertyKey: string, newPropertyKey?: string) => void;
   onDelete?: () => void;
@@ -55,10 +55,13 @@ export const MixPropertyEdit: React.FC<PropertyEditProps> = (props) => {
           style={{ paddingLeft: 26 }}
         />
       </LeftColumn>
-      {/*{JSON.stringify(value)}*/}
-      <FxNewExpression value={value.value} onChange={(val) => updateProperty('value', val)} />
-      {props.onDelete && !disabled && (
-        <Button theme="borderless" icon={<IconCrossCircleStroked />} onClick={props.onDelete} />
+      {!props.onlyFieldName && (
+        <>
+          <FxNewExpression value={value.value} onChange={(val) => updateProperty('value', val)} />
+          {props.onDelete && !disabled && (
+            <Button theme="borderless" icon={<IconCrossCircleStroked />} onClick={props.onDelete} />
+          )}
+        </>
       )}
     </Row>
   );

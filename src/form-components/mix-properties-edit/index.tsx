@@ -15,7 +15,7 @@ export interface PropertyItem {
 export interface PropertiesEditProps {
   value?: PropertyItem[];
   onChange: (value: PropertyItem[]) => void;
-  useFx?: boolean;
+  onlyFieldName?: boolean;
 }
 
 export const MixPropertiesEdit: React.FC<PropertiesEditProps> = (props) => {
@@ -85,7 +85,7 @@ export const MixPropertiesEdit: React.FC<PropertiesEditProps> = (props) => {
         <MixPropertyEdit
           key={item.name}
           propertyKey={item.name}
-          useFx={props.useFx}
+          onlyFieldName={props.onlyFieldName}
           value={item.input}
           disabled={readonly}
           onChange={updateProperty}
@@ -97,7 +97,7 @@ export const MixPropertiesEdit: React.FC<PropertiesEditProps> = (props) => {
         <MixPropertyEdit
           propertyKey={newProperty.name}
           value={newProperty.input}
-          useFx={props.useFx}
+          onlyFieldName={props.onlyFieldName}
           onChange={updateNewProperty}
           onDelete={() => setNewPropertyVisible(false)}
         />

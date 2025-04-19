@@ -38,7 +38,7 @@ export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => {
                 fieldState,
               }: FieldRenderProps<PropertyItem[]>) => (
                 <>
-                  <MixPropertiesEdit value={value} onChange={onChange} useFx={true} />
+                  <MixPropertiesEdit value={value} onChange={onChange} onlyFieldName={false} />
                 </>
               )}
             />
@@ -94,13 +94,13 @@ export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => {
             <Divider margin="12px" />
             <span>输出配置</span>
             <Field
-              name="outputs.properties"
+              name="outputs"
               render={({
                 field: { value, onChange },
                 fieldState,
-              }: FieldRenderProps<Record<string, JsonSchema>>) => (
+              }: FieldRenderProps<PropertyItem[]>) => (
                 <>
-                  <PropertiesEdit value={value} onChange={onChange} />
+                  <MixPropertiesEdit value={value} onChange={onChange} onlyFieldName={true} />
                 </>
               )}
             />
