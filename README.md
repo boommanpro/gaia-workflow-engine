@@ -11,6 +11,8 @@ link: https://boommanpro.github.io/flowgram-ai-rule-engine/
 5. 增加单个节点的运行和导出节点内容功能
 6. 优化组件变量能力
 
+感兴趣的同学可以一起二次开发，服务端（Java版本）后续会开放出来，敬请期待
+
 截图如下:
 
 ![img.png](images/img.png)
