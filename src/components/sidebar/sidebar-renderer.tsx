@@ -1,4 +1,6 @@
-import { useCallback, useContext, useEffect } from 'react';
+// sidebar-renderer.tsx
+import Draggable from 'react-draggable';
+import React, { useCallback, useContext, useEffect } from 'react';
 
 import {
   PlaygroundEntityContext,
@@ -7,7 +9,14 @@ import {
 } from '@flowgram.ai/free-layout-editor';
 import { SideSheet } from '@douyinfe/semi-ui';
 
+import RunNodeSidebar from '../run-node-sidebar';
 import { IsSidebarContext, NodeRenderContext, SidebarContext } from '../../context';
+import {
+  draggableContainerStyle,
+  draggableHandleInnerStyle,
+  draggableHandleStyle,
+  NodeContent,
+} from './styles.tsx';
 
 export const SidebarRenderer = () => {
   const { nodeRender, setNodeRender } = useContext(SidebarContext);
@@ -16,22 +25,14 @@ export const SidebarRenderer = () => {
   const handleClose = useCallback(() => {
     setNodeRender(undefined);
   }, []);
-  /**
-   * Listen readonly
-   */
+
   useEffect(() => {
     const disposable = playground.config.onReadonlyOrDisabledChange(() => refresh());
     return () => disposable.dispose();
   }, [playground]);
-  /**
-   * Listen selection
-   */
+
   useEffect(() => {
     const toDispose = selection.onSelectionChanged(() => {
-      /**
-       * 如果没有选中任何节点，则自动关闭侧边栏
-       * If no node is selected, the sidebar is automatically closed
-       */
       if (selection.selection.length === 0) {
         handleClose();
       } else if (selection.selection.length === 1 && selection.selection[0] !== nodeRender?.node) {
@@ -40,9 +41,7 @@ export const SidebarRenderer = () => {
     });
     return () => toDispose.dispose();
   }, [selection, handleClose]);
-  /**
-   * Close when node disposed
-   */
+
   useEffect(() => {
     if (nodeRender) {
       const toDispose = nodeRender.node.onDispose(() => {
@@ -60,9 +59,7 @@ export const SidebarRenderer = () => {
   if (selection.selection.length == 1 && selection.selection[0]._metaCache?.hiddenSidebar) {
     return null;
   }
-  /**
-   * Add key to rerender the sidebar when the node changes
-   */
+
   const content = nodeRender ? (
     <PlaygroundEntityContext.Provider key={nodeRender.node.id} value={nodeRender.node}>
       <NodeRenderContext.Provider value={nodeRender}>
@@ -72,8 +69,25 @@ export const SidebarRenderer = () => {
   ) : null;
 
   return (
-    <SideSheet mask={false} visible={!!nodeRender} onCancel={handleClose}>
-      <IsSidebarContext.Provider value={true}>{content}</IsSidebarContext.Provider>
+    <SideSheet
+      style={{ position: 'relative', height: '100%' }}
+      mask={false}
+      visible={!!nodeRender}
+      onCancel={handleClose}
+    >
+      <NodeContent style={{ position: 'relative', height: `100%` }}>
+        <IsSidebarContext.Provider value={true}>{content}</IsSidebarContext.Provider>
+      </NodeContent>
+
+      <Draggable bounds={{ top: -200, bottom: 200 }} axis="y">
+        <div style={draggableContainerStyle}>
+          <div style={draggableHandleStyle}>
+            <div style={draggableHandleInnerStyle} />
+          </div>
+
+          <RunNodeSidebar />
+        </div>
+      </Draggable>
     </SideSheet>
   );
 };
