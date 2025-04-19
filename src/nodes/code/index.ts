@@ -30,12 +30,7 @@ export const CodeNodeRegistry: FlowNodeRegistry = {
           code: '',
         },
         inputs: [],
-        outputs: {
-          type: 'object',
-          properties: {
-            result: { type: 'string' },
-          },
-        },
+        outputs: [],
       },
     };
   },
