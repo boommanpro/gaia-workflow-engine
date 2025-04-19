@@ -75,6 +75,7 @@ export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => {
                         style={{ width: 200, marginLeft: '8px' }}
                         onChange={handleLanguageChange}
                       >
+                        <Select.Option value="javaScriptFunc">javaScriptFunc</Select.Option>
                         <Select.Option value="python">python</Select.Option>
                         <Select.Option value="javascript">javascript</Select.Option>
                         <Select.Option value="typescript">typescript</Select.Option>

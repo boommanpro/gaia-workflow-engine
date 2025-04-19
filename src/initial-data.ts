@@ -74,10 +74,31 @@ export const initialData: FlowDocumentJSON = {
         title: 'Code_1',
         description: '数据过滤',
         config: {
-          language: 'aviator',
+          language: 'javaScriptFunc',
           code: 'return {\n    "a":"a",\n    "b":"b"\n}',
         },
-        inputs: [],
+        inputs: [
+          {
+            name: 'a',
+            input: {
+              type: 'string',
+              value: {
+                type: 'ref',
+                content: 'start_0.outputs.query',
+              },
+            },
+          },
+          {
+            name: 'b',
+            input: {
+              type: 'string',
+              value: {
+                type: 'ref',
+                content: 'start_0.outputs.query',
+              },
+            },
+          },
+        ],
         outputs: {
           type: 'object',
           properties: {

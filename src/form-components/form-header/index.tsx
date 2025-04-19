@@ -146,6 +146,15 @@ export function FormHeader() {
           </Field>
         </Title>
         <span>{node.id}</span>
+        {!registry.meta!.runDisable && (
+          <Button
+            type="tertiary"
+            icon={<IconPlay />}
+            size="small"
+            theme="borderless"
+            onClick={handleRun}
+          />
+        )}
         {isSidebar && !registry.meta!.runDisable && (
           <Button
             type="tertiary"
@@ -153,15 +162,6 @@ export function FormHeader() {
             size="small"
             theme="borderless"
             onClick={handleConsole}
-          />
-        )}
-        {!isSidebar && !registry.meta!.runDisable && (
-          <Button
-            type="tertiary"
-            icon={<IconPlay />}
-            size="small"
-            theme="borderless"
-            onClick={handleRun}
           />
         )}
         {isSidebar || readonly || registry.meta!.hiddenOperators ? undefined : (
