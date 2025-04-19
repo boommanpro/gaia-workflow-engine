@@ -25,6 +25,7 @@ export const SidebarRenderer = () => {
   const handleClose = useCallback(() => {
     setNodeRender(undefined);
   }, []);
+  const showRun = true;
 
   useEffect(() => {
     const disposable = playground.config.onReadonlyOrDisabledChange(() => refresh());
@@ -78,16 +79,17 @@ export const SidebarRenderer = () => {
       <NodeContent style={{ position: 'relative', height: `100%` }}>
         <IsSidebarContext.Provider value={true}>{content}</IsSidebarContext.Provider>
       </NodeContent>
+      {showRun ? undefined : (
+        <Draggable bounds={{ top: -200, bottom: 200 }} axis="y">
+          <div style={draggableContainerStyle}>
+            <div style={draggableHandleStyle}>
+              <div style={draggableHandleInnerStyle} />
+            </div>
 
-      <Draggable bounds={{ top: -200, bottom: 200 }} axis="y">
-        <div style={draggableContainerStyle}>
-          <div style={draggableHandleStyle}>
-            <div style={draggableHandleInnerStyle} />
+            <RunNodeSidebar />
           </div>
-
-          <RunNodeSidebar />
-        </div>
-      </Draggable>
+        </Draggable>
+      )}
     </SideSheet>
   );
 };
