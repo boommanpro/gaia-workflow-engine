@@ -1,7 +1,7 @@
 ## flowgram-ai-rule-engine
 
 link: https://boommanpro.github.io/flowgram-ai-rule-engine/
-
+协议规则来自coze拆解：https://boommanpro.cn/post/coze-schema
 在官方版本的基础上实现以下功能
 
 1. 新增code节点
