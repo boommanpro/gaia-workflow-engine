@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { Tag, Dropdown } from '@douyinfe/semi-ui';
+import { Dropdown, Tag } from '@douyinfe/semi-ui';
 
 import { VariableTypeIcons } from '../plugins/sync-variable-plugin/icons';
 
@@ -10,16 +10,24 @@ export interface TypeSelectorProps {
   onChange?: (value?: string) => void;
   style?: React.CSSProperties;
 }
+
 const dropdownMenus = ['object', 'boolean', 'array', 'string', 'integer', 'number'];
 
 export const TypeSelector: React.FC<TypeSelectorProps> = (props) => {
   const { value, disabled } = props;
   const icon = VariableTypeIcons[value as any];
+  if (disabled) {
+    return (
+      <Tag color="white" style={props.style}>
+        {icon}
+      </Tag>
+    );
+  }
+
   return (
     <Dropdown
       trigger="hover"
       position="bottomRight"
-      disabled={disabled}
       render={
         <Dropdown.Menu>
           {dropdownMenus.map((key) => (

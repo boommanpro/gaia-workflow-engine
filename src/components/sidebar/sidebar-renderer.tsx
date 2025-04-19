@@ -25,8 +25,7 @@ export const SidebarRenderer = () => {
   const handleClose = useCallback(() => {
     setNodeRender(undefined);
   }, []);
-  const showRun = true;
-
+  const showRun = false;
   useEffect(() => {
     const disposable = playground.config.onReadonlyOrDisabledChange(() => refresh());
     return () => disposable.dispose();

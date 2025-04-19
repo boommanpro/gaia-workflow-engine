@@ -2,76 +2,75 @@
 
 import React, { useState } from 'react';
 
-import { Typography, Input, Select, Card, Button, Collapse } from '@douyinfe/semi-ui';
-import { IconCopy, IconDownload } from '@douyinfe/semi-icons';
+import { isEqual } from 'lodash-es';
+import { useClientContext } from '@flowgram.ai/free-layout-editor';
+import { Button, Typography } from '@douyinfe/semi-ui';
+
+import { useModal } from '../../hooks/use-code-editor-modal.tsx';
+import { RunMixPropertiesEdit } from '../../form-components/run-properties-edit';
+import { PropertyItem } from '../../form-components/mix-properties-edit';
 
 const RunNodeSidebar: React.FC = () => {
-  const [inputValue, setInputValue] = useState<string>('');
-  const [runResult, setRunResult] = useState<string[]>([]);
+  const { selection, playground } = useClientContext();
+  const [inputs, setInputs] = useState<PropertyItem[]>([]);
+  const { openModal, modal } = useModal('', 'json');
 
-  const handleInputChange = (value: string) => {
-    setInputValue(value);
-  };
+  // 确保 Hook 始终被调用
+  const data = React.useMemo(() => {
+    if (!selection || selection.selection.length !== 1) {
+      return null;
+    }
+    const node = selection.selection[0];
+    if (node._metaCache?.hiddenSidebar) {
+      return null;
+    }
+    return node.toJSON();
+  }, [selection]);
+
+  React.useEffect(() => {
+    if (!data || !Array.isArray(data.data.inputs)) {
+      return;
+    }
+    const newInputs = data.data.inputs as PropertyItem[];
+    if (!isEqual(inputs, newInputs)) {
+      setInputs(newInputs);
+    }
+  }, [data, inputs]);
 
   const handleRun = () => {
-    // 模拟运行逻辑
-    setRunResult(['key1 [2]', 'key2 [1]']);
+    console.log('inputs:', inputs);
+    let runData = {
+      params: inputs.reduce((acc, item) => {
+        if (item.name && item.input?.value?.content !== undefined) {
+          acc[item.name] = item.input.value.content;
+        }
+        return acc;
+      }, {} as Record<string, any>),
+      node: data,
+    };
+    console.log('runData:', runData);
+    openModal(JSON.stringify(runData, null, 2));
   };
+
+  // 渲染逻辑
+  if (!data || !Array.isArray(data.data.inputs)) {
+    return null;
+  }
 
   return (
     <div style={{ padding: '20px' }}>
       <Typography.Title heading={5}>试运行</Typography.Title>
-
-      <Typography.Text type="secondary" style={{ marginBottom: '10px' }}>
-        试运行输入
-      </Typography.Text>
-      <Select
-        style={{ width: '100%', marginBottom: '10px' }}
-        defaultValue="JSON模式"
-        options={[
-          { value: 'json', label: 'JSON模式' },
-          { value: 'text', label: '文本模式' },
-        ]}
+      <Typography.Title heading={6}>输入</Typography.Title>
+      <RunMixPropertiesEdit
+        value={inputs}
+        onChange={(value) => {
+          setInputs(value);
+        }}
       />
-      <Input
-        style={{ width: '100%', marginBottom: '20px' }}
-        value={inputValue}
-        onChange={handleInputChange}
-        placeholder="请输入"
-      />
-
-      <Typography.Text type="secondary" style={{ marginBottom: '10px' }}>
-        运行结果
-      </Typography.Text>
-      <Card style={{ marginBottom: '20px' }}>
-        <Typography.Title heading={6}>输入</Typography.Title>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <Typography.Text code>{`a: "${inputValue}"`}</Typography.Text>
-          <Button icon={<IconCopy />} theme="borderless" style={{ marginLeft: '10px' }} />
-          <Button icon={<IconDownload />} theme="borderless" style={{ marginLeft: '10px' }} />
-        </div>
-      </Card>
-      <Card>
-        <Collapse defaultActiveKey={['1']}>
-          <Collapse.Panel key="1" header="输出">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography.Text type="secondary">节点输出</Typography.Text>
-              <Typography.Text type="secondary">代码输出</Typography.Text>
-            </div>
-            <div style={{ marginTop: '10px' }}>
-              {runResult.map((item, index) => (
-                <Typography.Text key={index} style={{ display: 'block', marginTop: '5px' }}>
-                  {item}
-                </Typography.Text>
-              ))}
-            </div>
-          </Collapse.Panel>
-        </Collapse>
-      </Card>
-
       <Button type="primary" block onClick={handleRun} style={{ marginTop: '20px' }}>
         运行
       </Button>
+      {modal}
     </div>
   );
 };
