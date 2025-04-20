@@ -26,7 +26,7 @@ export const FllConditionNodeRegistry: FlowNodeRegistry = {
       data: {
         title: 'Condition',
         inputsValues: {
-          conditions: [],
+          branches: [],
         },
         inputs: {
           type: 'object',

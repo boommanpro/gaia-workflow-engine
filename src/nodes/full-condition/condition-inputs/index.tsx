@@ -102,13 +102,13 @@ export function ConditionInputs() {
   // Append new condition
 
   return (
-    <FieldArray name="inputsValues.conditions">
+    <FieldArray name="inputsValues.branches">
       {({ field }) => {
         console.log(field); // 打印 field 的值
         return (
           <>
             {field.map((group, groupIndex) => (
-              <Field name={groupIndex + ''} key={groupIndex}>
+              <Field name="condition" key={groupIndex}>
                 {({ field: childField, fieldState: childState }) => {
                   console.log(childField);
                   return (
@@ -150,7 +150,7 @@ export function ConditionInputs() {
                               marginBottom: '10px',
                             }}
                           >
-                            {group.value.conditions.length > 1 && (
+                            {group.value.condition.conditions.length > 1 && (
                               <Select
                                 value={group.value.logic}
                                 onChange={(value) =>
@@ -166,7 +166,7 @@ export function ConditionInputs() {
                           </div>
 
                           <div>
-                            {group.value.conditions.map((condition, conditionIndex) => (
+                            {group.value.condition.conditions.map((condition, conditionIndex) => (
                               <div
                                 key={nanoid()}
                                 style={{
@@ -238,7 +238,7 @@ export function ConditionInputs() {
                               theme="borderless"
                               icon={<IconPlus />}
                               onClick={() => {
-                                group.value.conditions.push({
+                                group.value.condition.conditions.push({
                                   operator: 1,
                                   left: { type: 'expression', content: '' },
                                   right: { type: 'expression', content: '' },
@@ -264,14 +264,16 @@ export function ConditionInputs() {
                   icon={<IconPlus />}
                   onClick={() => {
                     field.append({
-                      logic: 1,
-                      conditions: [
-                        {
-                          operator: 1,
-                          left: { type: 'expression', content: '' },
-                          right: { type: 'expression', content: '' },
-                        },
-                      ],
+                      condition: {
+                        logic: 1,
+                        conditions: [
+                          {
+                            operator: 1,
+                            left: { type: 'expression', content: '' },
+                            right: { type: 'expression', content: '' },
+                          },
+                        ],
+                      },
                     });
                   }}
                 >
