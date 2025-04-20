@@ -9,7 +9,7 @@ import { ConditionNodeRegistry } from './condition';
 import { CodeNodeRegistry } from './code';
 
 export const nodeRegistries: FlowNodeRegistry[] = [
-  // ConditionNodeRegistry,
+  ConditionNodeRegistry,
   StartNodeRegistry,
   EndNodeRegistry,
   LLMNodeRegistry,
