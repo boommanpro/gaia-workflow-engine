@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import { nanoid } from 'nanoid';
-import { FieldArray } from '@flowgram.ai/free-layout-editor';
+import { Field, FieldArray } from '@flowgram.ai/free-layout-editor';
 import { Button, Select, Input } from '@douyinfe/semi-ui';
 import { IconPlus, IconCrossCircleStroked } from '@douyinfe/semi-icons';
 
@@ -100,149 +100,188 @@ export function ConditionInputs() {
   };
 
   // Append new condition
-  const appendCondition = (groupIndex: number) => {
-    const newConditions = [...conditions];
-    newConditions[groupIndex].conditions.push({
-      operator: 1,
-      left: { type: 'expression', content: '' },
-      right: { type: 'expression', content: '' },
-    });
-    setConditions(newConditions);
-  };
 
   return (
-    <>
-      {conditions.map((group, groupIndex) => (
-        <div
-          key={nanoid()}
-          style={{
-            border: '1px solid #e0e0e0',
-            borderRadius: '4px',
-            position: 'relative',
-          }}
-        >
-          {!readonly && (
-            <div
-              style={{
-                right: '0px',
-                position: 'absolute',
-              }}
-            >
-              <Button
-                theme="borderless"
-                icon={<IconCrossCircleStroked />}
-                onClick={() => deleteGroup(groupIndex)}
-              />
-            </div>
-          )}
-          <div
-            style={{
-              padding: '10px',
-              marginBottom: '10px',
-              display: 'flex',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: '10px',
-              }}
-            >
-              {group.conditions.length > 1 && (
-                <Select
-                  value={group.logic}
-                  onChange={(value) => updateGroup(groupIndex, { ...group, logic: value })}
-                  disabled={readonly}
-                  style={{ width: '100px' }}
-                >
-                  <Select.Option value={1}>且</Select.Option>
-                  <Select.Option value={2}>或</Select.Option>
-                </Select>
-              )}
-            </div>
+    <FieldArray name="inputsValues.conditions">
+      {({ field }) => {
+        console.log(field); // 打印 field 的值
+        return (
+          <>
+            {field.map((group, groupIndex) => (
+              <Field name={groupIndex + ''} key={groupIndex}>
+                {({ field: childField, fieldState: childState }) => {
+                  console.log(childField);
+                  return (
+                    <>
+                      <div
+                        key={nanoid()}
+                        style={{
+                          border: '1px solid #e0e0e0',
+                          borderRadius: '4px',
+                          position: 'relative',
+                        }}
+                      >
+                        {!readonly && (
+                          <div
+                            style={{
+                              right: '0px',
+                              position: 'absolute',
+                            }}
+                          >
+                            <Button
+                              theme="borderless"
+                              icon={<IconCrossCircleStroked />}
+                              onClick={() => deleteGroup(groupIndex)}
+                            />
+                          </div>
+                        )}
+                        <div
+                          style={{
+                            padding: '10px',
+                            marginBottom: '10px',
+                            display: 'flex',
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              marginBottom: '10px',
+                            }}
+                          >
+                            {group.value.conditions.length > 1 && (
+                              <Select
+                                value={group.value.logic}
+                                onChange={(value) =>
+                                  updateGroup(groupIndex, { ...group, logic: value })
+                                }
+                                disabled={readonly}
+                                style={{ width: '100px' }}
+                              >
+                                <Select.Option value={1}>且</Select.Option>
+                                <Select.Option value={2}>或</Select.Option>
+                              </Select>
+                            )}
+                          </div>
 
-            <div>
-              {group.conditions.map((condition, conditionIndex) => (
-                <div
-                  key={nanoid()}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    marginBottom: '10px',
+                          <div>
+                            {group.value.conditions.map((condition, conditionIndex) => (
+                              <div
+                                key={nanoid()}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  marginBottom: '10px',
+                                }}
+                              >
+                                <Select
+                                  value={condition.operator}
+                                  onChange={(value) =>
+                                    updateCondition(groupIndex, conditionIndex, {
+                                      ...condition,
+                                      operator: value,
+                                    })
+                                  }
+                                  disabled={readonly}
+                                  style={{ width: '100px', marginRight: '10px' }}
+                                >
+                                  {OPERATOR_OPTIONS.map((option) => (
+                                    <Select.Option key={option.value} value={option.value}>
+                                      {option.label}
+                                    </Select.Option>
+                                  ))}
+                                </Select>
+                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                  <FxExpression
+                                    value={condition.left}
+                                    onChange={(v) =>
+                                      updateCondition(groupIndex, conditionIndex, {
+                                        ...condition,
+                                        left: v,
+                                      })
+                                    }
+                                    placeholder="左值"
+                                    disabled={readonly}
+                                    style={{ marginRight: '10px' }}
+                                  />
+
+                                  <FxExpression
+                                    value={condition.right}
+                                    onChange={(v) =>
+                                      updateCondition(groupIndex, conditionIndex, {
+                                        ...condition,
+                                        right: v,
+                                      })
+                                    }
+                                    placeholder="右值"
+                                    disabled={readonly}
+                                    style={{ marginRight: '10px' }}
+                                  />
+                                </div>
+
+                                {!readonly && (
+                                  <Button
+                                    theme="borderless"
+                                    icon={<IconCrossCircleStroked />}
+                                    onClick={() => deleteCondition(groupIndex, conditionIndex)}
+                                    style={{ marginLeft: 'auto' }}
+                                  />
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        {!readonly && (
+                          <div style={{ textAlign: 'right' }}>
+                            <Button
+                              theme="borderless"
+                              icon={<IconPlus />}
+                              onClick={() => {
+                                group.value.conditions.push({
+                                  operator: 1,
+                                  left: { type: 'expression', content: '' },
+                                  right: { type: 'expression', content: '' },
+                                });
+                              }}
+                            >
+                              添加条件
+                            </Button>
+                          </div>
+                        )}
+                        <ConditionPort data-port-id={`true_${nanoid(6)}`} data-port-type="output" />
+                      </div>
+                    </>
+                  );
+                }}
+              </Field>
+            ))}
+            <ConditionPort data-port-id={`false`} data-port-type="output" />
+            {!readonly && (
+              <div style={{ textAlign: 'right' }}>
+                <Button
+                  theme="borderless"
+                  icon={<IconPlus />}
+                  onClick={() => {
+                    field.append({
+                      logic: 1,
+                      conditions: [
+                        {
+                          operator: 1,
+                          left: { type: 'expression', content: '' },
+                          right: { type: 'expression', content: '' },
+                        },
+                      ],
+                    });
                   }}
                 >
-                  <Select
-                    value={condition.operator}
-                    onChange={(value) =>
-                      updateCondition(groupIndex, conditionIndex, { ...condition, operator: value })
-                    }
-                    disabled={readonly}
-                    style={{ width: '100px', marginRight: '10px' }}
-                  >
-                    {OPERATOR_OPTIONS.map((option) => (
-                      <Select.Option key={option.value} value={option.value}>
-                        {option.label}
-                      </Select.Option>
-                    ))}
-                  </Select>
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <FxExpression
-                      value={condition.left}
-                      onChange={(v) =>
-                        updateCondition(groupIndex, conditionIndex, { ...condition, left: v })
-                      }
-                      placeholder="左值"
-                      disabled={readonly}
-                      style={{ marginRight: '10px' }}
-                    />
-
-                    <FxExpression
-                      value={condition.right}
-                      onChange={(v) =>
-                        updateCondition(groupIndex, conditionIndex, { ...condition, right: v })
-                      }
-                      placeholder="右值"
-                      disabled={readonly}
-                      style={{ marginRight: '10px' }}
-                    />
-                  </div>
-
-                  {!readonly && (
-                    <Button
-                      theme="borderless"
-                      icon={<IconCrossCircleStroked />}
-                      onClick={() => deleteCondition(groupIndex, conditionIndex)}
-                      style={{ marginLeft: 'auto' }}
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-          {!readonly && (
-            <div style={{ textAlign: 'right' }}>
-              <Button
-                theme="borderless"
-                icon={<IconPlus />}
-                onClick={() => appendCondition(groupIndex)}
-              >
-                添加条件
-              </Button>
-            </div>
-          )}
-          <ConditionPort data-port-id={`true_${nanoid(6)}`} data-port-type="output" />
-        </div>
-      ))}
-      <ConditionPort data-port-id={`false`} data-port-type="output" />
-      {!readonly && (
-        <div style={{ textAlign: 'right' }}>
-          <Button theme="borderless" icon={<IconPlus />} onClick={appendGroup}>
-            添加逻辑组
-          </Button>
-        </div>
-      )}
-    </>
+                  添加逻辑组
+                </Button>
+              </div>
+            )}
+          </>
+        );
+      }}
+    </FieldArray>
   );
 }
