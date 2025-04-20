@@ -3,16 +3,18 @@ import { StartNodeRegistry } from './start';
 import { NoteNodeRegistry } from './note';
 import { LoopNodeRegistry } from './loop';
 import { LLMNodeRegistry } from './llm';
+import { FllConditionNodeRegistry } from './full-condition';
 import { EndNodeRegistry } from './end';
 import { ConditionNodeRegistry } from './condition';
 import { CodeNodeRegistry } from './code';
 
 export const nodeRegistries: FlowNodeRegistry[] = [
-  ConditionNodeRegistry,
+  // ConditionNodeRegistry,
   StartNodeRegistry,
   EndNodeRegistry,
   LLMNodeRegistry,
   NoteNodeRegistry,
   CodeNodeRegistry,
   LoopNodeRegistry,
+  FllConditionNodeRegistry,
 ];

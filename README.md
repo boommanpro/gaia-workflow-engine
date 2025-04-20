@@ -10,6 +10,10 @@ link: https://boommanpro.github.io/flowgram-ai-rule-engine/
 4. 新增单个节点支持增加注释和注释修改，节点名称修改功能
 5. 增加单个节点的运行和导出节点内容功能
 6. 优化组件变量能力
+7. condition组件优化
+   - 支持false功能
+   - 支持left和right的表达式功能
+   - 支持与和或的功能
 
 感兴趣的同学可以一起二次开发，服务端（Java版本）后续会开放出来，敬请期待
 
