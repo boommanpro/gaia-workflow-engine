@@ -115,6 +115,63 @@ export const initialData: FlowDocumentJSON = {
       },
     },
     {
+      id: 'condition_U6nw1',
+      type: 'condition',
+      meta: {
+        position: {
+          x: 1066.9359215343322,
+          y: 327.4269239259369,
+        },
+      },
+      data: {
+        title: 'Condition',
+        inputsValues: {
+          conditions: [
+            {
+              key: 'if_fcWqTi',
+              value: {
+                type: 'expression',
+                content: 'start_0.outputs.query',
+              },
+            },
+            {
+              key: 'if_11gKZL',
+              value: {
+                type: 'expression',
+                content: 'code_T5DNl.outputs.a',
+              },
+            },
+            {
+              key: 'if_z-1XKS',
+              value: {
+                type: 'expression',
+                content: 'code_T5DNl.outputs.b',
+              },
+            },
+          ],
+        },
+        inputs: {
+          type: 'object',
+          properties: {
+            conditions: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  key: {
+                    type: 'string',
+                  },
+                  value: {
+                    type: 'string',
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    {
       id: 'code_2SXWb',
       type: 'code',
       meta: {
@@ -235,6 +292,25 @@ export const initialData: FlowDocumentJSON = {
     {
       sourceNodeID: 'code_cNTn9',
       targetNodeID: 'end_0',
+    },
+    {
+      sourceNodeID: 'code_T5DNl',
+      targetNodeID: 'condition_U6nw1',
+    },
+    {
+      sourceNodeID: 'condition_U6nw1',
+      targetNodeID: 'code_2SXWb',
+      sourcePortID: 'if_fcWqTi',
+    },
+    {
+      sourceNodeID: 'condition_U6nw1',
+      targetNodeID: 'code_zz31I',
+      sourcePortID: 'if_11gKZL',
+    },
+    {
+      sourceNodeID: 'condition_U6nw1',
+      targetNodeID: 'code_47q41',
+      sourcePortID: 'if_z-1XKS',
     },
     {
       sourceNodeID: 'code_2SXWb',
