@@ -12,7 +12,7 @@ import { createFreeLinesPlugin } from '@flowgram.ai/free-lines-plugin';
 import { FreeLayoutProps } from '@flowgram.ai/free-layout-editor';
 import { createContainerNodePlugin } from '@flowgram.ai/free-container-plugin';
 
-import { FlowNodeRegistry, FlowDocumentJSON } from '../typings';
+import { FlowDocumentJSON, FlowNodeRegistry } from '../typings';
 import { shortcuts } from '../shortcuts';
 import { CustomService } from '../services';
 import { createSyncVariablePlugin } from '../plugins';
