@@ -118,71 +118,109 @@ export function ConditionInputs() {
           style={{
             border: '1px solid #e0e0e0',
             borderRadius: '4px',
-            padding: '10px',
-            marginBottom: '10px',
+            position: 'relative',
           }}
         >
-          <Select
-            value={group.logic}
-            onChange={(value) => updateGroup(groupIndex, { ...group, logic: value })}
-            disabled={readonly}
-            style={{ width: '100px', marginBottom: '10px' }}
-          >
-            <Select.Option value={1}>且</Select.Option>
-            <Select.Option value={2}>或</Select.Option>
-          </Select>
-
-          {group.conditions.map((condition, conditionIndex) => (
+          {!readonly && (
             <div
-              key={nanoid()}
-              style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}
+              style={{
+                right: '0px',
+                position: 'absolute',
+              }}
             >
-              <Select
-                value={condition.operator}
-                onChange={(value) =>
-                  updateCondition(groupIndex, conditionIndex, { ...condition, operator: value })
-                }
-                disabled={readonly}
-                style={{ width: '200px', marginRight: '10px' }}
-              >
-                {OPERATOR_OPTIONS.map((option) => (
-                  <Select.Option key={option.value} value={option.value}>
-                    {option.label}
-                  </Select.Option>
-                ))}
-              </Select>
-
-              <FxExpression
-                value={condition.left}
-                onChange={(v) =>
-                  updateCondition(groupIndex, conditionIndex, { ...condition, left: v })
-                }
-                placeholder="左值"
-                disabled={readonly}
-                style={{ marginRight: '10px' }}
+              <Button
+                theme="borderless"
+                icon={<IconCrossCircleStroked />}
+                onClick={() => deleteGroup(groupIndex)}
               />
-
-              <FxExpression
-                value={condition.right}
-                onChange={(v) =>
-                  updateCondition(groupIndex, conditionIndex, { ...condition, right: v })
-                }
-                placeholder="右值"
-                disabled={readonly}
-                style={{ marginRight: '10px' }}
-              />
-
-              {!readonly && (
-                <Button
-                  theme="borderless"
-                  icon={<IconCrossCircleStroked />}
-                  onClick={() => deleteCondition(groupIndex, conditionIndex)}
-                  style={{ marginLeft: 'auto' }}
-                />
+            </div>
+          )}
+          <div
+            style={{
+              padding: '10px',
+              marginBottom: '10px',
+              display: 'flex',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '10px',
+              }}
+            >
+              {group.conditions.length > 1 && (
+                <Select
+                  value={group.logic}
+                  onChange={(value) => updateGroup(groupIndex, { ...group, logic: value })}
+                  disabled={readonly}
+                  style={{ width: '100px' }}
+                >
+                  <Select.Option value={1}>且</Select.Option>
+                  <Select.Option value={2}>或</Select.Option>
+                </Select>
               )}
             </div>
-          ))}
 
+            <div>
+              {group.conditions.map((condition, conditionIndex) => (
+                <div
+                  key={nanoid()}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    marginBottom: '10px',
+                  }}
+                >
+                  <Select
+                    value={condition.operator}
+                    onChange={(value) =>
+                      updateCondition(groupIndex, conditionIndex, { ...condition, operator: value })
+                    }
+                    disabled={readonly}
+                    style={{ width: '100px', marginRight: '10px' }}
+                  >
+                    {OPERATOR_OPTIONS.map((option) => (
+                      <Select.Option key={option.value} value={option.value}>
+                        {option.label}
+                      </Select.Option>
+                    ))}
+                  </Select>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <FxExpression
+                      value={condition.left}
+                      onChange={(v) =>
+                        updateCondition(groupIndex, conditionIndex, { ...condition, left: v })
+                      }
+                      placeholder="左值"
+                      disabled={readonly}
+                      style={{ marginRight: '10px' }}
+                    />
+
+                    <FxExpression
+                      value={condition.right}
+                      onChange={(v) =>
+                        updateCondition(groupIndex, conditionIndex, { ...condition, right: v })
+                      }
+                      placeholder="右值"
+                      disabled={readonly}
+                      style={{ marginRight: '10px' }}
+                    />
+                  </div>
+
+                  {!readonly && (
+                    <Button
+                      theme="borderless"
+                      icon={<IconCrossCircleStroked />}
+                      onClick={() => deleteCondition(groupIndex, conditionIndex)}
+                      style={{ marginLeft: 'auto' }}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
           {!readonly && (
             <div style={{ textAlign: 'right' }}>
               <Button

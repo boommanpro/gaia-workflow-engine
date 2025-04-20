@@ -70,6 +70,7 @@ export const SidebarRenderer = () => {
 
   return (
     <SideSheet
+      width={'40%'}
       style={{ position: 'relative', height: '100%' }}
       mask={false}
       visible={!!nodeRender}
