@@ -1,5 +1,7 @@
+import { useState } from 'react';
+
 import { nanoid } from 'nanoid';
-import { Field, FieldArray } from '@flowgram.ai/free-layout-editor';
+import { FieldArray } from '@flowgram.ai/free-layout-editor';
 import { Button, Select, Input } from '@douyinfe/semi-ui';
 import { IconPlus, IconCrossCircleStroked } from '@douyinfe/semi-icons';
 
@@ -23,125 +25,159 @@ const OPERATOR_OPTIONS = [
   // Add more operators as needed
 ];
 
+interface Condition {
+  operator: number;
+  left: FlowLiteralValueSchema | FlowRefValueSchema;
+  right: FlowLiteralValueSchema | FlowRefValueSchema;
+}
+
 interface ConditionValue {
   logic: number; // 1 for AND, 2 for OR
-  conditions: Array<{
-    operator: number;
-    left: FlowLiteralValueSchema | FlowRefValueSchema;
-    right: FlowLiteralValueSchema | FlowRefValueSchema;
-  }>;
+  conditions: Condition[];
 }
 
 export function ConditionInputs() {
   const readonly = !useIsSidebar();
+  const [conditions, setConditions] = useState<ConditionValue[]>([
+    {
+      logic: 1,
+      conditions: [
+        {
+          operator: 1,
+          left: { type: 'expression', content: '' },
+          right: { type: 'expression', content: '' },
+        },
+      ],
+    },
+  ]);
+
+  // Update logic group
+  const updateGroup = (groupIndex: number, updatedGroup: ConditionValue) => {
+    const newConditions = [...conditions];
+    newConditions[groupIndex] = updatedGroup;
+    setConditions(newConditions);
+  };
+
+  // Delete logic group
+  const deleteGroup = (groupIndex: number) => {
+    const newConditions = conditions.filter((_, index) => index !== groupIndex);
+    setConditions(newConditions);
+  };
+
+  // Update condition
+  const updateCondition = (
+    groupIndex: number,
+    conditionIndex: number,
+    updatedCondition: Condition
+  ) => {
+    const newConditions = [...conditions];
+    newConditions[groupIndex].conditions[conditionIndex] = updatedCondition;
+    setConditions(newConditions);
+  };
+
+  // Delete condition
+  const deleteCondition = (groupIndex: number, conditionIndex: number) => {
+    const newConditions = [...conditions];
+    newConditions[groupIndex].conditions.splice(conditionIndex, 1);
+    setConditions(newConditions);
+  };
+
+  // Append new logic group
+  const appendGroup = () => {
+    setConditions([
+      ...conditions,
+      {
+        logic: 1,
+        conditions: [
+          {
+            operator: 1,
+            left: { type: 'expression', content: '' },
+            right: { type: 'expression', content: '' },
+          },
+        ],
+      },
+    ]);
+  };
+
+  // Append new condition
+  const appendCondition = (groupIndex: number) => {
+    const newConditions = [...conditions];
+    newConditions[groupIndex].conditions.push({
+      operator: 1,
+      left: { type: 'expression', content: '' },
+      right: { type: 'expression', content: '' },
+    });
+    setConditions(newConditions);
+  };
+
   return (
-    <FieldArray name="inputsValues.conditions">
-      {({ field }) => (
-        <>
-          {field.map((group, groupIndex) => (
+    <>
+      {conditions.map((group, groupIndex) => (
+        <div
+          key={nanoid()}
+          style={{
+            border: '1px solid #e0e0e0',
+            borderRadius: '4px',
+            padding: '10px',
+            marginBottom: '10px',
+          }}
+        >
+          <Select
+            value={group.logic}
+            onChange={(value) => updateGroup(groupIndex, { ...group, logic: value })}
+            disabled={readonly}
+            style={{ width: '100px', marginBottom: '10px' }}
+          >
+            <Select.Option value={1}>且</Select.Option>
+            <Select.Option value={2}>或</Select.Option>
+          </Select>
+
+          {group.conditions.map((condition, conditionIndex) => (
             <div
-              key={group.name}
-              style={{
-                border: '1px solid #e0e0e0',
-                borderRadius: '4px',
-                padding: '10px',
-                marginBottom: '10px',
-              }}
+              key={nanoid()}
+              style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}
             >
               <Select
-                value={group.value.logic}
-                onChange={(value) => field.update(groupIndex, { ...group.value, logic: value })}
+                value={condition.operator}
+                onChange={(value) =>
+                  updateCondition(groupIndex, conditionIndex, { ...condition, operator: value })
+                }
                 disabled={readonly}
-                style={{ width: '100px', marginBottom: '10px' }}
+                style={{ width: '200px', marginRight: '10px' }}
               >
-                <Select.Option value={1}>且</Select.Option>
-                <Select.Option value={2}>或</Select.Option>
+                {OPERATOR_OPTIONS.map((option) => (
+                  <Select.Option key={option.value} value={option.value}>
+                    {option.label}
+                  </Select.Option>
+                ))}
               </Select>
 
-              <FieldArray name={group.name + '.conditions'}>
-                {({ field: conditionField }) => (
-                  <>
-                    {conditionField.map((condition, conditionIndex) => (
-                      <div
-                        key={condition.name}
-                        style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}
-                      >
-                        <Select
-                          value={condition.value.operator}
-                          onChange={(value) =>
-                            conditionField.update(conditionIndex, {
-                              ...condition.value,
-                              operator: value,
-                            })
-                          }
-                          disabled={readonly}
-                          style={{ width: '100px', marginRight: '10px' }}
-                        >
-                          {OPERATOR_OPTIONS.map((option) => (
-                            <Select.Option key={option.value} value={option.value}>
-                              {option.label}
-                            </Select.Option>
-                          ))}
-                        </Select>
+              <FxExpression
+                value={condition.left}
+                onChange={(v) =>
+                  updateCondition(groupIndex, conditionIndex, { ...condition, left: v })
+                }
+                placeholder="左值"
+                disabled={readonly}
+                style={{ marginRight: '10px' }}
+              />
 
-                        <FxExpression
-                          value={condition.value.left}
-                          onChange={(v) =>
-                            conditionField.update(conditionIndex, { ...condition.value, left: v })
-                          }
-                          placeholder="左值"
-                          disabled={readonly}
-                          style={{ marginRight: '10px' }}
-                        />
-
-                        <FxExpression
-                          value={condition.value.right}
-                          onChange={(v) =>
-                            conditionField.update(conditionIndex, { ...condition.value, right: v })
-                          }
-                          placeholder="右值"
-                          disabled={readonly}
-                          style={{ marginRight: '10px' }}
-                        />
-
-                        {!readonly && (
-                          <Button
-                            theme="borderless"
-                            icon={<IconCrossCircleStroked />}
-                            onClick={() => conditionField.delete(conditionIndex)}
-                            style={{ marginLeft: 'auto' }}
-                          />
-                        )}
-                      </div>
-                    ))}
-
-                    {!readonly && (
-                      <div style={{ textAlign: 'right' }}>
-                        <Button
-                          theme="borderless"
-                          icon={<IconPlus />}
-                          onClick={() =>
-                            conditionField.append({
-                              operator: 1,
-                              left: { type: 'expression', content: '' },
-                              right: { type: 'expression', content: '' },
-                            })
-                          }
-                        >
-                          添加条件
-                        </Button>
-                      </div>
-                    )}
-                  </>
-                )}
-              </FieldArray>
+              <FxExpression
+                value={condition.right}
+                onChange={(v) =>
+                  updateCondition(groupIndex, conditionIndex, { ...condition, right: v })
+                }
+                placeholder="右值"
+                disabled={readonly}
+                style={{ marginRight: '10px' }}
+              />
 
               {!readonly && (
                 <Button
                   theme="borderless"
                   icon={<IconCrossCircleStroked />}
-                  onClick={() => field.delete(groupIndex)}
-                  style={{ float: 'right', marginTop: '-25px' }}
+                  onClick={() => deleteCondition(groupIndex, conditionIndex)}
+                  style={{ marginLeft: 'auto' }}
                 />
               )}
             </div>
@@ -152,25 +188,22 @@ export function ConditionInputs() {
               <Button
                 theme="borderless"
                 icon={<IconPlus />}
-                onClick={() =>
-                  field.append({
-                    logic: 1,
-                    conditions: [
-                      {
-                        operator: 1,
-                        left: { type: 'expression', content: '' },
-                        right: { type: 'expression', content: '' },
-                      },
-                    ],
-                  })
-                }
+                onClick={() => appendCondition(groupIndex)}
               >
-                添加逻辑组
+                添加条件
               </Button>
             </div>
           )}
-        </>
+        </div>
+      ))}
+
+      {!readonly && (
+        <div style={{ textAlign: 'right' }}>
+          <Button theme="borderless" icon={<IconPlus />} onClick={appendGroup}>
+            添加逻辑组
+          </Button>
+        </div>
       )}
-    </FieldArray>
+    </>
   );
 }
