@@ -155,7 +155,7 @@ export function FormHeader() {
             onClick={handleRun}
           />
         )}
-        {isSidebar && !registry.meta!.runDisable && (
+        {isSidebar && (
           <Button
             type="tertiary"
             icon={<IconExport />}
