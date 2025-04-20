@@ -26,16 +26,7 @@ export const FllConditionNodeRegistry: FlowNodeRegistry = {
       data: {
         title: 'Condition',
         inputsValues: {
-          conditions: [
-            {
-              key: `if_${nanoid(5)}`,
-              value: '',
-            },
-            {
-              key: `if_${nanoid(5)}`,
-              value: '',
-            },
-          ],
+          conditions: [],
         },
         inputs: {
           type: 'object',

@@ -1,0 +1,128 @@
+[
+  {
+    "condition": {
+      "logic": 2,
+      "conditions": [
+        {
+          "operator": 1,
+          "left": {
+            "input": {
+              "type": "string",
+              "value": {
+                "type": "ref",
+                "content": {
+                  "source": "block-output",
+                  "blockID": "100001",
+                  "name": "input"
+                }
+              }
+            }
+          },
+          "right": {
+            "input": {
+              "type": "string",
+              "value": {
+                "type": "literal",
+                "content": "11",
+                "rawMeta": {
+                  "type": 1
+                }
+              }
+            }
+          }
+        },
+        {
+          "operator": 1,
+          "left": {
+            "input": {
+              "type": "string",
+              "value": {
+                "type": "ref",
+                "content": {
+                  "source": "block-output",
+                  "blockID": "100001",
+                  "name": "input"
+                }
+              }
+            }
+          },
+          "right": {
+            "input": {
+              "type": "string",
+              "value": {
+                "type": "literal",
+                "content": "12",
+                "rawMeta": {
+                  "type": 1
+                }
+              }
+            }
+          }
+        },
+        {
+          "operator": 3,
+          "left": {
+            "input": {
+              "type": "string",
+              "value": {
+                "type": "ref",
+                "content": {
+                  "source": "block-output",
+                  "blockID": "100001",
+                  "name": "input"
+                }
+              }
+            }
+          },
+          "right": {
+            "input": {
+              "type": "integer",
+              "value": {
+                "type": "literal",
+                "content": 1,
+                "rawMeta": {
+                  "type": 2
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "condition": {
+      "logic": 2,
+      "conditions": [
+        {
+          "operator": 2,
+          "left": {
+            "input": {
+              "type": "string",
+              "value": {
+                "type": "ref",
+                "content": {
+                  "source": "block-output",
+                  "blockID": "100001",
+                  "name": "input"
+                }
+              }
+            }
+          },
+          "right": {
+            "input": {
+              "type": "string",
+              "value": {
+                "type": "literal",
+                "content": "123",
+                "rawMeta": {
+                  "type": 1
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+]
