@@ -232,9 +232,10 @@ export function ConditionInputs() {
               </Button>
             </div>
           )}
+          <ConditionPort data-port-id={`true_${nanoid(6)}`} data-port-type="output" />
         </div>
       ))}
-
+      <ConditionPort data-port-id={`false`} data-port-type="output" />
       {!readonly && (
         <div style={{ textAlign: 'right' }}>
           <Button theme="borderless" icon={<IconPlus />} onClick={appendGroup}>
