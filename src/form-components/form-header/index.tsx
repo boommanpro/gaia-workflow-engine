@@ -149,7 +149,7 @@ export function FormHeader() {
           </Field>
         </Title>
         <span>{node.id}</span>
-        {!registry.meta!.runDisable && (
+        {isSidebar && !registry.meta!.runDisable && (
           <Button
             type="tertiary"
             icon={<IconPlay />}
