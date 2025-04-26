@@ -2,18 +2,21 @@ import { useCallback } from 'react';
 
 import { useClientContext, usePlayground } from '@flowgram.ai/free-layout-editor';
 import { Button, Tooltip } from '@douyinfe/semi-ui';
-import { IconPlay, IconTerminal, IconTreeTriangleRight } from '@douyinfe/semi-icons';
+import { IconTreeTriangleRight } from '@douyinfe/semi-icons';
 
 import { useModal } from '../../hooks/use-code-editor-modal';
+import { PanelEnum, useSidebarContext } from '../../context';
 
 export const RunWorkflow = () => {
   const ctx = useClientContext();
   const playground = usePlayground();
   const { openModal, modal } = useModal('', 'json');
+  let { updatePanelValue } = useSidebarContext();
 
   const consoleJSON = useCallback(async () => {
-    const jsonData = JSON.stringify(ctx.document.toJSON(), null, 2);
-    openModal(jsonData);
+    updatePanelValue(PanelEnum.WorkflowRun, {
+      isRunning: true,
+    });
   }, [ctx, openModal]);
 
   return (

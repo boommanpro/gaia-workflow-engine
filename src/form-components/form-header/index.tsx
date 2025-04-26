@@ -1,4 +1,4 @@
-import { type MouseEvent, useCallback, useRef, useState } from 'react';
+import { type MouseEvent, useCallback, useContext, useRef, useState } from 'react';
 
 import {
   Field,
@@ -15,6 +15,7 @@ import { FlowNodeRegistry } from '../../typings';
 import { FlowCommandId } from '../../shortcuts';
 import { useModal } from '../../hooks/use-code-editor-modal.tsx';
 import { useIsSidebar, useNodeRenderContext } from '../../hooks';
+import { PanelEnum, SidebarContext } from '../../context';
 import { getIcon } from './utils';
 import { Header, Operators, Title } from './styles';
 
@@ -96,6 +97,7 @@ export function FormHeader() {
   const isSidebar = useIsSidebar();
   const [isEditing, setIsEditing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const sidebar = useContext(SidebarContext);
 
   const handleDoubleClick = () => {
     if (!readonly) {
@@ -115,6 +117,7 @@ export function FormHeader() {
   };
 
   const handleRun = (e: React.MouseEvent) => {
+    sidebar.updatePanelValue(PanelEnum.NodeRun, { isRunning: true, nodeRender: node });
     e.stopPropagation(); // Disable clicking prevents the sidebar from opening
   };
 

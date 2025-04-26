@@ -1,5 +1,5 @@
 // sidebar-renderer.tsx
-import React, { useCallback, useContext, useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 
 import {
   PlaygroundEntityContext,
@@ -8,35 +8,38 @@ import {
 } from '@flowgram.ai/free-layout-editor';
 import { SideSheet } from '@douyinfe/semi-ui';
 
-import { IsSidebarContext, NodeRenderContext, PanelEnum, SidebarContext } from '../../context';
+import { IsSidebarContext, NodeRenderContext, PanelEnum, useSidebarContext } from '../../context';
 import { NodeContent } from './styles.tsx';
+import RunWorkflowSidebar from '../run-workflow-panel';
+import RunNodeSidebar from '../run-node-panel';
 
 export const SidebarRenderer = () => {
   const { selection, playground } = useClientContext();
   const refresh = useRefresh();
-  const { updatePanelValue, getFirstEnablePanel } = useContext(SidebarContext);
+  const { updatePanelValue, getFirstEnablePanel } = useSidebarContext();
 
   const handleClose = useCallback(() => {
-    console.log('handleClose');
     let key = getFirstEnablePanel();
+    console.log(key);
     if (key) {
       updatePanelValue(key.key, {
         ...key.value,
         isRunning: false,
       });
     }
-  }, []);
+  }, [getFirstEnablePanel, updatePanelValue]);
   useEffect(() => {
     const disposable = playground.config.onReadonlyOrDisabledChange(() => refresh());
     return () => disposable.dispose();
   }, [playground]);
 
   useEffect(() => {
+    let firstEnablePanel = getFirstEnablePanel();
     const toDispose = selection.onSelectionChanged(() => {
       if (selection.selection.length === 0) {
         handleClose();
-      } else if (selection.selection.length === 1) {
-        // handleClose();
+      } else if (selection.selection.length === 1 && !firstEnablePanel) {
+        handleClose();
       }
     });
     return () => toDispose.dispose();
@@ -51,22 +54,31 @@ export const SidebarRenderer = () => {
   }
 
   let firstEnablePanel = getFirstEnablePanel();
-  console.log(firstEnablePanel);
   if (!firstEnablePanel) {
     return null;
   }
-  const content =
-    firstEnablePanel?.key == PanelEnum.NodeEdit ? (
-      <PlaygroundEntityContext.Provider
-        key={firstEnablePanel.value.nodeRender.node.id}
-        value={firstEnablePanel.value.nodeRender.node}
-      >
-        <NodeRenderContext.Provider value={firstEnablePanel.value.nodeRender}>
-          {firstEnablePanel.value.nodeRender.form?.render()}
-        </NodeRenderContext.Provider>
-        {/*<RunNodeSidebar />*/}
-      </PlaygroundEntityContext.Provider>
-    ) : null;
+  const content = (() => {
+    switch (firstEnablePanel?.key) {
+      case PanelEnum.NodeEdit:
+        return (
+          <PlaygroundEntityContext.Provider
+            key={firstEnablePanel.value.nodeRender.node.id}
+            value={firstEnablePanel.value.nodeRender.node}
+          >
+            <NodeRenderContext.Provider value={firstEnablePanel.value.nodeRender}>
+              {firstEnablePanel.value.nodeRender.form?.render()}
+            </NodeRenderContext.Provider>
+          </PlaygroundEntityContext.Provider>
+        );
+      case PanelEnum.NodeRun:
+        return <RunNodeSidebar />;
+      // 可以继续添加其他 PanelEnum 的处理逻辑
+      case PanelEnum.WorkflowRun:
+        return <RunWorkflowSidebar />;
+      default:
+        return null;
+    }
+  })();
 
   return (
     <SideSheet
