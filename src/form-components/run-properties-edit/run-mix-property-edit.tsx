@@ -23,7 +23,7 @@ export const RunMixPropertyEdit: React.FC<PropertyEditProps> = (props) => {
   const { value } = props;
   const [inputKey, updateKey] = useState(props.propertyKey);
   const updateValueContent = (val: string) => {
-    value.value.content = val;
+    value.default.content = val;
     props.onChange(inputKey, value);
   };
   useLayoutEffect(() => {
@@ -40,7 +40,7 @@ export const RunMixPropertyEdit: React.FC<PropertyEditProps> = (props) => {
         <Input value={inputKey} disabled={true} readOnly={true} style={{ paddingLeft: 26 }} />
       </LeftColumn>
 
-      <Input value={value.value.content} onChange={(v) => updateValueContent(v)} />
+      <Input value={value.default.content} onChange={(v) => updateValueContent(v)} />
     </Row>
   );
 };

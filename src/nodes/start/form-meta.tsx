@@ -4,6 +4,7 @@ import {
   FormRenderProps,
   FormMeta,
   ValidateTrigger,
+  FieldArray,
 } from '@flowgram.ai/free-layout-editor';
 
 import { FlowNodeJSON, JsonSchema } from '../../typings';
@@ -28,6 +29,12 @@ export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => {
               </>
             )}
           />
+          <FieldArray name="outputs">
+            {({ field: { value, onChange } }) => {
+
+              return <></>;
+            }}
+          </FieldArray>
         </FormContent>
       </>
     );

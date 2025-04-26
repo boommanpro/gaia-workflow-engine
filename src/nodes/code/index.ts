@@ -29,7 +29,9 @@ export const CodeNodeRegistry: FlowNodeRegistry = {
           language: 'java',
           code: '',
         },
-        inputs: [],
+        inputs: {
+          type: 'object',
+        },
         outputs: {
           type: 'object',
           properties: {

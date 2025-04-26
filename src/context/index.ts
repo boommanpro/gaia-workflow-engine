@@ -1,2 +1,3 @@
 export { NodeRenderContext } from './node-render-context';
-export { SidebarContext, IsSidebarContext } from './sidebar-context';
+export { IsSidebarContext, SidebarContext, PanelEnum, StatePriority } from './sidebar-context';
+export type { PanelValue } from './sidebar-context';

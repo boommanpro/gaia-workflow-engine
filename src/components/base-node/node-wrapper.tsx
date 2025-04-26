@@ -1,9 +1,9 @@
-import React, { useState, useContext } from 'react';
+import React, { useContext, useState } from 'react';
 
 import { WorkflowPortRender } from '@flowgram.ai/free-layout-editor';
 
 import { useNodeRenderContext } from '../../hooks';
-import { SidebarContext } from '../../context';
+import { PanelEnum, SidebarContext } from '../../context';
 // import { scrollToView } from './utils'
 // import { useClientContext } from '@flowgram.ai/free-layout-editor';
 
@@ -34,7 +34,10 @@ export const NodeWrapper: React.FC<NodeWrapperProps> = (props) => {
         onClick={(e) => {
           selectNode(e);
           if (!isDragging) {
-            sidebar.setNodeRender(nodeRender);
+            sidebar.updatePanelValue(PanelEnum.NodeEdit, {
+              isRunning: true,
+              nodeRender,
+            });
             // 可选：如果需要让节点滚动到画布中间加上这个
             // Optional: Add this if you want the node to scroll to the middle of the canvas
             // scrollToView(ctx, nodeRender.node)

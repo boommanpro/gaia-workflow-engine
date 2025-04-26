@@ -10,6 +10,7 @@ import { ZoomSelect } from './zoom-select';
 import { SwitchLine } from './switch-line';
 import { ToolContainer, ToolSection } from './styles';
 import { Save } from './save';
+import { RunWorkflow } from './run-workflow.tsx';
 import { Readonly } from './readonly';
 import { MinimapSwitch } from './minimap-switch';
 import { Minimap } from './minimap';
@@ -75,6 +76,7 @@ export const DemoTools = () => {
         <Save disabled={playground.config.readonly} />
         <Import />
         <Console />
+        <RunWorkflow />
       </ToolSection>
     </ToolContainer>
   );
