@@ -5,6 +5,7 @@ import { Button, Typography } from '@douyinfe/semi-ui';
 
 import { draggableContainerStyle } from '../sidebar/styles.tsx';
 import { Resizable } from '../draggable-y';
+import { RunWorkflowMixPropertiesEdit } from '../../form-components/run-workflow-properties-edit';
 import { PropertyItem, RunMixPropertiesEdit } from '../../form-components/run-properties-edit';
 
 const RunWorkflowSidebar: React.FC = () => {
@@ -81,7 +82,7 @@ const RunWorkflowSidebar: React.FC = () => {
     <div style={{ padding: '20px' }}>
       <Typography.Title heading={5}>workflow运行</Typography.Title>
       <Typography.Title heading={6}>输入</Typography.Title>
-      <RunMixPropertiesEdit
+      <RunWorkflowMixPropertiesEdit
         value={inputs}
         onChange={(value) => {
           setInputs(value);
