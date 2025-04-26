@@ -30,8 +30,12 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
     return null;
   };
 
+  const getPanelValue = (panel: PanelEnum) => sidebarState[panel];
+
   return (
-    <SidebarContext.Provider value={{ ...sidebarState, getFirstEnablePanel, updatePanelValue }}>
+    <SidebarContext.Provider
+      value={{ ...sidebarState, getFirstEnablePanel, updatePanelValue, getPanelValue }}
+    >
       {children}
     </SidebarContext.Provider>
   );

@@ -31,6 +31,7 @@ export type SidebarState = {
 export interface SidebarContextType extends SidebarState {
   getFirstEnablePanel: () => { key: PanelEnum; value: PanelValue } | null;
   updatePanelValue: (state: PanelEnum, value: PanelValue) => void;
+  getPanelValue: (panel: PanelEnum) => PanelValue;
 }
 
 // 创建一个 Context 来管理 sidebar 的状态
@@ -40,6 +41,9 @@ export const SidebarContext = React.createContext<SidebarContextType>({
   [PanelEnum.NodeEdit]: { isRunning: false },
   getFirstEnablePanel: () => null,
   updatePanelValue: () => {},
+  getPanelValue: (panel: PanelEnum) =>
+    // 提供一个默认的 PanelValue 对象
+    ({ isRunning: false }),
 });
 
 export const IsSidebarContext = React.createContext<boolean>(false);
