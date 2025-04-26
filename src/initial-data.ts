@@ -7,8 +7,8 @@ export const initialData: FlowDocumentJSON = {
       type: 'start',
       meta: {
         position: {
-          x: 161.82825934250104,
-          y: 363.9269239259368,
+          x: 180,
+          y: 313.5,
         },
       },
       data: {
@@ -16,9 +16,21 @@ export const initialData: FlowDocumentJSON = {
         outputs: {
           type: 'object',
           properties: {
-            query: {
+            a: {
               type: 'string',
-              default: 'Hello Flow.',
+              default: '1',
+            },
+            b: {
+              type: 'string',
+              default: '2',
+            },
+            c: {
+              type: 'string',
+              default: '3',
+            },
+            d: {
+              type: 'string',
+              default: '4',
             },
           },
         },
@@ -30,8 +42,8 @@ export const initialData: FlowDocumentJSON = {
       type: 'end',
       meta: {
         position: {
-          x: 2489.1656527297614,
-          y: 389.9269239259368,
+          x: 2480,
+          y: 313.5,
         },
       },
       data: {
@@ -41,7 +53,7 @@ export const initialData: FlowDocumentJSON = {
           properties: {
             result: {
               type: 'string',
-              default: 'code_cNTn9.outputs.result',
+              default: 'code_Qzvgd.outputs.result',
             },
           },
         },
@@ -49,62 +61,53 @@ export const initialData: FlowDocumentJSON = {
       },
     },
     {
-      id: 'note_i0udq4q_1744207814436',
-      type: 'note',
-      meta: {
-        position: {
-          x: 566.5248322835192,
-          y: 569.8406303132031,
-        },
-      },
-      data: {
-        description: '注释能力',
-      },
-    },
-    {
-      id: 'code_T5DNl',
+      id: 'code_sCNs8',
       type: 'code',
       meta: {
         position: {
-          x: 614.3820904384166,
-          y: 363.9269239259368,
+          x: 640,
+          y: 313.5,
         },
       },
       data: {
-        title: 'Code_1',
-        description: '数据过滤',
+        title: 'Code_2',
+        description: '代码组件',
         config: {
           language: 'javaScriptFunc',
-          code: 'return {\n    "a":"a",\n    "b":"b"\n}',
+          code: 'return {\n    "a":a,\n    "b":b\n}',
         },
-        inputs: [
-          {
-            name: 'a',
-            input: {
+        inputs: {
+          type: 'object',
+          properties: {
+            a: {
               type: 'string',
-              value: {
+              default: {
                 type: 'ref',
-                content: 'start_0.outputs.query',
+                content: 'start_0.outputs.a',
+              },
+            },
+            b: {
+              type: 'string',
+              default: {
+                type: 'literal',
+                content: 'b1',
+              },
+            },
+            c: {
+              type: 'string',
+              default: {
+                type: 'literal',
+                content: 'c1',
               },
             },
           },
-          {
-            name: 'b',
-            input: {
-              type: 'string',
-              value: {
-                type: 'ref',
-                content: 'start_0.outputs.query',
-              },
-            },
-          },
-        ],
+        },
         outputs: {
           type: 'object',
           properties: {
             a: {
               type: 'string',
-              default: 'a',
+              default: '12',
             },
             b: {
               type: 'string',
@@ -115,37 +118,73 @@ export const initialData: FlowDocumentJSON = {
       },
     },
     {
-      id: 'condition_U6nw1',
+      id: 'condition_Pk7Qg',
       type: 'condition',
       meta: {
         position: {
-          x: 1066.9359215343322,
-          y: 327.4269239259369,
+          x: 1100,
+          y: 243.4,
         },
       },
       data: {
         title: 'Condition',
         inputsValues: {
-          conditions: [
+          branches: [
             {
-              key: 'if_fcWqTi',
-              value: {
-                type: 'expression',
-                content: 'start_0.outputs.query',
+              condition: {
+                logic: 1,
+                description: '规则说明',
+                conditions: [
+                  {
+                    operator: 1,
+                    left: {
+                      type: 'expression',
+                      content: 'start_0.outputs.a',
+                    },
+                    right: {
+                      type: 'expression',
+                      content: 'start_0.outputs.b',
+                    },
+                  },
+                ],
               },
             },
             {
-              key: 'if_11gKZL',
-              value: {
-                type: 'expression',
-                content: 'code_T5DNl.outputs.a',
+              condition: {
+                logic: 1,
+                description: '规则说明',
+                conditions: [
+                  {
+                    operator: 1,
+                    left: {
+                      type: 'expression',
+                      content: 'start_0.outputs.d',
+                    },
+                    right: {
+                      type: 'expression',
+                      content: 'code_sCNs8.outputs.a',
+                    },
+                  },
+                ],
               },
             },
             {
-              key: 'if_z-1XKS',
-              value: {
-                type: 'expression',
-                content: 'code_T5DNl.outputs.b',
+              condition: {
+                logic: 1,
+                description: '规则说明',
+                conditions: [
+                  {
+                    operator: 1,
+                    left: {
+                      type: 'expression',
+                      content: 'start_0.outputs.a',
+                    },
+                    right: {
+                      type: 'expression',
+                      content: 'code_sCNs8.outputs.b',
+                    },
+                  },
+                ],
               },
             },
           ],
@@ -172,50 +211,24 @@ export const initialData: FlowDocumentJSON = {
       },
     },
     {
-      id: 'code_2SXWb',
+      id: 'code_q303y',
       type: 'code',
       meta: {
         position: {
-          x: 1503.1365538600858,
-          y: 218.42692392593688,
-        },
-      },
-      data: {
-        title: 'Code_2',
-        description: '代码逻辑1',
-        config: {
-          language: 'aviator',
-          code: 'return {\n    "a":"1"\n}',
-        },
-        inputs: [],
-        outputs: {
-          type: 'object',
-          properties: {
-            result: {
-              type: 'string',
-              default: 'a',
-            },
-          },
-        },
-      },
-    },
-    {
-      id: 'code_zz31I',
-      type: 'code',
-      meta: {
-        position: {
-          x: 1503.1365538600858,
-          y: 389.9269239259368,
+          x: 1560,
+          y: 627,
         },
       },
       data: {
         title: 'Code_3',
-        description: '代码逻辑2',
+        description: '代码组件',
         config: {
-          language: 'aviator',
-          code: 'return {\n    "a":"b"\n}',
+          language: 'javaScriptFunc',
+          code: '',
         },
-        inputs: [],
+        inputs: {
+          type: 'object',
+        },
         outputs: {
           type: 'object',
           properties: {
@@ -228,22 +241,25 @@ export const initialData: FlowDocumentJSON = {
       },
     },
     {
-      id: 'code_47q41',
+      id: 'code_-v33c',
       type: 'code',
       meta: {
         position: {
-          x: 1503.1365538600858,
-          y: 548.3424288720184,
+          x: 1560,
+          y: 0,
         },
       },
       data: {
         title: 'Code_4',
-        description: '代码逻辑3',
+        description: '代码组件',
         config: {
-          language: 'aviator',
-          code: 'return {\n    "a":"c"\n}',
+          language: 'javaScriptFunc',
+          code: '',
         },
-        inputs: [],
+        inputs: {
+          type: 'object',
+          properties: {},
+        },
         outputs: {
           type: 'object',
           properties: {
@@ -256,22 +272,84 @@ export const initialData: FlowDocumentJSON = {
       },
     },
     {
-      id: 'code_cNTn9',
+      id: 'code_Qzvgd',
       type: 'code',
       meta: {
         position: {
-          x: 1992.5397921584608,
-          y: 389.9269239259368,
+          x: 1560,
+          y: 209,
         },
       },
       data: {
         title: 'Code_5',
-        description: '字段汇总',
+        description: '代码组件',
         config: {
-          language: 'aviator',
-          code: 'return a1||a2||a3;',
+          language: 'javaScriptFunc',
+          code: '',
         },
-        inputs: [],
+        inputs: {
+          type: 'object',
+        },
+        outputs: {
+          type: 'object',
+          properties: {
+            result: {
+              type: 'string',
+              default: 'a',
+            },
+          },
+        },
+      },
+    },
+    {
+      id: 'code_WpFEL',
+      type: 'code',
+      meta: {
+        position: {
+          x: 1560,
+          y: 418,
+        },
+      },
+      data: {
+        title: 'Code_6',
+        description: '代码组件',
+        config: {
+          language: 'javaScriptFunc',
+          code: '',
+        },
+        inputs: {
+          type: 'object',
+        },
+        outputs: {
+          type: 'object',
+          properties: {
+            result: {
+              type: 'string',
+              default: 'a',
+            },
+          },
+        },
+      },
+    },
+    {
+      id: 'code_PHkiO',
+      type: 'code',
+      meta: {
+        position: {
+          x: 2020,
+          y: 313.5,
+        },
+      },
+      data: {
+        title: 'Code_7',
+        description: '代码组件',
+        config: {
+          language: 'javaScriptFunc',
+          code: '',
+        },
+        inputs: {
+          type: 'object',
+        },
         outputs: {
           type: 'object',
           properties: {
@@ -287,42 +365,51 @@ export const initialData: FlowDocumentJSON = {
   edges: [
     {
       sourceNodeID: 'start_0',
-      targetNodeID: 'code_T5DNl',
+      targetNodeID: 'code_sCNs8',
     },
     {
-      sourceNodeID: 'code_cNTn9',
+      sourceNodeID: 'code_PHkiO',
       targetNodeID: 'end_0',
     },
     {
-      sourceNodeID: 'code_T5DNl',
-      targetNodeID: 'condition_U6nw1',
+      sourceNodeID: 'code_sCNs8',
+      targetNodeID: 'condition_Pk7Qg',
     },
     {
-      sourceNodeID: 'condition_U6nw1',
-      targetNodeID: 'code_2SXWb',
-      sourcePortID: 'if_fcWqTi',
+      sourceNodeID: 'condition_Pk7Qg',
+      targetNodeID: 'code_q303y',
+      sourcePortID: 'false',
     },
     {
-      sourceNodeID: 'condition_U6nw1',
-      targetNodeID: 'code_zz31I',
-      sourcePortID: 'if_11gKZL',
+      sourceNodeID: 'condition_Pk7Qg',
+      targetNodeID: 'code_-v33c',
+      sourcePortID: 'true_0',
     },
     {
-      sourceNodeID: 'condition_U6nw1',
-      targetNodeID: 'code_47q41',
-      sourcePortID: 'if_z-1XKS',
+      sourceNodeID: 'condition_Pk7Qg',
+      targetNodeID: 'code_Qzvgd',
+      sourcePortID: 'true_1',
     },
     {
-      sourceNodeID: 'code_2SXWb',
-      targetNodeID: 'code_cNTn9',
+      sourceNodeID: 'condition_Pk7Qg',
+      targetNodeID: 'code_WpFEL',
+      sourcePortID: 'true_2',
     },
     {
-      sourceNodeID: 'code_zz31I',
-      targetNodeID: 'code_cNTn9',
+      sourceNodeID: 'code_q303y',
+      targetNodeID: 'code_PHkiO',
     },
     {
-      sourceNodeID: 'code_47q41',
-      targetNodeID: 'code_cNTn9',
+      sourceNodeID: 'code_-v33c',
+      targetNodeID: 'code_PHkiO',
+    },
+    {
+      sourceNodeID: 'code_Qzvgd',
+      targetNodeID: 'code_PHkiO',
+    },
+    {
+      sourceNodeID: 'code_WpFEL',
+      targetNodeID: 'code_PHkiO',
     },
   ],
 };

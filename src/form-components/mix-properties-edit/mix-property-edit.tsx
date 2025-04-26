@@ -6,6 +6,7 @@ import { IconCrossCircleStroked } from '@douyinfe/semi-icons';
 import { TypeSelector } from '../type-selector';
 import { LeftColumn, Row } from './styles';
 import { FxNewExpression } from '../fx-new-expression';
+import { JsonSchema } from '../../typings';
 
 interface PropertyItem {
   type: string;
@@ -14,18 +15,17 @@ interface PropertyItem {
 
 export interface PropertyEditProps {
   propertyKey: string;
-  value: PropertyItem;
+  value: JsonSchema;
   onlyFieldName?: boolean;
   disabled?: boolean;
-  onChange: (value: PropertyItem, propertyKey: string, newPropertyKey?: string) => void;
+  onChange: (value: JsonSchema, propertyKey: string, newPropertyKey?: string) => void;
   onDelete?: () => void;
 }
 
 export const MixPropertyEdit: React.FC<PropertyEditProps> = (props) => {
   const { value, disabled } = props;
   const [inputKey, updateKey] = useState(props.propertyKey);
-  const updateProperty = (key: keyof PropertyItem, val: any) => {
-    console.log(key, val);
+  const updateProperty = (key: keyof JsonSchema, val: any) => {
     value[key] = val;
     props.onChange(value, props.propertyKey);
   };
@@ -57,7 +57,10 @@ export const MixPropertyEdit: React.FC<PropertyEditProps> = (props) => {
       </LeftColumn>
       {!props.onlyFieldName && (
         <>
-          <FxNewExpression value={value.value} onChange={(val) => updateProperty('value', val)} />
+          <FxNewExpression
+            value={value.default}
+            onChange={(val) => updateProperty('default', val)}
+          />
           {props.onDelete && !disabled && (
             <Button theme="borderless" icon={<IconCrossCircleStroked />} onClick={props.onDelete} />
           )}

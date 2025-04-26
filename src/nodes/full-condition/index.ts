@@ -5,7 +5,7 @@ import iconCondition from '../../assets/icon-condition.svg';
 import { formMeta } from './form-meta';
 
 export const FllConditionNodeRegistry: FlowNodeRegistry = {
-  type: 'full-condition',
+  type: 'condition',
   info: {
     icon: iconCondition,
     description:
