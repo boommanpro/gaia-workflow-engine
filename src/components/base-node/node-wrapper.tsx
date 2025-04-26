@@ -3,7 +3,7 @@ import React, { useContext, useState } from 'react';
 import { WorkflowPortRender } from '@flowgram.ai/free-layout-editor';
 
 import { useNodeRenderContext } from '../../hooks';
-import { PanelEnum, SidebarContext } from '../../context';
+import { PanelEnum, useSidebarContext } from '../../context';
 // import { scrollToView } from './utils'
 // import { useClientContext } from '@flowgram.ai/free-layout-editor';
 
@@ -19,7 +19,7 @@ export const NodeWrapper: React.FC<NodeWrapperProps> = (props) => {
   const nodeRender = useNodeRenderContext();
   const { selected, startDrag, ports, selectNode, nodeRef, onFocus, onBlur } = nodeRender;
   const [isDragging, setIsDragging] = useState(false);
-  const sidebar = useContext(SidebarContext);
+  const sidebar = useSidebarContext();
   // const ctx = useClientContext()
 
   return (

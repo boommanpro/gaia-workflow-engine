@@ -1,31 +1,31 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
-import { useClientContext } from '@flowgram.ai/free-layout-editor';
+import { ScopeOutputData, useClientContext } from '@flowgram.ai/free-layout-editor';
 import { Button, Typography } from '@douyinfe/semi-ui';
 
 import { draggableContainerStyle } from '../sidebar/styles.tsx';
 import { Resizable } from '../draggable-y';
 import { PropertyItem, RunMixPropertiesEdit } from '../../form-components/run-properties-edit';
 
-const RunNodeSidebar: React.FC = () => {
+const RunWorkflowSidebar: React.FC = () => {
   const { selection, playground } = useClientContext();
   const [inputs, setInputs] = useState<PropertyItem[]>([]);
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [nodesJSON, setNodesJSON] = useState<any[]>([]);
+  const ctx = useClientContext();
 
-  const data = React.useMemo(() => {
-    if (!selection || selection.selection.length !== 1) {
-      return null;
-    }
-    const node = selection.selection[0];
-    if (node._metaCache?.hiddenSidebar) {
-      return null;
-    }
-    return node.toJSON();
-  }, [selection.selection]);
+  useEffect(() => {
+    const nodes = ctx.document.toJSON().nodes;
+    setNodesJSON(nodes);
+  }, [ctx.document]);
+
+  const startNode = nodesJSON.find((node) => node.type === 'start');
+  const data = startNode ? startNode.data.outputs : {};
 
   function parseProperties(properties: any) {
     let res = [];
+    console.log('properties:', properties);
     Object.keys(properties || {}).map((key) => {
       res.push({
         name: key,
@@ -35,28 +35,16 @@ const RunNodeSidebar: React.FC = () => {
     return res;
   }
 
-  React.useEffect(() => {
-    const node = selection.selection[0];
-    console.log('data changed:', data);
-    if (!node || node._metaCache?.runDisable) {
-      return;
+  useEffect(() => {
+    if (startNode) {
+      setInputs(parseProperties(startNode.data.outputs.properties));
     }
-    if (
-      !data ||
-      typeof data.data.inputs !== 'object' ||
-      data.data.inputs === null ||
-      Object.keys(data.data.inputs).length === 0
-    ) {
-      setInputs([]);
-      return;
-    }
-    setInputs(parseProperties(data.data.inputs.properties));
-  }, [selection.selection]);
+  }, [startNode]);
 
   const sendRunRequest = async (runData: any) => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:8080/workflow/singleNodeExec', {
+      const response = await fetch('http://localhost:8080/workflow/exec', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -75,31 +63,23 @@ const RunNodeSidebar: React.FC = () => {
   };
 
   const handleRun = () => {
+    console.log(inputs);
     let runData = {
       params: inputs.reduce((acc, item) => {
-        if (item.name && item.input?.default?.content !== undefined) {
-          acc[item.name] = item.input.default.content;
+        if (item.name && item.input?.default !== undefined) {
+          acc[item.name] = item.input.default;
         }
         return acc;
       }, {} as Record<string, any>),
-      node: data,
+      graph: ctx.document.toJSON(),
     };
     console.log('runData:', runData);
     sendRunRequest(runData);
   };
 
-  if (
-    !data ||
-    typeof data.data.inputs !== 'object' ||
-    data.data.inputs === null ||
-    Object.keys(data.data.inputs).length === 0
-  ) {
-    return null;
-  }
-
   return (
     <div style={{ padding: '20px' }}>
-      <Typography.Title heading={5}>试运行</Typography.Title>
+      <Typography.Title heading={5}>workflow运行</Typography.Title>
       <Typography.Title heading={6}>输入</Typography.Title>
       <RunMixPropertiesEdit
         value={inputs}
@@ -139,4 +119,4 @@ const RunNodeSidebar: React.FC = () => {
   );
 };
 
-export default RunNodeSidebar;
+export default RunWorkflowSidebar;

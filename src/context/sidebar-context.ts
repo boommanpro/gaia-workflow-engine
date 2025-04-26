@@ -1,5 +1,5 @@
 // 定义 sidebar 中各个功能的状态接口
-import React from 'react';
+import React, { useContext } from 'react';
 
 import { NodeRenderReturnType } from '@flowgram.ai/free-layout-editor';
 
@@ -43,3 +43,11 @@ export const SidebarContext = React.createContext<SidebarContextType>({
 });
 
 export const IsSidebarContext = React.createContext<boolean>(false);
+
+export const useSidebarContext = (): SidebarContextType => {
+  const context = useContext(SidebarContext);
+  if (!context) {
+    throw new Error('useSidebarContext must be used within a SidebarProvider');
+  }
+  return context;
+};
