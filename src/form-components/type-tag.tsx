@@ -1,7 +1,6 @@
 import styled from 'styled-components';
+import { VariableTypeIcons, ArrayIcons } from '@flowgram.ai/form-materials';
 import { Tag, Tooltip } from '@douyinfe/semi-ui';
-
-import { VariableTypeIcons, ArrayIcons } from '../plugins/sync-variable-plugin/icons';
 
 interface PropsType {
   name?: string | JSX.Element;

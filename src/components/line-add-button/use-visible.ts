@@ -1,14 +1,14 @@
-import { LineColors, usePlayground, WorkflowLineEntity } from '@flowgram.ai/free-layout-editor';
+import { usePlayground, WorkflowLineEntity } from '@flowgram.ai/free-layout-editor';
 
 import './index.less';
 
 export const useVisible = (params: {
   line: WorkflowLineEntity;
   selected?: boolean;
-  color?: string;
+  hovered?: boolean;
 }): boolean => {
   const playground = usePlayground();
-  const { line, selected = false, color } = params;
+  const { line, selected = false, hovered } = params;
   if (line.disposed) {
     // 在 dispose 后，再去获取 line.to | line.from 会导致错误创建端口
     return false;
@@ -16,19 +16,7 @@ export const useVisible = (params: {
   if (playground.config.readonly) {
     return false;
   }
-  if (!selected && color !== LineColors.HOVER) {
-    return false;
-  }
-  if (
-    line.fromPort.portID === 'loop-output-to-function' &&
-    line.toPort?.portID === 'loop-function-input'
-  ) {
-    return false;
-  }
-  if (
-    line.fromPort.portID === 'batch-output-to-function' &&
-    line.toPort?.portID === 'batch-function-input'
-  ) {
+  if (!selected && !hovered) {
     return false;
   }
   return true;

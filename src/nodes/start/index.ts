@@ -1,9 +1,10 @@
 import { FlowNodeRegistry } from '../../typings';
 import iconStart from '../../assets/icon-start.jpg';
 import { formMeta } from './form-meta';
+import { WorkflowNodeType } from '../constants';
 
 export const StartNodeRegistry: FlowNodeRegistry = {
-  type: 'start',
+  type: WorkflowNodeType.Start,
   meta: {
     isStart: true,
     deleteDisable: true,

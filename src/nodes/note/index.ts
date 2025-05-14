@@ -1,9 +1,10 @@
 import { FlowNodeRegistry } from '../../typings';
 import iconStart from '../../assets/icon-start.jpg';
 import { formMeta } from './form-meta';
+import { WorkflowNodeType } from '../constants.ts';
 
 export const NoteNodeRegistry: FlowNodeRegistry = {
-  type: 'note',
+  type: WorkflowNodeType.Note,
   meta: {
     deleteDisable: false,
     useDynamicPort: true,

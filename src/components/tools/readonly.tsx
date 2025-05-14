@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 
 import { usePlayground } from '@flowgram.ai/free-layout-editor';
-import { IconButton } from '@douyinfe/semi-ui';
+import { IconButton, Tooltip } from '@douyinfe/semi-ui';
 import { IconUnlock, IconLock } from '@douyinfe/semi-icons';
 
 export const Readonly = () => {
@@ -10,18 +10,22 @@ export const Readonly = () => {
     playground.config.readonly = !playground.config.readonly;
   }, [playground]);
   return playground.config.readonly ? (
-    <IconButton
-      theme="borderless"
-      type="tertiary"
-      icon={<IconLock size="default" />}
-      onClick={toggleReadonly}
-    />
+    <Tooltip content="Editable">
+      <IconButton
+        theme="borderless"
+        type="tertiary"
+        icon={<IconLock size="default" />}
+        onClick={toggleReadonly}
+      />
+    </Tooltip>
   ) : (
-    <IconButton
-      theme="borderless"
-      type="tertiary"
-      icon={<IconUnlock size="default" />}
-      onClick={toggleReadonly}
-    />
+    <Tooltip content="Readonly">
+      <IconButton
+        theme="borderless"
+        type="tertiary"
+        icon={<IconUnlock size="default" />}
+        onClick={toggleReadonly}
+      />
+    </Tooltip>
   );
 };

@@ -4,7 +4,7 @@ import { FlowNodeEntity, useNodeRender } from '@flowgram.ai/free-layout-editor';
 import { ConfigProvider } from '@douyinfe/semi-ui';
 
 import { NodeRenderContext } from '../../context';
-import { BaseNodeStyle, ErrorIcon } from './styles';
+import { ErrorIcon } from './styles';
 import { NodeWrapper } from './node-wrapper';
 
 export const BaseNode = ({ node }: { node: FlowNodeEntity }) => {
@@ -30,15 +30,7 @@ export const BaseNode = ({ node }: { node: FlowNodeEntity }) => {
       <NodeRenderContext.Provider value={nodeRender}>
         <NodeWrapper>
           {form?.state.invalid && <ErrorIcon />}
-          <BaseNodeStyle
-            className={nodeRender.selected ? 'selected' : ''}
-            style={{
-              borderRadius: 8,
-              outline: form?.state.invalid ? '1px solid red' : 'none',
-            }}
-          >
-            {form?.render()}
-          </BaseNodeStyle>
+          {form?.render()}
         </NodeWrapper>
       </NodeRenderContext.Provider>
     </ConfigProvider>

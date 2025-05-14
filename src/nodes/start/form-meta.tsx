@@ -4,12 +4,12 @@ import {
   FormRenderProps,
   FormMeta,
   ValidateTrigger,
-  FieldArray,
 } from '@flowgram.ai/free-layout-editor';
+import { JsonSchemaEditor } from '@flowgram.ai/form-materials';
 
 import { FlowNodeJSON, JsonSchema } from '../../typings';
 import { useIsSidebar } from '../../hooks';
-import { FormHeader, FormContent, FormOutputs, PropertiesEdit } from '../../form-components';
+import { FormHeader, FormContent, FormOutputs } from '../../form-components';
 
 export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => {
   const isSidebar = useIsSidebar();
@@ -19,22 +19,16 @@ export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => {
         <FormHeader />
         <FormContent>
           <Field
-            name="outputs.properties"
-            render={({
-              field: { value, onChange },
-              fieldState,
-            }: FieldRenderProps<Record<string, JsonSchema>>) => (
+            name="outputs"
+            render={({ field: { value, onChange } }: FieldRenderProps<JsonSchema>) => (
               <>
-                <PropertiesEdit value={value} onChange={onChange} />
+                <JsonSchemaEditor
+                  value={value}
+                  onChange={(value) => onChange(value as JsonSchema)}
+                />
               </>
             )}
           />
-          <FieldArray name="outputs">
-            {({ field: { value, onChange } }) => {
-
-              return <></>;
-            }}
-          </FieldArray>
         </FormContent>
       </>
     );

@@ -1,8 +1,8 @@
-import React, { useContext, useState, useRef } from 'react';
+import React, { useContext, useRef, useState } from 'react';
 
 import { Field, FieldRenderProps, FlowNodeRegistry } from '@flowgram.ai/free-layout-editor';
 import Text from '@douyinfe/semi-ui/lib/es/typography/text';
-import { Input, TextArea } from '@douyinfe/semi-ui';
+import { TextArea } from '@douyinfe/semi-ui';
 
 import { useIsSidebar, useNodeRenderContext } from '../../hooks';
 import { NodeRenderContext } from '../../context';

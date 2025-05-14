@@ -4,6 +4,7 @@ import {
   FreeLayoutPluginContext,
   FlowNodeEntity,
   type WorkflowEdgeJSON,
+  WorkflowNodeMeta,
 } from '@flowgram.ai/free-layout-editor';
 
 import { type JsonSchema } from './json-schema';
@@ -25,7 +26,7 @@ export interface FlowNodeJSON extends FlowNodeJSONDefault {
     /**
      * Node title
      */
-    title: string;
+    title?: string;
     /**
      * Inputs data values
      */
@@ -38,7 +39,19 @@ export interface FlowNodeJSON extends FlowNodeJSONDefault {
      * Define the outputs data of the node by JsonSchema
      */
     outputs?: JsonSchema;
+    /**
+     * Rest properties
+     */
+    [key: string]: any;
   };
+}
+
+/**
+ * You can customize your own node meta
+ * 你可以自定义节点的meta
+ */
+export interface FlowNodeMeta extends WorkflowNodeMeta {
+  disableSideBar?: boolean;
 }
 
 /**
@@ -46,7 +59,8 @@ export interface FlowNodeJSON extends FlowNodeJSONDefault {
  * 你可以自定义节点的注册器
  */
 export interface FlowNodeRegistry extends FlowNodeRegistryDefault {
-  info: {
+  meta: FlowNodeMeta;
+  info?: {
     icon: string;
     description: string;
   };

@@ -1,7 +1,7 @@
 import styled from 'styled-components';
 import { IconInfoCircle } from '@douyinfe/semi-icons';
 
-export const BaseNodeStyle = styled.div`
+export const NodeWrapperStyle = styled.div`
   align-items: flex-start;
   background-color: #fff;
   border: 1px solid rgba(6, 7, 9, 0.15);
@@ -13,7 +13,7 @@ export const BaseNodeStyle = styled.div`
   position: relative;
   min-width: 360px;
   width: 100%;
-  height: 100%;
+  height: auto;
 
   &.selected {
     border: 1px solid #4e40e5;
