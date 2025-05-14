@@ -5,6 +5,7 @@ import { Button, Tooltip } from '@douyinfe/semi-ui';
 import { IconFile } from '@douyinfe/semi-icons';
 
 import { NoteNodeRegistry } from '../../nodes/note';
+import {IconComment} from "../../assets/icon-comment.tsx";
 
 export const AddNote = () => {
   const playground = usePlayground();
@@ -31,7 +32,7 @@ export const AddNote = () => {
       <Button
         disabled={playground.config.readonly}
         type="tertiary"
-        icon={<IconFile />}
+        icon={<IconComment />}
         theme="borderless"
         onClick={addNote}
       />

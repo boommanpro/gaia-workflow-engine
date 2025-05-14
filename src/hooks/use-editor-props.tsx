@@ -4,21 +4,21 @@ import { useMemo } from 'react';
 import { debounce } from 'lodash-es';
 import { createMinimapPlugin } from '@flowgram.ai/minimap-plugin';
 import { createFreeSnapPlugin } from '@flowgram.ai/free-snap-plugin';
-import {
-  createFreeNodePanelPlugin,
-  WorkflowNodePanelService,
-} from '@flowgram.ai/free-node-panel-plugin';
+import { createFreeNodePanelPlugin } from '@flowgram.ai/free-node-panel-plugin';
 import { createFreeLinesPlugin } from '@flowgram.ai/free-lines-plugin';
 import { FreeLayoutProps } from '@flowgram.ai/free-layout-editor';
+import { createFreeGroupPlugin } from '@flowgram.ai/free-group-plugin';
 import { createContainerNodePlugin } from '@flowgram.ai/free-container-plugin';
 
-import { FlowDocumentJSON, FlowNodeRegistry } from '../typings';
+import { onDragLineEnd } from '../utils';
+import { FlowNodeRegistry, FlowDocumentJSON } from '../typings';
 import { shortcuts } from '../shortcuts';
-import { CustomService } from '../services';
+import { CustomService, RunningService } from '../services';
 import { createSyncVariablePlugin } from '../plugins';
 import { defaultFormMeta } from '../nodes/default-form-meta';
+import { WorkflowNodeType } from '../nodes';
 import { SelectorBoxPopover } from '../components/selector-box-popover';
-import { BaseNode, LineAddButton, NodePanel } from '../components';
+import { BaseNode, CommentRender, GroupNodeRender, LineAddButton, NodePanel } from '../components';
 
 export function useEditorProps(
   initialData: FlowDocumentJSON,
@@ -94,27 +94,7 @@ export function useEditorProps(
        * Drag the end of the line to create an add panel (feature optional)
        * 拖拽线条结束需要创建一个添加面板 （功能可选）
        */
-      async onDragLineEnd(ctx, params) {
-        const nodePanelService = ctx.get(WorkflowNodePanelService);
-        const { fromPort, toPort, mousePos, line, originLine } = params;
-        if (originLine || !line) {
-          return;
-        }
-        if (toPort) {
-          return;
-        }
-        // Open add panel
-        await nodePanelService.call({
-          fromPort,
-          toPort: undefined,
-          panelPosition: mousePos,
-          enableBuildLine: true,
-          panelProps: {
-            enableNodePlaceholder: true,
-            enableScrollClose: true,
-          },
-        });
-      },
+      onDragLineEnd,
       /**
        * SelectBox config
        */
@@ -126,6 +106,9 @@ export function useEditorProps(
          * Render Node
          */
         renderDefaultNode: BaseNode,
+        renderNodes: {
+          [WorkflowNodeType.Comment]: CommentRender,
+        },
       },
       /**
        * Node engine enable, you can configure formMeta in the FlowNodeRegistry
@@ -153,6 +136,10 @@ export function useEditorProps(
         console.log('Auto Save: ', event, ctx.document.toJSON());
       }, 1000),
       /**
+       * Running line
+       */
+      isFlowingLine: (ctx, line) => ctx.get(RunningService).isFlowingLine(line),
+      /**
        * Shortcuts
        */
       shortcuts,
@@ -161,6 +148,7 @@ export function useEditorProps(
        */
       onBind: ({ bind }) => {
         bind(CustomService).toSelf().inSingletonScope();
+        bind(RunningService).toSelf().inSingletonScope();
       },
       /**
        * Playground init
@@ -243,6 +231,9 @@ export function useEditorProps(
          * 这个用于 loop 节点子画布的渲染
          */
         createContainerNodePlugin({}),
+        createFreeGroupPlugin({
+          groupNodeRender: GroupNodeRender,
+        }),
       ],
     }),
     []

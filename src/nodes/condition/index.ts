@@ -3,9 +3,10 @@ import { nanoid } from 'nanoid';
 import { FlowNodeRegistry } from '../../typings';
 import iconCondition from '../../assets/icon-condition.svg';
 import { formMeta } from './form-meta';
+import { WorkflowNodeType } from '../constants';
 
 export const ConditionNodeRegistry: FlowNodeRegistry = {
-  type: 'condition',
+  type: WorkflowNodeType.Condition,
   info: {
     icon: iconCondition,
     description:

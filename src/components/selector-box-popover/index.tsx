@@ -1,9 +1,11 @@
 import { FunctionComponent } from 'react';
 
 import { SelectorBoxPopoverProps } from '@flowgram.ai/free-layout-editor';
+import { WorkflowGroupCommand } from '@flowgram.ai/free-group-plugin';
 import { Button, ButtonGroup, Tooltip } from '@douyinfe/semi-ui';
 import { IconCopy, IconDeleteStroked, IconExpand, IconShrink } from '@douyinfe/semi-icons';
 
+import { IconGroup } from '../group';
 import { FlowCommandId } from '../../shortcuts/constants';
 
 const BUTTON_HEIGHT = 24;
@@ -50,6 +52,18 @@ export const SelectorBoxPopover: FunctionComponent<SelectorBoxPopoverProps> = ({
             theme="solid"
             onMouseDown={(e) => {
               commandRegistry.executeCommand(FlowCommandId.EXPAND);
+            }}
+          />
+        </Tooltip>
+
+        <Tooltip content={'Create Group'}>
+          <Button
+            icon={<IconGroup size={14} />}
+            style={{ height: BUTTON_HEIGHT }}
+            type="primary"
+            theme="solid"
+            onClick={() => {
+              commandRegistry.executeCommand(WorkflowGroupCommand.Group);
             }}
           />
         </Tooltip>

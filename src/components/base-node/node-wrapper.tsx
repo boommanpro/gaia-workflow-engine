@@ -4,27 +4,30 @@ import { WorkflowPortRender } from '@flowgram.ai/free-layout-editor';
 
 import { useNodeRenderContext } from '../../hooks';
 import { PanelEnum, useSidebarContext } from '../../context';
+import { NodeWrapperStyle } from './styles.tsx';
 // import { scrollToView } from './utils'
 // import { useClientContext } from '@flowgram.ai/free-layout-editor';
 
 export interface NodeWrapperProps {
+  isScrollToView?: boolean;
   children: React.ReactNode;
 }
-
 /**
  * Used for drag-and-drop/click events and ports rendering of nodes
  * 用于节点的拖拽/点击事件和点位渲染
  */
 export const NodeWrapper: React.FC<NodeWrapperProps> = (props) => {
+  const { children, isScrollToView = false } = props;
   const nodeRender = useNodeRenderContext();
   const { selected, startDrag, ports, selectNode, nodeRef, onFocus, onBlur } = nodeRender;
   const [isDragging, setIsDragging] = useState(false);
   const sidebar = useSidebarContext();
   // const ctx = useClientContext()
+  const portsRender = ports.map((p) => <WorkflowPortRender key={p.id} entity={p} />);
 
   return (
     <>
-      <div
+      <NodeWrapperStyle
         ref={nodeRef}
         draggable
         onDragStart={(e) => {
@@ -48,11 +51,9 @@ export const NodeWrapper: React.FC<NodeWrapperProps> = (props) => {
         onBlur={onBlur}
         data-node-selected={String(selected)}
       >
-        {props.children}
-      </div>
-      {ports.map((p) => (
-        <WorkflowPortRender key={p.id} entity={p} />
-      ))}
+        {children}
+      </NodeWrapperStyle>
+      {portsRender}
     </>
   );
 };

@@ -1,11 +1,12 @@
 import { nanoid } from 'nanoid';
 
+import { WorkflowNodeType } from '../constants';
 import { FlowNodeRegistry } from '../../typings';
 import iconLLM from '../../assets/icon-llm.jpg';
 
 let index = 0;
 export const LLMNodeRegistry: FlowNodeRegistry = {
-  type: 'llm',
+  type: WorkflowNodeType.LLM,
   info: {
     icon: iconLLM,
     description:

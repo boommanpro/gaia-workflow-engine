@@ -1,10 +1,10 @@
 import React, { type SVGProps } from 'react';
 
+import { VariableSelector } from '@flowgram.ai/form-materials';
 import { Input, Button } from '@douyinfe/semi-ui';
 
 import { ValueDisplay } from '../value-display';
 import { FlowRefValueSchema, FlowLiteralValueSchema } from '../../typings';
-import { VariableSelector } from '../../plugins/sync-variable-plugin/variable-selector';
 
 export function FxIcon(props: SVGProps<SVGSVGElement>) {
   return (
