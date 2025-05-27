@@ -7,7 +7,7 @@
   "main": "./src/index.ts",
   "files": [
     "src/",
-    "../../.eslintrc.js",
+    ".eslintrc.js",
     ".gitignore",
     "index.html",
     "package.json",
@@ -57,17 +57,17 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "build": "../../node_modules/.bin/cross-env NODE_ENV=production rsbuild build",
+    "build": "node_modules/.bin/cross-env NODE_ENV=production rsbuild build",
     "build:fast": "exit 0",
     "build:watch": "exit 0",
     "clean": "rimraf dist",
-    "dev": "../../node_modules/.bin/cross-env MODE=app NODE_ENV=development rsbuild dev --open",
-    "lint": "../../node_modules/.bin/eslint ./src --cache",
-    "lint:fix": "../../node_modules/.bin/eslint ./src --fix",
-    "start": "../../node_modules/.bin/cross-env NODE_ENV=development rsbuild dev --open",
+    "dev": "node_modules/.bin/cross-env MODE=app NODE_ENV=development rsbuild dev --open",
+    "lint": "node_modules/.bin/eslint ./src --cache",
+    "lint:fix": "node_modules/.bin/eslint ./src --fix",
+    "start": "node_modules/.bin/cross-env NODE_ENV=development rsbuild dev --open",
     "test": "exit",
     "test:cov": "exit",
     "watch": "exit 0",
-    "build:gh-pages": "../../node_modules/.bin/cross-env NODE_ENV=production rsbuild build"
+    "build:gh-pages": "node_modules/.bin/cross-env NODE_ENV=production rsbuild build"
   }
 }

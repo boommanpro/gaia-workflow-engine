@@ -14,7 +14,7 @@
     "allowImportingTsExtensions": true
   },
   "include": [
-    "../../src"
+    "src"
   ],
   "ts-node": {
     "compilerOptions": {
