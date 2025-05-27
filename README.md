@@ -17,6 +17,10 @@ link: https://boommanpro.github.io/flowgram-ai-rule-engine/
 
 感兴趣的同学可以一起二次开发，服务端（Java版本）后续会开放出来，敬请期待
 
+## 时间线
+
+2025.5.27 重构代码分支，该代码仅维护apps/demo-free-layout目录，其余和官方保持一致
+
 截图如下:
 
 ![img.png](images/img.png)
