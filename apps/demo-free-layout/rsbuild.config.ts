@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [pluginReact(), pluginLess()],
   source: {
     entry: {
-      index: './src/app.tsx',
+      index: './src/main.tsx',
     },
     /**
      * support inversify @injectable() and @inject decorators
@@ -17,5 +17,8 @@ export default defineConfig({
   },
   html: {
     title: 'demo-free-layout',
+  },
+  output: {
+    assetPrefix: './',
   },
 });
