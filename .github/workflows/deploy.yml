@@ -24,11 +24,16 @@ jobs:
           version: 9.12.0  # 指定 pnpm 版本，建议与本地一致
 
       - name: Install dependencies And Build
-        run: pnpm install --frozen-lockfile  # 替代 npm ci
-      - run: pnpm run build:gh-pages  # 替换 npm 命令
+        run: pnpm install --frozen-lockfile
+        working-directory: apps/demo-free-layout
+
+      - name: Build Application
+        run: pnpm run build:gh-pages
+        working-directory: apps/demo-free-layout
 
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@v4.3.4
+        working-directory: apps/demo-free-layout
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           branch: gh-pages
@@ -38,3 +43,4 @@ jobs:
 
       - name: Cleanup
         run: rm -rf dist
+        working-directory: apps/demo-free-layout
