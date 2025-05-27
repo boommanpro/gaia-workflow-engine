@@ -33,11 +33,10 @@ jobs:
 
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@v4.3.4
-        working-directory: apps/demo-free-layout
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           branch: gh-pages
-          folder: dist
+          folder: apps/demo-free-layout/dist
           force: true
           commit-message: website deploy
 
