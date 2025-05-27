@@ -1,13 +1,41 @@
 import { useState } from 'react';
 
-import { NodeRenderReturnType } from '@flowgram.ai/free-layout-editor';
-
-import { SidebarContext } from '../../context';
+import { PanelEnum, PanelValue, SidebarContext, StatePriority } from '../../context';
 
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
-  const [nodeRender, setNodeRender] = useState<NodeRenderReturnType | undefined>();
+  // 初始化状态
+  const [sidebarState, setSidebarState] = useState<Record<PanelEnum, PanelValue>>({
+    [PanelEnum.WorkflowRun]: { isRunning: false },
+    [PanelEnum.NodeRun]: { isRunning: false },
+    [PanelEnum.NodeEdit]: { isRunning: false },
+  });
+
+  // 更新状态的方法
+  const updatePanelValue = (state: PanelEnum, value: PanelValue) => {
+    setSidebarState((prevState) => ({
+      ...prevState,
+      [state]: value,
+    }));
+  };
+
+  // 获取第一个启用的面板
+
+  const getFirstEnablePanel = () => {
+    let state = sidebarState;
+    for (const key of StatePriority) {
+      if (state[key].isRunning) {
+        return { key, value: state[key] };
+      }
+    }
+    return null;
+  };
+
+  const getPanelValue = (panel: PanelEnum) => sidebarState[panel];
+
   return (
-    <SidebarContext.Provider value={{ visible: !!nodeRender, nodeRender, setNodeRender }}>
+    <SidebarContext.Provider
+      value={{ ...sidebarState, getFirstEnablePanel, updatePanelValue, getPanelValue }}
+    >
       {children}
     </SidebarContext.Provider>
   );

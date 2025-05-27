@@ -17,4 +17,7 @@ export const CommentNodeRegistry: FlowNodeRegistry = {
   },
   getInputPoints: () => [], // Comment 节点没有输入
   getOutputPoints: () => [], // Comment 节点没有输出
+  canAdd() {
+    return false;
+  },
 };
