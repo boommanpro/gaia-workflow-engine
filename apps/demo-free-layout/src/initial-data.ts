@@ -1,388 +1,448 @@
-import { FlowDocumentJSON } from './typings';
+import {FlowDocumentJSON} from './typings';
 
 export const initialData: FlowDocumentJSON = {
-  nodes: [
-    {
-      id: 'start_0',
-      type: 'start',
-      meta: {
-        position: {
-          x: 180,
-          y: 381.75,
-        },
-      },
-      data: {
-        title: 'Start',
-        outputs: {
-          type: 'object',
-          properties: {
-            query: {
-              type: 'string',
-              default: 'Hello Flow.',
-            },
-            enable: {
-              type: 'boolean',
-              default: true,
-            },
-            array_obj: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  int: {
-                    type: 'number',
-                  },
-                  str: {
-                    type: 'string',
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-    {
-      id: 'condition_0',
-      type: 'condition',
-      meta: {
-        position: {
-          x: 640,
-          y: 363.25,
-        },
-      },
-      data: {
-        title: 'Condition',
-        conditions: [
-          {
-            key: 'if_0',
-            value: {
-              left: {
-                type: 'ref',
-                content: ['start_0', 'query'],
-              },
-              operator: 'contains',
-              right: {
-                type: 'constant',
-                content: 'Hello Flow.',
-              },
-            },
-          },
-          {
-            key: 'if_f0rOAt',
-            value: {
-              left: {
-                type: 'ref',
-                content: ['start_0', 'enable'],
-              },
-              operator: 'is_true',
-            },
-          },
-        ],
-      },
-    },
-    {
-      id: 'end_0',
-      type: 'end',
-      meta: {
-        position: {
-          x: 2220,
-          y: 381.75,
-        },
-      },
-      data: {
-        title: 'End',
-        outputs: {
-          type: 'object',
-          properties: {
-            result: {
-              type: 'string',
-            },
-          },
-        },
-      },
-    },
-    {
-      id: 'loop_H8M3U',
-      type: 'loop',
-      meta: {
-        position: {
-          x: 1020,
-          y: 547.96875,
-        },
-      },
-      data: {
-        title: 'Loop_2',
-        batchFor: {
-          type: 'ref',
-          content: ['start_0', 'array_obj'],
-        },
-        outputs: {
-          type: 'object',
-          properties: {
-            result: {
-              type: 'string',
-            },
-          },
-        },
-      },
-      blocks: [
+    "nodes": [
         {
-          id: 'llm_CBdCg',
-          type: 'llm',
-          meta: {
-            position: {
-              x: 180,
-              y: 0,
+            "id": "start_0",
+            "type": "start",
+            "meta": {
+                "position": {
+                    "x": 180,
+                    "y": 313.5
+                }
             },
-          },
-          data: {
-            title: 'LLM_4',
-            inputsValues: {},
-            inputs: {
-              type: 'object',
-              required: ['modelType', 'temperature', 'prompt'],
-              properties: {
-                modelType: {
-                  type: 'string',
+            "data": {
+                "title": "Start",
+                "outputs": {
+                    "type": "object",
+                    "properties": {
+                        "a": {
+                            "type": "string",
+                            "default": "1"
+                        },
+                        "b": {
+                            "type": "string",
+                            "default": "2"
+                        },
+                        "c": {
+                            "type": "string",
+                            "default": "3"
+                        },
+                        "d": {
+                            "type": "string",
+                            "default": "4"
+                        }
+                    }
                 },
-                temperature: {
-                  type: 'number',
-                },
-                systemPrompt: {
-                  type: 'string',
-                },
-                prompt: {
-                  type: 'string',
-                },
-              },
-            },
-            outputs: {
-              type: 'object',
-              properties: {
-                result: {
-                  type: 'string',
-                },
-              },
-            },
-          },
+                "description": "start node"
+            }
         },
         {
-          id: 'llm_gZafu',
-          type: 'llm',
-          meta: {
-            position: {
-              x: 640,
-              y: 0,
+            "id": "end_0",
+            "type": "end",
+            "meta": {
+                "position": {
+                    "x": 2480,
+                    "y": 209
+                }
             },
-          },
-          data: {
-            title: 'LLM_5',
-            inputsValues: {},
-            inputs: {
-              type: 'object',
-              required: ['modelType', 'temperature', 'prompt'],
-              properties: {
-                modelType: {
-                  type: 'string',
+            "data": {
+                "title": "End",
+                "outputs": {
+                    "type": "object",
+                    "properties": {
+                        "result": {
+                            "type": "string",
+                            "default": {
+                                "type": "ref",
+                                "content": [
+                                    "code_-v33c",
+                                    "result"
+                                ]
+                            }
+                        }
+                    }
                 },
-                temperature: {
-                  type: 'number',
-                },
-                systemPrompt: {
-                  type: 'string',
-                },
-                prompt: {
-                  type: 'string',
-                },
-              },
-            },
-            outputs: {
-              type: 'object',
-              properties: {
-                result: {
-                  type: 'string',
-                },
-              },
-            },
-          },
-        },
-      ],
-      edges: [
-        {
-          sourceNodeID: 'llm_CBdCg',
-          targetNodeID: 'llm_gZafu',
-        },
-      ],
-    },
-    {
-      id: '159623',
-      type: 'comment',
-      meta: {
-        position: {
-          x: 640,
-          y: 522.46875,
-        },
-      },
-      data: {
-        size: {
-          width: 240,
-          height: 150,
-        },
-        note: 'hi ~\n\nthis is a comment node\n\n- flowgram.ai',
-      },
-    },
-    {
-      id: 'group_V-_st',
-      type: 'group',
-      meta: {
-        position: {
-          x: 1020,
-          y: 96.25,
-        },
-      },
-      data: {
-        title: 'LLM_Group',
-        color: 'Violet',
-      },
-      blocks: [
-        {
-          id: 'llm_0',
-          type: 'llm',
-          meta: {
-            position: {
-              x: 640,
-              y: 0,
-            },
-          },
-          data: {
-            title: 'LLM_0',
-            inputsValues: {
-              modelType: {
-                type: 'constant',
-                content: 'gpt-3.5-turbo',
-              },
-              temperature: {
-                type: 'constant',
-                content: 0.5,
-              },
-              systemPrompt: {
-                type: 'constant',
-                content: 'You are an AI assistant.',
-              },
-              prompt: {
-                type: 'constant',
-                content: '',
-              },
-            },
-            inputs: {
-              type: 'object',
-              required: ['modelType', 'temperature', 'prompt'],
-              properties: {
-                modelType: {
-                  type: 'string',
-                },
-                temperature: {
-                  type: 'number',
-                },
-                systemPrompt: {
-                  type: 'string',
-                },
-                prompt: {
-                  type: 'string',
-                },
-              },
-            },
-            outputs: {
-              type: 'object',
-              properties: {
-                result: {
-                  type: 'string',
-                },
-              },
-            },
-          },
+                "description": "end node"
+            }
         },
         {
-          id: 'llm_l_TcE',
-          type: 'llm',
-          meta: {
-            position: {
-              x: 180,
-              y: 0,
+            "id": "code_sCNs8",
+            "type": "code",
+            "meta": {
+                "position": {
+                    "x": 640,
+                    "y": 313.5
+                }
             },
-          },
-          data: {
-            title: 'LLM_1',
-            inputsValues: {},
-            inputs: {
-              type: 'object',
-              required: ['modelType', 'temperature', 'prompt'],
-              properties: {
-                modelType: {
-                  type: 'string',
+            "data": {
+                "title": "Code_2",
+                "description": "代码组件",
+                "config": {
+                    "language": "javaScriptFunc",
+                    "code": "return {\n    \"a\":a,\n    \"b\":b\n}"
                 },
-                temperature: {
-                  type: 'number',
+                "inputs": {
+                    "type": "object",
+                    "properties": {
+                        "a": {
+                            "type": "string",
+                            "default": {
+                                "type": "ref",
+                                "content": "start_0.outputs.a"
+                            }
+                        },
+                        "b": {
+                            "type": "string",
+                            "default": {
+                                "type": "literal",
+                                "content": "b1"
+                            }
+                        },
+                        "c": {
+                            "type": "string",
+                            "default": {
+                                "type": "literal",
+                                "content": "c1"
+                            }
+                        }
+                    }
                 },
-                systemPrompt: {
-                  type: 'string',
-                },
-                prompt: {
-                  type: 'string',
-                },
-              },
+                "outputs": {
+                    "type": "object",
+                    "properties": {
+                        "a": {
+                            "type": "string",
+                            "default": "12"
+                        },
+                        "b": {
+                            "type": "string",
+                            "default": "b"
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "id": "condition_Pk7Qg",
+            "type": "condition",
+            "meta": {
+                "position": {
+                    "x": 1100,
+                    "y": 243.45
+                }
             },
-            outputs: {
-              type: 'object',
-              properties: {
-                result: {
-                  type: 'string',
+            "data": {
+                "title": "Condition",
+                "inputsValues": {
+                    "branches": [
+                        {
+                            "condition": {
+                                "logic": 1,
+                                "description": "规则说明",
+                                "conditions": [
+                                    {
+                                        "operator": 1,
+                                        "left": {
+                                            "type": "expression",
+                                            "content": [
+                                                "start_0",
+                                                "b"
+                                            ]
+                                        },
+                                        "right": {
+                                            "content": [
+                                                "start_0",
+                                                "b"
+                                            ],
+                                            "type": "expression"
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "condition": {
+                                "logic": 1,
+                                "description": "规则说明",
+                                "conditions": [
+                                    {
+                                        "operator": 1,
+                                        "left": {
+                                            "type": "expression",
+                                            "content": [
+                                                "start_0"
+                                            ]
+                                        },
+                                        "right": {
+                                            "type": "expression",
+                                            "content": [
+                                                "start_0"
+                                            ]
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "condition": {
+                                "logic": 1,
+                                "description": "规则说明",
+                                "conditions": [
+                                    {
+                                        "operator": 1,
+                                        "left": {
+                                            "type": "expression",
+                                            "content": [
+                                                "start_0"
+                                            ]
+                                        },
+                                        "right": {
+                                            "type": "expression",
+                                            "content": [
+                                                "start_0"
+                                            ]
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
                 },
-              },
+                "inputs": {
+                    "type": "object",
+                    "properties": {
+                        "conditions": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "key": {
+                                        "type": "string"
+                                    },
+                                    "value": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "id": "code_q303y",
+            "type": "code",
+            "meta": {
+                "position": {
+                    "x": 1560,
+                    "y": 627
+                }
             },
-          },
+            "data": {
+                "title": "Code_3",
+                "description": "代码组件",
+                "config": {
+                    "language": "javaScriptFunc",
+                    "code": "return {\n    \"a\":a,\n    \"b\":b\n}"
+                },
+                "inputs": {
+                    "type": "object"
+                },
+                "outputs": {
+                    "type": "object",
+                    "properties": {
+                        "result": {
+                            "type": "string",
+                            "default": "a"
+                        }
+                    }
+                }
+            }
         },
-      ],
-      edges: [
         {
-          sourceNodeID: 'llm_l_TcE',
-          targetNodeID: 'llm_0',
+            "id": "code_-v33c",
+            "type": "code",
+            "meta": {
+                "position": {
+                    "x": 1560,
+                    "y": 0
+                }
+            },
+            "data": {
+                "title": "Code_4",
+                "description": "代码组件",
+                "config": {
+                    "language": "javaScriptFunc",
+                    "code": "return {\n    \"a\":a,\n    \"b\":b\n}"
+                },
+                "inputs": {
+                    "type": "object",
+                    "properties": {}
+                },
+                "outputs": {
+                    "type": "object",
+                    "properties": {
+                        "result": {
+                            "type": "string",
+                            "default": "a"
+                        }
+                    }
+                }
+            }
         },
         {
-          sourceNodeID: 'llm_0',
-          targetNodeID: 'end_0',
+            "id": "code_Qzvgd",
+            "type": "code",
+            "meta": {
+                "position": {
+                    "x": 1560,
+                    "y": 209
+                }
+            },
+            "data": {
+                "title": "Code_5",
+                "description": "代码组件",
+                "config": {
+                    "language": "javaScriptFunc",
+                    "code": "return {\n    \"a\":a,\n    \"b\":b\n}"
+                },
+                "inputs": {
+                    "type": "object"
+                },
+                "outputs": {
+                    "type": "object",
+                    "properties": {
+                        "result": {
+                            "type": "string",
+                            "default": "a"
+                        }
+                    }
+                }
+            }
         },
         {
-          sourceNodeID: 'condition_0',
-          targetNodeID: 'llm_l_TcE',
-          sourcePortID: 'if_0',
+            "id": "code_WpFEL",
+            "type": "code",
+            "meta": {
+                "position": {
+                    "x": 1560,
+                    "y": 418
+                }
+            },
+            "data": {
+                "title": "Code_6",
+                "description": "代码组件",
+                "config": {
+                    "language": "javaScriptFunc",
+                    "code": "return {\n    \"a\":a,\n    \"b\":b\n}"
+                },
+                "inputs": {
+                    "type": "object"
+                },
+                "outputs": {
+                    "type": "object",
+                    "properties": {
+                        "result": {
+                            "type": "string",
+                            "default": "a"
+                        }
+                    }
+                }
+            }
         },
-      ],
-    },
-  ],
-  edges: [
-    {
-      sourceNodeID: 'start_0',
-      targetNodeID: 'condition_0',
-    },
-    {
-      sourceNodeID: 'condition_0',
-      targetNodeID: 'llm_l_TcE',
-      sourcePortID: 'if_0',
-    },
-    {
-      sourceNodeID: 'condition_0',
-      targetNodeID: 'loop_H8M3U',
-      sourcePortID: 'if_f0rOAt',
-    },
-    {
-      sourceNodeID: 'llm_0',
-      targetNodeID: 'end_0',
-    },
-    {
-      sourceNodeID: 'loop_H8M3U',
-      targetNodeID: 'end_0',
-    },
-  ],
-};
+        {
+            "id": "code_PHkiO",
+            "type": "code",
+            "meta": {
+                "position": {
+                    "x": 2020,
+                    "y": 209
+                }
+            },
+            "data": {
+                "title": "Code_7",
+                "description": "代码组件",
+                "config": {
+                    "language": "javaScriptFunc",
+                    "code": "test001"
+                },
+                "inputs": {
+                    "type": "object"
+                },
+                "outputs": {
+                    "type": "object",
+                    "properties": {
+                        "result": {
+                            "type": "string",
+                            "default": "a"
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "id": "note_48oopof_1748353844670",
+            "type": "note",
+            "meta": {
+                "position": {
+                    "x": 180,
+                    "y": 522.5
+                }
+            },
+            "data": {
+                "description": "注释"
+            }
+        }
+    ],
+    "edges": [
+        {
+            "sourceNodeID": "start_0",
+            "targetNodeID": "code_sCNs8"
+        },
+        {
+            "sourceNodeID": "code_PHkiO",
+            "targetNodeID": "end_0"
+        },
+        {
+            "sourceNodeID": "code_sCNs8",
+            "targetNodeID": "condition_Pk7Qg"
+        },
+        {
+            "sourceNodeID": "condition_Pk7Qg",
+            "targetNodeID": "code_-v33c",
+            "sourcePortID": "true_0"
+        },
+        {
+            "sourceNodeID": "condition_Pk7Qg",
+            "targetNodeID": "code_Qzvgd",
+            "sourcePortID": "true_1"
+        },
+        {
+            "sourceNodeID": "condition_Pk7Qg",
+            "targetNodeID": "code_WpFEL",
+            "sourcePortID": "true_2"
+        },
+        {
+            "sourceNodeID": "condition_Pk7Qg",
+            "targetNodeID": "code_q303y",
+            "sourcePortID": "false"
+        },
+        {
+            "sourceNodeID": "code_q303y",
+            "targetNodeID": "code_PHkiO"
+        },
+        {
+            "sourceNodeID": "code_-v33c",
+            "targetNodeID": "code_PHkiO"
+        },
+        {
+            "sourceNodeID": "code_Qzvgd",
+            "targetNodeID": "code_PHkiO"
+        },
+        {
+            "sourceNodeID": "code_WpFEL",
+            "targetNodeID": "code_PHkiO"
+        }
+    ]
+}
