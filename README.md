@@ -1,7 +1,21 @@
 ## flowgram-ai-rule-engine
 
-link: https://boommanpro.github.io/flowgram-ai-rule-engine/
-协议规则来自coze拆解：https://boommanpro.cn/post/coze-schema
+### ① 项目定位
+
+一个可视化的规则引擎前端画布程序，期望具备以下功能
+1. 代码节点
+2. 分支节点
+3. 测试运行
+4. 配套的java后端
+5. 可以微前端或者web-components运行，进而支持跨前端语言
+
+### ② 为什么会基于flowgram.ai再次开源一个项目？
+
+官方的demo-free-layout更新较慢，提PR再使用较慢，并且不适用于我的场景。
+
+### ③ 功能介绍
+link: https://boommanpro.github.io/flowgram-rule-engine/
+
 在官方版本的基础上实现以下功能
 
 1. 新增code节点
