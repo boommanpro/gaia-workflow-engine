@@ -1,6 +1,7 @@
 import { pluginReact } from '@rsbuild/plugin-react';
 import { pluginLess } from '@rsbuild/plugin-less';
 import { defineConfig } from '@rsbuild/core';
+import path from 'path';
 
 export default defineConfig({
   plugins: [pluginReact(), pluginLess()],
@@ -17,6 +18,7 @@ export default defineConfig({
   },
   html: {
     title: 'demo-free-layout',
+    template: path.resolve(__dirname, './index.html'),
   },
   output: {
     assetPrefix: './',
