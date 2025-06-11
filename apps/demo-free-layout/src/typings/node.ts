@@ -44,7 +44,7 @@ export interface FlowNodeJSON extends FlowNodeJSONDefault {
  * 你可以自定义节点的meta
  */
 export interface FlowNodeMeta extends WorkflowNodeMeta {
-  disableSideBar?: boolean;
+  sidebarDisable?: boolean;
 }
 
 /**

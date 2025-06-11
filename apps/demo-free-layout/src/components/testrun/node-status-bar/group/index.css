@@ -1,0 +1,8 @@
+.node-status-group {
+    padding: 6px;
+    font-weight: 500;
+    color: #333;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+}

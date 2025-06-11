@@ -15,7 +15,7 @@ export const LLMNodeRegistry: FlowNodeRegistry = {
   meta: {
     size: {
       width: 360,
-      height: 305,
+      height: 300,
     },
   },
   onAdd() {
@@ -24,12 +24,43 @@ export const LLMNodeRegistry: FlowNodeRegistry = {
       type: 'llm',
       data: {
         title: `LLM_${++index}`,
-        inputsValues: {},
+        inputsValues: {
+          modelName: {
+            type: 'constant',
+            content: 'gpt-3.5-turbo',
+          },
+          apiKey: {
+            type: 'constant',
+            content: 'sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+          },
+          apiHost: {
+            type: 'constant',
+            content: 'https://mock-ai-url/api/v3',
+          },
+          temperature: {
+            type: 'constant',
+            content: 0.5,
+          },
+          systemPrompt: {
+            type: 'constant',
+            content: 'You are an AI assistant.',
+          },
+          prompt: {
+            type: 'constant',
+            content: '',
+          },
+        },
         inputs: {
           type: 'object',
-          required: ['modelType', 'temperature', 'prompt'],
+          required: ['modelName', 'apiKey', 'apiHost', 'temperature', 'prompt'],
           properties: {
-            modelType: {
+            modelName: {
+              type: 'string',
+            },
+            apiKey: {
+              type: 'string',
+            },
+            apiHost: {
               type: 'string',
             },
             temperature: {

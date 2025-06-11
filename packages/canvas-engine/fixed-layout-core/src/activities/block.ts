@@ -171,6 +171,9 @@ export const BlockRegistry: FlowNodeRegistry = {
     return [...draggingLabel];
   },
 
+  /**
+   * @depreacted
+   */
   addChild(node, json, options = {}) {
     const { index } = options;
     const document = node.document;

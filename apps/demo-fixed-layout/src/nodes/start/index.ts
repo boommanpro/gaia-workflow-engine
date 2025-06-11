@@ -10,6 +10,7 @@ export const StartNodeRegistry: FlowNodeRegistry = {
     selectable: false, // Start node cannot select
     copyDisable: true, // Start node cannot copy
     expandable: false, // disable expanded
+    addDisable: true, // Start Node cannot be added
   },
   info: {
     icon: iconStart,
@@ -20,10 +21,4 @@ export const StartNodeRegistry: FlowNodeRegistry = {
    * Render node via formMeta
    */
   formMeta,
-  /**
-   * Start Node cannot be added
-   */
-  canAdd() {
-    return false;
-  },
 };

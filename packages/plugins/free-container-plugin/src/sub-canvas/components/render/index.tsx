@@ -1,23 +1,26 @@
 import React, { CSSProperties, type FC } from 'react';
 
-import { useCurrentEntity } from '@flowgram.ai/free-layout-core';
-
 import { SubCanvasRenderStyle } from './style';
 import { SubCanvasTips } from '../tips';
 import { SubCanvasBorder } from '../border';
 import { SubCanvasBackground } from '../background';
 import { useNodeSize, useSyncNodeRenderSize } from '../../hooks';
 
-interface ISubCanvasBorder {
+interface ISubCanvasRender {
+  offsetY?: number;
   className?: string;
   style?: CSSProperties;
+  tipText?: string | React.ReactNode;
 }
 
-export const SubCanvasRender: FC<ISubCanvasBorder> = ({ className, style }) => {
-  const node = useCurrentEntity();
+export const SubCanvasRender: FC<ISubCanvasRender> = ({
+  className,
+  style,
+  offsetY = 0,
+  tipText,
+}) => {
   const nodeSize = useNodeSize();
   const nodeHeight = nodeSize?.height ?? 0;
-  const { padding } = node.transform;
 
   useSyncNodeRenderSize(nodeSize);
 
@@ -25,7 +28,7 @@ export const SubCanvasRender: FC<ISubCanvasBorder> = ({ className, style }) => {
     <SubCanvasRenderStyle
       className={`sub-canvas-render ${className ?? ''}`}
       style={{
-        height: nodeHeight - padding.top,
+        height: nodeHeight + offsetY,
         ...style,
       }}
       data-flow-editor-selectable="true"
@@ -35,7 +38,7 @@ export const SubCanvasRender: FC<ISubCanvasBorder> = ({ className, style }) => {
     >
       <SubCanvasBorder>
         <SubCanvasBackground />
-        <SubCanvasTips />
+        <SubCanvasTips tipText={tipText} />
       </SubCanvasBorder>
     </SubCanvasRenderStyle>
   );

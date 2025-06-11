@@ -68,6 +68,9 @@ export const DynamicSplitRegistry: FlowNodeRegistry = {
     };
   },
 
+  /**
+   * @depreacted
+   */
   addChild(node, json, options = {}) {
     const { index } = options;
     const document = node.document;

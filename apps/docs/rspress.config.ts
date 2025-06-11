@@ -2,6 +2,7 @@ import * as path from 'node:path';
 
 import { merge } from 'webpack-merge';
 import { defineConfig } from 'rspress/config';
+// import { pluginLlms } from '@rspress/plugin-llms';
 
 export default defineConfig({
   root: path.join(__dirname, 'src'),
@@ -44,7 +45,7 @@ export default defineConfig({
       },
     },
   },
-  ssg: true,
+  ssg: false,
   // locales 为一个对象数组
   locales: [
     {
@@ -68,7 +69,12 @@ export default defineConfig({
   },
   lang: 'zh',
   logoText: 'FlowGram.AI',
-  plugins: [],
+  plugins: [
+    // pluginLlms({
+    //   llmsTxt: true,
+    //   llmsFullTxt: true,
+    // }),
+  ],
   themeConfig: {
     localeRedirect: 'auto',
     footer: {

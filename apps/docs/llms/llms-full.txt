@@ -1,0 +1,8909 @@
+---
+url: /guide/introduction.md
+---
+
+# 介绍
+
+FlowGram 是一套基于节点编辑的流程搭建引擎，帮助开发者快速创建固定布局或自由连线布局模式的流程，并提供一套交互的最佳实践, 很适合有明确输入和输出的可视化工作流。
+
+在 AI 如火如荼的当下，我们也会更专注于如何让流程赋能 AI，为此特意加上 AI 后缀。
+
+FlowGram = Flow + Program，寓意流程如程序一样，拥有 Condition、Loop 甚至 TryCatch 节点。
+
+## 官方 Demo
+
+固定布局
+
+固定的排版，节点/分支支持指定位置拖拽移动，并提供分支、循环等复合节点
+
+自由连线布局
+
+自由的排版，节点支持任意位置移动，通过自由连线连接节点
+
+## 交互体验
+
+提供一套交互的最佳实践，让操作流程更加丝滑
+
+Motion 过渡动画
+
+Motion 动画在 Web 端应用可追溯到 Material Design，里边提到元素的变化如宽高或位置需要一个过渡过程，画布引擎会把线条和节点拆分单独绘制，使实现 Motion 过渡动画成本大大降低
+
+触摸板手势缩放 + 空格自由拖动画布
+
+手势指在 Mac 触摸板两指展开/合并可以实现画布放大/缩小，或者按住空格拖动画布，交互借鉴 Sketch、Figma
+
+缩略图
+
+撤销/重做
+
+复制/粘贴(支持快捷键)
+
+框选 + 拖拽
+<div>(固定)</div>
+
+水平/垂直布局切换
+<div>(固定)</div>
+
+分支折叠
+<div>(固定)</div>
+
+分组
+<div>(固定)</div>
+
+自动整理
+(自由)
+
+吸附对齐 + 参考线
+(自由)
+
+Coze Loop 子画布
+(自由)
+
+## 线上应用
+
+扣子工作流
+
+飞书低代码平台工作流
+
+飞书多维表格工作流
+
+
+
+---
+url: /examples/index.md
+---
+
+
+
+
+---
+url: /examples/fixed-layout/fixed-layout-simple.md
+---
+
+# 基础用法
+
+
+
+## 安装
+
+```bash
+npx @flowgram.ai/create-app@latest fixed-layout-simple
+```
+
+## 源码
+
+https://github.com/bytedance/flowgram.ai/tree/main/apps/demo-fixed-layout-simple
+
+
+
+---
+url: /examples/fixed-layout/fixed-composite-nodes.md
+---
+
+# 复合节点
+
+
+
+## 安装
+
+```bash
+npx @flowgram.ai/create-app@latest fixed-layout-simple
+```
+
+## 源码
+
+* jsonData: https://github.com/bytedance/flowgram.ai/tree/main/apps/demo-fixed-layout-simple/src/data
+* nodeRegistries: https://github.com/bytedance/flowgram.ai/tree/main/packages/canvas-engine/fixed-layout-core/src/activities
+
+
+
+---
+url: /examples/fixed-layout/fixed-feature-overview.md
+---
+
+# 最佳实践
+
+
+
+## 安装
+
+```bash
+npx @flowgram.ai/create-app@latest fixed-layout
+```
+
+## 源码
+
+https://github.com/bytedance/flowgram.ai/tree/main/apps/demo-fixed-layout
+
+## 功能介绍
+
+缩略图
+
+撤销/重做
+
+复制/粘贴(支持快捷键)
+
+框选 + 拖拽
+
+水平/垂直布局切换
+
+分支折叠
+
+分组
+
+
+
+---
+url: /examples/free-layout/free-layout-simple.md
+---
+
+# 基础用法
+
+
+
+## 功能介绍
+
+Free Layout 是 Flowgram.ai 提供的自由布局编辑器组件，允许用户创建和编辑流程图、工作流和各种节点连接图表。核心功能包括：
+
+* 节点自由拖拽与定位
+* 节点连接与边缘管理
+* 可配置的节点注册与自定义渲染
+* 内置撤销/重做历史记录
+* 支持插件扩展（如缩略图、自动对齐等）
+
+## 从零构建自由布局编辑器
+
+本节将带你从零开始构建一个自由布局编辑器应用，完整演示如何使用 @flowgram.ai/free-layout-editor 包构建一个可交互的流程编辑器。
+
+### 1. 环境准备
+
+首先，我们需要创建一个新的项目：
+
+```bash
+# 使用脚手架快速创建项目
+npx @flowgram.ai/create-app@latest free-layout-simple
+
+# 进入项目目录
+cd free-layout-simple
+
+# 安装依赖
+npm install
+```
+
+### 2. 项目结构
+
+创建完成后，项目结构如下：
+
+```
+free-layout-simple/
+├── src/
+│   ├── components/            # 组件目录
+│   │   ├── node-add-panel.tsx # 节点添加面板
+│   │   ├── tools.tsx          # 工具栏组件
+│   │   └── minimap.tsx        # 缩略图组件
+│   ├── hooks/
+│   │   └── use-editor-props.tsx # 编辑器配置
+│   ├── initial-data.ts        # 初始数据定义
+│   ├── node-registries.ts     # 节点类型注册
+│   ├── editor.tsx             # 编辑器主组件
+│   ├── app.tsx                # 应用入口
+│   ├── index.tsx              # 渲染入口
+│   └── index.css              # 样式文件
+├── package.json
+└── ...其他配置文件
+```
+
+### 3. 开发流程
+
+#### 步骤一：定义初始数据
+
+首先，我们需要定义画布的初始数据结构，包括节点和连线：
+
+```tsx
+// src/initial-data.ts
+import { WorkflowJSON } from '@flowgram.ai/free-layout-editor';
+
+export const initialData: WorkflowJSON = {
+  nodes: [
+    {
+      id: 'start_0',
+      type: 'start',
+      meta: {
+        position: { x: 0, y: 0 },
+      },
+      data: {
+        title: '开始节点',
+        content: '这是开始节点'
+      },
+    },
+    {
+      id: 'node_0',
+      type: 'custom',
+      meta: {
+        position: { x: 400, y: 0 },
+      },
+      data: {
+        title: '自定义节点',
+        content: '这是自定义节点'
+      },
+    },
+    {
+      id: 'end_0',
+      type: 'end',
+      meta: {
+        position: { x: 800, y: 0 },
+      },
+      data: {
+        title: '结束节点',
+        content: '这是结束节点'
+      },
+    },
+  ],
+  edges: [
+    {
+      sourceNodeID: 'start_0',
+      targetNodeID: 'node_0',
+    },
+    {
+      sourceNodeID: 'node_0',
+      targetNodeID: 'end_0',
+    },
+  ],
+};
+```
+
+#### 步骤二：注册节点类型
+
+接下来，我们需要定义不同类型节点的行为和外观：
+
+```tsx
+// src/node-registries.ts
+import { WorkflowNodeRegistry } from '@flowgram.ai/free-layout-editor';
+
+/**
+ * 你可以自定义节点的注册器
+ */
+export const nodeRegistries: WorkflowNodeRegistry[] = [
+  {
+    type: 'start',
+    meta: {
+      isStart: true, // 开始节点标记
+      deleteDisable: true, // 开始节点不能被删除
+      copyDisable: true, // 开始节点不能被 copy
+      defaultPorts: [{ type: 'output' }], // 定义 input 和 output 端口，开始节点只有 output 端口
+    },
+  },
+  {
+    type: 'end',
+    meta: {
+      deleteDisable: true,
+      copyDisable: true,
+      defaultPorts: [{ type: 'input' }], // 结束节点只有 input 端口
+    },
+  },
+  {
+    type: 'custom',
+    meta: {},
+    defaultPorts: [{ type: 'output' }, { type: 'input' }], // 普通节点有两个端口
+  },
+];
+```
+
+#### 步骤三：创建编辑器配置
+
+使用 React hook 封装编辑器配置：
+
+```tsx
+// src/hooks/use-editor-props.tsx
+import { useMemo } from 'react';
+import {
+  FreeLayoutProps,
+  WorkflowNodeProps,
+  WorkflowNodeRenderer,
+  Field,
+  useNodeRender,
+} from '@flowgram.ai/free-layout-editor';
+import { createMinimapPlugin } from '@flowgram.ai/minimap-plugin';
+import { createFreeSnapPlugin } from '@flowgram.ai/free-snap-plugin';
+
+import { nodeRegistries } from '../node-registries';
+import { initialData } from '../initial-data';
+
+export const useEditorProps = () =>
+  useMemo<FreeLayoutProps>(
+    () => ({
+      // 启用背景网格
+      background: true,
+      // 非只读模式
+      readonly: false,
+      // 初始数据
+      initialData,
+      // 节点类型注册
+      nodeRegistries,
+      // 默认节点注册
+      getNodeDefaultRegistry(type) {
+        return {
+          type,
+          meta: {
+            defaultExpanded: true,
+          },
+          formMeta: {
+            // 节点表单渲染
+            render: () => (
+              <>
+                <Field<string> name="title">
+                  {({ field }) => <div className="demo-free-node-title">{field.value}</div>}
+                </Field>
+                <div className="demo-free-node-content">
+                  <Field<string> name="content">
+                    <input />
+                  </Field>
+                </div>
+              </>
+            ),
+          },
+        };
+      },
+      // 节点渲染
+      materials: {
+        renderDefaultNode: (props: WorkflowNodeProps) => {
+          const { form } = useNodeRender();
+          return (
+            <WorkflowNodeRenderer className="demo-free-node" node={props.node}>
+              {form?.render()}
+            </WorkflowNodeRenderer>
+          );
+        },
+      },
+      // 内容变更回调
+      onContentChange(ctx, event) {
+        console.log('数据变更: ', event, ctx.document.toJSON());
+      },
+      // 启用节点表单引擎
+      nodeEngine: {
+        enable: true,
+      },
+      // 启用历史记录
+      history: {
+        enable: true,
+        enableChangeNode: true, // 监听节点引擎数据变化
+      },
+      // 初始化回调
+      onInit: (ctx) => {},
+      // 渲染完成回调
+      onAllLayersRendered(ctx) {
+        ctx.document.fitView(false); // 适应视图
+      },
+      // 销毁回调
+      onDispose() {
+        console.log('编辑器已销毁');
+      },
+      // 插件配置
+      plugins: () => [
+        // 缩略图插件
+        createMinimapPlugin({
+          disableLayer: true,
+          canvasStyle: {
+            canvasWidth: 182,
+            canvasHeight: 102,
+            canvasPadding: 50,
+            canvasBackground: 'rgba(245, 245, 245, 1)',
+            canvasBorderRadius: 10,
+            viewportBackground: 'rgba(235, 235, 235, 1)',
+            viewportBorderRadius: 4,
+            viewportBorderColor: 'rgba(201, 201, 201, 1)',
+            viewportBorderWidth: 1,
+            viewportBorderDashLength: 2,
+            nodeColor: 'rgba(255, 255, 255, 1)',
+            nodeBorderRadius: 2,
+            nodeBorderWidth: 0.145,
+            nodeBorderColor: 'rgba(6, 7, 9, 0.10)',
+            overlayColor: 'rgba(255, 255, 255, 0)',
+          },
+          inactiveDebounceTime: 1,
+        }),
+        // 自动对齐插件
+        createFreeSnapPlugin({
+          edgeColor: '#00B2B2',
+          alignColor: '#00B2B2',
+          edgeLineWidth: 1,
+          alignLineWidth: 1,
+          alignCrossWidth: 8,
+        }),
+      ],
+    }),
+    []
+  );
+```
+
+#### 步骤四：创建节点添加面板
+
+```tsx
+// src/components/node-add-panel.tsx
+import React from 'react';
+import { WorkflowDragService, useService } from '@flowgram.ai/free-layout-editor';
+
+const nodeTypes = ['自定义节点1', '自定义节点2'];
+
+export const NodeAddPanel: React.FC = () => {
+  const dragService = useService<WorkflowDragService>(WorkflowDragService);
+
+  return (
+    <div className="demo-free-sidebar">
+      {nodeTypes.map(nodeType => (
+        <div
+          key={nodeType}
+          className="demo-free-card"
+          onMouseDown={e => dragService.startDragCard(nodeType, e, {
+            data: {
+              title: nodeType,
+              content: '拖拽创建的节点'
+            }
+          })}
+        >
+          {nodeType}
+        </div>
+      ))}
+    </div>
+  );
+};
+```
+
+#### 步骤五：创建工具栏和缩略图
+
+```tsx
+// src/components/tools.tsx
+import React from 'react';
+import { useEffect, useState } from 'react';
+import { usePlaygroundTools, useClientContext } from '@flowgram.ai/free-layout-editor';
+
+export const Tools: React.FC = () => {
+  const { history } = useClientContext();
+  const tools = usePlaygroundTools();
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+
+  useEffect(() => {
+    const disposable = history.undoRedoService.onChange(() => {
+      setCanUndo(history.canUndo());
+      setCanRedo(history.canRedo());
+    });
+    return () => disposable.dispose();
+  }, [history]);
+
+  return (
+    <div
+      style={{ position: 'absolute', zIndex: 10, bottom: 16, left: 226, display: 'flex', gap: 8 }}
+    >
+      <button onClick={() => tools.zoomin()}>ZoomIn</button>
+      <button onClick={() => tools.zoomout()}>ZoomOut</button>
+      <button onClick={() => tools.fitView()}>Fitview</button>
+      <button onClick={() => tools.autoLayout()}>AutoLayout</button>
+      <button onClick={() => history.undo()} disabled={!canUndo}>
+        Undo
+      </button>
+      <button onClick={() => history.redo()} disabled={!canRedo}>
+        Redo
+      </button>
+      <span>{Math.floor(tools.zoom * 100)}%</span>
+    </div>
+  );
+};
+
+// src/components/minimap.tsx
+import { FlowMinimapService, MinimapRender } from '@flowgram.ai/minimap-plugin';
+import { useService } from '@flowgram.ai/free-layout-editor';
+
+export const Minimap = () => {
+  const minimapService = useService(FlowMinimapService);
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: 226,
+        bottom: 51,
+        zIndex: 100,
+        width: 198,
+      }}
+    >
+      <MinimapRender
+        service={minimapService}
+        containerStyles={{
+          pointerEvents: 'auto',
+          position: 'relative',
+          top: 'unset',
+          right: 'unset',
+          bottom: 'unset',
+          left: 'unset',
+        }}
+        inactiveStyle={{
+          opacity: 1,
+          scale: 1,
+          translateX: 0,
+          translateY: 0,
+        }}
+      />
+    </div>
+  );
+};
+```
+
+#### 步骤六：组装编辑器主组件
+
+```tsx
+// src/editor.tsx
+import { EditorRenderer, FreeLayoutEditorProvider } from '@flowgram.ai/free-layout-editor';
+
+import { useEditorProps } from './hooks/use-editor-props';
+import { Tools } from './components/tools';
+import { NodeAddPanel } from './components/node-add-panel';
+import { Minimap } from './components/minimap';
+import '@flowgram.ai/free-layout-editor/index.css';
+import './index.css';
+
+export const Editor = () => {
+  const editorProps = useEditorProps();
+  return (
+    <FreeLayoutEditorProvider {...editorProps}>
+      <div className="demo-free-container">
+        <div className="demo-free-layout">
+          <NodeAddPanel />
+          <EditorRenderer className="demo-free-editor" />
+        </div>
+        <Tools />
+        <Minimap />
+      </div>
+    </FreeLayoutEditorProvider>
+  );
+};
+```
+
+#### 步骤七：创建应用入口
+
+```tsx
+// src/app.tsx
+import React from 'react';
+import ReactDOM from 'react-dom';
+
+import { Editor } from './editor';
+
+ReactDOM.render(<Editor />, document.getElementById('root'))
+```
+
+#### 步骤八：添加样式
+
+```css
+/* src/index.css */
+.demo-free-node {
+    display: flex;
+    min-width: 300px;
+    min-height: 100px;
+    flex-direction: column;
+    align-items: flex-start;
+    box-sizing: border-box;
+    border-radius: 8px;
+    border: 1px solid var(--light-usage-border-color-border, rgba(28, 31, 35, 0.08));
+    background: #fff;
+    box-shadow: 0px 2px 4px 0px rgba(0, 0, 0, 0.1);
+}
+
+.demo-free-node-title {
+    background-color: #93bfe2;
+    width: 100%;
+    border-radius: 8px 8px 0 0;
+    padding: 4px 12px;
+}
+.demo-free-node-content {
+    padding: 4px 12px;
+    flex-grow: 1;
+    width: 100%;
+}
+.demo-free-node::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: -1;
+    background-color: white;
+    border-radius: 7px;
+}
+
+.demo-free-node:hover:before {
+    -webkit-filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.3)) drop-shadow(0 4px 14px rgba(0, 0, 0, 0.1));
+    filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.3)) drop-shadow(0 4px 14px rgba(0, 0, 0, 0.1));
+}
+
+.demo-free-node.activated:before,
+.demo-free-node.selected:before {
+    outline: 2px solid var(--light-usage-primary-color-primary, #4d53e8);
+    -webkit-filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.3)) drop-shadow(0 4px 14px rgba(0, 0, 0, 0.1));
+    filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.3)) drop-shadow(0 4px 14px rgba(0, 0, 0, 0.1));
+}
+
+.demo-free-sidebar {
+    height: 100%;
+    overflow-y: auto;
+    padding: 12px 16px 0;
+    box-sizing: border-box;
+    background: #f7f7fa;
+    border-right: 1px solid rgba(29, 28, 35, 0.08);
+}
+
+.demo-free-right-top-panel {
+    position: fixed;
+    right: 10px;
+    top: 70px;
+    width: 300px;
+    z-index: 999;
+}
+
+.demo-free-card {
+    width: 140px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 6px 8px 0 rgba(28, 31, 35, 0.03);
+    cursor: -webkit-grab;
+    cursor: grab;
+    line-height: 16px;
+    margin-bottom: 12px;
+    overflow: hidden;
+    padding: 16px;
+    position: relative;
+    color: black;
+}
+
+.demo-free-layout {
+    display: flex;
+    flex-direction: row;
+    flex-grow: 1;
+}
+
+.demo-free-editor {
+    flex-grow: 1;
+    position: relative;
+    height: 100%;
+}
+
+.demo-free-container {
+    position: absolute;
+    left: 0;
+    top: 0;
+    display: flex;
+    width: 100%;
+    height: 100%;
+    flex-direction: column;
+}
+
+```
+
+### 4. 运行项目
+
+完成上述步骤后，你可以运行项目查看效果：
+
+```bash
+npm run dev
+```
+
+项目将在本地启动，通常访问 http://localhost:3000 即可看到效果。
+
+## 核心概念
+
+### 1. 数据结构
+
+Free Layout 使用标准化的数据结构来描述节点和连接：
+
+```tsx
+// 工作流数据结构
+const initialData: WorkflowJSON = {
+  // 节点定义
+  nodes: [
+    {
+      id: 'start_0',        // 节点唯一ID
+      type: 'start',        // 节点类型（对应 nodeRegistries 中的注册）
+      meta: {
+        position: { x: 0, y: 0 }, // 节点位置
+      },
+      data: {
+        title: 'Start',     // 节点数据（可自定义）
+        content: 'Start content'
+      },
+    },
+    // 更多节点...
+  ],
+  // 连线定义
+  edges: [
+    {
+      sourceNodeID: 'start_0', // 源节点ID
+      targetNodeID: 'node_0',  // 目标节点ID
+    },
+    // 更多连线...
+  ],
+};
+```
+
+### 2. 节点注册
+
+使用 `nodeRegistries` 定义不同类型节点的行为和外观：
+
+```tsx
+// 节点注册
+import { WorkflowNodeRegistry } from '@flowgram.ai/free-layout-editor';
+
+export const nodeRegistries: WorkflowNodeRegistry[] = [
+  // 开始节点定义
+  {
+    type: 'start',
+    meta: {
+      isStart: true, // Mark as start
+      deleteDisable: true, // The start node cannot be deleted
+      copyDisable: true, // The start node cannot be copied
+      defaultPorts: [{ type: 'output' }], // Used to define the input and output ports, the start node only has the output port
+    },
+  },
+  // 更多节点类型...
+];
+```
+
+### 3. 编辑器组件
+
+```tsx
+// 核心编辑器容器与渲染器
+import {
+  FreeLayoutEditorProvider,
+  EditorRenderer
+} from '@flowgram.ai/free-layout-editor';
+
+// 编辑器配置示例
+const editorProps = {
+  background: true,       // 启用背景网格
+  readonly: false,        // 非只读模式，允许编辑
+  initialData: {...},     // 初始化数据：节点和边的定义
+  nodeRegistries: [...],  // 节点类型注册
+  nodeEngine: {
+    enable: true,         // 启用节点表单引擎
+  },
+  history: {
+    enable: true,         // 启用历史记录
+    enableChangeNode: true, // 监听节点数据变化
+  }
+};
+
+// 完整编辑器渲染
+<FreeLayoutEditorProvider {...editorProps}>
+  <div className="container">
+    <NodeAddPanel />              {/* 节点添加面板 */}
+    <EditorRenderer />            {/* 核心编辑器渲染区域 */}
+    <Tools />                     {/* 工具栏 */}
+    <Minimap />                   {/* 缩略图 */}
+  </div>
+</FreeLayoutEditorProvider>
+```
+
+### 4. 核心钩子函数
+
+在组件中可以使用多种钩子函数获取和操作编辑器：
+
+```tsx
+// 获取拖拽服务
+const dragService = useService<WorkflowDragService>(WorkflowDragService);
+// 开始拖拽节点
+dragService.startDragCard('nodeType', event, { data: {...} });
+
+// 获取编辑器上下文
+const { document, playground } = useClientContext();
+// 操作画布
+document.fitView();                 // 适应视图
+playground.config.zoomin();               // 缩放画布
+document.fromJSON(newData);         // 更新数据
+```
+
+### 5. 插件扩展
+
+Free Layout 支持通过插件机制扩展功能：
+
+```tsx
+plugins: () => [
+  // 缩略图插件
+  createMinimapPlugin({
+    canvasStyle: {
+      canvasWidth: 180,
+      canvasHeight: 100,
+      canvasBackground: 'rgba(245, 245, 245, 1)',
+    }
+  }),
+  // 自动对齐插件
+  createFreeSnapPlugin({
+    edgeColor: '#00B2B2',     // 对齐线颜色
+    alignColor: '#00B2B2',    // 辅助线颜色
+    edgeLineWidth: 1,         // 线宽
+  }),
+],
+```
+
+## 安装
+
+```bash
+npx @flowgram.ai/create-app@latest free-layout-simple
+```
+
+## 源码
+
+https://github.com/bytedance/flowgram.ai/tree/main/apps/demo-free-layout-simple
+
+
+
+---
+url: /examples/free-layout/free-feature-overview.md
+---
+
+# 最佳实践
+
+
+
+## 安装
+
+```bash
+npx @flowgram.ai/create-app@latest free-layout
+```
+
+## 源码
+
+https://github.com/bytedance/flowgram.ai/tree/main/apps/demo-free-layout
+
+## 功能介绍
+
+自动整理
+
+吸附对齐 + 参考线
+
+
+
+---
+url: /examples/node-form/basic.md
+---
+
+# 基础用法
+
+
+
+该例子展示了表单的几个基础用法
+
+* 表单组件渲染
+* 必填校验
+* 默认值设置
+
+
+
+---
+url: /examples/node-form/effect.md
+---
+
+# 副作用
+
+
+
+以下例子展示了表单副作用的配置方式。举了两个个例子，行为描述如下
+
+1. Basic effect(基础例子)：当表单项值变更时，控制台会打印表单当前值。
+2. Control other fields (控制其他表单项的值)：当前表单项数据变更时要同时改变另一个表单项的值。
+
+
+
+---
+url: /examples/node-form/array.md
+---
+
+# 数组
+
+
+
+以下例子展示了数组的基本用法，包含：
+
+* 基本写法（渲染、增删）。
+* 如何对数组每项配置校验逻辑。 此处的校验规则为每项最大长度不超过8个英文字符。
+* 如何对数组每项配置副作用。 此处的副作用为每项在初始化时控制台输出 `${name} value init to ${value}`, 值变更时输出 `${name} value changed to ${value}`
+* 数组项如何做交换。
+
+
+
+---
+url: /examples/node-form/dynamic.md
+---
+
+# 联动
+
+
+
+当前例子展示了如何通过 `deps` 字段来声明表单项之间的联动更新关系。
+
+例子说明：当 `Country` 有值时才会显示 `City` 字段。
+
+你也可以将`form.getValueIn('country')` 作为 city `Field` 下组件的入参，来控制组件内的行为, 如筛选当前country下的cities。
+
+
+
+---
+url: /api/common-apis.md
+---
+
+# 常用 API
+
+## FlowDocument （自动化布局文档数据）
+
+```ts
+// 通过 hook 获取，也可以通过ctx
+const doc = useService<FlowDocument>(FlowDocument)
+
+doc.fromJSON(data) // 加载数据
+doc.getAllNodes() // 获取所有节点
+doc.traverseDFS(node => {}) // 深度遍历节点
+doc.toJSON() // TODO 这里老版本的数据，还没优化，业务最好自己使用 traverseDFS 实现 json 转换
+
+doc.addFromNode(targetNode, json) // 插入到指定节点的后边
+
+doc.onNodeCreate(({ node, json }) => {}) // 监听节点创建，data 为创建时候的json数据
+doc.onNodeDispose(({ node }) => {}) // 监听节点删除
+```
+
+## WorkflowDocument (自由连线布局文档数据) 继承自 FlowDocument
+
+```ts
+const doc = useService<WorkflowDocument>(WorkflowDocument)
+
+doc.fromJSON(data) // 加载数据
+doc.toJSON() // 导出数据
+doc.getAllNodes() // 获取所有节点
+doc.linesManager.getAllLines() // 获取所有线条
+
+// 创建节点
+doc.createWorkflowNode({ id: nanoid(), type: 'xxx', data: {}, meta: { position: { x: 0, y: 0 } } })
+// 创建线条，from和to 为对应要连线的节点id， fromPort, toPort 如果为单个端口可以不指定
+doc.linesManager.createLine({ from, to, fromPort, toPort })
+
+// 监听变化，这里会监听线条和节点等事件
+doc.onContentChange((e) => {
+
+})
+```
+
+## FlowNodeEntity（节点）
+
+```ts
+node.flowNodeType // 当前节点的type类型
+node.transform.bounds // 获取节点的外围矩形框, 包含 x,y,width,height
+node.updateExtInfo({ title: 'xxx' }) // 设置扩展数据, 响应式会刷新节点
+node.getExtInfo<T>() // 获取扩展数据
+node.getNodeRegister() // 拿到当前节点的定义
+
+node.dispose() // 删除节点
+
+// renderData 是 节点 ui相关数据
+const renderData = node.renderData
+renderData.node // 当前节点的domNode
+renderData.expanded // 当前节点是否展开，可以设置
+
+// 拿到所有上游输入和输出节点（自由连线布局）
+node.getData<WorkflowNodeLinesData>(WorkflowNodeLinesData).allInputNodes
+node.getData<WorkflowNodeLinesData>(WorkflowNodeLinesData).allOutputNodes
+```
+
+## Playground （画布）
+
+```ts
+// 通过 hook 获取，也可以通过ctx
+const playground = useService(Playground)
+
+// 滚动到指定的节点并居中
+ctx.playground.config.scrollToView({
+   entities: [node]
+   scrollToCenter： true
+   easing: true // 缓动动画
+})
+
+// 滚动画布
+ctx.playground.config.scroll({
+  scrollX: 0
+  scrollY: 0
+})
+
+// 适配屏幕
+ctx.playground.config.fitView(
+  doc.root.getData<FlowNodeTransformData>().bounds, // 需要居中的矩形框，这里拿节点根节点的大小代表最大的框
+  true， // 是否缓动
+  20, // padding，留出空白间距
+)
+
+// 缩放
+ctx.playground.config.zoomin()
+ctx.playground.config.zoomout()
+ctx.playground.config.finalScale // 当前缩放比例
+```
+
+## SelectionService (选择器)
+
+```ts
+const selectionService = useService<SelectionService>()
+
+selection.selection // 返回当前选中的节点数组，也可以修改，如选中节点 seleciton.selection = [node]
+
+selection.onSelectionChanged(() => {}) // 监听变化
+```
+
+
+
+---
+url: /api/index.md
+---
+
+
+
+
+---
+url: /api/plugins.md
+---
+
+这里是官网 api 配置，demo 用。
+
+
+
+---
+url: /api/plugins/config-basic.md
+---
+
+# Basic Config
+
+## root
+
+* Type: `string`
+* Default: `docs`
+
+Specifies the document root directory. For example:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  root: 'docs',
+});
+```
+
+This config supports both relative and absolute paths, with relative paths being relative to the current working directory(cwd).
+
+Of course, in addition to specifying the document root directory through the config file, you can also specify it through command line parameters, such as:
+
+```bash
+rspress dev docs
+rspress build docs
+```
+
+## base
+
+* Type: `string`
+* Default: `/`
+
+Deployment base path. For example, if you plan to deploy your site to `https://foo.github.io/bar/`, then you should set `base` to `"/bar/"`:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  base: '/bar/',
+});
+```
+
+## title
+
+* Type: `string`
+* Default: `"Rspress"`
+
+Site title. This parameter will be used as the title of the HTML page. For example:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  title: 'My Site',
+});
+```
+
+## description
+
+* Type: `string`
+* Default: `""`
+
+Site description. This will be used as the description of the HTML page. For example:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  description: 'My Site Description',
+});
+```
+
+## icon
+
+* Type: `string`
+* Default: `""`
+
+Site icon. This path will be used as the icon path for the HTML page. For example:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  icon: '/favicon.ico',
+});
+```
+
+The framework will find your icon in the `public` directory, of course you can also set it to a CDN address.
+
+## logo \{#logo-1}
+
+* Type: `string | { dark: string; light: string }`
+* Default: `""`
+
+Site logo. This path will be used as the logo path in the upper left corner of the navbar. For example:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  logo: '/logo.png',
+});
+```
+
+The framework will find your icon in the `public` directory, you can also set it to a CDN address.
+
+Of course you can set different logos for dark/light mode:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  logo: {
+    dark: '/logo-dark.png',
+    light: '/logo-light.png',
+  },
+});
+```
+
+## logoText
+
+* Type: `string`
+* Default: `""`
+
+Site logo Text. This text will be used as the logo text in the upper left corner of the navbar. For example:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  logoText: 'rspress',
+});
+```
+
+## outDir
+
+* Type: `string`
+* Default: `doc_build`
+
+Custom output directory for built sites. for example:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  outDir: 'doc_build',
+});
+```
+
+## locales
+
+* Type: `Locale[]`
+
+```ts
+export interface Locale {
+  lang: string;
+  label: string;
+  title?: string;
+  description?: string;
+}
+```
+
+I18n config of the site. for example:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  locales: [
+    {
+      lang: 'en-US',
+      label: 'English',
+      title: 'Doc Tools',
+      description: 'Doc Tools',
+    },
+    {
+      lang: 'zh-CN',
+      label: '简体中文',
+      title: '文档框架',
+      description: '文档框架',
+    },
+  ],
+});
+```
+
+## head
+
+* Type: `string` | `[string, Record<string, string>]` | `(route) => string | [string, Record<string, string>] | undefined`
+* Can be appended per page via [frontmatter](/zh/api/plugins/config-frontmatter.md#head)
+
+Additional elements to render in the `<head>` tag in the page HTML.
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  // ... other user config
+  head: [
+    '<meta name="author" content="John Doe">',
+    // or
+    ['meta', { name: 'author', content: 'John Doe' }],
+    // [htmlTag, { attrName: attrValue, attrName2: attrValue2 }]
+    // or
+    (route) => {
+      if (route.routePath.startsWith('/jane/')) return "<meta name='author' content='Jane Doe'>";
+      if (route.routePath.startsWith('/john/')) return ['meta', { name: 'author', content: 'John Doe' }];
+      \\ or even skip returning anything
+      return undefined;
+    }
+  ]
+});
+```
+
+## mediumZoom
+
+* Type: `boolean` | `{ selector?: string }`
+* Default: `true`
+
+Whether to enable the image zoom function. It is enabled by default, you can disable it by setting `mediumZoom` to `false`.
+
+> The bottom layer is implemented using the [medium-zoom](https://github.com/francoischalifour/medium-zoom) library.
+
+Example usage:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  // Turn off image zoom
+  mediumZoom: false,
+  // Configure the CSS selector to customize the picture to be zoomed, the default is '.rspress-doc img'
+  mediumZoom: {
+    selector: '.rspress-doc img',
+  },
+});
+```
+
+## search
+
+* Type: `{ searchHooks: string; versioned: boolean; }`
+
+### searchHooks
+
+You can add search runtime hooks logic through the `searchHooks` parameter, for example:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+import path from 'path';
+
+export default defineConfig({
+  search: {
+    searchHooks: path.join(__dirname, 'searchHooks.ts'),
+  },
+});
+```
+
+For specific hook logic, you can read [Customize Search Functions](/guide/advanced/custom-search.md).
+
+### versioned
+
+If you are using `multiVersion`, the `versioned` parameter allows you to create a separate search index for each version of your documentation.
+When enabled, the search will only query the index corresponding to the currently selected version.
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  search: {
+    versioned: true,
+  },
+});
+```
+
+## globalUIComponents
+
+* Type: `(string | [string, object])[]`
+* Default: `[]`
+
+You can register global UI components through the `globalUIComponents` parameter, for example:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+import path from 'path';
+
+export default defineConfig({
+  globalUIComponents: [path.join(__dirname, 'components', 'MyComponent.tsx')],
+});
+```
+
+The item of `globalUIComponents` can be a string, which is the path of the component file, or an array, the first item is the path of the component file, and the second item is the component props, for example:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  globalUIComponents: [
+    [
+      path.join(__dirname, 'components', 'MyComponent.tsx'),
+      {
+        foo: 'bar',
+      },
+    ],
+  ],
+});
+```
+
+## multiVersion
+
+* Type: `{ default: string; versions: string[] }`
+
+You can enable multi-version support through the `multiVersion` parameter, for example:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  multiVersion: {
+    default: 'v1',
+    versions: ['v1', 'v2'],
+  },
+});
+```
+
+The `default` parameter is the default version, and the `versions` parameter is the version list.
+
+## route
+
+* Type: `Object`
+
+Custom route config.
+
+### route.include
+
+* Type: `string[]`
+* Default: `[]`
+
+Add some extra files in the route. By default, only the files in the document root directory will be included in the route. If you want to add some extra files to the route, you can use this option. For example:
+
+```js
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  route: {
+    include: ['other-dir/**/*.{md,mdx}'],
+  },
+});
+```
+
+> Note: The strings in the array support glob patterns, the glob expression should be based on the `root` directory of the document, with the corresponding extensions suffix.
+
+:::note
+
+We recommend using [addPages hook](/plugin/system/plugin-api.md#addpages) in a custom Rspress plugin to add some additional files to the route, so that the page route and file path/content can be specified more flexibly and reasonably.
+
+:::
+
+### route.exclude
+
+* Type: `string[]`
+* Default: `[]`
+
+Exclude some files from the route. For example:
+
+```js
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  route: {
+    exclude: ['custom.tsx', 'component/**/*'],
+  },
+});
+```
+
+> Note: The strings in the array support glob patterns, the glob expression should be based on the `root` directory of the document.
+
+### route.extensions
+
+* Type: `string[]`
+* Default: `[]`
+
+The extensions of the files that will be included in the route. By default, Rspress will include all `'js'`, `'jsx'`, `'ts'`, `'tsx'`, `'md'`, `'mdx'` files in the route. If you want to customize the extensions, you can use this option. For example:
+
+```js
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  route: {
+    extensions: ['.jsx', '.md', '.mdx'],
+  },
+});
+```
+
+### route.cleanUrls
+
+* Type: `Boolean`
+* Default: `false`
+
+Generate url without suffix when `cleanUrls` is `true` for shorter url link.
+
+```js
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  route: {
+    cleanUrls: true,
+  },
+});
+```
+
+## ssg
+
+* Type: `boolean | { strict?: boolean }`
+* Default: `true`
+
+Determines whether to enable Static Site Generation. It is enabled by default, but you can disable it by setting `ssg` to `false`.
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  ssg: false,
+});
+```
+
+If SSG fails, it will fallback to CSR by default. You can set `ssg` to `{ strict: true }` to strictly require SSG to succeed, otherwise an error will be thrown.
+
+```ts title="rspress.config.ts"
+export default {
+  ssg: {
+    strict: true,
+  },
+};
+```
+
+## replaceRules
+
+* Type: `{ search: string | RegExp; replace: string; }[]`
+* Default: `[]`
+
+You can set text replacement rules for the entire site through `replaceRules`. The rules will apply to everything including `_meta.json` files, frontmatter configurations, and document content and titles.
+
+```ts title="rspress.config.ts"
+export default {
+  replaceRules: [
+    {
+      search: /foo/g,
+      replace: 'bar',
+    },
+  ],
+};
+```
+
+
+
+---
+url: /api/plugins/config-build.md
+---
+
+# Build Config
+
+## builderConfig
+
+* Type: `RsbuildConfig`
+
+Used to customize the configurations of Rsbuild. For detailed configurations, please refer to [Rsbuild - Config](https://rsbuild.dev/config/).
+
+* Example: Use [resolve.alias](https://rsbuild.dev/config/resolve/alias) to configure path aliases:
+
+```ts title="rspress.config.ts"
+export default defineConfig({
+  builderConfig: {
+    resolve: {
+      alias: {
+        '@common': './src/common',
+      },
+    },
+  },
+});
+```
+
+* Example: Use [tools.rspack](https://rsbuild.dev/config/tools/rspack) to modify the Rspack configuration, such as registering a webpack or Rspack plugin:
+
+```ts title="rspress.config.ts"
+export default defineConfig({
+  builderConfig: {
+    tools: {
+      rspack: async config => {
+        const { default: ESLintPlugin } = await import('eslint-webpack-plugin');
+        config.plugins?.push(new ESLintPlugin());
+        return config;
+      },
+    },
+  },
+});
+```
+
+::: warning
+
+If you want to modify the output directory, please use [outDir](/api/config/config-basic.md#outdir).
+
+:::
+
+## builderPlugins
+
+* Type: `RsbuildPlugin[]`
+
+Used to register [Rsbuild plugins](https://rsbuild.dev/plugins/list/).
+
+You can use the rich plugins of Rsbuild in the Rspress project to quickly extend the building capabilities.
+
+* Example: Support Vue SFC through [@rsbuild/plugin-vue](https://rsbuild.dev/plugins/list/plugin-vue)
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+import { pluginVue } from '@rsbuild/plugin-vue';
+
+export default defineConfig({
+  builderPlugins: [pluginVue()],
+});
+```
+
+* Example: Add Google analytics through [rsbuild-plugin-google-analytics](https://github.com/rspack-contrib/rsbuild-plugin-google-analytics)
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+import { pluginGoogleAnalytics } from 'rsbuild-plugin-google-analytics';
+
+export default defineConfig({
+  builderPlugins: [
+    pluginGoogleAnalytics({
+      // replace this with your Google tag ID
+      id: 'G-xxxxxxxxxx',
+    }),
+  ],
+});
+```
+
+* Example: Add Open Graph meta tags through [rsbuild-plugin-open-graph](https://github.com/rspack-contrib/rsbuild-plugin-open-graph)
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+import { pluginOpenGraph } from 'rsbuild-plugin-open-graph';
+
+export default defineConfig({
+  builderPlugins: [
+    pluginOpenGraph({
+      title: 'My Website',
+      type: 'website',
+      // ...options
+    }),
+  ],
+});
+```
+
+You can also override the built-in plugins [@rsbuild/plugin-react](https://rsbuild.dev/plugins/list/plugin-react), [@rsbuild/plugin-sass](https://rsbuild.dev/plugins/list/plugin-sass) and [@rsbuild/plugin-less](https://rsbuild.dev/plugins/list/plugin-less), and customize relevant plugin options.
+
+* Example: Modify related options of built-in [@rsbuild/plugin-less](https://rsbuild.dev/plugins/list/plugin-less) plugin
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+import { pluginLess } from '@rsbuild/plugin-less';
+
+export default defineConfig({
+  builderPlugins: [
+    pluginLess({
+      lessLoaderOptions: {
+        lessOptions: {
+          math: 'always',
+        },
+      },
+    }),
+  ],
+});
+```
+
+### Default Config
+
+If you need to view the default Rspack or Rsbuild configs, you can add the `DEBUG=rsbuild` parameter when running the `rspress dev` or `rspress build` command:
+
+```bash
+DEBUG=rsbuild rspress dev
+```
+
+After execution, the `rsbuild.config.js` file is created in the `doc_build` directory, which contains the complete `builderConfig`.
+
+> Please refer to [Rsbuild - Debug Mode](https://rsbuild.dev/guide/debug/debug-mode) for more information on how to debug the Rsbuild.
+
+## markdown
+
+* Type: `Object`
+
+Configure MDX-related compilation abilities.
+
+### markdown.remarkPlugins
+
+* Type: `Array`
+* Default: `[]`
+
+Configure the remark plugins. for example:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  markdown: {
+    remarkPlugins: [
+      [
+        require('remark-autolink-headings'),
+        {
+          behavior: 'wrap',
+        },
+      ],
+    ],
+  },
+});
+```
+
+### markdown.rehypePlugins
+
+* Type: `Array`
+
+Configure the rehype plugin. for example:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  markdown: {
+    rehypePlugins: [
+      [
+        require('rehype-autolink-headings'),
+        {
+          behavior: 'wrap',
+        },
+      ],
+    ],
+  },
+});
+```
+
+### markdown.checkDeadLinks
+
+* Type: `boolean`
+* Default: `false`
+
+Whether to check for dead links. for example:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  markdown: {
+    checkDeadLinks: true,
+  },
+});
+```
+
+After enabling this config, the framework will check the links in the document based on the conventional routing table. If there is an unreachable link, the build will throw an error and exit.
+
+### markdown.mdxRs
+
+* Type: `boolean | { include: (filepath: string) => boolean }`
+* Default: `true`
+
+### markdown.showLineNumbers
+
+* Type: `boolean`
+
+Whether to display the line number of the code block. Defaults to `false`.
+
+### markdown.defaultWrapCode
+
+* Type: `boolean`
+
+Whether to enable long code line wrapping display by default. Defaults to `false`.
+
+### markdown.globalComponents
+
+* Type: `string[]`
+
+Register component to the global scope, which will make it automatically available in every MDX file, without any import statements.For example:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+import path from 'path';
+
+export default defineConfig({
+  markdown: {
+    globalComponents: [path.join(__dirname, 'src/src/components/Alert.tsx')],
+  },
+});
+```
+
+Then you can use the `Alert` component in any MDX file:
+
+```mdx title="test.mdx"
+<Alert type="info">This is a info alert</Alert>
+```
+
+:::danger Danger
+Please set `markdown.mdxRs` to `false` when configuring `globalComponents`, otherwise the global components will not take effect.
+:::
+
+### markdown.highlightLanguages
+
+* Type: `[string, string][]`
+* Default:
+
+```js
+const DEFAULT_HIGHLIGHT_LANGUAGES = [
+  ['js', 'javascript'],
+  ['ts', 'typescript'],
+  ['jsx', 'tsx'],
+  ['xml', 'xml-doc'],
+  ['md', 'markdown'],
+  ['mdx', 'tsx'],
+];
+```
+
+Rspress supports automatic import of highlighted languages and makes some language aliases by default.
+
+* By default, it is implemented based on [Prism.js](https://prismjs.com/). You can also switch to Shiki through [@rspress/plugin-shiki](/plugin/official-plugins/shiki.md).
+* The default configuration alias languages include `js`, `jsx`, `ts`, `tsx`, `xml`, `md`, `mdx`.
+
+You can also extend these default aliases, such as:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+import path from 'path';
+
+export default defineConfig({
+  markdown: {
+    highlightLanguages: [
+      // Alias as md, full name as markdown
+      ['md', 'markdown'],
+    ],
+  },
+});
+```
+
+The alias of each language is configured in the format of `[string, string]`. The former is the alias of the language, and the latter is the full name of the language. You can go to [File List](https://github.com/react-syntax-highlighter/react-syntax-highlighter/tree/master/src/languages/prism) to view the full names of all supported languages.
+
+
+
+---
+url: /api/plugins/config-frontmatter.md
+---
+
+# Front Matter Config
+
+## title
+
+* Type: `string`
+
+The title of the page. By default, the page's h1 heading will be used as the title of the HTML document. But if you want to use a different title, you can use Front Matter to specify the title of the page. For example:
+
+```yaml
+---
+title: My Home Page
+---
+```
+
+## description
+
+* Type: `string`
+
+A custom description for the page. For example:
+
+```yaml
+---
+description: This is my custom description for this page.
+---
+```
+
+## pageType
+
+* Type: `'home' | 'doc' | 'custom' | 'blank' | '404'`
+* Default: `'doc'`
+
+The type of the page. By default, the page type is `doc`. But if you want to use a different page type, you can use the Front Matter field `pageType` to specify the page type. E.g:
+
+```yaml
+---
+pageType: home
+---
+```
+
+The meaning of each `pageType` config is as follows:
+
+## titleSuffix
+
+* Type: `string`
+
+Set the suffix of the page title. When `titleSuffix` is not set, the site's [title](/api/config/config-basic.md#title) is used as the suffix by default.
+
+```yaml
+---
+titleSuffix: 'Rspack-based Static Site Generator'
+---
+```
+
+The default separator between the title and the suffix is `-`, you can also use `|` for separation:
+
+```yaml
+---
+titleSuffix: '| Rspack-based Static Site Generator'
+---
+```
+
+## head
+
+* Type: `[string, Record<string, string>][]`
+
+Specify extra head tags to be injected for the current page. Will be appended after head tags injected by site-level config.
+
+For example, you can use these headers to specify custom meta tags for [Open Graph](https://ogp.me/).
+
+```yaml
+---
+head:
+  - - meta
+    - property: og:title
+      content: The Rock
+  - - meta
+    - property: og:url
+      content: https://www.imdb.com/title/tt0117500/
+  - - meta
+    - property: og:image
+      content: https://ia.media-imdb.com/images/rock.jpg
+# - - [htmlTag]
+#   - [attributeName]: [attributeValue]
+#     [attributeName]: [attributeValue]
+---
+```
+
+::: tip Note
+
+Make sure to correctly define the header tag names and their attribute names.
+
+For tags and attribute names that contain a hyphen (`-`), use the camelCase format.
+For example, `http-equiv="refresh"` should be defined as `httpEquiv: refresh`.
+
+This is because under the hood, headers are handled by React and react-helmet-async.
+
+:::
+
+## hero
+
+* Type: `Object`
+
+The hero config for the home page. It has the following types:
+
+```ts
+interface Hero {
+  name: string;
+  text: string;
+  tagline: string;
+  image?: {
+    src: string | { dark: string; light: string };
+    alt: string;
+    /**
+     * `srcset` and `sizes` are attributes of `<img>` tag. Please refer to https://mdn.io/srcset for the usage.
+     * When the value is an array, rspress will join array members with commas.
+     **/
+    srcset?: string | string[];
+    sizes?: string | string[];
+  };
+  actions: {
+    text: string;
+    link: string;
+    theme: 'brand' | 'alt';
+  }[];
+}
+```
+
+For example, you can use the following Front Matter to specify a page's hero config:
+
+```yaml
+---
+pageType: home
+
+hero:
+  name: Rspress
+  text: A Documentation Solution
+  tagline: A modern documentation development technology stack
+  actions:
+    - theme: brand
+      text: Introduction
+      link: /en/guide/introduction
+    - theme: alt
+      text: Quick Start
+      link: /en/guide/getting-started
+---
+```
+
+When setting `hero.text`, you can use the `|` symbol in YAML to manually control line breaks:
+
+```yaml
+---
+pageType: home
+
+hero:
+  name: Rspress
+  text: |
+    A Documentation
+    Solution
+```
+
+Or you can use `HTML` to specify the hero config for the page:
+
+```yaml
+---
+pageType: home
+
+hero:
+  name: <span class="hero-name">Rspress</span>
+  text: <span class="hero-text">A Documentation Solution</span>
+  tagline: <span class="hero-tagline">A modern documentation development technology stack</span>
+  actions:
+    - theme: brand
+      text: <span class="hero-actions-text">Introduction</span>
+      link: /zh/guide/introduction
+    - theme: alt
+      text: <span class="hero-actions-text">Quick Start</span>
+      link: /zh/guide/getting-started
+---
+```
+
+## features
+
+* Type: `Array`
+* Default: `[]`
+
+features config of the `home` page. It has the following types:
+
+```ts
+interface Feature {
+  title: string;
+  details: string;
+  icon: string;
+  // The length of the card grid, currently only support[3, 4, 6]
+  span?: number;
+  // The link of the feature, not required.
+  link?: string;
+}
+
+export type Features = Feature[];
+```
+
+For example, you could use the following to specify the features configuration for the `home` page:
+
+```yaml
+---
+pageType: home
+
+features:
+  - title: 'MDX Support'
+    details: MDX is a powerful way to write content. You can use React components in Markdown.
+    icon: 📦
+  - title: 'Feature Rich'
+    details: Out of box support for i18n, full-text search etc.
+    icon: 🎨
+  - title: 'Customizable'
+    details: You can customize the theme ui and the build process.
+    icon: 🚀
+---
+```
+
+## sidebar
+
+Whether to show the sidebar on the left. By default, the `doc` page will display the sidebar on the left. If you want to hide the sidebar on the left, you can use the following Front Matter config:
+
+```yaml
+---
+sidebar: false
+---
+```
+
+## outline
+
+Whether to display the outline column on the right. By default, the `doc` page displays the outline column on the right. You can hide the outline column with the following config:
+
+```yaml
+---
+outline: false
+---
+```
+
+## footer
+
+Whether to display the components at the bottom of the document (such as previous/next page). By default, the `doc` page will display the footer at the bottom. You can hide the footer with the following config:
+
+```yaml
+---
+footer: false
+---
+```
+
+## navbar
+
+Whether to hide the top navigation bar. You can hide the top nav bar with the following config:
+
+```yaml
+---
+navbar: true
+---
+```
+
+## overviewHeaders
+
+* Type: `number[]`
+* Default: `[2]`
+
+The headers shown in the overview page. By default, the displayed header is h2. But if you want to display different headers, you can specify it using the `overviewHeaders` Front Matter field. For example:
+
+```yaml
+---
+overviewHeaders: []
+---
+```
+
+Or
+
+```yaml
+---
+overviewHeaders: [2, 3]
+---
+```
+
+## context
+
+* Type: `string`
+
+After configuration, the `data-context` attribute will be added to the DOM node when the sidebar is generated, and the value is the configured value.
+
+```yaml title="foo.mdx"
+---
+context: 'context-foo'
+---
+```
+
+```yaml title="bar.mdx"
+---
+context: 'context-bar'
+---
+```
+
+The DOM structure of the final generated sidebar is abbreviated as follows:
+
+```html
+<div class="rspress-sidebar-group">
+  <div className="rspress-sidebar-item" data-context="context-foo"></div>
+  <div className="rspress-sidebar-item" data-context="context-bar"></div>
+</div>
+```
+
+
+
+---
+url: /api/plugins/config-theme.md
+---
+
+# Theme Config
+
+Theme config is located under `themeConfig` in the `doc` param. For example:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  themeConfig: {
+    // ...
+  },
+});
+```
+
+## nav
+
+* Type: `Array`
+* Default: `[]`
+
+The `nav` configuration is an array of `NavItem` with the following types:
+
+```ts
+interface NavItem {
+  // Navbar text
+  text: string;
+  // Navbar link
+  link: '/';
+  // Activation rules for navbar links
+  activeMatch: '^/$|^/';
+  // svg tag string or image URL(optional)
+  tag?: string;
+}
+```
+
+`activeMatch` is used to match the current route, when the route matches the `activeMatch` rule, the nav item will be highlighted. By default, `activeMatch` is the `link` of the nav item.
+
+For example:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  themeConfig: {
+    nav: [
+      {
+        text: 'Home',
+        link: '/',
+      },
+      {
+        text: 'Guide',
+        link: '/guide/',
+      },
+    ],
+  },
+});
+```
+
+Of course, multi-level menus can also be configured in the `nav` array with the following types:
+
+```ts
+interface NavGroup {
+  text: string;
+  // submenu
+  items: NavItem[];
+  // svg tag string or image URL(optional)
+  tag?: string;
+}
+```
+
+For example the following configuration:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  themeConfig: {
+    nav: [
+      {
+        text: 'Home',
+        link: '/',
+      },
+      {
+        text: 'Guide',
+        items: [
+          {
+            text: 'Getting Started',
+            link: '/guide/getting-started',
+          },
+          {
+            text: 'Advanced',
+            link: '/guide/advanced',
+          },
+          // Also support sub group menu
+          {
+            text: 'Group',
+            items: [
+              {
+                text: 'Personal',
+                link: 'http://example.com/',
+              },
+              {
+                text: 'Company',
+                link: 'http://example.com/',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+});
+```
+
+## sidebar
+
+* Type: `Object`
+
+The sidebar of the website. The config is an object with the following types:
+
+```ts
+// The key is the path of SidebarGroup
+// value is an array of SidebarGroup
+type Sidebar = Record<string, SidebarGroup[]>;
+
+interface SidebarGroup {
+  text: string;
+  link?: string;
+  items: SidebarItem[];
+  // whether to be collapsible
+  collapsible?: boolean;
+  // Whether to be collapsed by default
+  collapsed?: boolean;
+  // svg tag string or image URL(optional)
+  tag?: string;
+}
+
+// An object can be filled in, or a string can be filled in
+// When filling in a string, it will be converted into an object internally, the string will be used as a link, and the text value will automatically take the title of the corresponding document
+type SidebarItem =
+  | {
+      // sidebar text
+      text: string;
+      // sidebar link
+      link: string;
+      // svg tag string or image URL(optional)
+      tag?: string;
+    }
+  | string;
+```
+
+For example:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  themeConfig: {
+    sidebar: {
+      '/guide/': [
+        {
+          text: 'Getting Started',
+          items: [
+            // Fill in an object
+            {
+              text: 'Introduction',
+              link: '/guide/getting-started/introduction',
+            },
+            {
+              text: 'Installation',
+              link: '/guide/getting-started/installation',
+            },
+          ],
+        },
+        {
+          text: 'Advanced',
+          items: [
+            // Fill in the link string directly
+            '/guide/advanced/customization',
+            '/guide/advanced/markdown',
+          ],
+        },
+      ],
+    },
+  },
+});
+```
+
+## footer
+
+* Type: `Object`
+* Default: `{}`
+
+The footer of the home page.
+
+The `footer` config is an object of `Footer`, which has the following types:
+
+```ts
+export interface Footer {
+  message?: string;
+  copyright?: string;
+}
+```
+
+`message` is a string that can contain HTML content. This string will be inserted into the footer using `dangerouslySetInnerHTML`, allowing you to pass in HTML template tags to design your footer.
+
+For example:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  themeConfig: {
+    footer: {
+      message:
+        '<p>This is a footer with a <a href="https://example.com">link</a> and <strong>bold text</strong></p>',
+    },
+  },
+});
+```
+
+## outlineTitle
+
+* Type: `string`
+* Default: 'ON THIS PAGE'
+
+Configure the title of the outline in the outline panel.
+
+For example:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  themeConfig: {
+    outlineTitle: 'Outline',
+  },
+});
+```
+
+## lastUpdated
+
+* Type: `boolean`
+* Default: `false`
+
+Whether to display the last update time, it is not displayed by default.
+
+For example:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  themeConfig: {
+    lastUpdated: true,
+  },
+});
+```
+
+## lastUpdatedText
+
+* Type: `string`
+* Default: `Last Updated`
+
+The text of the last update time.
+
+For example:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  themeConfig: {
+    lastUpdatedText: 'Last Updated',
+  },
+});
+```
+
+## prevPageText
+
+* Type: `string`
+* Default: `Previous Page`
+
+The text of the previous page. for example:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  themeConfig: {
+    prevPageText: 'Previous Page',
+  },
+});
+```
+
+## searchPlaceholderText
+
+* Type: `string`
+* Default: `Search Docs`
+
+The placeholder text of the search box. For example:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  themeConfig: {
+    searchPlaceholderText: 'Search Docs',
+  },
+});
+```
+
+## searchNoResultsText
+
+* Type: `string`
+* Default: `No results for`
+
+The text of no search result. For example:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  themeConfig: {
+    searchNoResultsText: 'No results for',
+  },
+});
+```
+
+## searchSuggestedQueryText
+
+* Type: `string`
+* Default: `Please try again with a different keyword`
+
+The text of suggested query text when no search result. For example:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  themeConfig: {
+    searchSuggestedQueryText: 'Please search again',
+  },
+});
+```
+
+## overview
+
+* Type: `Object`
+
+The config of overview page/component. The config is an object with the following types:
+
+```ts
+interface FilterConfig {
+  filterNameText?: string;
+  filterPlaceholderText?: string;
+  filterNoResultText?: string;
+}
+```
+
+For example:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  themeConfig: {
+    overview: {
+      filterNameText: 'Filter',
+      filterPlaceholderText: 'Enter keyword',
+      filterNoResultText: 'No matching API found',
+    },
+  },
+});
+```
+
+## socialLinks
+
+* Type: `Array`
+* Default: `[]`
+
+You can add related links through the following config, such as `github` links, `x` links, etc.
+Related links support four modes: `link mode` `text mode` `image mode` `dom mode`, for example:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  themeConfig: {
+    socialLinks: [
+      {
+        icon: 'github',
+        mode: 'link',
+        content: 'https://github.com/sanyuan0704/island.js',
+      },
+      {
+        icon: 'wechat',
+        mode: 'text',
+        content: 'wechat: foo',
+      },
+      {
+        icon: 'qq',
+        mode: 'img',
+        content: '/qrcode.png',
+      },
+      {
+        icon: 'github',
+        mode: 'dom',
+        content:
+          '<img loading="lazy" src="https://lf3-static.bytednsdoc.com/obj/eden-cn/rjhwzy/ljhwZthlaukjlkulzlp/rspress/rspress-navbar-logo-0904.png" alt="logo" id="logo" class="mr-4 rspress-logo dark:hidden">',
+      },
+    ],
+  },
+});
+```
+
+* When in `link` mode, click the icon to jump to the link.
+* When in `text` mode, when the mouse moves over the icon, a pop-up box will be displayed, and the content of the pop-up box is the entered text
+* When in the `img` mode, moving the mouse over the icon will display a bullet box, and the content of the bullet box is the specified picture. It should be noted that the picture needs to be placed in the `public` directory.
+* When in dom mode, html to render can be passed directly into the content field. Use '' for wrapping
+
+Related links support the following types of images, which can be selected through the icon attribute:
+
+```ts
+export type SocialLinkIcon =
+  | 'lark'
+  | 'discord'
+  | 'facebook'
+  | 'github'
+  | 'instagram'
+  | 'linkedin'
+  | 'slack'
+  | 'x'
+  | 'twitter'
+  | 'youtube'
+  | 'wechat'
+  | 'qq'
+  | 'juejin'
+  | 'zhihu'
+  | 'bilibili'
+  | 'weibo'
+  | 'gitlab'
+  | 'X'
+  | { svg: string };
+```
+
+If you need to customize the icon, you can pass in an object with `svg attribute`, and the value of svg is the content of the custom icon, for example:
+
+```js
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  themeConfig: {
+    socialLinks: [
+      {
+        icon: {
+          svg: '<svg>foo</svg>',
+        },
+        mode: 'link',
+        content: 'https://github.com/',
+      },
+    ],
+  },
+});
+```
+
+## nextPageText
+
+* Type: `string`
+* Default: `Next Page`
+
+Text for the next page. for example:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  themeConfig: {
+    nextPageText: 'Next Page',
+  },
+});
+```
+
+## locales
+
+* Type: `Array<LocaleConfig>`
+* Default: `undefined`
+
+I18n config. This config is an array, and every item of it is `LocaleConfig`, and the types are as follows:
+
+```ts
+export interface LocaleConfig {
+  /**
+   * General locale config for site, which will have a higher priority than `locales`
+   */
+  // language name
+  lang?: string;
+  // HTML title, takes precedence over `themeConfig.title
+  title?: string;
+  // HTML description, takes precedence over `themeConfig.description`
+  description?: string;
+  // Display text for the corresponding language
+  label: string;
+  /**
+   * Locale config for theme.
+   */
+  // Right outline title
+  outlineTitle?: string;
+  // Whether to display the outline title
+  outline?: boolean;
+  // Whether to display the last update time
+  lastUpdated?: boolean;
+  // Last update time text
+  lastUpdatedText?: string;
+  // Previous text
+  prevPageText?: string;
+  // Next page text
+  nextPageText?: string;
+  // Search box placeholder text
+  searchPlaceholderText?: string;
+  // The text of no search result
+  searchNoResultsText?: string;
+  // The text of suggested query text when no search result
+  searchSuggestedQueryText?: string;
+}
+```
+
+`LocaleConfig` contains many of the same configuration options as the theme config, but the former will have a higher priority.
+
+## darkMode
+
+* Type: `boolean`
+* Default: `true`
+
+Whether a Dark/Light mode toggle button appears. for example:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  themeConfig: {
+    darkMode: true,
+  },
+});
+```
+
+You can also specify the default theme mode through inject global variable into html template, for example:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  builderConfig: {
+    html: {
+      tags: [
+        {
+          tag: 'script',
+          // Specify the default theme mode, which can be `dark` or `light`
+          children: "window.RSPRESS_THEME = 'dark';",
+        },
+      ],
+    },
+  },
+});
+```
+
+## hideNavbar
+
+* Type: `"always" | "auto" | "never"`
+* Default: `never`
+
+Control the behavior of the hidden navigation bar. By default, the navigation bar will always display. You can set it to `auto` to **automatically hide when the page scrolls down**, or set it to `always` to hidden it all the time.
+
+For example:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  themeConfig: {
+    hideNavbar: 'auto',
+  },
+});
+```
+
+## enableContentAnimation
+
+* Type: `boolean`
+* Default: `false`
+
+Whether there is animation effect when switching between pages. It is implemented with [View Transition API](https://developer.mozilla.org/docs/Web/API/View_Transitions_API). For example:
+
+> The animation is not configurable for now.
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  themeConfig: {
+    enableContentAnimation: true,
+  },
+});
+```
+
+## enableAppearanceAnimation
+
+* Type: `boolean`
+* Default: `false`
+
+Whether there is animation effect when switching between light and dark theme. It is implemented with [View Transition API](https://developer.mozilla.org/docs/Web/API/View_Transitions_API). For example:
+
+> The animation is not configurable for now.
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  themeConfig: {
+    enableAppearanceAnimation: true,
+  },
+});
+```
+
+## search
+
+* Type: `boolean`
+* Default: `true`
+
+Whether to display the search box. For example:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  themeConfig: {
+    search: false,
+  },
+});
+```
+
+## sourceCodeText
+
+* Type: `string`
+* Default: `Source`
+
+The text of the source code button. For example:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  themeConfig: {
+    sourceCodeText: 'Source',
+  },
+});
+```
+
+## enableScrollToTop
+
+* Type: `boolean`
+* Default: `false`
+
+Enable scroll to top button on documentation. For example:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  themeConfig: {
+    enableScrollToTop: true,
+  },
+});
+```
+
+## localeRedirect
+
+* Type: `'auto' | 'never'`
+* Default: `'auto'`
+
+Whether to redirect to the locale closest to `window.navigator.language` when the user visits the site, the default is `auto`, which means that the user will be redirected on the first visit. If you set it to `never`, the user will not be redirected. For example:
+
+```ts title="rspress.config.ts"
+import { defineConfig } from 'rspress/config';
+
+export default defineConfig({
+  themeConfig: {
+    localeRedirect: 'never',
+  },
+});
+```
+
+
+
+---
+url: /api/core/flow-document.md
+---
+
+# FlowDocument
+
+流程数据文档 (固定布局), 存储流程的所有节点数据
+
+[> API Detail](https://flowgram.ai/auto-docs/document/classes/FlowDocument.html)
+
+```ts pure
+import { useClientContext } from '@flowgram.ai/fixed-layout-editor'
+
+const ctx = useClientContext();
+console.log(ctx.document)
+```
+
+:::danger
+对节点的操作最好通过 [ctx.operation](/api/services/flow-operation-service.md) 进行操作, 这样才能绑定到 redo/undo
+:::
+
+## root
+
+获取画布的根节点，所有节点都挂在根节点下边
+
+```ts pure
+console.log(ctx.document.root);
+```
+
+## originTree
+
+画布真实的节点树
+
+```ts pure
+// 监听节点树的变化，如 节点添加/删除/移动
+const refresh = useRefresh()
+useEffect(() => {
+  const toDispose = ctx.document.originTree.onTreeChange(() => {
+    // Tree Change
+    refresh()
+  });
+  return () => toDispose.dispose()
+}, [])
+```
+
+## renderTree
+
+画布渲染时的节点树，为了提升性能，渲染的树会随着节点分支折叠而变化，并非真实的树
+
+## getAllNodes
+
+获取所有节点数据
+
+```ts pure
+const nodes = ctx.document.getAllNodes();
+```
+
+## getNode
+
+通过指定 id 获取节点
+
+```ts pure
+ctx.document.getNode('start')
+```
+
+## getNodeRegistry
+
+获取节点的定义, 节点定义可以根据业务自己扩展配置项
+
+```ts pure
+const startNodeRegistry = ctx.document.getNodeRegistry<FlowNodeRegistry>('start')
+```
+
+## fromJSON/toJSON
+
+导入和导出数据
+
+```ts pure
+const json = ctx.document.toJSON();
+ctx.document.fromJSON(json);
+```
+
+## registerFlowNodes
+
+注册节点的配置项目, 支持继承
+
+```ts pure
+const node1: FlowNodeRegistry = {
+  type: 'node1',
+  meta: {}
+}
+
+const node2: FlowNodeRegistry = {
+  type: 'node2',
+  extend: 'node1' // 继承 node1 的配置
+}
+ctx.document.registerFlowNodes(node1, node2)
+```
+
+## addNode
+
+添加节点
+
+```ts pure
+ctx.document.addNode({
+  id: 'node1',
+  type: 'start',
+  meta: {},
+  data: {},
+  parent: ctx.document.root // 可以指定父节点
+});
+
+```
+
+## addFromNode
+
+添加到指定节点的后边
+
+```ts pure
+ctx.document.addFromNode(
+ ctx.document.getNode('start'),
+ { id: 'node1', type: 'custom', data: {} }
+);
+
+```
+
+## addBlock
+
+为指定节点添加分支节点
+
+```ts pure
+
+ctx.document.addBlock(ctx.document.getNode('condition'), { id: 'if_1', type: 'block', data: {} })
+```
+
+## removeNode
+
+删除节点
+
+```ts pure
+ctx.document.removeNode('node1');
+```
+
+## onNodeCreate/onNodeUpdate/onNodeDispose
+
+节点创建/更新/销毁事件, 返回事件的注销函数
+
+```tsx pure
+
+useEffect(() => {
+  const toDispose1 = ctx.document.onNodeCreate((node) => {
+    console.log('onNodeCreate', node);
+  });
+  const toDispose2 = ctx.document.onNodeUpdate((node) => {
+    console.log('onNodeUpdate', node);
+  });
+  const toDispose3 = ctx.document.onNodeDispose((node) => {
+    console.log('onNodeDispose', node);
+  });
+  return () => {
+    toDispose1.dispose()
+    toDispose2.dispose()
+    toDispose3.dispose()
+  }
+}, []);
+```
+
+## traverse
+
+从指定节点遍历所有子节点, 默认根节点
+
+```ts pure
+/**
+ *
+ * traverse all nodes, O(n)
+ *   R
+ *   |
+ *   +---1
+ *   |   |
+ *   |   +---1.1
+ *   |   |
+ *   |   +---1.2
+ *   |   |
+ *   |   +---1.3
+ *   |   |    |
+ *   |   |    +---1.3.1
+ *   |   |    |
+ *   |   |    +---1.3.2
+ *   |   |
+ *   |   +---1.4
+ *   |
+ *   +---2
+ *       |
+ *       +---2.1
+ *
+ *  sort: [1, 1.1, 1.2, 1.3, 1.3.1, 1.3.2, 1.4, 2, 2.1]
+ */
+ctx.document.traverse((node, depth, index) => {
+  console.log(node.id);
+}, ctx.document.root);
+```
+
+## toString
+
+返回节点结构的字符串快照
+
+```ts pure
+console.log(ctx.document.toString())
+```
+
+
+
+---
+url: /api/core/flow-node-entity.md
+---
+
+# FlowNodeEntity/WorkflowNodeEntity
+
+节点实体，`WorkflowNodeEntity` 为节点别名用于自由布局节点, 节点实体采用 [ECS](/guide/concepts/ecs.md) 架构, 为 `Entity`
+
+[> API Detail](https://flowgram.ai/auto-docs/document/classes/FlowNodeEntity-1.html)
+
+## Properties
+
+* id: `string` 节点 id
+* flowNodeType: `string` | `number` 节点类型
+* version `number` 节点版本，可以用于判断节点状态是否更新
+
+## Accessors
+
+* document: `FlowDocument | WorkflowDocument` 文档链接
+* bounds: `Rectangle` 获取节点的 x，y，width，height, 等价于 `transform.bounds`
+* blocks: `FlowNodeEntity[]` 获取子节点, 包含折叠的子节点, 等价于 `collapsedChildren`
+* collapsedChildren: `FlowNodeEntity[]` 获取子节点, 包含折叠的子节点
+* allCollapsedChildren: `FlowNodeEntity[]` 获取所有子节点，包括所有折叠的子节点
+* children: `FlowNodeEntity[]` 获取子节点, 不包含折叠的子节点
+* pre: `FlowNodeEntity | undefined` 获取上一个节点
+* next: `FlowNodeEntity | undefined` 获取下一个节点
+* parent: `FlowNodeEntity | undefined` 获取父节点
+* originParent: `FlowNodeEntity | undefined` 获取原始父节点, 这个用于固定布局分支的第一个节点(orderIcon) 找到整个虚拟分支
+* allChildren: `FlowNodeEntity[]` 获取所有子节点, 不包含折叠的子节点
+* transform: [FlowNodeTransformData](https://flowgram.ai/auto-docs/document/classes/FlowNodeTransformData.html) 获取节点的 transform 矩阵数据
+* renderData: [FlowNodeRenderData](https://flowgram.ai/auto-docs/document/classes/FlowNodeRenderData.html) 获取节点的渲染数据, 包含渲染状态等
+
+## Methods
+
+### getExtInfo
+
+获取节点的扩展信息, 可以通过 `updateExtInfo` 更新扩展信息
+
+```
+node.getExtInfo<{ test: string }>()
+```
+
+### updateExtInfo
+
+更新扩展数据, 更新不会记录到 `redo/undo`, 如果需要记录，请实现 [history](/guide/advanced/history.md) 服务
+
+```
+node.updateExtInfo<{ test: string }>({
+  test: 'test'
+})
+```
+
+### getNodeRegistry
+
+获取节点注册器, 等价于 `ctx.document.getNodeRegistry(node.flowNodeType)`
+
+```ts pure
+const nodeRegistry = node.getNodeRegistry<FlowNodeRegistry>()
+```
+
+### getData
+
+等价于 [ECS](/guide/concepts/ecs.md) 架构 里获取 Entity 的 Component
+
+```ts pure
+node.getData(FlowNodeTransformData) // transform 矩阵数据, 包含节点的 x，y，width，height 等信息
+node.getData(FlowNodeRenderData) // 节点的渲染数据, 包含渲染状态等数据
+node.getData(WorkflowNodeLinesData) // 自由布局的线条数据
+
+```
+
+### addData
+
+等价于 [ECS](/guide/concepts/ecs.md) 架构 里添加 Entity 的 Component
+
+```ts pure
+
+// 自定义 EntityData
+class CustomEntityData extends EntityData<{ key0: string }> {
+  static type = 'CustomEntityData';
+  getDefaultData() {
+    return {
+      key0: 'test'
+    }
+  }
+}
+
+// 添加 Enitty Component
+node.addData(CustomEntityData)
+
+
+// 更新 Entity Component 数据
+node.getData(CustomEntityData).update({ key0: 'new value' })
+
+```
+
+### getService
+
+节点访问 [IOC](/guide/concepts/ioc.md) 服务
+
+```ts pure
+node.getService(SelectionService)
+```
+
+### dispose
+
+节点从画布中销毁
+
+### onDispose
+
+节点销毁事件
+
+```ts pure
+useEffect(() => {
+  const toDispose = node.onDispose(() => {
+    console.log('Dispose node')
+  })
+  return () => toDispose.dispose()
+}, [node])
+```
+
+### toJSON
+
+导出节点数据
+
+:::note 节点数据基本结构:
+
+* id: `string` 节点唯一标识, 必须保证唯一
+* meta: `object` 节点的 ui 配置信息，如自由布局的 `position` 信息放这里
+* type: `string | number` 节点类型，会和 `nodeRegistries` 中的 `type` 对应
+* data: `object` 节点表单数据, 业务可自定义
+* blocks: `array` 节点的分支, 采用 `block` 更贴近 `Gramming`
+
+:::
+
+
+
+---
+url: /api/core/workflow-document.md
+---
+
+# WorkflowDocument (free)
+
+自由布局文档数据，继承自 [FlowDocument](/api/core/flow-document.md)
+
+[> API Detail](https://flowgram.ai/auto-docs/free-layout-core/classes/WorkflowDocument.html)
+
+```ts pure
+import { useClientContext } from '@flowgram.ai/free-layout-editor'
+
+const ctx = useClientContext();
+console.log(ctx.document)
+```
+
+:::tip
+由于历史原因， 带 `Workflow` 前缀的都代表自由布局
+:::
+
+## linesManager
+
+自由布局线条管理，见 [WorkflowLinesManager](/api/core/workflow-lines-manager.md)
+
+## createWorkflowNodeByType
+
+根据节点类型创建自由布局节点
+
+```ts pure
+const node = ctx.document.createWorkflowNodeByType(
+ 'custom',
+  { x: 100, y: 100 },
+  {
+    id: 'xxxx',
+    data: {}
+  }
+)
+```
+
+## onContentChange
+
+监听自由布局画布数据变化
+
+```ts pure
+
+export enum WorkflowContentChangeType {
+  /**
+   * 添加节点
+   */
+  ADD_NODE = 'ADD_NODE',
+  /**
+   * 删除节点
+   */
+  DELETE_NODE = 'DELETE_NODE',
+  /**
+   * 移动节点
+   */
+  MOVE_NODE = 'MOVE_NODE',
+  /**
+   * 节点数据更新 （表单引擎数据 或者 extInfo 数据）
+   */
+  NODE_DATA_CHANGE = 'NODE_DATA_CHANGE',
+  /**
+   * 添加线条
+   */
+  ADD_LINE = 'ADD_LINE',
+  /**
+   * 删除线条
+   */
+  DELETE_LINE = 'DELETE_LINE',
+  /**
+   * 节点Meta信息变更
+   */
+  META_CHANGE = 'META_CHANGE',
+}
+
+export interface WorkflowContentChangeEvent {
+  type: WorkflowContentChangeType;
+  /**
+   * 当前触发的元素的json数据，toJSON 需要主动触发
+   */
+  toJSON: () => any;
+  /*
+   * 当前的事件的 entity
+   */
+  entity: WorkflowNodeEntity | WorkflowLineEntity;
+}
+
+``
+```
+
+
+
+---
+url: /api/core/workflow-lines-manager.md
+---
+
+# WorkflowLinesManager (free)
+
+自由布局线条管理, 目前挂在自由布局 document 下边
+
+[> API Detail](https://flowgram.ai/auto-docs/free-layout-core/classes/WorkflowLinesManager.html)
+
+```
+import { useClientContext } from '@flowgram.ai/free-layout-editor'
+
+const ctx = useClientContext();
+console.log(ctx.document.linesManager)
+```
+
+## getAllLines
+
+获取所有线条的实体
+
+```ts pure
+const allLines = ctx.document.linesManager.getAllLines()
+
+```
+
+## createLine
+
+创建线条
+
+```ts pure
+// from和 to 为对应要连线的节点id， fromPort, toPort 为 端口 id, 如果节点为单个端口可以不指定
+const line = ctx.document.linesManager.createLine({ from, to, fromPort, toPort })
+```
+
+## toJSON
+
+导出线条数据
+
+```ts pure
+const json = ctx.document.linesManager.toJSON()
+```
+
+## onAvailableLinesChange
+
+监听所有线条的连线变化
+
+```ts pure
+import { useEffect } from 'react'
+import { useClientContext, useRefresh } from '@flowgram.ai/free-layout-editor'
+
+
+function SomeReact() {
+  const refresh = useRefresh()
+  const linesManager = useClientContext().document.linesManager
+  useEffect(() => {
+      const dispose = linesManager.onAvailableLinesChange(() => refresh())
+      return () => dispose.dispose()
+  }, [])
+  console.log(ctx.document.linesManager.getAllLines())
+}
+```
+
+
+
+---
+url: /api/core/workflow-line-entity.md
+---
+
+# WorkflowLineEntity (free)
+
+自由布局线条实体
+
+[> API Detail](https://flowgram.ai/auto-docs/free-layout-core/classes/WorkflowLineEntity.html)
+
+
+
+---
+url: /api/core/playground.md
+---
+
+# Playground
+
+画布实例
+
+[> API Detail](https://flowgram.ai/auto-docs/core/classes/Playground.html)
+
+```ts pure
+const ctx = useClientContext()
+
+console.log(ctx.playground)
+
+```
+
+## config
+
+画布配置, 提供 zoom、scroll 等状态
+
+[> API Detail](https://flowgram.ai/auto-docs/core/classes/PlaygroundConfigEntity.html)
+
+### Properties
+
+* zoom `number` 当前缩放比例
+* scrollData `{ scrollX: number, scrollY: number }` 当前滚动位置
+* readonlyOrDisabled 画布是否为 readonly 或 disabled 状态
+* readonly
+* disabled
+
+### fitView
+
+节点适应画布窗口, 需要传入节点的 bounds
+
+```ts pure
+/**
+ * 适应大小
+ * @param bounds {Rectangle} 目标大小
+ * @param easing {number} 是否开启动画，默认开启
+ * @param padding {number} 边界空白
+ */
+ctx.playground.config.fitView(ctx.document.root.bounds, true, 10)
+```
+
+### scrollToView
+
+指定节点位置并滚动到画布可见区域, 如果位置已经在可见区域则不会滚动，除非加上 `scrollToCenter` 强制滚动
+
+```ts pure
+
+/**
+ * 详细参数说明
+ * @param opts {PlaygroundConfigRevealOpts}
+**/
+interface PlaygroundConfigRevealOpts {
+  entities?: Entity[]
+  position?: PositionSchema // 滚动到指定位置，并居中
+  bounds?: Rectangle // 滚动的 bounds
+  scrollDelta?: PositionSchema
+  zoom?: number // 需要缩放的比例
+  easing?: boolean // 是否开启缓动，默认开启
+  easingDuration?: number // 默认 500 ms
+  scrollToCenter?: boolean // 是否强制滚动到中心
+}
+
+ctx.playground.config.scrollToView({
+  bounds: ctx.document.getNode('start').bounds,
+})
+```
+
+### zoomin
+
+放大画布
+
+### zoomout
+
+缩小画布
+
+### getPoseFromMouseEvent
+
+将浏览器鼠标位置转成画布坐标系
+
+```ts pure
+
+const pos: { x: number, y: number } = ctx.playground.config.getPoseFromMouseEvent(domMouseEvent)
+
+```
+
+### scroll
+
+滚动画布, 需要传入滚动位置, 以及是否平滑滚动, 滚动时间
+
+```ts pure
+ctx.playground.config.scroll({ scrollX: 100, scrollY: 100 }, true, 300)
+```
+
+### getViewport
+
+获取当前画布的视窗大小
+
+```ts pure
+const viewport = ctx.playground.config.getViewport()
+```
+
+
+
+---
+url: /api/hooks/use-client-context.md
+---
+
+# useClientContext
+
+提供在 react 内部访问画布的上下文, 目前固定布局和 自由布局有一定区别
+
+## 固定布局
+
+* Return: [FixedLayoutPluginContext](https://flowgram.ai/auto-docs/fixed-layout-editor/interfaces/FixedLayoutPluginContext.html)
+
+```ts pure
+import { useClientContext } from '@flowgram.ai/fixed-layout-editor'
+const ctx = useClientContext()
+console.log(ctx.operation) // FlowOperationService 操作服务
+console.log(ctx.document) // FlowDocument 数据文档
+console.log(ctx.playground) // Playground 画布
+console.log(ctx.history) // HistoryService 历史记录
+console.log(ctx.clipboard) // ClipboardService 剪贴板
+console.log(ctx.container) // Inversify IOC 容器
+console.log(ctx.get(MyService)) // 获取任意的 IOC 模块，详细见 自定义 Service
+```
+
+## 自由布局
+
+* Return: [FreeLayoutPluginContext](https://flowgram.ai/auto-docs/free-layout-editor/interfaces/FreeLayoutPluginContext.html)
+
+```ts pure
+import { useClientContext } from '@flowgram.ai/free-layout-editor'
+const ctx = useClientContext()
+console.log(ctx.document) // WorkflowDocument 数据文档
+console.log(ctx.playground) // Playground 画布
+console.log(ctx.history) // HistoryService 历史记录
+console.log(ctx.selection) // SelectionService 选择器服务
+console.log(ctx.clipboard) // ClipboardService 剪贴板
+console.log(ctx.container) // Inversify IOC 容器
+console.log(ctx.get(MyService)) // 获取任意的 IOC 模块，详细见 自定义 Service
+```
+
+
+
+---
+url: /api/hooks/use-node-render.md
+---
+
+# useNodeRender
+
+提供节点渲染相关的方法, 返回结果的 form 等价于 [getNodeForm](/api/utils/get-node-form.md)
+
+## 固定布局
+
+* Return: [NodeRenderReturnType](https://flowgram.ai/auto-docs/fixed-layout-editor/interfaces/NodeRenderReturnType.html)
+
+```tsx pure
+
+import { FlowNodeEntity, useNodeRender } from '@flowgram.ai/fixed-layout-editor';
+
+export const BaseNode = ({ node }: { node: FlowNodeEntity }) => {
+  /**
+   * 提供节点渲染相关的方法
+   */
+  const nodeRender = useNodeRender();
+  /**
+   * 只有在节点引擎开启时候才能使用表单
+   */
+  const form = nodeRender.form;
+
+  return (
+    <div
+      className="demo-fixed-node"
+      /*
+       * onMouseEnter 加到固定布局节点主要是为了监听 分支线条的 hover 高亮
+       **/
+      onMouseEnter={nodeRender.onMouseEnter}
+      onMouseLeave={nodeRender.onMouseLeave}
+      onMouseDown={e => {
+        // trigger drag node
+        nodeRender.startDrag(e);
+        e.stopPropagation();
+      }}
+      style={{
+        /**
+         * 用于精确控制分支节点的样式
+         * isBlockIcon: 整个 condition 分支的 头部节点
+         * isBlockOrderIcon: 分支的第一个节点
+         */
+        ...(nodeRender.isBlockOrderIcon || nodeRender.isBlockIcon ? { width: 260 } : {}),
+      }}
+    >
+      {form?.render()}
+    </div>
+  );
+};
+
+```
+
+## 自由布局
+
+* Return: [NodeRenderReturnType](https://flowgram.ai/auto-docs/free-layout-core/interfaces/NodeRenderReturnType.html)
+
+```tsx pure
+import { WorkflowNodeRenderer, useNodeRender } from '@flowgram.ai/free-layout-editor';
+export const BaseNode = () => {
+  const { form, node } = useNodeRender()
+  return (
+    <WorkflowNodeRenderer className="demo-free-node" node={node}>
+      {form?.render()}
+    </WorkflowNodeRenderer>
+  )
+}
+
+```
+
+
+
+---
+url: /api/hooks/use-playground-tools.md
+---
+
+# usePlaygroundTools
+
+画布工具方法
+
+## 固定布局
+
+* Return: [PlaygroundTools](https://flowgram.ai/auto-docs/fixed-layout-editor/interfaces/PlaygroundTools.html)
+
+```tsx pure
+import { useEffect, useState } from 'react'
+import { usePlaygroundTools, useClientContext } from '@flowgram.ai/fixed-layout-editor';
+
+export function Tools() {
+  const { history } = useClientContext();
+  const tools = usePlaygroundTools();
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+
+  useEffect(() => {
+    const disposable = history.undoRedoService.onChange(() => {
+      setCanUndo(history.canUndo());
+      setCanRedo(history.canRedo());
+    });
+    return () => disposable.dispose();
+  }, [history]);
+
+  return <div style={{ position: 'absolute', zIndex: 10, bottom: 16, left: 16, display: 'flex', gap: 8 }}>
+    <button onClick={() => tools.zoomin()}>ZoomIn</button>
+    <button onClick={() => tools.zoomout()}>ZoomOut</button>
+    <button onClick={() => tools.fitView()}>Fitview</button>
+    <button onClick={() => tools.changeLayout()}>ChangeLayout</button>
+    <button onClick={() => history.undo()} disabled={!canUndo}>Undo</button>
+    <button onClick={() => history.redo()} disabled={!canRedo}>Redo</button>
+    <span>{Math.floor(tools.zoom * 100)}%</span>
+  </div>
+}
+```
+
+## 自由布局
+
+* Return: [PlaygroundTools](https://flowgram.ai/auto-docs/free-layout-editor/interfaces/PlaygroundTools.html)
+
+```tsx pure
+import { usePlaygroundTools, useClientContext } from '@flowgram.ai/free-layout-editor';
+
+export function Tools() {
+  const { history } = useClientContext();
+  const tools = usePlaygroundTools();
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+
+  useEffect(() => {
+    const disposable = history.undoRedoService.onChange(() => {
+      setCanUndo(history.canUndo());
+      setCanRedo(history.canRedo());
+    });
+    return () => disposable.dispose();
+  }, [history]);
+
+  return <div style={{ position: 'absolute', zIndex: 10, bottom: 16, left: 226, display: 'flex', gap: 8 }}>
+    <button onClick={() => tools.zoomin()}>ZoomIn</button>
+    <button onClick={() => tools.zoomout()}>ZoomOut</button>
+    <button onClick={() => tools.fitView()}>Fitview</button>
+    <button onClick={() => tools.autoLayout()}>AutoLayout</button>
+    <button onClick={() => history.undo()} disabled={!canUndo}>Undo</button>
+    <button onClick={() => history.redo()} disabled={!canRedo}>Redo</button>
+    <span>{Math.floor(tools.zoom * 100)}%</span>
+  </div>
+}
+```
+
+
+
+---
+url: /api/hooks/use-refresh.md
+---
+
+# useRefresh
+
+## Source Code
+
+```ts
+import { useCallback, useState } from 'react';
+
+export function useRefresh(defaultValue?: any): (v?: any) => void {
+  const [, update] = useState<any>(defaultValue);
+  return useCallback((v?: any) => update(v !== undefined ? v : {}), []);
+}
+```
+
+## Usage
+
+```tsx pure
+import { useRefresh } from '@flowgram.ai/fixed-layout-editor';
+
+function Demo() {
+  const refresh = useRefresh();
+  return (
+    <div>
+      <button onClick={() => refresh()}>Refresh</button>
+    </div>
+  )
+}
+
+```
+
+
+
+---
+url: /api/hooks/use-service.md
+---
+
+# useService
+
+获取底层 [IOC](/guide/concepts/ioc.md) 的所有单例模块
+
+```ts pure
+
+const playground = useService<Playground>(Playground)
+const flowDocument = useService<FlowDocument>(FlowDocument)
+const historyService = useService<HistoryService>(HistoryService)
+
+// 等价
+const playground1 = useClientContext().playground
+
+// 等价
+const playground3 = useClientContext().get<Playground>(Playground)
+
+```
+
+## 自定义 Service
+
+```tsx pure
+/**
+ *  inversify: https://github.com/inversify/InversifyJS
+ */
+import { injectable, inject } from 'inversify'
+import { FlowDocument } from '@flowgram.ai/fixed-layout-editor'
+
+@injectable()
+class MyService {
+  // 依赖注入单例模块
+  @inject(FlowDocument) flowDocument: FlowDocument
+  // ...
+}
+
+import { useMemo } from 'react';
+import { type FixedLayoutProps } from '@flowgram.ai/fixed-layout-editor';
+
+function BaseNode() {
+  const mySerivce = useService<MyService>(MyService)
+}
+
+export function useEditorProps(
+): FixedLayoutProps {
+  return useMemo<FixedLayoutProps>(
+    () => ({
+      // ....other props
+      onBind: ({ bind }) => {
+        bind(MyService).toSelf().inSingletonScope()
+      },
+      materials: {
+        renderDefaultNode: BaseNode
+      }
+    }),
+    [],
+  );
+}
+
+```
+
+
+
+---
+url: /api/components/editor-renderer.md
+---
+
+# EditorRenderer
+
+画布渲染组件，需要 配合 `FixedLayoutEditorProvider` 或 `FreeLayoutEditorProvider` 使用
+
+```tsx pure
+function App() {
+  return (
+    <FixedLayoutEditorProvider {...editorProps}>
+      <EditorRenderer className="demo-editor" style={{ /* style */}}>
+        {/* 如果提供 children，该内容会放到 画布 div 下边 */}
+      </EditorRenderer>
+    </FixedLayoutEditorProvider>
+  )
+}
+```
+
+
+
+---
+url: /api/components/fixed-layout-editor-provider.md
+---
+
+# FixedLayoutEditorProvider
+
+固定布局画布配置器，支持 ref
+
+```tsx pure
+import { FixedLayoutEditorProvider, FixedLayoutPluginContext, EditorRenderer } from '@flowgram.ai/fixed-layout-editor'
+
+function App() {
+  const ref = useRef<FixedLayoutPluginContext | undefined>();
+
+  useEffect(() => {
+    console.log(ref.current.document.toJSON())
+  }, [])
+  return (
+    <FixedLayoutEditorProvider {...editorProps} ref={ref}>
+      <EditorRenderer className="demo-editor" />
+    </FixedLayoutEditorProvider>
+  )
+}
+
+```
+
+
+
+---
+url: /api/components/fixed-layout-editor.md
+---
+
+# FixedLayoutEditor
+
+固定布局画布, 等价于 `FixedLayoutEditorProvider` 和 `EditorRenderer` 的组合
+
+```tsx pure
+import { FixedLayoutEditor, FixedLayoutPluginContext } from '@flowgram.ai/fixed-layout-editor'
+
+function App() {
+  const ref = useRef<FixedLayoutPluginContext | undefined>();
+
+  useEffect(() => {
+    console.log(ref.current.document.toJSON())
+  }, [])
+
+  return (
+    <FixedLayoutEditor className="demo-editor" {...editorProps} ref={ref} />
+  )
+}
+```
+
+
+
+---
+url: /api/components/free-layout-editor-provider.md
+---
+
+# FreeLayoutEditorProvider
+
+自由布局画布配置器，支持 ref
+
+```tsx pure
+import { FreeLayoutEditorProvider, FreeLayoutPluginContext, EditorRenderer } from '@flowgram.ai/free-layout-editor'
+
+function App() {
+  const ref = useRef<FreeLayoutPluginContext | undefined>();
+
+  useEffect(() => {
+    console.log(ref.current.document.toJSON())
+  }, [])
+  return (
+    <FreeLayoutEditorProvider {...editorProps} ref={ref}>
+      <EditorRenderer className="demo-editor" />
+    </FreeLayoutEditorProvider>
+  )
+}
+
+```
+
+
+
+---
+url: /api/components/free-layout-editor.md
+---
+
+# FreeLayoutEditor
+
+自由布局画布, 等价于 `FreeLayoutEditorProvider` 和 `EditorRenderer` 的组合
+
+```tsx pure
+import { FreeLayoutEditor, FreeLayoutPluginContext } from '@flowgram.ai/free-layout-editor'
+
+function App() {
+  const ref = useRef<FreeLayoutPluginContext | undefined>();
+
+  useEffect(() => {
+    console.log(ref.current.document.toJSON())
+  }, [])
+  return (
+    <FreeLayoutEditor className="demo-editor" {...editorProps} ref={ref} />
+  )
+}
+```
+
+
+
+---
+url: /api/components/workflow-node-renderer.md
+---
+
+# WorkflowNodeRenderer(free)
+
+自由布局节点容器
+
+## Usage
+
+```tsx pure
+import { useNodeRender, WorkflowNodeRenderer } from '@flowgram.ai/free-layout-editor';
+
+export const BaseNode = () => {
+  /**
+   * 提供节点渲染相关的方法
+   */
+  const { form } = useNodeRender()
+  /**
+   * WorkflowNodeRenderer 会添加节点拖拽事件及 端口渲染，如果要深度定制，可以看该组件源代码:
+   * https://github.com/bytedance/flowgram.ai/blob/main/packages/client/free-layout-editor/src/components/workflow-node-renderer.tsx
+   */
+  return (
+    <WorkflowNodeRenderer className="demo-free-node" node={props.node}>
+      {
+        // 表单渲染通过 formMeta 生成
+        form?.render()
+      }
+    </WorkflowNodeRenderer>
+  )
+};
+```
+
+
+
+---
+url: /api/services/clipboard-service.md
+---
+
+# ClipboardService
+
+剪贴板服务
+
+[> API Detail](https://flowgram.ai/auto-docs/core/interfaces/ClipboardService.html)
+
+
+
+---
+url: /api/services/command-service.md
+---
+
+# CommandService
+
+指令服务，需要和 [Shortcuts](/guide/advanced/interactive/shortcuts.md) 一起使用
+
+[> API Detail](https://flowgram.ai/auto-docs/command/interfaces/CommandService.html)
+
+```Usage
+
+ctx.get(CommandService).execCommand('selectAll')
+```
+
+
+
+---
+url: /api/services/flow-operation-service.md
+---
+
+# FlowOperationService
+
+节点操作服务, 目前用于固定布局，自由布局现阶段可通过 WorkflowDocument 直接操作, 后续也会抽象出 operation
+
+[> API Detail](https://flowgram.ai/auto-docs/fixed-layout-editor/interfaces/FlowOperationService.html)
+
+```typescript pure
+const operationService = useService<FlowOperationService>(FlowOperationService)
+operationService.addNode({ id: 'xxx', type: 'custom', data: {} })
+
+// or
+const ctx = useClientContext();
+ctx.operation.addNode({ id: 'xxx', type: 'custom', data: {} })
+
+
+```
+
+## Interface
+
+```typescript pure
+
+export interface FlowOperationBaseService extends Disposable {
+  /**
+   * 执行操作
+   * @param operation 可序列化的操作
+   * @returns 操作返回
+   */
+  apply(operation: FlowOperation): any;
+
+  /**
+   * 添加节点，如果节点已经存在则不会重复创建
+   * @param nodeJSON 节点数据
+   * @param config 配置
+   * @returns 成功添加的节点
+   */
+  addNode(nodeJSON: FlowNodeJSON, config?: AddNodeConfig): FlowNodeEntity;
+
+  /**
+   * 基于某一个起始节点往后面添加
+   * @param fromNode 起始节点
+   * @param nodeJSON 添加的节点JSON
+   */
+  addFromNode(fromNode: FlowNodeEntityOrId, nodeJSON: FlowNodeJSON): FlowNodeEntity;
+
+  /**
+   * 删除节点
+   * @param node 节点
+   * @returns
+   */
+  deleteNode(node: FlowNodeEntityOrId): void;
+
+  /**
+   * 批量删除节点
+   * @param nodes
+   */
+  deleteNodes(nodes: FlowNodeEntityOrId[]): void;
+
+  /**
+   * 添加块（分支）
+   * @param target 目标
+   * @param blockJSON 块数据
+   * @param config 配置
+   * @returns
+   */
+  addBlock(
+    target: FlowNodeEntityOrId,
+    blockJSON: FlowNodeJSON,
+    config?: AddBlockConfig,
+  ): FlowNodeEntity;
+
+  /**
+   * 移动节点
+   * @param node 被移动的节点
+   * @param config 移动节点配置
+   */
+  moveNode(node: FlowNodeEntityOrId, config?: MoveNodeConfig): void;
+
+  /**
+   * 拖拽节点
+   * @param param0
+   * @returns
+   */
+  dragNodes({ dropNode, nodes }: { dropNode: FlowNodeEntity; nodes: FlowNodeEntity[] }): void;
+
+  /**
+   * 添加节点的回调
+   */
+  onNodeAdd: Event<OnNodeAddEvent>;
+}
+
+export interface FlowOperationService extends FlowOperationBaseService {
+  /**
+   * 创建分组
+   * @param nodes 节点列表
+   */
+  createGroup(nodes: FlowNodeEntity[]): FlowNodeEntity | undefined;
+  /**
+   * 取消分组
+   * @param groupNode
+   */
+  ungroup(groupNode: FlowNodeEntity): void;
+  /**
+   * 开始事务
+   */
+  startTransaction(): void;
+  /**
+   * 结束事务
+   */
+  endTransaction(): void;
+  /**
+   * 修改表单数据
+   * @param node 节点
+   * @param path 属性路径
+   * @param value 值
+   */
+  setFormValue(node: FlowNodeEntityOrId, path: string, value: unknown): void;
+}
+```
+
+
+
+---
+url: /api/services/history-service.md
+---
+
+## HistoryService
+
+[> API Detail](https://flowgram.ai/auto-docs/fixed-history-plugin/classes/HistoryService.html)
+
+## Redo/Undo
+
+```tsx pure
+import { useEffect, useState } from 'react'
+import { useClientContext } from '@flowgram.ai/fixed-layout-editor';
+
+export function Tools() {
+  const { history } = useClientContext();
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+
+  useEffect(() => {
+    const disposable = history.undoRedoService.onChange(() => {
+      setCanUndo(history.canUndo());
+      setCanRedo(history.canRedo());
+    });
+    return () => disposable.dispose();
+  }, [history]);
+
+  return <div>
+    <button onClick={() => history.undo()} disabled={!canUndo}>Undo</button>
+    <button onClick={() => history.redo()} disabled={!canRedo}>Redo</button>
+  </div>
+}
+```
+
+## 渲染历史记录
+
+```tsx pure
+import { useEffect } from 'react'
+import { useRefresh, useClientContext } from '@flowgram.ai/fixed-layout-editor'
+
+function HistoryListRender() {
+  const refresh = useRefresh()
+  const ctx = useClientContext()
+  useEffect(() => {
+    ctx.history.onApply(() => refresh())
+  }, [ctx])
+  return (
+    <div>
+      {ctx.history.historyManager.historyStack.items.map((record) => <HistoryOperations key={record.id} operations={record.operations} />)}
+    </div>
+  )
+}
+```
+
+
+
+---
+url: /api/services/selection-service.md
+---
+
+# SelectionService
+
+用于控制选择的节点
+
+[> API Detail](https://flowgram.ai/auto-docs/core/classes/SelectionService.html)
+
+## Usage
+
+```tsx pure
+// Listen Selection Change
+ctx.selection.onSelectionChanged((nodes) => {
+})
+// Select All Nodes
+ctx.selection.selection = ctx.document.getAllNodes()
+```
+
+
+
+---
+url: /api/utils/disposable-collection.md
+---
+
+# DisposableCollection
+
+## Usage
+
+```ts pure
+
+import { DisposableCollection, Disposable } from '@flowgram.ai/utils'
+const disposable1: Disposable = {
+  dispose() {
+    console.log(1)
+  },
+};
+const disposable2: Disposable = {
+  dispose() {
+    console.log(2)
+  },
+};
+const dc = new DisposableCollection();
+dc.onDispose(() => {
+  console.log('end')
+});
+
+dc.pushAll([disposable1, disposable2]);
+dc.dispose(); // Log: 1, 2, dispose end
+
+```
+
+## Source Code
+
+https://github.com/bytedance/flowgram.ai/blob/main/packages/common/utils/src/disposable.ts
+
+
+
+---
+url: /api/utils/disposable.md
+---
+
+# Disposable
+
+## Interface
+
+```ts
+/**
+ * An object that performs a cleanup operation when `.dispose()` is called.
+ *
+ * Some examples of how disposables are used:
+ *
+ * - An event listener that removes itself when `.dispose()` is called.
+ * - The return value from registering a provider. When `.dispose()` is called, the provider is unregistered.
+ */
+export interface Disposable {
+  dispose(): void;
+}
+```
+
+## Source Code
+
+https://github.com/bytedance/flowgram.ai/blob/main/packages/common/utils/src/disposable.ts
+
+
+
+---
+url: /api/utils/emitter.md
+---
+
+# Emitter
+
+事件模块
+
+## Usage
+
+```tsx pure
+import { Emitter } from '@flowgram.ai/utils'
+
+class Doc {
+  private _content = ''
+  private _onContentChangeEmitter = new Emitter<string>()
+  readonly onContentChange = this._onContentChangeEmitter.event
+  setContent(content: string) {
+    this._content = content
+    this._onContentChangeEmitter.fire(content)
+  }
+  get content() {
+    return this._content
+  }
+}
+
+function App() {
+  const doc1 = useMemo(() => new Doc(), [])
+  const [content, updateContent] = useState(doc1.content)
+  useEffect(() => {
+    const toDispose = doc1.onContentChange((content) => {
+      updateContent(content)
+    })
+    return () => toDispose.dispose()
+  }, [doc1])
+  return <div>{content}</div>
+}
+
+
+```
+
+## Source Code
+
+https://github.com/bytedance/flowgram.ai/blob/main/packages/common/utils/src/event.ts
+
+
+
+---
+url: /api/utils/get-node-form.md
+---
+
+# getNodeForm
+
+获取节点的表单能力，需要开启 节点引擎才能使用
+
+[> API Detail](https://flowgram.ai/auto-docs/editor/functions/getNodeForm.html)
+
+## Usage
+
+```tsx pure
+
+// 1. BaseNode
+function BaseNode({ node }) {
+  const form = getNodeForm(node);
+  console.log(form.getValueIn('title'))
+  return <div>{form?.render()}</div>
+}
+
+// 2. useNodeRender
+function BaseNode() {
+  const { form } = useNodeRender();
+  console.log(form.getValueIn('title'))
+  return <div>{form?.render()}</div>
+}
+
+```
+
+## Return Inteface
+
+```ts pure
+
+export interface NodeFormProps<TValues> {
+  /**
+   * The initialValues of the form.
+   */
+  initialValues: TValues;
+  /**
+   * Form values. Returns a deep copy of the data in the store.
+   */
+  values: TValues;
+  /**
+   * Form state
+   */
+  state: FormState;
+  /**
+   * Get value in certain path
+   * @param name path
+   */
+  getValueIn<TValue = FieldValue>(name: FieldName): TValue;
+
+  /**
+   * Set value in certain path.
+   * It will trigger the re-rendering of the Field Component if a Field is related to this path
+   * @param name path
+   */
+  setValueIn<TValue>(name: FieldName, value: TValue): void;
+  /**
+   * set form values
+   */
+  updateFormValues(values: any): void;
+  /**
+   * Render form
+   */
+  render: () => React.ReactNode;
+  /**
+   * Form value change event
+   */
+  onFormValuesChange: Event<OnFormValuesChangePayload>;
+  /**
+   * Trigger form validate
+   */
+  validate: () => Promise<boolean>;
+  /**
+   * Form validate event
+   */
+  onValidate: Event<FormState>;
+  /**
+   * Form field value change event
+   */
+  onFormValueChangeIn<TValue = FieldValue, TFormValue = FieldValue>(
+    name: FieldName,
+    callback: (payload: onFormValueChangeInPayload<TValue, TFormValue>) => void
+  ): Disposable;
+}
+
+```
+
+
+
+---
+url: /guide/advanced/custom-plugin.md
+---
+
+# 自定义插件
+
+## 插件的生命周期说明
+
+```tsx pure
+
+/**
+  * from: https://github.com/bytedance/flowgram.ai/blob/main/packages/canvas-engine/core/src/plugin/plugin.ts
+ */
+import { ContainerModule, interfaces } from 'inversify';
+
+export interface PluginBindConfig {
+  bind: interfaces.Bind;
+  unbind: interfaces.Unbind;
+  isBound: interfaces.IsBound;
+  rebind: interfaces.Rebind;
+}
+export interface PluginConfig<Opts, CTX extends PluginContext = PluginContext> {
+  /**
+   * 插件 IOC 注册, 等价于 containerModule
+   * @param ctx
+   */
+  onBind?: (bindConfig: PluginBindConfig, opts: Opts) => void;
+  /**
+   * 画布注册阶段
+   */
+  onInit?: (ctx: CTX, opts: Opts) => void;
+  /**
+   * 画布准备阶段，一般用于 dom 事件注册等
+   */
+  onReady?: (ctx: CTX, opts: Opts) => void;
+  /**
+   * 画布销毁阶段
+   */
+  onDispose?: (ctx: CTX, opts: Opts) => void;
+  /**
+   * 画布所有 layer 渲染结束
+   */
+  onAllLayersRendered?: (ctx: CTX, opts: Opts) => void;
+  /**
+   * IOC 模块，用于更底层的插件扩展
+   */
+  containerModules?: interfaces.ContainerModule[];
+}
+
+```
+
+## 创建插件
+
+```tsx pure
+/**
+ * 如果希望插件固定布局和自由布局都能使用， 请只用
+*  import { definePluginCreator } from '@flowgram.ai/core'
+ */
+import { definePluginCreator, FixedLayoutPluginContext } from '@flowgram.ai/fixed-layout-editor'
+
+export interface MyPluginOptions {
+  opt1: string;
+}
+
+export const createMyPlugin = definePluginCreator<MyPluginOptions, FixedLayoutPluginContext>({
+  onBind: (bindConfig, opts) => {
+    // 注册 IOC 模块, Service 如何定义 见 自定义 Service
+    bindConfig.bind(MyService).toSelf().inSingletonScope()
+  },
+  onInit: (ctx, opts) => {
+    // 插件配置
+    console.log(opts.opt1)
+    // ctx 对应 FixedLayoutPluginContext 或者 FreeLayoutPluginContext
+    console.log(ctx.document)
+    console.log(ctx.playground)
+    console.log(ctx.get<MyService>(MyService)) // 获取 IOC 模块
+  },
+});
+```
+
+## 添加插件
+
+```tsx pure title="use-editor-props.ts"
+
+// EditorProps
+{
+  plugins: () => [
+    createMyPlugin({
+      opt1: 'xxx'
+    })
+  ]
+}
+```
+
+
+
+---
+url: /guide/advanced/custom-service.md
+---
+
+# 自定义 Service
+
+业务中需要抽象出单例服务便于插件化管理
+
+```tsx pure
+import { useMemo } from 'react';
+import { FlowDocument, type FixedLayoutProps, inject, injectable } from '@flowgram.ai/fixed-layout-editor'
+
+/**
+ * Docs: https://inversify.io/docs/introduction/getting-started/
+ * Warning: Use decorator legacy
+ *   // rsbuild.config.ts
+ *   {
+ *     source: {
+ *       decorators: {
+ *         version: 'legacy'
+ *       }
+ *     }
+ *   }
+ * Usage:
+ *  1.
+ *    const myService = useService(MyService)
+ *    myService.save()
+ *  2.
+ *    const myService = useClientContext().get(MyService)
+ *  3.
+ *    const myService = node.getService(MyService)
+ */
+@injectable()
+class MyService {
+  // 依赖注入单例模块
+  @inject(FlowDocument) flowDocument: FlowDocument
+  // ...
+}
+
+function BaseNode() {
+  const mySerivce = useService<MyService>(MyService)
+}
+
+export function useEditorProps(
+): FixedLayoutProps {
+  return useMemo<FixedLayoutProps>(
+    () => ({
+      // ....other props
+      onBind: ({ bind }) => {
+        bind(MyService).toSelf().inSingletonScope()
+      },
+      materials: {
+        renderDefaultNode: BaseNode
+      }
+    }),
+    [],
+  );
+}
+
+```
+
+
+
+---
+url: /guide/advanced/fixed-layout/composite-nodes.md
+---
+
+# 复合节点
+
+复合节点由多个节点组合，并支持自定义线条，如 分支节点、Loop 节点、TryCatch 节点:
+
+## 使用
+
+```ts pure title="node-registries.ts"
+
+import { FlowNodeRegistry  } from '@flowgram.ai/fixed-layout-editor';
+
+/**
+ * 节点注册
+ */
+export const nodeRegistries: FlowNodeRegistry[] = [
+  {
+    type: 'yourCustomNodeType',
+    extend: 'dynamicSplit',
+  },
+];
+
+```
+
+## 内置的复合节点
+
+Source Code
+
+
+
+
+---
+url: /guide/advanced/fixed-layout/load.md
+---
+
+# 加载与保存
+
+画布的数据通过 [FlowDocument](/api/core/flow-document.md) 来存储
+
+## 画布数据格式
+
+画布文档数据采用树形结构，支持嵌套
+
+:::note 文档数据基本结构:
+
+* nodes `array` 节点列表, 支持嵌套
+
+:::
+
+:::note 节点数据基本结构:
+
+* id: `string` 节点唯一标识, 必须保证唯一
+* meta: `object` 节点的 ui 配置信息，如自由布局的 `position` 信息放这里
+* type: `string | number` 节点类型，会和 `nodeRegistries` 中的 `type` 对应
+* data: `object` 节点表单数据
+* blocks: `array` 节点的分支, 采用 `block` 更贴近 `Gramming`
+
+:::
+
+```tsx pure title="initial-data.tsx"
+import { FlowDocumentJSON } from '@flowgram.ai/fixed-layout-editor';
+
+/**
+ * 配置流程数据，数据为 blocks 嵌套的格式
+ */
+export const initialData: FlowDocumentJSON = {
+  nodes: [
+    // 开始节点
+    {
+      id: 'start_0',
+      type: 'start',
+      data: {
+        title: 'Start',
+        content: 'start content'
+      },
+      blocks: [],
+    },
+    // 分支节点
+    {
+      id: 'condition_0',
+      type: 'condition',
+      data: {
+        title: 'Condition'
+      },
+      blocks: [
+        {
+          id: 'branch_0',
+          type: 'block',
+          data: {
+            title: 'Branch 0',
+            content: 'branch 1 content'
+          },
+          blocks: [
+            {
+              id: 'custom_0',
+              type: 'custom',
+              data: {
+                title: 'Custom',
+                content: 'custrom content'
+              },
+            },
+          ],
+        },
+        {
+          id: 'branch_1',
+          type: 'block',
+          data: {
+            title: 'Branch 1',
+            content: 'branch 1 content'
+          },
+          blocks: [],
+        },
+      ],
+    },
+    // 结束节点
+    {
+      id: 'end_0',
+      type: 'end',
+      data: {
+        title: 'End',
+        content: 'end content'
+      },
+    },
+  ],
+};
+
+```
+
+## 加载
+
+* 通过 initialData 加载
+
+```tsx pure
+import { FixedLayoutEditorProvider, FixedLayoutPluginContext, EditorRenderer } from '@flowgram.ai/fixed-layout-editor'
+
+function App({ data }) {
+  return (
+    <FixedLayoutEditorProvider initialData={data} {...otherProps}>
+      <EditorRenderer className="demo-editor" />
+    </FixedLayoutEditorProvider>
+  )
+}
+```
+
+* 通过 ref 动态加载
+
+```tsx pure
+
+import { FixedLayoutEditorProvider, FixedLayoutPluginContext, EditorRenderer } from '@flowgram.ai/fixed-layout-editor'
+
+function App() {
+  const ref = useRef<FixedLayoutPluginContext | undefined>();
+
+  useEffect(async () => {
+    const data = await request('https://xxxx/getJSON')
+    ref.current.document.fromJSON(data)
+    setTimeout(() => {
+      // 加载后触发画布的 fitview 让节点自动居中
+      ref.current.playground.config.fitView(ref.current.document.root.bounds.pad(30));
+    }, 100)
+  }, [])
+  return (
+    <FixedLayoutEditorProvider ref={ref} {...otherProps}>
+      <EditorRenderer className="demo-editor" />
+    </FixedLayoutEditorProvider>
+  )
+}
+```
+
+* 动态 reload 数据
+
+```tsx pure
+
+import { FixedLayoutEditorProvider, FixedLayoutPluginContext, EditorRenderer } from '@flowgram.ai/fixed-layout-editor'
+
+function App({ data }) {
+  const ref = useRef<FixedLayoutPluginContext | undefined>();
+
+  useEffect(async () => {
+    // 当 data 变化时候重新加载画布数据
+    await ref.current.document.fromJSON(data)
+    setTimeout(() => {
+      // 加载后触发画布的 fitview 让节点自动居中
+      ref.current.playground.config.fitView(ref.current.document.root.bounds.pad(30));
+    }, 100)
+  }, [data])
+  return (
+    <FixedLayoutEditorProvider ref={ref} {...otherProps}>
+      <EditorRenderer className="demo-editor" />
+    </FixedLayoutEditorProvider>
+  )
+}
+```
+
+## 监听变化并自动保存
+
+```tsx pure
+
+import { FixedLayoutEditorProvider, FixedLayoutPluginContext, EditorRenderer } from '@flowgram.ai/fixed-layout-editor'
+import { debounce } from 'lodash'
+
+function App() {
+  const ref = useRef<FixedLayoutPluginContext | undefined>();
+
+  useEffect(() => {
+    // 监听画布变化 延迟 1 秒 保存数据, 避免画布频繁更新
+    const toDispose = ref.current.history.onApply(debounce(() => {
+        // 通过 toJSON 获取画布最新的数据
+        request('https://xxxx/save', {
+          data: ref.current.document.toJSON()
+        })
+    }, 1000))
+    return () => toDispose.dispose()
+  }, [])
+  return (
+    <FixedLayoutEditorProvider ref={ref} {...otherProps}>
+      <EditorRenderer className="demo-editor" />
+    </FixedLayoutEditorProvider>
+  )
+}
+
+```
+
+
+
+---
+url: /guide/advanced/fixed-layout/node.md
+---
+
+# 节点
+
+节点通过 [FlowNodeEntity](/api/core/flow-node-entity.md) 定义
+
+## 节点数据
+
+通过 `node.toJSON()` 可以获取
+
+:::note 基本结构:
+
+* id: `string` 节点唯一标识, 必须保证唯一
+* meta: `object` 节点的 ui 配置信息，如自由布局的 `position` 信息放这里
+* type: `string | number` 节点类型，会和 `nodeRegistries` 中的 `type` 对应
+* data: `object` 节点表单数据, 业务可自定义
+* blocks: `array` 节点的分支, 采用 `block` 更贴近 `Gramming`
+
+:::
+
+```ts pure
+const nodeData: FlowNodeJSON = {
+  id: 'xxxx',
+  type: 'condition',
+  data: {
+    title: 'MyCondition',
+    desc: 'xxxxx'
+  },
+}
+```
+
+## 节点定义
+
+声明节点可以用于确定节点的类型及渲染方式
+
+```tsx pure
+import { FlowNodeRegistry, ValidateTrigger } from '@flowgram.ai/fixed-layout-editor';
+
+/**
+ * 自定义节点注册
+ */
+export const nodeRegistries: FlowNodeRegistry[] = [
+  {
+    /**
+     * 自定义节点类型
+     */
+    type: 'condition',
+    /**
+     * 自定义节点扩展:
+     *  - loop: 扩展为循环节点
+     *  - start: 扩展为开始节点
+     *  - dynamicSplit: 扩展为分支节点
+     *  - end: 扩展为结束节点
+     *  - tryCatch: 扩展为 tryCatch 节点
+     *  - default: 扩展为普通节点 (默认)
+     */
+    extend: 'dynamicSplit',
+    /**
+     * 节点配置信息
+     */
+    meta: {
+      // isStart: false, // 是否为开始节点
+      // isNodeEnd: false, // 是否为结束节点，结束节点后边无法再添加节点
+      // draggable: false, // 是否可拖拽，如开始节点和结束节点无法拖拽
+      // selectable: false, // 触发器等开始节点不能被框选
+      // deleteDisable: true, // 禁止删除
+      // copyDisable: true, // 禁止copy
+      // addDisable: true, // 禁止添加
+    },
+    /**
+     * 配置节点表单的校验及渲染,
+     * 注：validate 采用数据和渲染分离，保证节点即使不渲染也能对数据做校验
+     */
+    formMeta: {
+      validateTrigger: ValidateTrigger.onChange,
+      validate: {
+        title: ({ value }) => (value ? undefined : 'Title is required'),
+      },
+      /**
+       * Render form
+       */
+      render: () => (
+       <>
+          <Field name="title">
+            {({ field }) => <div className="demo-free-node-title">{field.value}</div>}
+          </Field>
+          <Field name="content">
+            {({ field }) => <input onChange={field.onChange} value={field.value}/>}
+          </Field>
+        </>
+      )
+    },
+  },
+];
+```
+
+## 当前渲染节点获取
+
+通过 [useNodeRender](/api/hooks/use-node-render.md) 获取节点相关方法
+
+## 创建节点
+
+通过 [FlowOperationService](/api/services/flow-operation-service.md) 创建
+
+* 添加节点
+
+```ts pure
+const ctx = useClientContext()
+
+ctx.operation.addNode({
+  id: 'xxx', // 要保证画布内唯一
+  type: 'custom',
+  meta: {},
+  data: {}, // 表单相关数据
+  blocks: [], // 子节点
+  parent: someParent // 父亲节点，分支会用到
+})
+
+```
+
+* 在指定节点之后添加
+
+```ts pure
+const ctx = useClientContext()
+
+ctx.operation.addFromNode(targetNode, {
+  id: 'xxx', // 要保证画布内唯一
+  type: 'custom',
+  meta: {},
+  data: {}, // 表单相关数据
+  blocks: [], // 子节点
+})
+
+```
+
+* 添加分支节点 （用于条件分支）
+
+```ts pure
+const ctx = useClientContext()
+
+ctx.operation.addBlock(parentNode, {
+  id: 'xxx', // 要保证画布内唯一
+  type: 'block',
+  meta: {},
+  data: {}, // 表单相关数据
+  blocks: [], // 子节点
+})
+```
+
+## 删除节点
+
+```tsx pure
+function BaseNode({ node }) {
+  const ctx = useClientContext()
+  function onClick() {
+    ctx.operation.deleteNode(node)
+  }
+  return (
+    <button onClick={onClick}>Delete</button>
+  )
+}
+```
+
+## 更新节点 data 数据
+
+* 通过 [useNodeRender](/api/hooks/use-node-render.md) 或 [getNodeForm](/api/utils/get-node-form.md) 获取节点的 data 数据
+
+```tsx pure
+function BaseNode() {
+  const { form } = useNodeRender();
+  // 对应节点的 data 数据
+  console.log(form.values)
+
+  // 监听节点的数据变化
+  useEffect(() => {
+    const toDispose = form.onFormValuesChange(() => {
+      // changed
+    })
+    return () => toDispose.dispose()
+  }, [form])
+
+  function onChange(e) {
+    form.setValueIn('title', e.target.value)
+  }
+  return <input value={form.getValueIn('title')} onChange={onChange}/>
+}
+```
+
+* 通过 Field 更新表单数据, 详细见 [表单的使用](/guide/advanced/form.md)
+
+```tsx pure
+
+function FormRender() {
+  return (
+    <Field name="title">
+      <Input />
+    </Field>
+  )
+}
+```
+
+## 更新节点的 extInfo 数据
+
+extInfo 用于存储 一些 ui 状态, 如果未开启节点引擎，节点的 data 数据会默认存到 extInfo 里
+
+```tsx pure
+function BaseNode({ node }) {
+  const times = node.getExtInfo()?.times || 0
+  function onClick() {
+    node.updateExtInfo({ times: times ++ })
+  }
+  return (
+    <div>
+      <span>Click Times: {times}</span>
+      <button onClick={onClick}>Click</button>
+    </div>
+  )
+}
+```
+
+
+
+---
+url: /guide/advanced/form-materials.md
+---
+
+
+
+# 官方表单物料
+
+## 如何使用？
+
+### 通过包引用使用
+
+官方表单物料可以直接通过包引用使用：
+
+```tsx
+import { JsonSchemaEditor } from '@flowgram.ai/form-materials'
+```
+
+### 通过 CLI 添加物料源代码使用
+
+如果业务对组件有定制诉求（如：更改文案、样式、业务逻辑），推荐 **通过 CLI 将物料源代码添加到项目中进行定制**：
+
+```bash
+npx @flowgram.ai/form-materials@latest
+```
+
+运行后 CLI 会提示用户选择要添加到项目中的物料:
+
+```console
+? Select one material to add: (Use arrow keys)
+❯ components/json-schema-editor
+  components/type-selector
+  components/variable-selector
+```
+
+使用者也可以直接在 CLI 中添加指定物料的源代码:
+
+```bash
+npx @flowgram.ai/form-materials@latest components/json-schema-editor
+```
+
+CLI 运行成功后，相关物料会自动添加到当前项目下的 `src/form-materials` 目录下
+
+:::warning 注意事项
+
+1. 官方物料目前底层基于 [Semi Design](https://semi.design/) 实现，业务如果有底层组件库的诉求，可以通过 CLI 复制源码进行替换
+2. 一些物料会依赖一些第三方 npm 库，这些库会在 CLI 运行时自动安装
+3. 一些物料会依赖另外一些官方物料，这些被依赖的物料源代码在 CLI 运行时会一起被添加到项目中去
+
+:::
+
+## 当前支持的 Component 物料
+
+### TypeSelector
+
+TypeSelector 用于变量类型选择
+
+### VariableSelector
+
+VariableSelector 用于展示变量树，并从变量树中选择单个变量
+
+### JsonSchemaEditor
+
+JsonSchemaEditor 用于可视化编辑 [JsonSchema](https://json-schema.org/)
+
+常用于可视化配置节点的输出变量
+
+### DynamicValueInput
+
+DynamicValueInput 用于值（常量值 + 变量值）的配置
+
+### ConditionRow
+
+ConditionRow 用于 **一行** 条件判断的配置
+
+## 当前支持的 Effect 物料
+
+### provideBatchInput
+
+provideBatchInputEffect 用于配置循环批处理输入推导，会根据输入自动推导出两个变量：
+
+* item：根据输入变量数组类型自动推导，代表循环的每一项
+* index：数字类型，代表循环第几次
+
+### autoRenameRef
+
+当前置输出变量名发生变化时:
+
+* 表单项中所有的对该变量的引用，自动重命名
+
+
+
+---
+url: /guide/advanced/form.md
+---
+
+# 节点表单
+
+## 术语
+
+节点表单
+<td>特指流程节点内的表单或点击节点展开的表单，关联节点数据。</td>
+
+节点引擎
+<td>FlowGram.ai 内置的引擎之一，它核心维护了节点数据的增删查改，并提供渲染、校验、副作用、画布或变量联动等能力， 除此之外，它还提供节点错误捕获渲染、无内容时的 placeholder 渲染等能力，见以下章节例子。</td>
+
+## 快速开始
+
+### 开启节点引擎
+
+[> API Detail](https://github.com/bytedance/flowgram.ai/blob/main/packages/client/editor/src/preset/editor-props.ts#L54)
+
+```tsx pure title="use-editor-props.ts" {3}
+
+// EditorProps
+{
+  nodeEngine: {
+    /**
+     * 需要开启节点引擎才能使用
+     */
+    enable: true;
+    materials: {
+      /**
+       * 节点内部报错的渲染组件
+       */
+      nodeErrorRender?: NodeErrorRender;
+      /**
+       * 节点无内容时的渲染组件
+       */
+      nodePlaceholderRender?: NodePlaceholderRender;
+    }
+  }
+}
+```
+
+### 配置表单
+
+`formMeta` 是节点表单唯一配置入口，配置在每个节点的NodeRegistry 上。
+
+[> node-registries.ts](https://github.com/bytedance/flowgram.ai/blob/main/apps/demo-fixed-layout-simple/src/node-registries.ts)
+
+```tsx pure title="node-registries.ts"
+import { FlowNodeRegistry, ValidateTrigger } from '@flowgram.ai/fixed-layout-editor';
+
+export const nodeRegistries: FlowNodeRegistry[] = [
+  {
+    type: 'start',
+    /**
+     * 配置节点表单的校验及渲染
+     */
+    formMeta: {
+      /**
+       * 配置校验在数据变更时触发
+       */
+      validateTrigger: ValidateTrigger.onChange,
+      /**
+       * 配置校验规则， 'content' 为字段路径，以下配置值对该路径下的数据进行校验。
+       */
+      validate: {
+        content: ({ value }) => (value ? undefined : 'Content is required'),
+      },
+      /**
+       * 配置表单渲染
+       */
+      render: () => (
+       <>
+          <Field<string> name="title">
+            {({ field }) => <div className="demo-free-node-title">{field.value}</div>}
+          </Field>
+          <Field<string> name="content">
+            {({ field, fieldState }) => (
+              <>
+                <input onChange={field.onChange} value={field.value}/>
+                {fieldState?.invalid && <Feedback errors={fieldState?.errors}/>}
+              </>
+            )}
+          </Field>
+        </>
+      )
+    },
+  }
+]
+
+```
+
+[> 表单写法的基础例子](/examples/node-form/basic.md)
+
+### 渲染表单
+
+[> base-node.tsx](https://github.com/bytedance/flowgram.ai/blob/main/apps/demo-fixed-layout-simple/src/components/base-node.tsx)
+
+```tsx pure title="base-node.tsx"
+
+export const BaseNode = () => {
+  /**
+   * 提供节点渲染相关的方法
+   */
+  const { form } = useNodeRender()
+  return (
+    <div className="demo-free-node" className={form?.state.invalid && "error"}>
+      {
+        // 表单渲染通过 formMeta 生成
+        form?.render()
+      }
+    </div>
+  )
+};
+
+```
+
+## 核心概念
+
+### FormMeta
+
+在 `NodeRegistry` 中，我们通过`formMeta` 来配置节点表单, 它遵循以下API。
+
+[> FormMeta API](https://github.com/bytedance/flowgram.ai/blob/main/packages/node-engine/node/src/types.ts#L89)
+
+这里特别说明, 节点表单与通用表单有一个很大的区别，它的数据逻辑（如校验、数据变更后的副作用等）需要在表单不渲染的情况下依然生效，我们称 数据与渲染分离
+。所以这些数据逻辑需要配置在formMeta 中的非render 字段中，保证不渲染情况下节点引擎也可以调用到这些逻辑, 而通用表单引擎（如react-hook-form）则没有这个限制, 校验可以直接写在react组件中。
+
+### FormMeta.render (渲染)
+
+`render` 字段用于配置表单的渲染逻辑
+
+`render: (props: FormRenderProps<any>) => React.ReactElement;`
+
+[> FormRenderProps](https://github.com/bytedance/flowgram.ai/blob/main/packages/node-engine/form/src/types/form.ts#L91)
+
+返回的 react 组件可使用以下表单组件和模型：
+
+#### Field (组件)
+
+`Field` 是表单字段的 React 高阶组件，封装了表单字段的通用逻辑，如数据与状态的注入，组件的刷新等。其核心必填参数为 `name`, 用于声明表单项的路径，在一个表单中具有唯一性。
+
+[> Field Props API](https://github.com/bytedance/flowgram.ai/blob/main/packages/node-engine/form/src/types/field.ts#L106)
+
+Field 的渲染部分，支持三种写法，如下:
+
+```tsx pure
+const render = () => (
+  <div>
+    <Label> 1. 通过 children </Label>
+    {/* 该方式适用于简单场景，Field 会将  value onChange 等属性直接注入第一层children组件中  */}
+    <Field name="c">
+      <Input />
+    </Field>
+    <Label> 2. 通过 Render Props  </Label>
+    {/* 该方式适用于复杂场景，当 return 的组件存在多层嵌套，用户可以主动将field 中的属性注入希望注入的组件中 */}
+    <Field name="a">
+        {({ field, fieldState, formState }: FieldRenderProps<string>) => <div><Input {...field} /><Feedbacks errors={fieldState.errors}/></div>}
+    </Field>
+
+    <Label> 3. 通过传 render 函数</Label>
+    {/* 该方式类似方式2，但通过props 传入 */}
+    <Field name="b" render={({ field }: FieldRenderProps<string>) => <Input {...field} />} />
+  </div>
+);
+```
+
+```ts pure
+interface FieldRenderProps<TValue> {
+  // Field 实例
+  field: Field<TValue>;
+  // Field 状态（响应式）
+  fieldState: Readonly<FieldState>;
+  // Form 状态
+  formState: Readonly<FormState>;
+}
+```
+
+[> FieldRenderProps API](https://github.com/bytedance/flowgram.ai/blob/main/packages/node-engine/form/src/types/field.ts#L125)
+
+#### Field (模型)
+
+`Field` 实例通常通过render props 传入（如上例子），或通过 `useCurrentField` hook 获取。它包含表单字段在渲染层面的常见API。
+注意: `Field` 是一个渲染模型，仅提供一般组件需要的API, 如 `value` `onChange` `onFocus` `onBlur`，如果是数据相关的API 请使用 `Form` 模型实例，如 `form.setValueIn(name, value)` 设置某字段的值。
+
+[> Field 模型 API](https://github.com/bytedance/flowgram.ai/blob/main/packages/node-engine/form/src/types/field.ts#L34)
+
+#### FieldArray (组件)
+
+`FieldArray` 是数组类型字段的 React 高阶组件，封装了数组类型字段的通用逻辑，如数据与状态的注入，组件的刷新，以及数组项的遍历等。其核心必填参数为 `name`, 用于声明该表单项的路径，在一个表单中具有唯一性。
+
+`FieldArray` 的基础用法可以参照以下例子:
+
+[> 数组例子](https://flowgram.ai/examples/node-form/array.html)
+
+#### FieldArray (模型)
+
+`FieldArray` 继承于 `Field` ，是数组类型字段在渲染层的模型，除了包含渲染层的常见API，还包含数组的基本操作如 `FieldArray.map`, `FieldArray.remove`, `FieldArray.append` 等。API 的使用方法也可见上述[数组例子](https://flowgram.ai/examples/node-form/array.html)。
+
+[> FieldArray 模型 API](https://github.com/bytedance/flowgram.ai/blob/main/packages/node-engine/form/src/types/field.ts#L69)
+
+#### Form(组件)
+
+`Form` 组件是表单的最外层高阶组件，上述 `Field` `FieldArray` 等能力仅在该高阶组件下可以使用。节点表单的渲染已经将`<Form />` 封装到了引擎内部，所以用户无需关注，可以直接在`render` 返回的 react 组件中直接使用 `Field`。但如果用户需要独立使用表单引擎，或者在节点之外独立再渲染一次表单，需要自行在表单内容外包上`Form`组件。
+
+#### Form(模型)
+
+`Form` 实例可通过`render` 函数的入参获得， 也可通过 hook `useForm` 获取，见[例子](#useform)。它是表单核心模型门面，用户可以通过Form 实例操作表单数据、监听变更、触发校验等。
+
+[> Form 模型 API](https://github.com/bytedance/flowgram.ai/blob/main/packages/node-engine/form/src/types/form.ts#L58)
+
+### 校验
+
+基于[FormMeta](#formmeta)章节中提到的"数据与渲染分离"概念，校验逻辑需配置在 `FormMeta` 全局, 并通过路径匹配方式声明校验逻辑所作用的表单项，如下例子。
+
+路径支持模糊匹配，见[路径](#路径)章节。
+
+```tsx pure
+export const renderValidateExample = ({ form }: FormRenderProps<FormData>) => (
+  <>
+    <Label> a (最大长度为 5)</Label>
+    <Field name="a">
+      {({ field: { value, onChange }, fieldState }: FieldRenderProps<string>) => (
+        <>
+          <Input value={value} onChange={onChange} />
+          <Feedback errors={fieldState?.errors} />
+        </>
+      )}
+    </Field>
+    <Label> b (如果a存在，b可以选填) </Label>
+    <Field
+      name="b"
+      render={({ field: { value, onChange }, fieldState }: FieldRenderProps<string>) => (
+        <>
+          <Input value={value} onChange={onChange} />
+          <Feedback errors={fieldState?.errors} />
+        </>
+  )}
+/>
+  </>
+);
+
+export const VALIDATE_EXAMPLE: FormMeta = {
+  render: renderValidateExample,
+  // 校验时机配置
+  validateTrigger: ValidateTrigger.onChange,
+  validate: {
+    // 单纯校验值
+    a: ({ value }) => (value.length > 5 ? '最大长度为5' : undefined),
+    // 校验依赖其他表单项的值
+    b: ({ value, formValues }) => {
+      if (formValues.a) {
+        return undefined;
+      } else {
+        return value ? 'undefined' : 'a 存在时 b 必填';
+      }
+    },
+    // 校验依赖节点或画布信息
+    c: ({ value, formValues, context }) => {
+      const { node， playgroundContext } = context;
+      // 此处逻辑省略
+    },
+  },
+};
+```
+
+#### 校验时机
+
+`ValidateTrigger.onChange`
+<td>表单数据变更时校验（不包含初始化数据）</td>
+
+`ValidateTrigger.onBlur`
+<td>表单项输入控件onBlur时校验。<br />注意，这里有两个前提：一是表单项的输入控件需要支持 `onBlur` 入参，二是要将 `Field.onBlur` 传入该控件: <br />`<Field>{({field})=><Input ... onBlur={field.onBlur}>}</Field>`</td>
+
+`validateTrigger` 建议配置 `ValidateTrigger.onChange` 即数据变更时校验，如果配置 `ValidateTrigger.onBlur`, 校验只会在组件blur事件触发时触发。那么当节点表单不渲染的情况下，就算是数据变更了，也不会触发校验。
+
+#### 主动触发校验
+
+1. 主动触发整个表单的校验
+
+```pure tsx
+const form = useForm()
+form.validate()
+```
+
+2. 主动触发单个表单项校验
+
+```pure tsx
+const validate = useFieldValidate(name)
+validate()
+```
+
+`name` 不传则默认获取当前 `<Field />` 标签下的 `Field` 的 `validate`, 通过传 `name` 可获取 `<Form />` 下任意 `Field`。
+
+### 路径
+
+1. 表单路径以`.`为层级分隔符， 如 `a.b.c` 指向数据 `{a:{b:{c:1}}}` 下的 `1`
+2. 路径支持模糊匹配，在校验和副作用配置中会使用到。如下例子。通常在数组场景中使用较多。
+
+注意：\* 仅代表下钻一级
+
+`arr.*`
+<td>`arr` 字段的所有一级子项</td>
+
+`arr.x.*`
+<td>`arr.x` 的所有一级子项</td>
+
+`arr.*.x`
+<td>`arr` 所有一级子项下的 `x`</td>
+
+### 副作用 (effect)
+
+副作用是节点表单特有的概念，指在节点数据发生变更时需要执行的副作用。同样，遵循 "数据与渲染分离" 的原则，副作用和校验相似，也配置在 `FormMeta` 全局。
+
+* 通过 key value 形式配置，key 表示表单项路径匹配规则，支持模糊匹配，value 为作用在该路径上的effect。
+* value 为数组，即支持一个表单项有多个effect。
+
+```tsx pur
+
+export const EFFECT_EXAMPLE: FormMeta = {
+  ...
+  effect: {
+    ['a.b']: [
+      {
+        event: DataEvent.onValueChange,
+        effect: ({ value }: EffectFuncProps<string, FormData>) => {
+          console.log('a.b value changed:', value);
+        },
+      },
+    ],
+    ['arr.*']:[
+      {
+        event: DataEvent.onValueInit,
+        effect: ({ value, name }: EffectFuncProps<string, FormData>) => {
+          console.log(name + ' value init:', value);
+        },
+      },
+    ]
+  }
+};
+```
+
+```tsx pur
+interface EffectFuncProps<TFieldValue = any, TFormValues = any> {
+  name: FieldName;
+  value: TFieldValue;
+  prevValue?: TFieldValue;
+  formValues: TFormValues;
+  form: IForm;
+  context: NodeContext;
+}
+```
+
+[Effect 相关 API](https://github.com/bytedance/flowgram.ai/blob/main/packages/node-engine/node/src/types.ts#L54)
+
+#### 副作用时机
+
+`DataEvent.onValueChange`
+<td>数据变更时触发</td>
+
+`DataEvent.onValueInit`
+<td>数据初始化时触发</td>
+
+`DataEvent.onValueInitOrChange`
+<td>数据初始化和变更时都会触发</td>
+
+### 联动
+
+[> 联动例子](/examples/node-form/dynamic.md)
+
+## hooks
+
+### 节点表单内
+
+以下hook 可在节点表单内部使用
+
+#### useCurrentField
+
+`() => Field`
+
+该 hook 需要在Field 标签内部使用
+
+```tsx pur
+const field = useCurrentField()
+```
+
+[> Field 模型 API](https://github.com/bytedance/flowgram.ai/blob/main/packages/node-engine/form/src/types/field.ts#L34)
+
+#### useCurrentFieldState
+
+`() => FieldState`
+
+该 hook 需要在Field 标签内部使用
+
+```tsx pur
+const fieldState = useCurrentFieldState()
+```
+
+[> FieldState API](https://github.com/bytedance/flowgram.ai/blob/main/packages/node-engine/form/src/types/field.ts#L158)
+
+#### useFieldValidate
+
+`(name?: FieldName) => () => Promise<void>`
+
+如果需要主动触发字段的校验，可以使用该hook 获取到 Field 的 validate 函数。
+
+`name` 为 Field 的路径，不传则默认获取当前 `<Field />` 下的validate
+
+```tsx pur
+const validate = useFieldValidate()
+validate()
+```
+
+#### useForm
+
+`() => Form`
+
+用于获取 Form 实例。
+
+注意，该hook 在 `render` 函数第一层不生效，仅在 `render` 函数内的 react 组件内部才可使用。`render` 函数的入参中已经传入了 `form: Form`, 可以直接使用。
+
+1. 在 render 函数第一层直接使用 `props.form`
+
+```tsx pur
+const formMeta = {
+  render: ({form}) =>
+  <div>
+    {form.getValueIn('my.path')}
+  </div>
+}
+```
+
+2. 在组件内部可使用 `useForm`
+
+```tsx pur
+
+const formMeta = {
+  render: () =>
+    <div>
+      <Field name={'my.path'}>
+        <MySelect />
+      </Field>
+    </div>
+}
+
+// MySelect.tsx
+...
+const form = useForm()
+const valueNeeded = form.getValueIn('my.other.path')
+...
+```
+
+注意：Form 的 api 不具备任何响应式能力，若需监听某字段值，可使用 [useWatch](#usewatch)&#x20;
+
+#### useWatch
+
+`<TValue = FieldValue>(name: FieldName) => TValue`
+
+该 hook 和上述 `useForm` 相似, 在 `render` 函数返回组件的第一层不生效，仅在封装过的组件内部可用。如果需要在 `render` 根级别使用，可以对 `render` 返回的内容做一层组件封装。
+
+```tsx pur
+{
+  render: () =>
+    <div>
+      <Field name={'a'}><A /></Field>
+      <Field name={'b'}><B /></Field>
+    </div>
+}
+
+// A.tsx
+...
+const b = useWatch('b')
+// do something with b
+...
+```
+
+### 节点表单外
+
+以下 hook 用于在节点表单外部，如画布全局、相邻节点上需要去监听某个节点表单的数据或状态。通常需要传入 `node: FlowNodeEntity` 作为参数
+
+#### useWatchFormValues
+
+监听 node 内整个表单的值
+
+`<TFormValues = any>(node: FlowNodeEntity) => TFormValues | undefined`
+
+```tsx pur
+const values = useWatchFormValues(node)
+```
+
+#### useWatchFormValueIn
+
+监听 node 内某个表单项的值
+
+`<TValue = any>(node: FlowNodeEntity，name: string) => TFormValues | undefined`
+
+```tsx pur
+const value = useWatchFormValueIn(node, name)
+```
+
+#### useWatchFormState
+
+监听 node 内表单的状态
+
+`(node: FlowNodeEntity) => FormState | undefined`
+
+```tsx pur
+const formState = useWatchFormState(node)
+```
+
+#### useWatchFormErrors
+
+监听 node 内表单的 Errors
+
+`(node: FlowNodeEntity) => Errors | undefined`
+
+```tsx pur
+const errors = useWatchFormErrors(node)
+```
+
+#### useWatchFormWarnings
+
+监听 node 内表单的 Warnings
+
+`(node: FlowNodeEntity) => Warnings | undefined`
+
+```tsx pur
+const warnings = useWatchFormErrors(node)
+```
+
+
+
+---
+url: /guide/advanced/free-layout/line.md
+---
+
+# 线条
+
+* [WorkflowLinesManager](https://github.com/bytedance/flowgram.ai/blob/main/packages/canvas-engine/free-layout-core/src/workflow-lines-manager.ts) 管理所有的线条
+* [WorkflowNodeLinesData](https://github.com/bytedance/flowgram.ai/blob/main/packages/canvas-engine/free-layout-core/src/entity-datas/workflow-node-lines-data.ts) 节点上连接的线条管理
+* [WorkflowLineEntity](https://github.com/bytedance/flowgram.ai/blob/main/packages/canvas-engine/free-layout-core/src/entities/workflow-line-entity.ts) 线条实体
+
+## 获取所有线条的实体
+
+```ts pure
+const allLines = ctx.document.linesManager.getAllLines() // 线条实体 包含 from/to 分别代表线条连接的节点
+
+```
+
+## 创建/删除线条
+
+```ts pure
+// from和 to 为对应要连线的节点id， fromPort, toPort 为 端口 id, 如果节点为单个端口可以不指定
+const line = ctx.document.linesManager.createLine({ from, to, fromPort, toPort })
+
+// 删除线条
+line.dispose()
+
+```
+
+## 导出线条数据
+
+:::note 线条基本结构:
+
+* sourceNodeID: `string` 开始节点 id
+* targetNodeID: `string` 目标节点 id
+* sourcePortID?: `string | number` 开始端口 id, 缺省则采用开始节点的默认端口
+* targetPortID?: `string | number` 目标端口 id, 缺省则采用目标节点的默认端口
+
+:::
+
+```ts pure
+const json = ctx.document.linesManager.toJSON()
+```
+
+## 获取当前节点的输入/输出节点或线条
+
+```ts pure
+import { WorkflowNodeLinesData } from '@flowgram.ai/free-layout-editor'
+
+// 获取当前节点的输入节点（通过连接线计算）
+node.getData(WorkflowNodeLinesData).inputNodes
+// 获取所有输入节点 （会往上递归获取所有）
+node.getData(WorkflowNodeLinesData).allInputNodes
+// 获取输出节点
+node.getData(WorkflowNodeLinesData).outputNodes
+// 获取所有输出节点
+node.getData(WorkflowNodeLinesData).allOutputNodes
+// 输入线条
+node.getData(WorkflowNodeLinesData).inputLines
+// 输出线条
+node.getData(WorkflowNodeLinesData).outputLines
+
+```
+
+## 线条配置
+
+我们提供丰富的线条配置参数, 给 `FreeLayoutEditorProvider`, 详细见 [FreeLayoutProps](https://github.com/bytedance/flowgram.ai/blob/main/packages/client/free-layout-editor/src/preset/free-layout-props.ts)
+
+```tsx pure
+interface FreeLayoutProps {
+    /**
+     * 线条颜色配置
+     */
+    lineColor?: LineColor;
+    /**
+     * 判断线条是否标红
+     * @param ctx
+     * @param fromPort
+     * @param toPort
+     * @param lines
+     */
+    isErrorLine?: (ctx: FreeLayoutPluginContext, fromPort: WorkflowPortEntity, toPort: WorkflowPortEntity | undefined, lines: WorkflowLinesManager) => boolean;
+    /**
+     * 判断端口是否标红
+     * @param ctx
+     * @param port
+     */
+    isErrorPort?: (ctx: FreeLayoutPluginContext, port: WorkflowPortEntity) => boolean;
+    /**
+     * 判断端口是否禁用
+     * @param ctx
+     * @param port
+     */
+    isDisabledPort?: (ctx: FreeLayoutPluginContext, port: WorkflowPortEntity) => boolean;
+    /**
+     * 判断线条箭头是否反转
+     * @param ctx
+     * @param line
+     */
+    isReverseLine?: (ctx: FreeLayoutPluginContext, line: WorkflowLineEntity) => boolean;
+    /**
+     * 判断线条是否隐藏箭头
+     * @param ctx
+     * @param line
+     */
+    isHideArrowLine?: (ctx: FreeLayoutPluginContext, line: WorkflowLineEntity) => boolean;
+    /**
+     * 判断线条是否展示流动效果
+     * @param ctx
+     * @param line
+     */
+    isFlowingLine?: (ctx: FreeLayoutPluginContext, line: WorkflowLineEntity) => boolean;
+    /**
+     * 判断线条是否禁用
+     * @param ctx
+     * @param line
+     */
+    isDisabledLine?: (ctx: FreeLayoutPluginContext, line: WorkflowLineEntity) => boolean;
+    /**
+     * 判断线条是否竖向
+     * @param ctx
+     * @param line
+     */
+    isVerticalLine?: (ctx: FreeLayoutPluginContext, line: WorkflowLineEntity) => boolean;
+    /**
+     * 拖拽线条结束
+     * @param ctx
+     * @param params
+     */
+    onDragLineEnd?: (ctx: FreeLayoutPluginContext, params: onDragLineEndParams) => Promise<void>;
+    /**
+     * 设置线条渲染器类型
+     * @param ctx
+     * @param line
+     */
+    setLineRenderType?: (ctx: FreeLayoutPluginContext, line: WorkflowLineEntity) => LineRenderType | undefined;
+    /**
+     * 设置线条样式
+     * @param ctx
+     * @param line
+     */
+    setLineClassName?: (ctx: FreeLayoutPluginContext, line: WorkflowLineEntity) => string | undefined;
+    /**
+     * 是否允许创建线条
+     * @param ctx
+     * @param fromPort - 开始点
+     * @param toPort - 目标点
+     */
+    canAddLine?: (ctx: FreeLayoutPluginContext, fromPort: WorkflowPortEntity, toPort: WorkflowPortEntity, lines: WorkflowLinesManager, silent?: boolean) => boolean;
+    /**
+     *
+     * 是否允许删除线条
+     * @param ctx
+     * @param line - 目标线条
+     * @param newLineInfo - 新的线条信息
+     * @param silent - 如果为false，可以加 toast 弹窗
+     */
+    canDeleteLine?: (ctx: FreeLayoutPluginContext, line: WorkflowLineEntity, newLineInfo?: Required<WorkflowLinePortInfo>, silent?: boolean) => boolean;
+    /**
+     * 是否允许重置线条
+     * @param fromPort - 开始点
+     * @param oldToPort - 旧的连接点
+     * @param newToPort - 新的连接点
+     * @param lines - 线条管理器
+     */
+    canResetLine?: (ctx: FreeLayoutPluginContext, fromPort: WorkflowPortEntity, oldToPort: WorkflowPortEntity, newToPort: WorkflowPortEntity, lines: WorkflowLinesManager) => boolean;
+}
+```
+
+### 1.自定义颜色
+
+```tsx pure
+
+function App() {
+  const editorProps: FreeLayoutProps = {
+      lineColor: {
+        hidden: 'transparent',
+        default: '#4d53e8',
+        drawing: '#5DD6E3',
+        hovered: '#37d0ff',
+        selected: '#37d0ff',
+        error: 'red',
+      },
+      // ...others
+  }
+  return (
+    <FreeLayoutEditorProvider {...editorProps}>
+      <EditorRenderer className="demo-editor" />
+    </FreeLayoutEditorProvider>
+  )
+}
+
+```
+
+### 2.让单个输出端口只能连一条线
+
+```tsx pure
+
+function App() {
+  const editorProps: FreeLayoutProps = {
+      /*
+       * Check whether the line can be added
+       * 判断是否连线
+       */
+      canAddLine(ctx, fromPort, toPort) {
+        // not the same node
+        if (fromPort.node === toPort.node) {
+          return false;
+        }
+        // 控制线条添加数目
+        if (fromPort.availableLines.length >= 1) {
+          return false
+        }
+        return true;
+      },
+      // ...others
+  }
+  return (
+    <FreeLayoutEditorProvider {...editorProps}>
+      <EditorRenderer className="demo-editor" />
+    </FreeLayoutEditorProvider>
+  )
+}
+
+```
+
+### 3.连接到空白地方添加节点
+
+代码见自由布局最佳实践
+
+```tsx pure
+
+function App() {
+  const editorProps: FreeLayoutProps = {
+      /**
+       * Drag the end of the line to create an add panel (feature optional)
+       * 拖拽线条结束需要创建一个添加面板 （功能可选）
+       */
+      async onDragLineEnd(ctx, params) {
+        const { fromPort, toPort, mousePos, line, originLine } = params;
+        if (originLine || !line) {
+          return;
+        }
+        if (toPort) {
+          return;
+        }
+        // 这里可以根据 mousePos 打开添加面板
+        await ctx.get(WorkflowNodePanelService).call({
+          fromPort,
+          toPort: undefined,
+          panelPosition: mousePos,
+          enableBuildLine: true,
+          panelProps: {
+            enableNodePlaceholder: true,
+            enableScrollClose: true,
+          },
+        });
+      },
+      // ...others
+  }
+  return (
+    <FreeLayoutEditorProvider {...editorProps}>
+      <EditorRenderer className="demo-editor" />
+    </FreeLayoutEditorProvider>
+  )
+}
+
+```
+
+## 在线条上添加 Label
+
+代码见自由布局最佳实践
+
+```ts pure
+
+import { createFreeLinesPlugin } from '@flowgram.ai/free-lines-plugin';
+
+const editorProps = {
+  plugins: () => [
+      /**
+       * Line render plugin
+       * 连线渲染插件
+       */
+      createFreeLinesPlugin({
+        renderInsideLine: LineAddButton,
+      }),
+  ]
+}
+```
+
+## 节点监听自身的连线变化并刷新
+
+```tsx pure
+
+import {
+  useRefresh,
+  WorkflowNodeLinesData,
+} from '@flowgram.ai/free-layout-editor';
+
+function NodeRender({ node }) {
+  const refresh = useRefresh()
+  const linesData = node.get(WorkflowNodeLinesData)
+  useEffect(() => {
+    const dispose = linesData.onDataChange(() => refresh())
+    return () => dispose.dispose()
+  }, [])
+  return <div>xxxx</div>
+}
+
+```
+
+## 监听所有线条的连线变化
+
+这个场景用于当希望在外部组件监听线条连接情况
+
+```ts pure
+import { useEffect } from 'react'
+import { WorkflowLinesManager, useRefresh } from '@flowgram.ai/free-layout-editor'
+
+
+function SomeReact() {
+  const refresh = useRefresh()
+  const linesManager = useService(WorkflowLinesManager)
+  useEffect(() => {
+      const dispose = linesManager.onAvailableLinesChange(() => refresh())
+      return () => dispose.dispose()
+  }, [])
+  console.log(ctx.document.linesManager.getAllLines())
+}
+```
+
+
+
+---
+url: /guide/advanced/free-layout/load.md
+---
+
+# 加载与保存
+
+画布的数据通过 [WorkflowDocument](/api/core/workflow-document.md) 来存储
+
+## 画布数据
+
+:::note 文档数据基本结构:
+
+* nodes `array` 节点列表, 支持嵌套
+* edges `array` 边列表
+
+:::
+
+:::note 节点数据基本结构:
+
+* id: `string` 节点唯一标识, 必须保证唯一
+* meta: `object` 节点的 ui 配置信息，如自由布局的 `position` 信息放这里
+* type: `string | number` 节点类型，会和 `nodeRegistries` 中的 `type` 对应
+* data: `object` 节点表单数据, 业务可自定义
+* blocks: `array` 节点的分支, 采用 `block` 更贴近 `Gramming`, 目前会存子画布的节点
+* edges: `array` 子画布的边数据
+
+:::
+
+:::note 边数据基本结构:
+
+* sourceNodeID: `string` 开始节点 id
+* targetNodeID: `string` 目标节点 id
+* sourcePortID?: `string | number` 开始端口 id, 缺省则采用开始节点的默认端口
+* targetPortID?: `string | number` 目标端口 id, 缺省则采用目标节点的默认端口
+
+:::
+
+```tsx pure title="initial-data.ts"
+import { WorkflowJSON } from '@flowgram.ai/free-layout-editor';
+
+export const initialData: WorkflowJSON = {
+  nodes: [
+    {
+      id: 'start_0',
+      type: 'start',
+      meta: {
+        position: { x: 0, y: 0 },
+      },
+      data: {
+        title: 'Start',
+        content: 'Start content'
+      },
+    },
+    {
+      id: 'node_0',
+      type: 'custom',
+      meta: {
+        position: { x: 400, y: 0 },
+      },
+      data: {
+        title: 'Custom',
+        content: 'Custom node content'
+      },
+    },
+    {
+      id: 'end_0',
+      type: 'end',
+      meta: {
+        position: { x: 800, y: 0 },
+      },
+      data: {
+        title: 'End',
+        content: 'End content'
+      },
+    },
+  ],
+  edges: [
+    {
+      sourceNodeID: 'start_0',
+      targetNodeID: 'node_0',
+    },
+    {
+      sourceNodeID: 'node_0',
+      targetNodeID: 'end_0',
+    },
+  ],
+};
+
+```
+
+## 加载
+
+* 通过 initialData 加载
+
+```tsx pure
+import { FreeLayoutEditorProvider, FreeLayoutPluginContext, EditorRenderer } from '@flowgram.ai/free-layout-editor'
+
+function App({ data }) {
+  return (
+    <FreeLayoutEditorProvider initialData={data} {...otherProps}>
+      <EditorRenderer className="demo-editor" />
+    </FreeLayoutEditorProvider>
+  )
+}
+```
+
+* 通过 ref 动态加载
+
+```tsx pure
+
+import { FreeLayoutEditorProvider, FreeLayoutPluginContext, EditorRenderer } from '@flowgram.ai/free-layout-editor'
+
+function App() {
+  const ref = useRef<FreeLayoutPluginContext | undefined>();
+
+  useEffect(async () => {
+    const data = await request('https://xxxx/getJSON')
+    ref.current.document.fromJSON(data)
+    setTimeout(() => {
+      // 加载后触发画布的 fitview 让节点自动居中
+      ref.current.document.fitView()
+    }, 100)
+  }, [])
+  return (
+    <FreeLayoutEditorProvider ref={ref} {...otherProps}>
+      <EditorRenderer className="demo-editor" />
+    </FreeLayoutEditorProvider>
+  )
+}
+```
+
+* 动态 reload 所有数据
+
+```tsx pure
+
+import { FreeLayoutEditorProvider, FreeLayoutPluginContext, EditorRenderer } from '@flowgram.ai/free-layout-editor'
+
+function App({ data }) {
+  const ref = useRef<FreeLayoutPluginContext | undefined>();
+
+  useEffect(async () => {
+    // 当 data 变化时候重新加载画布数据
+    await ref.current.document.reload(data)
+    setTimeout(() => {
+      // 加载后触发画布的 fitview 让节点自动居中
+      ref.current.document.fitView()
+    }, 100)
+  }, [data])
+  return (
+    <FreeLayoutEditorProvider ref={ref} {...otherProps}>
+      <EditorRenderer className="demo-editor" />
+    </FreeLayoutEditorProvider>
+  )
+}
+```
+
+## 监听变化并自动保存
+
+```tsx pure
+
+import { FreeLayoutEditorProvider, FreeLayoutPluginContext, EditorRenderer } from '@flowgram.ai/free-layout-editor'
+import { debounce } from 'lodash'
+
+function App() {
+  const ref = useRef<FreeLayoutPluginContext | undefined>();
+
+  useEffect(() => {
+    // 监听画布变化 延迟 1 秒 保存数据, 避免画布频繁更新
+    const toDispose = ref.current.document.onContentChange(debounce(() => {
+        // 通过 toJSON 获取画布最新的数据
+        request('https://xxxx/save', {
+          data: ref.current.document.toJSON()
+        })
+    }, 1000))
+    return () => toDispose.dispose()
+  }, [])
+  return (
+    <FreeLayoutEditorProvider ref={ref} {...otherProps}>
+      <EditorRenderer className="demo-editor" />
+    </FreeLayoutEditorProvider>
+  )
+}
+
+```
+
+
+
+---
+url: /guide/advanced/free-layout/node.md
+---
+
+# 节点
+
+节点通过 [FlowNodeEntity](/api/core/flow-node-entity.md) 定义
+
+## 节点数据
+
+通过 `node.toJSON()` 可以获取
+
+:::note 基本结构:
+
+* id: `string` 节点唯一标识, 必须保证唯一
+* meta: `object` 节点的 ui 配置信息，如自由布局的 `position` 信息放这里
+* type: `string | number` 节点类型，会和 `nodeRegistries` 中的 `type` 对应
+* data: `object` 节点表单数据, 业务可自定义
+* blocks: `array` 节点的分支, 采用 `block` 更贴近 `Gramming` 自由布局布局场景会用在子画布的子节点
+* edges: `array` 子画布的边数据
+
+:::
+
+```ts pure
+const nodeData: FlowNodeJSON = {
+  id: 'xxxx',
+  type: 'condition',
+  data: {
+    title: 'MyCondition',
+    desc: 'xxxxx'
+  },
+}
+```
+
+## 节点定义
+
+在自由布局场景，节点定义用于声明节点的初始化位置/大小，端口，表单渲染等, 详细见 [声明节点](/guide/getting-started/create-free-layout-simple.md#4-声明节点)
+
+## 当前渲染节点获取
+
+通过 [useNodeRender](/api/hooks/use-node-render.md) 获取节点相关方法
+
+## 创建节点
+
+* 通过 [WorkflowDocument](/api/core/workflow-document.md) 创建
+
+```ts pure
+const ctx = useClientContext()
+
+ctx.document.createWorkflowNode({
+  id: 'xxx', // 要保证画布内唯一
+  type: 'custom',
+  meta: {
+    /**
+     * 如果不传入，则默认在画布中间创建
+     * 如果要通过鼠标位置获取 position (如点击画布任意位置创建节点)，可通过 `ctx.playground.config.getPosFromMouseEvent(mouseEvent)` 转换
+     */
+    position: { x: 100, y: 100 } //
+  },
+  data: {}, // 表单相关数据
+  blocks: [], // 子画布的节点
+  edges: [] // 子画布的边
+})
+
+```
+
+* 通过 WorkflowDragService 创建, 见[自由布局基础用法](/examples/free-layout/free-layout-simple.md)
+
+```ts pure
+const dragService = useService<WorkflowDragService>(WorkflowDragService);
+
+// 这里的 mouseEvent 会自动转成 画布的 position
+dragService.startDragCard(nodeType, mouseEvent, {
+  id: 'xxxx',
+  data: {}, // 表单相关数据
+  blocks: [], // 子画布的节点
+  edges: [] // 子画布的边
+})
+
+```
+
+## 删除节点
+
+通过 `node.dispose` 删除节点
+
+```tsx pure
+function BaseNode({ node }) {
+  function onClick() {
+    node.dispose()
+  }
+  return (
+    <button onClick={onClick}>Delete</button>
+  )
+}
+```
+
+## 更新节点 data 数据
+
+* 通过 [useNodeRender](/api/hooks/use-node-render.md) 或 [getNodeForm](/api/utils/get-node-form.md) 获取节点的 data 数据
+
+```tsx pure
+function BaseNode() {
+  const { form } = useNodeRender();
+  // 对应节点的 data 数据
+  console.log(form.values)
+
+  // 监听节点的数据变化
+  useEffect(() => {
+    const toDispose = form.onFormValuesChange(() => {
+      // changed
+    })
+    return () => toDispose.dispose()
+  }, [form])
+
+  function onChange(e) {
+    form.setValueIn('title', e.target.value)
+  }
+  return <input value={form.getValueIn('title')} onChange={onChange}/>
+}
+```
+
+* 通过 Field 更新表单数据, 详细见 [表单的使用](/guide/advanced/form.md)
+
+```tsx pure
+
+function FormRender() {
+  return (
+    <Field name="title">
+      <Input />
+    </Field>
+  )
+}
+```
+
+## 更新节点的 extInfo 数据
+
+extInfo 用于存储 一些 ui 状态, 如果未开启节点引擎，节点的 data 数据会默认存到 extInfo 里
+
+```tsx pure
+function BaseNode({ node }) {
+  const times = node.getExtInfo()?.times || 0
+  function onClick() {
+    node.updateExtInfo({ times: times ++ })
+  }
+  return (
+    <div>
+      <span>Click Times: {times}</span>
+      <button onClick={onClick}>Click</button>
+    </div>
+  )
+}
+```
+
+
+
+---
+url: /guide/advanced/free-layout/port.md
+---
+
+# 端口
+
+* [WorkflowNodePortsData](https://github.com/bytedance/flowgram.ai/blob/main/packages/canvas-engine/free-layout-core/src/entity-datas/workflow-node-ports-data.ts) 管理节点的所有端口信息
+* [WorkflowPortEntity](https://github.com/bytedance/flowgram.ai/blob/main/packages/canvas-engine/free-layout-core/src/entities/workflow-port-entity.ts) 端口实例
+* [WorkflowPortRender](https://github.com/bytedance/flowgram.ai/blob/main/packages/plugins/free-lines-plugin/src/components/workflow-port-render/index.tsx) 端口渲染组件
+
+## 定义端口
+
+* 静态端口
+
+节点声明添加 `defaultPorts` , 如 `{ type: 'input' }`, 则会在节点左侧加入输入端口
+
+```ts pure title="node-registries.ts"
+{
+  type: 'start',
+  meta: {
+    defaultPorts: [{ type: 'output' }, { type: 'input'}]
+  },
+}
+```
+
+* 动态端口
+
+节点声明添加 `dynamicPorts` , 当设置为 true 则会到节点dom 上寻找 data-port-id 和 data-port-type 属性的 dom 作为端口
+
+```ts pure title="node-registries.ts"
+{
+  type: 'condition',
+  meta: {
+    defaultPorts: [{ type: 'input'}]
+    dynamicPort: true
+  },
+}
+
+```
+
+```tsx pure
+
+/**
+*  动态端口通过 querySelectorAll('[data-port-id]') 查找端口位置
+ */
+function BaseNode() {
+  return (
+    <div>
+      <div data-port-id="condition-if-0" data-port-type="output"></div>
+      <div data-port-id="condition-if-1" data-port-type="output"></div>
+      {/* others */}
+    </div>
+  )
+}
+```
+
+## 端口渲染
+
+端口最终通过 `WorkflowPortRender` 组件渲染，支持自定义 style, 或者业务基于源码重新实现该组件, 参考 [自由布局最佳实践 - 节点渲染](https://github.com/bytedance/flowgram.ai/blob/main/apps/demo-free-layout/src/components/base-node/node-wrapper.tsx)
+
+```tsx pure
+
+import { WorkflowPortRender, useNodeRender } from '@flowgram.ai/free-layout-editor';
+
+function BaseNode() {
+  const { ports } = useNodeRender();
+  return (
+    <div>
+      <div data-port-id="condition-if-0" data-port-type="output"></div>
+      <div data-port-id="condition-if-1" data-port-type="output"></div>
+      {ports.map((p) => (
+        <WorkflowPortRender key={p.id} entity={p} className="xxx" style={{ /* custom style */}}/>
+      ))}
+    </div>
+  )
+}
+```
+
+## 获取端口数据
+
+```ts pure
+const ports = node.getData(WorkflowNodePortsData)
+
+console.log(ports.inputPorts) // 获取当前节点的所有输入端口
+console.log(ports.outputPorts) // 获取当前节点的所有输出端口
+
+console.log(ports.inputPorts.map(port => port.availableLines)) // 通过端口找到连接的线条
+
+ports.updateDynamicPorts() // 当动态端口修改了 dom 结构或位置，可以通过该方法手动刷新端口位置(dom 渲染有延迟，最好在 useEffect 或者 setTimeout 执行)
+```
+
+
+
+---
+url: /guide/advanced/free-layout/sub-canvas.md
+---
+
+# 子画布
+
+详细代码见 [自由布局最佳实践](/examples/free-layout/free-feature-overview.md)
+
+## 添加子画布插件
+
+```tsx pure
+
+import { createContainerNodePlugin } from '@flowgram.ai/free-container-plugin';
+
+function App() {
+  const editorProps = {
+    plugins: () => [
+      createContainerNodePlugin({}),
+    ]
+    // ..others
+  }
+  return (
+    <FreeLayoutEditorProvider {...editorProps}>
+      <EditorRenderer className="demo-editor" />
+    </FreeLayoutEditorProvider>
+  )
+}
+```
+
+## 定义子画布节点
+
+```tsx pure
+import { SubCanvasRender } from '@flowgram.ai/free-container-plugin';
+
+export const LoopNodeRegistry: FlowNodeRegistry = {
+  type: 'loop',
+  info: {
+    icon: iconLoop,
+    description:
+      'Used to repeatedly execute a series of tasks by setting the number of iterations and logic.',
+  },
+  meta: {
+    /**
+     * 子画布标记
+     */
+    isContainer: true,
+    /**
+    * 子画布默认大小设置
+     */
+    size: {
+      width: 560,
+      height: 400,
+    },
+    /**
+    * 子画布 padding 设置
+     */
+    padding: () => ({ // 容器 padding 设置
+      top: 150,
+      bottom: 100,
+      left: 100,
+      right: 100,
+    }),
+    /**
+      * 控制子画布内的节点选中状态
+      */
+    selectable(node: WorkflowNodeEntity, mousePos?: PositionSchema): boolean {
+      if (!mousePos) {
+        return true;
+      }
+      const transform = node.getData<FlowNodeTransformData>(FlowNodeTransformData);
+      // 鼠标开始时所在位置不包括当前节点时才可选中
+      return !transform.bounds.contains(mousePos.x, mousePos.y);
+    },
+  },
+  formMeta: {
+    render: () => (
+      <div>
+        { /* others */ }
+        <SubCanvasRender />
+      </div>
+    )
+  }
+}
+```
+
+
+
+---
+url: /guide/advanced/history.md
+---
+
+# 历史记录
+
+Undo/Redo 是 FlowGram.AI 的一个插件，在 @flowgram.ai/fixed-layout-editor 和 @flowgram.ai/free-layout-editor 两种模式的编辑器中均有提供该功能。
+
+## 1. 快速开始
+
+[> Demo Detail](https://github.com/bytedance/flowgram.ai/blob/main/apps/demo-fixed-layout/src/hooks/use-editor-props.ts#L125)
+
+### 1.1. 开启 history
+
+使用 Undo/Redo 功能前需要先引入编辑器，以固定布局编辑器为例。
+
+1. package.json 添加依赖
+
+```tsx pure title="use-editor-props.tsx" {4}
+export function useEditorProps() {
+  return useMemo(
+    () => ({
+      history: {
+        enable: true,
+        enableChangeNode: true // Listen Node engine data change
+      }
+    })
+  )
+}
+```
+
+开启之后将获得以下能力：
+
+简介
+<td>描述</td>
+<td>自由布局</td>
+<td>固定布局</td>
+
+Undo/Redo 快捷键
+<td>画布上使用 Cmd/Ctrl + Z 触发 Undo</td>
+<td>✅</td>
+<td>✅</td>
+
+画布上使用 Cmd/Ctrl + Shift + Z 触发 Redo
+<td>✅</td>
+<td>✅</td>
+
+画布节点操作支持undo/redo
+<td>增删节点 </td>
+<td>✅</td>
+<td>✅</td>
+
+增删连线
+<td>✅</td>
+<td>❌</td>
+
+移动节点
+<td>✅</td>
+<td>✅</td>
+
+增删分支
+<td>❌</td>
+<td>✅</td>
+
+移动分支
+<td>❌</td>
+<td>✅</td>
+
+添加分组
+<td>❌</td>
+<td>✅</td>
+
+取消分组
+<td>❌</td>
+<td>✅</td>
+
+画布批量操作
+<td>删除节点</td>
+<td>✅</td>
+<td>✅</td>
+
+移动节点
+<td>✅</td>
+<td>✅</td>
+
+### 1.2. 关闭 history
+
+如果某些系统触发的数据变更不希望被undo redo监听到，可以主动关掉 历史服务 操作完数据再重新启动
+
+```tsx pure
+const { history } = useClientContext();
+history.stop()
+// 做一些不希望被捕获的操作， 这些变更不会被记录到操作栈
+...
+history.start()
+```
+
+### 1.3. Undo/Redo 调用
+
+一般 Undo/Redo 会在界面上提供两个按钮入口，点击了能触发 Undo 和 Redo，按钮本身需要有是否可以 Undo/Redo 的状态。
+
+```tsx pure
+export function useUndoRedo(): UndoRedo {
+  const { history } = useClientContext();
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+
+  useEffect(() => {
+    const toDispose = history.undoRedoService.onChange(() => {
+      setCanUndo(history.canUndo());
+      setCanRedo(history.canRedo());
+    });
+    return () => {
+      toDispose.dispose();
+    };
+  }, []);
+
+  return {
+    canUndo,
+    canRedo,
+    undo: () => history.undo(),
+    redo: () => history.redo(),
+  };
+}
+```
+
+## 2. 功能扩展
+
+### 2.1. 操作注册
+
+操作通过 operationMetas 去注册操作
+
+```tsx pure title="use-editor-props.tsx"
+...
+history={{
+  enable: true,
+  operationMetas: [
+    {
+        type: 'addNode',
+        apply: () => { console.log('addNode')},
+        inverse: (op) => ({ type: 'deleteNode', value: op.value })
+    }
+  ]
+}}
+```
+
+`OperationMeta` 核心定义如下
+
+* `type` 是操作的唯一标识
+* `inverse` 是一个函数，该函数返回当前操作的逆操作
+* `apply` 是操作被触发的时候执行的逻辑
+
+```tsx pure
+export interface OperationMeta {
+  /**
+   * 操作类型 需要唯一
+   */
+  type: string;
+  /**
+   * 将一个操作转换成另一个逆操作， 如insert转成delete
+   * @param op 操作
+   * @returns 逆操作
+   */
+  inverse: (op: Operation) => Operation;
+  /**
+   * 执行操作
+   * @param operation 操作
+   */
+  apply(operation: Operation, source: any): void | Promise<void>;
+}
+```
+
+假设我要做增删节点支持 Undo/Redo 的功能，我就需要添加两个操作
+
+```tsx pure
+{
+  type: 'addNode',
+  inverse: op => ({ ...op, type: 'deleteNode' }),
+  apply(op, ctx) {
+    document = ctx.get(Document)
+    document.addNode(op.value)
+  },
+}
+```
+
+```tsx pure
+{
+  type: 'deleteNode',
+  inverse: op => ({ ...op, type: 'addNode' }),
+  apply(op, ctx) {
+    document = ctx.get(Document)
+    document.deleteNode(op.value.id)
+  },
+}
+```
+
+### 2.2. 操作合并
+
+operationMeta 支持 shouldMerge 来自定义合并策略，如果频繁触发的操作可以进行合并
+
+:::warning shouldMerge 返回
+
+* 返回 false 代表不合并
+* 返回 true 代表合并进一个操作栈元素
+* 返回 Operation 代表合并成一个操作
+
+:::
+
+以下示例是一个合并 500ms 内对同一个字段编辑进行合并
+
+```tsx pure
+{
+  type: 'changeData',
+  inverse: op => ({ ...op, type: 'changeData' }),
+  apply(op, ctx) {},
+  shouldMerge: (op, prev, element) => {
+    // 合并500ms内的操作
+    if (Date.now() - element.getTimestamp() < 500) {
+      if (
+        op.type === prev.type && // 相同类型
+        op.value.id === prev.value.id && // 相同节点
+        op.value?.path === prev.value?.path // 相同路径
+      ) {
+        return {
+          type: op.type,
+          value: {
+            ...op.value,
+            value: op.value.value,
+            oldValue: prev.value.oldValue,
+          },
+        };
+      }
+    }
+    return false;
+  }
+}
+```
+
+### 2.3. 操作执行
+
+1. 单操作执行
+
+通过 pushOperation 触发, 如下示例使用方在业务中触发刚刚定义的操作
+
+```tsx pure
+function handleAddNode () {
+   const { history } = useClientContext()
+   history.pushOperation({
+       type: 'addNode',
+       value: {
+          name: 'xx'
+          id: 'xxx'
+       }
+   })
+}
+```
+
+2. 批量执行
+   通过 transact 调用的函数中所有执行的操作都会被合并进一个栈元素， undo/redo 的时候会被一起执行
+   如下是实现了一个批量删除的例子：
+
+```tsx pure
+function deleteNodes(nodes: FlowNodeEntity[]) {
+  const { history } = useClientContext()
+  history.transact(() => {
+    nodes.forEach(node => {
+      history.pushOperation({
+        type: OperationType.deleteNode,
+        value: {
+          fromId: fromNode.id,
+          data: node.data,
+        },
+      });
+    });
+  });
+}
+```
+
+### 2.4. 撤销重做
+
+1. 撤销重做
+   撤销执行 history.undo 方法
+   重做执行 history.redo 方法
+
+```tsx pure
+function undo() {
+    const { history } = useClientContext();
+    history.undo();
+}
+
+function redo() {
+    const { history } = useClientContext();
+    history.redo();
+}
+```
+
+2. 监听撤销重做
+   监听 undoRedoService.onChange 的 onChange 事件即可
+   如下是一个 undo/redo 触发后路由对应操作的uri（选中对应节点或表单项）
+
+```tsx pure
+function listenHistoryChange() {
+  const { history } = useClientContext();
+  history.undoRedoService.onChange(
+    ({ type, element }) => {
+      if (type === UndoRedoChangeType.PUSH) {
+        return;
+      }
+      const op = element.getLastOperation();
+      if (!op) {
+        return;
+      }
+      if (op.uri) {
+        // goto somewhere
+      }
+    },
+  )
+}
+```
+
+### 2.5. 操作历史
+
+1. 查看刷新
+   可以通过 HistoryStack.items 获得历史记录， 通过监听 HistoryStack.onChange 事件来刷新界面
+
+```tsx pure
+import React from 'react';
+
+export function HistoryList() {
+  const { historyStack } = useService<HistoryManager>(HistoryManager)
+  const { refresh } = useRefresh()
+  let items = historyManager.historyStack.items;
+
+  useEffect(() => {
+      const disposable = historyStack.onChange(() => {
+          refresh()
+      ])
+
+      return () => {
+          disposable.dispose()
+      }
+  }, [])
+
+  return (
+      <ul>
+        {items.map((item, index) => (
+          <li key={index}>
+            <div>
+              {item.type}({item.id}):
+              {item.operations.map((o, index) => (
+                <Tooltip
+                  key={index}
+                  title={(o.description || '') + `----uri: ${o.uri?.displayName}`}
+                >
+                  {o.label || o.type}
+                </Tooltip>
+              ))}
+            </div>
+
+          </li>
+        ))}
+      </ul>
+  );
+}
+```
+
+2. 持久化
+   持久化是通过 history-storage 插件实现
+
+* databaseName： 数据库名称
+* resourceStorageLimit： 资源存储限制数量
+
+引入 @flowgram.ai/history-storage 包后，可使用该插件
+
+```tsx pure
+import { createHistoryStoragePlugin } from '@flowgram.ai/history-storage';
+
+createHistoryStoragePlugin({
+    databaseName: 'your-history',
+    resourceStorageLimit: 50,
+}),
+```
+
+通过 useStorageHistoryItems 查询数据库列表
+
+```tsx pure
+import {
+  useStorageHistoryItems,
+} from '@flowgram.ai/history-storage';
+
+export const HistoryList = () => {
+  const { uri } = useCurrentWidget();
+
+  const { items } = useStorageHistoryItems(
+    storage,
+    uri.withoutQuery().toString(),
+  );
+
+  return <>
+    { JSON.stringify(items) }
+  </>
+}
+```
+
+## 3. API 列表
+
+### 3.1. [OperationMeta](https://flowgram.ai/auto-docs/fixed-history-plugin/interfaces/OperationMeta.html)
+
+操作元数据，用以定义一个操作
+
+### 3.2. [Operation](https://flowgram.ai/auto-docs/fixed-history-plugin/interfaces/Operation.html)
+
+操作数据，通过 type 和 OperationMeta 关联
+
+### 3.3. [OperationService](https://flowgram.ai/auto-docs/fixed-history-plugin/classes/OperationService.html)
+
+[onApply](https://flowgram.ai/auto-docs/fixed-history-plugin/classes/OperationService.html#onapply)
+想监听某个触发的操作可以使用onApply
+
+```tsx pure
+useService(OperationService).onApply((op: Operation) => {
+    console.log(op)
+    // 此处可以根据type执行自己的业务逻辑
+})
+```
+
+### 3.4. [HistoryService](https://flowgram.ai/auto-docs/fixed-history-plugin/classes/HistoryService.html)
+
+History 模块核心 API 暴露的Service
+
+### 3.5. [UndoRedoService](https://flowgram.ai/auto-docs/fixed-history-plugin/classes/UndoRedoService.html)
+
+管理 UndoRedo 栈的服务
+
+### 3.6. [HistoryStack](https://flowgram.ai/auto-docs/fixed-history-plugin/classes/HistoryStack.html)
+
+历史栈，监听所有 push undo redo 操作，并记录到栈里面
+
+### 3.7. [HistoryDatabase](https://flowgram.ai/auto-docs/history-storage/classes/HistoryDatabase.html)
+
+持久化数据库操作
+
+
+
+---
+url: /guide/advanced/minimap.md
+---
+
+# 缩略图
+
+
+
+## EditorProps
+
+```ts pure
+import { createMinimapPlugin } from '@flowgram.ai/minimap-plugin'
+
+
+{
+  plugins: () => [
+    /**
+     * Minimap plugin
+     */
+    createMinimapPlugin({
+      disableLayer: true,
+      enableDisplayAllNodes: true,
+      canvasStyle: {
+        canvasWidth: 182,
+        canvasHeight: 102,
+        canvasPadding: 50,
+        canvasBackground: 'rgba(245, 245, 245, 1)',
+        canvasBorderRadius: 10,
+        viewportBackground: 'rgba(235, 235, 235, 1)',
+        viewportBorderRadius: 4,
+        viewportBorderColor: 'rgba(201, 201, 201, 1)',
+        viewportBorderWidth: 1,
+        viewportBorderDashLength: 2,
+        nodeColor: 'rgba(255, 255, 255, 1)',
+        nodeBorderRadius: 2,
+        nodeBorderWidth: 0.145,
+        nodeBorderColor: 'rgba(6, 7, 9, 0.10)',
+        overlayColor: 'rgba(255, 255, 255, 0)',
+      },
+      inactiveDebounceTime: 1,
+    }),
+  ]
+}
+```
+
+## 缩略图组件
+
+```tsx pure
+import { FlowMinimapService, MinimapRender } from '@flowgram.ai/minimap-plugin';
+import { useService } from '@flowgram.ai/editor'; // 或 free-layout-editor
+
+
+export const Minimap = () => {
+  const minimapService = useService(FlowMinimapService);
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: 16,
+        bottom: 51,
+        zIndex: 100,
+        width: 182,
+      }}
+    >
+      <MinimapRender
+        service={minimapService}
+        containerStyles={{
+          pointerEvents: 'auto',
+          position: 'relative',
+          top: 'unset',
+          right: 'unset',
+          bottom: 'unset',
+          left: 'unset',
+        }}
+        inactiveStyle={{
+          opacity: 1,
+          scale: 1,
+          translateX: 0,
+          translateY: 0,
+        }}
+      />
+    </div>
+  );
+};
+
+```
+
+
+
+---
+url: /guide/advanced/shortcuts.md
+---
+
+# 快捷键
+
+## 自定义快捷键
+
+```ts pure
+// 添加到 EditorProps
+{
+  shortcuts(shortcutsRegistry, ctx) {
+      // 按住 cmmand + a，选中所有节点
+      shortcutsRegistry.addHandlers({
+        commandId: 'selectAll',
+        shortcuts: ['meta a', 'ctrl a'],
+        isEnabled: (...args) => true,
+        execute(...args) {
+          const allNodes = ctx.document.getAllNodes();
+          ctx.playground.selectionService.selection = allNodes;
+        },
+      });
+  },
+}
+
+```
+
+## 通过 CommandService 调用快捷键
+
+```ts pure
+const commandService = useService(CommandService)
+/**
+ * 调用命令服务, args 参数会透传给 execute 和 isEnabled
+ */
+commandService.executeCommand('selectAll', ...args)
+
+// OR
+ctx.get(CommandService).executeCommand('selectAll', ...args)
+```
+
+
+
+---
+url: /guide/advanced/variable/basic.md
+---
+
+# 变量基础
+
+## 业务背景
+
+在 Workflow 编排中，节点与节点之间需要传递信息。为了实现这一点，我们使用**变量**来存储和管理这些信息。
+
+:::warning 一个变量由三个主要部分组成：
+
+1. **唯一标识符**：变量的名字，用于区分不同的变量，以便在程序中可以准确地引用和使用它。如：`userName` 或 `totalAmount`。
+2. **值**：变量存储的数据。值可以是多种类型，比如数字（如 `42`）、字符串（如 `"Hello!"`）、布尔值（如 `true`）等。
+3. **类型**：变量可以存储的数据种类。类型决定了变量可以接受什么样的值。例如，一个变量可以是整数、浮点数、字符串或布尔值等。
+
+:::
+
+下面是一个流程编排的例子：WebSearch 节点获取到知识，通过 natural\_language\_desc 传递到 LLM 节点进行分析
+
+在该例子中：
+1\. WebSearch 节点将信息（值）存在 natural\_language\_desc 为唯一标识符的变量内
+2\. LLM 节点通过 natural\_language\_desc 唯一标识符获取到知识库检索的信息（值），并传入 LLM 节点进行分析
+3\. natural\_language\_desc 变量的类型为字符串，代表在网络中检索到的信息内容，例如 "DeepSeek 今日有新模型发布"
+
+## 什么是变量引擎？
+
+变量引擎是 Flowgram 提供的一个可选内置功能，可以帮助 Workflow 设计时更高效地实现**变量信息编排**。它可以实现以下功能：
+
+作用域约束控制
+<p className="rs-tip">通过变量引擎，你可以控制变量的作用域，确保变量在合适的范围内可用，避免不必要的冲突。</p>
+
+图中 Start 节点的 query 变量，可被后续的 LLM 节点和 End 节点访问
+
+图中 LLM 节点在 Condition 分支内，End 节点在 Condition 分支外；因此 End 节点的变量选择器无法选择到 LLM 节点上的 result 变量
+
+变量信息树的维护
+<p className="rs-tip">变量引擎可以帮助你构建一个清晰的变量信息树，方便你查看和管理所有变量的状态和关系。</p>
+
+图中展示了多个节点 + 全局配置的输出变量；其中部分变量包含了多个子变量，形成了一棵树的结构
+
+变量类型自动联动推导
+<p className="rs-tip">变量引擎能够根据上下文自动推导变量的类型，减少手动指定类型的工作量，提高开发效率。</p>
+
+图中的 Batch 节点对 Start 节点的 arr 变量进行了批处理，当 arr 变量的类型变动时，Batch 节点批处理输出的 item 变量类型也随之变动
+
+## 开启变量引擎
+
+[> API Detail](https://flowgram.ai/auto-docs/editor/interfaces/VariablePluginOptions.html)
+
+```tsx pure title="use-editor-props.ts" {3}
+
+// EditorProps
+{
+  variableEngine: {
+    /**
+     * 需要开启变量引擎才能使用
+     */
+    enable: true
+  }
+}
+```
+
+
+
+---
+url: /guide/advanced/variable/variable-consume.md
+---
+
+# 消费变量
+
+## 在节点内获取变量树
+
+### 获取变量列表
+
+```tsx pure title="use-variable-tree.tsx"
+import {
+  type BaseVariableField,
+  useScopeAvailable,
+} from '@flowgram.ai/fixed-layout-editor';
+
+// .... Inside react hooks or component
+
+const available = useScopeAvailable()
+
+const renderVariable = (variable: BaseVariableField) => {
+  // ....
+}
+
+return available.variables.map(renderVariable)
+
+// ....
+
+
+```
+
+### 获取 Object 类型变量的下钻
+
+```tsx pure title="use-variable-tree.tsx"
+import {
+  type BaseVariableField,
+  ASTMatch,
+} from '@flowgram.ai/fixed-layout-editor';
+
+// ....
+
+const renderVariable = (variable: BaseVariableField) => ({
+  title: variable.meta?.title,
+  key: variable.key,
+  // Only Object Type can drilldown
+  children: ASTMatch.isObject(type) ? type.properties.map(renderVariable) : [],
+});
+
+// ....
+
+```
+
+### 获取 Array 类型变量的下钻
+
+```tsx pure title="use-variable-tree.tsx"
+import {
+  type BaseVariableField,
+  type BaseType,
+  ASTMatch,
+} from '@flowgram.ai/fixed-layout-editor';
+
+// ....
+
+const getTypeChildren = (type?: BaseType): BaseVariableField[] => {
+  if (!type) return [];
+
+  // get properties of Object
+  if (ASTMatch.isObject(type)) return type.properties;
+
+  // get items type of Array
+  if (ASTMatch.isArray(type)) return getTypeChildren(type.items);
+};
+
+const renderVariable = (variable: BaseVariableField) => ({
+  title: variable.meta?.title,
+  key: variable.key,
+  // Only Object Type can drilldown
+  children: getTypeChildren(variable.type).map(renderVariable),
+});
+
+// ....
+
+```
+
+## 直接使用 VariableSelector 官方物料
+
+详见: [官方表单物料](/guide/advanced/form-materials.md)
+
+[VariableSelector](https://github.com/bytedance/flowgram.ai/tree/main/packages/materials/form-materials/src/components/variable-selector/index.tsx) 组件用于选择单个变量
+
+通过包引用使用：
+
+```tsx
+import { VariableSelector } from '@flowgram.ai/materials'
+```
+
+通过 CLI 复制源代码使用：
+
+```bash
+npx @flowgram.ai/materials components/variable-selector
+```
+
+
+
+---
+url: /guide/advanced/variable/variable-output.md
+---
+
+# 输出变量
+
+## 输出节点变量
+
+### FlowNodeVariableData 输出变量
+
+`Flowgram` 基于 [`ECS`](https://flowgram.ai/guide/concepts/ecs.html) (Entity-Component-System) 来实现节点信息的管理。
+
+其中 [`FlowNodeVariableData`](https://flowgram.ai/auto-docs/editor/classes/FlowNodeVariableData.html) 是节点 `FlowNodeEntity` 上的一个 `Component`，专门用于处理节点上输出的 **变量信息**。
+
+下面的 Demo 展示了：如何拿到 `FlowNodeVariableData`, 并且通过 `FlowNodeVariableData` 实现在节点上输出变量
+
+```tsx pure title="sync-variable-plugin.tsx"
+import {
+  FlowNodeVariableData,
+  ASTFactory,
+} from '@flowgram.ai/fixed-layout-editor';
+
+// ....
+
+flowDocument.onNodeCreate(({ node }) => {
+  const variableData = node.getData<FlowNodeVariableData>(FlowNodeVariableData);
+
+  // ....
+
+  // 1. Clear VariableData if No value
+  variableData.clearVar()
+
+  // 2. Set a String Variable as output
+  variableData.setVar(
+    ASTFactory.createVariableDeclaration({
+      meta: {
+        title: `Your Output Variable Title`,
+      },
+      key: `your_variable_global_unique_key_${node.id}`,
+      type: ASTFactory.createString(),
+    })
+  )
+
+  // 3. Set a Complicated Variable Data as output
+  variableData.setVar(
+    ASTFactory.createVariableDeclaration({
+      meta: {
+        title: `Your Output Variable Title`,
+      },
+      key: `your_variable_global_unique_key_${node.id}`,
+      type: ASTFactory.createArray({
+        items: ASTFactory.createObject({
+          properties: [
+            ASTFactory.createProperty({
+              key: 'stringType',
+              type: ASTFactory.createString(),
+            }),
+            ASTFactory.createProperty({
+              key: 'booleanType',
+              type: ASTFactory.createBoolean(),
+            }),
+            ASTFactory.createProperty({
+              key: 'numberType',
+              type: ASTFactory.createNumber(),
+            }),
+            ASTFactory.createProperty({
+              key: 'integerType',
+              type: ASTFactory.createInteger(),
+            }),
+          ],
+        }),
+      }),
+    })
+  );
+
+  // 4. Get Variable for current Node
+  console.log(variableData.getVar())
+
+  // ....
+})
+
+// ....
+
+```
+
+详见: [> Demo Detail](https://github.com/bytedance/flowgram.ai/blob/main/apps/demo-fixed-layout/src/plugins/sync-variable-plugin/sync-variable-plugin.ts#L25)
+
+### 一个节点设置多个输出变量
+
+```tsx pure title="sync-variable-plugin.tsx"
+import {
+  FlowNodeVariableData,
+  ASTFactory,
+} from '@flowgram.ai/fixed-layout-editor';
+
+// ....
+
+flowDocument.onNodeCreate(({ node }) => {
+  const variableData = node.getData<FlowNodeVariableData>(FlowNodeVariableData);
+
+  // ...
+  // 1. Create, Update, Read, Delete Variable in namespace_1
+  variableData.setVar(
+    'namespace_1',
+    ASTFactory.createVariableDeclaration({
+      meta: {
+        title: `Your Output Variable Title`,
+      },
+      key: `your_variable_global_unique_key_${node.id}`,
+      type: ASTFactory.createString(),
+    })
+  )
+
+  console.log(variableData.getVar('namespace_1'))
+
+  variableData.clearVar('namespace_1')
+
+  // ....
+
+  // 2. Create, Update, Read, Delete Variable in namespace_2
+  variableData.setVar(
+    'namespace_2',
+    ASTFactory.createVariableDeclaration({
+      meta: {
+        title: `Your Output Variable Title 2`,
+      },
+      key: `your_variable_global_unique_key_${node.id}_2`,
+      type: ASTFactory.createString(),
+    })
+  )
+
+  console.log(variableData.getVar('namespace_2'))
+
+  variableData.clearVar('namespace_2')
+
+  // ....
+})
+
+// ....
+
+```
+
+更多用法，详见：[Class: FlowNodeVariableData](https://flowgram.ai/auto-docs/editor/classes/FlowNodeVariableData.html)
+
+### 表单副作用设置输出变量
+
+```tsx pure title="node-registries.ts"
+import {
+  FlowNodeRegistry,
+  createEffectFromVariableProvider,
+  ASTFactory,
+  type ASTNodeJSON
+} from '@flowgram.ai/fixed-layout-editor';
+
+export function createTypeFromValue(value: string): ASTNodeJSON | undefined {
+  switch (value) {
+    case 'string':
+      return ASTFactory.createString();
+    case 'number':
+      return ASTFactory.createNumber();
+    case 'boolean':
+      return ASTFactory.createBoolean();
+    case 'integer':
+      return ASTFactory.createInteger();
+
+    default:
+      return;
+  }
+}
+
+export const nodeRegistries: FlowNodeRegistry[] = [
+  {
+    type: 'start',
+    formMeta: {
+      effect: {
+        // Create first variable
+        // = variableData.setVar('path.to.value', ASTFactory.createVariableDeclaration(parse(v)))
+        'path.to.value': createEffectFromVariableProvider({
+          // parse form value to variable
+          parse(v: string) {
+            return {
+              meta: {
+                title: `Your Output Variable Title`,
+              },
+              key: `your_variable_global_unique_key_${node.id}`,
+              type: createTypeFromValue(v)
+            }
+          }
+        }),
+        // Create second variable
+        // = variableData.setVar('path.to.value2', ASTFactory.createVariableDeclaration(parse(v)))
+        'path.to.value2': createEffectFromVariableProvider({
+          // parse form value to variable
+          parse(v: string) {
+            return {
+              meta: {
+                title: `Your Output Variable Title 2`,
+              },
+              key: `your_variable_global_unique_key_${node.id}_2`,
+              type: createTypeFromValue(v)
+            }
+          }
+        }),
+      },
+      render: () => (
+       // ...
+      )
+    },
+  }
+]
+
+```
+
+## 输出全局变量
+
+### 获取全局变量作用域
+
+全局作用域可以在 Plugin 中通过 `ctx` 获取：
+
+```tsx pure title="sync-variable-plugin.tsx"
+import {
+  GlobalScope,
+  definePluginCreator,
+  PluginCreator
+} from '@flowgram.ai/fixed-layout-editor';
+
+
+export const createSyncVariablePlugin: PluginCreator<SyncVariablePluginOptions> =
+  definePluginCreator<SyncVariablePluginOptions, FixedLayoutPluginContext>({
+    onInit(ctx, options) {
+      const globalScope = ctx.get(GlobalScope)
+
+      globalScope.setVar(
+         ASTFactory.createVariableDeclaration({
+          meta: {
+            title: `Your Output Variable Title`,
+          },
+          key: `your_variable_global_unique_key`,
+          type: ASTFactory.createString(),
+        })
+      )
+    }
+  })
+
+```
+
+也可以在画布中的 React 组件内，通过 `useService` 获取全局作用域：
+
+```tsx pure title="global-variable-component.tsx"
+import {
+  GlobalScope,
+  useService,
+} from '@flowgram.ai/fixed-layout-editor';
+
+function GlobalVariableComponent() {
+
+  const globalScope = useService(GlobalScope)
+
+  // ...
+
+  const handleChange = (v: string) => {
+    globalScope.setVar(
+      ASTFactory.createVariableDeclaration({
+        meta: {
+          title: `Your Output Variable Title`,
+        },
+        key: `your_variable_global_unique_key_${v}`,
+        type: ASTFactory.createString(),
+      })
+    )
+  }
+
+  return <Input onChange={handleChange}/>
+}
+
+```
+
+### 全局作用域输出变量
+
+[`GlobalScope`](https://flowgram.ai/auto-docs/editor/classes/GlobalScope.html) 输出变量的 API 和 `FlowNodeVariableData` 类似:
+
+```tsx pure title="sync-variable-plugin.tsx"
+import {
+  GlobalScope,
+} from '@flowgram.ai/fixed-layout-editor';
+
+// ...
+
+onInit(ctx, options) {
+  const globalScope = ctx.get(GlobalScope);
+
+  // 1. Create, Update, Read, Delete Variable in GlobalScope
+  globalScope.setVar(
+    ASTFactory.createVariableDeclaration({
+      meta: {
+        title: `Your Output Variable Title`,
+      },
+      key: `your_variable_global_unique_key`,
+      type: ASTFactory.createString(),
+    })
+  )
+
+  console.log(globalScope.getVar())
+
+  globalScope.clearVar()
+
+
+  // 2.  Create, Update, Read, Delete Variable in GlobalScope's namespace: 'namespace_1'
+    globalScope.setVar(
+      'namespace_1',
+      ASTFactory.createVariableDeclaration({
+        meta: {
+          title: `Your Output Variable Title 2`,
+        },
+        key: `your_variable_global_unique_key_2`,
+        type: ASTFactory.createString(),
+      })
+  )
+
+  console.log(globalScope.getVar('namespace_1'))
+
+  globalScope.clearVar('namespace_1')
+
+  // ...
+}
+```
+
+详见：[Class: GlobalScope](https://flowgram.ai/auto-docs/editor/classes/GlobalScope.html)
+
+
+
+---
+url: /guide/advanced/without-form.md
+---
+
+# 不使用表单
+
+当节点引擎不开启，节点的 data 数据会存在 `node.getExtInfo` 中, 如下
+
+```tsx pure
+
+export const useEditorProps = () => {
+  return {
+    // ...
+    nodeEngine: {
+      enable: false, // 不开启节点引擎，则无法使用 from
+    },
+    history: {
+      enable: true,
+      enableChangeNode: false // 不再监听表单数据变化
+    },
+    materials: {
+      /**
+       * Render Node
+       */
+      renderDefaultNode: ({ node }: WorkflowNodeProps) => {
+        return (
+          <WorkflowNodeRenderer className="demo-free-node" node={node}>
+            <input value={node.getExtInfo()?.title} onChange={e => node.updateExtInfo({ title: e.target.value})}/>
+          </WorkflowNodeRenderer>
+        );
+      },
+    },
+    // /...
+  }
+}
+
+```
+
+
+
+---
+url: /guide/concepts/canvas-engine.md
+---
+
+import image0 from "@/public/layer-uml.jpg"
+
+# 画布引擎
+
+## Playground
+
+画布引擎底层会提供一套自己的坐标系, 主要由 Playground 驱动
+
+```ts
+interface Playground {
+   node: HTMLDivElement // 画布挂载的dom节点
+   toReactComponent() // 渲染为react 节点
+   readonly: boolean // 只读模式
+   config: PlaygroundConfigEntity // 包含 zoom，scroll 等画布数据
+}
+// hook 快速获取
+const { playground } = useClientContext()
+```
+
+## Layer
+
+:::warning P.S.
+
+* 渲染层在底层建立了一套自己的坐标系，基于这个坐标系实现模拟滚动、缩放等逻辑，在算viewport时候节点也需要转换到该坐标系上
+* 渲染按画布被拆分成多个层 (Layer)，分层设计是基于ECS的数据切割思想，不同 Layer 只监听自己想要的数据，独立渲染不干扰，Layer 可以理解为ECS的 System，即最终Entity数据消费的地方
+* Layer 实现了类mobx的observer响应式动态依赖收集，数据更新会触发 autorun或render
+
+:::
+
+<img alt="切面编程" src={image0} />
+
+* Layer 生命周期
+
+```ts
+interface Layer {
+    /**
+     * 初始化时候触发
+     */
+    onReady?(): void;
+
+    /**
+     * playground 大小变化时候会触发
+     */
+    onResize?(size: PipelineDimension): void;
+
+    /**
+     * playground focus 时候触发
+     */
+    onFocus?(): void;
+
+    /**
+     * playground blur 时候触发
+     */
+    onBlur?(): void;
+
+    /**
+     * 监听缩放
+     */
+    onZoom?(scale: number): void;
+
+    /**
+     * 监听滚动
+     */
+    onScroll?(scroll: { scrollX: number; scrollY: number }): void;
+
+    /**
+     * viewport 更新触发
+     */
+    onViewportChange?(): void;
+
+    /**
+     * readonly 或 disable 状态变化
+     * @param state
+     */
+    onReadonlyOrDisabledChange?(state: { disabled: boolean; readonly: boolean }): void;
+
+    /**
+   * 数据更新自动触发react render，如果不提供则不会调用react渲染
+   */
+    render?(): JSX.Element
+ }
+```
+
+Layer的定位其实和 Unity 游戏引擎 提供的 [MonoBehaviour](https://docs.unity3d.com/ScriptReference/MonoBehaviour.html) 类似， Unity 游戏引擎的脚本扩展都是基于这个，可以认为是最核心的设计，底层也是基于 C# 提供的反射 (Reflection) 能力的依赖注入
+
+```C#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+public class MyMonoBehavior : MonoBehaviour
+{
+    void Awake()
+    {
+        Debug.Log("Awake method is always called before application starts.");
+    }
+    void Start()
+    {
+        Debug.Log("Start method is always called after Awake().");
+    }
+    void Update()
+    {
+        Debug.Log("Update method is called in every frame.");
+    }
+}
+```
+
+* Layer 的响应式更新
+
+```ts
+export class DemoLayer extends Layer {
+    // 任意的inversify模块 的注入
+    @inject(FlowDocument) document: FlowDocument
+    // 监听单个Entity
+    @observeEntity(SomeEntity) entity: SomeEntity
+    // 监听多个Entity
+    @observeEntities(SomeEntity) entities: SomeEntity[]
+    // 监听 Entity的数据块（ECS - Component）变化
+    @observeEntityDatas(SomeEntity, SomeEntityData) transforms: SomeEntityData[]
+    autorun() {}
+    render() {
+      return <div></div>
+    }
+}
+```
+
+## FlowNodeEntity
+
+* 节点是一颗树, 包含子节点 (blocks) 和父亲节点, 节点采用 ECS 架构
+
+```ts
+inteface FlowNodeEntity {
+    id： string
+    blocks: FlowNodeEntity[]
+    pre?: FlowNodeEntity
+    next?: FlowNodeEntity
+    parent?: FlowNodeEntity
+    collapsed: boolean // 是否展开
+    getData(dataRegistry): NodeEntityData
+    addData(dataRegistry)
+}
+```
+
+## FlowNodeTransformData 节点的位置及大小数据
+
+```ts
+class FlowNodeTransformData {
+    localTransform: Matrix, // 相对偏移, 只相对于同一个Block的上一个Sibling节点的偏移
+    worldTransform: Matrix, // 绝对偏移, 相对于Parent和Sibling节点叠加后的偏移
+    delta：Point // 居中居左偏移, 和Matrix独立，每个节点自己控制
+    getSize(): Size, // 由自己(独立节点) 或者 子分支节点宽高间距计算得出
+    getBounds(): Rectangle // 由worldMatix及 size 计算得出, 用于最终渲染，该范围也可用于确定高亮选中区域
+    inputPoint(): Point // 输入点位置，一般是Block的第一个节点的中上位置(居中布局)
+    outputPoint(): Point // 输出点位置，默认是节点中下位置，但条件分支，是由内置结束节点等具体逻辑判断得出
+   // ...others
+}
+```
+
+## FlowNodeRenderData 节点内容渲染数据
+
+```ts
+class FlowNodeRenderData {
+  node: HTMLDivElement // 当前节点的dom
+  expanded：boolean // 是否展开
+  activated： boolean // 是否激活
+  hidden： boolean // 是否隐藏
+  // ...others
+}
+```
+
+## FlowDocument
+
+```ts
+interface FLowDocument {
+    root: FlowNodeEntity // 画布的根节点
+    fromJSON(data): void // 导入数据
+    toJSON(): FlowDocumentJSON // 导出数据
+    addNode(type: string, meta: any): FlowNodeEntity // 添加节点
+    travese(fn: (node: flowNodeEntity) => void, startNode = this.root) // 遍历
+}
+```
+
+
+
+---
+url: /guide/concepts/ecs.md
+---
+
+# ECS
+
+## 为什么需要 ECS
+
+:::warning ECS （Entity-Component-System）
+适合解耦大的数据对象，常用于游戏，游戏的每个角色（Entity）数据都非常庞大，需要拆分成如物理引擎相关数据、皮肤相关、角色属性等 (多个 Component)，供不同的子系统（System）消费。流程的数据结构复杂，很适合用ECS做拆解
+
+:::
+
+## 方案对比
+
+我们对比两个数据方案：
+
+### 1. ReduxStore 方案
+
+```jsx pure
+const store = () => ({
+  nodes: [{
+    position: any
+    form: any
+    data3: any
+
+  }],
+  edges: []
+})
+
+function Playground() {
+  const { nodes } = useStore(store)
+
+  return nodes.map(node => <Node data={node} />)
+}
+```
+
+优点：
+
+* 中心化数据管理使用简单
+
+缺点：
+
+* 中心化数据管理无法精确更新，带来性能瓶颈
+* 扩展性差，节点新增一个数据，都耦合到一个 大JSON 里
+
+### 2. ECS 方案
+
+备注：
+
+* NodeData 对应的是 ECS - Component
+* Layer 对应 ECS - System
+
+```jsx pure
+
+/**
+  *  画布文档数据
+  */
+class FlowDocument {
+  /**
+*  * 节点数据定义, 节点创建时候会把数据实例化
+    */
+  nodeDefines: [
+    NodePositionData,
+    NodeFormData,
+    NodeLineData
+  ]
+  nodeEntities: Entity[] = []
+}
+
+/**
+ *  节点
+ */
+class FlowNodeEntity {
+  id: string // 只有id 不带数据
+  getData: (dataId: string) => EntityData
+}
+
+// 渲染线条
+class LinesLayer {
+  /**
+   *  内部通过 node.getData(NodeLineData) 获取对应的数据，下同
+   */
+  @observeEntityData(FlowNodeEntity, NodeLineData) lines: NodeLineData[]
+  render() {
+    // 渲染线条
+    return this.lines.map(line => <Line data={line} />)
+  }
+}
+
+// 渲染节点位置
+class NodePositionsLayer {
+  @observeEntityData(FlowNodeEntity, NodePositionData) positions: NodePositionData[]
+  render() {
+    // 渲染位置及排版
+  }
+}
+
+// 渲染节点表单
+class  NodeFormsLayer {
+  @observeEntityData(FlowNodeEntity, NodeFormData) contents: NodeFormData[]
+  render() {
+    // 渲染节点内容
+  }
+}
+
+
+/**
+ * 画布实例，通过 Layer 分层渲染
+ */
+class Playground {
+  layers: [
+    LinesLayer, // 线条渲染
+    NodePositionsLayer, // 位置渲染
+    NodeFormsLayer // 内容渲染
+  ]，
+  render() {
+    // 画布分层渲染
+    return this.layers.map(layer => layer.render())
+  }
+}
+```
+
+优点：
+
+* 节点数据拆开来单独控制渲染，性能可做到精确更新
+* 扩展性强，新增一个节点数据，则新增一个 XXXData + XXXLayer
+
+缺点：
+
+* 有一定学习成本
+
+
+
+---
+url: /guide/concepts/index.md
+---
+
+import image0 from "@/public/canvas-engine.png"
+
+# 概念
+
+<img alt="FlowGramAI 架构" src={image0} />
+
+* CanvasEngine：画布引擎负责绘制“点-线”构成的图, 保障大规模节点时的流畅性
+* NodeEngine: 节点引擎提供 渲染、校验、数据修改等表单能力
+* VariableEngine: 变量引擎引入作用域模型, 抽象各业务场景的变量
+* Material: 物料库包含默认 ICON 等 UI, 业务接入后可覆盖扩展
+
+
+
+---
+url: /guide/concepts/ioc.md
+---
+
+import image0 from "@/public/weaving.png"
+
+# IOC
+
+## 为什么需要 IOC
+
+:::warning 几个概念
+
+* 控制反转： Inversion of Control， 是面向对象中的一种设计原则，可以用来降低代码模块之间的耦合度，其中最常见的方式叫做依赖注入（Dependency Injection，简称DI）
+* 领域逻辑：Domain Logic，也可以叫 业务逻辑（Business Logic），这些业务逻辑与特定的产品功能相关
+* 面向切面编程：AOP （Aspect-Oriented Programming），最核心的设计原则是将软件系统拆分为公用逻辑 (横切，有贯穿的意味) 和 领域逻辑 （纵切）的多个个方面 (Aspect)，横切部分可以被所有的 纵切 部分 “按需消费”
+
+:::
+
+回答这个问题之前先了解切面编程，切面编程目的是将领域逻辑的粒度拆的更细，横切部分可被纵切 “按需消费” ，横切和纵切的连接也叫 织入 (Weaving)，而 IOC 就是扮演 Weaving 注入到纵切的角色
+
+<img alt="切面编程" src={image0} />
+
+理想的切面编程
+
+```ts
+- myAppliation 提供业务逻辑
+  - service 特定的业务逻辑服务
+     - customDomainLogicService
+  - contributionImplement 钩子的注册实例化
+    - MyApplicationContributionImpl
+  - component 业务组件
+
+- core 提供通用逻辑
+  - model 通用模型
+  - contribution 钩子接口
+     - LifecycleContribution 应用的生命周期
+     - CommandContribution
+  - service 公用的service的服务
+     - CommandService
+     - ClipboardService
+  - component 公用的组件
+```
+
+```ts
+// IOC 的注入
+@injectable()
+export class CustomDomainLogicService {
+@inject(FlowContextService) protected flowContextService: FlowContextService;
+@inject(CommandService) protected commandService: CommandService;
+@inject(SelectionService) protected selectionService: SelectionService;
+}
+// IOC 的接口声明
+interface LifecycleContribution {
+ onInit(): void
+ onStart(): void
+ onDispose(): void
+}
+// IOC 的接口实现
+@injectable()
+export class MyApplicationContributionImpl implements LifecycleContribution {
+  onStart(): void {
+    // 特定的业务逻辑代码
+  }
+}
+
+// 手动挂在到生命周期钩子
+bind(LifecycleContribution).toService(MyApplicationContributionImpl)
+```
+
+:::warning IOC是切面编程的一种手段，引入后，底层模块可以以接口形式暴露给外部注册，带来的好处：
+
+* 实现微内核 + 插件化的设计，实现插件的可插拔按需消费
+* 可以让包拆得更干净，实现 feature 式的拆包
+
+:::
+
+
+
+---
+url: /guide/concepts/node-engine.md
+---
+
+# 节点引擎
+
+节点引擎 NodeEngine 是一个流程节点逻辑的书写框架，让业务专注于业务自身的渲染与数据逻辑，无需关注画布以及节点间联动的底层api。与此同时，节点引擎沉淀了最佳的节点书写范式，帮助业务解决流程业务中可能遇到的各种问题， 如数据逻辑与渲染耦合等。
+节点引擎是可选启用的。如果你不存在以下这些复杂的节点逻辑，可以选择不启用节点引擎，自己维护节点数据与渲染。复杂节点逻辑如：1）节点不渲染也能校验或触发数据副作用；2）节点间联动丰富；3）redo/undo; 等等。
+
+## 基础概念
+
+FlowNodeEntity
+流程节点模型。
+
+FlowNodeRegistry
+流程节点的静态配置。
+
+FormMeta
+节点引擎的静态配置。 配置在 FlowNodeRegistry 中的 formMeta 字段。
+
+Form
+节点引擎中的表单。它维护节点的数据并提供渲染、校验、副作用等能力。他的模型 FormModel 提供节点数据的访问和修改及触发校验等能力。
+
+Field
+节点表单中的某个渲染字段。注意， Form 已经提供了数据层的逻辑，Field 更多是一个渲染层的模型，它尽在表单字段渲染后才存在。
+
+validate
+表单校验。通常有对单个字段的校验也有整体表单校验。
+
+effect
+表单数据的副作用。通常指在表单数据发生一些事件时要触发特定逻辑。 如在某字段的数据变更时要同步一些信息到某个store，这个可以被称为一个effect。
+
+FormPlugin
+表单插件。可以配置在formMeta 中，插件可以对表单进行一系列深度操作。如变量插件。
+
+
+
+---
+url: /guide/concepts/reactflow.md
+---
+
+# 对比 ReactFlow
+
+[Reactflow](https://reactflow.dev/) 是很优秀的开源项目，架构及代码清晰，但偏流程渲染引擎的底层架构 (Node、Edge、Handle)，需要在上层开发大量功能才能适配复杂场景(如 固定布局，需要对数据建模写布局算法), 高级功能收费。
+
+相比 Reactflow，FlowGram 的目标是提供流程编辑一整套开箱即用的解决方案。
+
+* 下边是 Reactflow 官方提供的 pro 收费能力
+
+| 付费功能                         | FlowGram 是否支持 | 未来计划支持 |
+|----------------------------------|------------------------|--------------|
+| 分组                             | 支持                   |              |
+| redo/undo                        | 支持                   |              |
+| copy/paste                       | 支持                   |              |
+| HelpLines 辅助线                | 支持                   |              |
+| 自定义节点及形状                 | 支持                   |              |
+| 自定义线条                       | 支持                   |              |
+| AutoLayout，自动布局整理         | 支持                   |              |
+| ForceLayout，节点排斥效果        | 不支持                 | No           |
+| Expand/Collapse                  | 支持                   |              |
+| Collaborative 多人协同           | 不支持                 | Yes          |
+| WorkflowBuilder 相当于固定布局完整案例 | 支持                   |              |
+
+* Reactflow 事件都是绑定在原子化的 dom 节点上，且内置，交互定制成本高，需要理解它的源码才能深度开发，如下，在画布缩放很小时候无法选到点位
+
+由于 事件是绑定在 svg 上，svg 在缩放后很容易点不到
+
+FlowGram 的事件是一种全局监听 mousemove 变化，并通过计算及 Threshold  大致确定位置，即使缩放很小也能点到, 同时支持线条重连
+
+
+
+---
+url: /guide/concepts/variable-engine.md
+---
+
+import image0 from "@/public/variable-engine.png"
+
+import image1 from "@/public/varaible-zone.png"
+
+# 变量引擎
+
+## 整体设计
+
+### 架构分层
+
+:::warning 架构分层
+变量引擎设计上遵循 DIP（依赖反转）原则，按照 代码稳定性、抽象层次 以及和 业务的远近 分为三层：
+
+* 变量抽象层：变量架构中抽象层次最高，代码也最为稳定的部分
+* 变量实现层：变量架构中变动较大，不同业务之间通常存在调整的部分
+* 变量业务层：变量架构中提供给业务的 Facade ，与画布引擎、节点引擎联动的部分
+
+:::
+
+<img alt="架构分层图" src={image0} />
+
+### 术语表
+
+#### 🌟 作用域（Scope）
+
+:::warning ⭐️⭐️⭐️ 定义：
+一种约定的空间，空间内 通过 AST 来描述变量声明和消费情况
+
+* 约定的空间：空间是什么，完全由业务定义
+* 在低代码设计态中，可以是一个节点、一个组件、一个右侧面板...
+* 在一段代码中，可以是一行 Statement、一段代码块、一个函数、一个文件...
+
+:::
+
+作用域的空间是什么？可以由不同的业务来划定。
+
+#### 🌟 抽象语法树（AST）
+
+:::warning 定义：
+⭐️⭐️⭐️ 一种协议，通过树的形式，组合 AST 节点，实现对变量信息的显式/隐式 CRUD
+
+* AST 节点：AST 中可响应式的协议节点
+* 显式 CRUD，如：业务显示设定一个变量的变量类型
+* 隐式 CRUD，如：业务声明一个变量，变量会根据其初始化参数自动推导变量类型
+
+:::
+
+:::warning 作用域里面的变量、类型、表达式、结构体 等等变量信息... 本质上都是 AST 节点的组合
+
+* 变量 -> VariableDeclaration 节点
+* 表达式 -> Expression 节点
+* 类型 -> TypeNode 节点
+* 结构体 -> StructDeclaration 节点
+
+:::
+
+参考链接：https://ts-ast-viewer.com/
+
+#### 变量（Variable）
+
+:::warning 定义：
+一种用于声明新变量的 AST 节点，通过唯一标识符 指向一个 在特定集合范围内变动的值
+
+* 在特定集合范围内变动的值：变量的值必须在 变量类型 描述的范围内
+* 唯一标识符：变量必须有一个唯一的 Key 值
+
+:::
+
+[JavaScript中的变量，唯一 Key + 指向一个变动的值](/@/public/variable-code.png.md)
+
+#### 变量类型（Variable Type）
+
+:::warning 定义：
+⭐️⭐️⭐️ 一种 AST 节点，用于约束一个变量，被约束的变量值只能在预先设定的集合范围内变动
+
+* 一个变量可以绑定一个变量类型
+
+:::
+
+### 变量引擎的形象理解
+
+:::warning 想像这样一个变量引擎的世界：
+
+* 通过一个个 作用域 来划定出一个个 国家
+* 每个国家包含三大公民：声明、类型、表达式
+* 国家与国家之间通过 作用域链 来实现交流
+
+:::
+
+<img alt="图解" src={image1} />
+
+
+
+---
+url: /guide/contact-us.md
+---
+
+# 联系我们
+
+* Issues: [Issues](https://github.com/bytedance/flowgram.ai/issues)
+* Discord: https://discord.gg/SwDWdrgA9f
+* Lark: 通过 [注册飞书](https://www.feishu.cn/en/) 并扫描下边的二维码加入飞书群
+
+
+
+---
+url: /guide/getting-started/create-fixed-layout-simple.md
+---
+
+# 创建固定布局画布
+
+本案例可通过 `npx @flowgram.ai/create-app@latest fixed-layout-simple` 安装，完整代码及效果见：
+
+固定布局基础用法
+
+文件结构:
+
+```
+- hooks
+  - use-editor-props.ts # 画布配置
+- components
+  - base-node.tsx # 节点渲染
+  - tools.tsx # 画布工具栏
+- initial-data.ts # 初始化数据
+- node-registries.ts # 节点配置
+- app.tsx # 画布入口
+```
+
+### 1. 画布入口
+
+* `FixedLayoutEditorProvider`: 画布配置器, 内部会生成 react-context 供子组件消费
+* `EditorRenderer`: 为最终渲染的画布，可以包装在其他组件下边方便定制画布位置
+
+```tsx pure title="app.tsx"
+
+import {
+  FixedLayoutEditorProvider,
+  EditorRenderer,
+} from '@flowgram.ai/fixed-layout-editor';
+
+import '@flowgram.ai/fixed-layout-editor/index.css'; // 加载样式
+
+import { useEditorProps } from './hooks/use-editor-props' // 画布详细的 props 配置
+import { Tools } from './components/tools' // 画布工具
+
+function App() {
+  const editorProps = useEditorProps()
+  return (
+    <FixedLayoutEditorProvider {...editorProps}>
+      <EditorRenderer className="demo-editor" />
+      <Tools />
+    </FixedLayoutEditorProvider>
+  );
+}
+```
+
+### 2. 配置画布
+
+画布配置采用声明式，提供 数据、渲染、事件、插件相关配置
+
+```tsx pure title="hooks/use-editor-props.tsx"
+import { useMemo } from 'react';
+import { type FixedLayoutProps } from '@flowgram.ai/fixed-layout-editor';
+import { defaultFixedSemiMaterials } from '@flowgram.ai/fixed-semi-materials';
+import { createMinimapPlugin } from '@flowgram.ai/minimap-plugin';
+
+import { initialData } from './initial-data' // 初始化数据
+import { nodeRegistries } from './node-registries' // 节点声明配置
+import { BaseNode } from './base-node' // 节点渲染
+
+export function useEditorProps(
+): FixedLayoutProps {
+  return useMemo<FixedLayoutProps>(
+    () => ({
+      /**
+       * 初始化数据
+       */
+      initialData,
+      /**
+       * 画布节点定义
+       */
+      nodeRegistries,
+      /**
+       * 可以通过 key 自定义 UI 组件, 比如添加按钮，这里提供了一套 semi 组件方便快速验证, 如果需要深度定制，参考：
+       * https://github.com/bytedance/flowgram.ai/blob/main/packages/materials/fixed-semi-materials/src/components/index.tsx
+       */
+      materials: {
+        components: {
+          ...defaultFixedSemiMaterials,
+          // [FlowRendererKey.ADDER]: NodeAdder,
+          // [FlowRendererKey.BRANCH_ADDER]: BranchAdder,
+        },
+        renderDefaultNode: BaseNode, // 节点渲染组件
+      },
+      /**
+       * 节点引擎, 用于渲染节点表单
+       */
+      nodeEngine: {
+        enable: true,
+      },
+      /**
+       * 画布历史记录, 用于控制 redo/undo
+       */
+      history: {
+        enable: true,
+        enableChangeNode: true, // 用于监听节点表单数据变化
+      },
+      /**
+       * 画布初始化回调
+       */
+      onInit: ctx => {
+        // 如果要动态加载数据，可以通过如下方法异步执行
+        // ctx.docuemnt.fromJSON(initialData)
+      },
+      /**
+       * 画布第一次渲染完成回调
+       */
+      onAllLayersRendered: (ctx) => {},
+      /**
+       * 画布销毁回调
+       */
+      onDispose: () => { },
+      plugins: () => [
+        /**
+         * 缩略图插件
+         */
+        createMinimapPlugin({}),
+      ],
+    }),
+    [],
+  );
+}
+
+```
+
+### 3. 配置数据
+
+画布文档数据采用树形结构，支持嵌套
+
+:::note 文档数据基本结构:
+
+* nodes `array` 节点列表, 支持嵌套
+
+:::
+
+:::note 节点数据基本结构:
+
+* id: `string` 节点唯一标识, 必须保证唯一
+* meta: `object` 节点的 ui 配置信息，如自由布局的 `position` 信息放这里
+* type: `string | number` 节点类型，会和 `nodeRegistries` 中的 `type` 对应
+* data: `object` 节点表单数据
+* blocks: `array` 节点的分支, 采用 `block` 更贴近 `Gramming`
+
+:::
+
+```tsx pure title="initial-data.tsx"
+import { FlowDocumentJSON } from '@flowgram.ai/fixed-layout-editor';
+
+/**
+ * 配置流程数据，数据为 blocks 嵌套的格式
+ */
+export const initialData: FlowDocumentJSON = {
+  nodes: [
+    // 开始节点
+    {
+      id: 'start_0',
+      type: 'start',
+      data: {
+        title: 'Start',
+        content: 'start content'
+      },
+      blocks: [],
+    },
+    // 分支节点
+    {
+      id: 'condition_0',
+      type: 'condition',
+      data: {
+        title: 'Condition'
+      },
+      blocks: [
+        {
+          id: 'branch_0',
+          type: 'block',
+          data: {
+            title: 'Branch 0',
+            content: 'branch 1 content'
+          },
+          blocks: [
+            {
+              id: 'custom_0',
+              type: 'custom',
+              data: {
+                title: 'Custom',
+                content: 'custrom content'
+              },
+            },
+          ],
+        },
+        {
+          id: 'branch_1',
+          type: 'block',
+          data: {
+            title: 'Branch 1',
+            content: 'branch 1 content'
+          },
+          blocks: [],
+        },
+      ],
+    },
+    // 结束节点
+    {
+      id: 'end_0',
+      type: 'end',
+      data: {
+        title: 'End',
+        content: 'end content'
+      },
+    },
+  ],
+};
+
+```
+
+### 4. 声明节点
+
+声明节点可以用于确定节点的类型及渲染方式
+
+```tsx pure title="node-registries.tsx"
+import { FlowNodeRegistry, ValidateTrigger } from '@flowgram.ai/fixed-layout-editor';
+
+/**
+ * 自定义节点注册
+ */
+export const nodeRegistries: FlowNodeRegistry[] = [
+  {
+    /**
+     * 自定义节点类型
+     */
+    type: 'condition',
+    /**
+     * 自定义节点扩展:
+     *  - loop: 扩展为循环节点
+     *  - start: 扩展为开始节点
+     *  - dynamicSplit: 扩展为分支节点
+     *  - end: 扩展为结束节点
+     *  - tryCatch: 扩展为 tryCatch 节点
+     *  - default: 扩展为普通节点 (默认)
+     */
+    extend: 'dynamicSplit',
+    /**
+     * 节点配置信息
+     */
+    meta: {
+      // isStart: false, // 是否为开始节点
+      // isNodeEnd: false, // 是否为结束节点，结束节点后边无法再添加节点
+      // draggable: false, // 是否可拖拽，如开始节点和结束节点无法拖拽
+      // selectable: false, // 触发器等开始节点不能被框选
+      // deleteDisable: true, // 禁止删除
+      // copyDisable: true, // 禁止copy
+      // addDisable: true, // 禁止添加
+    },
+    /**
+     * 配置节点表单的校验及渲染,
+     * 注：validate 采用数据和渲染分离，保证节点即使不渲染也能对数据做校验
+     */
+    formMeta: {
+      validateTrigger: ValidateTrigger.onChange,
+      validate: {
+        title: ({ value }) => (value ? undefined : 'Title is required'),
+      },
+      /**
+       * Render form
+       */
+      render: () => (
+       <>
+          <Field name="title">
+            {({ field }) => <div className="demo-free-node-title">{field.value}</div>}
+          </Field>
+          <Field name="content">
+            {({ field }) => <input onChange={field.onChange} value={field.value}/>}
+          </Field>
+        </>
+      )
+    },
+  },
+];
+
+```
+
+### 5. 渲染节点
+
+渲染节点用于添加样式、事件及表单渲染的位置
+
+```tsx pure title="components/base-node.tsx"
+import { useNodeRender } from '@flowgram.ai/fixed-layout-editor';
+
+export const BaseNode = () => {
+  /**
+   * 提供节点渲染相关的方法
+   */
+  const nodeRender = useNodeRender();
+  /**
+   * 只有在节点引擎开启时候才能使用表单
+   */
+  const form = nodeRender.form;
+
+  return (
+    <div
+      className="demo-fixed-node"
+      onMouseEnter={nodeRender.onMouseEnter}
+      onMouseLeave={nodeRender.onMouseLeave}
+      onMouseDown={e => {
+        // 触发拖拽
+        nodeRender.startDrag(e);
+        e.stopPropagation();
+      }}
+      style={{
+        // BlockOrderIcon 表示为分支的第一个节点，BlockIcon 则表示整个 condition 的头部节点
+        ...(nodeRender.isBlockOrderIcon || nodeRender.isBlockIcon ? { width: 260 } : {}),
+        outline: form?.state.invalid ? '1px solid red' : 'none', // 表单校验错误让边框标红
+      }}
+    >
+      {
+        // 表单渲染通过 formMeta 生成
+        form?.render()
+      }
+    </div>
+  );
+};
+
+```
+
+### 6. 添加工具
+
+工具主要用于控制画布缩放等操作, 工具汇总在 `usePlaygroundTools` 中, 而 `useClientContext` 用于获取画布的上下文, 里边包含画布的核心模块如 `history`
+
+```tsx pure title="components/tools.tsx"
+import { useEffect, useState } from 'react'
+import { usePlaygroundTools, useClientContext } from '@flowgram.ai/fixed-layout-editor';
+
+export function Tools() {
+  const { history } = useClientContext();
+  const tools = usePlaygroundTools();
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+
+  useEffect(() => {
+    const disposable = history.undoRedoService.onChange(() => {
+      setCanUndo(history.canUndo());
+      setCanRedo(history.canRedo());
+    });
+    return () => disposable.dispose();
+  }, [history]);
+
+  return <div style={{ position: 'absolute', zIndex: 10, bottom: 16, left: 16, display: 'flex', gap: 8 }}>
+    <button onClick={() => tools.zoomin()}>ZoomIn</button>
+    <button onClick={() => tools.zoomout()}>ZoomOut</button>
+    <button onClick={() => tools.fitView()}>Fitview</button>
+    <button onClick={() => tools.changeLayout()}>ChangeLayout</button>
+    <button onClick={() => history.undo()} disabled={!canUndo}>Undo</button>
+    <button onClick={() => history.redo()} disabled={!canRedo}>Redo</button>
+    <span>{Math.floor(tools.zoom * 100)}%</span>
+  </div>
+}
+
+```
+
+### 7. 效果
+
+
+
+
+---
+url: /guide/getting-started/create-free-layout-simple.md
+---
+
+# 创建自由布局画布
+
+本案例可通过 `npx @flowgram.ai/create-app@latest free-layout-simple` 安装，完整代码及效果见：
+
+自由布局基础用法
+
+文件结构:
+
+```
+- hooks
+  - use-editor-props.ts # 画布配置
+- components
+  - base-node.tsx # 节点渲染
+  - tools.tsx # 画布工具栏
+- initial-data.ts # 初始化数据
+- node-registries.ts # 节点配置
+- app.tsx # 画布入口
+```
+
+### 1. 画布入口
+
+* `FreeLayoutEditorProvider`: 画布配置器, 内部会生成 react-context 供子组件消费
+* `EditorRenderer`: 为最终渲染的画布，可以包装在其他组件下边方便定制画布位置
+
+```tsx pure title="app.tsx"
+
+import {
+  FreeLayoutEditorProvider,
+  EditorRenderer,
+} from '@flowgram.ai/free-layout-editor';
+
+import '@flowgram.ai/free-layout-editor/index.css'; // 加载样式
+
+import { useEditorProps } from './use-editor-props' // 画布详细的 props 配置
+import { Tools } from './components/tools' // 画布工具
+
+function App() {
+  const editorProps = useEditorProps()
+  return (
+    <FreeLayoutEditorProvider {...editorProps}>
+      <EditorRenderer className="demo-editor" />
+      <Tools />
+    </FreeLayoutEditorProvider>
+  );
+}
+```
+
+### 2. 配置画布
+
+画布配置采用声明式，提供 数据、渲染、事件、插件相关配置
+
+```tsx pure title="hooks/use-editor-props.tsx"
+import { useMemo } from 'react';
+import { type FreeLayoutProps } from '@flowgram.ai/free-layout-editor';
+import { createMinimapPlugin } from '@flowgram.ai/minimap-plugin';
+
+import { initialData } from './initial-data' // 初始化数据
+import { nodeRegistries } from './node-registries' // 节点声明配置
+import { BaseNode } from './components/base-node' // 节点渲染
+
+export function useEditorProps(
+): FreeLayoutProps {
+  return useMemo<FreeLayoutProps>(
+    () => ({
+      /**
+       * 初始化数据
+       */
+      initialData,
+      /**
+       * 画布节点定义
+       */
+      nodeRegistries,
+      /**
+       * 物料
+       */
+      materials: {
+        renderDefaultNode: BaseNode, // 节点渲染组件
+      },
+      /**
+       * 节点引擎, 用于渲染节点表单
+       */
+      nodeEngine: {
+        enable: true,
+      },
+      /**
+       * 画布历史记录, 用于控制 redo/undo
+       */
+      history: {
+        enable: true,
+        enableChangeNode: true, // 用于监听节点表单数据变化
+      },
+      /**
+       * 画布初始化回调
+       */
+      onInit: ctx => {
+        // 如果要动态加载数据，可以通过如下方法异步执行
+        // ctx.docuemnt.fromJSON(initialData)
+      },
+      /**
+       * 画布第一次渲染完整回调
+       */
+      onAllLayersRendered: (ctx) => {},
+      /**
+       * 画布销毁回调
+       */
+      onDispose: () => { },
+      plugins: () => [
+        /**
+         * 缩略图插件
+         */
+        createMinimapPlugin({}),
+      ],
+    }),
+    [],
+  );
+}
+
+```
+
+### 3. 配置数据
+
+画布文档数据采用树形结构，支持嵌套
+
+:::note 文档数据基本结构:
+
+* nodes `array` 节点列表, 支持嵌套
+* edges `array` 边列表
+
+:::
+
+:::note 节点数据基本结构:
+
+* id: `string` 节点唯一标识, 必须保证唯一
+* meta: `object` 节点的 ui 配置信息，如自由布局的 `position` 信息放这里
+* type: `string | number` 节点类型，会和 `nodeRegistries` 中的 `type` 对应
+* data: `object` 节点表单数据, 业务可自定义
+* blocks: `array` 节点的分支, 采用 `block` 更贴近 `Gramming`, 目前会存子画布的节点
+* edges: `array` 子画布的边数据
+
+:::
+
+:::note 边数据基本结构:
+
+* sourceNodeID: `string` 开始节点 id
+* targetNodeID: `string` 目标节点 id
+* sourcePortID?: `string | number` 开始端口 id, 缺省则采用开始节点的默认端口
+* targetPortID?: `string | number` 目标端口 id, 缺省则采用目标节点的默认端口
+
+:::
+
+```tsx pure title="initial-data.ts"
+import { WorkflowJSON } from '@flowgram.ai/free-layout-editor';
+
+export const initialData: WorkflowJSON = {
+  nodes: [
+    {
+      id: 'start_0',
+      type: 'start',
+      meta: {
+        position: { x: 0, y: 0 },
+      },
+      data: {
+        title: 'Start',
+        content: 'Start content'
+      },
+    },
+    {
+      id: 'node_0',
+      type: 'custom',
+      meta: {
+        position: { x: 400, y: 0 },
+      },
+      data: {
+        title: 'Custom',
+        content: 'Custom node content'
+      },
+    },
+    {
+      id: 'end_0',
+      type: 'end',
+      meta: {
+        position: { x: 800, y: 0 },
+      },
+      data: {
+        title: 'End',
+        content: 'End content'
+      },
+    },
+  ],
+  edges: [
+    {
+      sourceNodeID: 'start_0',
+      targetNodeID: 'node_0',
+    },
+    {
+      sourceNodeID: 'node_0',
+      targetNodeID: 'end_0',
+    },
+  ],
+};
+
+
+```
+
+### 4. 声明节点
+
+声明节点可以用于确定节点的类型及渲染方式
+
+```tsx pure title="node-registries.tsx"
+import { WorkflowNodeRegistry, ValidateTrigger } from '@flowgram.ai/free-layout-editor';
+
+/**
+ * You can customize your own node registry
+ * 你可以自定义节点的注册器
+ */
+export const nodeRegistries: WorkflowNodeRegistry[] = [
+  {
+    type: 'start',
+    meta: {
+      isStart: true, // 标记为开始节点
+      deleteDisable: true, // 开始节点不能删除
+      copyDisable: true, // 开始节点不能复制
+      defaultPorts: [{ type: 'output' }], // 用于定义节点的输入和输出端口, 开始节点只有输出端口
+      // dynamicPort: true, // 用于动态端口，会寻找 data-port-id 和 data-port-type 属性的 dom 作为端口
+    },
+    /**
+     * 配置节点表单的校验及渲染,
+     * 注：validate 采用数据和渲染分离，保证节点即使不渲染也能对数据做校验
+     */
+    formMeta: {
+      validateTrigger: ValidateTrigger.onChange,
+      validate: {
+        title: ({ value }) => (value ? undefined : 'Title is required'),
+      },
+      /**
+       * Render form
+       */
+      render: () => (
+       <>
+          <Field name="title">
+            {({ field }) => <div className="demo-free-node-title">{field.value}</div>}
+          </Field>
+          <Field name="content">
+            {({ field }) => <input onChange={field.onChange} value={field.value}/>}
+          </Field>
+        </>
+      )
+    },
+  },
+  {
+    type: 'end',
+    meta: {
+      deleteDisable: true,
+      copyDisable: true,
+      defaultPorts: [{ type: 'input' }],
+    },
+    formMeta: {
+      // ...
+    }
+  },
+  {
+    type: 'custom',
+    meta: {
+    },
+    formMeta: {
+      // ...
+    },
+    defaultPorts: [{ type: 'output' }, { type: 'input' }], // 普通节点有两个端口
+  },
+];
+
+```
+
+### 5. 渲染节点
+
+渲染节点用于添加样式、事件及表单渲染的位置
+
+```tsx pure title="components/base-node.tsx"
+import { useNodeRender, WorkflowNodeRenderer } from '@flowgram.ai/free-layout-editor';
+
+export const BaseNode = () => {
+  /**
+   * 提供节点渲染相关的方法
+   */
+  const { form } = useNodeRender()
+  /**
+   * WorkflowNodeRenderer 会添加节点拖拽事件及 端口渲染，如果要深度定制，可以看该组件源代码:
+   * https://github.com/bytedance/flowgram.ai/blob/main/packages/client/free-layout-editor/src/components/workflow-node-renderer.tsx
+   */
+  return (
+    <WorkflowNodeRenderer className="demo-free-node" node={props.node}>
+      {
+        // 表单渲染通过 formMeta 生成
+        form?.render()
+      }
+    </WorkflowNodeRenderer>
+  )
+};
+
+```
+
+### 6. 添加工具
+
+工具主要用于控制画布缩放等操作, 工具汇总在 `usePlaygroundTools` 中, 而 `useClientContext` 用于获取画布的上下文, 里边包含画布的核心模块如 `history`
+
+```tsx pure title="components/tools.tsx"
+import { useEffect, useState } from 'react'
+import { usePlaygroundTools, useClientContext } from '@flowgram.ai/free-layout-editor';
+
+export function Tools() {
+  const { history } = useClientContext();
+  const tools = usePlaygroundTools();
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+
+  useEffect(() => {
+    const disposable = history.undoRedoService.onChange(() => {
+      setCanUndo(history.canUndo());
+      setCanRedo(history.canRedo());
+    });
+    return () => disposable.dispose();
+  }, [history]);
+
+  return <div style={{ position: 'absolute', zIndex: 10, bottom: 16, left: 226, display: 'flex', gap: 8 }}>
+    <button onClick={() => tools.zoomin()}>ZoomIn</button>
+    <button onClick={() => tools.zoomout()}>ZoomOut</button>
+    <button onClick={() => tools.fitView()}>Fitview</button>
+    <button onClick={() => tools.autoLayout()}>AutoLayout</button>
+    <button onClick={() => history.undo()} disabled={!canUndo}>Undo</button>
+    <button onClick={() => history.redo()} disabled={!canRedo}>Redo</button>
+    <span>{Math.floor(tools.zoom * 100)}%</span>
+  </div>
+}
+```
+
+### 7. 效果
+
+
+
+
+---
+url: /guide/getting-started/install.md
+---
+
+# 安装
+
+
+
+## 通过 npx 安装
+
+```shell
+# 选择 demo
+- fixed-layout # 固定布局最佳实践
+- free-layout # 自由布局最佳实践
+- fixed-layout-simple # 固定布局基础用法
+- free-layout-simple # 自由布局基础用法
+
+```
+
+## 通过 npm 安装
+
+
+
+---
+url: /guide/question.md
+---
+
+# 常见问题
+
+## 运行报报错
+
+## 如何修改节点的数据
+
+## 是否支持 vue
+
+##
+
+
+
+---
+url: /index.md
+---
+
+
+

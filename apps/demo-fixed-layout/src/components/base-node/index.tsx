@@ -44,7 +44,7 @@ export const BaseNode = ({ node }: { node: FlowNodeEntity }) => {
           if (nodeRender.dragging) {
             return;
           }
-          sidebar.setNodeRender(nodeRender);
+          sidebar.setNodeId(nodeRender.node.id);
         }}
         style={{
           /**
@@ -53,7 +53,8 @@ export const BaseNode = ({ node }: { node: FlowNodeEntity }) => {
            * isBlockIcon: 整个 condition 分支的 头部节点
            * isBlockOrderIcon: 分支的第一个节点
            */
-          ...(nodeRender.isBlockOrderIcon || nodeRender.isBlockIcon ? { width: 260 } : {}),
+          ...(nodeRender.isBlockOrderIcon || nodeRender.isBlockIcon ? {} : {}),
+          ...nodeRender.node.getNodeRegistry().meta.style,
           outline: form?.state.invalid ? '1px solid red' : 'none',
         }}
       >

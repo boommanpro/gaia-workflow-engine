@@ -1,8 +1,17 @@
 :root {
+    /* Port colors */
     --g-workflow-port-color-primary: #4d53e8;
     --g-workflow-port-color-secondary: #9197f1;
     --g-workflow-port-color-error: #ff0000;
     --g-workflow-port-color-background: #ffffff;
+
+    /* Line colors */
+    --g-workflow-line-color-hidden: transparent;
+    --g-workflow-line-color-default: #4d53e8;
+    --g-workflow-line-color-drawing: #5dd6e3;
+    --g-workflow-line-color-hover: #37d0ff;
+    --g-workflow-line-color-selected: #37d0ff;
+    --g-workflow-line-color-error: red;
 }
 
 .gedit-selector-bounds-background {
@@ -41,12 +50,6 @@
 .demo-editor {
     flex-grow: 1;
     position: relative;
-    height: 100%;
-}
-
-.doc-free-feature-overview-div {
-    position: relative;
-    width: 100%;
     height: 100%;
 }
 

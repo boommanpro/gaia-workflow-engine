@@ -2,7 +2,12 @@ import { customAlphabet } from 'nanoid';
 import { inject, injectable, optional, postConstruct } from 'inversify';
 import { Emitter, type IPoint } from '@flowgram.ai/utils';
 import { NodeEngineContext } from '@flowgram.ai/form-core';
-import { FlowDocument, FlowNodeBaseType, FlowNodeTransformData } from '@flowgram.ai/document';
+import {
+  AddNodeData,
+  FlowDocument,
+  FlowNodeBaseType,
+  FlowNodeTransformData,
+} from '@flowgram.ai/document';
 import {
   injectPlaygroundContext,
   PlaygroundConfigEntity,
@@ -170,7 +175,6 @@ export class WorkflowDocument extends FlowDocument {
         parent,
       },
       undefined,
-      true,
       true
     ) as WorkflowNodeEntity;
 
@@ -288,6 +292,76 @@ export class WorkflowDocument extends FlowDocument {
         data: json,
         json,
       });
+    }
+
+    return node;
+  }
+
+  /**
+   * 添加节点，如果节点已经存在则不会重复创建
+   * @param data
+   * @param addedNodes
+   */
+  addNode(
+    data: AddNodeData,
+    addedNodes?: WorkflowNodeEntity[],
+    ignoreCreateAndUpdateEvent?: boolean
+  ): WorkflowNodeEntity {
+    const { id, type = 'block', originParent, parent, meta, hidden, index } = data;
+    let node = this.getNode(id);
+    let isNew = false;
+    const register = this.getNodeRegistry(type, data.originParent);
+    // node 类型变化则全部删除重新来
+    if (node && node.flowNodeType !== data.type) {
+      node.dispose();
+      node = undefined;
+    }
+    if (!node) {
+      const { dataRegistries } = register;
+      node = this.entityManager.createEntity<WorkflowNodeEntity>(WorkflowNodeEntity, {
+        id,
+        document: this,
+        flowNodeType: type,
+        originParent,
+        meta,
+      });
+      const datas = dataRegistries
+        ? this.nodeDataRegistries.concat(...dataRegistries)
+        : this.nodeDataRegistries;
+      node.addInitializeData(datas);
+      node.onDispose(() => this.onNodeDisposeEmitter.fire({ node: node! }));
+      this.options.fromNodeJSON?.(node, data, true);
+      isNew = true;
+    } else {
+      this.options.fromNodeJSON?.(node, data, false);
+    }
+    // 初始化数据重制
+    node.initData({
+      originParent,
+      parent,
+      meta,
+      hidden,
+      index,
+    });
+    addedNodes?.push(node);
+    // 自定义创建逻辑
+    if (register.onCreate) {
+      const extendNodes = register.onCreate(node, data);
+      if (extendNodes && addedNodes) {
+        addedNodes.push(...extendNodes);
+      }
+    }
+
+    if (!ignoreCreateAndUpdateEvent) {
+      if (isNew) {
+        this.onNodeCreateEmitter.fire({
+          node,
+          data,
+          json: data,
+        });
+      } else {
+        this.onNodeUpdateEmitter.fire({ node, data, json: data });
+      }
     }
 
     return node;

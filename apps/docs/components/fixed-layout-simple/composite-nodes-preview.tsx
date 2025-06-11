@@ -1,3 +1,4 @@
+/* eslint-disable import/no-unresolved */
 import { FixedLayoutSimple } from './fixed-layout-simple.tsx';
 import { PreviewEditor } from '../preview-editor.tsx';
 

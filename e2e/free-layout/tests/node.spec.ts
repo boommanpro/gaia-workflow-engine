@@ -11,13 +11,18 @@ test.describe('node operations', () => {
   });
 
   test('node preview', async () => {
-    const defaultNodeCount = await editorPage.getNodeCount();
-    expect(defaultNodeCount).toEqual(10);
+    const startCount = await editorPage.isStartNodeExist();
+    const endCount = await editorPage.isEndNodeExist();
+    const conditionCount = await editorPage.isConditionNodeExist();
+    expect(startCount).toEqual(1);
+    expect(endCount).toEqual(1);
+    expect(conditionCount).toEqual(1);
   });
 
   test('add node', async () => {
+    const prevCount = await editorPage.getNodeCount();
     await editorPage.addConditionNode();
     const defaultNodeCount = await editorPage.getNodeCount();
-    expect(defaultNodeCount).toEqual(11);
+    expect(defaultNodeCount).toEqual(prevCount + 1);
   });
 });

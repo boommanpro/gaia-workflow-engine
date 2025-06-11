@@ -3,8 +3,8 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "build": "rm -rf ./doc_build && rspress build",
-    "docs": "tsx ./scripts/auto-generate.ts",
+    "build": "NODE_OPTIONS='--max-old-space-size=8192' && rm -rf ./doc_build && rspress build && shx cp -r llms/* doc_build/",
+    "docs": "NODE_OPTIONS='--max-old-space-size=8192' tsx ./scripts/auto-generate.ts",
     "dev": "rspress dev",
     "lint": "eslint ./components --cache",
     "preview": "rspress preview",
@@ -38,8 +38,8 @@
     "@flowgram.ai/history": "workspace:*",
     "styled-components": "^5",
     "nanoid": "^4.0.2",
-    "@douyinfe/semi-ui": "^2.72.3",
-    "@douyinfe/semi-icons": "^2.72.3",
+    "@douyinfe/semi-ui": "^2.80.0",
+    "@douyinfe/semi-icons": "^2.80.0",
     "typedoc": "0.24.8",
     "typedoc-plugin-markdown": "3.17.1",
     "react": "^18",
@@ -61,7 +61,8 @@
     "typescript-eslint": "^8.8.1",
     "openai": "~4.98.0",
     "dotenv": "~16.5.0",
-    "tsx": "~4.19.4"
+    "tsx": "~4.19.4",
+    "shx": "0.4.0"
   },
   "homepage": "https://github.com/bytedance/flowgram.ai/"
 }

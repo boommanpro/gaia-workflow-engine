@@ -29,8 +29,9 @@ import {
   UIType,
 } from './styles';
 import { UIName } from './styles';
-import { UIRow } from './styles';
+import { DefaultValueWrapper, UIRow } from './styles';
 import { usePropertiesEdit } from './hooks';
+import { DefaultValue } from './default-value';
 import { BlurInput } from './components/blur-input';
 
 export function JsonSchemaEditor(props: {
@@ -47,11 +48,12 @@ export function JsonSchemaEditor(props: {
   return (
     <UIContainer>
       <UIProperties>
-        {propertyList.map((_property) => (
+        {propertyList.map((_property, index) => (
           <PropertyEdit
             key={_property.key}
             value={_property}
             config={config}
+            $index={index}
             onChange={(_v) => {
               onEditProperty(_property.key!, _v);
             }}
@@ -74,14 +76,31 @@ function PropertyEdit(props: {
   onChange?: (value: PropertyValueType) => void;
   onRemove?: () => void;
   $isLast?: boolean;
+  $index?: number;
+  $isFirst?: boolean;
+  $parentExpand?: boolean;
+  $parentType?: string;
   $showLine?: boolean;
+  $level?: number; // 添加层级属性
 }) {
-  const { value, config, onChange: onChangeProps, onRemove, $isLast, $showLine } = props;
+  const {
+    value,
+    config,
+    $level = 0,
+    onChange: onChangeProps,
+    onRemove,
+    $index,
+    $isFirst,
+    $isLast,
+    $parentExpand = false,
+    $parentType = '',
+    $showLine,
+  } = props;
 
   const [expand, setExpand] = useState(false);
   const [collapse, setCollapse] = useState(false);
 
-  const { name, type, items, description, isPropertyRequired } = value || {};
+  const { name, type, items, default: defaultValue, description, isPropertyRequired } = value || {};
 
   const typeSelectorValue = useMemo(() => ({ type, items }), [type, items]);
 
@@ -99,7 +118,16 @@ function PropertyEdit(props: {
 
   return (
     <>
-      <UIPropertyLeft $isLast={$isLast} $showLine={$showLine}>
+      <UIPropertyLeft
+        type={type}
+        $index={$index}
+        $isFirst={$isFirst}
+        $isLast={$isLast}
+        $showLine={$showLine}
+        $isExpand={expand}
+        $parentExpand={$parentExpand}
+        $parentType={$parentType}
+      >
         {showCollapse && (
           <UICollapseTrigger onClick={() => setCollapse((_collapse) => !_collapse)}>
             {collapse ? <IconChevronDown size="small" /> : <IconChevronRight size="small" />}
@@ -107,7 +135,12 @@ function PropertyEdit(props: {
         )}
       </UIPropertyLeft>
       <UIPropertyRight>
-        <UIPropertyMain $expand={expand}>
+        <UIPropertyMain
+          $showCollapse={showCollapse}
+          $collapse={collapse}
+          $expand={expand}
+          type={type}
+        >
           <UIRow>
             <UIName>
               <BlurInput
@@ -139,7 +172,9 @@ function PropertyEdit(props: {
                 size="small"
                 theme="borderless"
                 icon={expand ? <IconShrink size="small" /> : <IconExpand size="small" />}
-                onClick={() => setExpand((_expand) => !_expand)}
+                onClick={() => {
+                  setExpand((_expand) => !_expand);
+                }}
               />
               {isDrilldownObject && (
                 <IconButton
@@ -169,6 +204,23 @@ function PropertyEdit(props: {
                 onChange={(value) => onChange('description', value)}
                 placeholder={config?.descPlaceholder ?? 'Help LLM to understand the property'}
               />
+              {$level === 0 && type && type !== 'array' && (
+                <>
+                  <UILabel style={{ marginTop: 10 }}>
+                    {config?.defaultValueTitle ?? 'Default Value'}
+                  </UILabel>
+                  <DefaultValueWrapper>
+                    <DefaultValue
+                      value={defaultValue}
+                      schema={value}
+                      type={type}
+                      placeholder={config?.defaultValuePlaceholder}
+                      jsonFormatText={config?.jsonFormatText}
+                      onChange={(value) => onChange('default', value)}
+                    />
+                  </DefaultValueWrapper>
+                </>
+              )}
             </UIExpandDetail>
           )}
         </UIPropertyMain>
@@ -180,6 +232,9 @@ function PropertyEdit(props: {
                   key={_property.key}
                   value={_property}
                   config={config}
+                  $level={$level + 1} // 传递递增的层级
+                  $parentExpand={expand}
+                  $parentType={type}
                   onChange={(_v) => {
                     onEditProperty(_property.key!, _v);
                   }}
@@ -187,6 +242,8 @@ function PropertyEdit(props: {
                     onRemoveProperty(_property.key!);
                   }}
                   $isLast={index === propertyList.length - 1}
+                  $isFirst={index === 0}
+                  $index={index}
                   $showLine={true}
                 />
               ))}

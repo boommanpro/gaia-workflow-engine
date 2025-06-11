@@ -19,7 +19,24 @@ export const LLMNodeRegistry: FlowNodeRegistry = {
       type: 'llm',
       data: {
         title: `LLM_${++index}`,
-        inputsValues: {},
+        inputsValues: {
+          modelType: {
+            type: 'constant',
+            content: 'gpt-3.5-turbo',
+          },
+          temperature: {
+            type: 'constant',
+            content: 0.5,
+          },
+          systemPrompt: {
+            type: 'constant',
+            content: 'You are an AI assistant.',
+          },
+          prompt: {
+            type: 'constant',
+            content: '',
+          },
+        },
         inputs: {
           type: 'object',
           required: ['modelType', 'temperature', 'prompt'],

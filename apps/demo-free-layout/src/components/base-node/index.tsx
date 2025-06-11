@@ -3,6 +3,7 @@ import { useCallback } from 'react';
 import { FlowNodeEntity, useNodeRender } from '@flowgram.ai/free-layout-editor';
 import { ConfigProvider } from '@douyinfe/semi-ui';
 
+import { NodeStatusBar } from '../testrun/node-status-bar';
 import { NodeRenderContext } from '../../context';
 import { ErrorIcon } from './styles';
 import { NodeWrapper } from './node-wrapper';
@@ -32,6 +33,7 @@ export const BaseNode = ({ node }: { node: FlowNodeEntity }) => {
           {form?.state.invalid && <ErrorIcon />}
           {form?.render()}
         </NodeWrapper>
+        <NodeStatusBar />
       </NodeRenderContext.Provider>
     </ConfigProvider>
   );

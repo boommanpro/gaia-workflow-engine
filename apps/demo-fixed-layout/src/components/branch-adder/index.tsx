@@ -1,7 +1,8 @@
 import { type FlowNodeEntity, useClientContext } from '@flowgram.ai/fixed-layout-editor';
 import { IconPlus } from '@douyinfe/semi-icons';
 
-import { BlockNodeRegistry } from '../../nodes/block';
+import { CatchBlockNodeRegistry } from '../../nodes/catch-block';
+import { CaseNodeRegistry } from '../../nodes/case';
 import { Container } from './styles';
 
 interface PropsType {
@@ -17,7 +18,15 @@ export default function BranchAdder(props: PropsType) {
   const { isVertical } = node;
 
   function addBranch() {
-    const block = operation.addBlock(node, BlockNodeRegistry.onAdd!(ctx, node));
+    const block = operation.addBlock(
+      node,
+      node.flowNodeType === 'switch'
+        ? CaseNodeRegistry.onAdd!(ctx, node)
+        : CatchBlockNodeRegistry.onAdd!(ctx, node),
+      {
+        index: 0,
+      }
+    );
 
     setTimeout(() => {
       playground.scrollToView({

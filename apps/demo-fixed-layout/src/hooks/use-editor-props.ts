@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 
+import { debounce } from 'lodash-es';
 import { createMinimapPlugin } from '@flowgram.ai/minimap-plugin';
 import { createGroupPlugin } from '@flowgram.ai/group-plugin';
 import { defaultFixedSemiMaterials } from '@flowgram.ai/fixed-semi-materials';
@@ -139,10 +140,10 @@ export function useEditorProps(
       history: {
         enable: true,
         enableChangeNode: true, // Listen Node engine data change
-        onApply(ctx, opt) {
+        onApply: debounce((ctx, opt) => {
           // Listen change to trigger auto save
-          // console.log('auto save: ', ctx.document.toJSON(), opt);
-        },
+          console.log('auto save: ', ctx.document.toJSON());
+        }, 100),
       },
       /**
        * Node engine enable, you can configure formMeta in the FlowNodeRegistry
@@ -162,11 +163,11 @@ export function useEditorProps(
        * 可以通过 key 自定义 UI 组件
        */
       materials: {
-        renderNodes: {
+        components: {
           ...defaultFixedSemiMaterials,
-          [FlowRendererKey.ADDER]: NodeAdder,
-          [FlowRendererKey.BRANCH_ADDER]: BranchAdder,
-          [FlowRendererKey.DRAG_NODE]: DragNode,
+          [FlowRendererKey.ADDER]: NodeAdder, // Node Add Button
+          [FlowRendererKey.BRANCH_ADDER]: BranchAdder, // Branch Add Button
+          [FlowRendererKey.DRAG_NODE]: DragNode, // Component in node dragging
         },
         renderDefaultNode: BaseNode, // node render
         renderTexts: {
@@ -201,7 +202,7 @@ export function useEditorProps(
         setTimeout(() => {
           ctx.playground.config.fitView(ctx.document.root.bounds.pad(30));
         }, 10);
-        console.log(ctx.document.toString()); // Get the document tree
+        console.log(ctx.document.toString(true)); // Get the document tree
       },
       /**
        * Playground dispose

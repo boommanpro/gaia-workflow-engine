@@ -1,21 +1,20 @@
-import { useContext, useCallback, useMemo } from 'react';
+import { useContext, useCallback, useMemo, useState } from 'react';
 
-import { Field, FieldRenderProps, useClientContext } from '@flowgram.ai/fixed-layout-editor';
-import { IconButton, Dropdown, Typography, Button } from '@douyinfe/semi-ui';
+import { useClientContext } from '@flowgram.ai/fixed-layout-editor';
+import { IconButton, Dropdown, Button } from '@douyinfe/semi-ui';
 import { IconSmallTriangleDown, IconSmallTriangleLeft } from '@douyinfe/semi-icons';
 import { IconMore } from '@douyinfe/semi-icons';
 
-import { Feedback } from '../feedback';
 import { FlowNodeRegistry } from '../../typings';
 import { FlowCommandId } from '../../shortcuts/constants';
 import { useIsSidebar } from '../../hooks';
 import { NodeRenderContext } from '../../context';
 import { getIcon } from './utils';
-import { Header, Operators, Title } from './styles';
+import { TitleInput } from './title-input';
+import { Header, Operators } from './styles';
 
-const { Text } = Typography;
-
-function DropdownContent() {
+function DropdownContent(props: { updateTitleEdit: (editing: boolean) => void }) {
+  const { updateTitleEdit } = props;
   const { node, deleteNode } = useContext(NodeRenderContext);
   const clientContext = useClientContext();
   const registry = node.getNodeRegistry<FlowNodeRegistry>();
@@ -34,6 +33,11 @@ function DropdownContent() {
     },
     [clientContext, node]
   );
+
+  const handleEditTitle = useCallback(() => {
+    updateTitleEdit(true);
+  }, [updateTitleEdit]);
+
   const deleteDisabled = useMemo(() => {
     if (registry.canDelete) {
       return !registry.canDelete(clientContext, node);
@@ -43,6 +47,7 @@ function DropdownContent() {
 
   return (
     <Dropdown.Menu>
+      <Dropdown.Item onClick={handleEditTitle}>Edit Title</Dropdown.Item>
       <Dropdown.Item onClick={handleCopy} disabled={registry.meta!.copyDisable === true}>
         Copy
       </Dropdown.Item>
@@ -55,6 +60,7 @@ function DropdownContent() {
 
 export function FormHeader() {
   const { node, expanded, startDrag, toggleExpand, readonly } = useContext(NodeRenderContext);
+  const [titleEdit, updateTitleEdit] = useState<boolean>(false);
 
   const isSidebar = useIsSidebar();
   const handleExpand = (e: React.MouseEvent) => {
@@ -71,16 +77,7 @@ export function FormHeader() {
       }}
     >
       {getIcon(node)}
-      <Title>
-        <Field name="title">
-          {({ field: { value, onChange }, fieldState }: FieldRenderProps<string>) => (
-            <div style={{ height: 24 }}>
-              <Text ellipsis={{ showTooltip: true }}>{value}</Text>
-              <Feedback errors={fieldState?.errors} />
-            </div>
-          )}
-        </Field>
-      </Title>
+      <TitleInput readonly={readonly} titleEdit={titleEdit} updateTitleEdit={updateTitleEdit} />
       {node.renderData.expandable && !isSidebar && (
         <Button
           type="primary"
@@ -92,7 +89,11 @@ export function FormHeader() {
       )}
       {readonly ? undefined : (
         <Operators>
-          <Dropdown trigger="hover" position="bottomRight" render={<DropdownContent />}>
+          <Dropdown
+            trigger="hover"
+            position="bottomRight"
+            render={<DropdownContent updateTitleEdit={updateTitleEdit} />}
+          >
             <IconButton
               color="secondary"
               size="small"

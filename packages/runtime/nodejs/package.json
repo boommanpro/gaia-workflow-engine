@@ -1,0 +1,62 @@
+{
+  "name": "@flowgram.ai/runtime-nodejs",
+  "version": "0.1.0",
+  "description": "",
+  "keywords": [],
+  "license": "MIT",
+  "scripts": {
+    "dev": "tsx watch src",
+    "build": "npm run build:fast -- --dts-resolve",
+    "build:fast": "tsup src/index.ts --format cjs,esm --sourcemap --legacy-output",
+    "build:watch": "npm run build:fast -- --dts-resolve",
+    "lint": "eslint --cache src",
+    "lint-fix": "eslint --fix src",
+    "type-check": "tsc",
+    "start": "node dist/index.js",
+    "test": "exit 0",
+    "test:cov": "exit 0"
+  },
+  "dependencies": {
+    "@flowgram.ai/runtime-js": "workspace:*",
+    "@flowgram.ai/runtime-interface": "workspace:*",
+    "@fastify/cors": "^8.2.1",
+    "@fastify/swagger": "^8.5.1",
+    "@fastify/swagger-ui": "4.1.0",
+    "@langchain/openai": "^0.5.11",
+    "@langchain/core": "^0.3.57",
+    "@fastify/websocket": "^10.0.1",
+    "@trpc/server": "^10.27.1",
+    "trpc-openapi": "^1.2.0",
+    "fastify": "^4.17.0",
+    "tslib": "^2.8.1",
+    "lodash-es": "^4.17.21",
+    "ws": "^8.0.0",
+    "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "@flowgram.ai/ts-config": "workspace:*",
+    "@flowgram.ai/eslint-config": "workspace:*",
+    "@types/cors": "^2.8.13",
+    "dotenv": "~16.5.0",
+    "@types/node": "^18",
+    "@types/ws": "^8.2.0",
+    "@types/lodash-es": "^4.17.12",
+    "eslint": "^8.54.0",
+    "npm-run-all": "^4.1.5",
+    "@babel/eslint-parser": "~7.19.1",
+    "typescript": "^5.0.4",
+    "tsup": "^8.0.1",
+    "tsx": "~4.19.4",
+    "eslint-plugin-json": "^4.0.1",
+    "@typescript-eslint/eslint-plugin": "^6.10.0",
+    "@typescript-eslint/parser": "^6.10.0",
+    "@eslint/eslintrc": "^3",
+    "@vitest/coverage-v8": "^0.32.0",
+    "vitest": "^0.34.6",
+    "wait-port": "^1.0.1"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

@@ -14,6 +14,7 @@ interface LoopNodeJSON extends FlowNodeJSON {
 export const LoopFormRender = ({ form }: FormRenderProps<LoopNodeJSON>) => {
   const isSidebar = useIsSidebar();
   const { readonly } = useNodeRenderContext();
+  const formHeight = 85;
 
   const batchFor = (
     <Field<IFlowRefValue> name={`batchFor`}>
@@ -48,7 +49,7 @@ export const LoopFormRender = ({ form }: FormRenderProps<LoopNodeJSON>) => {
       <FormHeader />
       <FormContent>
         {batchFor}
-        <SubCanvasRender />
+        <SubCanvasRender offsetY={-formHeight} />
         <FormOutputs />
       </FormContent>
     </>

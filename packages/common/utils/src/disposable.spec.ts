@@ -104,4 +104,47 @@ describe('disposable', () => {
     expect(disposedRet).toEqual([1]);
     expect(isDisposed).toBeTruthy();
   });
+  test('DisposableCollection auto remove', () => {
+    const dc = new DisposableCollection();
+    const dc2 = new DisposableCollection();
+    const disposable1: Disposable = {
+      dispose() {},
+    };
+    const originalDispose = disposable1.dispose;
+    dc.push(disposable1);
+    dc2.push(disposable1);
+    expect(originalDispose === disposable1.dispose).toBeFalsy();
+    disposable1.dispose();
+    expect(dc.length).toEqual(0);
+    expect(dc2.length).toEqual(0);
+    expect(originalDispose === disposable1.dispose).toBeTruthy();
+  });
+  test('DisposableCollection push cancel', () => {
+    const dc = new DisposableCollection();
+    const disposable1: Disposable = {
+      dispose() {},
+    };
+    const originalDispose = disposable1.dispose;
+    const cancel = dc.push(disposable1);
+    expect(originalDispose === disposable1.dispose).toBeFalsy();
+    cancel.dispose();
+    expect(originalDispose === disposable1.dispose).toBeTruthy();
+  });
+  test('DisposableCollection auto remove nested', () => {
+    const dc1 = new DisposableCollection();
+    const dc2 = new DisposableCollection();
+    const disposable1: Disposable = {
+      dispose() {},
+    };
+    dc1.push(disposable1);
+    dc2.push(dc1);
+    dc2.push(disposable1);
+    dc1.dispose();
+    expect(dc2.length).toEqual(0);
+  });
+  test('DisposableCollection push Disposbale.NULL', () => {
+    const dc = new DisposableCollection();
+    dc.push(Disposable.NULL);
+    expect(dc.length).toEqual(0);
+  });
 });

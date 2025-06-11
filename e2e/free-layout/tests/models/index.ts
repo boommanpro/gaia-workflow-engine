@@ -14,6 +14,18 @@ class FreeLayoutModel {
     );
   }
 
+  public async isStartNodeExist() {
+    return await this.page.locator('[data-node-id="start_0"]').count();
+  }
+
+  public async isEndNodeExist() {
+    return await this.page.locator('[data-node-id="end_0"]').count();
+  }
+
+  public async isConditionNodeExist() {
+    return await this.page.locator('[data-node-id="condition_0"]').count();
+  }
+
   async addConditionNode() {
     const preConditionNodes = await this.page.locator('.gedit-flow-activity-node');
     const preCount = await preConditionNodes.count();

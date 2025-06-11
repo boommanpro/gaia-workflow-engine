@@ -9,11 +9,20 @@
 
 ```tsx pure
 
+// 1. BaseNode
 function BaseNode({ node }) {
   const form = getNodeForm(node);
   console.log(form.getValueIn('title'))
   return <div>{form?.render()}</div>
 }
+
+// 2. useNodeRender
+function BaseNode() {
+  const { form } = useNodeRender();
+  console.log(form.getValueIn('title'))
+  return <div>{form?.render()}</div>
+}
+
 ```
 
 ## Return Inteface
@@ -46,6 +55,10 @@ export interface NodeFormProps<TValues> {
    */
   setValueIn<TValue>(name: FieldName, value: TValue): void;
   /**
+   * set form values
+   */
+  updateFormValues(values: any): void;
+  /**
    * Render form
    */
   render: () => React.ReactNode;
@@ -67,7 +80,8 @@ export interface NodeFormProps<TValues> {
   onFormValueChangeIn<TValue = FieldValue, TFormValue = FieldValue>(
     name: FieldName,
     callback: (payload: onFormValueChangeInPayload<TValue, TFormValue>) => void
-  ): void;
+  ): Disposable;
 }
+
 ```
 

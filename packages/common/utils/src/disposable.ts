@@ -47,7 +47,7 @@ export class DisposableImpl implements Disposable {
 }
 
 export class DisposableCollection implements Disposable {
-  protected readonly disposables: (Disposable & { _origin: Disposable })[] = [];
+  protected readonly disposables: Disposable[] = [];
 
   protected readonly onDisposeEmitter = new Emitter<void>();
 
@@ -55,6 +55,10 @@ export class DisposableCollection implements Disposable {
 
   constructor(...toDispose: Disposable[]) {
     toDispose.forEach((d) => this.push(d));
+  }
+
+  get length() {
+    return this.disposables.length;
   }
 
   get onDispose(): Event<void> {
@@ -86,25 +90,26 @@ export class DisposableCollection implements Disposable {
 
   push(disposable: Disposable): Disposable {
     if (this.disposed) return Disposable.NULL;
-    const { disposables } = this;
-    if (disposables.find((d) => d._origin === disposable)) {
+    if (disposable === Disposable.NULL) {
       return Disposable.NULL;
     }
-    let disposableWrap: Disposable & { _origin: Disposable };
+    const { disposables } = this;
+    if (disposables.find((d) => d === disposable)) {
+      return Disposable.NULL;
+    }
+    const originalDispose = disposable.dispose;
     const toRemove = Disposable.create(() => {
-      const index = disposables.indexOf(disposableWrap);
+      const index = disposables.indexOf(disposable);
       if (index !== -1) {
         disposables.splice(index, 1);
       }
+      disposable.dispose = originalDispose;
     });
-    disposableWrap = {
-      dispose: () => {
-        toRemove.dispose();
-        disposable.dispose();
-      },
-      _origin: disposable,
+    disposable.dispose = () => {
+      toRemove.dispose();
+      disposable.dispose();
     };
-    disposables.push(disposableWrap);
+    disposables.push(disposable);
     return toRemove;
   }
 

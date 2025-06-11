@@ -88,6 +88,62 @@ export const initialData: FlowDocumentJSON = {
       },
     },
     {
+      id: 'switch_0',
+      type: 'switch',
+      data: {
+        title: 'Switch',
+      },
+      blocks: [
+        {
+          id: 'case_0',
+          type: 'case',
+          data: {
+            title: 'Case_0',
+            inputsValues: {
+              condition: { type: 'constant', content: true },
+            },
+            inputs: {
+              type: 'object',
+              required: ['condition'],
+              properties: {
+                condition: {
+                  type: 'boolean',
+                },
+              },
+            },
+          },
+          blocks: [],
+        },
+        {
+          id: 'case_1',
+          type: 'case',
+          data: {
+            title: 'Case_1',
+            inputsValues: {
+              condition: { type: 'constant', content: true },
+            },
+            inputs: {
+              type: 'object',
+              required: ['condition'],
+              properties: {
+                condition: {
+                  type: 'boolean',
+                },
+              },
+            },
+          },
+        },
+        {
+          id: 'case_default_1',
+          type: 'caseDefault',
+          data: {
+            title: 'Default',
+          },
+          blocks: [],
+        },
+      ],
+    },
+    {
       id: 'loop_0',
       type: 'loop',
       data: {
@@ -99,52 +155,47 @@ export const initialData: FlowDocumentJSON = {
       },
       blocks: [
         {
-          id: 'condition_0',
-          type: 'condition',
+          id: 'if_0',
+          type: 'if',
           data: {
-            title: 'Condition',
+            title: 'If',
+            inputsValues: {
+              condition: { type: 'constant', content: true },
+            },
+            inputs: {
+              type: 'object',
+              required: ['condition'],
+              properties: {
+                condition: {
+                  type: 'boolean',
+                },
+              },
+            },
           },
           blocks: [
             {
-              id: 'branch_0',
-              type: 'block',
+              id: 'if_true',
+              type: 'ifBlock',
               data: {
-                title: 'If_0',
-                inputsValues: {
-                  condition: '',
-                },
-                inputs: {
-                  type: 'object',
-                  required: ['condition'],
-                  properties: {
-                    condition: {
-                      type: 'boolean',
-                    },
-                  },
-                },
+                title: 'true',
               },
               blocks: [],
             },
             {
-              id: 'branch_1',
-              type: 'block',
+              id: 'if_false',
+              type: 'ifBlock',
               data: {
-                title: 'If_1',
-                inputsValues: {
-                  condition: '',
-                },
-                inputs: {
-                  type: 'object',
-                  required: ['condition'],
-                  properties: {
-                    condition: {
-                      type: 'boolean',
-                    },
+                title: 'false',
+              },
+              blocks: [
+                {
+                  id: 'break_0',
+                  type: 'breakLoop',
+                  data: {
+                    title: 'BreakLoop',
                   },
                 },
-              },
-              meta: {},
-              blocks: [],
+              ],
             },
           ],
         },
@@ -168,7 +219,7 @@ export const initialData: FlowDocumentJSON = {
           data: {
             title: 'Catch Block 1',
             inputsValues: {
-              condition: '',
+              condition: { type: 'constant', content: true },
             },
             inputs: {
               type: 'object',
@@ -188,7 +239,7 @@ export const initialData: FlowDocumentJSON = {
           data: {
             title: 'Catch Block 2',
             inputsValues: {
-              condition: '',
+              condition: { type: 'constant', content: true },
             },
             inputs: {
               type: 'object',

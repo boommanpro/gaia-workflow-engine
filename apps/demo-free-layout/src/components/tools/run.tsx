@@ -3,17 +3,17 @@ import { useState } from 'react';
 import { useService } from '@flowgram.ai/free-layout-editor';
 import { Button } from '@douyinfe/semi-ui';
 
-import { RunningService } from '../../services';
+import { WorkflowRuntimeService } from '../../plugins/runtime-plugin/runtime-service';
 
 /**
  * Run the simulation and highlight the lines
  */
 export function Run() {
   const [isRunning, setRunning] = useState(false);
-  const runningService = useService(RunningService);
+  const runtimeService = useService(WorkflowRuntimeService);
   const onRun = async () => {
     setRunning(true);
-    await runningService.startRun();
+    await runtimeService.taskRun('{}');
     setRunning(false);
   };
   return (

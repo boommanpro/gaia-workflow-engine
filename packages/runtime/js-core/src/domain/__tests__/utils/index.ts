@@ -1,0 +1,1 @@
+export { snapshotsToVOData } from './snapshot';

@@ -1,0 +1,14 @@
+.node-status-succeed {
+    background-color: rgba(105, 209, 140, 0.3);
+    color: rgba(0, 178, 60, 1);
+}
+
+.node-status-processing {
+    background-color: rgba(153, 187, 255, 0.3);
+    color: rgba(61, 121, 242, 1);
+}
+
+.node-status-failed {
+    background-color: rgba(255, 163, 171, 0.3);
+    color: rgba(229, 50, 65, 1);
+}

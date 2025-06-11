@@ -261,6 +261,7 @@ export interface FlowNodeRegistry<M extends FlowNodeMeta = FlowNodeMeta> {
   extendChildRegistries?: FlowNodeRegistry[];
 
   /**
+   * @deprecated
    * 自定义子节点添加逻辑
    * @param node 节点
    * @param json 添加的节点 JSON

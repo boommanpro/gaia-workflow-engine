@@ -1,0 +1,26 @@
+{
+  "extends": "@flowgram.ai/ts-config/tsconfig.flow.path.json",
+  "compilerOptions": {
+    "baseUrl": "src",
+    "paths": {
+      "@application/*": [
+        "application/*"
+      ],
+      "@workflow/*": [
+        "domain/*"
+      ],
+      "@infra/*": [
+        "infrastructure/*"
+      ],
+      "@nodes/*": [
+        "nodes/*"
+      ],
+    }
+  },
+  "include": [
+    "./src"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

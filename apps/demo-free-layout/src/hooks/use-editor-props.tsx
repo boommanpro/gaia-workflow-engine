@@ -6,15 +6,16 @@ import { createMinimapPlugin } from '@flowgram.ai/minimap-plugin';
 import { createFreeSnapPlugin } from '@flowgram.ai/free-snap-plugin';
 import { createFreeNodePanelPlugin } from '@flowgram.ai/free-node-panel-plugin';
 import { createFreeLinesPlugin } from '@flowgram.ai/free-lines-plugin';
-import { FreeLayoutProps } from '@flowgram.ai/free-layout-editor';
+import { FreeLayoutProps, WorkflowNodeLinesData } from '@flowgram.ai/free-layout-editor';
 import { createFreeGroupPlugin } from '@flowgram.ai/free-group-plugin';
 import { createContainerNodePlugin } from '@flowgram.ai/free-container-plugin';
 
 import { onDragLineEnd } from '../utils';
 import { FlowNodeRegistry, FlowDocumentJSON } from '../typings';
 import { shortcuts } from '../shortcuts';
-import { CustomService, RunningService } from '../services';
-import { createSyncVariablePlugin } from '../plugins';
+import { CustomService } from '../services';
+import { WorkflowRuntimeService } from '../plugins/runtime-plugin/runtime-service';
+import { createSyncVariablePlugin, createRuntimePlugin, createContextMenuPlugin } from '../plugins';
 import { defaultFormMeta } from '../nodes/default-form-meta';
 import { WorkflowNodeType } from '../nodes';
 import { SelectorBoxPopover } from '../components/selector-box-popover';
@@ -76,12 +77,12 @@ export function useEditorProps(
         return json;
       },
       lineColor: {
-        hidden: 'transparent',
-        default: '#4d53e8',
-        drawing: '#5DD6E3',
-        hovered: '#37d0ff',
-        selected: '#37d0ff',
-        error: 'red',
+        hidden: 'var(--g-workflow-line-color-hidden,transparent)',
+        default: 'var(--g-workflow-line-color-default,#4d53e8)',
+        drawing: 'var(--g-workflow-line-color-drawing, #5DD6E3)',
+        hovered: 'var(--g-workflow-line-color-hover,#37d0ff)',
+        selected: 'var(--g-workflow-line-color-selected,#37d0ff)',
+        error: 'var(--g-workflow-line-color-error,red)',
       },
       /*
        * Check whether the line can be added
@@ -92,7 +93,11 @@ export function useEditorProps(
         if (fromPort.node === toPort.node) {
           return false;
         }
-        return true;
+        /**
+         * 线条环检测，不允许连接到前面的节点
+         * Line loop detection, which is not allowed to connect to the node in front of it
+         */
+        return !fromPort.node.getData(WorkflowNodeLinesData).allInputNodes.includes(toPort.node);
       },
       /**
        * Check whether the line can be deleted, this triggers on the default shortcut `Bakspace` or `Delete`
@@ -156,7 +161,8 @@ export function useEditorProps(
       /**
        * Running line
        */
-      isFlowingLine: (ctx, line) => ctx.get(RunningService).isFlowingLine(line),
+      isFlowingLine: (ctx, line) => ctx.get(WorkflowRuntimeService).isFlowingLine(line),
+
       /**
        * Shortcuts
        */
@@ -166,7 +172,6 @@ export function useEditorProps(
        */
       onBind: ({ bind }) => {
         bind(CustomService).toSelf().inSingletonScope();
-        bind(RunningService).toSelf().inSingletonScope();
       },
       /**
        * Playground init
@@ -249,8 +254,24 @@ export function useEditorProps(
          * 这个用于 loop 节点子画布的渲染
          */
         createContainerNodePlugin({}),
+        /**
+         * Group plugin
+         */
         createFreeGroupPlugin({
           groupNodeRender: GroupNodeRender,
+        }),
+        /**
+         * ContextMenu plugin
+         */
+        createContextMenuPlugin({}),
+        createRuntimePlugin({
+          mode: 'browser',
+          // mode: 'server',
+          // serverConfig: {
+          //   domain: 'localhost',
+          //   port: 4000,
+          //   protocol: 'http',
+          // },
         }),
       ],
     }),

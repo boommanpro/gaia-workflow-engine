@@ -27,7 +27,7 @@ export type VariableSelectorProps = PropTypes;
 
 export const VariableSelector = ({
   value,
-  config,
+  config = {},
   onChange,
   style,
   readonly = false,

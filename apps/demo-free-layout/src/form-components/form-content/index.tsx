@@ -14,52 +14,52 @@ import { Feedback } from '../feedback';
  * @constructor
  */
 export function FormContent(props: { children?: React.ReactNode }) {
-  const { node, expanded } = useNodeRenderContext();
-  const { toggleExpand, readonly } = useContext(NodeRenderContext);
+    const { node, expanded } = useNodeRenderContext();
+    const { toggleExpand, readonly } = useContext(NodeRenderContext);
 
-  const isSidebar = useIsSidebar();
-  const registry = node.getNodeRegistry<FlowNodeRegistry>();
-  const [isEditing, setIsEditing] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+    const isSidebar = useIsSidebar();
+    const registry = node.getNodeRegistry<FlowNodeRegistry>();
+    const [isEditing, setIsEditing] = useState(false);
+    const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleDoubleClick = () => {
-    if (!readonly && isSidebar) {
-      setIsEditing(true);
-      setTimeout(() => inputRef.current?.focus(), 0);
-    }
-  };
+    const handleDoubleClick = () => {
+        if (!readonly && isSidebar) {
+            setIsEditing(true);
+            setTimeout(() => inputRef.current?.focus(), 0);
+        }
+    };
 
-  const handleBlur = (onChange: (value: string) => void, value: string) => {
-    onChange(value);
-    setIsEditing(false);
-  };
+    const handleBlur = (onChange: (value: string) => void, value: string) => {
+        onChange(value);
+        setIsEditing(false);
+    };
 
-  return (
-    <FormWrapper>
-      <>
-        <FormTitleDescription onDoubleClick={handleDoubleClick}>
-          <Field name="description">
-            {({ field: { value, onChange }, fieldState }: FieldRenderProps<string>) => (
-              <div>
-                {isEditing ? (
-                  <TextArea
-                    ref={inputRef}
-                    defaultValue={value}
-                    onBlur={() => handleBlur(onChange, inputRef.current?.value || '')}
-                    onEnterPress={() => handleBlur(onChange, inputRef.current?.value || '')}
-                  />
-                ) : (
-                  <Text ellipsis>
-                    {value}
-                  </Text>
-                )}
-                <Feedback errors={fieldState?.errors} />
-              </div>
-            )}
-          </Field>
-        </FormTitleDescription>
-        {props.children}
-      </>
-    </FormWrapper>
-  );
+    return (
+        <FormWrapper>
+            <>
+                <FormTitleDescription onDoubleClick={handleDoubleClick}>
+                    <Field name="description">
+                        {({ field: { value, onChange }, fieldState }: FieldRenderProps<string>) => (
+                            <div>
+                                {isEditing ? (
+                                    <TextArea
+                                        ref={inputRef}
+                                        defaultValue={value}
+                                        onBlur={() => handleBlur(onChange, inputRef.current?.value || '')}
+                                        onEnterPress={() => handleBlur(onChange, inputRef.current?.value || '')}
+                                    />
+                                ) : (
+                                    <Text ellipsis>
+                                        {value}
+                                    </Text>
+                                )}
+                                <Feedback errors={fieldState?.errors} />
+                            </div>
+                        )}
+                    </Field>
+                </FormTitleDescription>
+                {props.children}
+            </>
+        </FormWrapper>
+    );
 }

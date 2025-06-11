@@ -174,7 +174,7 @@ export class FlowNodeEntity extends Entity<FlowNodeEntityConfig> {
     return this.document.renderTree.getParent(this);
   }
 
-  getNodeRegistry<M extends FlowNodeRegistry = FlowNodeRegistry>(): M {
+  getNodeRegistry<M extends FlowNodeRegistry = FlowNodeRegistry & { meta: FlowNodeMeta }>(): M {
     if (this._registerCache) return this._registerCache as M;
     this._registerCache = this.document.getNodeRegistry(this.flowNodeType, this.originParent);
     return this._registerCache as M;

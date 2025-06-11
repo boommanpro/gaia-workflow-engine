@@ -24,11 +24,12 @@ export interface LineColor {
 }
 
 export enum LineColors {
-  HIDDEN = 'transparent', // 隐藏线条
-  DEFUALT = '#4d53e8',
-  DRAWING = '#5DD6E3', // '#b5bbf8', // '#9197F1',
-  HOVER = '#37d0ff',
-  ERROR = 'red',
+  HIDDEN = 'var(--g-workflow-line-color-hidden,transparent)', // 隐藏线条
+  DEFUALT = 'var(--g-workflow-line-color-default,#4d53e8)',
+  DRAWING = 'var(--g-workflow-line-color-drawing, #5DD6E3)', // '#b5bbf8', // '#9197F1',
+  HOVER = 'var(--g-workflow-line-color-hover,#37d0ff)',
+  SELECTED = 'var(--g-workflow-line-color-selected,#37d0ff)',
+  ERROR = 'var(--g-workflow-line-color-error,red)',
 }
 
 export interface WorkflowLineRenderContribution {

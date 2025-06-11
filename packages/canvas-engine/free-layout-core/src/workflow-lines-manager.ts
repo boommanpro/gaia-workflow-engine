@@ -85,7 +85,7 @@ export class WorkflowLinesManager {
       hidden: LineColors.HIDDEN,
       drawing: LineColors.DRAWING,
       hovered: LineColors.HOVER,
-      selected: LineColors.HOVER,
+      selected: LineColors.SELECTED,
     };
     if (this.options.lineColor) {
       Object.assign(color, this.options.lineColor);

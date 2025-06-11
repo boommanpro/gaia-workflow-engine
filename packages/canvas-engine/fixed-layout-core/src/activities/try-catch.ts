@@ -60,7 +60,7 @@ export const TryCatchRegistry: FlowNodeRegistry = {
     });
     const tryBlockNode = document.addNode({
       id: tryBlock.id,
-      type: TryCatchTypeEnum.TRY_BLOCK,
+      type: tryBlock.type || TryCatchTypeEnum.TRY_BLOCK,
       originParent: node,
       parent: mainBlockNode,
       data: tryBlock.data,
@@ -109,7 +109,7 @@ export const TryCatchRegistry: FlowNodeRegistry = {
     const parent = node.document.getNode(`$catchInlineBlocks$${node.id}`);
     const block = node.document.addNode({
       id: blockData.id,
-      type: TryCatchTypeEnum.CATCH_BLOCK,
+      type: blockData.type || TryCatchTypeEnum.CATCH_BLOCK,
       originParent: node,
       parent,
       data: blockData.data,

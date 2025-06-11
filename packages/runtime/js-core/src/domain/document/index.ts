@@ -1,0 +1,1 @@
+export { WorkflowRuntimeDocument } from './document';

@@ -28,8 +28,8 @@
     "watch": "exit 0"
   },
   "dependencies": {
-    "@douyinfe/semi-icons": "^2.72.3",
-    "@douyinfe/semi-ui": "^2.72.3",
+    "@douyinfe/semi-icons": "^2.80.0",
+    "@douyinfe/semi-ui": "^2.80.0",
     "@flowgram.ai/fixed-layout-editor": "workspace:*",
     "@flowgram.ai/fixed-semi-materials": "workspace:*",
     "@flowgram.ai/form-materials": "workspace:*",

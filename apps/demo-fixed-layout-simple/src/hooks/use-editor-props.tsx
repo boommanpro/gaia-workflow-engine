@@ -75,7 +75,7 @@ export function useEditorProps(
        * 可以通过 key 自定义 UI 组件
        */
       materials: {
-        renderNodes: {
+        components: {
           ...defaultFixedSemiMaterials,
           /**
            * Components can be customized based on key business-side requirements.

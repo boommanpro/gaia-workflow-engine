@@ -177,6 +177,9 @@ export const LoopRegistry: FlowNodeRegistry = {
     LoopInlineBlocksNodeRegistry,
   ],
 
+  /**
+   * @depreacted
+   */
   addChild(node, json, options = {}) {
     const { index } = options;
     const document = node.document;

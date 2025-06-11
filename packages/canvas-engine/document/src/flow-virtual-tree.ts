@@ -1,10 +1,14 @@
 import { type Disposable, Emitter } from '@flowgram.ai/utils';
 
+import { type FlowNodeType } from './typings';
+
 /**
  * 存储节点的 tree 结构信息
  * 策略是 "重修改轻查询"，即修改时候做的事情更多，查询都通过指针来操作
  */
-export class FlowVirtualTree<T extends { id: string }> implements Disposable {
+export class FlowVirtualTree<T extends { id: string; flowNodeType?: FlowNodeType }>
+  implements Disposable
+{
   protected onTreeChangeEmitter = new Emitter<void>();
 
   /**
@@ -208,13 +212,17 @@ export class FlowVirtualTree<T extends { id: string }> implements Disposable {
     return this.map.size;
   }
 
-  toString(): string {
+  toString(showType?: boolean): string {
     const ret: string[] = [];
     this.traverse((node, depth) => {
       if (depth === 0) {
         ret.push(node.id);
       } else {
-        ret.push(`|${new Array(depth).fill('--').join('')} ${node.id}`);
+        ret.push(
+          `|${new Array(depth).fill('--').join('')} ${
+            showType ? `${node.flowNodeType}(${node.id})` : node.id
+          }`
+        );
       }
     });
     return `${ret.join('\n')}`;

@@ -39,8 +39,8 @@ export const LoopNodeRegistry: FlowNodeRegistry = {
      * 子画布 padding 设置
      */
     padding: () => ({
-      top: 125,
-      bottom: 100,
+      top: 120,
+      bottom: 60,
       left: 100,
       right: 100,
     }),

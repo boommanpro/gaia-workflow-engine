@@ -1,18 +1,28 @@
 import { type FlowNodeRegistry } from '../typings';
 import { TryCatchNodeRegistry } from './trycatch';
+import { SwitchNodeRegistry } from './switch';
 import { StartNodeRegistry } from './start';
 import { LoopNodeRegistry } from './loop';
 import { LLMNodeRegistry } from './llm';
+import { IFBlockNodeRegistry } from './if-block';
+import { IFNodeRegistry } from './if';
 import { EndNodeRegistry } from './end';
-import { ConditionNodeRegistry } from './condition';
-import { BlockNodeRegistry } from './block';
+import { CatchBlockNodeRegistry } from './catch-block';
+import { CaseDefaultNodeRegistry } from './case-default';
+import { CaseNodeRegistry } from './case';
+import { BreakLoopNodeRegistry } from './break-loop';
 
 export const FlowNodeRegistries: FlowNodeRegistry[] = [
   StartNodeRegistry,
   EndNodeRegistry,
-  ConditionNodeRegistry,
+  SwitchNodeRegistry,
   LLMNodeRegistry,
   LoopNodeRegistry,
-  BlockNodeRegistry,
+  CaseNodeRegistry,
   TryCatchNodeRegistry,
+  CatchBlockNodeRegistry,
+  IFNodeRegistry,
+  IFBlockNodeRegistry,
+  BreakLoopNodeRegistry,
+  CaseDefaultNodeRegistry,
 ];

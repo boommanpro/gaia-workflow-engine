@@ -14,5 +14,8 @@ export interface ConfigType {
   placeholder?: string;
   descTitle?: string;
   descPlaceholder?: string;
+  defaultValueTitle?: string;
+  defaultValuePlaceholder?: string;
   addButtonText?: string;
+  jsonFormatText?: string;
 }

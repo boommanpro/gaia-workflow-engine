@@ -4,7 +4,6 @@
   "homepage": "https://flowgram.ai/",
   "repository": "https://github.com/bytedance/flowgram.ai",
   "license": "MIT",
-  "type": "module",
   "exports": {
     "types": "./dist/index.d.ts",
     "import": "./dist/esm/index.js",
@@ -14,7 +13,7 @@
   "module": "./dist/esm/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "flowgram-form-materials": "./bin/index.js"
+    "flowgram-form-materials": "./bin/index.ts"
   },
   "files": [
     "dist",
@@ -33,9 +32,9 @@
     "run-bin": "node bin/index.js"
   },
   "dependencies": {
-    "@douyinfe/semi-icons": "^2.72.3",
-    "@douyinfe/semi-illustrations": "^2.36.0",
-    "@douyinfe/semi-ui": "^2.72.3",
+    "@douyinfe/semi-icons": "^2.80.0",
+    "@douyinfe/semi-illustrations": "^2.80.0",
+    "@douyinfe/semi-ui": "^2.80.0",
     "@flowgram.ai/editor": "workspace:*",
     "lodash": "^4.17.21",
     "nanoid": "^4.0.2",
@@ -48,8 +47,10 @@
     "@flowgram.ai/eslint-config": "workspace:*",
     "@flowgram.ai/ts-config": "workspace:*",
     "@types/lodash": "^4.14.137",
+    "@types/node": "^18",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@types/inquirer": "9.0.7",
     "@types/styled-components": "^5",
     "eslint": "^8.54.0",
     "react": "^18",

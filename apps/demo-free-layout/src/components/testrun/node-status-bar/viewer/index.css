@@ -1,0 +1,137 @@
+.node-status-data-structure-viewer {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #333;
+    background: #fafafa;
+    border-radius: 6px;
+    padding: 12px 12px 12px 0;
+    margin: 12px;
+    border: 1px solid #e1e4e8;
+    overflow: hidden;
+}
+
+.tree-node {
+    margin: 2px 0;
+}
+
+.tree-node-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+    min-height: 20px;
+    padding: 2px 0;
+    border-radius: 3px;
+    transition: background-color 0.15s ease;
+}
+
+.tree-node-header:hover {
+    background-color: rgba(0, 0, 0, 0.04);
+}
+
+.expand-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 10px;
+    color: #666;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 2px;
+    transition: all 0.15s ease;
+    padding: 0;
+    margin: 0;
+}
+
+.expand-button:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+    color: #333;
+}
+
+.expand-button.expanded {
+    transform: rotate(90deg);
+}
+
+.expand-button.collapsed {
+    transform: rotate(0deg);
+}
+
+.expand-placeholder {
+    width: 16px;
+    height: 16px;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+.node-label {
+    color: #0969da;
+    font-weight: 500;
+    cursor: pointer;
+    user-select: auto;
+    margin-right: 4px;
+}
+
+.node-label:hover {
+    text-decoration: underline;
+}
+
+.node-value {
+    margin-left: 4px;
+}
+
+.primitive-value-quote {
+    color: #8f8f8f;
+}
+
+.primitive-value {
+    cursor: pointer;
+    user-select: all;
+    padding: 1px 3px;
+    border-radius: 3px;
+    transition: background-color 0.15s ease;
+}
+
+.primitive-value:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.primitive-value.string {
+    color: #032f62;
+    background-color: rgba(3, 47, 98, 0.05);
+}
+
+.primitive-value.number {
+    color: #005cc5;
+    background-color: rgba(0, 92, 197, 0.05);
+}
+
+.primitive-value.boolean {
+    color: #e36209;
+    background-color: rgba(227, 98, 9, 0.05);
+}
+
+.primitive-value.null,
+.primitive-value.undefined {
+    color: #6a737d;
+    font-style: italic;
+    background-color: rgba(106, 115, 125, 0.05);
+}
+
+.tree-node-children {
+    margin-left: 8px;
+    padding-left: 8px;
+    position: relative;
+}
+
+.tree-node-children::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: #e1e4e8;
+}

@@ -55,7 +55,7 @@ export function NodeList(props: { onSelect: (meta: any) => void; from: FlowNodeE
   };
   return (
     <NodesWrap style={{ width: 80 * 2 + 20 }}>
-      {FlowNodeRegistries.map((registry) => (
+      {FlowNodeRegistries.filter((registry) => !registry.meta?.addDisable).map((registry) => (
         <Node
           key={registry.type}
           disabled={!(registry.canAdd?.(context, props.from) ?? true)}

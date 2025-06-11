@@ -15,7 +15,7 @@ export function FlowSelect() {
       clientContext.history.stop(); // Stop redo/undo
       clientContext.history.clear(); // Clear redo/undo
       clientContext.document.fromJSON(targetDemoJSON); // Reload Data
-      console.log(clientContext.document.toString()); // Print the document tree
+      console.log(clientContext.document.toString(true)); // Print the document tree
       clientContext.history.start(); // Restart redo/undo
       clientContext.document.setLayout(
         targetDemoJSON.defaultLayout || FlowLayoutDefault.VERTICAL_FIXED_LAYOUT

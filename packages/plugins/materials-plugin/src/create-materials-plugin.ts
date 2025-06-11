@@ -7,6 +7,10 @@ export type MaterialReactComponent<T = any> = (props: T) => React.ReactNode | nu
 
 export interface MaterialsPluginOptions {
   /**
+   * 注册特定的 UI 组件
+   */
+  components?: Record<FlowRendererKey | string, MaterialReactComponent>;
+  /**
    * 注册特定的节点渲染组件
    */
   renderNodes?: Record<string, MaterialReactComponent>;
@@ -28,7 +32,7 @@ export const createMaterialsPlugin = definePluginCreator<MaterialsPluginOptions>
      */
     registry.registerReactComponent(
       FlowRendererKey.NODE_RENDER,
-      opts.renderDefaultNode || (() => null),
+      opts.renderDefaultNode || (() => null)
     );
 
     /**
@@ -38,11 +42,19 @@ export const createMaterialsPlugin = definePluginCreator<MaterialsPluginOptions>
       registry.registerText(opts.renderTexts);
     }
     /**
+     * 注册组件
+     */
+    if (opts.components) {
+      Object.keys(opts.components).forEach((key) =>
+        registry.registerReactComponent(key, opts.components![key])
+      );
+    }
+    /**
      * 注册单节点渲染
      */
     if (opts.renderNodes) {
-      Object.keys(opts.renderNodes).forEach(key =>
-        registry.registerReactComponent(key, opts.renderNodes![key]),
+      Object.keys(opts.renderNodes).forEach((key) =>
+        registry.registerReactComponent(key, opts.renderNodes![key])
       );
     }
   },

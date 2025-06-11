@@ -1,3 +1,4 @@
+/* eslint-disable import/no-unresolved */
 import { PreviewEditor } from '../preview-editor';
 import { FreeLayoutSimple } from '.';
 

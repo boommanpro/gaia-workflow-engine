@@ -5,6 +5,7 @@ import { useClientContext } from '@flowgram.ai/free-layout-editor';
 import { Tooltip, IconButton, Divider } from '@douyinfe/semi-ui';
 import { IconUndo, IconRedo } from '@douyinfe/semi-icons';
 
+import { TestRunButton } from '../testrun/testrun-button';
 import { AddNode } from '../add-node';
 import { ZoomSelect } from './zoom-select';
 import { SwitchLine } from './switch-line';
@@ -79,6 +80,7 @@ export const DemoTools = () => {
         <Import />
         <Console />
         <RunWorkflow />
+        <TestRunButton disabled={playground.config.readonly} />
       </ToolSection>
     </ToolContainer>
   );
