@@ -48,22 +48,23 @@ export const initialData: FlowDocumentJSON = {
             },
             "data": {
                 "title": "End",
-                "outputs": {
-                    "type": "object",
-                    "properties": {
-                        "result": {
-                            "type": "string",
-                            "default": {
-                                "type": "ref",
-                                "content": [
-                                    "code_-v33c",
-                                    "result"
-                                ]
-                            }
-                        }
+                "description": "end node",
+                "inputsValues": {
+                    "a": {
+                        "type": "ref",
+                        "content": [
+                            "start_0",
+                            "a"
+                        ]
                     }
                 },
-                "description": "end node"
+                "inputs": {
+                    "properties": {
+                        "a": {
+                            "type": "string"
+                        }
+                    }
+                }
             }
         },
         {
