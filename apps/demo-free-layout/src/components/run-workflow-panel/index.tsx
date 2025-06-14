@@ -72,7 +72,7 @@ const RunWorkflowSidebar: React.FC = () => {
         }
         return acc;
       }, {} as Record<string, any>),
-      graph: ctx.document.toJSON(),
+      graph: JSON.stringify(ctx.document.toJSON()),
     };
     console.log('runData:', runData);
     sendRunRequest(runData);
