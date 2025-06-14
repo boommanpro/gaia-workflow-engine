@@ -15,6 +15,8 @@ import { useIsSidebar } from '../../hooks';
 import { MixPropertiesEdit } from '../../form-components/mix-properties-edit';
 import { FormContent, FormHeader, FormOutputs, PropertiesEdit } from '../../form-components';
 import { CodeEditorField } from '../../components/code-editor-field';
+import {IFlowValue} from "@flowgram.ai/form-materials";
+import {mapValues} from "lodash-es";
 
 export interface CodeConfig {
   language: string;
@@ -32,15 +34,33 @@ export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => {
             <Divider margin="12px" />
             <span>输入配置</span>
             <Field
-              name="inputs.properties"
-              render={({
-                field: { value, onChange },
-                fieldState,
-              }: FieldRenderProps<Record<string, JsonSchema>>) => (
-                <>
-                  <MixPropertiesEdit value={value} onChange={onChange} onlyFieldName={false} />
-                </>
-              )}
+                name="inputs.properties"
+                render={({
+                           field: { value: propertiesSchemaValue, onChange: propertiesSchemaChange },
+                         }: FieldRenderProps<Record<string, JsonSchema>>) => (
+                    <Field<Record<string, IFlowValue>> name="inputsValues">
+                      {({ field: { value: propertiesValue, onChange: propertiesValueChange } }) => {
+                        const onChange = (newProperties: Record<string, JsonSchema>) => {
+                          const newPropertiesValue = mapValues(newProperties, (v) => v.default);
+                          const newPropetiesSchema = mapValues(newProperties, (v) => {
+                            delete v.default;
+                            return v;
+                          });
+                          propertiesValueChange(newPropertiesValue);
+                          propertiesSchemaChange(newPropetiesSchema);
+                        };
+                        const value = mapValues(propertiesSchemaValue, (v, key) => ({
+                          ...v,
+                          default: propertiesValue?.[key],
+                        }));
+                        return (
+                            <>
+                              <PropertiesEdit value={value} onChange={onChange} useFx={true} />
+                            </>
+                        );
+                      }}
+                    </Field>
+                )}
             />
             <Divider margin="12px" />
             <span>代码配置</span>
@@ -95,16 +115,35 @@ export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => {
             <Divider margin="12px" />
             <span>输出配置</span>
             <Field
-              name="outputs.properties"
-              render={({
-                field: { value, onChange },
-                fieldState,
-              }: FieldRenderProps<Record<string, JsonSchema>>) => (
-                <>
-                  <PropertiesEdit value={value} onChange={onChange} onlyFieldName={true} />
-                </>
-              )}
+                name="outputs.properties"
+                render={({
+                           field: { value: propertiesSchemaValue, onChange: propertiesSchemaChange },
+                         }: FieldRenderProps<Record<string, JsonSchema>>) => (
+                    <Field<Record<string, IFlowValue>> name="outputsValues">
+                      {({ field: { value: propertiesValue, onChange: propertiesValueChange } }) => {
+                        const onChange = (newProperties: Record<string, JsonSchema>) => {
+                          const newPropertiesValue = mapValues(newProperties, (v) => v.default);
+                          const newPropetiesSchema = mapValues(newProperties, (v) => {
+                            delete v.default;
+                            return v;
+                          });
+                          propertiesValueChange(newPropertiesValue);
+                          propertiesSchemaChange(newPropetiesSchema);
+                        };
+                        const value = mapValues(propertiesSchemaValue, (v, key) => ({
+                          ...v,
+                          default: propertiesValue?.[key],
+                        }));
+                        return (
+                            <>
+                              <PropertiesEdit value={value} onChange={onChange} useFx={true} />
+                            </>
+                        );
+                      }}
+                    </Field>
+                )}
             />
+            <FormOutputs name="outputs" />
           </>
         )}
         <FormOutputs />
