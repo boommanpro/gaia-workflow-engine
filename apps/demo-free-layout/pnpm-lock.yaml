@@ -15,35 +15,35 @@ importers:
         specifier: ^2.72.3
         version: 2.77.1(acorn@8.14.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@flowgram.ai/form-materials':
-        specifier: 0.2.9
-        version: 0.2.9(@babel/core@7.26.10)(acorn@8.14.1)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
+        specifier: 0.4.2
+        version: 0.4.2(@babel/core@7.26.10)(@babel/template@7.27.0)(@codemirror/autocomplete@6.18.6)(@codemirror/language@6.11.3)(@codemirror/merge@6.10.2)(@lezer/common@1.2.3)(@types/react@18.3.20)(acorn@8.14.1)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))(vue@3.5.18(typescript@5.9.2))
       '@flowgram.ai/free-container-plugin':
-        specifier: 0.2.9
-        version: 0.2.9(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
+        specifier: 0.4.2
+        version: 0.4.2(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
       '@flowgram.ai/free-group-plugin':
-        specifier: 0.2.9
-        version: 0.2.9(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
+        specifier: 0.4.2
+        version: 0.4.2(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
       '@flowgram.ai/free-layout-editor':
-        specifier: 0.2.9
-        version: 0.2.9(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
+        specifier: 0.4.2
+        version: 0.4.2(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
       '@flowgram.ai/free-lines-plugin':
-        specifier: 0.2.9
-        version: 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
+        specifier: 0.4.2
+        version: 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
       '@flowgram.ai/free-node-panel-plugin':
-        specifier: 0.2.9
-        version: 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
+        specifier: 0.4.2
+        version: 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
       '@flowgram.ai/free-snap-plugin':
-        specifier: 0.2.9
-        version: 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
+        specifier: 0.4.2
+        version: 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
       '@flowgram.ai/minimap-plugin':
-        specifier: 0.2.9
-        version: 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
+        specifier: 0.4.2
+        version: 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
       '@flowgram.ai/runtime-interface':
-        specifier: 0.2.9
-        version: 0.2.9
+        specifier: 0.4.2
+        version: 0.4.2
       '@flowgram.ai/runtime-js':
-        specifier: 0.2.9
-        version: 0.2.9(openai@4.104.0(zod@3.25.61))
+        specifier: 0.4.2
+        version: 0.4.2(openai@4.104.0(zod@3.25.61))
       autoprefixer:
         specifier: ^10.4.21
         version: 10.4.21(postcss@8.5.3)
@@ -61,7 +61,7 @@ importers:
         version: 8.5.3
       postcss-loader:
         specifier: ^8.1.1
-        version: 8.1.1(@rspack/core@1.3.3(@swc/helpers@0.5.15))(postcss@8.5.3)(typescript@5.8.2)(webpack@5.98.0)
+        version: 8.1.1(@rspack/core@1.3.3(@swc/helpers@0.5.15))(postcss@8.5.3)(typescript@5.9.2)(webpack@5.98.0)
       react:
         specifier: ^18
         version: 18.3.1
@@ -76,14 +76,14 @@ importers:
         version: 5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
       tailwindcss:
         specifier: '3'
-        version: 3.4.17(ts-node@10.9.2(@types/node@18.19.84)(typescript@5.8.2))
+        version: 3.4.17(ts-node@10.9.2(@types/node@18.19.84)(typescript@5.9.2))
     devDependencies:
       '@flowgram.ai/eslint-config':
-        specifier: 0.2.9
-        version: 0.2.9(@types/node@18.19.84)(typescript@5.8.2)
+        specifier: 0.4.2
+        version: 0.4.2(@types/node@18.19.84)(typescript@5.9.2)
       '@flowgram.ai/ts-config':
-        specifier: 0.2.9
-        version: 0.2.9
+        specifier: 0.4.2
+        version: 0.4.2
       '@rsbuild/core':
         specifier: ^1.2.16
         version: 1.3.5
@@ -229,8 +229,16 @@ packages:
     resolution: {integrity: sha512-4A/SCr/2KLd5jrtOMFzaKjVtAei3+2r/NChoBNoZ3EyP/+GlhoaEGoWOZUmFmoITP7zOJyHIMm+DYRd8o3PvHA==}
     engines: {node: '>=6.9.0'}
 
+  '@babel/helper-string-parser@7.27.1':
+    resolution: {integrity: sha512-qMlSxKbpRlAridDExk92nSobyDdpPijUq2DW6oDnUqd0iOGxmQjyqhMIihI9+zv4LPyZdRje2cavWPbCbWm3eA==}
+    engines: {node: '>=6.9.0'}
+
   '@babel/helper-validator-identifier@7.25.9':
     resolution: {integrity: sha512-Ed61U6XJc3CVRfkERJWDz4dJwKe7iLmmJsbOGu9wSloNSFttHV0I8g6UAgb7qnK5ly5bGLPd4oXZlxCdANBOWQ==}
+    engines: {node: '>=6.9.0'}
+
+  '@babel/helper-validator-identifier@7.27.1':
+    resolution: {integrity: sha512-D2hP9eA+Sqx1kBZgzxZh0y1trbuU+JoDkiEwqhQ36nodYqJwyEIhPSdMNd7lOm/4io72luTPWH20Yda0xOuUow==}
     engines: {node: '>=6.9.0'}
 
   '@babel/helper-validator-option@7.25.9':
@@ -247,6 +255,11 @@ packages:
 
   '@babel/parser@7.27.0':
     resolution: {integrity: sha512-iaepho73/2Pz7w2eMS0Q5f83+0RKI7i4xmiYeBmDzfRVbQtTOG7Ts0S4HzJVsTMGI9keU8rNfuZr8DKfSt7Yyg==}
+    engines: {node: '>=6.0.0'}
+    hasBin: true
+
+  '@babel/parser@7.28.3':
+    resolution: {integrity: sha512-7+Ey1mAgYqFAx2h0RuoxcQT5+MlG3GTV0TQrgr7/ZliKsm/MNDxVVutlWaziMq7wJNAz8MTqz55XLpWvva6StA==}
     engines: {node: '>=6.0.0'}
     hasBin: true
 
@@ -706,8 +719,287 @@ packages:
     resolution: {integrity: sha512-H45s8fVLYjbhFH62dIJ3WtmJ6RSPt/3DRO0ZcT2SUiYiQyz3BLVb9ADEnLl91m74aQPS3AzzeajZHYOalWe3bg==}
     engines: {node: '>=6.9.0'}
 
+  '@babel/types@7.28.2':
+    resolution: {integrity: sha512-ruv7Ae4J5dUYULmeXw1gmb7rYRz57OWCPM57pHojnLq/3Z1CK2lNSLTCVjxVk1F/TZHwOZZrOWi0ur95BbLxNQ==}
+    engines: {node: '>=6.9.0'}
+
   '@cfworker/json-schema@4.1.1':
     resolution: {integrity: sha512-gAmrUZSGtKc3AiBL71iNWxDsyUC5uMaKKGdvzYsBoTW/xi42JQHl7eKV2OYzCUqvc+D2RCcf7EXY2iCyFIk6og==}
+
+  '@codemirror/autocomplete@6.18.6':
+    resolution: {integrity: sha512-PHHBXFomUs5DF+9tCOM/UoW6XQ4R44lLNNhRaW9PKPTU0D7lIjRg3ElxaJnTwsl/oHiR93WSXDBrekhoUGCPtg==}
+
+  '@codemirror/commands@6.8.1':
+    resolution: {integrity: sha512-KlGVYufHMQzxbdQONiLyGQDUW0itrLZwq3CcY7xpv9ZLRHqzkBSoteocBHtMCoY7/Ci4xhzSrToIeLg7FxHuaw==}
+
+  '@codemirror/lang-javascript@6.2.4':
+    resolution: {integrity: sha512-0WVmhp1QOqZ4Rt6GlVGwKJN3KW7Xh4H2q8ZZNGZaP6lRdxXJzmjm4FqvmOojVj6khWJHIb9sp7U/72W7xQgqAA==}
+
+  '@codemirror/lang-python@6.2.1':
+    resolution: {integrity: sha512-IRjC8RUBhn9mGR9ywecNhB51yePWCGgvHfY1lWN/Mrp3cKuHr0isDKia+9HnvhiWNnMpbGhWrkhuWOc09exRyw==}
+
+  '@codemirror/language@6.11.3':
+    resolution: {integrity: sha512-9HBM2XnwDj7fnu0551HkGdrUrrqmYq/WC5iv6nbY2WdicXdGbhR/gfbZOH73Aqj4351alY1+aoG9rCNfiwS1RA==}
+
+  '@codemirror/lint@6.8.5':
+    resolution: {integrity: sha512-s3n3KisH7dx3vsoeGMxsbRAgKe4O1vbrnKBClm99PU0fWxmxsx5rR2PfqQgIt+2MMJBHbiJ5rfIdLYfB9NNvsA==}
+
+  '@codemirror/merge@6.10.2':
+    resolution: {integrity: sha512-rmHzVkt5FnCtsi0IgvDIDjh/J4LmbfOboB7FMvVl21IHO0p1QM6jSwjkBjBD3D+c+T79OabEqoduCqvJCBV8Yg==}
+
+  '@codemirror/search@6.5.11':
+    resolution: {integrity: sha512-KmWepDE6jUdL6n8cAAqIpRmLPBZ5ZKnicE8oGU/s3QrAVID+0VhLFrzUucVKHG5035/BSykhExDL/Xm7dHthiA==}
+
+  '@codemirror/state@6.5.2':
+    resolution: {integrity: sha512-FVqsPqtPWKVVL3dPSxy8wEF/ymIEuVzF1PK3VbUgrxXpJUSHQWWZz4JMToquRxnkw+36LTamCZG2iua2Ptq0fA==}
+
+  '@codemirror/view@6.38.1':
+    resolution: {integrity: sha512-RmTOkE7hRU3OVREqFVITWHz6ocgBjv08GoePscAakgVQfciA3SGCEk7mb9IzwW61cKKmlTpHXG6DUE5Ubx+MGQ==}
+
+  '@coze-editor/code-language-json@0.1.0-alpha.879fbb':
+    resolution: {integrity: sha512-0OQj4mzoORHHW6yU2V5vcCEi8rOrWKpqIs7Ydb7+Y80aTqA8LNIAO6NQkzByCsKMMBtLQW8uBUKa5DKKj3sCVw==}
+    peerDependencies:
+      '@codemirror/language': ^6.0.0
+      '@codemirror/state': ^6.4.1
+      '@codemirror/view': ^6.26.1
+      '@coze-editor/code-language-shared': 0.1.0-alpha.879fbb
+
+  '@coze-editor/code-language-python@0.1.0-alpha.879fbb':
+    resolution: {integrity: sha512-tVi196X9cA9hwAlKAGfgA8TgvWu3Z+XoBPsZ23ufom4u2ScaWkzr9lVL1o9DYFWzJ5H5Ubzne3aHMZyqnNQX0Q==}
+    peerDependencies:
+      '@codemirror/state': ^6.4.1
+      '@codemirror/view': ^6.26.1
+      '@coze-editor/code-language-shared': 0.1.0-alpha.879fbb
+
+  '@coze-editor/code-language-shared@0.1.0-alpha.879fbb':
+    resolution: {integrity: sha512-991B8Yf+3Ebd5C9O/1cj45fzWpoRk4/XBoVIKgtDjGbMzWcEUffzYFc70XDOASmjYC+57Iv6cLvVxoLsQEOB9g==}
+    peerDependencies:
+      '@codemirror/autocomplete': ^6.18.0
+      '@codemirror/language': ^6.0.0
+      '@codemirror/state': ^6.4.1
+      '@codemirror/view': ^6.26.1
+
+  '@coze-editor/code-language-shell@0.1.0-alpha.879fbb':
+    resolution: {integrity: sha512-SDPQ/fpj6mcPGZPvHD40FPvyHHAVt5eU1o8AR2ElwclUy33CJshjkKyL5FP06giIVq/HQP0Y6JHEG+/rKR1tkw==}
+    peerDependencies:
+      '@codemirror/language': ^6.0.0
+      '@codemirror/state': ^6.4.1
+      '@codemirror/view': ^6.26.1
+      '@coze-editor/code-language-shared': 0.1.0-alpha.879fbb
+
+  '@coze-editor/code-language-typescript@0.1.0-alpha.879fbb':
+    resolution: {integrity: sha512-p8dcbIaLEORp09A2zmevnFyMVMEW7mCG0ucZzMmE6KZ1ay8SvzKIG/cdFUiGO0hkrAyWCupTkT1PGt0MStbdFg==}
+    peerDependencies:
+      '@codemirror/language': ^6.0.0
+      '@codemirror/state': ^6.4.1
+      '@codemirror/view': ^6.26.1
+      '@coze-editor/code-language-shared': 0.1.0-alpha.879fbb
+      typescript: '*'
+
+  '@coze-editor/core-plugins@0.1.0-alpha.879fbb':
+    resolution: {integrity: sha512-m9orsWEyjP+VAmvKsIb3ryxrQuo3TCt2RRJ/TXck/XcD6IIvsFAV0PnKu/jF9qu3oWcga/RrF8G187m/DBTtVQ==}
+    peerDependencies:
+      '@codemirror/commands': ^6.3.3
+      '@codemirror/state': ^6.4.1
+      '@codemirror/view': ^6.26.1
+
+  '@coze-editor/core@0.1.0-alpha.879fbb':
+    resolution: {integrity: sha512-mtztq3wRcBtisxQ4/AO6pHf+JlBFYClJRTLSMg5O/+6ex6aSHapwkm5ICTJZzuej5FdPi8pfLkr/lR9cEjKHYw==}
+    peerDependencies:
+      '@codemirror/state': ^6.4.1
+      '@codemirror/view': ^6.26.1
+
+  '@coze-editor/editor@0.1.0-alpha.879fbb':
+    resolution: {integrity: sha512-jhmcyYk41wNjvwvNDqt7Tgr+hdSW3XgKuv0UYKFlXHu7lUURMtJtxFtFjycvVjGUnJr2xWxZaxhf9UjQSDBTKg==}
+    peerDependencies:
+      '@codemirror/state': ^6.4.1
+      '@codemirror/view': ^6.26.1
+      react: ~18.2.0
+      react-dom: ~18.2.0
+
+  '@coze-editor/extension-completion-icons@0.1.0-alpha.879fbb':
+    resolution: {integrity: sha512-3pzqU8THdU5kl/KGc4QoZjsueUJZEdtFZdBKfGthIr6cnZ+9QeEWQlVWRWcOO0Fv+xtjgGxGX81RLA4Uk1l1nQ==}
+    peerDependencies:
+      '@codemirror/state': ^6.4.1
+      '@codemirror/view': ^6.26.1
+
+  '@coze-editor/extension-json-ast@0.1.0-alpha.879fbb':
+    resolution: {integrity: sha512-P7Srh8J2ROoNP/pcevtWaTLXg6VWLtaFTt2JPMM3DOZzZ4nJf1eFcTRLxWBHAQbtt3IFhv96z+tNSi5DxorUrw==}
+    peerDependencies:
+      '@codemirror/state': ^6.4.1
+      '@codemirror/view': ^6.26.1
+
+  '@coze-editor/extension-json-empty-string-value-completion@0.1.0-alpha.879fbb':
+    resolution: {integrity: sha512-B40evyrP+ixXtVabZmUTTWxgK5GhzwYn3xPMO0hyV11IBB6Pur6xkPu7S5lFG/+aT7rrB0TYFvE0nbbXkw/Klw==}
+    peerDependencies:
+      '@codemirror/state': ^6.4.1
+      '@codemirror/view': ^6.26.1
+
+  '@coze-editor/extension-json-hover@0.1.0-alpha.879fbb':
+    resolution: {integrity: sha512-IH4R0ouXajUbYmXpIlbMCJLByQGJmYsEJZb2peihX6vD9S4o1vg2RQqKtVpjx6v9LJnIm8XyThS9WO5832b3MA==}
+    peerDependencies:
+      '@codemirror/state': ^6.4.1
+      '@codemirror/view': ^6.26.1
+
+  '@coze-editor/extension-json-unnecessary-properties@0.1.0-alpha.879fbb':
+    resolution: {integrity: sha512-j1MJUS1HqUjxZaQtpcj/hsLGp6BDQoP+BN+8jNoo12yHfw4uVWGNIv/oAUd9kCS3lRhTXcSiwPEQdPWwZ0WJAg==}
+    peerDependencies:
+      '@codemirror/state': ^6.4.1
+      '@codemirror/view': ^6.26.1
+
+  '@coze-editor/extension-links@0.1.0-alpha.879fbb':
+    resolution: {integrity: sha512-ew52w1Q22EGnNBhmb+EogaQ+rK85M/SZSnMdT4fEFClTaHNNploOn1CVdEDTHE6Dl7jyxxs319S6/vnri/AY1A==}
+    peerDependencies:
+      '@codemirror/state': ^6.4.1
+      '@codemirror/view': ^6.26.1
+
+  '@coze-editor/extension-lint@0.1.0-alpha.879fbb':
+    resolution: {integrity: sha512-6Q5kUyQD3oTlDDkz/xPXm14jgeHVFxzX5B2gbstbFR1oz77EH1TDifkyL1Umrfy1FaTKMSRTAU29IOVXgINeoA==}
+    peerDependencies:
+      '@codemirror/state': ^6.4.1
+      '@codemirror/view': ^6.26.1
+
+  '@coze-editor/extension-placeholder@0.1.0-alpha.879fbb':
+    resolution: {integrity: sha512-J8ES31+dR9s7i3FmFPvHv06JocOZOcMMyoC2iY0AfbXxzqxtvwC0nJu60apRBpZ9eN6UMIEzqdlzy8Qs36Ky7g==}
+    peerDependencies:
+      '@codemirror/state': ^6.4.1
+      '@codemirror/view': ^6.26.1
+
+  '@coze-editor/extension-regexp-decorator@0.1.0-alpha.879fbb':
+    resolution: {integrity: sha512-Ac6q4MbKYebjkGtF3RxCuUNbvoNFn9wRM02+cEVYxuXzfgLnQjW1zrDF4tUScaKv5wZZjnAVk7PHRpKOsUJELg==}
+    peerDependencies:
+      '@codemirror/state': ^6.4.1
+      '@codemirror/view': ^6.26.1
+
+  '@coze-editor/extension-scrollbar@0.1.0-alpha.879fbb':
+    resolution: {integrity: sha512-1qRv860vvLgHc+/V/Y0nUpPnDsX6GdXrithRHxzcAvOHSRWxqxOsT2mKWDl0jAFh9y4jprL6XkSF0gHr4OpTNA==}
+    peerDependencies:
+      '@codemirror/state': ^6.4.1
+      '@codemirror/view': ^6.26.1
+
+  '@coze-editor/extensions@0.1.0-alpha.879fbb':
+    resolution: {integrity: sha512-9sHnLdcxaVjcxCvPJG8J6QzMPQiu5CrnRyjqtM2bMUQQGwmQRAE0Kp3PSwSE1YW0pIAFAjBxkMiJowy5cqSwGA==}
+    peerDependencies:
+      '@codemirror/language': ^6.0.0
+      '@codemirror/state': ^6.4.1
+      '@codemirror/view': ^6.26.1
+
+  '@coze-editor/lezer-parser-jinja2@0.1.0-alpha.879fbb':
+    resolution: {integrity: sha512-k5vD2thElUDssJ+Ph/CJjm6U1S9wlI2fRuvcRFK0T32xPh65n2dst6KVvbkCii4Vjij0ZSEPSwNqmNZ6CCfcDQ==}
+
+  '@coze-editor/lezer-parser-json@0.1.0-alpha.879fbb':
+    resolution: {integrity: sha512-As5JrjjJ+PIeIq8SQWep8aRfvXNCnlamVwPQNTli4F18d4lXOqI8iyXTDsjuwRc4a3aCKZAjocVBAv8kN5u2sA==}
+
+  '@coze-editor/lezer-parser-template@0.1.0-alpha.879fbb':
+    resolution: {integrity: sha512-d3PRrr0sV7w/FYFZ8fiJghkfjdOabyK5pCJYJLDZLgbwXXs07k8cyhU0LdJ3Cs/RHhG6cuccRYmgPGKZdQF2dQ==}
+
+  '@coze-editor/parser-json@0.1.0-alpha.879fbb':
+    resolution: {integrity: sha512-AGUGt8dZUiUUFHwYK82GK1/kdzVfJ8xdxRenCZIpFs3w16ZtuTBB4H13rsugWiq3XfZqZQv5cH8QUiGgR1t56A==}
+
+  '@coze-editor/preset-code@0.1.0-alpha.879fbb':
+    resolution: {integrity: sha512-i3qmOXPf67UKIyZyuEFQDz7zjI4AW3cGxwJtndm3yr68BbFdzThyO7CPArje0Eu/DdESq7pOK53egj9E4B+5sw==}
+    peerDependencies:
+      '@codemirror/commands': ^6.3.3
+      '@codemirror/state': ^6.4.1
+      '@codemirror/view': ^6.26.1
+      '@coze-editor/code-language-shared': 0.1.0-alpha.879fbb
+
+  '@coze-editor/preset-expression@0.1.0-alpha.879fbb':
+    resolution: {integrity: sha512-vjI5fUcbmCTuQAYZAhFPSnHqkWsIj2DMSQCL9ZRV3t5ZHYvakRlP2V8lvHd9bt3K1hmU+VGitVDqLZ2i2drqeg==}
+    peerDependencies:
+      '@codemirror/commands': ^6.3.3
+      '@codemirror/state': ^6.4.1
+      '@codemirror/view': ^6.26.1
+
+  '@coze-editor/preset-none@0.1.0-alpha.879fbb':
+    resolution: {integrity: sha512-ZHNv4oWdDANO8BoiSzlPfnvluTzIcmFbsgm0rlsL9aZXUt12iLBbJsPxKUJPPxd1dys8vSDPOB3vq4lj6tOpeg==}
+    peerDependencies:
+      '@codemirror/state': ^6.4.1
+      '@codemirror/view': ^6.26.1
+
+  '@coze-editor/preset-prompt@0.1.0-alpha.879fbb':
+    resolution: {integrity: sha512-MWy5PIAwc/Iu6f0tyi5lhDh/I60kwiIJEHnMdDpU/vFytJn2CxBXwXDztNR5+GghAPvL5K0vdjLSB2fIhLRvUQ==}
+    peerDependencies:
+      '@codemirror/state': ^6.4.1
+      '@codemirror/view': ^6.26.1
+
+  '@coze-editor/preset-universal@0.1.0-alpha.879fbb':
+    resolution: {integrity: sha512-D3jyTLfSyYtZ7RlHVAdCv5/BCvwS+90bSpV7Qye3XF4CMkZESAn+y2YLBzPK7O7dPCLc/M6k/1eEgLXL45i0DQ==}
+    peerDependencies:
+      '@codemirror/state': ^6.4.1
+      '@codemirror/view': ^6.26.1
+
+  '@coze-editor/preset-variable@0.1.0-alpha.879fbb':
+    resolution: {integrity: sha512-gEFFfO/Rs/ehaDivNjLfjO4+Wi/qXUtE45yuPVx9osYsWY3wRtbeOaVZCnpoyj+quGssXRIz+BZPw+w6Jxodjw==}
+    peerDependencies:
+      '@codemirror/commands': ^6.3.3
+      '@codemirror/state': ^6.4.1
+      '@codemirror/view': ^6.26.1
+
+  '@coze-editor/react-components@0.1.0-alpha.879fbb':
+    resolution: {integrity: sha512-tm/DkQq/POcJYv8uWiNzAcNJ49HX9PRbP6c8jDEjV8wquEAtsgwNfF2pHkJmgf1D3VPEvSnlD8Qb8GSFlTTgXQ==}
+    peerDependencies:
+      '@codemirror/state': ^6.4.1
+      '@codemirror/view': ^6.26.1
+      '@coze-editor/react': 0.1.0-alpha.879fbb
+      react: ~18.2.0
+      react-dom: ~18.2.0
+
+  '@coze-editor/react-hooks@0.1.0-alpha.879fbb':
+    resolution: {integrity: sha512-cJBUIFP3CXUCQzpaitQLGZ6kbbCu+0JdfKEP49wEFLUJZVRTgwuT+d9N58Mfw3kXOiohyqcDczfN5+M834G9lg==}
+    peerDependencies:
+      '@codemirror/commands': ^6.3.3
+      '@codemirror/state': ^6.4.1
+      '@codemirror/view': ^6.26.1
+      '@coze-editor/react': 0.1.0-alpha.879fbb
+      react: ~18.2.0
+      react-dom: ~18.2.0
+
+  '@coze-editor/react-merge@0.1.0-alpha.879fbb':
+    resolution: {integrity: sha512-h7vY5kpbFP8UFL/upTXaFq6rsqQaTRdrZ130BWvrDKs79C6iP1ScQbMK6B6lS9ZRPCDTKE6UuCavEk6b5Jf16Q==}
+    peerDependencies:
+      '@codemirror/merge': ^6.10.0
+      '@codemirror/state': ^6.4.1
+      '@codemirror/view': ^6.26.1
+      '@coze-editor/react': 0.1.0-alpha.879fbb
+      react: ~18.2.0
+      react-dom: ~18.2.0
+
+  '@coze-editor/react@0.1.0-alpha.879fbb':
+    resolution: {integrity: sha512-yfZZdi8z7f86TV2P995e/mz9e5ofu7AvKbIzd451iaW0aG9YtaKpv4sHvqYL6fiFze4NXfXEQm1H0D1c+iu+8w==}
+    peerDependencies:
+      '@codemirror/state': ^6.4.1
+      '@codemirror/view': ^6.26.1
+      react: ~18.2.0
+      react-dom: ~18.2.0
+
+  '@coze-editor/utils@0.1.0-alpha.879fbb':
+    resolution: {integrity: sha512-ashmTlrXKgx/RW+75sk4M0Yg7zkvTh0H0a98dyupPV2SYM6sCwXz/+KtSfl9nEjCunwQrZWuI+0pOSDByZf9tQ==}
+    peerDependencies:
+      '@codemirror/state': ^6.4.1
+      '@codemirror/view': ^6.26.1
+      '@lezer/common': ^1.2.2
+
+  '@coze-editor/vscode@0.1.0-alpha.879fbb':
+    resolution: {integrity: sha512-WMNUWhjh2t1Z8rrzk2n3Tq/B8M/F45UXAgXCtWbApyA+CZglMGn+lhd6cT2T/MtXxfmaBkTdvGFsCyq9CGc8pA==}
+    peerDependencies:
+      '@codemirror/state': ^6.4.1
+      '@codemirror/view': ^6.26.1
+
+  '@coze-editor/vue-components@0.1.0-alpha.879fbb':
+    resolution: {integrity: sha512-8h750O/9PsvwQTixxkI1yxTL2EjsRMkpATAABCOBcRH3Y2R6u6kPouxu4421+2jCEIiHDWPOYU0s/L4WIJ8GaQ==}
+    peerDependencies:
+      '@codemirror/state': ^6.4.1
+      '@codemirror/view': ^6.26.1
+      '@coze-editor/vue': 0.1.0-alpha.879fbb
+      vue: ^3.5.0
+
+  '@coze-editor/vue@0.1.0-alpha.879fbb':
+    resolution: {integrity: sha512-c3Pn9skBMBVKeY1tS+TNlCRE6ay+n79g4LUSzWEoMfywWzMMuqjxytSLDgd3qxLXnPPPNrfq8Ui3fJ+EgSJUsw==}
+    peerDependencies:
+      '@codemirror/state': ^6.4.1
+      '@codemirror/view': ^6.26.1
+      vue: ^3.5.0
 
   '@cspotcode/source-map-support@0.8.1':
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
@@ -846,241 +1138,256 @@ packages:
     resolution: {integrity: sha512-d9zaMRSTIKDLhctzH12MtXvJKSSUhaHcjV+2Z+GK+EEY7XKpP5yR4x+N3TAcHTcu963nIr+TMcCb4DBCYX1z6Q==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
 
-  '@flowgram.ai/background-plugin@0.2.9':
-    resolution: {integrity: sha512-F/H2QkixzYMlpYNRnariIgvJ6cd91rtqfvjffmXeOje2psduULjTs+aKYFlioNJKtpYncMueF3fc/8KaixY6CQ==}
+  '@floating-ui/core@1.7.3':
+    resolution: {integrity: sha512-sGnvb5dmrJaKEZ+LDIpguvdX3bDlEllmv4/ClQ9awcmCZrlx5jQyyMWFM5kBI+EyNOCDDiKk8il0zeuX3Zlg/w==}
+
+  '@floating-ui/dom@1.7.3':
+    resolution: {integrity: sha512-uZA413QEpNuhtb3/iIKoYMSK07keHPYeXF02Zhd6e213j+d1NamLix/mCLxBUDW/Gx52sPH2m+chlUsyaBs/Ag==}
+
+  '@floating-ui/utils@0.2.10':
+    resolution: {integrity: sha512-aGTxbpbg8/b5JfU1HXSrbH3wXZuLPJcNEcZQFMxLs3oSzgtVu6nFPkbbGGUvBcUjKV2YyB9Wxxabo+HEH9tcRQ==}
+
+  '@flowgram.ai/background-plugin@0.4.2':
+    resolution: {integrity: sha512-cMisaxOFn7lxa8wF63+fhM0uYmFQSjXNJDdkABIRdXPdQgQovB0g50IDtwWYJkt4/pTCsO6xpZFUJdwDNbOEQA==}
     peerDependencies:
       react: '>=16.8'
       react-dom: '>=16.8'
 
-  '@flowgram.ai/command@0.2.9':
-    resolution: {integrity: sha512-eBDscuvyO5Nk85Qv/5UHboA4kKzvy5KPaV7PYGdBi400e9AyRpVsJorCeNOs7wN7iAirfLHczMHg3HFW3a7GVw==}
+  '@flowgram.ai/command@0.4.2':
+    resolution: {integrity: sha512-LheSOLJVRXecMjnGbTTimKH0kfwpBZu34JY//o08RvqNYk4WymGXT9rO6aT696L0ehAzg/akSizalSDRrdx5Sw==}
     peerDependencies:
       react: '>=16.8'
       react-dom: '>=16.8'
 
-  '@flowgram.ai/core@0.2.9':
-    resolution: {integrity: sha512-hyeC6fgjk9d/5QWnFahNCUBdlM5TeoN2oJ2eLGkgXUs2WfPjG4fJutj8pfqHRBT4mM4W/VL269DXcOrBc0ST4A==}
+  '@flowgram.ai/core@0.4.2':
+    resolution: {integrity: sha512-OnFbZz12d0fWJrwIL9FeHDZDfKfuk0Yf49ibdeCxyVsZ3slq/B2A132b3cxc9OzkYCPO8canYNiKsL2Q50XfRg==}
     peerDependencies:
       react: '>=16.8'
       react-dom: '>=16.8'
 
-  '@flowgram.ai/document@0.2.9':
-    resolution: {integrity: sha512-N/h+ssidIaCHLcA5R1roHQ95kMXdpgq+a3SoZhr74XtLRh7tDa+B+FPhmvERMcI+6GFe2slNNz/jX6yU4BQcnQ==}
+  '@flowgram.ai/document@0.4.2':
+    resolution: {integrity: sha512-os66dT66pmlXKg9YWUFGemO5z6uS19KnDc7Wl0llZezVLv7EWCZgqfvo6DdmRpQSD2XkX7c6z07dlSjCgKGb0A==}
 
-  '@flowgram.ai/editor@0.2.9':
-    resolution: {integrity: sha512-5g58GT5H91qny3nJHH+7oy4CgH7WDF6/UrumKZM0S6THWeMvXDpGX22Y8eUR/Jm1MeoJfEw2N5BUy+3km+maRA==}
+  '@flowgram.ai/editor@0.4.2':
+    resolution: {integrity: sha512-TRtdzClK+QCs7mF6x5l8IK8SRTdq3SZ6h7C1cHr7xAnItDVZ3mMe+XAjFjXz1KiDMNCjMZOKHjaSWiG4CFOgSw==}
     peerDependencies:
       react: '>=16.8'
       react-dom: '>=16.8'
 
-  '@flowgram.ai/eslint-config@0.2.9':
-    resolution: {integrity: sha512-dLFT8Gc76utOnylZfbrnDVO63boGJ1nkhds760sagJb+0V5eK8RDQZdiTmsazDGgLZwCJkps6oy34cFfdk5tlg==}
+  '@flowgram.ai/eslint-config@0.4.2':
+    resolution: {integrity: sha512-0ij0pw/qIEw6uG8Z3cgsns+nUUjWVMwhd1M4l8VmTt32XFa5ofSpq79nZVDC9CupgpA1rQlU0BemB5EVf+nCfg==}
 
-  '@flowgram.ai/form-core@0.2.9':
-    resolution: {integrity: sha512-rUaep0dXuCn58N5Rh/S3lKvVuXq7LYi0WAgP2ht86+wK5Dbse0Fo38qSbLdE4h0bPHdzOrYC3W0ZBAj4Sa/6hg==}
+  '@flowgram.ai/form-core@0.4.2':
+    resolution: {integrity: sha512-0ZPgH9t1pL+1QzFTSlhULxz7cpVk9MTMGK/UbLK6vWtLgrUU1UpzGo373XhVae97ooipyi13oYNsaIweb1HR+g==}
     peerDependencies:
       react: '>=16.8'
       react-dom: '>=16.8'
 
-  '@flowgram.ai/form-materials@0.2.9':
-    resolution: {integrity: sha512-Ns44uqDc35iRn03qn9XjcedaxvIT46kq9MZv/yOy/0Je+evCnrCjR0ryF+cVbAY8AEzJYGxWMcDOkCj4tR3DLg==}
+  '@flowgram.ai/form-materials@0.4.2':
+    resolution: {integrity: sha512-yor9yKICPCk6oDpyp9w9zkxlLsCVx9t78QK3Md78OQjdsjPIt6J6wJTwsl8zcp+gcnE4G/0vAyYJvoxS6XaT5Q==}
     hasBin: true
     peerDependencies:
       react: '>=16.8'
       react-dom: '>=16.8'
       styled-components: '>=4'
 
-  '@flowgram.ai/form@0.2.9':
-    resolution: {integrity: sha512-+wCCsBA91GYqxDsFmzrYc5Y473eI25Bl8b38wg0AcEXhUkaQ4wmfhAo6RxsU/b1n0TTSCrIwGszIm5MsTC0VqQ==}
+  '@flowgram.ai/form@0.4.2':
+    resolution: {integrity: sha512-vN+6j6Q2mdeXehf3KNbPXl+9RSp6MpxU/8QNu6VyRW233irK3YPvzGAZpvu3WJGoIRE7wkHiFqH4Di6EJsWyvA==}
     peerDependencies:
       react: '>=16.8'
       react-dom: '>=16.8'
 
-  '@flowgram.ai/free-auto-layout-plugin@0.2.9':
-    resolution: {integrity: sha512-75qLz68Zej8zp1shyQ09asWYQiUFYGKzL37mG0tm6TiwdqVVgOsGuCqCfg26HJFp5Ax1pFfyDqOrWPcCk351pw==}
-    peerDependencies:
-      react: '>=16.8'
-      react-dom: '>=16.8'
-      styled-components: '>=4'
-
-  '@flowgram.ai/free-container-plugin@0.2.9':
-    resolution: {integrity: sha512-NrJMm5rx/80CIpq2wgNR1KXIyIDECoTxfUFfH2DHtEH5kA8GuJ4Hqbwcmiyu4GK6Mu4s+yQOADHZyxWKXJWYOA==}
+  '@flowgram.ai/free-auto-layout-plugin@0.4.2':
+    resolution: {integrity: sha512-NhpOIQsIK/icGrUgqja1B7Us3BV9VLPtbA45+PWTy1eDYlMpzyAw6UavRHSJPzMfpGlD3/E9eOrf6gA7qamsJQ==}
     peerDependencies:
       react: '>=16.8'
       react-dom: '>=16.8'
       styled-components: '>=4'
 
-  '@flowgram.ai/free-group-plugin@0.2.9':
-    resolution: {integrity: sha512-S+S8OTfxTbbhMyc3U8lEp1N0aZdrE9vsQmKYvszyRaCUEKLsaLxSrgKcSk3ClyTDh9Q2hkDpnEdAsLADbwJdPQ==}
+  '@flowgram.ai/free-container-plugin@0.4.2':
+    resolution: {integrity: sha512-D5+sJrbCiuSE64cG1SKmc6kHa35ooPXTLCAxNfrO1xCTx87lpU8OuT/HZLkTmxghLdYUjk6JERWyrmFWx8Dqrw==}
     peerDependencies:
       react: '>=16.8'
       react-dom: '>=16.8'
       styled-components: '>=4'
 
-  '@flowgram.ai/free-history-plugin@0.2.9':
-    resolution: {integrity: sha512-JHOJHx9LjpbZ85f7Ni8Q/M5zSGkETZo6d5gYnPdeCPd7ffHaSu0ZKg4lwQBxHEydRnVIprIIrmyZsvc/MPp8ag==}
-    peerDependencies:
-      react: '>=16.8'
-      react-dom: '>=16.8'
-
-  '@flowgram.ai/free-hover-plugin@0.2.9':
-    resolution: {integrity: sha512-sYSN4NakwtS7KxPkqg+GvIGCHrJoy0GQjP2wYG45N70j8MmOU9jPhjM+AIfNNLsCv1Tcj2mvvrfUfrv1fxBkMw==}
-    peerDependencies:
-      react: '>=16.8'
-      react-dom: '>=16.8'
-
-  '@flowgram.ai/free-layout-core@0.2.9':
-    resolution: {integrity: sha512-xLVQbPxlNGPhSD9WiQT2aXMJMzsc2+gOmsunWc0xZILh2uECO8YTu9F7/DsmcZpPB8JRXxMM03+WxyHH9ayVQQ==}
-    peerDependencies:
-      react: '>=16.8'
-      react-dom: '>=16.8'
-
-  '@flowgram.ai/free-layout-editor@0.2.9':
-    resolution: {integrity: sha512-cmCLihSwGQof+D1IybqRoJbxzrxEJ2jnl3Hv1iMuy+gwloamf6lc6pT1wqQMN3lH1jTuySPxUbigt1Eqf+MYZw==}
-    peerDependencies:
-      react: '>=16.8'
-      react-dom: '>=16.8'
-
-  '@flowgram.ai/free-lines-plugin@0.2.9':
-    resolution: {integrity: sha512-nITWaz3Ivy3gYen3WXmT0aE/4IDssDvAJIYB7orpSlnV26PhhP280T+qrjfPsKgD6W391/Hy66zbdPwrYVHrPA==}
+  '@flowgram.ai/free-group-plugin@0.4.2':
+    resolution: {integrity: sha512-LZNXijxNTEoR4nJsPOwRmoXzSimbSd3yPR5D9tmLJpgIYFllj75yDkjXWyt+fY3q3MT73JFC92HCvAh1gWfchQ==}
     peerDependencies:
       react: '>=16.8'
       react-dom: '>=16.8'
       styled-components: '>=4'
 
-  '@flowgram.ai/free-node-panel-plugin@0.2.9':
-    resolution: {integrity: sha512-/GjIDe0FOZ+AkkFRJR2QGV72K9rS/+9kBLQA4F2DDXcEFocH764KW5brjAbcFVhkf5u+QIZZURvp1JD5u46uNg==}
+  '@flowgram.ai/free-history-plugin@0.4.2':
+    resolution: {integrity: sha512-7kkg/vC6by0JgHfay7KAHu/gqeXsedRcZOvGKIn6O5ug1mdT/sgiHbVdsN52BFOHT+lrdwg5MUVvMDnXja/i9g==}
+    peerDependencies:
+      react: '>=16.8'
+      react-dom: '>=16.8'
+
+  '@flowgram.ai/free-hover-plugin@0.4.2':
+    resolution: {integrity: sha512-CApss/V3ZQgjwGym0ZDZlh59vaGML/LA15HtkoL7fFWo34xXlzgZK5MJ8CSua9rJPpdCmknUf+9+o8Gl77wzdg==}
+    peerDependencies:
+      react: '>=16.8'
+      react-dom: '>=16.8'
+
+  '@flowgram.ai/free-layout-core@0.4.2':
+    resolution: {integrity: sha512-v5nPV8crcwN05+KOsYdO3AwtMIFDQIBVU5g+Wufi7Mv2XWKkb6GrSGO3P+H6668mOzxs5OsRbOKbJK6MrueFxg==}
+    peerDependencies:
+      react: '>=16.8'
+      react-dom: '>=16.8'
+
+  '@flowgram.ai/free-layout-editor@0.4.2':
+    resolution: {integrity: sha512-kkX/ADaqQ1ddwT5MLaK1jM44zKTjUcWLVMroiwzZtIiEYC0cU4ZDYgao5vojNbrhtWd2Gsqyr3/ePwlD18SF5g==}
+    peerDependencies:
+      react: '>=16.8'
+      react-dom: '>=16.8'
+
+  '@flowgram.ai/free-lines-plugin@0.4.2':
+    resolution: {integrity: sha512-K2rnaMg+ZgnaIWgH6GI1Ad+U2GTuU20G40s2UZVVQa0xGdGBd4Nfu3rsIIqX/21B54Foi8LUW3ERUQ3K/7yBAw==}
     peerDependencies:
       react: '>=16.8'
       react-dom: '>=16.8'
       styled-components: '>=4'
 
-  '@flowgram.ai/free-snap-plugin@0.2.9':
-    resolution: {integrity: sha512-hPIFD6maZdihCJjFHPYy3KUQ0w2AfSrmTm+UbyQVOorNxCW9S0SNlRQRY/WxS9cL9WIbaXSjXaFnHoLCifAACQ==}
+  '@flowgram.ai/free-node-panel-plugin@0.4.2':
+    resolution: {integrity: sha512-+3CAUswtcVcRS4+p5MX9pIsHgpTvOc24mjLXs+wpELuMRaJBD7Imyj55Ywuo4zoefDChE0Bf2Eu8YdV6uZ7jSQ==}
     peerDependencies:
       react: '>=16.8'
       react-dom: '>=16.8'
       styled-components: '>=4'
 
-  '@flowgram.ai/free-stack-plugin@0.2.9':
-    resolution: {integrity: sha512-ivH41FvZeDkWL1BTT8WNtob50HbalSghUVIgRirxr85WUuNfLcGnOXBLMy5I00a+0O757JL+JqUdqJqlh/GDcw==}
+  '@flowgram.ai/free-snap-plugin@0.4.2':
+    resolution: {integrity: sha512-mUjYae+Ex7IMdtoFM8oA/aCsuX2o0PSKB0CKlPx0lKo5a8Zi1CK7Ew4fRe2T3b8GEl1GuA2oOd7iLX/j+HWb6g==}
     peerDependencies:
       react: '>=16.8'
       react-dom: '>=16.8'
       styled-components: '>=4'
 
-  '@flowgram.ai/group-plugin@0.2.9':
-    resolution: {integrity: sha512-E1phmQ6SKD86PvKLjUV/NrYosXhIdwjadWtBZH/39tBGn+IXBh6IMd+rbxEra0aC4aTCl4FjfTuiOA0kTLi/WQ==}
-    peerDependencies:
-      react: '>=16.8'
-      react-dom: '>=16.8'
-
-  '@flowgram.ai/history-node-plugin@0.2.9':
-    resolution: {integrity: sha512-u2X1u1j5lGf4uub5KtKu41f/w6bGN5MqBeoMIBImmyMmfWJ/L5veZbQi2DQmIAnvBil9GoJlE8ep2eKMQ557tA==}
+  '@flowgram.ai/free-stack-plugin@0.4.2':
+    resolution: {integrity: sha512-DZ5QUEgde2aj/zR8OtM0uQag3fJzrGzXBU6SrLymBy+bOfRSEDDRLfw9oGBK9YkW7F5MnKgOTxRD9XJWkIYXcw==}
     peerDependencies:
       react: '>=16.8'
       react-dom: '>=16.8'
       styled-components: '>=4'
 
-  '@flowgram.ai/history@0.2.9':
-    resolution: {integrity: sha512-SFlE81WUTVwYcerHpVF9sdYunBFy6092Rd46R6eYEJqAHTJwInIlPVyozQCcRvzVIFS6dRJcw0JMI1SvL6Q24A==}
+  '@flowgram.ai/group-plugin@0.4.2':
+    resolution: {integrity: sha512-85KVq6WpBA3fEWRveZ7+ioZ/6BrYyGKEFHLB6CbknhHMhXJShgpYbOhGw54JC1cw0Yn9kT+laAs8Rii1Q4IzzA==}
+    peerDependencies:
+      react: '>=16.8'
+      react-dom: '>=16.8'
 
-  '@flowgram.ai/i18n-plugin@0.2.9':
-    resolution: {integrity: sha512-xw3WP720dYq2LKHzFdW298qNJFrBnZk8wZkKiegmAAvNiK86E0KD4Y1VsZf6kH+ormiTohxBxLhuEWXJigvYFw==}
-
-  '@flowgram.ai/i18n@0.2.9':
-    resolution: {integrity: sha512-deZM4U0FBiHoH21KSJ6GMZ9G1m51mqSbveZTqphw8F5gXU3AKpGLIFhBlcg68txR32L2pjup1b+zDK7vAvStQg==}
-
-  '@flowgram.ai/materials-plugin@0.2.9':
-    resolution: {integrity: sha512-f32sTAtcNq9BJCHK/4stribEd6RrpKwDHIlyPAt8bZy/t3VbQur6TwSL1r9YgjebcgKzYfJJw/lEfkWJ5xwaYQ==}
+  '@flowgram.ai/history-node-plugin@0.4.2':
+    resolution: {integrity: sha512-BV/ibSS77i20uv1k7U2oCnlSNGBctWzumuGoBYkW8ugpM4s3o0jiShtyp1uxpx8MhiLXTYS69fFM5HwsBojDpQ==}
     peerDependencies:
       react: '>=16.8'
       react-dom: '>=16.8'
       styled-components: '>=4'
 
-  '@flowgram.ai/minimap-plugin@0.2.9':
-    resolution: {integrity: sha512-Fft02XQBmoKLl4/VG0HkSpb44DIVllovxNDO30tG6SyVXVmL71UX9+Cst7cuifduLlPnrxAYBOFGJEFq8Zxnww==}
+  '@flowgram.ai/history@0.4.2':
+    resolution: {integrity: sha512-BahP5fZa69xvxksF92ULFXnyNO6PX5iinO52YrM2fwbgEOG9nxoluQrPjE+cIFjr2HI8Vcd1x8lFsDvKVd6qFg==}
+
+  '@flowgram.ai/i18n-plugin@0.4.2':
+    resolution: {integrity: sha512-YHdmzzWnCfr6WRx1+hIhPF/OSLB4rZ2Y2U/cn+pWQVfKDIN5LK+qp2Qao4rw/xx6bD8E6bHsUct7MmeelDKNAw==}
+
+  '@flowgram.ai/i18n@0.4.2':
+    resolution: {integrity: sha512-Sr2wujU2tdVhq0Bn6sbdBqj7YVwDb/jltwlhY76zR23kmEy93sVj9ZwMPRjuadbmTeNm+JmER0PBOaEgUWQHNA==}
+
+  '@flowgram.ai/json-schema@0.4.2':
+    resolution: {integrity: sha512-7+313gpOHcN9HRnTK0zboywvsfIvaOkQU1io0vvVgNLzeMSH54NIkVQYOkUoza2OnhgJsUGu3pO5285EzUD2Sg==}
+    peerDependencies:
+      react: '>=16.8'
+      react-dom: '>=16.8'
+
+  '@flowgram.ai/materials-plugin@0.4.2':
+    resolution: {integrity: sha512-5R0Ty6jJSizcxDmZIWxHQdamohmX9mtjixX0pPr22/9PjskK39MYJi6X4/9ba5y8OTSJa4RZZxqQ0N17f6z2Dw==}
     peerDependencies:
       react: '>=16.8'
       react-dom: '>=16.8'
       styled-components: '>=4'
 
-  '@flowgram.ai/node-core-plugin@0.2.9':
-    resolution: {integrity: sha512-4uF4jSD/9mmHYtj+gISvv51DfqoSCYPg1fvooxbvsokRkl0tDVBRaeQcGDVNKuznVCH4122BxM8noaHv+n8tog==}
+  '@flowgram.ai/minimap-plugin@0.4.2':
+    resolution: {integrity: sha512-ZRgb9fdUXk20kdfE567mCUPsjvXNsiG94pteREU0pFDp24ox6DEdPcK4CeJX//13iWZNcoHxOXhJf0F0qLiDbA==}
     peerDependencies:
       react: '>=16.8'
       react-dom: '>=16.8'
       styled-components: '>=4'
 
-  '@flowgram.ai/node-variable-plugin@0.2.9':
-    resolution: {integrity: sha512-Bi4X9aayqJPvEpT09QTnfy+A820JCahSlLqIT0wzUTpctG8AL1cI9CmN66vZPdkwAaZCdHO09uumdTFUUfggYA==}
+  '@flowgram.ai/node-core-plugin@0.4.2':
+    resolution: {integrity: sha512-3RJL8cH4LUp2oGB5qiTpLSJ/mIoqELkMMSu61SHficQVJQBEYVt7pxoNiA+XENOXnSL45E3LkVq5dCnub9yfhg==}
     peerDependencies:
       react: '>=16.8'
       react-dom: '>=16.8'
       styled-components: '>=4'
 
-  '@flowgram.ai/node@0.2.9':
-    resolution: {integrity: sha512-z3SKw/H3AD5H7GPoStfemRwiEqpkO4u+R83HtulRrMlfBRHqUNOTIWXPgdNW9XOE/NDQB5aFicRcLd25ECBkww==}
+  '@flowgram.ai/node-variable-plugin@0.4.2':
+    resolution: {integrity: sha512-49i0z8VFqOsHeFVDHDfKc3G+rEO9YkVLkvMjWPAPCTDgamm2fRkue83i2vCZK1HQweZ/dgYvXOndMfNhb+2cgQ==}
+    peerDependencies:
+      react: '>=16.8'
+      react-dom: '>=16.8'
+      styled-components: '>=4'
+
+  '@flowgram.ai/node@0.4.2':
+    resolution: {integrity: sha512-p76FCJl1h/1hfQP7jKWiMToJyH/SQ4pqIjONbAjzImw3Wfy0wsy1dlL/aoF9O9ENvQ7WGIQOl5gJnWSPTSa7+Q==}
     peerDependencies:
       react: '>=16.8'
       react-dom: '>=16.8'
 
-  '@flowgram.ai/playground-react@0.2.9':
-    resolution: {integrity: sha512-Vp4n6663Q7ECO3HhfzO33D4/vscDFGq2Da9DfX9pnedBNMhQXQFOdh2YeRDB+bSLCtm3m/eEW9jjCJ5gqTz8HQ==}
+  '@flowgram.ai/playground-react@0.4.2':
+    resolution: {integrity: sha512-yMMLflDxtYBIBqpqEwo/iGw09nSYVQngTF1xPRQXqBNvOLRoH0Ro9GcfNpAFhHhYVxjSyzQEnJVz2Xq774bUWQ==}
     peerDependencies:
       react: '>=16.8'
       react-dom: '>=16.8'
 
-  '@flowgram.ai/reactive@0.2.9':
-    resolution: {integrity: sha512-ErwSMXIHABwJpiRTAa6hQxqIWsP2f7COKKU0eRragAmqnjU3pMpBbuKICI5mGbmFlBPowKJmFfUk6caTeGWs7w==}
+  '@flowgram.ai/reactive@0.4.2':
+    resolution: {integrity: sha512-bbG8LaAD5QrEoOgRELQG4/VTgbVhqFDjKTiwa6DbKq85i4Sj2pdjkLajaBlNBaTTg0juQsF16aeCxRYVqqOrWw==}
     peerDependencies:
       react: '>=16.8'
       react-dom: '>=16.8'
 
-  '@flowgram.ai/redux-devtool-plugin@0.2.9':
-    resolution: {integrity: sha512-C6zO5MFYaV0mnjz6yI1w8SLll9wuBnRUVCy0KttjlRWEpDiN+iIV2QqR6SxpjYw/zM2He0rLpXaTC124YMtsyA==}
+  '@flowgram.ai/redux-devtool-plugin@0.4.2':
+    resolution: {integrity: sha512-gsVxruDzJn2fvzN1uZEvLQ7lCPo37K4rh3qmoOs+dDsc3WWFqvLABLwelTXHq225+4N7hlR91gcMKbiEQr88fQ==}
 
-  '@flowgram.ai/renderer@0.2.9':
-    resolution: {integrity: sha512-Fi4SuiCLnXMNAIaiCZztnq6V3HHuRCa4O2O0Xc2j+U8zna6AtLe2bxx9REpndMgjQEMkmJ3cSDOr3wbAun5jVA==}
+  '@flowgram.ai/renderer@0.4.2':
+    resolution: {integrity: sha512-EBqaImbSknhTw0ho+rTaCBsEtRDpI//1ruznkgoJv+EDXaer2Ci/gDpODfAsTKVBevBn7UHUxaR5EV0A6Xb+Eg==}
     peerDependencies:
       react: '>=16.8'
       react-dom: '>=16.8'
 
-  '@flowgram.ai/runtime-interface@0.2.9':
-    resolution: {integrity: sha512-HhaTJmOERYjCI6AF/PqXe+OdpQVb17ZpRViOmbXECDDu9e8Gn9vKOggE39W7dOl57vJOL76g9ODFqwX0t8Lxlw==}
+  '@flowgram.ai/runtime-interface@0.4.2':
+    resolution: {integrity: sha512-tgJ21BqI4Jxg9115T2yiGfK0nuXzzyvidnyi5VWFsW/IX+OYpizzHULZRpX1MAiqGvArISvRe3+ixLfAE2fobg==}
 
-  '@flowgram.ai/runtime-js@0.2.9':
-    resolution: {integrity: sha512-ij1b6qzOrb3EundFqMpUcsqSAjD+5qs2dD7KJ+j8GaDuvjlYBuls83QFFlL81gqVZsTOzU8JVUoqlKvMhvwmpA==}
+  '@flowgram.ai/runtime-js@0.4.2':
+    resolution: {integrity: sha512-iGiWbqiFUwi12a2rbAnPOXWVDR5/JUFBoq0zj4BxsX5Um6sodLv6OrnVdH0PlG2ughZQ40RMUwp2jxs9ztR5Yw==}
 
-  '@flowgram.ai/select-box-plugin@0.2.9':
-    resolution: {integrity: sha512-Kx77dBFAb22Lcd0UHez9/gVncx8ADOdkxeVJCJXw4Vcn4lZq7hQFAxAPEf9jZqSwXxlA41UmYUiyPKwlCOSDuQ==}
+  '@flowgram.ai/select-box-plugin@0.4.2':
+    resolution: {integrity: sha512-ZfnMFybJfx+5QapH70J3KOhaEjYkGjxUFXGYfPfm5euqWvYMPaDJ4i9dGX4BLC5t6B/h4lqa/ZO9PBiJpa7VXw==}
     peerDependencies:
       react: '>=16.8'
       react-dom: '>=16.8'
 
-  '@flowgram.ai/shortcuts-plugin@0.2.9':
-    resolution: {integrity: sha512-LbDbae78UA1hiVIwKhDh+mZ/99diUixr8wmrGY5U+8NGjzLON1XhyUJLJhrmk5+LsiOixjs3fLyMEJuHfNP7tw==}
+  '@flowgram.ai/shortcuts-plugin@0.4.2':
+    resolution: {integrity: sha512-tzbPrLWG3hJEOSLWbonfQJW1d9NCZ5aNd6bvzGaVfm7t6/FdgN15iq0s3uPfv7J8B1IG8sFcdMwop5Ykzyf1eQ==}
 
-  '@flowgram.ai/ts-config@0.2.9':
-    resolution: {integrity: sha512-1KRsbt3lRYKe6UKw3ntwNOCH1+o1yQC3IN5vXjNtBtlsW0x50pbCc2XvNOWjFEqH2ijLgVS91UbrOwYo5mozcQ==}
+  '@flowgram.ai/ts-config@0.4.2':
+    resolution: {integrity: sha512-PKZp/n6/BhU9To+cz140rZu+3qFhy1NNcPpcArCMKhtLEOQdwqQUtM7hM7iCQnjYHErxnNZscrKhl9V+uwIwtQ==}
 
-  '@flowgram.ai/utils@0.2.9':
-    resolution: {integrity: sha512-xaaHPf2avidtnjWvH7uByUcKuokpo0DaVxaoMWJVALfSNryBsXjInHgbLlA8oFtKki7ho/alR34jl5pD9gNS4g==}
+  '@flowgram.ai/utils@0.4.2':
+    resolution: {integrity: sha512-O6l0Grj2WBFTfKaGxMpkWi9xAlcWC+kaxhrO2g1vbwm1UEXJ79XM2lFcUxqt333ReDNMPwGtETtUAduMTTmf9w==}
     peerDependencies:
       react: '>=16.8'
       react-dom: '>=16.8'
 
-  '@flowgram.ai/variable-core@0.2.9':
-    resolution: {integrity: sha512-hKmju+kIx2F0gqAXTmNM9JXgRg8/gmjWtsv4zZewXYnczW4zfYdf/+LrP5YnTmj4Jg2pBYqohFgo0PFvLK1Hqg==}
+  '@flowgram.ai/variable-core@0.4.2':
+    resolution: {integrity: sha512-9T9PqN9umWmc+ieZXnLQcdB3NXSgbJgorVHg6XHfth23hgIZAgMWOQJ8n/x/i6p/wuDDaW2Gp9kxJi0BqqGf3A==}
     peerDependencies:
       react: '>=16.8'
       react-dom: '>=16.8'
 
-  '@flowgram.ai/variable-layout@0.2.9':
-    resolution: {integrity: sha512-vSK8qWHzKJXfrJEy4wQj+c/ntqDrc3Hp7upqX1Wfky1tQFmzlMcPeUbkXwWD5eFQRYx1KaTUeZ5YAZv97cXDHg==}
+  '@flowgram.ai/variable-layout@0.4.2':
+    resolution: {integrity: sha512-9FZbKn5hXSQD0j8cNtscHdYs8bE6a4cFXN8KS6NHxzWfFTRdZPs1MlJ69LrZAzeGAphKBmaYcRc0Cp/jJW5ONA==}
 
-  '@flowgram.ai/variable-plugin@0.2.9':
-    resolution: {integrity: sha512-W3UqxZdO9Edk9x0uWwNGz7+jqZG7ObPeqc6IRlqJu92iQ9jWU4YwrniSYznWSZvTFxqLunw4vnJ6TQVHANFulw==}
+  '@flowgram.ai/variable-plugin@0.4.2':
+    resolution: {integrity: sha512-uGOBGcNsZXHE5Io1nhoISO9iY8CUQWJkvENjG5c7vBxAgHM/7QIkuuotqkKUkJNO5EDahvegYKidPxhnzf8V8Q==}
 
   '@humanwhocodes/config-array@0.13.0':
     resolution: {integrity: sha512-DZLEEqFWQFiyK6h5YIeynKx7JlvCYWL0cImfSRXZ9l4Sg2efkFGTuFf6vzXjK1cq6IYkU+Eg/JizXw+TD2vRNw==}
@@ -1148,6 +1455,41 @@ packages:
     peerDependencies:
       '@langchain/core': '>=0.3.48 <0.4.0'
 
+  '@lezer/common@1.2.3':
+    resolution: {integrity: sha512-w7ojc8ejBqr2REPsWxJjrMFsA/ysDCFICn8zEOR9mrqzOu2amhITYuLD8ag6XZf0CFXDrhKqw7+tW8cX66NaDA==}
+
+  '@lezer/highlight@1.2.1':
+    resolution: {integrity: sha512-Z5duk4RN/3zuVO7Jq0pGLJ3qynpxUVsh7IbUbGj88+uV2ApSAn6kWg2au3iJb+0Zi7kKtqffIESgNcRXWZWmSA==}
+
+  '@lezer/html@1.3.10':
+    resolution: {integrity: sha512-dqpT8nISx/p9Do3AchvYGV3qYc4/rKr3IBZxlHmpIKam56P47RSHkSF5f13Vu9hebS1jM0HmtJIwLbWz1VIY6w==}
+
+  '@lezer/javascript@1.5.1':
+    resolution: {integrity: sha512-ATOImjeVJuvgm3JQ/bpo2Tmv55HSScE2MTPnKRMRIPx2cLhHGyX2VnqpHhtIV1tVzIjZDbcWQm+NCTF40ggZVw==}
+
+  '@lezer/json@1.0.3':
+    resolution: {integrity: sha512-BP9KzdF9Y35PDpv04r0VeSTKDeox5vVr3efE7eBbx3r4s3oNLfunchejZhjArmeieBH+nVOpgIiBJpEAv8ilqQ==}
+
+  '@lezer/lr@1.4.2':
+    resolution: {integrity: sha512-pu0K1jCIdnQ12aWNaAVU5bzi7Bd1w54J3ECgANPmYLtQKP0HBj2cE/5coBD66MT10xbtIuUr7tg0Shbsvk0mDA==}
+
+  '@lezer/markdown@1.4.3':
+    resolution: {integrity: sha512-kfw+2uMrQ/wy/+ONfrH83OkdFNM0ye5Xq96cLlaCy7h5UT9FO54DU4oRoIc0CSBh5NWmWuiIJA7NGLMJbQ+Oxg==}
+
+  '@lezer/python@1.1.18':
+    resolution: {integrity: sha512-31FiUrU7z9+d/ElGQLJFXl+dKOdx0jALlP3KEOsGTex8mvj+SoE1FgItcHWK/axkxCHGUSpqIHt6JAWfWu9Rhg==}
+
+  '@lukeed/csprng@1.1.0':
+    resolution: {integrity: sha512-Z7C/xXCiGWsg0KuKsHTKJxbWhpI3Vs5GwLfOean7MGyVFGqdRgBbAjOCh6u4bbjPc/8MJ2pZmK/0DLdCbivLDA==}
+    engines: {node: '>=8'}
+
+  '@lukeed/uuid@2.0.1':
+    resolution: {integrity: sha512-qC72D4+CDdjGqJvkFMMEAtancHUQ7/d/tAiHf64z8MopFDmcrtbcJuerDtFceuAfQJ2pDSfCKCtbqoGBNnwg0w==}
+    engines: {node: '>=8'}
+
+  '@marijn/find-cluster-break@1.0.2':
+    resolution: {integrity: sha512-l0h88YhZFyKdXIFNfSWpyjStDjGHwZ/U7iobcK1cQQD8sejsONdQtTVU+1wVN1PBw40PiiHB1vA5S7VTfQiP9g==}
+
   '@mdx-js/mdx@3.1.0':
     resolution: {integrity: sha512-/QxEhPAvGwbQmy1Px8F899L5Uc2KZ6JtXwlCgJmjSTBedwOZkByYcBG4GceIGPXRDsmfxhHazuS+hlOShRLeDw==}
 
@@ -1196,6 +1538,9 @@ packages:
   '@nolyfill/is-core-module@1.0.39':
     resolution: {integrity: sha512-nn5ozdjYQpUCZlWGuxcJY/KpxkWQs4DcbMCmKojjyrYDEAGy4Ce19NN4v5MduafTwJlbKc99UA8YhSVqq9yPZA==}
     engines: {node: '>=12.4.0'}
+
+  '@nozbe/microfuzz@1.0.0':
+    resolution: {integrity: sha512-XKIg/guk+s1tkPTkHch9hfGOWgsKojT7BqSQddXTppOfVr3SWQhhTCqbgQaPTbppf9gc2kFeG0gpBZZ612UXHA==}
 
   '@phosphor/algorithm@1.2.0':
     resolution: {integrity: sha512-C9+dnjXyU2QAkWCW6QVDGExk4hhwxzAKf5/FIuYlHAI9X5vFv99PYm0EREDxX1PbMuvfFBZhPNu0PvuSDQ7sFA==}
@@ -1336,6 +1681,27 @@ packages:
   '@rushstack/tree-pattern@0.2.4':
     resolution: {integrity: sha512-H8i0OinWsdKM1TKEKPeRRTw85e+/7AIFpxm7q1blceZJhuxRBjCGAUZvQXZK4CMLx75xPqh/h1t5WHwFmElAPA==}
 
+  '@shikijs/core@3.11.0':
+    resolution: {integrity: sha512-oJwU+DxGqp6lUZpvtQgVOXNZcVsirN76tihOLBmwILkKuRuwHteApP8oTXmL4tF5vS5FbOY0+8seXmiCoslk4g==}
+
+  '@shikijs/engine-javascript@3.11.0':
+    resolution: {integrity: sha512-6/ov6pxrSvew13k9ztIOnSBOytXeKs5kfIR7vbhdtVRg+KPzvp2HctYGeWkqv7V6YIoLicnig/QF3iajqyElZA==}
+
+  '@shikijs/engine-oniguruma@3.11.0':
+    resolution: {integrity: sha512-4DwIjIgETK04VneKbfOE4WNm4Q7WC1wo95wv82PoHKdqX4/9qLRUwrfKlmhf0gAuvT6GHy0uc7t9cailk6Tbhw==}
+
+  '@shikijs/langs@3.11.0':
+    resolution: {integrity: sha512-Njg/nFL4HDcf/ObxcK2VeyidIq61EeLmocrwTHGGpOQx0BzrPWM1j55XtKQ1LvvDWH15cjQy7rg96aJ1/l63uw==}
+
+  '@shikijs/themes@3.11.0':
+    resolution: {integrity: sha512-BhhWRzCTEk2CtWt4S4bgsOqPJRkapvxdsifAwqP+6mk5uxboAQchc0etiJ0iIasxnMsb764qGD24DK9albcU9Q==}
+
+  '@shikijs/types@3.11.0':
+    resolution: {integrity: sha512-RB7IMo2E7NZHyfkqAuaf4CofyY8bPzjWPjJRzn6SEak3b46fIQyG6Vx5fG/obqkfppQ+g8vEsiD7Uc6lqQt32Q==}
+
+  '@shikijs/vscode-textmate@10.0.2':
+    resolution: {integrity: sha512-83yeghZ2xxin3Nj8z1NMd/NCuca+gsYXswywDy5bHvwlWL8tpTQmzGeUuHd9FC3E/SBEMvzJRwWEOz5gGes9Qg==}
+
   '@swc/helpers@0.5.15':
     resolution: {integrity: sha512-JQ5TuMi45Owi4/BIMAJBoSQoOJu12oOk/gADqlcUL9JEdHB8vyjUSsxqeNXnmXHjYKMi2WcYtezGEEhqUI/E2g==}
 
@@ -1371,6 +1737,9 @@ packages:
 
   '@types/estree@1.0.7':
     resolution: {integrity: sha512-w28IoSUCJpidD/TGviZwwMJckNESJZXFu7NBZ5YJ4mEUnNraUn9Pm8HSZm/jDF1pDWYKspWE7oVphigUPRakIQ==}
+
+  '@types/hash-sum@1.0.2':
+    resolution: {integrity: sha512-UP28RddqY8xcU0SCEp9YKutQICXpaAq9N8U2klqF5hegGha7KzTOL8EdhIIV3bOSGBzjEpN9bU/d+nNZBdJYVw==}
 
   '@types/hast@3.0.4':
     resolution: {integrity: sha512-WPs+bbQw5aCj+x6laNGWLH3wviHtoCv/P3+otBhbOhJgG8qtpdAMlTCxLtsTWA7LH1Oh/bFCHsBn0TPS5m30EQ==}
@@ -1556,6 +1925,11 @@ packages:
     resolution: {integrity: sha512-JJtkDduxLi9bivAB+cYOVMtbkqdPOhZ+ZI5LC47MIRrDV4Yn2o+ZnW10Nkmr28xRpSpdJ6Sm42Hjf2+REYXm0A==}
     engines: {node: ^16.0.0 || >=18.0.0}
 
+  '@typescript/vfs@1.6.1':
+    resolution: {integrity: sha512-JwoxboBh7Oz1v38tPbkrZ62ZXNHAk9bJ7c9x0eI5zBfBnBYGhURdbnh7Z4smN/MV48Y5OCcZb58n972UtbazsA==}
+    peerDependencies:
+      typescript: '*'
+
   '@ungap/structured-clone@1.3.0':
     resolution: {integrity: sha512-WmoN8qaIAo7WTYWbAZuG8PYEhn5fkz7dZrqTBZ7dtt//lL2Gwms1IcnQ5yHqjDfX8Ft5j4YzDM23f87zBfDe9g==}
 
@@ -1639,6 +2013,38 @@ packages:
     resolution: {integrity: sha512-XBWpUP0mHya6yGBwNefhyEa6V7HgYKCxEAY4qhTm/PcAQyBPNmjj97VZJOJkVdUsyuuii7xmq0pXWX/c2aToHQ==}
     cpu: [x64]
     os: [win32]
+
+  '@vscode/l10n@0.0.18':
+    resolution: {integrity: sha512-KYSIHVmslkaCDyw013pphY+d7x1qV8IZupYfeIfzNA+nsaWHbn5uPuQRvdRFsa9zFzGeudPuoGoZ1Op4jrJXIQ==}
+
+  '@vue/compiler-core@3.5.18':
+    resolution: {integrity: sha512-3slwjQrrV1TO8MoXgy3aynDQ7lslj5UqDxuHnrzHtpON5CBinhWjJETciPngpin/T3OuW3tXUf86tEurusnztw==}
+
+  '@vue/compiler-dom@3.5.18':
+    resolution: {integrity: sha512-RMbU6NTU70++B1JyVJbNbeFkK+A+Q7y9XKE2EM4NLGm2WFR8x9MbAtWxPPLdm0wUkuZv9trpwfSlL6tjdIa1+A==}
+
+  '@vue/compiler-sfc@3.5.18':
+    resolution: {integrity: sha512-5aBjvGqsWs+MoxswZPoTB9nSDb3dhd1x30xrrltKujlCxo48j8HGDNj3QPhF4VIS0VQDUrA1xUfp2hEa+FNyXA==}
+
+  '@vue/compiler-ssr@3.5.18':
+    resolution: {integrity: sha512-xM16Ak7rSWHkM3m22NlmcdIM+K4BMyFARAfV9hYFl+SFuRzrZ3uGMNW05kA5pmeMa0X9X963Kgou7ufdbpOP9g==}
+
+  '@vue/reactivity@3.5.18':
+    resolution: {integrity: sha512-x0vPO5Imw+3sChLM5Y+B6G1zPjwdOri9e8V21NnTnlEvkxatHEH5B5KEAJcjuzQ7BsjGrKtfzuQ5eQwXh8HXBg==}
+
+  '@vue/runtime-core@3.5.18':
+    resolution: {integrity: sha512-DUpHa1HpeOQEt6+3nheUfqVXRog2kivkXHUhoqJiKR33SO4x+a5uNOMkV487WPerQkL0vUuRvq/7JhRgLW3S+w==}
+
+  '@vue/runtime-dom@3.5.18':
+    resolution: {integrity: sha512-YwDj71iV05j4RnzZnZtGaXwPoUWeRsqinblgVJwR8XTXYZ9D5PbahHQgsbmzUvCWNF6x7siQ89HgnX5eWkr3mw==}
+
+  '@vue/server-renderer@3.5.18':
+    resolution: {integrity: sha512-PvIHLUoWgSbDG7zLHqSqaCoZvHi6NNmfVFOqO+OnwvqMz/tqQr3FuGWS8ufluNddk7ZLBJYMrjcw1c6XzR12mA==}
+    peerDependencies:
+      vue: 3.5.18
+
+  '@vue/shared@3.5.18':
+    resolution: {integrity: sha512-cZy8Dq+uuIXbxCZpuLd2GJdeSO/lIzIspC2WtkqIpje5QyFbvLaI5wZtdUjLHjGZrlVX6GilejatWwVYYRc8tA==}
 
   '@webassemblyjs/ast@1.14.1':
     resolution: {integrity: sha512-nuBEDgQfm1ccRp/8bCQrx1frohyufl4JlbMMZ4P1wpeOfDhF6FQkxZJ1b/e+PLwr6X1Nhw6OLme5usuBWYBvuQ==}
@@ -1883,6 +2289,9 @@ packages:
   bezier-js@6.1.4:
     resolution: {integrity: sha512-PA0FW9ZpcHbojUCMu28z9Vg/fNkwTj5YhusSAjHHDfHDGLxJ6YUKrAN2vk1fP2MMOxVw4Oko16FMlRGVBGqLKg==}
 
+  bignumber.js@9.3.1:
+    resolution: {integrity: sha512-Ko0uX15oIUS7wJ3Rb30Fs6SkVbLmPBAKdlm7q9+ak9bbIeFf0MwuBsQV6z7+X768/cHsfg+WlysDWJcmthjsjQ==}
+
   binary-extensions@2.3.0:
     resolution: {integrity: sha512-Ceh+7ox5qe7LJuLHoY0feh3pHuUDHAcRUeyL2VYghZwfpkNIy/+8Ocg0a3UuSoYzavmylwuLWQOf3hl0jjMMIw==}
     engines: {node: '>=8'}
@@ -1998,6 +2407,13 @@ packages:
     resolution: {integrity: sha512-EcR6r5a8bj6pu3ycsa/E/cKVGuTgZJZdsyUYHOksG/UHIiKfjxzRxYJpyVBwYaQeOvghal9fcc4PidlgzugAQg==}
     engines: {node: '>=6'}
 
+  codemirror-shiki@0.2.5:
+    resolution: {integrity: sha512-EFtjSYtT0osdjM4HLek5juVu8QVmG7E58Dib91yOO/vhGj+i3b63PyD8UF+PWXRTRaZa6q5Z6J02Iq0M/u0fHQ==}
+    peerDependencies:
+      '@codemirror/state': ^6
+      '@codemirror/view': ^6
+      shiki: '>=2.0.0'
+
   collapse-white-space@2.1.0:
     resolution: {integrity: sha512-loKTxY1zCOuG4j9f6EPnuyyYkf58RnhhWTvRoZEokgB+WbdXehfjFviyOVYkqzEWz1Q5kRiZdBYS5SwxbQYwzw==}
 
@@ -2011,6 +2427,9 @@ packages:
   combined-stream@1.0.8:
     resolution: {integrity: sha512-FQN4MRfuJeHf7cBbBMJFXhKSDq+2kAArBlmRBvcvFE5BB1HZKXtSFASDhdlz9zOYwxh8lDdnvmMOe/+5cdoEdg==}
     engines: {node: '>= 0.8'}
+
+  comlink@4.4.2:
+    resolution: {integrity: sha512-OxGdvBmJuNKSCMO4NTl1L47VRp6xn2wG4F/2hYzB6tiCb709otOxtEYCSvK80PtjODfXXZu8ds+Nw5kVCjqd2g==}
 
   comma-separated-tokens@2.0.3:
     resolution: {integrity: sha512-Fu4hJdvzeylCfQPp9SGWidpzrMs7tTrlu6Vb8XGaRGck8QSNZJJp538Wrb60Lax4fPwR64ViY468OIUTbRlGZg==}
@@ -2059,6 +2478,9 @@ packages:
 
   create-require@1.1.1:
     resolution: {integrity: sha512-dcKFX3jn0MpIaXjisoRvexIJVEKzaq7z2rZKxf+MSr9TkdmHmsU4m2lcLojrj/FHl8mk5VxMmYA+ftRkP/3oKQ==}
+
+  crelt@1.0.6:
+    resolution: {integrity: sha512-VQ2MBenTq1fWZUH9DJNGti7kKv6EeAuYr3cLwxUWhIu1baTaXh4Ib5W2CqHVqib4/MqbYGJqiL3Zb8GJZr3l4g==}
 
   cross-env@7.0.3:
     resolution: {integrity: sha512-+/HKd6EgcQCJGh2PSjZuUitQBQynKor4wrFbRg4DtAgS1aWO+gU52xpH7M9ScGgXSYmAVS9bIJ8EzuaGw0oNAw==}
@@ -2211,6 +2633,10 @@ packages:
     resolution: {integrity: sha512-ZSW3ma5GkcQBIpwZTSRAI8N71Uuwgs93IezB7mf7R60tC8ZbJideoDNKjHn2O9KIlx6rkGTTEk1xUCK2E1Y2Yg==}
     engines: {node: '>=10.13.0'}
 
+  entities@4.5.0:
+    resolution: {integrity: sha512-V0hjH4dGPh9Ao5p0MoRY6BVqtwCjhz6vI5LT8AJ55H+4g9/4vbHx1I54fS0XuclLhDHArPQCiMjDxjaL8fPxhw==}
+    engines: {node: '>=0.12'}
+
   env-paths@2.2.1:
     resolution: {integrity: sha512-+h1lkLKhZMTYjog1VEpJNG7NZJWcuc2DDk/qsqSTRRCOXiLjeQ1d1/udrUGhqMxUgAlwKNZ0cf2uqan5GLuS2A==}
     engines: {node: '>=6'}
@@ -2255,6 +2681,9 @@ packages:
   es-to-primitive@1.3.0:
     resolution: {integrity: sha512-w+5mJ3GuFL+NjVtJlvydShqE1eN3h3PbI7/5LAsYJP/2qtuMXjfL2LpHSRqo4b4eSF5K/DH1JXKUAHSB2UW50g==}
     engines: {node: '>= 0.4'}
+
+  es-toolkit@1.39.10:
+    resolution: {integrity: sha512-E0iGnTtbDhkeczB0T+mxmoVlT4YNweEKBLq7oaU4p11mecdsZpNWOglI4895Vh4usbQ+LsJiuLuI2L0Vdmfm2w==}
 
   esast-util-from-estree@2.0.0:
     resolution: {integrity: sha512-4CyanoAudUSBAn5K13H4JhsMH6L9ZP7XbLVe/dKybkxMO7eDyLsT8UHl9TRNrU2Gr9nz+FovfSIjuXWJ81uVwQ==}
@@ -2445,6 +2874,9 @@ packages:
 
   estree-util-visit@2.0.0:
     resolution: {integrity: sha512-m5KgiH85xAhhW8Wta0vShLcUvOsh3LLPI2YVwcbio1l7E09NTLL1EyMZFM1OyWowoH0skScNbhOPl4kcBgzTww==}
+
+  estree-walker@2.0.2:
+    resolution: {integrity: sha512-Rfkk/Mp/DL7JVje3u18FxFujQlTNR2q6QfMSMB7AvCBx91NGj/ba3kCfza0f6dVDbw7YlRf/nDrn7pQrCCyQ/w==}
 
   estree-walker@3.0.3:
     resolution: {integrity: sha512-7RUKfXgSMMkzt6ZuXmqapOurLGPPfgj6l9uRZ7lRGolvk0y2yocc35LdcxKC5PQZdn2DMqioAQ2NoWcrTKmm6g==}
@@ -2664,12 +3096,18 @@ packages:
     resolution: {integrity: sha512-NqADB8VjPFLM2V0VvHUewwwsw0ZWBaIdgo+ieHtK3hasLz4qeCRjYcqfB6AQrBggRKppKF8L52/VqdVsO47Dlw==}
     engines: {node: '>= 0.4'}
 
+  hash-sum@2.0.0:
+    resolution: {integrity: sha512-WdZTbAByD+pHfl/g9QSsBIIwy8IT+EsPiKDs0KNX+zSHhdDLFKdZu0BQHljvO+0QI/BasbMSUa8wYNCZTvhslg==}
+
   hasown@2.0.2:
     resolution: {integrity: sha512-0hJU9SCPvmMzIBdZFqNPXWa6dqh7WdH0cII9y+CyS8rG3nL48Bclra9HmKhVVUHyPWNH5Y7xDwAB7bfgSjkUMQ==}
     engines: {node: '>= 0.4'}
 
   hast-util-to-estree@3.1.3:
     resolution: {integrity: sha512-48+B/rJWAp0jamNbAAf9M7Uf//UVqAoMmgXhBdxTDJLGKY+LRnZ99qcG+Qjl5HfMpYNzS5v4EAwVEF34LeAj7w==}
+
+  hast-util-to-html@9.0.5:
+    resolution: {integrity: sha512-OguPdidb+fbHQSU4Q4ZiLKnzWo8Wwsf5bZfbvu7//a9oTYoqD/fWpe96NuHkoS9h0ccGOTe0C4NGXdtS0iObOw==}
 
   hast-util-to-jsx-runtime@2.3.6:
     resolution: {integrity: sha512-zl6s8LwNyo1P9uw+XJGvZtdFF1GdAkOg8ujOw+4Pyb76874fLps4ueHXDhXWdk6YHQ6OgUtinliG7RsYvCbbBg==}
@@ -2683,8 +3121,14 @@ packages:
   html-entities@2.6.0:
     resolution: {integrity: sha512-kig+rMn/QOVRvr7c86gQ8lWXq+Hkv6CbAH1hLu+RG338StTpE8Z0b44SDVaqVu7HGKf27frdmUYEs9hTUX/cLQ==}
 
+  html-void-elements@3.0.0:
+    resolution: {integrity: sha512-bEqo66MRXsUGxWHV5IP0PUiAWwoEjba4VCzg0LjFJBpchPaTfyfCKTG6bc5F8ucKec3q5y6qOdGyYTSBEvhCrg==}
+
   humanize-ms@1.2.1:
     resolution: {integrity: sha512-Fl70vYtsAFb/C06PTS9dZBo7ihau+Tu/DNCk/OyHhea07S+aeMWpFFkUaXRa8fI+ScZbEI8dfSxwY7gxZ9SAVQ==}
+
+  i18n-js@4.5.1:
+    resolution: {integrity: sha512-n7jojFj1WC0tztgr0I8jqTXuIlY1xNzXnC3mjKX/YjJhimdM+jXM8vOmn9d3xQFNC6qDHJ4ovhdrGXrRXLIGkA==}
 
   iconv-lite@0.4.24:
     resolution: {integrity: sha512-v3MXnZAcvnywkTUEZomIActle7RXXeedOR31wwl7VlyoXO4Qi9arvSenNQWne1TcRwhCL1HwLI21bEqdpj8/rA==}
@@ -2897,6 +3341,24 @@ packages:
   jju@1.4.0:
     resolution: {integrity: sha512-8wb9Yw966OSxApiCt0K3yNJL8pnNeIv+OEq2YMidz4FKP6nonSRoOXc80iXY4JaN2FC11B9qsNmDsm+ZOfMROA==}
 
+  jotai@2.13.1:
+    resolution: {integrity: sha512-cRsw6kFeGC9Z/D3egVKrTXRweycZ4z/k7i2MrfCzPYsL9SIWcPXTyqv258/+Ay8VUEcihNiE/coBLE6Kic6b8A==}
+    engines: {node: '>=12.20.0'}
+    peerDependencies:
+      '@babel/core': '>=7.0.0'
+      '@babel/template': '>=7.0.0'
+      '@types/react': '>=17.0.0'
+      react: '>=17.0.0'
+    peerDependenciesMeta:
+      '@babel/core':
+        optional: true
+      '@babel/template':
+        optional: true
+      '@types/react':
+        optional: true
+      react:
+        optional: true
+
   js-tiktoken@1.0.20:
     resolution: {integrity: sha512-Xlaqhhs8VfCd6Sh7a1cFkZHQbYTLCwVJJWiHVxBYzLPxW0XsoxBy1hitmjkdIjD3Aon5BXLHFwU5O8WUx6HH+A==}
 
@@ -3017,8 +3479,18 @@ packages:
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
 
+  lz-string@1.5.0:
+    resolution: {integrity: sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ==}
+    hasBin: true
+
+  magic-string@0.30.17:
+    resolution: {integrity: sha512-sNPKHvyjVf7gyjwS4xGTaW/mCnF8wnjtifKBEhxfZ7E/S8tQ0rssrwGNn6q8JH/ohItJfSQp9mBtQYuTlH5QnA==}
+
   make-error@1.3.6:
     resolution: {integrity: sha512-s8UhlNe7vPKomQhC1qFelMokr/Sc3AgNbso3n74mVPA5LTZwkB9NlXf4XPamLxJE8h0gh73rM94xvwRT2CVInw==}
+
+  make-plural@7.4.0:
+    resolution: {integrity: sha512-4/gC9KVNTV6pvYg2gFeQYTW3mWaoJt7WZE5vrp1KnQDgW92JtYZnzmZT81oj/dUTqAIu0ufI2x3dkgu3bB1tYg==}
 
   markdown-extensions@2.0.0:
     resolution: {integrity: sha512-o5vL7aDWatOTX8LzaS1WMoaoxIiLRQJuIKKe2wAw6IeULDHaqbiqiggmx+pKvZDb1Sj+pE46Sn1T7lCqfFtg1Q==}
@@ -3026,6 +3498,17 @@ packages:
 
   markdown-table@3.0.4:
     resolution: {integrity: sha512-wiYz4+JrLyb/DqW2hkFJxP7Vd7JuTDm77fvbM8VfEQdmSMqcImWeeRbHwZjBjIFki/VaMK2BhFi7oUUZeM5bqw==}
+
+  marked-shiki@1.2.1:
+    resolution: {integrity: sha512-yHxYQhPY5oYaIRnROn98foKhuClark7M373/VpLxiy5TrDu9Jd/LsMwo8w+U91Up4oDb9IXFrP0N1MFRz8W/DQ==}
+    peerDependencies:
+      marked: '>=7.0.0'
+      shiki: '>=1.0.0'
+
+  marked@15.0.12:
+    resolution: {integrity: sha512-8dD6FusOQSrpv9Z1rdNMdlSgQOIP880DHqnohobOmYLElGEqAL/JvxvuxZO16r4HtjTlfPRDC1hbvxC9dPN2nA==}
+    engines: {node: '>= 18'}
+    hasBin: true
 
   math-intrinsics@1.1.0:
     resolution: {integrity: sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==}
@@ -3228,6 +3711,9 @@ packages:
     resolution: {integrity: sha512-qOOzS1cBTWYF4BH8fVePDBOO9iptMnGUEZwNc/cMWnTV2nVLZ7VoNWEPHkYczZA0pdoA7dl6e7FL659nX9S2aw==}
     engines: {node: '>=16 || 14 >=14.17'}
 
+  mitt@3.0.1:
+    resolution: {integrity: sha512-vKivATfr97l2/QBCYAkXYDbrIWPM2IIKEl7YPhjCvKlG3kE2gm+uBo6nEXK3M5/Ffh/FLpKExzOQ3JJoJGFKBw==}
+
   monaco-editor@0.52.2:
     resolution: {integrity: sha512-GEQWEZmfkOGLdd3XK8ryrfWz3AIP8YymVXiPHEdewrUq7mh0qrKrfHLNCXcbB6sTnMLnOZ3ztSiKcciFUkIJwQ==}
 
@@ -3333,6 +3819,12 @@ packages:
     resolution: {integrity: sha512-kbpaSSGJTWdAY5KPVeMOKXSrPtr8C8C7wodJbcsd51jRnmD+GZu8Y0VoU6Dm5Z4vWr0Ig/1NKuWRKf7j5aaYSg==}
     engines: {node: '>=6'}
 
+  oniguruma-parser@0.12.1:
+    resolution: {integrity: sha512-8Unqkvk1RYc6yq2WBYRj4hdnsAxVze8i7iPfQr8e4uSP3tRv0rpZcbGUDvxfQQcdwHt/e9PrMvGCsa8OqG9X3w==}
+
+  oniguruma-to-es@4.3.3:
+    resolution: {integrity: sha512-rPiZhzC3wXwE59YQMRDodUwwT9FZ9nNBwQQfsd1wfdtlKEyCdRV0avrTcSZ5xlIvGRVPd/cx6ZN45ECmS39xvg==}
+
   openai@4.104.0:
     resolution: {integrity: sha512-p99EFNsA/yX6UhVO93f5kJsDRLAg+CTA2RBqdHK4RtK8u5IJw32Hyb2dTGKbnnFmnuoBv5r7Z2CURI9sGZpSuA==}
     hasBin: true
@@ -3356,6 +3848,9 @@ packages:
   os-tmpdir@1.0.2:
     resolution: {integrity: sha512-D2FR03Vir7FIu45XBY20mTb+/ZSWB00sjU9jdQXt83gDrI4Ztz5Fs7/yy74g2N5SVQY4xY1qDr4rNddwYRVX0g==}
     engines: {node: '>=0.10.0'}
+
+  overlayscrollbars@2.11.5:
+    resolution: {integrity: sha512-vTUfCtjJbTjiarrxl9qdK04ZxlQdB4ugXfiqctVZytYDXH259OM4whROMGDE6T8uCYmSYPqiOFIKZ1erVkJnFg==}
 
   own-keys@1.0.1:
     resolution: {integrity: sha512-qFOyK5PjiWZd+QQIh+1jhdb9LpxTF0qs7Pm8o5QHYZ0M3vKqSqzsZaEB6oWlxZ+q2sJBMI/Ktgd2N5ZwQoRHfg==}
@@ -3499,6 +3994,10 @@ packages:
     resolution: {integrity: sha512-dle9A3yYxlBSrt8Fu+IpjGT8SY8hN0mlaA6GY8t0P5PjIOZemULz/E2Bnm/2dcUOena75OTNkHI76uZBNUUq3A==}
     engines: {node: ^10 || ^12 || >=14}
 
+  postcss@8.5.6:
+    resolution: {integrity: sha512-3Ybi1tAuwAP9s0r1UQ2J4n5Y0G05bJkpUIO0/bI9MhwmD70S5aTWbXGBwxHrelT+XM1k6dM0pk+SwNkpTRN7Pg==}
+    engines: {node: ^10 || ^12 || >=14}
+
   prelude-ls@1.2.1:
     resolution: {integrity: sha512-vkcDPrRZo1QZLbn5RLGPpg/WmIQ65qoWWhcGKf/b5eplkkarX0m9z8ppCat4mlOqUsWpyNuYgO3VRyrYHSzX5g==}
     engines: {node: '>= 0.8.0'}
@@ -3619,6 +4118,15 @@ packages:
 
   regenerator-transform@0.15.2:
     resolution: {integrity: sha512-hfMp2BoF0qOk3uc5V20ALGDS2ddjQaLrdl7xrGXvAIow7qeWRM2VA2HuCHkUKk9slq3VwEwLNK3DFBqDfPGYtg==}
+
+  regex-recursion@6.0.2:
+    resolution: {integrity: sha512-0YCaSCq2VRIebiaUviZNs0cBz1kg5kVS2UKUfNIx8YVs1cN3AV7NTctO5FOKBA+UT2BPJIWZauYHPqJODG50cg==}
+
+  regex-utilities@2.3.0:
+    resolution: {integrity: sha512-8VhliFJAWRaUiVvREIiW2NXXTmHs4vMNnSzuJVhscgmGav3g9VDxLrQndI3dZZVVdp0ZO/5v0xmX516/7M9cng==}
+
+  regex@6.0.1:
+    resolution: {integrity: sha512-uorlqlzAKjKQZ5P+kTJr3eeJGSVroLKoHmquUj4zHWuR+hEyNqlXsSKlYYF5F4NI6nl7tWCs0apKJ0lmfsXAPA==}
 
   regexp.prototype.flags@1.5.4:
     resolution: {integrity: sha512-dYqgNSZbDwkaJ2ceRd9ojCGjBq+mOm9LmtXnAnEGyHhN/5R7iDW2TRw3h+o/jCFxus3P2LfWIIiwowAjANm7IA==}
@@ -3770,6 +4278,9 @@ packages:
     resolution: {integrity: sha512-7++dFhtcx3353uBaq8DDR4NuxBetBzC7ZQOhmTQInHEd6bSrXdiEyzCvG07Z44UYdLShWUyXt5M/yhz8ekcb1A==}
     engines: {node: '>=8'}
 
+  shiki@3.11.0:
+    resolution: {integrity: sha512-VgKumh/ib38I1i3QkMn6mAQA6XjjQubqaAYhfge71glAll0/4xnt8L2oSuC45Qcr/G5Kbskj4RliMQddGmy/Og==}
+
   side-channel-list@1.0.0:
     resolution: {integrity: sha512-FCLHtRD/gnpCiCHEiJLOwdmFP+wzCmDEkc9y7NsYxeF4u7Btsn1ZuwgwJGxImImHicJArLP4R0yX4c2KCrMrTA==}
     engines: {node: '>= 0.4'}
@@ -3884,6 +4395,9 @@ packages:
     resolution: {integrity: sha512-6fPc+R4ihwqP6N/aIv2f1gMH8lOVtWQHoqC4yK6oSDVVocumAsfCqjkXnqiYMhmMwS/mEHLp7Vehlt3ql6lEig==}
     engines: {node: '>=8'}
 
+  style-mod@4.1.2:
+    resolution: {integrity: sha512-wnD1HyVqpJUI2+eKZ+eo1UwghftP6yuFheBqqe+bWCotBjC2K1YnteJILRMs3SM4V/0dLEW1SC27MWP5y+mwmw==}
+
   style-to-js@1.1.16:
     resolution: {integrity: sha512-/Q6ld50hKYPH3d/r6nr117TZkHR0w0kGGIVfpG9N6D8NymRPM9RqCUv4pRpJ62E5DqOYx2AFpbZMyCPnjQCnOw==}
 
@@ -3952,6 +4466,9 @@ packages:
     resolution: {integrity: sha512-LBAhFyLho16harJoWMg/nZsQYgTrg5jXOn2nCYjRUcZZEdE3qa2zb8QEDRUGVZBW4rlazf2fxkg8tztybTaqWw==}
     engines: {node: '>=10'}
     hasBin: true
+
+  text-mapping@1.0.1:
+    resolution: {integrity: sha512-lONDMFNJ6QPjxYPcxkAy420qB+jMRxXERkNJAVDapQeZs0POW4pWryG9R+kAer6H+VDh/Z07x9GMNhhQrnSVIw==}
 
   text-table@0.2.0:
     resolution: {integrity: sha512-N+8UisAXDGk8PFXP4HAzVR9nbfmVJ3zYLAWiTIoqC5v5isinhr+r5uaO8+7r3BMfuNIufIsA7RdpVgacC2cSpw==}
@@ -4050,8 +4567,8 @@ packages:
     resolution: {integrity: sha512-3KS2b+kL7fsuk/eJZ7EQdnEmQoaho/r6KUef7hxvltNA5DR8NAUM+8wJMbJyZ4G9/7i3v5zPBIMN5aybAh2/Jg==}
     engines: {node: '>= 0.4'}
 
-  typescript@5.8.2:
-    resolution: {integrity: sha512-aJn6wq13/afZp/jT9QZmwEjDqqvSGp1VT5GVg+f/t6/oVyrgXM6BY1h9BRh/O5p3PlUPAe+WuiEZOmb/49RqoQ==}
+  typescript@5.9.2:
+    resolution: {integrity: sha512-CWBzXQrc/qOkhidw1OzBTQuYRbfyxDXJMVJ1XNwUHGROVmuaeiEm3OslpZ1RV96d7SKKjZKrSJu3+t/xlw3R9A==}
     engines: {node: '>=14.17'}
     hasBin: true
 
@@ -4134,6 +4651,29 @@ packages:
 
   vfile@6.0.3:
     resolution: {integrity: sha512-KzIbH/9tXat2u30jf+smMwFCsno4wHVdNmzFyL+T/L3UGqqk6JKfVqOFOZEpZSHADH1k40ab6NUIXZq422ov3Q==}
+
+  vscode-json-languageservice@5.6.1:
+    resolution: {integrity: sha512-IQIURBF2VMKBdWcMunbHSI3G2WmJ9H7613E1hRxIXX7YsAPSdBxnEiIUrTnsSW/3fk+QW1kfsvSigqgAFYIYtg==}
+
+  vscode-languageserver-textdocument@1.0.12:
+    resolution: {integrity: sha512-cxWNPesCnQCcMPeenjKKsOCKQZ/L6Tv19DTRIGuLWe32lyzWhihGVJ/rcckZXJxfdKCFvRLS3fpBIsV/ZGX4zA==}
+
+  vscode-languageserver-types@3.17.5:
+    resolution: {integrity: sha512-Ld1VelNuX9pdF39h2Hgaeb5hEZM2Z3jUrrMgWQAu82jMtZp7p3vJT3BzToKtZI7NgQssZje5o0zryOrhQvzQAg==}
+
+  vscode-uri@3.1.0:
+    resolution: {integrity: sha512-/BpdSx+yCQGnCvecbyXdxHDkuk55/G3xwnC0GqY4gmQ3j+A+g8kzzgB4Nk/SINjqn6+waqw3EgbVF2QKExkRxQ==}
+
+  vue@3.5.18:
+    resolution: {integrity: sha512-7W4Y4ZbMiQ3SEo+m9lnoNpV9xG7QVMLa+/0RFwwiAVkeYoyGXqWE85jabU4pllJNUzqfLShJ5YLptewhCWUgNA==}
+    peerDependencies:
+      typescript: '*'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
+  w3c-keyname@2.2.8:
+    resolution: {integrity: sha512-dpojBhNsCNN7T82Tm7k26A6G9ML3NkhDsnw9n/eoxSRlVBB4CEtIQ/KTCLI2Fwf3ataSXRhYFkQi3SlnFwPvPQ==}
 
   watchpack@2.4.2:
     resolution: {integrity: sha512-TnbFSbcOCcDgjZ4piURLCbJ3nJhznVh9kw6F6iokjiFPl8ONxe9A6nMDVXDiNbrSfLILs6vB07F7wLBrwPYzJw==}
@@ -4400,7 +4940,11 @@ snapshots:
 
   '@babel/helper-string-parser@7.25.9': {}
 
+  '@babel/helper-string-parser@7.27.1': {}
+
   '@babel/helper-validator-identifier@7.25.9': {}
+
+  '@babel/helper-validator-identifier@7.27.1': {}
 
   '@babel/helper-validator-option@7.25.9': {}
 
@@ -4420,6 +4964,10 @@ snapshots:
   '@babel/parser@7.27.0':
     dependencies:
       '@babel/types': 7.27.0
+
+  '@babel/parser@7.28.3':
+    dependencies:
+      '@babel/types': 7.28.2
 
   '@babel/plugin-bugfix-safari-id-destructuring-collision-in-function-expression@7.25.9(@babel/core@7.26.10)':
     dependencies:
@@ -4995,7 +5543,501 @@ snapshots:
       '@babel/helper-string-parser': 7.25.9
       '@babel/helper-validator-identifier': 7.25.9
 
+  '@babel/types@7.28.2':
+    dependencies:
+      '@babel/helper-string-parser': 7.27.1
+      '@babel/helper-validator-identifier': 7.27.1
+
   '@cfworker/json-schema@4.1.1': {}
+
+  '@codemirror/autocomplete@6.18.6':
+    dependencies:
+      '@codemirror/language': 6.11.3
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      '@lezer/common': 1.2.3
+
+  '@codemirror/commands@6.8.1':
+    dependencies:
+      '@codemirror/language': 6.11.3
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      '@lezer/common': 1.2.3
+
+  '@codemirror/lang-javascript@6.2.4':
+    dependencies:
+      '@codemirror/autocomplete': 6.18.6
+      '@codemirror/language': 6.11.3
+      '@codemirror/lint': 6.8.5
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      '@lezer/common': 1.2.3
+      '@lezer/javascript': 1.5.1
+
+  '@codemirror/lang-python@6.2.1':
+    dependencies:
+      '@codemirror/autocomplete': 6.18.6
+      '@codemirror/language': 6.11.3
+      '@codemirror/state': 6.5.2
+      '@lezer/common': 1.2.3
+      '@lezer/python': 1.1.18
+
+  '@codemirror/language@6.11.3':
+    dependencies:
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      '@lezer/common': 1.2.3
+      '@lezer/highlight': 1.2.1
+      '@lezer/lr': 1.4.2
+      style-mod: 4.1.2
+
+  '@codemirror/lint@6.8.5':
+    dependencies:
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      crelt: 1.0.6
+
+  '@codemirror/merge@6.10.2':
+    dependencies:
+      '@codemirror/language': 6.11.3
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      '@lezer/highlight': 1.2.1
+      style-mod: 4.1.2
+
+  '@codemirror/search@6.5.11':
+    dependencies:
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      crelt: 1.0.6
+
+  '@codemirror/state@6.5.2':
+    dependencies:
+      '@marijn/find-cluster-break': 1.0.2
+
+  '@codemirror/view@6.38.1':
+    dependencies:
+      '@codemirror/state': 6.5.2
+      crelt: 1.0.6
+      style-mod: 4.1.2
+      w3c-keyname: 2.2.8
+
+  '@coze-editor/code-language-json@0.1.0-alpha.879fbb(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@coze-editor/code-language-shared@0.1.0-alpha.879fbb(@codemirror/autocomplete@6.18.6)(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3))':
+    dependencies:
+      '@codemirror/autocomplete': 6.18.6
+      '@codemirror/language': 6.11.3
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      '@coze-editor/code-language-shared': 0.1.0-alpha.879fbb(@codemirror/autocomplete@6.18.6)(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+      '@coze-editor/extension-lint': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
+      '@coze-editor/lezer-parser-json': 0.1.0-alpha.879fbb
+      '@coze-editor/parser-json': 0.1.0-alpha.879fbb
+      '@lezer/json': 1.0.3
+      '@lukeed/uuid': 2.0.1
+      text-mapping: 1.0.1
+      vscode-json-languageservice: 5.6.1
+      vscode-uri: 3.1.0
+
+  '@coze-editor/code-language-python@0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@coze-editor/code-language-shared@0.1.0-alpha.879fbb(@codemirror/autocomplete@6.18.6)(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3))':
+    dependencies:
+      '@codemirror/lang-python': 6.2.1
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      '@coze-editor/code-language-shared': 0.1.0-alpha.879fbb(@codemirror/autocomplete@6.18.6)(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+
+  '@coze-editor/code-language-shared@0.1.0-alpha.879fbb(@codemirror/autocomplete@6.18.6)(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)':
+    dependencies:
+      '@codemirror/autocomplete': 6.18.6
+      '@codemirror/language': 6.11.3
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      '@coze-editor/extension-lint': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
+      '@coze-editor/utils': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+      mitt: 3.0.1
+      vscode-languageserver-textdocument: 1.0.12
+      vscode-languageserver-types: 3.17.5
+    transitivePeerDependencies:
+      - '@lezer/common'
+
+  '@coze-editor/code-language-shell@0.1.0-alpha.879fbb(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@coze-editor/code-language-shared@0.1.0-alpha.879fbb(@codemirror/autocomplete@6.18.6)(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3))':
+    dependencies:
+      '@codemirror/language': 6.11.3
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      '@coze-editor/code-language-shared': 0.1.0-alpha.879fbb(@codemirror/autocomplete@6.18.6)(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+
+  '@coze-editor/code-language-typescript@0.1.0-alpha.879fbb(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@coze-editor/code-language-shared@0.1.0-alpha.879fbb(@codemirror/autocomplete@6.18.6)(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3))(typescript@5.9.2)':
+    dependencies:
+      '@codemirror/lang-javascript': 6.2.4
+      '@codemirror/language': 6.11.3
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      '@coze-editor/code-language-shared': 0.1.0-alpha.879fbb(@codemirror/autocomplete@6.18.6)(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+      '@lukeed/uuid': 2.0.1
+      '@typescript/vfs': 1.6.1(typescript@5.9.2)
+      comlink: 4.4.2
+      lz-string: 1.5.0
+      mitt: 3.0.1
+      typescript: 5.9.2
+      vscode-languageserver-textdocument: 1.0.12
+      vscode-languageserver-types: 3.17.5
+      vscode-uri: 3.1.0
+    transitivePeerDependencies:
+      - supports-color
+
+  '@coze-editor/core-plugins@0.1.0-alpha.879fbb(@codemirror/commands@6.8.1)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)':
+    dependencies:
+      '@codemirror/commands': 6.8.1
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      '@coze-editor/core': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
+      '@coze-editor/extension-placeholder': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+      es-toolkit: 1.39.10
+    transitivePeerDependencies:
+      - '@lezer/common'
+
+  '@coze-editor/core@0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)':
+    dependencies:
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      mitt: 3.0.1
+
+  '@coze-editor/editor@0.1.0-alpha.879fbb(@babel/core@7.26.10)(@babel/template@7.27.0)(@codemirror/autocomplete@6.18.6)(@codemirror/language@6.11.3)(@codemirror/merge@6.10.2)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)(@types/react@18.3.20)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.9.2)(vue@3.5.18(typescript@5.9.2))':
+    dependencies:
+      '@codemirror/commands': 6.8.1
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      '@coze-editor/code-language-json': 0.1.0-alpha.879fbb(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@coze-editor/code-language-shared@0.1.0-alpha.879fbb(@codemirror/autocomplete@6.18.6)(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3))
+      '@coze-editor/code-language-python': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@coze-editor/code-language-shared@0.1.0-alpha.879fbb(@codemirror/autocomplete@6.18.6)(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3))
+      '@coze-editor/code-language-shared': 0.1.0-alpha.879fbb(@codemirror/autocomplete@6.18.6)(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+      '@coze-editor/code-language-shell': 0.1.0-alpha.879fbb(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@coze-editor/code-language-shared@0.1.0-alpha.879fbb(@codemirror/autocomplete@6.18.6)(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3))
+      '@coze-editor/code-language-typescript': 0.1.0-alpha.879fbb(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@coze-editor/code-language-shared@0.1.0-alpha.879fbb(@codemirror/autocomplete@6.18.6)(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3))(typescript@5.9.2)
+      '@coze-editor/core': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
+      '@coze-editor/extension-json-ast': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+      '@coze-editor/extension-json-empty-string-value-completion': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+      '@coze-editor/extension-json-hover': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+      '@coze-editor/extension-json-unnecessary-properties': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+      '@coze-editor/extension-regexp-decorator': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
+      '@coze-editor/extensions': 0.1.0-alpha.879fbb(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
+      '@coze-editor/preset-code': 0.1.0-alpha.879fbb(@codemirror/commands@6.8.1)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@coze-editor/code-language-shared@0.1.0-alpha.879fbb(@codemirror/autocomplete@6.18.6)(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3))(@lezer/common@1.2.3)
+      '@coze-editor/preset-expression': 0.1.0-alpha.879fbb(@codemirror/commands@6.8.1)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+      '@coze-editor/preset-none': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
+      '@coze-editor/preset-prompt': 0.1.0-alpha.879fbb(@codemirror/commands@6.8.1)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
+      '@coze-editor/preset-universal': 0.1.0-alpha.879fbb(@codemirror/commands@6.8.1)(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+      '@coze-editor/preset-variable': 0.1.0-alpha.879fbb(@codemirror/commands@6.8.1)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
+      '@coze-editor/react': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@coze-editor/react-components': 0.1.0-alpha.879fbb(@babel/core@7.26.10)(@babel/template@7.27.0)(@codemirror/commands@6.8.1)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@coze-editor/react@0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(@lezer/common@1.2.3)(@types/react@18.3.20)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@coze-editor/react-hooks': 0.1.0-alpha.879fbb(@codemirror/commands@6.8.1)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@coze-editor/react@0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@coze-editor/react-merge': 0.1.0-alpha.879fbb(@codemirror/merge@6.10.2)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@coze-editor/react@0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@coze-editor/utils': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+      '@coze-editor/vscode': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
+      '@coze-editor/vue': 0.1.0-alpha.879fbb(@codemirror/commands@6.8.1)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)(vue@3.5.18(typescript@5.9.2))
+      '@coze-editor/vue-components': 0.1.0-alpha.879fbb(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@coze-editor/vue@0.1.0-alpha.879fbb(@codemirror/commands@6.8.1)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)(vue@3.5.18(typescript@5.9.2)))(@lezer/common@1.2.3)(vue@3.5.18(typescript@5.9.2))
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+    transitivePeerDependencies:
+      - '@babel/core'
+      - '@babel/template'
+      - '@codemirror/autocomplete'
+      - '@codemirror/language'
+      - '@codemirror/merge'
+      - '@lezer/common'
+      - '@types/react'
+      - supports-color
+      - typescript
+      - vue
+
+  '@coze-editor/extension-completion-icons@0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)':
+    dependencies:
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+
+  '@coze-editor/extension-json-ast@0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)':
+    dependencies:
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      '@coze-editor/parser-json': 0.1.0-alpha.879fbb
+      '@coze-editor/utils': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+      vscode-languageserver-textdocument: 1.0.12
+    transitivePeerDependencies:
+      - '@lezer/common'
+
+  '@coze-editor/extension-json-empty-string-value-completion@0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)':
+    dependencies:
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      '@coze-editor/extension-json-ast': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+      '@coze-editor/utils': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+    transitivePeerDependencies:
+      - '@lezer/common'
+
+  '@coze-editor/extension-json-hover@0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)':
+    dependencies:
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      '@coze-editor/extension-json-ast': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+      '@coze-editor/utils': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+    transitivePeerDependencies:
+      - '@lezer/common'
+
+  '@coze-editor/extension-json-unnecessary-properties@0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)':
+    dependencies:
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      '@coze-editor/extension-json-ast': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+      '@coze-editor/utils': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+    transitivePeerDependencies:
+      - '@lezer/common'
+
+  '@coze-editor/extension-links@0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)':
+    dependencies:
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+
+  '@coze-editor/extension-lint@0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)':
+    dependencies:
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      crelt: 1.0.6
+
+  '@coze-editor/extension-placeholder@0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)':
+    dependencies:
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      '@coze-editor/utils': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+    transitivePeerDependencies:
+      - '@lezer/common'
+
+  '@coze-editor/extension-regexp-decorator@0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)':
+    dependencies:
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+
+  '@coze-editor/extension-scrollbar@0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)':
+    dependencies:
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      overlayscrollbars: 2.11.5
+
+  '@coze-editor/extensions@0.1.0-alpha.879fbb(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)':
+    dependencies:
+      '@codemirror/language': 6.11.3
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      '@coze-editor/extension-placeholder': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+      '@coze-editor/lezer-parser-template': 0.1.0-alpha.879fbb
+      '@coze-editor/utils': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+      '@lezer/common': 1.2.3
+      crelt: 1.0.6
+      es-toolkit: 1.39.10
+
+  '@coze-editor/lezer-parser-jinja2@0.1.0-alpha.879fbb':
+    dependencies:
+      '@lezer/highlight': 1.2.1
+      '@lezer/lr': 1.4.2
+
+  '@coze-editor/lezer-parser-json@0.1.0-alpha.879fbb':
+    dependencies:
+      '@lezer/highlight': 1.2.1
+      '@lezer/lr': 1.4.2
+
+  '@coze-editor/lezer-parser-template@0.1.0-alpha.879fbb':
+    dependencies:
+      '@lezer/highlight': 1.2.1
+      '@lezer/lr': 1.4.2
+
+  '@coze-editor/parser-json@0.1.0-alpha.879fbb':
+    dependencies:
+      '@vscode/l10n': 0.0.18
+      vscode-languageserver-textdocument: 1.0.12
+      vscode-languageserver-types: 3.17.5
+
+  '@coze-editor/preset-code@0.1.0-alpha.879fbb(@codemirror/commands@6.8.1)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@coze-editor/code-language-shared@0.1.0-alpha.879fbb(@codemirror/autocomplete@6.18.6)(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3))(@lezer/common@1.2.3)':
+    dependencies:
+      '@codemirror/autocomplete': 6.18.6
+      '@codemirror/commands': 6.8.1
+      '@codemirror/language': 6.11.3
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      '@coze-editor/code-language-shared': 0.1.0-alpha.879fbb(@codemirror/autocomplete@6.18.6)(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+      '@coze-editor/core': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
+      '@coze-editor/core-plugins': 0.1.0-alpha.879fbb(@codemirror/commands@6.8.1)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+      '@coze-editor/extension-completion-icons': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
+      '@coze-editor/extension-links': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
+      '@coze-editor/extension-lint': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
+      '@coze-editor/extension-scrollbar': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
+      '@coze-editor/extensions': 0.1.0-alpha.879fbb(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
+      '@coze-editor/preset-universal': 0.1.0-alpha.879fbb(@codemirror/commands@6.8.1)(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+      '@coze-editor/utils': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+      '@coze-editor/vscode': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
+      '@lezer/highlight': 1.2.1
+      '@nozbe/microfuzz': 1.0.0
+      codemirror-shiki: 0.2.5(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(shiki@3.11.0)
+      marked: 15.0.12
+      marked-shiki: 1.2.1(marked@15.0.12)(shiki@3.11.0)
+      shiki: 3.11.0
+      text-mapping: 1.0.1
+      vscode-languageserver-textdocument: 1.0.12
+      vscode-languageserver-types: 3.17.5
+    transitivePeerDependencies:
+      - '@lezer/common'
+
+  '@coze-editor/preset-expression@0.1.0-alpha.879fbb(@codemirror/commands@6.8.1)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)':
+    dependencies:
+      '@codemirror/autocomplete': 6.18.6
+      '@codemirror/commands': 6.8.1
+      '@codemirror/language': 6.11.3
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      '@coze-editor/core': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
+      '@coze-editor/core-plugins': 0.1.0-alpha.879fbb(@codemirror/commands@6.8.1)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+      '@coze-editor/extensions': 0.1.0-alpha.879fbb(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
+    transitivePeerDependencies:
+      - '@lezer/common'
+
+  '@coze-editor/preset-none@0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)':
+    dependencies:
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      '@coze-editor/core': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
+
+  '@coze-editor/preset-prompt@0.1.0-alpha.879fbb(@codemirror/commands@6.8.1)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)':
+    dependencies:
+      '@codemirror/autocomplete': 6.18.6
+      '@codemirror/language': 6.11.3
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      '@coze-editor/core': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
+      '@coze-editor/core-plugins': 0.1.0-alpha.879fbb(@codemirror/commands@6.8.1)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+      '@coze-editor/extensions': 0.1.0-alpha.879fbb(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
+      '@coze-editor/lezer-parser-jinja2': 0.1.0-alpha.879fbb
+      '@coze-editor/preset-expression': 0.1.0-alpha.879fbb(@codemirror/commands@6.8.1)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+      '@lezer/common': 1.2.3
+      '@lezer/html': 1.3.10
+      '@lezer/markdown': 1.4.3
+    transitivePeerDependencies:
+      - '@codemirror/commands'
+
+  '@coze-editor/preset-universal@0.1.0-alpha.879fbb(@codemirror/commands@6.8.1)(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)':
+    dependencies:
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      '@coze-editor/core': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
+      '@coze-editor/core-plugins': 0.1.0-alpha.879fbb(@codemirror/commands@6.8.1)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+      '@coze-editor/extensions': 0.1.0-alpha.879fbb(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
+    transitivePeerDependencies:
+      - '@codemirror/commands'
+      - '@codemirror/language'
+      - '@lezer/common'
+
+  '@coze-editor/preset-variable@0.1.0-alpha.879fbb(@codemirror/commands@6.8.1)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)':
+    dependencies:
+      '@codemirror/autocomplete': 6.18.6
+      '@codemirror/commands': 6.8.1
+      '@codemirror/language': 6.11.3
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      '@coze-editor/core': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
+      '@coze-editor/core-plugins': 0.1.0-alpha.879fbb(@codemirror/commands@6.8.1)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+      '@coze-editor/extensions': 0.1.0-alpha.879fbb(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
+      '@coze-editor/preset-expression': 0.1.0-alpha.879fbb(@codemirror/commands@6.8.1)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+      '@coze-editor/utils': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+      '@lezer/common': 1.2.3
+      '@lezer/javascript': 1.5.1
+      '@lezer/python': 1.1.18
+
+  '@coze-editor/react-components@0.1.0-alpha.879fbb(@babel/core@7.26.10)(@babel/template@7.27.0)(@codemirror/commands@6.8.1)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@coze-editor/react@0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(@lezer/common@1.2.3)(@types/react@18.3.20)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      '@codemirror/language': 6.11.3
+      '@codemirror/merge': 6.10.2
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      '@coze-editor/extension-placeholder': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+      '@coze-editor/extensions': 0.1.0-alpha.879fbb(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
+      '@coze-editor/react': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@coze-editor/react-hooks': 0.1.0-alpha.879fbb(@codemirror/commands@6.8.1)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@coze-editor/react@0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@coze-editor/utils': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+      '@coze-editor/vscode': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
+      '@floating-ui/dom': 1.7.3
+      '@lezer/highlight': 1.2.1
+      '@lukeed/uuid': 2.0.1
+      '@types/hash-sum': 1.0.2
+      hash-sum: 2.0.0
+      jotai: 2.13.1(@babel/core@7.26.10)(@babel/template@7.27.0)(@types/react@18.3.20)(react@18.3.1)
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+    transitivePeerDependencies:
+      - '@babel/core'
+      - '@babel/template'
+      - '@codemirror/commands'
+      - '@lezer/common'
+      - '@types/react'
+
+  '@coze-editor/react-hooks@0.1.0-alpha.879fbb(@codemirror/commands@6.8.1)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@coze-editor/react@0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      '@codemirror/commands': 6.8.1
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      '@coze-editor/react': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+
+  '@coze-editor/react-merge@0.1.0-alpha.879fbb(@codemirror/merge@6.10.2)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@coze-editor/react@0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      '@codemirror/merge': 6.10.2
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      '@coze-editor/react': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+
+  '@coze-editor/react@0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      '@coze-editor/core': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+
+  '@coze-editor/utils@0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)':
+    dependencies:
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      '@lezer/common': 1.2.3
+
+  '@coze-editor/vscode@0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)':
+    dependencies:
+      '@codemirror/search': 6.5.11
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      '@lezer/highlight': 1.2.1
+      crelt: 1.0.6
+
+  '@coze-editor/vue-components@0.1.0-alpha.879fbb(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@coze-editor/vue@0.1.0-alpha.879fbb(@codemirror/commands@6.8.1)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)(vue@3.5.18(typescript@5.9.2)))(@lezer/common@1.2.3)(vue@3.5.18(typescript@5.9.2))':
+    dependencies:
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      '@coze-editor/extension-placeholder': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+      '@coze-editor/extensions': 0.1.0-alpha.879fbb(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
+      '@coze-editor/utils': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+      '@coze-editor/vue': 0.1.0-alpha.879fbb(@codemirror/commands@6.8.1)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)(vue@3.5.18(typescript@5.9.2))
+      '@floating-ui/dom': 1.7.3
+      vue: 3.5.18(typescript@5.9.2)
+    transitivePeerDependencies:
+      - '@codemirror/language'
+      - '@lezer/common'
+
+  '@coze-editor/vue@0.1.0-alpha.879fbb(@codemirror/commands@6.8.1)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)(vue@3.5.18(typescript@5.9.2))':
+    dependencies:
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      '@coze-editor/core': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)
+      '@coze-editor/core-plugins': 0.1.0-alpha.879fbb(@codemirror/commands@6.8.1)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+      '@coze-editor/extension-placeholder': 0.1.0-alpha.879fbb(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)
+      vue: 3.5.18(typescript@5.9.2)
+    transitivePeerDependencies:
+      - '@codemirror/commands'
+      - '@lezer/common'
 
   '@cspotcode/source-map-support@0.8.1':
     dependencies:
@@ -5231,27 +6273,38 @@ snapshots:
 
   '@eslint/js@8.57.1': {}
 
-  '@flowgram.ai/background-plugin@0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@floating-ui/core@1.7.3':
     dependencies:
-      '@flowgram.ai/core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/utils': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@floating-ui/utils': 0.2.10
+
+  '@floating-ui/dom@1.7.3':
+    dependencies:
+      '@floating-ui/core': 1.7.3
+      '@floating-ui/utils': 0.2.10
+
+  '@floating-ui/utils@0.2.10': {}
+
+  '@flowgram.ai/background-plugin@0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      '@flowgram.ai/core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/utils': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       inversify: 6.2.2(reflect-metadata@0.2.2)
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
       reflect-metadata: 0.2.2
 
-  '@flowgram.ai/command@0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@flowgram.ai/command@0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
-      '@flowgram.ai/utils': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/utils': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       inversify: 6.2.2(reflect-metadata@0.2.2)
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
       reflect-metadata: 0.2.2
 
-  '@flowgram.ai/core@0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@flowgram.ai/core@0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
-      '@flowgram.ai/command': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/utils': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/command': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/utils': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@phosphor/messaging': 1.3.0
       '@tweenjs/tween.js': 18.6.4
       clsx: 1.2.1
@@ -5262,10 +6315,10 @@ snapshots:
       react-dom: 18.3.1(react@18.3.1)
       reflect-metadata: 0.2.2
 
-  '@flowgram.ai/document@0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@flowgram.ai/document@0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
-      '@flowgram.ai/core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/utils': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/utils': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       inversify: 6.2.2(reflect-metadata@0.2.2)
       lodash: 4.17.21
       nanoid: 4.0.2
@@ -5274,27 +6327,27 @@ snapshots:
       - react
       - react-dom
 
-  '@flowgram.ai/editor@0.2.9(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))':
+  '@flowgram.ai/editor@0.4.2(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))':
     dependencies:
-      '@flowgram.ai/background-plugin': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/document': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/form': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/form-core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/group-plugin': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/history': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/history-node-plugin': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
-      '@flowgram.ai/i18n-plugin': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/materials-plugin': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
-      '@flowgram.ai/node': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/node-core-plugin': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
-      '@flowgram.ai/node-variable-plugin': 0.2.9(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
-      '@flowgram.ai/playground-react': 0.2.9(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
-      '@flowgram.ai/redux-devtool-plugin': 0.2.9(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
-      '@flowgram.ai/renderer': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/shortcuts-plugin': 0.2.9(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
-      '@flowgram.ai/utils': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/variable-plugin': 0.2.9(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
+      '@flowgram.ai/background-plugin': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/document': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/form': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/form-core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/group-plugin': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/history': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/history-node-plugin': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
+      '@flowgram.ai/i18n-plugin': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/materials-plugin': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
+      '@flowgram.ai/node': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/node-core-plugin': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
+      '@flowgram.ai/node-variable-plugin': 0.4.2(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
+      '@flowgram.ai/playground-react': 0.4.2(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
+      '@flowgram.ai/redux-devtool-plugin': 0.4.2(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
+      '@flowgram.ai/renderer': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/shortcuts-plugin': 0.4.2(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
+      '@flowgram.ai/utils': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/variable-plugin': 0.4.2(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
       inversify: 6.2.2(reflect-metadata@0.2.2)
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
@@ -5304,29 +6357,29 @@ snapshots:
       - react-is
       - styled-components
 
-  '@flowgram.ai/eslint-config@0.2.9(@types/node@18.19.84)(typescript@5.8.2)':
+  '@flowgram.ai/eslint-config@0.4.2(@types/node@18.19.84)(typescript@5.9.2)':
     dependencies:
       '@babel/core': 7.26.10
       '@babel/eslint-parser': 7.19.1(@babel/core@7.26.10)(eslint@8.57.1)
       '@babel/eslint-plugin': 7.27.0(@babel/eslint-parser@7.19.1(@babel/core@7.26.10)(eslint@8.57.1))(eslint@8.57.1)
       '@babel/preset-env': 7.20.2(@babel/core@7.26.10)
       '@babel/preset-react': 7.13.13(@babel/core@7.26.10)
-      '@rushstack/eslint-config': 3.1.1(eslint@8.57.1)(typescript@5.8.2)
-      '@typescript-eslint/eslint-plugin': 6.21.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.8.2))(eslint@8.57.1)(typescript@5.8.2)
-      '@typescript-eslint/parser': 6.21.0(eslint@8.57.1)(typescript@5.8.2)
+      '@rushstack/eslint-config': 3.1.1(eslint@8.57.1)(typescript@5.9.2)
+      '@typescript-eslint/eslint-plugin': 6.21.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.2))(eslint@8.57.1)(typescript@5.9.2)
+      '@typescript-eslint/parser': 6.21.0(eslint@8.57.1)(typescript@5.9.2)
       eslint: 8.57.1
       eslint-config-prettier: 8.10.0(eslint@8.57.1)
       eslint-define-config: 1.12.0
       eslint-import-resolver-typescript: 3.10.0(eslint-plugin-import@2.31.0)(eslint@8.57.1)
       eslint-plugin-babel: 5.3.1(eslint@8.57.1)
-      eslint-plugin-import: 2.31.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.8.2))(eslint-import-resolver-typescript@3.10.0)(eslint@8.57.1)
+      eslint-plugin-import: 2.31.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.2))(eslint-import-resolver-typescript@3.10.0)(eslint@8.57.1)
       eslint-plugin-jsx-a11y: 6.10.2(eslint@8.57.1)
       eslint-plugin-prettier: 4.2.1(eslint-config-prettier@8.10.0(eslint@8.57.1))(eslint@8.57.1)(prettier@2.8.8)
       eslint-plugin-react: 7.37.4(eslint@8.57.1)
       eslint-plugin-tsdoc: 0.2.17
       prettier: 2.8.8
       prettier-plugin-packagejson: 2.5.10(prettier@2.8.8)
-      ts-node: 10.9.2(@types/node@18.19.84)(typescript@5.8.2)
+      ts-node: 10.9.2(@types/node@18.19.84)(typescript@5.9.2)
     transitivePeerDependencies:
       - '@swc/core'
       - '@swc/wasm'
@@ -5336,23 +6389,27 @@ snapshots:
       - supports-color
       - typescript
 
-  '@flowgram.ai/form-core@0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@flowgram.ai/form-core@0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
-      '@flowgram.ai/core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/document': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/utils': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/document': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/utils': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       inversify: 6.2.2(reflect-metadata@0.2.2)
       lodash: 4.17.21
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
       reflect-metadata: 0.2.2
 
-  '@flowgram.ai/form-materials@0.2.9(@babel/core@7.26.10)(acorn@8.14.1)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))':
+  '@flowgram.ai/form-materials@0.4.2(@babel/core@7.26.10)(@babel/template@7.27.0)(@codemirror/autocomplete@6.18.6)(@codemirror/language@6.11.3)(@codemirror/merge@6.10.2)(@lezer/common@1.2.3)(@types/react@18.3.20)(acorn@8.14.1)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))(vue@3.5.18(typescript@5.9.2))':
     dependencies:
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      '@coze-editor/editor': 0.1.0-alpha.879fbb(@babel/core@7.26.10)(@babel/template@7.27.0)(@codemirror/autocomplete@6.18.6)(@codemirror/language@6.11.3)(@codemirror/merge@6.10.2)(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(@lezer/common@1.2.3)(@types/react@18.3.20)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.9.2)(vue@3.5.18(typescript@5.9.2))
       '@douyinfe/semi-icons': 2.80.0(react@18.3.1)
       '@douyinfe/semi-illustrations': 2.80.0(react@18.3.1)
       '@douyinfe/semi-ui': 2.80.0(acorn@8.14.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/editor': 0.2.9(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
+      '@flowgram.ai/editor': 0.4.2(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
+      '@flowgram.ai/json-schema': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       chalk: 5.4.1
       commander: 11.1.0
       immer: 10.1.1
@@ -5362,30 +6419,39 @@ snapshots:
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
       styled-components: 5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
+      typescript: 5.9.2
+      zod: 3.25.61
     transitivePeerDependencies:
       - '@babel/core'
+      - '@babel/template'
+      - '@codemirror/autocomplete'
+      - '@codemirror/language'
+      - '@codemirror/merge'
+      - '@lezer/common'
+      - '@types/react'
       - acorn
       - react-is
       - supports-color
+      - vue
 
-  '@flowgram.ai/form@0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@flowgram.ai/form@0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
-      '@flowgram.ai/reactive': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/utils': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/reactive': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/utils': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       fast-equals: 2.0.4
       lodash: 4.17.21
       nanoid: 4.0.2
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
 
-  '@flowgram.ai/free-auto-layout-plugin@0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))':
+  '@flowgram.ai/free-auto-layout-plugin@0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))':
     dependencies:
       '@dagrejs/graphlib': 2.2.2
-      '@flowgram.ai/core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/document': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/free-layout-core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/renderer': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/utils': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/document': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/free-layout-core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/renderer': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/utils': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       inversify: 6.2.2(reflect-metadata@0.2.2)
       lodash: 4.17.21
       react: 18.3.1
@@ -5393,37 +6459,18 @@ snapshots:
       reflect-metadata: 0.2.2
       styled-components: 5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
 
-  '@flowgram.ai/free-container-plugin@0.2.9(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))':
+  '@flowgram.ai/free-container-plugin@0.4.2(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))':
     dependencies:
-      '@flowgram.ai/core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/document': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/free-history-plugin': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/free-layout-core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/free-lines-plugin': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
-      '@flowgram.ai/renderer': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/shortcuts-plugin': 0.2.9(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
-      '@flowgram.ai/utils': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      inversify: 6.2.2(reflect-metadata@0.2.2)
-      lodash: 4.17.21
-      react: 18.3.1
-      react-dom: 18.3.1(react@18.3.1)
-      reflect-metadata: 0.2.2
-      styled-components: 5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
-    transitivePeerDependencies:
-      - '@babel/core'
-      - react-is
-
-  '@flowgram.ai/free-group-plugin@0.2.9(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))':
-    dependencies:
-      '@flowgram.ai/core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/document': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/free-container-plugin': 0.2.9(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
-      '@flowgram.ai/free-history-plugin': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/free-layout-core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/free-lines-plugin': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
-      '@flowgram.ai/renderer': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/shortcuts-plugin': 0.2.9(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
-      '@flowgram.ai/utils': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/background-plugin': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/document': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/free-history-plugin': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/free-layout-core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/free-lines-plugin': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
+      '@flowgram.ai/i18n': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/renderer': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/shortcuts-plugin': 0.4.2(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
+      '@flowgram.ai/utils': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       inversify: 6.2.2(reflect-metadata@0.2.2)
       lodash: 4.17.21
       react: 18.3.1
@@ -5434,41 +6481,63 @@ snapshots:
       - '@babel/core'
       - react-is
 
-  '@flowgram.ai/free-history-plugin@0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@flowgram.ai/free-group-plugin@0.4.2(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))':
     dependencies:
-      '@flowgram.ai/core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/document': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/form-core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/free-layout-core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/history': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/utils': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/document': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/free-container-plugin': 0.4.2(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
+      '@flowgram.ai/free-history-plugin': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/free-layout-core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/free-layout-editor': 0.4.2(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
+      '@flowgram.ai/free-lines-plugin': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
+      '@flowgram.ai/renderer': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/shortcuts-plugin': 0.4.2(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
+      '@flowgram.ai/utils': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      inversify: 6.2.2(reflect-metadata@0.2.2)
+      lodash: 4.17.21
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      reflect-metadata: 0.2.2
+      styled-components: 5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
+    transitivePeerDependencies:
+      - '@babel/core'
+      - react-is
+
+  '@flowgram.ai/free-history-plugin@0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      '@flowgram.ai/core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/document': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/form-core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/free-layout-core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/history': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/utils': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       inversify: 6.2.2(reflect-metadata@0.2.2)
       lodash: 4.17.21
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
       reflect-metadata: 0.2.2
 
-  '@flowgram.ai/free-hover-plugin@0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@flowgram.ai/free-hover-plugin@0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
-      '@flowgram.ai/core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/document': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/free-layout-core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/renderer': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/select-box-plugin': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/utils': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/document': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/free-layout-core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/renderer': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/select-box-plugin': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/utils': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       inversify: 6.2.2(reflect-metadata@0.2.2)
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
       reflect-metadata: 0.2.2
 
-  '@flowgram.ai/free-layout-core@0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@flowgram.ai/free-layout-core@0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
-      '@flowgram.ai/core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/document': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/form-core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/node': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/reactive': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/utils': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/document': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/form-core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/node': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/reactive': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/utils': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       inversify: 6.2.2(reflect-metadata@0.2.2)
       lodash-es: 4.17.21
       nanoid: 4.0.2
@@ -5476,19 +6545,19 @@ snapshots:
       react-dom: 18.3.1(react@18.3.1)
       reflect-metadata: 0.2.2
 
-  '@flowgram.ai/free-layout-editor@0.2.9(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))':
+  '@flowgram.ai/free-layout-editor@0.4.2(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))':
     dependencies:
-      '@flowgram.ai/editor': 0.2.9(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
-      '@flowgram.ai/free-auto-layout-plugin': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
-      '@flowgram.ai/free-history-plugin': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/free-hover-plugin': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/free-layout-core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/free-lines-plugin': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
-      '@flowgram.ai/free-stack-plugin': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
-      '@flowgram.ai/history': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/minimap-plugin': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
-      '@flowgram.ai/select-box-plugin': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/utils': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/editor': 0.4.2(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
+      '@flowgram.ai/free-auto-layout-plugin': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
+      '@flowgram.ai/free-history-plugin': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/free-hover-plugin': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/free-layout-core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/free-lines-plugin': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
+      '@flowgram.ai/free-stack-plugin': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
+      '@flowgram.ai/history': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/minimap-plugin': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
+      '@flowgram.ai/select-box-plugin': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/utils': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       clsx: 1.2.1
       inversify: 6.2.2(reflect-metadata@0.2.2)
       react: 18.3.1
@@ -5499,13 +6568,13 @@ snapshots:
       - react-is
       - styled-components
 
-  '@flowgram.ai/free-lines-plugin@0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))':
+  '@flowgram.ai/free-lines-plugin@0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))':
     dependencies:
-      '@flowgram.ai/core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/free-layout-core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/free-stack-plugin': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
-      '@flowgram.ai/renderer': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/utils': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/free-layout-core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/free-stack-plugin': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))
+      '@flowgram.ai/renderer': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/utils': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       bezier-js: 6.1.4
       clsx: 1.2.1
       inversify: 6.2.2(reflect-metadata@0.2.2)
@@ -5514,14 +6583,14 @@ snapshots:
       reflect-metadata: 0.2.2
       styled-components: 5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
 
-  '@flowgram.ai/free-node-panel-plugin@0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))':
+  '@flowgram.ai/free-node-panel-plugin@0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))':
     dependencies:
-      '@flowgram.ai/core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/document': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/free-history-plugin': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/free-layout-core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/renderer': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/utils': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/document': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/free-history-plugin': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/free-layout-core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/renderer': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/utils': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       inversify: 6.2.2(reflect-metadata@0.2.2)
       lodash: 4.17.21
       react: 18.3.1
@@ -5529,13 +6598,13 @@ snapshots:
       reflect-metadata: 0.2.2
       styled-components: 5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
 
-  '@flowgram.ai/free-snap-plugin@0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))':
+  '@flowgram.ai/free-snap-plugin@0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))':
     dependencies:
-      '@flowgram.ai/core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/document': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/free-layout-core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/renderer': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/utils': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/document': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/free-layout-core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/renderer': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/utils': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       inversify: 6.2.2(reflect-metadata@0.2.2)
       lodash: 4.17.21
       react: 18.3.1
@@ -5543,13 +6612,13 @@ snapshots:
       reflect-metadata: 0.2.2
       styled-components: 5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
 
-  '@flowgram.ai/free-stack-plugin@0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))':
+  '@flowgram.ai/free-stack-plugin@0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))':
     dependencies:
-      '@flowgram.ai/core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/document': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/free-layout-core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/renderer': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/utils': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/document': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/free-layout-core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/renderer': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/utils': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       inversify: 6.2.2(reflect-metadata@0.2.2)
       lodash: 4.17.21
       react: 18.3.1
@@ -5557,26 +6626,26 @@ snapshots:
       reflect-metadata: 0.2.2
       styled-components: 5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
 
-  '@flowgram.ai/group-plugin@0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@flowgram.ai/group-plugin@0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
-      '@flowgram.ai/core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/document': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/renderer': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/utils': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/document': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/renderer': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/utils': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       inversify: 6.2.2(reflect-metadata@0.2.2)
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
       reflect-metadata: 0.2.2
 
-  '@flowgram.ai/history-node-plugin@0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))':
+  '@flowgram.ai/history-node-plugin@0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))':
     dependencies:
-      '@flowgram.ai/core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/document': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/form': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/form-core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/history': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/node': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/utils': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/document': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/form': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/form-core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/history': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/node': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/utils': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       inversify: 6.2.2(reflect-metadata@0.2.2)
       lodash: 4.17.21
       react: 18.3.1
@@ -5584,10 +6653,10 @@ snapshots:
       reflect-metadata: 0.2.2
       styled-components: 5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
 
-  '@flowgram.ai/history@0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@flowgram.ai/history@0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
-      '@flowgram.ai/core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/utils': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/utils': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       inversify: 6.2.2(reflect-metadata@0.2.2)
       lodash: 4.17.21
       nanoid: 4.0.2
@@ -5596,85 +6665,28 @@ snapshots:
       - react
       - react-dom
 
-  '@flowgram.ai/i18n-plugin@0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@flowgram.ai/i18n-plugin@0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
-      '@flowgram.ai/core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/i18n': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/i18n': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
     transitivePeerDependencies:
       - react
       - react-dom
 
-  '@flowgram.ai/i18n@0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@flowgram.ai/i18n@0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
-      '@flowgram.ai/utils': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/utils': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      i18n-js: 4.5.1
     transitivePeerDependencies:
       - react
       - react-dom
 
-  '@flowgram.ai/materials-plugin@0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))':
+  '@flowgram.ai/json-schema@0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
-      '@flowgram.ai/core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/form-core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/renderer': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/utils': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      inversify: 6.2.2(reflect-metadata@0.2.2)
-      react: 18.3.1
-      react-dom: 18.3.1(react@18.3.1)
-      reflect-metadata: 0.2.2
-      styled-components: 5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
-
-  '@flowgram.ai/minimap-plugin@0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))':
-    dependencies:
-      '@flowgram.ai/core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/document': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/renderer': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/utils': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      inversify: 6.2.2(reflect-metadata@0.2.2)
-      lodash: 4.17.21
-      react: 18.3.1
-      react-dom: 18.3.1(react@18.3.1)
-      reflect-metadata: 0.2.2
-      styled-components: 5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
-
-  '@flowgram.ai/node-core-plugin@0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))':
-    dependencies:
-      '@flowgram.ai/core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/document': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/form-core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/node': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/renderer': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/utils': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      inversify: 6.2.2(reflect-metadata@0.2.2)
-      react: 18.3.1
-      react-dom: 18.3.1(react@18.3.1)
-      reflect-metadata: 0.2.2
-      styled-components: 5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
-
-  '@flowgram.ai/node-variable-plugin@0.2.9(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))':
-    dependencies:
-      '@flowgram.ai/core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/document': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/form-core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/node': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/utils': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/variable-plugin': 0.2.9(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
-      inversify: 6.2.2(reflect-metadata@0.2.2)
-      lodash: 4.17.21
-      react: 18.3.1
-      react-dom: 18.3.1(react@18.3.1)
-      reflect-metadata: 0.2.2
-      styled-components: 5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
-    transitivePeerDependencies:
-      - '@babel/core'
-      - react-is
-
-  '@flowgram.ai/node@0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
-    dependencies:
-      '@flowgram.ai/core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/document': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/form': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/form-core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/utils': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/utils': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/variable-core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      fast-equals: 2.0.4
       inversify: 6.2.2(reflect-metadata@0.2.2)
       lodash: 4.17.21
       nanoid: 4.0.2
@@ -5682,12 +6694,83 @@ snapshots:
       react-dom: 18.3.1(react@18.3.1)
       reflect-metadata: 0.2.2
 
-  '@flowgram.ai/playground-react@0.2.9(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)':
+  '@flowgram.ai/materials-plugin@0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))':
     dependencies:
-      '@flowgram.ai/background-plugin': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/shortcuts-plugin': 0.2.9(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
-      '@flowgram.ai/utils': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/form-core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/renderer': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/utils': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      inversify: 6.2.2(reflect-metadata@0.2.2)
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      reflect-metadata: 0.2.2
+      styled-components: 5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
+
+  '@flowgram.ai/minimap-plugin@0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))':
+    dependencies:
+      '@flowgram.ai/core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/document': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/renderer': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/utils': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      inversify: 6.2.2(reflect-metadata@0.2.2)
+      lodash: 4.17.21
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      reflect-metadata: 0.2.2
+      styled-components: 5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
+
+  '@flowgram.ai/node-core-plugin@0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))':
+    dependencies:
+      '@flowgram.ai/core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/document': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/form-core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/node': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/renderer': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/utils': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      inversify: 6.2.2(reflect-metadata@0.2.2)
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      reflect-metadata: 0.2.2
+      styled-components: 5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
+
+  '@flowgram.ai/node-variable-plugin@0.4.2(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)(styled-components@5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1))':
+    dependencies:
+      '@flowgram.ai/core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/document': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/form-core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/node': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/utils': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/variable-plugin': 0.4.2(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
+      inversify: 6.2.2(reflect-metadata@0.2.2)
+      lodash: 4.17.21
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      reflect-metadata: 0.2.2
+      styled-components: 5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
+    transitivePeerDependencies:
+      - '@babel/core'
+      - react-is
+
+  '@flowgram.ai/node@0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      '@flowgram.ai/core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/document': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/form': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/form-core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/utils': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      inversify: 6.2.2(reflect-metadata@0.2.2)
+      lodash: 4.17.21
+      nanoid: 4.0.2
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      reflect-metadata: 0.2.2
+
+  '@flowgram.ai/playground-react@0.4.2(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)':
+    dependencies:
+      '@flowgram.ai/background-plugin': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/shortcuts-plugin': 0.4.2(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
+      '@flowgram.ai/utils': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       inversify: 6.2.2(reflect-metadata@0.2.2)
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
@@ -5696,16 +6779,16 @@ snapshots:
       - '@babel/core'
       - react-is
 
-  '@flowgram.ai/reactive@0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@flowgram.ai/reactive@0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
-      '@flowgram.ai/utils': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/utils': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
 
-  '@flowgram.ai/redux-devtool-plugin@0.2.9(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)':
+  '@flowgram.ai/redux-devtool-plugin@0.4.2(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)':
     dependencies:
-      '@flowgram.ai/core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/variable-core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/variable-core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       inversify: 6.2.2(reflect-metadata@0.2.2)
       reflect-metadata: 0.2.2
       styled-components: 5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
@@ -5715,23 +6798,23 @@ snapshots:
       - react-dom
       - react-is
 
-  '@flowgram.ai/renderer@0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@flowgram.ai/renderer@0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
-      '@flowgram.ai/core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/document': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/i18n': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/utils': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/document': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/i18n': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/utils': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       inversify: 6.2.2(reflect-metadata@0.2.2)
       lodash: 4.17.21
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
       reflect-metadata: 0.2.2
 
-  '@flowgram.ai/runtime-interface@0.2.9':
+  '@flowgram.ai/runtime-interface@0.4.2':
     dependencies:
       zod: 3.25.61
 
-  '@flowgram.ai/runtime-js@0.2.9(openai@4.104.0(zod@3.25.61))':
+  '@flowgram.ai/runtime-js@0.4.2(openai@4.104.0(zod@3.25.61))':
     dependencies:
       '@langchain/core': 0.3.57(openai@4.104.0(zod@3.25.61))
       '@langchain/openai': 0.5.12(@langchain/core@0.3.57(openai@4.104.0(zod@3.25.61)))
@@ -5743,20 +6826,20 @@ snapshots:
       - openai
       - ws
 
-  '@flowgram.ai/select-box-plugin@0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@flowgram.ai/select-box-plugin@0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
-      '@flowgram.ai/core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/renderer': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/renderer': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       inversify: 6.2.2(reflect-metadata@0.2.2)
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
       reflect-metadata: 0.2.2
 
-  '@flowgram.ai/shortcuts-plugin@0.2.9(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)':
+  '@flowgram.ai/shortcuts-plugin@0.4.2(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)':
     dependencies:
-      '@flowgram.ai/core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/document': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/utils': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/document': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/utils': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       inversify: 6.2.2(reflect-metadata@0.2.2)
       reflect-metadata: 0.2.2
       styled-components: 5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
@@ -5766,9 +6849,9 @@ snapshots:
       - react-dom
       - react-is
 
-  '@flowgram.ai/ts-config@0.2.9': {}
+  '@flowgram.ai/ts-config@0.4.2': {}
 
-  '@flowgram.ai/utils@0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@flowgram.ai/utils@0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
       clsx: 1.2.1
       inversify: 6.2.2(reflect-metadata@0.2.2)
@@ -5777,10 +6860,10 @@ snapshots:
       react-dom: 18.3.1(react@18.3.1)
       reflect-metadata: 0.2.2
 
-  '@flowgram.ai/variable-core@0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@flowgram.ai/variable-core@0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
-      '@flowgram.ai/core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/utils': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/utils': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       fast-equals: 2.0.4
       inversify: 6.2.2(reflect-metadata@0.2.2)
       lodash: 4.17.21
@@ -5790,13 +6873,13 @@ snapshots:
       reflect-metadata: 0.2.2
       rxjs: 7.8.2
 
-  '@flowgram.ai/variable-layout@0.2.9(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)':
+  '@flowgram.ai/variable-layout@0.4.2(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)':
     dependencies:
-      '@flowgram.ai/core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/document': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/free-layout-core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/utils': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/variable-core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/document': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/free-layout-core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/utils': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/variable-core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       inversify: 6.2.2(reflect-metadata@0.2.2)
       reflect-metadata: 0.2.2
       styled-components: 5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
@@ -5806,14 +6889,14 @@ snapshots:
       - react-dom
       - react-is
 
-  '@flowgram.ai/variable-plugin@0.2.9(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)':
+  '@flowgram.ai/variable-plugin@0.4.2(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)':
     dependencies:
-      '@flowgram.ai/core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/document': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/free-layout-core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/utils': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/variable-core': 0.2.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@flowgram.ai/variable-layout': 0.2.9(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
+      '@flowgram.ai/core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/document': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/free-layout-core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/utils': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/variable-core': 0.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@flowgram.ai/variable-layout': 0.4.2(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
       inversify: 6.2.2(reflect-metadata@0.2.2)
       reflect-metadata: 0.2.2
       styled-components: 5.3.11(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react-is@16.13.1)(react@18.3.1)
@@ -5915,6 +6998,53 @@ snapshots:
       - encoding
       - ws
 
+  '@lezer/common@1.2.3': {}
+
+  '@lezer/highlight@1.2.1':
+    dependencies:
+      '@lezer/common': 1.2.3
+
+  '@lezer/html@1.3.10':
+    dependencies:
+      '@lezer/common': 1.2.3
+      '@lezer/highlight': 1.2.1
+      '@lezer/lr': 1.4.2
+
+  '@lezer/javascript@1.5.1':
+    dependencies:
+      '@lezer/common': 1.2.3
+      '@lezer/highlight': 1.2.1
+      '@lezer/lr': 1.4.2
+
+  '@lezer/json@1.0.3':
+    dependencies:
+      '@lezer/common': 1.2.3
+      '@lezer/highlight': 1.2.1
+      '@lezer/lr': 1.4.2
+
+  '@lezer/lr@1.4.2':
+    dependencies:
+      '@lezer/common': 1.2.3
+
+  '@lezer/markdown@1.4.3':
+    dependencies:
+      '@lezer/common': 1.2.3
+      '@lezer/highlight': 1.2.1
+
+  '@lezer/python@1.1.18':
+    dependencies:
+      '@lezer/common': 1.2.3
+      '@lezer/highlight': 1.2.1
+      '@lezer/lr': 1.4.2
+
+  '@lukeed/csprng@1.1.0': {}
+
+  '@lukeed/uuid@2.0.1':
+    dependencies:
+      '@lukeed/csprng': 1.1.0
+
+  '@marijn/find-cluster-break@1.0.2': {}
+
   '@mdx-js/mdx@3.1.0(acorn@8.14.1)':
     dependencies:
       '@types/estree': 1.0.7
@@ -6003,6 +7133,8 @@ snapshots:
       fastq: 1.19.1
 
   '@nolyfill/is-core-module@1.0.39': {}
+
+  '@nozbe/microfuzz@1.0.0': {}
 
   '@phosphor/algorithm@1.2.0': {}
 
@@ -6102,54 +7234,87 @@ snapshots:
 
   '@rtsao/scc@1.1.0': {}
 
-  '@rushstack/eslint-config@3.1.1(eslint@8.57.1)(typescript@5.8.2)':
+  '@rushstack/eslint-config@3.1.1(eslint@8.57.1)(typescript@5.9.2)':
     dependencies:
       '@rushstack/eslint-patch': 1.2.0
-      '@rushstack/eslint-plugin': 0.11.0(eslint@8.57.1)(typescript@5.8.2)
-      '@rushstack/eslint-plugin-packlets': 0.6.1(eslint@8.57.1)(typescript@5.8.2)
-      '@rushstack/eslint-plugin-security': 0.5.0(eslint@8.57.1)(typescript@5.8.2)
-      '@typescript-eslint/eslint-plugin': 5.38.1(@typescript-eslint/parser@5.38.1(eslint@8.57.1)(typescript@5.8.2))(eslint@8.57.1)(typescript@5.8.2)
-      '@typescript-eslint/experimental-utils': 5.38.1(eslint@8.57.1)(typescript@5.8.2)
-      '@typescript-eslint/parser': 5.38.1(eslint@8.57.1)(typescript@5.8.2)
-      '@typescript-eslint/typescript-estree': 5.38.1(typescript@5.8.2)
+      '@rushstack/eslint-plugin': 0.11.0(eslint@8.57.1)(typescript@5.9.2)
+      '@rushstack/eslint-plugin-packlets': 0.6.1(eslint@8.57.1)(typescript@5.9.2)
+      '@rushstack/eslint-plugin-security': 0.5.0(eslint@8.57.1)(typescript@5.9.2)
+      '@typescript-eslint/eslint-plugin': 5.38.1(@typescript-eslint/parser@5.38.1(eslint@8.57.1)(typescript@5.9.2))(eslint@8.57.1)(typescript@5.9.2)
+      '@typescript-eslint/experimental-utils': 5.38.1(eslint@8.57.1)(typescript@5.9.2)
+      '@typescript-eslint/parser': 5.38.1(eslint@8.57.1)(typescript@5.9.2)
+      '@typescript-eslint/typescript-estree': 5.38.1(typescript@5.9.2)
       eslint: 8.57.1
       eslint-plugin-promise: 6.0.1(eslint@8.57.1)
       eslint-plugin-react: 7.27.1(eslint@8.57.1)
       eslint-plugin-tsdoc: 0.2.17
-      typescript: 5.8.2
+      typescript: 5.9.2
     transitivePeerDependencies:
       - supports-color
 
   '@rushstack/eslint-patch@1.2.0': {}
 
-  '@rushstack/eslint-plugin-packlets@0.6.1(eslint@8.57.1)(typescript@5.8.2)':
+  '@rushstack/eslint-plugin-packlets@0.6.1(eslint@8.57.1)(typescript@5.9.2)':
     dependencies:
       '@rushstack/tree-pattern': 0.2.4
-      '@typescript-eslint/experimental-utils': 5.38.1(eslint@8.57.1)(typescript@5.8.2)
+      '@typescript-eslint/experimental-utils': 5.38.1(eslint@8.57.1)(typescript@5.9.2)
       eslint: 8.57.1
     transitivePeerDependencies:
       - supports-color
       - typescript
 
-  '@rushstack/eslint-plugin-security@0.5.0(eslint@8.57.1)(typescript@5.8.2)':
+  '@rushstack/eslint-plugin-security@0.5.0(eslint@8.57.1)(typescript@5.9.2)':
     dependencies:
       '@rushstack/tree-pattern': 0.2.4
-      '@typescript-eslint/experimental-utils': 5.38.1(eslint@8.57.1)(typescript@5.8.2)
+      '@typescript-eslint/experimental-utils': 5.38.1(eslint@8.57.1)(typescript@5.9.2)
       eslint: 8.57.1
     transitivePeerDependencies:
       - supports-color
       - typescript
 
-  '@rushstack/eslint-plugin@0.11.0(eslint@8.57.1)(typescript@5.8.2)':
+  '@rushstack/eslint-plugin@0.11.0(eslint@8.57.1)(typescript@5.9.2)':
     dependencies:
       '@rushstack/tree-pattern': 0.2.4
-      '@typescript-eslint/experimental-utils': 5.38.1(eslint@8.57.1)(typescript@5.8.2)
+      '@typescript-eslint/experimental-utils': 5.38.1(eslint@8.57.1)(typescript@5.9.2)
       eslint: 8.57.1
     transitivePeerDependencies:
       - supports-color
       - typescript
 
   '@rushstack/tree-pattern@0.2.4': {}
+
+  '@shikijs/core@3.11.0':
+    dependencies:
+      '@shikijs/types': 3.11.0
+      '@shikijs/vscode-textmate': 10.0.2
+      '@types/hast': 3.0.4
+      hast-util-to-html: 9.0.5
+
+  '@shikijs/engine-javascript@3.11.0':
+    dependencies:
+      '@shikijs/types': 3.11.0
+      '@shikijs/vscode-textmate': 10.0.2
+      oniguruma-to-es: 4.3.3
+
+  '@shikijs/engine-oniguruma@3.11.0':
+    dependencies:
+      '@shikijs/types': 3.11.0
+      '@shikijs/vscode-textmate': 10.0.2
+
+  '@shikijs/langs@3.11.0':
+    dependencies:
+      '@shikijs/types': 3.11.0
+
+  '@shikijs/themes@3.11.0':
+    dependencies:
+      '@shikijs/types': 3.11.0
+
+  '@shikijs/types@3.11.0':
+    dependencies:
+      '@shikijs/vscode-textmate': 10.0.2
+      '@types/hast': 3.0.4
+
+  '@shikijs/vscode-textmate@10.0.2': {}
 
   '@swc/helpers@0.5.15':
     dependencies:
@@ -6191,6 +7356,8 @@ snapshots:
       '@types/estree': 1.0.7
 
   '@types/estree@1.0.7': {}
+
+  '@types/hash-sum@1.0.2': {}
 
   '@types/hast@3.0.4':
     dependencies:
@@ -6255,30 +7422,30 @@ snapshots:
 
   '@types/uuid@10.0.0': {}
 
-  '@typescript-eslint/eslint-plugin@5.38.1(@typescript-eslint/parser@5.38.1(eslint@8.57.1)(typescript@5.8.2))(eslint@8.57.1)(typescript@5.8.2)':
+  '@typescript-eslint/eslint-plugin@5.38.1(@typescript-eslint/parser@5.38.1(eslint@8.57.1)(typescript@5.9.2))(eslint@8.57.1)(typescript@5.9.2)':
     dependencies:
-      '@typescript-eslint/parser': 5.38.1(eslint@8.57.1)(typescript@5.8.2)
+      '@typescript-eslint/parser': 5.38.1(eslint@8.57.1)(typescript@5.9.2)
       '@typescript-eslint/scope-manager': 5.38.1
-      '@typescript-eslint/type-utils': 5.38.1(eslint@8.57.1)(typescript@5.8.2)
-      '@typescript-eslint/utils': 5.38.1(eslint@8.57.1)(typescript@5.8.2)
+      '@typescript-eslint/type-utils': 5.38.1(eslint@8.57.1)(typescript@5.9.2)
+      '@typescript-eslint/utils': 5.38.1(eslint@8.57.1)(typescript@5.9.2)
       debug: 4.4.0(supports-color@5.5.0)
       eslint: 8.57.1
       ignore: 5.3.2
       regexpp: 3.2.0
       semver: 7.7.1
-      tsutils: 3.21.0(typescript@5.8.2)
+      tsutils: 3.21.0(typescript@5.9.2)
     optionalDependencies:
-      typescript: 5.8.2
+      typescript: 5.9.2
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/eslint-plugin@6.21.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.8.2))(eslint@8.57.1)(typescript@5.8.2)':
+  '@typescript-eslint/eslint-plugin@6.21.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.2))(eslint@8.57.1)(typescript@5.9.2)':
     dependencies:
       '@eslint-community/regexpp': 4.12.1
-      '@typescript-eslint/parser': 6.21.0(eslint@8.57.1)(typescript@5.8.2)
+      '@typescript-eslint/parser': 6.21.0(eslint@8.57.1)(typescript@5.9.2)
       '@typescript-eslint/scope-manager': 6.21.0
-      '@typescript-eslint/type-utils': 6.21.0(eslint@8.57.1)(typescript@5.8.2)
-      '@typescript-eslint/utils': 6.21.0(eslint@8.57.1)(typescript@5.8.2)
+      '@typescript-eslint/type-utils': 6.21.0(eslint@8.57.1)(typescript@5.9.2)
+      '@typescript-eslint/utils': 6.21.0(eslint@8.57.1)(typescript@5.9.2)
       '@typescript-eslint/visitor-keys': 6.21.0
       debug: 4.4.0(supports-color@5.5.0)
       eslint: 8.57.1
@@ -6286,42 +7453,42 @@ snapshots:
       ignore: 5.3.2
       natural-compare: 1.4.0
       semver: 7.7.1
-      ts-api-utils: 1.4.3(typescript@5.8.2)
+      ts-api-utils: 1.4.3(typescript@5.9.2)
     optionalDependencies:
-      typescript: 5.8.2
+      typescript: 5.9.2
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/experimental-utils@5.38.1(eslint@8.57.1)(typescript@5.8.2)':
+  '@typescript-eslint/experimental-utils@5.38.1(eslint@8.57.1)(typescript@5.9.2)':
     dependencies:
-      '@typescript-eslint/utils': 5.38.1(eslint@8.57.1)(typescript@5.8.2)
+      '@typescript-eslint/utils': 5.38.1(eslint@8.57.1)(typescript@5.9.2)
       eslint: 8.57.1
     transitivePeerDependencies:
       - supports-color
       - typescript
 
-  '@typescript-eslint/parser@5.38.1(eslint@8.57.1)(typescript@5.8.2)':
+  '@typescript-eslint/parser@5.38.1(eslint@8.57.1)(typescript@5.9.2)':
     dependencies:
       '@typescript-eslint/scope-manager': 5.38.1
       '@typescript-eslint/types': 5.38.1
-      '@typescript-eslint/typescript-estree': 5.38.1(typescript@5.8.2)
+      '@typescript-eslint/typescript-estree': 5.38.1(typescript@5.9.2)
       debug: 4.4.0(supports-color@5.5.0)
       eslint: 8.57.1
     optionalDependencies:
-      typescript: 5.8.2
+      typescript: 5.9.2
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.8.2)':
+  '@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.2)':
     dependencies:
       '@typescript-eslint/scope-manager': 6.21.0
       '@typescript-eslint/types': 6.21.0
-      '@typescript-eslint/typescript-estree': 6.21.0(typescript@5.8.2)
+      '@typescript-eslint/typescript-estree': 6.21.0(typescript@5.9.2)
       '@typescript-eslint/visitor-keys': 6.21.0
       debug: 4.4.0(supports-color@5.5.0)
       eslint: 8.57.1
     optionalDependencies:
-      typescript: 5.8.2
+      typescript: 5.9.2
     transitivePeerDependencies:
       - supports-color
 
@@ -6335,27 +7502,27 @@ snapshots:
       '@typescript-eslint/types': 6.21.0
       '@typescript-eslint/visitor-keys': 6.21.0
 
-  '@typescript-eslint/type-utils@5.38.1(eslint@8.57.1)(typescript@5.8.2)':
+  '@typescript-eslint/type-utils@5.38.1(eslint@8.57.1)(typescript@5.9.2)':
     dependencies:
-      '@typescript-eslint/typescript-estree': 5.38.1(typescript@5.8.2)
-      '@typescript-eslint/utils': 5.38.1(eslint@8.57.1)(typescript@5.8.2)
+      '@typescript-eslint/typescript-estree': 5.38.1(typescript@5.9.2)
+      '@typescript-eslint/utils': 5.38.1(eslint@8.57.1)(typescript@5.9.2)
       debug: 4.4.0(supports-color@5.5.0)
       eslint: 8.57.1
-      tsutils: 3.21.0(typescript@5.8.2)
+      tsutils: 3.21.0(typescript@5.9.2)
     optionalDependencies:
-      typescript: 5.8.2
+      typescript: 5.9.2
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/type-utils@6.21.0(eslint@8.57.1)(typescript@5.8.2)':
+  '@typescript-eslint/type-utils@6.21.0(eslint@8.57.1)(typescript@5.9.2)':
     dependencies:
-      '@typescript-eslint/typescript-estree': 6.21.0(typescript@5.8.2)
-      '@typescript-eslint/utils': 6.21.0(eslint@8.57.1)(typescript@5.8.2)
+      '@typescript-eslint/typescript-estree': 6.21.0(typescript@5.9.2)
+      '@typescript-eslint/utils': 6.21.0(eslint@8.57.1)(typescript@5.9.2)
       debug: 4.4.0(supports-color@5.5.0)
       eslint: 8.57.1
-      ts-api-utils: 1.4.3(typescript@5.8.2)
+      ts-api-utils: 1.4.3(typescript@5.9.2)
     optionalDependencies:
-      typescript: 5.8.2
+      typescript: 5.9.2
     transitivePeerDependencies:
       - supports-color
 
@@ -6363,7 +7530,7 @@ snapshots:
 
   '@typescript-eslint/types@6.21.0': {}
 
-  '@typescript-eslint/typescript-estree@5.38.1(typescript@5.8.2)':
+  '@typescript-eslint/typescript-estree@5.38.1(typescript@5.9.2)':
     dependencies:
       '@typescript-eslint/types': 5.38.1
       '@typescript-eslint/visitor-keys': 5.38.1
@@ -6371,13 +7538,13 @@ snapshots:
       globby: 11.1.0
       is-glob: 4.0.3
       semver: 7.7.1
-      tsutils: 3.21.0(typescript@5.8.2)
+      tsutils: 3.21.0(typescript@5.9.2)
     optionalDependencies:
-      typescript: 5.8.2
+      typescript: 5.9.2
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/typescript-estree@6.21.0(typescript@5.8.2)':
+  '@typescript-eslint/typescript-estree@6.21.0(typescript@5.9.2)':
     dependencies:
       '@typescript-eslint/types': 6.21.0
       '@typescript-eslint/visitor-keys': 6.21.0
@@ -6386,18 +7553,18 @@ snapshots:
       is-glob: 4.0.3
       minimatch: 9.0.3
       semver: 7.7.1
-      ts-api-utils: 1.4.3(typescript@5.8.2)
+      ts-api-utils: 1.4.3(typescript@5.9.2)
     optionalDependencies:
-      typescript: 5.8.2
+      typescript: 5.9.2
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/utils@5.38.1(eslint@8.57.1)(typescript@5.8.2)':
+  '@typescript-eslint/utils@5.38.1(eslint@8.57.1)(typescript@5.9.2)':
     dependencies:
       '@types/json-schema': 7.0.15
       '@typescript-eslint/scope-manager': 5.38.1
       '@typescript-eslint/types': 5.38.1
-      '@typescript-eslint/typescript-estree': 5.38.1(typescript@5.8.2)
+      '@typescript-eslint/typescript-estree': 5.38.1(typescript@5.9.2)
       eslint: 8.57.1
       eslint-scope: 5.1.1
       eslint-utils: 3.0.0(eslint@8.57.1)
@@ -6405,14 +7572,14 @@ snapshots:
       - supports-color
       - typescript
 
-  '@typescript-eslint/utils@6.21.0(eslint@8.57.1)(typescript@5.8.2)':
+  '@typescript-eslint/utils@6.21.0(eslint@8.57.1)(typescript@5.9.2)':
     dependencies:
       '@eslint-community/eslint-utils': 4.5.1(eslint@8.57.1)
       '@types/json-schema': 7.0.15
       '@types/semver': 7.7.0
       '@typescript-eslint/scope-manager': 6.21.0
       '@typescript-eslint/types': 6.21.0
-      '@typescript-eslint/typescript-estree': 6.21.0(typescript@5.8.2)
+      '@typescript-eslint/typescript-estree': 6.21.0(typescript@5.9.2)
       eslint: 8.57.1
       semver: 7.7.1
     transitivePeerDependencies:
@@ -6428,6 +7595,13 @@ snapshots:
     dependencies:
       '@typescript-eslint/types': 6.21.0
       eslint-visitor-keys: 3.4.3
+
+  '@typescript/vfs@1.6.1(typescript@5.9.2)':
+    dependencies:
+      debug: 4.4.0(supports-color@5.5.0)
+      typescript: 5.9.2
+    transitivePeerDependencies:
+      - supports-color
 
   '@ungap/structured-clone@1.3.0': {}
 
@@ -6477,6 +7651,62 @@ snapshots:
 
   '@unrs/resolver-binding-win32-x64-msvc@1.3.2':
     optional: true
+
+  '@vscode/l10n@0.0.18': {}
+
+  '@vue/compiler-core@3.5.18':
+    dependencies:
+      '@babel/parser': 7.28.3
+      '@vue/shared': 3.5.18
+      entities: 4.5.0
+      estree-walker: 2.0.2
+      source-map-js: 1.2.1
+
+  '@vue/compiler-dom@3.5.18':
+    dependencies:
+      '@vue/compiler-core': 3.5.18
+      '@vue/shared': 3.5.18
+
+  '@vue/compiler-sfc@3.5.18':
+    dependencies:
+      '@babel/parser': 7.28.3
+      '@vue/compiler-core': 3.5.18
+      '@vue/compiler-dom': 3.5.18
+      '@vue/compiler-ssr': 3.5.18
+      '@vue/shared': 3.5.18
+      estree-walker: 2.0.2
+      magic-string: 0.30.17
+      postcss: 8.5.6
+      source-map-js: 1.2.1
+
+  '@vue/compiler-ssr@3.5.18':
+    dependencies:
+      '@vue/compiler-dom': 3.5.18
+      '@vue/shared': 3.5.18
+
+  '@vue/reactivity@3.5.18':
+    dependencies:
+      '@vue/shared': 3.5.18
+
+  '@vue/runtime-core@3.5.18':
+    dependencies:
+      '@vue/reactivity': 3.5.18
+      '@vue/shared': 3.5.18
+
+  '@vue/runtime-dom@3.5.18':
+    dependencies:
+      '@vue/reactivity': 3.5.18
+      '@vue/runtime-core': 3.5.18
+      '@vue/shared': 3.5.18
+      csstype: 3.1.3
+
+  '@vue/server-renderer@3.5.18(vue@3.5.18(typescript@5.9.2))':
+    dependencies:
+      '@vue/compiler-ssr': 3.5.18
+      '@vue/shared': 3.5.18
+      vue: 3.5.18(typescript@5.9.2)
+
+  '@vue/shared@3.5.18': {}
 
   '@webassemblyjs/ast@1.14.1':
     dependencies:
@@ -6791,6 +8021,8 @@ snapshots:
 
   bezier-js@6.1.4: {}
 
+  bignumber.js@9.3.1: {}
+
   binary-extensions@2.3.0: {}
 
   bl@4.1.0:
@@ -6902,6 +8134,12 @@ snapshots:
 
   clsx@1.2.1: {}
 
+  codemirror-shiki@0.2.5(@codemirror/state@6.5.2)(@codemirror/view@6.38.1)(shiki@3.11.0):
+    dependencies:
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.38.1
+      shiki: 3.11.0
+
   collapse-white-space@2.1.0: {}
 
   color-convert@2.0.1:
@@ -6913,6 +8151,8 @@ snapshots:
   combined-stream@1.0.8:
     dependencies:
       delayed-stream: 1.0.0
+
+  comlink@4.4.2: {}
 
   comma-separated-tokens@2.0.3: {}
 
@@ -6941,16 +8181,18 @@ snapshots:
 
   core-js@3.41.0: {}
 
-  cosmiconfig@9.0.0(typescript@5.8.2):
+  cosmiconfig@9.0.0(typescript@5.9.2):
     dependencies:
       env-paths: 2.2.1
       import-fresh: 3.3.1
       js-yaml: 4.1.0
       parse-json: 5.2.0
     optionalDependencies:
-      typescript: 5.8.2
+      typescript: 5.9.2
 
   create-require@1.1.1: {}
+
+  crelt@1.0.6: {}
 
   cross-env@7.0.3:
     dependencies:
@@ -7088,6 +8330,8 @@ snapshots:
       tapable: 2.2.1
     optional: true
 
+  entities@4.5.0: {}
+
   env-paths@2.2.1: {}
 
   error-ex@1.3.2:
@@ -7199,6 +8443,8 @@ snapshots:
       is-date-object: 1.1.0
       is-symbol: 1.1.1
 
+  es-toolkit@1.39.10: {}
+
   esast-util-from-estree@2.0.0:
     dependencies:
       '@types/estree-jsx': 1.0.5
@@ -7244,15 +8490,15 @@ snapshots:
       tinyglobby: 0.2.12
       unrs-resolver: 1.3.2
     optionalDependencies:
-      eslint-plugin-import: 2.31.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.8.2))(eslint-import-resolver-typescript@3.10.0)(eslint@8.57.1)
+      eslint-plugin-import: 2.31.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.2))(eslint-import-resolver-typescript@3.10.0)(eslint@8.57.1)
     transitivePeerDependencies:
       - supports-color
 
-  eslint-module-utils@2.12.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.8.2))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.10.0)(eslint@8.57.1):
+  eslint-module-utils@2.12.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.2))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.10.0)(eslint@8.57.1):
     dependencies:
       debug: 3.2.7
     optionalDependencies:
-      '@typescript-eslint/parser': 6.21.0(eslint@8.57.1)(typescript@5.8.2)
+      '@typescript-eslint/parser': 6.21.0(eslint@8.57.1)(typescript@5.9.2)
       eslint: 8.57.1
       eslint-import-resolver-node: 0.3.9
       eslint-import-resolver-typescript: 3.10.0(eslint-plugin-import@2.31.0)(eslint@8.57.1)
@@ -7264,7 +8510,7 @@ snapshots:
       eslint: 8.57.1
       eslint-rule-composer: 0.3.0
 
-  eslint-plugin-import@2.31.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.8.2))(eslint-import-resolver-typescript@3.10.0)(eslint@8.57.1):
+  eslint-plugin-import@2.31.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.2))(eslint-import-resolver-typescript@3.10.0)(eslint@8.57.1):
     dependencies:
       '@rtsao/scc': 1.1.0
       array-includes: 3.1.8
@@ -7275,7 +8521,7 @@ snapshots:
       doctrine: 2.1.0
       eslint: 8.57.1
       eslint-import-resolver-node: 0.3.9
-      eslint-module-utils: 2.12.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.8.2))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.10.0)(eslint@8.57.1)
+      eslint-module-utils: 2.12.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.2))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.10.0)(eslint@8.57.1)
       hasown: 2.0.2
       is-core-module: 2.16.1
       is-glob: 4.0.3
@@ -7287,7 +8533,7 @@ snapshots:
       string.prototype.trimend: 1.0.9
       tsconfig-paths: 3.15.0
     optionalDependencies:
-      '@typescript-eslint/parser': 6.21.0(eslint@8.57.1)(typescript@5.8.2)
+      '@typescript-eslint/parser': 6.21.0(eslint@8.57.1)(typescript@5.9.2)
     transitivePeerDependencies:
       - eslint-import-resolver-typescript
       - eslint-import-resolver-webpack
@@ -7479,6 +8725,8 @@ snapshots:
     dependencies:
       '@types/estree-jsx': 1.0.5
       '@types/unist': 3.0.3
+
+  estree-walker@2.0.2: {}
 
   estree-walker@3.0.3:
     dependencies:
@@ -7707,6 +8955,8 @@ snapshots:
     dependencies:
       has-symbols: 1.1.0
 
+  hash-sum@2.0.0: {}
+
   hasown@2.0.2:
     dependencies:
       function-bind: 1.1.2
@@ -7731,6 +8981,20 @@ snapshots:
       zwitch: 2.0.4
     transitivePeerDependencies:
       - supports-color
+
+  hast-util-to-html@9.0.5:
+    dependencies:
+      '@types/hast': 3.0.4
+      '@types/unist': 3.0.3
+      ccount: 2.0.1
+      comma-separated-tokens: 2.0.3
+      hast-util-whitespace: 3.0.0
+      html-void-elements: 3.0.0
+      mdast-util-to-hast: 13.2.0
+      property-information: 7.0.0
+      space-separated-tokens: 2.0.2
+      stringify-entities: 4.0.4
+      zwitch: 2.0.4
 
   hast-util-to-jsx-runtime@2.3.6:
     dependencies:
@@ -7762,9 +9026,17 @@ snapshots:
 
   html-entities@2.6.0: {}
 
+  html-void-elements@3.0.0: {}
+
   humanize-ms@1.2.1:
     dependencies:
       ms: 2.1.3
+
+  i18n-js@4.5.1:
+    dependencies:
+      bignumber.js: 9.3.1
+      lodash: 4.17.21
+      make-plural: 7.4.0
 
   iconv-lite@0.4.24:
     dependencies:
@@ -7987,6 +9259,13 @@ snapshots:
 
   jju@1.4.0: {}
 
+  jotai@2.13.1(@babel/core@7.26.10)(@babel/template@7.27.0)(@types/react@18.3.20)(react@18.3.1):
+    optionalDependencies:
+      '@babel/core': 7.26.10
+      '@babel/template': 7.27.0
+      '@types/react': 18.3.20
+      react: 18.3.1
+
   js-tiktoken@1.0.20:
     dependencies:
       base64-js: 1.5.1
@@ -8092,11 +9371,26 @@ snapshots:
     dependencies:
       yallist: 3.1.1
 
+  lz-string@1.5.0: {}
+
+  magic-string@0.30.17:
+    dependencies:
+      '@jridgewell/sourcemap-codec': 1.5.0
+
   make-error@1.3.6: {}
+
+  make-plural@7.4.0: {}
 
   markdown-extensions@2.0.0: {}
 
   markdown-table@3.0.4: {}
+
+  marked-shiki@1.2.1(marked@15.0.12)(shiki@3.11.0):
+    dependencies:
+      marked: 15.0.12
+      shiki: 3.11.0
+
+  marked@15.0.12: {}
 
   math-intrinsics@1.1.0: {}
 
@@ -8563,6 +9857,8 @@ snapshots:
 
   minipass@7.1.2: {}
 
+  mitt@3.0.1: {}
+
   monaco-editor@0.52.2: {}
 
   ms@2.1.3: {}
@@ -8656,6 +9952,14 @@ snapshots:
     dependencies:
       mimic-fn: 2.1.0
 
+  oniguruma-parser@0.12.1: {}
+
+  oniguruma-to-es@4.3.3:
+    dependencies:
+      oniguruma-parser: 0.12.1
+      regex: 6.0.1
+      regex-recursion: 6.0.2
+
   openai@4.104.0(zod@3.25.61):
     dependencies:
       '@types/node': 18.19.84
@@ -8692,6 +9996,8 @@ snapshots:
       wcwidth: 1.0.1
 
   os-tmpdir@1.0.2: {}
+
+  overlayscrollbars@2.11.5: {}
 
   own-keys@1.0.1:
     dependencies:
@@ -8785,17 +10091,17 @@ snapshots:
       camelcase-css: 2.0.1
       postcss: 8.5.3
 
-  postcss-load-config@4.0.2(postcss@8.5.3)(ts-node@10.9.2(@types/node@18.19.84)(typescript@5.8.2)):
+  postcss-load-config@4.0.2(postcss@8.5.3)(ts-node@10.9.2(@types/node@18.19.84)(typescript@5.9.2)):
     dependencies:
       lilconfig: 3.1.3
       yaml: 2.7.0
     optionalDependencies:
       postcss: 8.5.3
-      ts-node: 10.9.2(@types/node@18.19.84)(typescript@5.8.2)
+      ts-node: 10.9.2(@types/node@18.19.84)(typescript@5.9.2)
 
-  postcss-loader@8.1.1(@rspack/core@1.3.3(@swc/helpers@0.5.15))(postcss@8.5.3)(typescript@5.8.2)(webpack@5.98.0):
+  postcss-loader@8.1.1(@rspack/core@1.3.3(@swc/helpers@0.5.15))(postcss@8.5.3)(typescript@5.9.2)(webpack@5.98.0):
     dependencies:
-      cosmiconfig: 9.0.0(typescript@5.8.2)
+      cosmiconfig: 9.0.0(typescript@5.9.2)
       jiti: 1.21.7
       postcss: 8.5.3
       semver: 7.7.1
@@ -8818,6 +10124,12 @@ snapshots:
   postcss-value-parser@4.2.0: {}
 
   postcss@8.5.3:
+    dependencies:
+      nanoid: 3.3.11
+      picocolors: 1.1.1
+      source-map-js: 1.2.1
+
+  postcss@8.5.6:
     dependencies:
       nanoid: 3.3.11
       picocolors: 1.1.1
@@ -8963,6 +10275,16 @@ snapshots:
   regenerator-transform@0.15.2:
     dependencies:
       '@babel/runtime': 7.27.0
+
+  regex-recursion@6.0.2:
+    dependencies:
+      regex-utilities: 2.3.0
+
+  regex-utilities@2.3.0: {}
+
+  regex@6.0.1:
+    dependencies:
+      regex-utilities: 2.3.0
 
   regexp.prototype.flags@1.5.4:
     dependencies:
@@ -9164,6 +10486,17 @@ snapshots:
 
   shebang-regex@3.0.0: {}
 
+  shiki@3.11.0:
+    dependencies:
+      '@shikijs/core': 3.11.0
+      '@shikijs/engine-javascript': 3.11.0
+      '@shikijs/engine-oniguruma': 3.11.0
+      '@shikijs/langs': 3.11.0
+      '@shikijs/themes': 3.11.0
+      '@shikijs/types': 3.11.0
+      '@shikijs/vscode-textmate': 10.0.2
+      '@types/hast': 3.0.4
+
   side-channel-list@1.0.0:
     dependencies:
       es-errors: 1.3.0
@@ -9315,6 +10648,8 @@ snapshots:
 
   strip-json-comments@3.1.1: {}
 
+  style-mod@4.1.2: {}
+
   style-to-js@1.1.16:
     dependencies:
       style-to-object: 1.0.8
@@ -9371,7 +10706,7 @@ snapshots:
       '@pkgr/core': 0.1.2
       tslib: 2.8.1
 
-  tailwindcss@3.4.17(ts-node@10.9.2(@types/node@18.19.84)(typescript@5.8.2)):
+  tailwindcss@3.4.17(ts-node@10.9.2(@types/node@18.19.84)(typescript@5.9.2)):
     dependencies:
       '@alloc/quick-lru': 5.2.0
       arg: 5.0.2
@@ -9390,7 +10725,7 @@ snapshots:
       postcss: 8.5.3
       postcss-import: 15.1.0(postcss@8.5.3)
       postcss-js: 4.0.1(postcss@8.5.3)
-      postcss-load-config: 4.0.2(postcss@8.5.3)(ts-node@10.9.2(@types/node@18.19.84)(typescript@5.8.2))
+      postcss-load-config: 4.0.2(postcss@8.5.3)(ts-node@10.9.2(@types/node@18.19.84)(typescript@5.9.2))
       postcss-nested: 6.2.0(postcss@8.5.3)
       postcss-selector-parser: 6.1.2
       resolve: 1.22.10
@@ -9418,6 +10753,8 @@ snapshots:
       commander: 2.20.3
       source-map-support: 0.5.21
     optional: true
+
+  text-mapping@1.0.1: {}
 
   text-table@0.2.0: {}
 
@@ -9448,13 +10785,13 @@ snapshots:
 
   trough@2.2.0: {}
 
-  ts-api-utils@1.4.3(typescript@5.8.2):
+  ts-api-utils@1.4.3(typescript@5.9.2):
     dependencies:
-      typescript: 5.8.2
+      typescript: 5.9.2
 
   ts-interface-checker@0.1.13: {}
 
-  ts-node@10.9.2(@types/node@18.19.84)(typescript@5.8.2):
+  ts-node@10.9.2(@types/node@18.19.84)(typescript@5.9.2):
     dependencies:
       '@cspotcode/source-map-support': 0.8.1
       '@tsconfig/node10': 1.0.11
@@ -9468,7 +10805,7 @@ snapshots:
       create-require: 1.1.1
       diff: 4.0.2
       make-error: 1.3.6
-      typescript: 5.8.2
+      typescript: 5.9.2
       v8-compile-cache-lib: 3.0.1
       yn: 3.1.1
 
@@ -9483,10 +10820,10 @@ snapshots:
 
   tslib@2.8.1: {}
 
-  tsutils@3.21.0(typescript@5.8.2):
+  tsutils@3.21.0(typescript@5.9.2):
     dependencies:
       tslib: 1.14.1
-      typescript: 5.8.2
+      typescript: 5.9.2
 
   type-check@0.4.0:
     dependencies:
@@ -9529,7 +10866,7 @@ snapshots:
       possible-typed-array-names: 1.1.0
       reflect.getprototypeof: 1.0.10
 
-  typescript@5.8.2: {}
+  typescript@5.9.2: {}
 
   unbox-primitive@1.1.0:
     dependencies:
@@ -9635,6 +10972,32 @@ snapshots:
     dependencies:
       '@types/unist': 3.0.3
       vfile-message: 4.0.2
+
+  vscode-json-languageservice@5.6.1:
+    dependencies:
+      '@vscode/l10n': 0.0.18
+      jsonc-parser: 3.3.1
+      vscode-languageserver-textdocument: 1.0.12
+      vscode-languageserver-types: 3.17.5
+      vscode-uri: 3.1.0
+
+  vscode-languageserver-textdocument@1.0.12: {}
+
+  vscode-languageserver-types@3.17.5: {}
+
+  vscode-uri@3.1.0: {}
+
+  vue@3.5.18(typescript@5.9.2):
+    dependencies:
+      '@vue/compiler-dom': 3.5.18
+      '@vue/compiler-sfc': 3.5.18
+      '@vue/runtime-dom': 3.5.18
+      '@vue/server-renderer': 3.5.18(vue@3.5.18(typescript@5.9.2))
+      '@vue/shared': 3.5.18
+    optionalDependencies:
+      typescript: 5.9.2
+
+  w3c-keyname@2.2.8: {}
 
   watchpack@2.4.2:
     dependencies:
