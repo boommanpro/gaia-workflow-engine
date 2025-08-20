@@ -1,6 +1,7 @@
 import { describe, test, expect } from 'vitest';
 
-import { Disposable, DisposableCollection, DisposableImpl } from './disposable';
+import { DisposableCollection, DisposableImpl } from './disposable-collection';
+import { Disposable } from './disposable';
 
 describe('disposable', () => {
   test('Disposable', async () => {

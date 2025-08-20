@@ -1,11 +1,12 @@
 import React from 'react';
 
 import { FlowNodeEntity } from '@flowgram.ai/document';
-import { PlaygroundContext } from '@flowgram.ai/core';
+import { PlaygroundContext, PluginContext } from '@flowgram.ai/core';
 
 export interface NodeContext {
   node: FlowNodeEntity;
   playgroundContext: PlaygroundContext;
+  clientContext: PluginContext & Record<string, any>;
 }
 
 export type Render<T = any> = (props: T) => any;
@@ -19,5 +20,5 @@ export interface NodeRenderProps {
 }
 
 export type NodeRenderHoc = (
-  Component: React.JSXElementConstructor<NodeRenderProps>,
+  Component: React.JSXElementConstructor<NodeRenderProps>
 ) => React.JSXElementConstructor<NodeRenderProps>;

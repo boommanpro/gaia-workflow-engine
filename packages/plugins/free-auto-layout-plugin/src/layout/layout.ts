@@ -1,4 +1,4 @@
-import { GetFollowNode, LayoutOptions, LayoutParams } from './type';
+import { GetFollowNode, LayoutConfig, LayoutOptions, LayoutParams } from './type';
 import { LayoutStore } from './store';
 import { LayoutPosition } from './position';
 import { DagreLayout } from './dagre';
@@ -10,8 +10,8 @@ export class Layout {
 
   private readonly _position: LayoutPosition;
 
-  constructor() {
-    this._store = new LayoutStore();
+  constructor(config: LayoutConfig) {
+    this._store = new LayoutStore(config);
     this._layout = new DagreLayout(this._store);
     this._position = new LayoutPosition(this._store);
   }

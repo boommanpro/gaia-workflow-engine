@@ -24,7 +24,7 @@ import {
   toForm,
 } from '@flowgram.ai/form';
 import { FlowNodeEntity } from '@flowgram.ai/document';
-import { PlaygroundContext } from '@flowgram.ai/core';
+import { PlaygroundContext, PluginContext } from '@flowgram.ai/core';
 
 import {
   convertGlobPath,
@@ -175,6 +175,7 @@ export class FormModelV2 extends FormModel implements Disposable {
     return {
       node: this.node,
       playgroundContext: this.node.getService(PlaygroundContext),
+      clientContext: this.node.getService(PluginContext),
     };
   }
 

@@ -1,4 +1,4 @@
-import { CSSProperties, type FC } from 'react';
+import { CSSProperties, MouseEvent, TouchEvent, type FC } from 'react';
 
 import { useNodeRender, usePlayground } from '@flowgram.ai/free-layout-editor';
 
@@ -17,22 +17,25 @@ export const DragArea: FC<IDragArea> = (props) => {
 
   const { startDrag: onStartDrag, onFocus, onBlur, selectNode } = useNodeRender();
 
+  const handleDrag = (e: MouseEvent | TouchEvent) => {
+    if (stopEvent) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    model.setFocus(false);
+    onStartDrag(e as MouseEvent);
+    selectNode(e as MouseEvent);
+    playground.node.focus(); // 防止节点无法被删除
+  };
+
   return (
     <div
       className="workflow-comment-drag-area"
       data-flow-editor-selectable="false"
       draggable={true}
       style={style}
-      onMouseDown={(e) => {
-        if (stopEvent) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-        model.setFocus(false);
-        onStartDrag(e);
-        selectNode(e);
-        playground.node.focus(); // 防止节点无法被删除
-      }}
+      onMouseDown={handleDrag}
+      onTouchStart={handleDrag}
       onFocus={onFocus}
       onBlur={onBlur}
     />

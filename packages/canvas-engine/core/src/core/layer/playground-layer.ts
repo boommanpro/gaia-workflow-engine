@@ -1,9 +1,9 @@
 import { inject, injectable, optional } from 'inversify';
-import { Disposable, domUtils } from '@flowgram.ai/utils';
+import { Disposable, domUtils, PositionSchema } from '@flowgram.ai/utils';
 
 import { Gesture } from '../utils/use-gesture';
 import { PlaygroundGesture } from '../utils/playground-gesture';
-import { PlaygroundDrag } from '../utils';
+import { MouseTouchEvent, PlaygroundDrag } from '../utils';
 import { type PipelineDimension, PipelineLayerPriority } from '../pipeline';
 import { ProtectWheelArea } from '../../common/protect-wheel-area';
 import { observeEntity } from '../../common';
@@ -35,6 +35,8 @@ export interface PlaygroundLayerOptions extends LayerOptions {
   hoverService?: {
     /** 精确判断当前鼠标位置是否有元素存在 */
     isSomeHovered: () => boolean;
+    updateHoverPosition: (position: PositionSchema, target?: HTMLElement) => void;
+    clearHovered: () => void;
   };
 }
 
@@ -116,6 +118,32 @@ export class PlaygroundLayer extends Layer<PlaygroundLayerOptions> {
         this.handleWheelEvent.bind(this),
         PipelineLayerPriority.BASE_LAYER,
         { passive: true }
+      ),
+      /**
+       * 监听触控拖动画布操作
+       */
+      this.listenPlaygroundEvent(
+        'touchstart',
+        (e: TouchEvent) => {
+          const { clientX: x, clientY: y } = MouseTouchEvent.getEventCoord(e);
+          if (!this.options?.hoverService) {
+            return;
+          }
+          this.options.hoverService.updateHoverPosition(
+            {
+              x,
+              y,
+            },
+            e.target as HTMLElement
+          );
+          const isSomeHovered = this.options.hoverService?.isSomeHovered();
+          if (isSomeHovered) {
+            return;
+          }
+          this.grabDragger.start(x, y);
+        },
+        // 这里必须监听 NORMAL_LAYER，该图层最先触发
+        PipelineLayerPriority.NORMAL_LAYER
       ),
       this.listenPlaygroundEvent(
         'mousedown',

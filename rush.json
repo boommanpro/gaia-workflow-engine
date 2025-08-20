@@ -852,6 +852,15 @@
             ]
         },
         {
+            "packageName": "@flowgram.ai/form-antd-materials",
+            "projectFolder": "packages/materials/form-antd-materials",
+            "versionPolicyName": "publishPolicy",
+            "tags": [
+                "level-1",
+                "team-flow"
+            ]
+        },
+        {
             "packageName": "@flowgram.ai/free-auto-layout-plugin",
             "projectFolder": "packages/plugins/free-auto-layout-plugin",
             "versionPolicyName": "publishPolicy",
@@ -920,6 +929,16 @@
         {
             "packageName": "@flowgram.ai/demo-nextjs",
             "projectFolder": "apps/demo-nextjs",
+            "versionPolicyName": "appPolicy",
+            "tags": [
+                "level-1",
+                "team-flow",
+                "demo"
+            ]
+        },
+        {
+            "packageName": "@flowgram.ai/demo-nextjs-antd",
+            "projectFolder": "apps/demo-nextjs-antd",
             "versionPolicyName": "appPolicy",
             "tags": [
                 "level-1",

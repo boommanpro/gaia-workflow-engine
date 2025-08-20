@@ -8,7 +8,7 @@ import {
   SizeSchema,
   TransformData,
 } from '../../../common'
-import { startTween } from '../../utils'
+import { MouseTouchEvent, startTween } from '../../utils'
 // import { Selectable } from '../../able'
 
 export interface PlaygroundConfigEntityData {
@@ -216,14 +216,21 @@ export class PlaygroundConfigEntity extends ConfigEntity<PlaygroundConfigEntityD
    * @param widthScale 是否要计算缩放
    */
   getPosFromMouseEvent(
-    event: { clientX: number; clientY: number },
+    event:
+    | MouseEvent
+    | TouchEvent
+    | {
+        clientX: number;
+        clientY: number;
+      },
     withScale = true
   ): PositionSchema {
     const { config } = this
-    const scale = withScale ? this.finalScale : 1
+    const scale = withScale ? this.zoom : 1
+    const { clientX, clientY } = MouseTouchEvent.getEventCoord(event)
     return {
-      x: (event.clientX + config.scrollX - config.clientX) / scale,
-      y: (event.clientY + config.scrollY - config.clientY) / scale,
+      x: (clientX + config.scrollX - config.clientX) / scale,
+      y: (clientY + config.scrollY - config.clientY) / scale,
     }
   }
 

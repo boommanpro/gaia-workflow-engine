@@ -39,9 +39,7 @@ export const LineAddButton = (props: LineRenderProps) => {
     };
 
     // get container node for the new node - 获取新节点的容器节点
-    const containerNode = WorkflowNodePanelUtils.getContainerNode({
-      fromPort,
-    });
+    const containerNode = fromPort.node.parent;
 
     // show node selection panel - 显示节点选择面板
     const result = await nodePanelService.singleSelectNodePanel({

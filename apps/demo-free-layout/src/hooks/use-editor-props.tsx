@@ -83,6 +83,7 @@ export function useEditorProps(
         hovered: 'var(--g-workflow-line-color-hover,#37d0ff)',
         selected: 'var(--g-workflow-line-color-selected,#37d0ff)',
         error: 'var(--g-workflow-line-color-error,red)',
+        flowing: 'var(--g-workflow-line-color-flowing,#4d53e8)',
       },
       /*
        * Check whether the line can be added
@@ -192,6 +193,16 @@ export function useEditorProps(
        */
       onDispose() {
         console.log('---- Playground Dispose ----');
+      },
+      i18n: {
+        locale: navigator.language,
+        languages: {
+          'zh-CN': {
+            'Never Remind': '不再提示',
+            'Hold {{key}} to drag node out': '按住 {{key}} 可以将节点拖出',
+          },
+          'en-US': {},
+        },
       },
       plugins: () => [
         /**

@@ -324,6 +324,14 @@
           "autoinstallerName": "rush-commands",
           "safeForSimultaneousRushProcesses": true,
           "shellCommand": "concurrently --kill-others --prefix \"{name}\" --names [watch],[demo] -c white,blue \"rush build:watch --to-except @flowgram.ai/demo-nextjs\" \"cd apps/demo-nextjs && rushx dev\""
+      },
+      {
+        "name": "dev:demo-nextjs-antd",
+        "commandKind": "global",
+        "summary": "⭐️️ run dev in app/demo-nextjs-antd",
+        "autoinstallerName": "rush-commands",
+        "safeForSimultaneousRushProcesses": true,
+        "shellCommand": "concurrently --kill-others --prefix \"{name}\" --names [watch],[demo] -c white,blue \"rush build:watch --to-except @flowgram.ai/demo-nextjs-antd\" \"cd apps/demo-nextjs-antd && rushx dev\""
       }
   ],
 

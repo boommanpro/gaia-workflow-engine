@@ -1,6 +1,6 @@
 import React, { memo, useCallback, useEffect } from 'react';
 
-import { PlaygroundContext, useRefresh, useService } from '@flowgram.ai/core';
+import { PlaygroundContext, useRefresh, useService, PluginContext } from '@flowgram.ai/core';
 
 import { NodeEngineReactContext } from '../node-react/context/node-engine-react-context';
 import { useNodeEngineContext } from '../node-react';
@@ -18,6 +18,7 @@ const PureNodeRender = ({ node }: NodeRenderProps) => {
   const isNodeError = !!getNodeError(node);
   const isFormReady = isNodeFormReady(node);
   const playgroundContext = useService<PlaygroundContext>(PlaygroundContext);
+  const clientContext = useService<PluginContext>(PluginContext);
   const nodeManager = useService<NodeManager>(NodeManager);
   const nodeFormRender = nodeManager.getPluginRender(PLUGIN_KEY.FORM);
   const nodeErrorRender = nodeManager.getPluginRender(PLUGIN_KEY.ERROR);
@@ -40,13 +41,13 @@ const PureNodeRender = ({ node }: NodeRenderProps) => {
 
   const renderContent = useCallback(() => {
     if (isNodeError) {
-      return nodeErrorRender!({ node, playgroundContext });
+      return nodeErrorRender!({ node, playgroundContext, clientContext });
     }
     if (!formModel.formMeta) {
       return null;
     }
     if (isFormReady) {
-      return nodeFormRender!({ node, playgroundContext });
+      return nodeFormRender!({ node, playgroundContext, clientContext });
     }
     return nodePlaceholderRender?.({ node, playgroundContext }) || null;
   }, [

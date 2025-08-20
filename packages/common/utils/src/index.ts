@@ -3,6 +3,7 @@ export * from './objects';
 export * from './types';
 export * from './event';
 export * from './disposable';
+export * from './disposable-collection';
 export * from './cancellation';
 export * from './promise-util';
 export * from './cache';

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect } from 'react';
 
 import { FlowNodeEntity } from '@flowgram.ai/document';
-import { PlaygroundContext, useRefresh, useService } from '@flowgram.ai/core';
+import { PlaygroundContext, useRefresh, useService, PluginContext } from '@flowgram.ai/core';
 
 import { FlowNodeErrorData } from '../flow-node-error-data';
 import { MATERIAL_KEY, NodeManager, NodePluginRender } from '../../node';
@@ -10,9 +10,10 @@ import { defaultErrorRender } from './default-error-render';
 interface NodeRenderProps {
   node: FlowNodeEntity;
   playgroundContext: PlaygroundContext;
+  clientContext: PluginContext;
 }
 
-export const ErrorRender = ({ node, playgroundContext }: NodeRenderProps) => {
+export const ErrorRender = ({ node, playgroundContext, clientContext }: NodeRenderProps) => {
   const refresh = useRefresh();
   const nodeErrorData = node.getData<FlowNodeErrorData>(FlowNodeErrorData);
   const nodeError = nodeErrorData.getError();
@@ -23,14 +24,14 @@ export const ErrorRender = ({ node, playgroundContext }: NodeRenderProps) => {
     if (!nodeErrorRender) {
       return defaultErrorRender({
         error: nodeError,
-        context: { node, playgroundContext },
+        context: { node, playgroundContext, clientContext },
       });
     }
     return nodeErrorRender({
       error: nodeError,
-      context: { node, playgroundContext },
+      context: { node, playgroundContext, clientContext },
     });
-  }, [nodeError, node, playgroundContext]);
+  }, [nodeError, node, playgroundContext, clientContext]);
 
   useEffect(() => {
     const disposable = nodeErrorData.onDataChange(() => {

@@ -1,7 +1,5 @@
 import { NOOP } from './objects';
-import { type Disposable } from './disposable';
-
-const DisposableNULL: Disposable = Object.freeze({ dispose: NOOP });
+import { Disposable } from './disposable';
 
 export interface EventListener<T> {
   (args: T): void;
@@ -12,7 +10,7 @@ export interface Event<T> {
 }
 
 export namespace Event {
-  export const None: Event<any> = () => DisposableNULL;
+  export const None: Event<any> = () => Disposable.NULL;
 }
 
 export class Emitter<T = any> {
@@ -28,7 +26,7 @@ export class Emitter<T = any> {
     if (!this._event) {
       this._event = (listener: EventListener<T>, thisArgs?: any) => {
         if (this._disposed) {
-          return DisposableNULL;
+          return Disposable.NULL;
         }
         if (!this._listeners) {
           this._listeners = [];

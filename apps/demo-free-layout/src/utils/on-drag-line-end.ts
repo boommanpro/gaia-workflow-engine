@@ -37,9 +37,7 @@ export const onDragLineEnd = async (ctx: FreeLayoutPluginContext, params: onDrag
   }
 
   // get container node for the new node - 获取新节点的容器节点
-  const containerNode = WorkflowNodePanelUtils.getContainerNode({
-    fromPort,
-  });
+  const containerNode = fromPort.node.parent;
 
   // open node selection panel - 打开节点选择面板
   const result = await nodePanelService.singleSelectNodePanel({
@@ -85,7 +83,6 @@ export const onDragLineEnd = async (ctx: FreeLayoutPluginContext, params: onDrag
   WorkflowNodePanelUtils.buildLine({
     fromPort,
     node,
-    toPort,
     linesManager,
   });
 };

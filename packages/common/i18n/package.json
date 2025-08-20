@@ -25,7 +25,8 @@
     "watch": "npm run build:fast -- --dts-resolve --watch --ignore-watch dist"
   },
   "dependencies": {
-    "@flowgram.ai/utils": "workspace:*"
+    "@flowgram.ai/utils": "workspace:*",
+    "i18n-js": "^4.5.1"
   },
   "devDependencies": {
     "@flowgram.ai/eslint-config": "workspace:*",

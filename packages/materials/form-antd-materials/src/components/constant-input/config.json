@@ -1,0 +1,6 @@
+
+{
+  "name": "constant-input",
+  "depMaterials": ["typings/json-schema"],
+  "depPackages": []
+}

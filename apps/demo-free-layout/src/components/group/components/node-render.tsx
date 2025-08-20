@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { MouseEvent, useEffect } from 'react';
 
 import {
   FlowNodeFormData,
@@ -48,8 +48,8 @@ export const GroupNodeRender = () => {
       <Form control={formControl}>
         <>
           <GroupHeader
-            onMouseDown={(e) => {
-              startDrag(e);
+            onDrag={(e) => {
+              startDrag(e as MouseEvent);
             }}
             onFocus={onFocus}
             onBlur={onBlur}

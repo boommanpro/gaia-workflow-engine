@@ -7,10 +7,8 @@ import {
 } from '@flowgram.ai/utils';
 
 import type { PlaygroundConfigEntity } from '../layer/config';
-// import { Dragable, DragablePayload } from '../able';
 import type { PositionSchema } from '../../common/schema/position-schema';
-// import { type Entity } from '../../common/entity';
-// import { type Adsorber } from './adsorber';
+import { MouseTouchEvent } from './mouse-touch-event';
 
 /* istanbul ignore next */
 const SCROLL_DELTA = 4;
@@ -38,7 +36,7 @@ function createMouseEvent(type: string, clientX: number, clientY: number): Mouse
     false,
     false,
     0,
-    null,
+    null
   );
   return event;
 }
@@ -87,9 +85,9 @@ export class PlaygroundDrag<T = undefined> implements Disposable {
   readonly onDragEnd = this.onDragEndEmitter.event;
 
   constructor(options: PlaygroundDragOptions<T> = {}) {
-    if (options.onDragStart) this.onDragStart(e => options.onDragStart!(e, this.context));
-    if (options.onDrag) this.onDrag(e => options.onDrag!(e, this.context));
-    if (options.onDragEnd) this.onDragEnd(e => options.onDragEnd!(e, this.context));
+    if (options.onDragStart) this.onDragStart((e) => options.onDragStart!(e, this.context));
+    if (options.onDrag) this.onDrag((e) => options.onDrag!(e, this.context));
+    if (options.onDragEnd) this.onDragEnd((e) => options.onDragEnd!(e, this.context));
     if (options.stopGlobalEventNames) this._stopGlobalEventNames = options.stopGlobalEventNames;
   }
 
@@ -101,7 +99,7 @@ export class PlaygroundDrag<T = undefined> implements Disposable {
     clientX: number,
     clientY: number,
     entity?: PlaygroundConfigEntity,
-    context?: T,
+    context?: T
   ): Promise<void> {
     if (this._disposed) {
       return Promise.resolve();
@@ -112,7 +110,7 @@ export class PlaygroundDrag<T = undefined> implements Disposable {
     this.context = context;
     this.localId = generateLocalId();
     this._addListeners();
-    this._promise = new Promise(resolve => {
+    this._promise = new Promise((resolve) => {
       this._resolve = resolve;
     });
     this._playgroundConfigEntity = entity;
@@ -141,7 +139,8 @@ export class PlaygroundDrag<T = undefined> implements Disposable {
     this._finalize();
   }
 
-  handleEvent(event: Event): void {
+  handleEvent(_event: Event): void {
+    const event = MouseTouchEvent.touchToMouseEvent(_event);
     switch (event.type) {
       case 'mousemove':
         this._evtMouseMove(event as MouseEvent);
@@ -159,13 +158,13 @@ export class PlaygroundDrag<T = undefined> implements Disposable {
         const mouseup = createMouseEvent(
           'mouseup',
           (event as MouseEvent).clientX,
-          (event as MouseEvent).clientY,
+          (event as MouseEvent).clientY
         );
         this._evtMouseUp(mouseup);
         break;
       default:
         // Stop all other events during drag-drop.
-        event.preventDefault();
+        MouseTouchEvent.preventDefault(event);
         event.stopPropagation();
         break;
     }
@@ -297,11 +296,18 @@ export class PlaygroundDrag<T = undefined> implements Disposable {
    * Add the document event listeners for the drag object.
    */
   private _addListeners(): void {
+    // mouse
     document.addEventListener('mousedown', this, true);
     document.addEventListener('mousemove', this, true);
     document.addEventListener('mouseup', this, true);
 
-    this._stopGlobalEventNames.forEach(_event => {
+    // touch
+    document.addEventListener('touchstart', this, true);
+    document.addEventListener('touchmove', this, { passive: false });
+    document.addEventListener('touchend', this, true);
+    document.addEventListener('touchcancel', this, true);
+
+    this._stopGlobalEventNames.forEach((_event) => {
       document.addEventListener(_event, this, true);
     });
   }
@@ -310,11 +316,18 @@ export class PlaygroundDrag<T = undefined> implements Disposable {
    * Remove the document event listeners for the drag object.
    */
   private _removeListeners(): void {
+    // mouse
     document.removeEventListener('mousedown', this, true);
     document.removeEventListener('mousemove', this, true);
     document.removeEventListener('mouseup', this, true);
 
-    this._stopGlobalEventNames.forEach(_event => {
+    // touch
+    document.removeEventListener('touchstart', this, true);
+    document.removeEventListener('touchmove', this);
+    document.removeEventListener('touchend', this, true);
+    document.removeEventListener('touchcancel', this, true);
+
+    this._stopGlobalEventNames.forEach((_event) => {
       document.removeEventListener(_event, this, true);
     });
   }
@@ -408,7 +421,7 @@ export class PlaygroundDrag<T = undefined> implements Disposable {
       const mouseMove = createMouseEvent(
         'mousemove',
         lastMouseMoveEvent.clientX + delta.x,
-        lastMouseMoveEvent.clientY + delta.y,
+        lastMouseMoveEvent.clientY + delta.y
       );
       const dragEvent = this.getDragEvent(mouseMove);
       this.onDragEmitter.fire(dragEvent);
@@ -444,7 +457,7 @@ export namespace PlaygroundDrag {
   export function startDrag<T>(
     clientX: number,
     clientY: number,
-    opts: PlaygroundDragEntitiesOpts<T> = {},
+    opts: PlaygroundDragEntitiesOpts<T> = {}
   ): Disposable {
     if (dragCache) {
       dragCache.stop(NaN, NaN);

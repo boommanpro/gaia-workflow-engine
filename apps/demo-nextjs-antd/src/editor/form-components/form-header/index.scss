@@ -1,0 +1,10 @@
+.node-form-header {
+  &-title {
+    font-size: 20px;
+    flex: 1;
+    width: 0;
+    .title-text {
+      display: flex;
+    }
+  }
+}

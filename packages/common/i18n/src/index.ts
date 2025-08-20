@@ -1,71 +1,91 @@
+import { I18n as I18nStore } from 'i18n-js';
 import { Emitter } from '@flowgram.ai/utils';
+
+type Scope = Readonly<string | string[]>;
+
+interface TranslateOptions {
+  defaultValue?: any;
+  [key: string]: any;
+}
 
 interface I18nLanguage {
   languageId: string;
   languageName?: string;
   localizedLanguageName?: string;
-  contents: Record<string, string>;
+  contents: Record<string, string | string[]>;
 }
 
 import zhCNLanguageDefault from './i18n/zh-CN';
 import enUSLanguageDefault from './i18n/en-US';
 
+function getDefaultLanugage(): string {
+  if (typeof navigator !== 'object') return 'en-US';
+  const defaultLanguage = navigator.language;
+  if (defaultLanguage === 'en' || defaultLanguage === 'en-US') {
+    return 'en-US';
+  }
+  if (defaultLanguage === 'zh' || defaultLanguage === 'zh-CN') {
+    return 'zh-CN';
+  }
+  return defaultLanguage;
+}
 class I18nImpl {
-  private _languages = new Map<string, I18nLanguage>();
-
-  private _localLanguage = 'en-US';
+  public i18n = new I18nStore();
 
   private _onLanguageChangeEmitter = new Emitter<string>();
 
   readonly onLanguageChange = this._onLanguageChangeEmitter.event;
 
   constructor(languages: I18nLanguage[]) {
-    languages.forEach((language) => this.addLanguage(language));
+    this.addLanguages(languages);
+    this.locale = getDefaultLanugage();
+    this.i18n.onChange(() => {
+      this._onLanguageChangeEmitter.fire(this.i18n.locale);
+    });
   }
 
   /**
-   * TODO support replace
+   * missing check
+   */
+  missingStrictMode = false;
+
+  /**
    * @param key
    * @param options
    */
-  t(key: string, options?: { disableReturnKey?: boolean }): string {
-    const contents: Record<string, string> =
-      this._languages.get(this._localLanguage)?.contents || {};
-    if (contents[key]) {
-      return contents[key];
-    }
-    if (options?.disableReturnKey) return '';
-    return key;
+  t(key: Scope, options?: TranslateOptions): string {
+    return this.i18n.t(key, {
+      defaultValue: this.missingStrictMode ? undefined : key,
+      ...options,
+    });
   }
 
-  getLocalLanguage() {
-    return this._localLanguage;
+  get locale(): string {
+    return this.i18n.locale;
   }
 
-  setLocalLanguage(langId: string) {
-    if (langId === this._localLanguage) return;
-    this._localLanguage = langId;
-    this._onLanguageChangeEmitter.fire(langId);
+  set locale(locale: string) {
+    this.i18n.locale = locale;
   }
 
-  getLangauges() {
-    return this._languages;
+  addLanguages(newLanguage: I18nLanguage[]): void {
+    this.i18n.store(
+      newLanguage.reduce(
+        (dict, lang) =>
+          Object.assign(dict, {
+            [lang.languageId]: {
+              languageName: lang.languageName,
+              localizedLanguageName: lang.localizedLanguageName,
+              ...lang.contents,
+            },
+          }),
+        {}
+      )
+    );
   }
 
-  addLanguage(newLanguage: I18nLanguage): void {
-    let oldLanguage = this._languages.get(newLanguage.languageId);
-    if (oldLanguage) {
-      this._languages.set(newLanguage.languageId, {
-        ...oldLanguage,
-        ...newLanguage,
-        contents: {
-          ...oldLanguage.contents,
-          ...newLanguage.contents,
-        },
-      });
-    } else {
-      this._languages.set(newLanguage.languageId, newLanguage);
-    }
+  addLanguage(language: I18nLanguage) {
+    this.addLanguages([language]);
   }
 }
 

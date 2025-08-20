@@ -1,0 +1,5 @@
+{
+  "name": "variable-selector",
+  "depMaterials": ["type-selector", "utils/json-schema", "typings/json-schema"],
+  "depPackages": ["styled-components"]
+}

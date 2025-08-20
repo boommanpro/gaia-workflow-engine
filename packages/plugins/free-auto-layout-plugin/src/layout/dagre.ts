@@ -4,7 +4,6 @@ import { Graph as DagreGraph } from '@dagrejs/graphlib';
 import { dagreLib } from '../dagre-lib/index';
 import { DagreNode, LayoutNode } from './type';
 import { LayoutStore } from './store';
-import { DagreLayoutOptions } from './constant';
 
 export class DagreLayout {
   private readonly graph: DagreGraph;
@@ -59,7 +58,7 @@ export class DagreLayout {
   private createGraph(): DagreGraph {
     const graph = new DagreGraph({ multigraph: true });
     graph.setDefaultEdgeLabel(() => ({}));
-    graph.setGraph(DagreLayoutOptions);
+    graph.setGraph(this.store.config);
     return graph;
   }
 

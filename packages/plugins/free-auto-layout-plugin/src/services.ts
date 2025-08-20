@@ -6,11 +6,22 @@ import {
   WorkflowNodeLinesData,
 } from '@flowgram.ai/free-layout-core';
 
-import { Layout, type LayoutOptions } from './layout';
+import { AutoLayoutOptions } from './type';
+import { LayoutConfig } from './layout/type';
+import { DefaultLayoutConfig, Layout, type LayoutOptions } from './layout';
 
 @injectable()
 export class AutoLayoutService {
   @inject(WorkflowDocument) private readonly document: WorkflowDocument;
+
+  private layoutConfig: LayoutConfig = DefaultLayoutConfig;
+
+  public init(options: AutoLayoutOptions) {
+    this.layoutConfig = {
+      ...this.layoutConfig,
+      ...options.layoutConfig,
+    };
+  }
 
   public async layout(options: LayoutOptions = {}): Promise<void> {
     await this.layoutNode(this.document.root, options);
@@ -29,7 +40,7 @@ export class AutoLayoutService {
     // 先递归执行子节点 autoLayout
     await Promise.all(nodes.map(async (child) => this.layoutNode(child, options)));
 
-    const layout = new Layout();
+    const layout = new Layout(this.layoutConfig);
     layout.init({ nodes, edges, container: node }, options);
     layout.layout();
     await layout.position();

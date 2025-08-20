@@ -4,7 +4,12 @@ import { useCallback, useEffect, useRef, useState, useContext, useMemo } from 'r
 import { useObserve } from '@flowgram.ai/reactive';
 import { getNodeForm } from '@flowgram.ai/node';
 import { FlowNodeRenderData } from '@flowgram.ai/document';
-import { PlaygroundEntityContext, useListenEvents, useService } from '@flowgram.ai/core';
+import {
+  MouseTouchEvent,
+  PlaygroundEntityContext,
+  useListenEvents,
+  useService,
+} from '@flowgram.ai/core';
 
 import { WorkflowDragService, WorkflowSelectService } from '../service';
 import { WorkflowNodePortsData } from '../entity-datas';
@@ -47,13 +52,15 @@ export function useNodeRender(nodeFromProps?: WorkflowNodeEntity): NodeRenderRet
 
   const startDrag = useCallback(
     (e: React.MouseEvent) => {
-      e.preventDefault();
+      MouseTouchEvent.preventDefault(e);
       if (!selectionService.isSelected(node.id)) {
         selectNode(e);
       }
-      // 输入框不能拖拽
-      if (!checkTargetDraggable(e.target) || !checkTargetDraggable(document.activeElement)) {
-        return;
+      if (!MouseTouchEvent.isTouchEvent(e as unknown as React.TouchEvent)) {
+        // 输入框不能拖拽
+        if (!checkTargetDraggable(e.target) || !checkTargetDraggable(document.activeElement)) {
+          return;
+        }
       }
       isDragging.current = true;
       // 拖拽选中的节点
