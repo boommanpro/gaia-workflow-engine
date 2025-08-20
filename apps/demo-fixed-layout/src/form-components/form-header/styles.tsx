@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import styled from 'styled-components';
 
 export const Header = styled.div`
@@ -7,9 +12,9 @@ export const Header = styled.div`
   align-items: center;
   width: 100%;
   column-gap: 8px;
-  border-radius: 8px;
+  border-radius: 8px 8px 0 0;
 
-  background: linear-gradient(#f2f2ff 0%, rgba(0, 0, 0, 0.02) 100%);
+  background: linear-gradient(#f2f2ff 0%, rgb(251, 251, 251) 100%);
   overflow: hidden;
 
   padding: 8px;

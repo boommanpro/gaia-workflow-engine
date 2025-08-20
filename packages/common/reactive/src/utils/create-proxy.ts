@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 interface ProxyOptions<V> {
   get?: (target: V, key: string) => any;
   set?: (target: V, key: string, newValue: any) => boolean;

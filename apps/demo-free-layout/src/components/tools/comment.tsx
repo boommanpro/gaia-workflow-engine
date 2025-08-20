@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { useState, useCallback } from 'react';
 
 import {
@@ -36,14 +41,17 @@ export const Comment = () => {
     async (mouseEvent: React.MouseEvent<HTMLButtonElement>) => {
       setTooltipVisible(false);
       const canvasPosition = calcNodePosition(mouseEvent);
-      // 创建节点
+      // create comment node - 创建节点
       const node = document.createWorkflowNodeByType(WorkflowNodeType.Comment, canvasPosition);
-      // 等待节点渲染
+      // wait comment node render - 等待节点渲染
       await delay(16);
-      // 选中节点
+      // select comment node - 选中节点
       selectService.selectNode(node);
-      // 开始拖拽
-      dragService.startDragSelectedNodes(mouseEvent);
+      // maybe touch event - 可能是触摸事件
+      if (mouseEvent.detail !== 0) {
+        // start drag -开始拖拽
+        dragService.startDragSelectedNodes(mouseEvent);
+      }
     },
     [selectService, calcNodePosition, document, dragService]
   );

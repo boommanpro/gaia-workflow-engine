@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { IPoint, Point, Rectangle } from '@flowgram.ai/utils';
 
 import { WorkflowLineRenderContribution } from '../typings';

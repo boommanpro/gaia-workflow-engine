@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import {
   ContainerService,
   IContainer,
@@ -34,6 +39,7 @@ export class WorkflowRuntimeContainer implements IContainer {
     const Validation = new WorkflowRuntimeValidation();
     const Executor = new WorkflowRuntimeExecutor(WorkflowRuntimeNodeExecutors);
     const Engine = new WorkflowRuntimeEngine({
+      Validation,
       Executor,
     });
 

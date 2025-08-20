@@ -1,5 +1,10 @@
-import { ValidationDefine } from './validation';
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { FlowGramAPIDefines } from './type';
+import { TaskValidateDefine } from './task-validate';
 import { TaskRunDefine } from './task-run';
 import { TaskResultDefine } from './task-result';
 import { TaskReportDefine } from './task-report';
@@ -13,7 +18,7 @@ export const FlowGramAPIs: FlowGramAPIDefines = {
   [FlowGramAPIName.TaskReport]: TaskReportDefine,
   [FlowGramAPIName.TaskResult]: TaskResultDefine,
   [FlowGramAPIName.TaskCancel]: TaskCancelDefine,
-  [FlowGramAPIName.Validation]: ValidationDefine,
+  [FlowGramAPIName.TaskValidate]: TaskValidateDefine,
 };
 
 export const FlowGramAPINames = Object.keys(FlowGramAPIs) as FlowGramAPIName[];

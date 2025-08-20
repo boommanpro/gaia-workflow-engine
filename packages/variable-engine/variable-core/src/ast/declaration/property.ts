@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { ASTKind } from '../types';
 import { BaseVariableField, BaseVariableFieldJSON } from './base-variable-field';
 

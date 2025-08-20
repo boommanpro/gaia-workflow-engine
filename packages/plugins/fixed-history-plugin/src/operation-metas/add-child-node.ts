@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { FlowNodeEntity, OperationType } from '@flowgram.ai/document';
 import { AddOrDeleteChildNodeValue } from '@flowgram.ai/document';
 import { PluginContext } from '@flowgram.ai/core';

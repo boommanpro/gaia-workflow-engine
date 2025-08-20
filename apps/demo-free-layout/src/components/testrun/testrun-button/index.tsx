@@ -1,10 +1,17 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { useState, useEffect, useCallback } from 'react';
 
 import { useClientContext, getNodeForm, FlowNodeEntity } from '@flowgram.ai/free-layout-editor';
-import { Button, Badge, SideSheet } from '@douyinfe/semi-ui';
+import { Button, Badge } from '@douyinfe/semi-ui';
 import { IconPlay } from '@douyinfe/semi-icons';
 
-import { TestRunSideSheet } from '../testrun-sidesheet';
+import { TestRunSidePanel } from '../testrun-panel';
+
+import styles from './index.module.less';
 
 export function TestRunButton(props: { disabled: boolean }) {
   const [errorCount, setErrorCount] = useState(0);
@@ -51,7 +58,7 @@ export function TestRunButton(props: { disabled: boolean }) {
         disabled={props.disabled}
         onClick={onTestRun}
         icon={<IconPlay size="small" />}
-        style={{ backgroundColor: 'rgba(0,178,60,1)', borderRadius: '8px', color: '#fff' }}
+        className={styles.testrunSuccessButton}
       >
         Test Run
       </Button>
@@ -62,7 +69,7 @@ export function TestRunButton(props: { disabled: boolean }) {
           disabled={props.disabled}
           onClick={onTestRun}
           icon={<IconPlay size="small" />}
-          style={{ backgroundColor: 'rgba(255,115,0, 1)', borderRadius: '8px', color: '#fff' }}
+          className={styles.testrunErrorButton}
         >
             Test Run
         </Button>
@@ -72,7 +79,7 @@ export function TestRunButton(props: { disabled: boolean }) {
   return (
     <>
       {button}
-      <TestRunSideSheet visible={visible} onCancel={() => setVisible((v) => !v)} />
+      <TestRunSidePanel visible={visible} onCancel={() => setVisible(false)} />
     </>
   );
 }

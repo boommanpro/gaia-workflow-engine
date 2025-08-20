@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { createSelectBoxPlugin } from '@flowgram.ai/select-box-plugin';
 import { FixedLayoutContainerModule } from '@flowgram.ai/fixed-layout-core';
 import { FixedHistoryService, createFixedHistoryPlugin } from '@flowgram.ai/fixed-history-plugin';
@@ -22,6 +27,7 @@ import {
   createPlaygroundReactPreset,
 } from '@flowgram.ai/editor';
 
+import { compose } from '../utils/compose';
 import { FlowOperationService } from '../types';
 import { createOperationPlugin } from '../plugins/create-operation-plugin';
 import { fromNodeJSON, toNodeJSON } from './node-serialize';
@@ -141,13 +147,30 @@ export function createFixedLayoutPreset(
             FlowNodesContentLayer, // 节点内容渲染
             FlowNodesTransformLayer // 节点位置偏移计算
           );
-          if (!opts.scroll?.disableScrollLimit) {
+          // 劫持节点线条
+          if (opts.formatNodeLines) {
+            ctx.document.options.formatNodeLines = compose([
+              ctx.document.options.formatNodeLines,
+              opts.formatNodeLines,
+            ]);
+          }
+          // 劫持节点 label
+          if (opts.formatNodeLabels) {
+            ctx.document.options.formatNodeLabels = compose([
+              ctx.document.options.formatNodeLabels,
+              opts.formatNodeLabels,
+            ]);
+          }
+          if (opts.scroll?.enableScrollLimit) {
             // 控制滚动范围
             ctx.playground.registerLayer(FlowScrollLimitLayer);
           }
           if (!opts.scroll?.disableScrollBar) {
             // 控制条
             ctx.playground.registerLayer(FlowScrollBarLayer);
+          }
+          if (opts.scroll?.disableScroll) {
+            ctx.playground.config.scrollDisable = true;
           }
           if (opts.nodeRegistries) {
             ctx.document.registerFlowNodes(...opts.nodeRegistries);

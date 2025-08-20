@@ -1,14 +1,19 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { useContext, useCallback, useMemo, useState } from 'react';
 
 import { useClientContext } from '@flowgram.ai/fixed-layout-editor';
 import { IconButton, Dropdown, Button } from '@douyinfe/semi-ui';
-import { IconSmallTriangleDown, IconSmallTriangleLeft } from '@douyinfe/semi-icons';
+import { IconClose, IconSmallTriangleDown, IconSmallTriangleLeft } from '@douyinfe/semi-icons';
 import { IconMore } from '@douyinfe/semi-icons';
 
 import { FlowNodeRegistry } from '../../typings';
 import { FlowCommandId } from '../../shortcuts/constants';
 import { useIsSidebar } from '../../hooks';
-import { NodeRenderContext } from '../../context';
+import { NodeRenderContext, SidebarContext } from '../../context';
 import { getIcon } from './utils';
 import { TitleInput } from './title-input';
 import { Header, Operators } from './styles';
@@ -62,10 +67,14 @@ export function FormHeader() {
   const { node, expanded, startDrag, toggleExpand, readonly } = useContext(NodeRenderContext);
   const [titleEdit, updateTitleEdit] = useState<boolean>(false);
 
+  const { setNodeId } = useContext(SidebarContext);
   const isSidebar = useIsSidebar();
   const handleExpand = (e: React.MouseEvent) => {
     toggleExpand();
     e.stopPropagation(); // Disable clicking prevents the sidebar from opening
+  };
+  const handleClose = () => {
+    setNodeId(undefined);
   };
 
   return (
@@ -103,6 +112,15 @@ export function FormHeader() {
             />
           </Dropdown>
         </Operators>
+      )}
+      {isSidebar && (
+        <Button
+          type="primary"
+          icon={<IconClose />}
+          size="small"
+          theme="borderless"
+          onClick={handleClose}
+        />
       )}
     </Header>
   );

@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { type Disposable, Emitter } from '@flowgram.ai/utils';
 
 import { type FlowNodeType } from './typings';

@@ -1,4 +1,9 @@
-import React, { useMemo, useImperativeHandle, forwardRef } from 'react';
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
+import React, { useMemo, useImperativeHandle, forwardRef, useRef, useEffect } from 'react';
 
 import { type interfaces } from 'inversify';
 
@@ -59,18 +64,19 @@ export const PlaygroundReactProvider = forwardRef<
           zoomEnable: true,
           ...others,
         },
-        fromContainer,
+        fromContainer
       );
       if (playgroundContext) {
         flowContainer.rebind(PlaygroundContext).toConstantValue(playgroundContext);
       }
       if (containerModules) {
-        containerModules.forEach(module => flowContainer.load(module));
+        containerModules.forEach((module) => flowContainer.load(module));
       }
     }
     return flowContainer;
     // @action 这里 props 数据如果更改不会触发刷新，不允许修改
   }, []);
+
   const playground = useMemo(() => {
     const playground = container.get(Playground);
     let ctx: PluginContext;
@@ -85,6 +91,26 @@ export const PlaygroundReactProvider = forwardRef<
     }
     playground.init();
     return playground;
+  }, []);
+
+  const effectSignalRef = useRef<number>(0);
+
+  useEffect(() => {
+    effectSignalRef.current += 1;
+    return () => {
+      // 开发环境下延迟处理 dispose，防止 React>=18 useEffect 初始化卸载（在生产构建时，这个条件分支会被完全移除）
+      if (process.env.NODE_ENV === 'development') {
+        const FRAME = 16;
+        setTimeout(() => {
+          effectSignalRef.current -= 1;
+          if (effectSignalRef.current === 0) {
+            playground.dispose();
+          }
+        }, FRAME);
+        return;
+      }
+      playground.dispose();
+    };
   }, []);
 
   useImperativeHandle(ref, () => container.get<PluginContext>(PluginContext), []);

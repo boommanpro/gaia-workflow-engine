@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { WorkflowNodeRegistry } from '@flowgram.ai/free-layout-editor';
 
 /**
@@ -12,6 +17,30 @@ export const nodeRegistries: WorkflowNodeRegistry[] = [
       deleteDisable: true, // The start node cannot be deleted
       copyDisable: true, // The start node cannot be copied
       defaultPorts: [{ type: 'output' }], // Used to define the input and output ports, the start node only has the output port
+    },
+  },
+  {
+    type: 'condition',
+    meta: {
+      defaultPorts: [{ type: 'input' }],
+      useDynamicPort: true,
+    },
+  },
+  {
+    type: 'chain',
+    meta: {
+      defaultPorts: [
+        { type: 'input' },
+        { type: 'output' },
+        { portID: 'p4', location: 'bottom', offset: { x: -10, y: 0 }, type: 'output' },
+        { portID: 'p5', location: 'bottom', offset: { x: 10, y: 0 }, type: 'output' },
+      ],
+    },
+  },
+  {
+    type: 'tool',
+    meta: {
+      defaultPorts: [{ location: 'top', type: 'input' }],
     },
   },
   {

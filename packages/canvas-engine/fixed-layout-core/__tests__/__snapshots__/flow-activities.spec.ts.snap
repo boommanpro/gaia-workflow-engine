@@ -31,15 +31,15 @@ exports[`flow-activities > create dynamic split 1`] = `
 
 exports[`flow-activities > create dynamic split 2`] = `
 {
-  "boundsStr": "left: -290px; top: 92px; width: 580px; height: 350px;",
-  "localBoundsStr": "left: -290px; top: 92px; width: 580px; height: 350px;",
+  "boundsStr": "left: -290px; top: 92px; width: 580px; height: 350.1px;",
+  "localBoundsStr": "left: -290px; top: 92px; width: 580px; height: 350.1px;",
 }
 `;
 
 exports[`flow-activities > create dynamic split 3`] = `
 {
-  "boundsStr": "left: -290px; top: 196px; width: 580px; height: 246px;",
-  "localBoundsStr": "left: -290px; top: 104px; width: 580px; height: 246px;",
+  "boundsStr": "left: -290px; top: 196px; width: 580px; height: 246.1px;",
+  "localBoundsStr": "left: -290px; top: 104px; width: 580px; height: 246.1px;",
 }
 `;
 
@@ -145,29 +145,29 @@ exports[`flow-activities > insert a dynamic split node 1`] = `
 
 exports[`flow-activities > insert a dynamic split node 2`] = `
 {
-  "boundsStr": "left: -290px; top: 358px; width: 580px; height: 350px;",
-  "localBoundsStr": "left: -290px; top: 358px; width: 580px; height: 350px;",
+  "boundsStr": "left: -290px; top: 358.1px; width: 580px; height: 350.1px;",
+  "localBoundsStr": "left: -290px; top: 358.1px; width: 580px; height: 350.1px;",
 }
 `;
 
 exports[`flow-activities > insert a dynamic split node 3`] = `
 {
-  "boundsStr": "left: -290px; top: 462px; width: 580px; height: 246px;",
-  "localBoundsStr": "left: -290px; top: 104px; width: 580px; height: 246px;",
+  "boundsStr": "left: -290px; top: 462.1px; width: 580px; height: 246.1px;",
+  "localBoundsStr": "left: -290px; top: 104px; width: 580px; height: 246.1px;",
 }
 `;
 
 exports[`flow-activities > insert a dynamic split node 4`] = `
 {
-  "boundsStr": "left: -290px; top: 92px; width: 580px; height: 250px;",
-  "localBoundsStr": "left: -290px; top: 92px; width: 580px; height: 250px;",
+  "boundsStr": "left: -290px; top: 92px; width: 580px; height: 250.10000000000002px;",
+  "localBoundsStr": "left: -290px; top: 92px; width: 580px; height: 250.1px;",
 }
 `;
 
 exports[`flow-activities > insert a dynamic split node 5`] = `
 {
-  "boundsStr": "left: -290px; top: 196px; width: 580px; height: 146px;",
-  "localBoundsStr": "left: -290px; top: 104px; width: 580px; height: 146px;",
+  "boundsStr": "left: -290px; top: 196px; width: 580px; height: 146.1px;",
+  "localBoundsStr": "left: -290px; top: 104px; width: 580px; height: 146.1px;",
 }
 `;
 

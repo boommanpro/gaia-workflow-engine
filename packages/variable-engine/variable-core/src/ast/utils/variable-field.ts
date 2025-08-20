@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { ASTNodeFlags } from '../flags';
 import { BaseVariableField } from '../declaration';
 import { ASTNode } from '../ast-node';

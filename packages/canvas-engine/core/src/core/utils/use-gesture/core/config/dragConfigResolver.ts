@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { PointerType } from '../types'
 import { DragConfig, InternalDragOptions, Vector2 } from '../types'
 import { V } from '../utils/maths'

@@ -1,4 +1,9 @@
 /**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
+/**
  * tryCatch 自定义类型
  */
 export enum TryCatchTypeEnum {

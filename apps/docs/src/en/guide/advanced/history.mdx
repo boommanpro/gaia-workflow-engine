@@ -99,13 +99,29 @@ If some data changes triggered by the system do not want to be monitored by undo
 
 ```tsx pure
 const { history } = useClientContext();
+
 history.stop()
 // Do some operations that do not want to be captured, these changes will not be recorded in the operation stack
 ...
 history.start()
 ```
 
-### 1.3. Undo/Redo Call
+### 1.3. History Undo/Redo merge
+
+```tsx pure
+
+const { history } = useClientContext();
+
+history.startTransaction();
+
+// Any operations here will be merged into one
+...
+
+history.endTransaction();
+
+```
+
+### 1.4. Undo/Redo Call
 Undo/Redo is generally provided with two button entries on the interface, clicking which can trigger Undo and Redo, and the buttons themselves need to have the status of whether Undo/Redo is possible.
 
 ```tsx pure

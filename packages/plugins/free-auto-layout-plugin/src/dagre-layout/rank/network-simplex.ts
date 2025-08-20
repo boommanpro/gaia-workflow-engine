@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { LayoutEdge, LayoutNode } from '../type';
 import { LayoutGraph } from '../graph';
 import { longestPath } from './longest-path';

@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { Disposable, DisposableImpl } from '@flowgram.ai/utils';
 
 import { type PlaygroundConfigEntity } from '../layer/config/playground-config-entity';

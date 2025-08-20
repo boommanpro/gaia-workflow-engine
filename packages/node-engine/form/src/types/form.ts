@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { FormModel } from '../core/form-model';
 import { Errors, FormValidateReturn, Validate, ValidateTrigger, Warnings } from './validate';
 import { Field, FieldArray, FieldName, FieldValue } from './field';
@@ -48,7 +53,9 @@ export interface FormOptions<TValues = any> {
   /**
    * Form data's validation rules. It's a key value map, where the key is a pattern of data's path (or field name), the value is a validate function.
    */
-  validate?: Record<string, Validate>;
+  validate?:
+    | Record<string, Validate>
+    | ((value: TValues, ctx: Context) => Record<string, Validate>);
   /**
    * Custom context. It will be accessible via form instance or in validate function.
    */

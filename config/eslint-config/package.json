@@ -39,7 +39,7 @@
     "@flowgram.ai/ts-config": "workspace:*",
     "@types/node": "^18",
     "react": "^18",
-    "typescript": "^5.0.4"
+    "typescript": "^5.8.3"
   },
   "publishConfig": {
     "access": "public",

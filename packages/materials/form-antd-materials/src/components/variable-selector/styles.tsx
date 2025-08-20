@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import styled from 'styled-components';
 import type { TreeSelectProps } from 'antd/es/tree-select';
 import { Tag, TreeSelect } from 'antd';

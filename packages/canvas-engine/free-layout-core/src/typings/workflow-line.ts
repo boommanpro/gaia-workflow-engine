@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import type { Rectangle, IPoint } from '@flowgram.ai/utils';
 
 import { type WorkflowLineEntity } from '../entities';
@@ -9,9 +14,16 @@ export enum LineType {
 
 export type LineRenderType = LineType | string;
 
+export type LinePointLocation = 'left' | 'top' | 'right' | 'bottom';
+
+export interface LinePoint {
+  x: number;
+  y: number;
+  location: LinePointLocation;
+}
 export interface LinePosition {
-  from: IPoint;
-  to: IPoint;
+  from: LinePoint;
+  to: LinePoint;
 }
 
 export interface LineColor {
@@ -38,7 +50,7 @@ export interface WorkflowLineRenderContribution {
   entity: WorkflowLineEntity;
   path: string;
   bounds: Rectangle;
-  update: (params: { fromPos: IPoint; toPos: IPoint }) => void;
+  update: (params: { fromPos: LinePoint; toPos: LinePoint }) => void;
   calcDistance: (pos: IPoint) => number;
 }
 

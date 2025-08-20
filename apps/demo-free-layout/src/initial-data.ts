@@ -1,449 +1,580 @@
-import {FlowDocumentJSON} from './typings';
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
+import { FlowDocumentJSON } from './typings';
 
 export const initialData: FlowDocumentJSON = {
-    "nodes": [
-        {
-            "id": "start_0",
-            "type": "start",
-            "meta": {
-                "position": {
-                    "x": 180,
-                    "y": 313.5
-                }
+  nodes: [
+    {
+      id: 'start_0',
+      type: 'start',
+      meta: {
+        position: {
+          x: 180,
+          y: 573.7,
+        },
+      },
+      data: {
+        title: 'Start',
+        outputs: {
+          type: 'object',
+          properties: {
+            query: {
+              type: 'string',
+              default: 'Hello Flow.',
             },
-            "data": {
-                "title": "Start",
-                "outputs": {
-                    "type": "object",
-                    "properties": {
-                        "a": {
-                            "type": "string",
-                            "default": "1"
-                        },
-                        "b": {
-                            "type": "string",
-                            "default": "2"
-                        },
-                        "c": {
-                            "type": "string",
-                            "default": "3"
-                        },
-                        "d": {
-                            "type": "string",
-                            "default": "4"
-                        }
-                    }
-                },
-                "description": "start node"
-            }
-        },
-        {
-            "id": "end_0",
-            "type": "end",
-            "meta": {
-                "position": {
-                    "x": 2480,
-                    "y": 209
-                }
+            enable: {
+              type: 'boolean',
+              default: true,
             },
-            "data": {
-                "title": "End",
-                "description": "end node",
-                "inputsValues": {
-                    "a": {
-                        "type": "ref",
-                        "content": [
-                            "start_0",
-                            "a"
-                        ]
-                    }
+            array_obj: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  int: {
+                    type: 'number',
+                  },
+                  str: {
+                    type: 'string',
+                  },
                 },
-                "inputs": {
-                    "properties": {
-                        "a": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
-        {
-            "id": "code_sCNs8",
-            "type": "code",
-            "meta": {
-                "position": {
-                    "x": 640,
-                    "y": 313.5
-                }
+              },
             },
-            "data": {
-                "title": "Code_2",
-                "description": "代码组件",
-                "config": {
-                    "language": "javaScriptFunc",
-                    "code": "return {\n    \"a\":a,\n    \"b\":b\n}"
-                },
-                "inputs": {
-                    "type": "object",
-                    "properties": {
-                        "a": {
-                            "type": "string",
-                            "default": {
-                                "type": "ref",
-                                "content": "start_0.outputs.a"
-                            }
-                        },
-                        "b": {
-                            "type": "string",
-                            "default": {
-                                "type": "literal",
-                                "content": "b1"
-                            }
-                        },
-                        "c": {
-                            "type": "string",
-                            "default": {
-                                "type": "literal",
-                                "content": "c1"
-                            }
-                        }
-                    }
-                },
-                "outputs": {
-                    "type": "object",
-                    "properties": {
-                        "a": {
-                            "type": "string",
-                            "default": "12"
-                        },
-                        "b": {
-                            "type": "string",
-                            "default": "b"
-                        }
-                    }
-                }
-            }
+          },
         },
-        {
-            "id": "condition_Pk7Qg",
-            "type": "condition",
-            "meta": {
-                "position": {
-                    "x": 1100,
-                    "y": 243.45
-                }
+      },
+    },
+    {
+      id: 'condition_0',
+      type: 'condition',
+      meta: {
+        position: {
+          x: 1100,
+          y: 510.20000000000005,
+        },
+      },
+      data: {
+        title: 'Condition',
+        conditions: [
+          {
+            key: 'if_0',
+            value: {
+              left: {
+                type: 'ref',
+                content: ['start_0', 'query'],
+              },
+              operator: 'contains',
+              right: {
+                type: 'constant',
+                content: 'Hello Flow.',
+              },
             },
-            "data": {
-                "title": "Condition",
-                "inputsValues": {
-                    "branches": [
-                        {
-                            "condition": {
-                                "logic": 1,
-                                "description": "规则说明",
-                                "conditions": [
-                                    {
-                                        "operator": 1,
-                                        "left": {
-                                            "type": "expression",
-                                            "content": [
-                                                "start_0",
-                                                "b"
-                                            ]
-                                        },
-                                        "right": {
-                                            "content": [
-                                                "start_0",
-                                                "b"
-                                            ],
-                                            "type": "expression"
-                                        }
-                                    }
-                                ]
-                            }
-                        },
-                        {
-                            "condition": {
-                                "logic": 1,
-                                "description": "规则说明",
-                                "conditions": [
-                                    {
-                                        "operator": 1,
-                                        "left": {
-                                            "type": "expression",
-                                            "content": [
-                                                "start_0"
-                                            ]
-                                        },
-                                        "right": {
-                                            "type": "expression",
-                                            "content": [
-                                                "start_0"
-                                            ]
-                                        }
-                                    }
-                                ]
-                            }
-                        },
-                        {
-                            "condition": {
-                                "logic": 1,
-                                "description": "规则说明",
-                                "conditions": [
-                                    {
-                                        "operator": 1,
-                                        "left": {
-                                            "type": "expression",
-                                            "content": [
-                                                "start_0"
-                                            ]
-                                        },
-                                        "right": {
-                                            "type": "expression",
-                                            "content": [
-                                                "start_0"
-                                            ]
-                                        }
-                                    }
-                                ]
-                            }
-                        }
-                    ]
-                },
-                "inputs": {
-                    "type": "object",
-                    "properties": {
-                        "conditions": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "key": {
-                                        "type": "string"
-                                    },
-                                    "value": {
-                                        "type": "string"
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        {
-            "id": "code_q303y",
-            "type": "code",
-            "meta": {
-                "position": {
-                    "x": 1560,
-                    "y": 627
-                }
+          },
+          {
+            key: 'if_f0rOAt',
+            value: {
+              left: {
+                type: 'ref',
+                content: ['start_0', 'enable'],
+              },
+              operator: 'is_true',
             },
-            "data": {
-                "title": "Code_3",
-                "description": "代码组件",
-                "config": {
-                    "language": "javaScriptFunc",
-                    "code": "return {\n    \"a\":a,\n    \"b\":b\n}"
-                },
-                "inputs": {
-                    "type": "object"
-                },
-                "outputs": {
-                    "type": "object",
-                    "properties": {
-                        "result": {
-                            "type": "string",
-                            "default": "a"
-                        }
-                    }
-                }
-            }
+          },
+        ],
+      },
+    },
+    {
+      id: 'end_0',
+      type: 'end',
+      meta: {
+        position: {
+          x: 3008,
+          y: 573.7,
         },
-        {
-            "id": "code_-v33c",
-            "type": "code",
-            "meta": {
-                "position": {
-                    "x": 1560,
-                    "y": 0
-                }
+      },
+      data: {
+        title: 'End',
+        inputsValues: {
+          success: { type: 'constant', content: true, schema: { type: 'boolean' } },
+          query: { type: 'ref', content: ['start_0', 'query'] },
+        },
+      },
+    },
+    {
+      id: '159623',
+      type: 'comment',
+      meta: {
+        position: {
+          x: 180,
+          y: 756.7,
+        },
+      },
+      data: {
+        size: {
+          width: 240,
+          height: 150,
+        },
+        note: 'hi ~\n\nthis is a comment node\n\n- flowgram.ai',
+      },
+    },
+    {
+      id: 'http_rDGIH',
+      type: 'http',
+      meta: {
+        position: {
+          x: 640,
+          y: 447.35,
+        },
+      },
+      data: {
+        title: 'HTTP_1',
+        outputs: {
+          type: 'object',
+          properties: {
+            body: {
+              type: 'string',
             },
-            "data": {
-                "title": "Code_4",
-                "description": "代码组件",
-                "config": {
-                    "language": "javaScriptFunc",
-                    "code": "return {\n    \"a\":a,\n    \"b\":b\n}"
-                },
-                "inputs": {
-                    "type": "object",
-                    "properties": {}
-                },
-                "outputs": {
-                    "type": "object",
-                    "properties": {
-                        "result": {
-                            "type": "string",
-                            "default": "a"
-                        }
-                    }
-                }
-            }
-        },
-        {
-            "id": "code_Qzvgd",
-            "type": "code",
-            "meta": {
-                "position": {
-                    "x": 1560,
-                    "y": 209
-                }
+            headers: {
+              type: 'object',
             },
-            "data": {
-                "title": "Code_5",
-                "description": "代码组件",
-                "config": {
-                    "language": "javaScriptFunc",
-                    "code": "return {\n    \"a\":a,\n    \"b\":b\n}"
-                },
-                "inputs": {
-                    "type": "object"
-                },
-                "outputs": {
-                    "type": "object",
-                    "properties": {
-                        "result": {
-                            "type": "string",
-                            "default": "a"
-                        }
-                    }
-                }
-            }
-        },
-        {
-            "id": "code_WpFEL",
-            "type": "code",
-            "meta": {
-                "position": {
-                    "x": 1560,
-                    "y": 418
-                }
+            statusCode: {
+              type: 'integer',
             },
-            "data": {
-                "title": "Code_6",
-                "description": "代码组件",
-                "config": {
-                    "language": "javaScriptFunc",
-                    "code": "return {\n    \"a\":a,\n    \"b\":b\n}"
-                },
-                "inputs": {
-                    "type": "object"
-                },
-                "outputs": {
-                    "type": "object",
-                    "properties": {
-                        "result": {
-                            "type": "string",
-                            "default": "a"
-                        }
-                    }
-                }
-            }
+          },
         },
+        api: {
+          method: 'GET',
+          url: {
+            type: 'template',
+            content: '',
+          },
+        },
+        body: {
+          bodyType: 'JSON',
+        },
+        timeout: {
+          timeout: 10000,
+          retryTimes: 1,
+        },
+      },
+    },
+    {
+      id: 'loop_Ycnsk',
+      type: 'loop',
+      meta: {
+        position: {
+          x: 1480,
+          y: 90.00000000000003,
+        },
+      },
+      data: {
+        title: 'Loop_1',
+        loopFor: {
+          type: 'ref',
+          content: ['start_0', 'array_obj'],
+        },
+        loopOutputs: {
+          acm: {
+            type: 'ref',
+            content: ['llm_6aSyo', 'result'],
+          },
+        },
+      },
+      blocks: [
         {
-            "id": "code_PHkiO",
-            "type": "code",
-            "meta": {
-                "position": {
-                    "x": 2020,
-                    "y": 209
-                }
+          id: 'llm_6aSyo',
+          type: 'llm',
+          meta: {
+            position: {
+              x: 344,
+              y: 0,
             },
-            "data": {
-                "title": "Code_7",
-                "description": "代码组件",
-                "config": {
-                    "language": "javaScriptFunc",
-                    "code": "test001"
-                },
-                "inputs": {
-                    "type": "object"
-                },
-                "outputs": {
-                    "type": "object",
-                    "properties": {
-                        "result": {
-                            "type": "string",
-                            "default": "a"
-                        }
-                    }
-                }
-            }
-        },
-        {
-            "id": "note_48oopof_1748353844670",
-            "type": "note",
-            "meta": {
-                "position": {
-                    "x": 180,
-                    "y": 522.5
-                }
+          },
+          data: {
+            title: 'LLM_3',
+            inputsValues: {
+              modelName: {
+                type: 'constant',
+                content: 'gpt-3.5-turbo',
+              },
+              apiKey: {
+                type: 'constant',
+                content: 'sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+              },
+              apiHost: {
+                type: 'constant',
+                content: 'https://mock-ai-url/api/v3',
+              },
+              temperature: {
+                type: 'constant',
+                content: 0.5,
+              },
+              systemPrompt: {
+                type: 'template',
+                content: '# Role\nYou are an AI assistant.\n',
+              },
+              prompt: {
+                type: 'template',
+                content: '',
+              },
             },
-            "data": {
-                "description": "注释"
-            }
-        }
-    ],
-    "edges": [
-        {
-            "sourceNodeID": "start_0",
-            "targetNodeID": "code_sCNs8"
+            inputs: {
+              type: 'object',
+              required: ['modelName', 'apiKey', 'apiHost', 'temperature', 'prompt'],
+              properties: {
+                modelName: {
+                  type: 'string',
+                },
+                apiKey: {
+                  type: 'string',
+                },
+                apiHost: {
+                  type: 'string',
+                },
+                temperature: {
+                  type: 'number',
+                },
+                systemPrompt: {
+                  type: 'string',
+                  extra: {
+                    formComponent: 'prompt-editor',
+                  },
+                },
+                prompt: {
+                  type: 'string',
+                  extra: {
+                    formComponent: 'prompt-editor',
+                  },
+                },
+              },
+            },
+            outputs: {
+              type: 'object',
+              properties: {
+                result: {
+                  type: 'string',
+                },
+              },
+            },
+          },
         },
         {
-            "sourceNodeID": "code_PHkiO",
-            "targetNodeID": "end_0"
+          id: 'llm_ZqKlP',
+          type: 'llm',
+          meta: {
+            position: {
+              x: 804,
+              y: 0,
+            },
+          },
+          data: {
+            title: 'LLM_4',
+            inputsValues: {
+              modelName: {
+                type: 'constant',
+                content: 'gpt-3.5-turbo',
+              },
+              apiKey: {
+                type: 'constant',
+                content: 'sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+              },
+              apiHost: {
+                type: 'constant',
+                content: 'https://mock-ai-url/api/v3',
+              },
+              temperature: {
+                type: 'constant',
+                content: 0.5,
+              },
+              systemPrompt: {
+                type: 'template',
+                content: '# Role\nYou are an AI assistant.\n',
+              },
+              prompt: {
+                type: 'template',
+                content: '',
+              },
+            },
+            inputs: {
+              type: 'object',
+              required: ['modelName', 'apiKey', 'apiHost', 'temperature', 'prompt'],
+              properties: {
+                modelName: {
+                  type: 'string',
+                },
+                apiKey: {
+                  type: 'string',
+                },
+                apiHost: {
+                  type: 'string',
+                },
+                temperature: {
+                  type: 'number',
+                },
+                systemPrompt: {
+                  type: 'string',
+                  extra: {
+                    formComponent: 'prompt-editor',
+                  },
+                },
+                prompt: {
+                  type: 'string',
+                  extra: {
+                    formComponent: 'prompt-editor',
+                  },
+                },
+              },
+            },
+            outputs: {
+              type: 'object',
+              properties: {
+                result: {
+                  type: 'string',
+                },
+              },
+            },
+          },
         },
         {
-            "sourceNodeID": "code_sCNs8",
-            "targetNodeID": "condition_Pk7Qg"
+          id: 'block_start_PUDtS',
+          type: 'block-start',
+          meta: {
+            position: {
+              x: 32,
+              y: 163.1,
+            },
+          },
+          data: {},
         },
         {
-            "sourceNodeID": "condition_Pk7Qg",
-            "targetNodeID": "code_-v33c",
-            "sourcePortID": "true_0"
+          id: 'block_end_leBbs',
+          type: 'block-end',
+          meta: {
+            position: {
+              x: 1116,
+              y: 163.1,
+            },
+          },
+          data: {},
+        },
+      ],
+      edges: [
+        {
+          sourceNodeID: 'block_start_PUDtS',
+          targetNodeID: 'llm_6aSyo',
         },
         {
-            "sourceNodeID": "condition_Pk7Qg",
-            "targetNodeID": "code_Qzvgd",
-            "sourcePortID": "true_1"
+          sourceNodeID: 'llm_6aSyo',
+          targetNodeID: 'llm_ZqKlP',
         },
         {
-            "sourceNodeID": "condition_Pk7Qg",
-            "targetNodeID": "code_WpFEL",
-            "sourcePortID": "true_2"
+          sourceNodeID: 'llm_ZqKlP',
+          targetNodeID: 'block_end_leBbs',
         },
-        {
-            "sourceNodeID": "condition_Pk7Qg",
-            "targetNodeID": "code_q303y",
-            "sourcePortID": "false"
+      ],
+    },
+    {
+      id: 'group_nYl6D',
+      type: 'group',
+      meta: {
+        position: {
+          x: 1644,
+          y: 730.2,
         },
-        {
-            "sourceNodeID": "code_q303y",
-            "targetNodeID": "code_PHkiO"
+      },
+      data: {
+        parentID: 'root',
+        blockIDs: ['llm_8--A3', 'llm_vTyMa'],
+      },
+    },
+    {
+      id: 'llm_8--A3',
+      type: 'llm',
+      meta: {
+        position: {
+          x: 180,
+          y: 0,
         },
-        {
-            "sourceNodeID": "code_-v33c",
-            "targetNodeID": "code_PHkiO"
+      },
+      data: {
+        title: 'LLM_1',
+        inputsValues: {
+          modelName: {
+            type: 'constant',
+            content: 'gpt-3.5-turbo',
+          },
+          apiKey: {
+            type: 'constant',
+            content: 'sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+          },
+          apiHost: {
+            type: 'constant',
+            content: 'https://mock-ai-url/api/v3',
+          },
+          temperature: {
+            type: 'constant',
+            content: 0.5,
+          },
+          systemPrompt: {
+            type: 'template',
+            content: '# Role\nYou are an AI assistant.\n',
+          },
+          prompt: {
+            type: 'template',
+            content: '# User Input\nquery:{{start_0.query}}\nenable:{{start_0.enable}}',
+          },
         },
-        {
-            "sourceNodeID": "code_Qzvgd",
-            "targetNodeID": "code_PHkiO"
+        inputs: {
+          type: 'object',
+          required: ['modelName', 'apiKey', 'apiHost', 'temperature', 'prompt'],
+          properties: {
+            modelName: {
+              type: 'string',
+            },
+            apiKey: {
+              type: 'string',
+            },
+            apiHost: {
+              type: 'string',
+            },
+            temperature: {
+              type: 'number',
+            },
+            systemPrompt: {
+              type: 'string',
+              extra: {
+                formComponent: 'prompt-editor',
+              },
+            },
+            prompt: {
+              type: 'string',
+              extra: {
+                formComponent: 'prompt-editor',
+              },
+            },
+          },
         },
-        {
-            "sourceNodeID": "code_WpFEL",
-            "targetNodeID": "code_PHkiO"
-        }
-    ]
-}
+        outputs: {
+          type: 'object',
+          properties: {
+            result: {
+              type: 'string',
+            },
+          },
+        },
+      },
+    },
+    {
+      id: 'llm_vTyMa',
+      type: 'llm',
+      meta: {
+        position: {
+          x: 640,
+          y: 10,
+        },
+      },
+      data: {
+        title: 'LLM_2',
+        inputsValues: {
+          modelName: {
+            type: 'constant',
+            content: 'gpt-3.5-turbo',
+          },
+          apiKey: {
+            type: 'constant',
+            content: 'sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+          },
+          apiHost: {
+            type: 'constant',
+            content: 'https://mock-ai-url/api/v3',
+          },
+          temperature: {
+            type: 'constant',
+            content: 0.5,
+          },
+          systemPrompt: {
+            type: 'template',
+            content: '# Role\nYou are an AI assistant.\n',
+          },
+          prompt: {
+            type: 'template',
+            content: '# LLM Input\nresult:{{llm_8--A3.result}}',
+          },
+        },
+        inputs: {
+          type: 'object',
+          required: ['modelName', 'apiKey', 'apiHost', 'temperature', 'prompt'],
+          properties: {
+            modelName: {
+              type: 'string',
+            },
+            apiKey: {
+              type: 'string',
+            },
+            apiHost: {
+              type: 'string',
+            },
+            temperature: {
+              type: 'number',
+            },
+            systemPrompt: {
+              type: 'string',
+              extra: {
+                formComponent: 'prompt-editor',
+              },
+            },
+            prompt: {
+              type: 'string',
+              extra: {
+                formComponent: 'prompt-editor',
+              },
+            },
+          },
+        },
+        outputs: {
+          type: 'object',
+          properties: {
+            result: {
+              type: 'string',
+            },
+          },
+        },
+      },
+    },
+  ],
+  edges: [
+    {
+      sourceNodeID: 'start_0',
+      targetNodeID: 'http_rDGIH',
+    },
+    {
+      sourceNodeID: 'http_rDGIH',
+      targetNodeID: 'condition_0',
+    },
+    {
+      sourceNodeID: 'condition_0',
+      targetNodeID: 'llm_8--A3',
+      sourcePortID: 'if_f0rOAt',
+    },
+    {
+      sourceNodeID: 'condition_0',
+      targetNodeID: 'loop_Ycnsk',
+      sourcePortID: 'if_0',
+    },
+    {
+      sourceNodeID: 'llm_vTyMa',
+      targetNodeID: 'end_0',
+    },
+    {
+      sourceNodeID: 'loop_Ycnsk',
+      targetNodeID: 'end_0',
+    },
+    {
+      sourceNodeID: 'llm_8--A3',
+      targetNodeID: 'llm_vTyMa',
+    },
+  ],
+};

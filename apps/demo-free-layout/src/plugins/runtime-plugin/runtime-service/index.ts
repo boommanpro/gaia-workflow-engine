@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import {
   IReport,
   NodeReport,
@@ -17,7 +22,8 @@ import {
   getNodeForm,
 } from '@flowgram.ai/free-layout-editor';
 
-import { WorkflowRuntimeClient } from '../browser-client';
+import { WorkflowRuntimeClient } from '../client';
+import { WorkflowNodeType } from '../../../nodes';
 
 const SYNC_TASK_REPORT_INTERVAL = 500;
 
@@ -45,7 +51,8 @@ export class WorkflowRuntimeService {
 
   private resetEmitter = new Emitter<{}>();
 
-  public terminatedEmitter = new Emitter<{
+  private resultEmitter = new Emitter<{
+    errors?: string[];
     result?: {
       inputs: WorkflowInputs;
       outputs: WorkflowOutputs;
@@ -58,7 +65,7 @@ export class WorkflowRuntimeService {
 
   public onReset = this.resetEmitter.event;
 
-  public onTerminated = this.terminatedEmitter.event;
+  public onResultChanged = this.resultEmitter.event;
 
   public isFlowingLine(line: WorkflowLineEntity) {
     return this.runningNodes.some((node) =>
@@ -66,26 +73,53 @@ export class WorkflowRuntimeService {
     );
   }
 
-  public async taskRun(inputsString: string): Promise<void> {
+  public async taskRun(inputs: WorkflowInputs): Promise<string | undefined> {
     if (this.taskID) {
       await this.taskCancel();
     }
-    if (!this.validate()) {
+    const isFormValid = await this.validateForm();
+    if (!isFormValid) {
+      this.resultEmitter.fire({
+        errors: ['Form validation failed'],
+      });
+      return;
+    }
+    const schema = this.document.toJSON();
+    const validateResult = await this.runtimeClient.TaskValidate({
+      schema: JSON.stringify(schema),
+      inputs,
+    });
+    if (!validateResult?.valid) {
+      this.resultEmitter.fire({
+        errors: validateResult?.errors ?? ['Internal Server Error'],
+      });
       return;
     }
     this.reset();
-    const output = await this.runtimeClient.TaskRun({
-      schema: JSON.stringify(this.document.toJSON()),
-      inputs: JSON.parse(inputsString) as WorkflowInputs,
-    });
-    if (!output) {
-      this.terminatedEmitter.fire({});
+    let taskID: string | undefined;
+    try {
+      const output = await this.runtimeClient.TaskRun({
+        schema: JSON.stringify(schema),
+        inputs,
+      });
+      taskID = output?.taskID;
+    } catch (e) {
+      this.resultEmitter.fire({
+        errors: [(e as Error)?.message],
+      });
       return;
     }
-    this.taskID = output.taskID;
+    if (!taskID) {
+      this.resultEmitter.fire({
+        errors: ['Task run failed'],
+      });
+      return;
+    }
+    this.taskID = taskID;
     this.syncTaskReportIntervalID = setInterval(() => {
       this.syncTaskReport();
     }, SYNC_TASK_REPORT_INTERVAL);
+    return this.taskID;
   }
 
   public async taskCancel(): Promise<void> {
@@ -97,7 +131,7 @@ export class WorkflowRuntimeService {
     });
   }
 
-  private async validate(): Promise<boolean> {
+  private async validateForm(): Promise<boolean> {
     const allForms = this.document.getAllNodes().map((node) => getNodeForm(node));
     const formValidations = await Promise.all(allForms.map(async (form) => form?.validate()));
     const validations = formValidations.filter((validation) => validation !== undefined);
@@ -119,54 +153,66 @@ export class WorkflowRuntimeService {
     if (!this.taskID) {
       return;
     }
-    const output = await this.runtimeClient.TaskReport({
+    const report = await this.runtimeClient.TaskReport({
       taskID: this.taskID,
     });
-    if (!output) {
+    if (!report) {
       clearInterval(this.syncTaskReportIntervalID);
       console.error('Sync task report failed');
       return;
     }
-    const { workflowStatus, inputs, outputs } = output;
+    const { workflowStatus, inputs, outputs, messages } = report;
     if (workflowStatus.terminated) {
       clearInterval(this.syncTaskReportIntervalID);
       if (Object.keys(outputs).length > 0) {
-        this.terminatedEmitter.fire({ result: { inputs, outputs } });
+        this.resultEmitter.fire({ result: { inputs, outputs } });
       } else {
-        this.terminatedEmitter.fire({});
+        this.resultEmitter.fire({
+          errors: messages?.error?.map((message) =>
+            message.nodeID ? `${message.nodeID}: ${message.message}` : message.message
+          ),
+        });
       }
     }
-    this.updateReport(output);
+    this.updateReport(report);
   }
 
   private updateReport(report: IReport): void {
     const { reports } = report;
     this.runningNodes = [];
-    this.document.getAllNodes().forEach((node) => {
-      const nodeID = node.id;
-      const nodeReport = reports[nodeID];
-      if (!nodeReport) {
-        return;
-      }
-      if (nodeReport.status === WorkflowStatus.Processing) {
-        this.runningNodes.push(node);
-      }
-      const runningStatus = this.nodeRunningStatus.get(nodeID);
-      if (
-        !runningStatus ||
-        nodeReport.status !== runningStatus.status ||
-        nodeReport.snapshots.length !== runningStatus.nodeResultLength
-      ) {
-        this.nodeRunningStatus.set(nodeID, {
-          nodeID,
-          status: nodeReport.status,
-          nodeResultLength: nodeReport.snapshots.length,
-        });
-        this.reportEmitter.fire(nodeReport);
-        this.document.linesManager.forceUpdate();
-      } else if (nodeReport.status === WorkflowStatus.Processing) {
-        this.reportEmitter.fire(nodeReport);
-      }
-    });
+    this.document
+      .getAllNodes()
+      .filter(
+        (node) =>
+          ![WorkflowNodeType.BlockStart, WorkflowNodeType.BlockEnd].includes(
+            node.flowNodeType as WorkflowNodeType
+          )
+      )
+      .forEach((node) => {
+        const nodeID = node.id;
+        const nodeReport = reports[nodeID];
+        if (!nodeReport) {
+          return;
+        }
+        if (nodeReport.status === WorkflowStatus.Processing) {
+          this.runningNodes.push(node);
+        }
+        const runningStatus = this.nodeRunningStatus.get(nodeID);
+        if (
+          !runningStatus ||
+          nodeReport.status !== runningStatus.status ||
+          nodeReport.snapshots.length !== runningStatus.nodeResultLength
+        ) {
+          this.nodeRunningStatus.set(nodeID, {
+            nodeID,
+            status: nodeReport.status,
+            nodeResultLength: nodeReport.snapshots.length,
+          });
+          this.reportEmitter.fire(nodeReport);
+          this.document.linesManager.forceUpdate();
+        } else if (nodeReport.status === WorkflowStatus.Processing) {
+          this.reportEmitter.fire(nodeReport);
+        }
+      });
   }
 }

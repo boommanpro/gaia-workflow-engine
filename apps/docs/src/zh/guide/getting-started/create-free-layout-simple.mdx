@@ -229,7 +229,7 @@ export const nodeRegistries: WorkflowNodeRegistry[] = [
       deleteDisable: true, // 开始节点不能删除
       copyDisable: true, // 开始节点不能复制
       defaultPorts: [{ type: 'output' }], // 用于定义节点的输入和输出端口, 开始节点只有输出端口
-      // dynamicPort: true, // 用于动态端口，会寻找 data-port-id 和 data-port-type 属性的 dom 作为端口
+      // useDynamicPort: true, // 用于动态端口，会寻找 data-port-id 和 data-port-type 属性的 dom 作为端口
     },
     /**
      * 配置节点表单的校验及渲染,

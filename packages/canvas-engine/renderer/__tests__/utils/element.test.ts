@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { vi, describe, expect, it } from 'vitest';
 
 import { isHidden, isRectInit } from '../../src/utils/element';

@@ -12,12 +12,15 @@
     "index.html",
     "package.json",
     "rsbuild.config.ts",
-    "tsconfig.json"
+    "tsconfig.json",
+    "README.md",
+    "README.zh_CN.md"
   ],
   "scripts": {
     "build": "exit 0",
     "build:fast": "exit 0",
     "build:watch": "exit 0",
+    "build:prod": "cross-env MODE=app NODE_ENV=production rsbuild build",
     "clean": "rimraf dist",
     "dev": "cross-env MODE=app NODE_ENV=development rsbuild dev --open",
     "lint": "eslint ./src --cache",
@@ -46,6 +49,7 @@
     "@flowgram.ai/eslint-config": "workspace:*",
     "@rsbuild/core": "^1.2.16",
     "@rsbuild/plugin-react": "^1.1.1",
+    "@rsbuild/plugin-less": "^1.1.1",
     "@types/lodash-es": "^4.17.12",
     "@types/node": "^18",
     "@types/react": "^18",

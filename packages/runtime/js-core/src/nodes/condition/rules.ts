@@ -1,6 +1,11 @@
-import { WorkflowVariableType } from '@flowgram.ai/runtime-interface';
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
 
-import { ConditionOperation, ConditionRules } from './type';
+import { ConditionOperation, WorkflowVariableType } from '@flowgram.ai/runtime-interface';
+
+import { ConditionRules } from './type';
 
 export const conditionRules: ConditionRules = {
   [WorkflowVariableType.String]: {

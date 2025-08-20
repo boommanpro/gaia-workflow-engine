@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { commonConfigResolver } from './commonConfigResolver'
 import { InternalCoordinatesOptions, CoordinatesConfig, Bounds, DragBounds, State, Vector2 } from '../types'
 

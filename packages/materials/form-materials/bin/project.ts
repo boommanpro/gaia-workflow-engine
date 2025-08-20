@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import path from 'path';
 import fs from 'fs';
 import { execSync } from 'child_process';
@@ -65,22 +70,26 @@ export function findRushJson(startPath: string): string | null {
 
 export function installDependencies(packages: string[], projectInfo: ProjectInfo): void {
   if (fs.existsSync(path.join(projectInfo.projectPath, 'yarn.lock'))) {
+    console.log(`yarn add ${packages.join(' ')}`);
     execSync(`yarn add ${packages.join(' ')}`, { stdio: 'inherit' });
     return;
   }
 
   if (fs.existsSync(path.join(projectInfo.projectPath, 'pnpm-lock.yaml'))) {
+    console.log(`pnpm add ${packages.join(' ')}`);
     execSync(`pnpm add ${packages.join(' ')}`, { stdio: 'inherit' });
     return;
   }
 
   //  rush monorepo
   if (findRushJson(projectInfo.projectPath)) {
+    console.log(`rush add ${packages.map((pkg) => `--package ${pkg}`).join(' ')}`);
     execSync(`rush add ${packages.map((pkg) => `--package ${pkg}`).join(' ')}`, {
       stdio: 'inherit',
     });
     return;
   }
 
+  console.log(`npm install ${packages.join(' ')}`);
   execSync(`npm install ${packages.join(' ')}`, { stdio: 'inherit' });
 }

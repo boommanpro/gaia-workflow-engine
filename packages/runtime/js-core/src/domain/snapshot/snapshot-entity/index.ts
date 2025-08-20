@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { ISnapshot, Snapshot, SnapshotData } from '@flowgram.ai/runtime-interface';
 
 import { uuid } from '@infra/utils';
@@ -12,7 +17,7 @@ export class WorkflowRuntimeSnapshot implements ISnapshot {
     this.data = data;
   }
 
-  public addData(data: Partial<SnapshotData>): void {
+  public update(data: Partial<SnapshotData>): void {
     Object.assign(this.data, data);
   }
 

@@ -3,8 +3,8 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "build": "NODE_OPTIONS='--max-old-space-size=8192' && rm -rf ./doc_build && rspress build && shx cp -r llms/* doc_build/",
-    "docs": "NODE_OPTIONS='--max-old-space-size=8192' tsx ./scripts/auto-generate.ts",
+    "build": "shx rm -rf ./doc_build && cross-env NODE_OPTIONS=--max-old-space-size=8192 rspress build",
+    "docs": "cross-env NODE_OPTIONS=--max-old-space-size=8192 tsx ./scripts/auto-generate.ts",
     "dev": "rspress dev",
     "lint": "eslint ./components --cache",
     "preview": "rspress preview",
@@ -12,9 +12,9 @@
     "translate:en": "tsx ./scripts/translate.ts en"
   },
   "dependencies": {
-    "rspress": "^1.38.0",
-    "@rspress/core": "^1.38.0",
-    "@rspress/shared": "^1.38.0",
+    "@rspress/core": "2.0.0-beta.24",
+    "@rspress/plugin-llms": "2.0.0-beta.24",
+    "@rsbuild/plugin-less": "^1.1.1",
     "@codesandbox/sandpack-react": "2.19.10",
     "@monaco-editor/react": "^4.6.0",
     "@flowgram.ai/demo-fixed-layout": "workspace:*",
@@ -22,12 +22,12 @@
     "@flowgram.ai/demo-free-layout-simple": "workspace:*",
     "@flowgram.ai/demo-fixed-layout-simple": "workspace:*",
     "@flowgram.ai/demo-node-form": "workspace:*",
+    "@flowgram.ai/demo-playground": "workspace:*",
     "@flowgram.ai/fixed-layout-editor": "workspace:*",
     "@flowgram.ai/fixed-semi-materials": "workspace:*",
     "@flowgram.ai/free-layout-editor": "workspace:*",
     "@flowgram.ai/group-plugin": "workspace:*",
     "@flowgram.ai/form-core": "workspace:*",
-    "@flowgram.ai/fixed-reactor-plugin": "workspace:*",
     "@flowgram.ai/free-auto-layout-plugin": "workspace:*",
     "@flowgram.ai/minimap-plugin": "workspace:*",
     "@flowgram.ai/free-stack-plugin": "workspace:*",
@@ -43,16 +43,14 @@
     "typedoc": "0.24.8",
     "typedoc-plugin-markdown": "3.17.1",
     "react": "^18",
+    "react-dom": "^18",
     "lodash-es": "^4.17.21",
     "@types/react": "^18"
   },
   "devDependencies": {
     "@flowgram.ai/ts-config": "workspace:*",
     "@flowgram.ai/eslint-config": "workspace:*",
-    "webpack-merge": "^5.9.0",
     "@eslint/js": "^9.12.0",
-    "raw-loader": "^4.0.2",
-    "@rspress/plugin-typedoc": "^1.38.0",
     "@types/node": "^18",
     "@types/lodash-es": "^4.17.12",
     "sucrase": "3.35.0",
@@ -62,7 +60,8 @@
     "openai": "~4.98.0",
     "dotenv": "~16.5.0",
     "tsx": "~4.19.4",
-    "shx": "0.4.0"
+    "shx": "0.4.0",
+    "cross-env": "~7.0.3"
   },
   "homepage": "https://github.com/bytedance/flowgram.ai/"
 }

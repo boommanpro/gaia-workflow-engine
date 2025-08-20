@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { FlowDragLayer } from '@flowgram.ai/renderer';
 import { FlowNodeEntity } from '@flowgram.ai/document';
 import { definePluginCreator, PluginContext } from '@flowgram.ai/core';
@@ -6,10 +11,18 @@ import { definePluginCreator, PluginContext } from '@flowgram.ai/core';
 
 export interface FixDragPluginOptions<CTX extends PluginContext = PluginContext> {
   enable?: boolean;
+  /**
+   * Callback when drag drop
+   */
   onDrop?: (ctx: CTX, dropData: { dragNodes: FlowNodeEntity[]; dropNode: FlowNodeEntity }) => void;
+  /**
+   * Check can drop
+   * @param ctx
+   * @param dropData
+   */
   canDrop?: (
     ctx: CTX,
-    dropData: { dragNodes: FlowNodeEntity[]; dropNode: FlowNodeEntity; isBranch?: boolean },
+    dropData: { dragNodes: FlowNodeEntity[]; dropNode: FlowNodeEntity; isBranch?: boolean }
   ) => boolean;
 }
 

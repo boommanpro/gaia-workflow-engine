@@ -64,7 +64,10 @@ export const nodeRegistries: FlowNodeRegistry[] = [
       validateTrigger: ValidateTrigger.onChange,
       /**
        * 配置校验规则， 'content' 为字段路径，以下配置值对该路径下的数据进行校验。
-       */
+       *
+       * 也可支持动态函数写法, 用于根据 values 生成校验器:
+       *  validate: (values, ctx) => ({ content: () => {}, })
+      */
       validate: {
         content: ({ value }) => (value ? undefined : 'Content is required'),
       },
@@ -250,6 +253,10 @@ export const VALIDATE_EXAMPLE: FormMeta = {
   render: renderValidateExample,
   // 校验时机配置
   validateTrigger: ValidateTrigger.onChange,
+  /*
+   * 也可支持动态函数写法, 用于根据 values 生成校验器:
+   *   validate: (values, ctx) => ({ a: () => '', b: () => '', c, () => '' })
+  */
   validate: {
     // 单纯校验值
     a: ({ value }) => (value.length > 5 ? '最大长度为5' : undefined),
@@ -289,14 +296,14 @@ export const VALIDATE_EXAMPLE: FormMeta = {
 
 1. 主动触发整个表单的校验
 
-```pure tsx
+```tsx pure
 const form = useForm()
 form.validate()
 ```
 
 2. 主动触发单个表单项校验
 
-```pure tsx
+```tsx pure
 const validate = useFieldValidate(name)
 validate()
 ```

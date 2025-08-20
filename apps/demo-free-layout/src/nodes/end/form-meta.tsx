@@ -1,11 +1,19 @@
-import { mapValues } from 'lodash-es';
-import { Field, FieldRenderProps, FormMeta } from '@flowgram.ai/free-layout-editor';
-import { IFlowValue } from '@flowgram.ai/form-materials';
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
+import { Field, FormMeta } from '@flowgram.ai/free-layout-editor';
+import {
+  createInferInputsPlugin,
+  DisplayInputsValues,
+  IFlowValue,
+  InputsValues,
+} from '@flowgram.ai/form-materials';
 
 import { defaultFormMeta } from '../default-form-meta';
-import { JsonSchema } from '../../typings';
 import { useIsSidebar } from '../../hooks';
-import { FormHeader, FormContent, FormOutputs, PropertiesEdit } from '../../form-components';
+import { FormHeader, FormContent } from '../../form-components';
 
 export const renderForm = () => {
   const isSidebar = useIsSidebar();
@@ -14,36 +22,13 @@ export const renderForm = () => {
       <>
         <FormHeader />
         <FormContent>
-          <Field
-            name="inputs.properties"
-            render={({
-              field: { value: propertiesSchemaValue, onChange: propertiesSchemaChange },
-            }: FieldRenderProps<Record<string, JsonSchema>>) => (
-              <Field<Record<string, IFlowValue>> name="inputsValues">
-                {({ field: { value: propertiesValue, onChange: propertiesValueChange } }) => {
-                  const onChange = (newProperties: Record<string, JsonSchema>) => {
-                    const newPropertiesValue = mapValues(newProperties, (v) => v.default);
-                    const newPropetiesSchema = mapValues(newProperties, (v) => {
-                      delete v.default;
-                      return v;
-                    });
-                    propertiesValueChange(newPropertiesValue);
-                    propertiesSchemaChange(newPropetiesSchema);
-                  };
-                  const value = mapValues(propertiesSchemaValue, (v, key) => ({
-                    ...v,
-                    default: propertiesValue?.[key],
-                  }));
-                  return (
-                    <>
-                      <PropertiesEdit value={value} onChange={onChange} useFx={true} />
-                    </>
-                  );
-                }}
-              </Field>
+          <Field<Record<string, IFlowValue | undefined> | undefined> name="inputsValues">
+            {({ field: { value, onChange } }) => (
+              <>
+                <InputsValues value={value} onChange={(_v) => onChange(_v)} />
+              </>
             )}
-          />
-          <FormOutputs name="inputs" />
+          </Field>
         </FormContent>
       </>
     );
@@ -52,7 +37,13 @@ export const renderForm = () => {
     <>
       <FormHeader />
       <FormContent>
-        <FormOutputs name="inputs" />
+        <Field<Record<string, IFlowValue | undefined> | undefined> name="inputsValues">
+          {({ field: { value } }) => (
+            <>
+              <DisplayInputsValues value={value} />
+            </>
+          )}
+        </Field>
       </FormContent>
     </>
   );
@@ -61,4 +52,10 @@ export const renderForm = () => {
 export const formMeta: FormMeta = {
   ...defaultFormMeta,
   render: renderForm,
+  plugins: [
+    createInferInputsPlugin({
+      sourceKey: 'inputsValues',
+      targetKey: 'inputs',
+    }),
+  ],
 };

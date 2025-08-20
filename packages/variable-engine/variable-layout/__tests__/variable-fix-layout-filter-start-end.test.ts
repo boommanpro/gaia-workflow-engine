@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { FlowNodeScope } from '../src/types';
 import { runFixedLayoutTest } from '../__mocks__/run-fixed-layout-test';
 import { fixLayout1 } from '../__mocks__/fixed-layout-specs';

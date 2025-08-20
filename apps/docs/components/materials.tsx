@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 // @ts-expect-error
 import { PackageManagerTabs, SourceCode } from '@theme';
 
@@ -7,7 +12,7 @@ export function MaterialDisplay(props: any) {
       <br />
       <PackageManagerTabs
         command={{
-          'By Import': `import { ${props.exportName} } from '@flowgram.ai/materials'`,
+          'By Import': `import { ${props.exportName} } from '@flowgram.ai/form-materials'`,
           // components/type-selector/index.tsx -> components/type-selector
           'By CLI': `npx @flowgram.ai/form-materials@latest ${props.filePath
             .split('/')

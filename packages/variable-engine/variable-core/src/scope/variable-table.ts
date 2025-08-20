@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { Observable, Subject, merge, share, skip, switchMap } from 'rxjs';
 import { DisposableCollection, Emitter } from '@flowgram.ai/utils';
 
@@ -9,6 +14,11 @@ import { IVariableTable } from './types';
 export class VariableTable implements IVariableTable {
   protected table: Map<string, VariableDeclaration> = new Map();
 
+  toDispose = new DisposableCollection();
+
+  /**
+   * @deprecated
+   */
   protected onDataChangeEmitter = new Emitter<void>();
 
   protected variables$: Subject<VariableDeclaration[]> = new Subject<VariableDeclaration[]>();
@@ -29,8 +39,8 @@ export class VariableTable implements IVariableTable {
   );
 
   /**
-   * 监听任意变量变化
-   * @param observer 监听器，变量变化时会吐出值
+   * listen to any variable update in list
+   * @param observer
    * @returns
    */
   onAnyVariableChange(observer: (changedVariable: VariableDeclaration) => void) {
@@ -38,22 +48,35 @@ export class VariableTable implements IVariableTable {
   }
 
   /**
-   * 列表或者任意变量变化
+   * listen to variable list change
+   * @param observer
+   * @returns
+   */
+  onVariableListChange(observer: (variables: VariableDeclaration[]) => void) {
+    return subsToDisposable(this.variables$.subscribe(observer));
+  }
+
+  /**
+   * listen to variable list change + any variable update in list
    * @param observer
    */
-  onAnyChange(observer: () => void) {
+  onListOrAnyVarChange(observer: () => void) {
     const disposables = new DisposableCollection();
-    disposables.pushAll([this.onDataChange(observer), this.onAnyVariableChange(observer)]);
+    disposables.pushAll([this.onVariableListChange(observer), this.onAnyVariableChange(observer)]);
     return disposables;
   }
 
+  /**
+   * @deprecated use onListOrAnyVarChange instead
+   */
   public onDataChange = this.onDataChangeEmitter.event;
 
   protected _version: number = 0;
 
   fireChange() {
-    this._version++;
+    this.bumpVersion();
     this.onDataChangeEmitter.fire();
+    this.variables$.next(this.variables);
     this.parentTable?.fireChange();
   }
 
@@ -61,9 +84,24 @@ export class VariableTable implements IVariableTable {
     return this._version;
   }
 
+  protected bumpVersion() {
+    this._version = this._version + 1;
+    if (this._version === Number.MAX_SAFE_INTEGER) {
+      this._version = 0;
+    }
+  }
+
   constructor(
     public parentTable?: IVariableTable // 父变量表，会包含所有子表的变量
-  ) {}
+  ) {
+    this.toDispose.pushAll([
+      this.onDataChangeEmitter,
+      // active share()
+      this.onAnyVariableChange(() => {
+        this.bumpVersion();
+      }),
+    ]);
+  }
 
   get variables(): VariableDeclaration[] {
     return Array.from(this.table.values());
@@ -108,7 +146,6 @@ export class VariableTable implements IVariableTable {
     if (this.parentTable) {
       (this.parentTable as VariableTable).addVariableToTable(variable);
     }
-    this.variables$.next(this.variables);
   }
 
   /**
@@ -120,13 +157,15 @@ export class VariableTable implements IVariableTable {
     if (this.parentTable) {
       (this.parentTable as VariableTable).removeVariableFromTable(key);
     }
-    this.variables$.next(this.variables);
   }
 
   dispose(): void {
     this.variableKeys.forEach((_key) =>
       (this.parentTable as VariableTable)?.removeVariableFromTable(_key)
     );
-    this.onDataChangeEmitter.dispose();
+    this.parentTable?.fireChange();
+    this.variables$.complete();
+    this.variables$.unsubscribe();
+    this.toDispose.dispose();
   }
 }

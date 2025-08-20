@@ -1,76 +1,80 @@
 # 变量基础
 
-## 业务背景
+## 什么是变量？
 
-在 Workflow 编排中，节点与节点之间需要传递信息。为了实现这一点，我们使用**变量**来存储和管理这些信息。
+想象一下，你在搭建一个复杂的乐高模型，每个模块都需要精确地连接在一起。在工作流（Workflow）的世界里，**变量**就扮演着类似“连接件”的角色。它们是用来在不同节点之间传递信息的“信使”。
 
-:::warning 一个变量由三个主要部分组成：
+简单来说，变量就是一个带名字的容器，你可以往里面装各种东西，比如用户的输入、计算结果，或者从某个地方获取的数据。
 
-1. **唯一标识符**：变量的名字，用于区分不同的变量，以便在程序中可以准确地引用和使用它。如：`userName` 或 `totalAmount`。
-2. **值**：变量存储的数据。值可以是多种类型，比如数字（如 `42`）、字符串（如 `"Hello!"`）、布尔值（如 `true`）等。
-3. **类型**：变量可以存储的数据种类。类型决定了变量可以接受什么样的值。例如，一个变量可以是整数、浮点数、字符串或布尔值等。
+一个变量通常由三部分组成：
 
-:::
+- **名字（唯一标识符）**：就像你的名字一样，它让大家能准确地找到这个变量。例如 `userName`、`orderId`。
+- **值**：容器里装的东西。它可以是数字 `123`，文字 `"Hello Flowgram!"`，或者一个开关状态 `true` / `false`。
+- **类型**：规定了这个容器能装哪种东西。比如，有的只能装数字，有的只能装文字。
 
-下面是一个流程编排的例子：WebSearch 节点获取到知识，通过 natural_language_desc 传递到 LLM 节点进行分析
+---
+
+举个例子，在一个“智能问答”流程中：
 
 <div style={{display: 'flex', gap: '20px'}}>
   <img style={{width: "50%"}} loading="lazy" src="/variable/variable-biz-context-websearch-llm.png" />
   <div>
-    在该例子中：
-    <p style={{marginTop: 10}}>1. WebSearch 节点将信息（值）存在 natural_language_desc 为唯一标识符的变量内</p>
-    <p style={{marginTop: 5}}>2. LLM 节点通过 natural_language_desc 唯一标识符获取到知识库检索的信息（值），并传入 LLM 节点进行分析</p>
-    <p style={{marginTop: 5}}>3. natural_language_desc 变量的类型为字符串，代表在网络中检索到的信息内容，例如 "DeepSeek 今日有新模型发布"</p>
+    <p style={{marginTop: 10}}>1. **`WebSearch` 节点**：负责上网搜索，然后把搜到的知识（比如“今天天气怎么样？”的答案）放进一个名为 `natural_language_desc` 的变量里。</p>
+    <p style={{marginTop: 5}}>2. **`LLM` 节点**：它会接过 `natural_language_desc` 这个“信使”，读取里面的内容，然后用更自然、更友好的方式回答用户。</p>
+    <p style={{marginTop: 5}}>3. 在这个过程中，`natural_language_desc` 的类型就是“字符串”，因为它装的是文字内容。</p>
   </div>
 </div>
 
+## 为什么需要变量引擎？
 
-## 什么是变量引擎？
+随着工作流复杂度的提升，变量的数量和管理难度也随之增加。
 
-变量引擎是 Flowgram 提供的一个可选内置功能，可以帮助 Workflow 设计时更高效地实现**变量信息编排**。它可以实现以下功能：
+为了应对这一挑战，Flowgram 提供了强大的**变量引擎**。
+
+它如同一位专业的“数据管家”，能够系统化地管理所有变量，确保数据流的清晰与稳定。
+
+启用变量引擎将为您带来以下核心优势：
 
 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "25px" }}>
   <div style={{ gridColumn: "span 2" }}>
-    <b>作用域约束控制</b>
-    <p className="rs-tip">通过变量引擎，你可以控制变量的作用域，确保变量在合适的范围内可用，避免不必要的冲突。</p>
+    <b>作用域约束：精准的数据访问控制</b>
+    <p className="rs-tip">变量引擎能够精确控制每个变量的有效范围（即作用域）。如同为不同房间配置专属钥匙，它确保了变量只在预期的节点中被访问，从而有效避免了数据污染和意外的逻辑错误。</p>
     <div style={{display: "flex", gap: "25px"}}>
       <div>
         <img loading="lazy" src="/variable/variable-scope-feature-1.png" />
-        <p style={{marginTop: '10px'}}>图中 Start 节点的 query 变量，可被后续的 LLM 节点和 End 节点访问</p>
+        <p style={{marginTop: '10px'}}>`Start` 节点定义的 `query` 变量，在它后面的 `LLM` 和 `End` 节点都能轻松访问。</p>
       </div>
       <div>
         <img loading="lazy" src="/variable/variable-scope-feature-2.png" />
-        <p style={{marginTop: '10px'}}>图中 LLM 节点在 Condition 分支内，End 节点在 Condition 分支外；因此 End 节点的变量选择器无法选择到 LLM 节点上的 result 变量</p>
+        <p style={{marginTop: '10px'}}>`LLM` 节点在一个 `Condition` 分支里，像是在一个独立的房间。外面的 `End` 节点自然就拿不到它的 `result` 变量了。</p>
       </div>
     </div>
   </div>
   <div>
-    <b>变量信息树的维护</b>
-    <p className="rs-tip">变量引擎可以帮助你构建一个清晰的变量信息树，方便你查看和管理所有变量的状态和关系。</p>
+    <b>变量结构透视：轻松洞悉复杂数据</b>
+    <p className="rs-tip">当变量变得复杂时（例如一个包含许多层级的对象），变量引擎能让你像剥洋葱一样，一层层地深入探索它的内部结构，所有细节都尽在掌握。</p>
     <img loading="lazy" src="/variable/variable-tree-management.gif" />
-    <p style={{marginTop: '10px'}}>图中展示了多个节点 + 全局配置的输出变量；其中部分变量包含了多个子变量，形成了一棵树的结构</p>
+    <p style={{marginTop: '10px'}}>这张图里，你能看到所有节点的输出变量，以及它们之间的层级关系，像一棵枝繁叶茂的树。</p>
   </div>
   <div>
-    <b>变量类型自动联动推导</b>
-    <p className="rs-tip">变量引擎能够根据上下文自动推导变量的类型，减少手动指定类型的工作量，提高开发效率。</p>
+    <b>类型自动推导：心有灵犀一点通</b>
+    <p className="rs-tip">你不用再挨个告诉每个变量它应该是什么类型，变量引擎会像你的“灵魂伴侣”一样，根据上下文自动推导出它的类型。</p>
     <img loading="lazy" src="/variable/variable-batch-auto-infer.gif" />
-    <p style={{marginTop: '10px'}}>图中的 Batch 节点对 Start 节点的 arr 变量进行了批处理，当 arr 变量的类型变动时，Batch 节点批处理输出的 item 变量类型也随之变动</p>
+    <p style={{marginTop: '10px'}}>例如，当 `Start` 节点中 `arr` 变量的类型发生变更时，`Batch` 节点输出的 `item` 类型也会自动同步更新，确保了类型的一致性。</p>
   </div>
 </div>
 
+## 如何开启变量引擎？
 
-## 开启变量引擎
+您可以通过简单的配置来启用变量引擎，以体验其强大的功能。
 
-[> API Detail](https://flowgram.ai/auto-docs/editor/interfaces/VariablePluginOptions.html)
+[> 查看 API 详情](https://flowgram.ai/auto-docs/editor/interfaces/VariablePluginOptions.html)
 
 ```tsx pure title="use-editor-props.ts" {3}
-
-// EditorProps
+// 在 EditorProps 中开启变量引擎
 {
   variableEngine: {
-    /**
-     * 需要开启变量引擎才能使用
-     */
+    // 设置为 true 即可开启变量引擎
     enable: true
   }
 }

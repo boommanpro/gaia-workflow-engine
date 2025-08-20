@@ -1,22 +1,19 @@
-export {
-  BezierControlType,
-  getBezierHorizontalControlPoints,
-  getBezierVerticalControlPoints,
-} from './bezier-controls';
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { Bezier } from 'bezier-js';
 import { IPoint, Point, Rectangle } from '@flowgram.ai/utils';
 import {
-  POINT_RADIUS,
   WorkflowLineEntity,
   WorkflowLineRenderContribution,
+  LinePoint,
 } from '@flowgram.ai/free-layout-core';
 import { LineType } from '@flowgram.ai/free-layout-core';
 
 import { LINE_PADDING } from '../../constants/lines';
-import {
-  getBezierHorizontalControlPoints,
-  getBezierVerticalControlPoints,
-} from './bezier-controls';
+import { getBezierControlPoints } from './bezier-controls';
 
 export interface BezierData {
   fromPos: IPoint;
@@ -56,14 +53,12 @@ export class WorkflowBezierLineContribution implements WorkflowLineRenderContrib
     return this.data.bbox;
   }
 
-  public update(params: { fromPos: IPoint; toPos: IPoint }): void {
+  public update(params: { fromPos: LinePoint; toPos: LinePoint }): void {
     this.data = this.calcBezier(params.fromPos, params.toPos);
   }
 
-  private calcBezier(fromPos: IPoint, toPos: IPoint): BezierData {
-    const controls = this.entity.vertical
-      ? getBezierVerticalControlPoints(fromPos, toPos)
-      : getBezierHorizontalControlPoints(fromPos, toPos);
+  private calcBezier(fromPos: LinePoint, toPos: LinePoint): BezierData {
+    const controls = getBezierControlPoints(fromPos, toPos, this.entity.uiState.curvature);
     const bezier = new Bezier([fromPos, ...controls, toPos]);
     const bbox = bezier.bbox();
     const bboxBounds = new Rectangle(
@@ -88,8 +83,8 @@ export class WorkflowBezierLineContribution implements WorkflowLineRenderContrib
 
   private getPath(params: {
     bbox: Rectangle;
-    fromPos: IPoint;
-    toPos: IPoint;
+    fromPos: LinePoint;
+    toPos: LinePoint;
     controls: IPoint[];
   }): string {
     const { bbox } = params;
@@ -102,26 +97,19 @@ export class WorkflowBezierLineContribution implements WorkflowLineRenderContrib
     const toPos = toRelative(params.toPos);
 
     const controls = params.controls.map((c) => toRelative(c));
+    const shrink = this.entity.uiState.shrink;
 
-    // 渲染端点位置计算
-    const renderToPos: IPoint = this.entity.vertical
-      ? { x: toPos.x, y: toPos.y - POINT_RADIUS }
-      : { x: toPos.x - POINT_RADIUS, y: toPos.y };
+    const renderFromPos: IPoint =
+      params.fromPos.location === 'bottom'
+        ? { x: fromPos.x, y: fromPos.y + shrink }
+        : { x: fromPos.x + shrink, y: fromPos.y };
 
-    const getPathData = (): string => {
-      const controlPoints = controls.map((s) => `${s.x} ${s.y}`).join(',');
-      const curveType = controls.length === 1 ? 'S' : 'C';
+    const renderToPos: IPoint =
+      params.toPos.location === 'top'
+        ? { x: toPos.x, y: toPos.y - shrink }
+        : { x: toPos.x - shrink, y: toPos.y };
 
-      if (this.entity.vertical) {
-        return `M${fromPos.x} ${fromPos.y + POINT_RADIUS} ${curveType} ${controlPoints}, ${
-          renderToPos.x
-        } ${renderToPos.y}`;
-      }
-      return `M${fromPos.x + POINT_RADIUS} ${fromPos.y} ${curveType} ${controlPoints}, ${
-        renderToPos.x
-      } ${renderToPos.y}`;
-    };
-    const path = getPathData();
-    return path;
+    const controlPoints = controls.map((s) => `${s.x} ${s.y}`).join(',');
+    return `M${renderFromPos.x} ${renderFromPos.y} C ${controlPoints}, ${renderToPos.x} ${renderToPos.y}`;
   }
 }

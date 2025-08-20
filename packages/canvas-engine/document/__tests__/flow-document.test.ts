@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { type FlowDocumentJSON, type FlowNodeJSON } from '../src/typings';
@@ -274,5 +279,9 @@ describe('flow-document', () => {
     expect(
       document.getNode('block_0')!.getNodeMeta() === document.getNode('block_1')!.getNodeMeta()
     ).toBeTruthy();
+  });
+  it('document is disposed and call toJSON should throw error', () => {
+    document.dispose();
+    expect(() => document.toJSON()).toThrowError(/disposed/);
   });
 });

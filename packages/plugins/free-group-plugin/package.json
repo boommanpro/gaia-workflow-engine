@@ -35,6 +35,7 @@
         "@flowgram.ai/free-layout-core": "workspace:*",
         "@flowgram.ai/renderer": "workspace:*",
         "@flowgram.ai/utils": "workspace:*",
+        "@flowgram.ai/free-layout-editor": "workspace:*",
         "inversify": "^6.0.1",
         "reflect-metadata": "~0.2.2",
         "lodash": "^4.17.21"
@@ -53,7 +54,7 @@
         "react-dom": "^18",
         "styled-components": "^5",
         "tsup": "^8.0.1",
-        "typescript": "^5.0.4",
+        "typescript": "^5.8.3",
         "vitest": "^0.34.6"
     },
     "peerDependencies": {

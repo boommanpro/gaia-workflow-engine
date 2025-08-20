@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { flatten, get, isArray, isObject } from 'lodash';
 
 export namespace Glob {
@@ -146,7 +151,7 @@ export namespace Glob {
     let curPaths: string[] = [];
     let curValue = obj;
     while (curKey) {
-      let isObject = typeof curValue === 'object';
+      let isObject = typeof curValue === 'object' && curValue !== null;
       if (!isObject) return [];
       // 匹配 *
       if (curKey === ALL) {

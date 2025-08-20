@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import {
   WorkflowLineEntity,
   WorkflowNodeEntity,
@@ -5,7 +10,14 @@ import {
 } from '@flowgram.ai/free-layout-core';
 import { FlowNodeBaseType, FlowNodeTransformData } from '@flowgram.ai/document';
 
-import type { LayoutConfig, LayoutEdge, LayoutNode, LayoutParams } from './type';
+import type {
+  GetFollowNode,
+  LayoutConfig,
+  LayoutEdge,
+  LayoutNode,
+  LayoutOptions,
+  LayoutParams,
+} from './type';
 
 interface LayoutStoreData {
   nodes: Map<string, LayoutNode>;
@@ -20,6 +32,8 @@ export class LayoutStore {
   private store: LayoutStoreData;
 
   private container: WorkflowNodeEntity;
+
+  public options: LayoutOptions;
 
   constructor(public readonly config: LayoutConfig) {}
 
@@ -51,9 +65,10 @@ export class LayoutStore {
     return Array.from(this.store.edges.values());
   }
 
-  public create(params: LayoutParams): void {
+  public create(params: LayoutParams, options: LayoutOptions): void {
     this.store = this.createStore(params);
     this.indexMap = this.createIndexMap();
+    this.setOptions(options);
     this.init = true;
   }
 
@@ -273,5 +288,28 @@ export class LayoutStore {
     }, []);
 
     return uniqueNodeIds;
+  }
+
+  /** 记录运行选项 */
+  private setOptions(options: LayoutOptions): void {
+    this.options = options;
+    this.setFollowNode(options.getFollowNode);
+  }
+
+  /** 设置跟随节点配置 */
+  private setFollowNode(getFollowNode?: GetFollowNode): void {
+    if (!getFollowNode) return;
+    const context = { store: this };
+    this.nodes.forEach((node) => {
+      const followTo = getFollowNode(node, context)?.followTo;
+      if (!followTo) return;
+      const followToNode = this.getNode(followTo);
+      if (!followToNode) return;
+      if (!followToNode.followedBy) {
+        followToNode.followedBy = [];
+      }
+      followToNode.followedBy.push(node.id);
+      node.followTo = followTo;
+    });
   }
 }

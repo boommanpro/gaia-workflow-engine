@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { useMemo } from 'react';
 
 import { createMinimapPlugin } from '@flowgram.ai/minimap-plugin';
@@ -86,10 +91,24 @@ export const useEditorProps = () =>
          * Render Node
          */
         renderDefaultNode: (props: WorkflowNodeProps) => {
-          const { form } = useNodeRender();
+          const { form, node } = useNodeRender();
           return (
             <WorkflowNodeRenderer className="demo-free-node" node={props.node}>
               {form?.render()}
+              {node.flowNodeType === 'condition' && (
+                <div
+                  data-port-id="if"
+                  data-port-type="output"
+                  style={{ position: 'absolute', right: 0, top: '33%' }}
+                />
+              )}
+              {node.flowNodeType === 'condition' && (
+                <div
+                  data-port-id="else"
+                  data-port-type="output"
+                  style={{ position: 'absolute', right: 0, top: '66%' }}
+                />
+              )}
             </WorkflowNodeRenderer>
           );
         },
@@ -98,7 +117,7 @@ export const useEditorProps = () =>
        * Content change
        */
       onContentChange(ctx, event) {
-        // console.log('Auto Save: ', event, ctx.document.toJSON());
+        console.log('Auto Save: ', event, ctx.document.toJSON());
       },
       // /**
       //  * Node engine enable, you can configure formMeta in the FlowNodeRegistry

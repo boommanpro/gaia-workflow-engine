@@ -1,9 +1,14 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { get } from 'lodash';
 import { FormModelV2, isFormModelV2 } from '@flowgram.ai/node';
-import { FlowNodeFormData } from '@flowgram.ai/form-core';
-import { FlowNodeEntity } from '@flowgram.ai/document';
 import { HistoryService, Operation } from '@flowgram.ai/history';
 import { StackOperation } from '@flowgram.ai/history';
+import { FlowNodeFormData } from '@flowgram.ai/form-core';
+import { FlowNodeEntity } from '@flowgram.ai/document';
 
 import { ChangeFormValuesOperationValue, NodeOperationType } from '../types';
 
@@ -36,7 +41,7 @@ export function getFormModelV2(node: FlowNodeEntity | undefined): FormModelV2 | 
 export function shouldChangeFormValuesMerge(
   op: Operation<ChangeFormValuesOperationValue | undefined>,
   prev: Operation<ChangeFormValuesOperationValue | undefined>,
-  element: StackOperation,
+  element: StackOperation
 ) {
   if (!prev) {
     return false;
@@ -71,20 +76,20 @@ export function shouldChangeFormValuesMerge(
 export function attachFormValuesChange(
   formModel: FormModelV2,
   node: FlowNodeEntity,
-  historyService: HistoryService,
+  historyService: HistoryService
 ) {
-  formModel.onFormValuesChange(event => {
+  formModel.onFormValuesChange((event) => {
     historyService.pushOperation(
       {
         type: NodeOperationType.changeFormValues,
         value: {
           id: node.id,
           path: event.name,
-          value: get(event.values, event.name),
-          oldValue: get(event.prevValues, event.name),
+          value: event.name ? get(event.values, event.name) : event.values,
+          oldValue: event.name ? get(event.prevValues, event.name) : event.prevValues,
         },
       },
-      { noApply: true },
+      { noApply: true }
     );
   });
 }

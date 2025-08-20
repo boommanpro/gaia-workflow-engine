@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { MATERIAL_KEY } from '../node/core-materials';
 import { NodeManager, NodePlaceholderRender, Render } from '../node';
 

@@ -1,8 +1,14 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import React, { useState, useContext } from 'react';
 
 import { WorkflowPortRender } from '@flowgram.ai/free-layout-editor';
 import { useClientContext } from '@flowgram.ai/free-layout-editor';
 
+import { FlowNodeMeta } from '../../typings';
 import { useNodeRenderContext, usePortClick } from '../../hooks';
 import { SidebarContext } from '../../context';
 import { scrollToView } from './utils';
@@ -20,15 +26,17 @@ export interface NodeWrapperProps {
 export const NodeWrapper: React.FC<NodeWrapperProps> = (props) => {
   const { children, isScrollToView = false } = props;
   const nodeRender = useNodeRenderContext();
-  const { selected, startDrag, ports, selectNode, nodeRef, onFocus, onBlur } = nodeRender;
+  const { node, selected, startDrag, ports, selectNode, nodeRef, onFocus, onBlur, readonly } =
+    nodeRender;
   const [isDragging, setIsDragging] = useState(false);
   const sidebar = useContext(SidebarContext);
   const form = nodeRender.form;
   const ctx = useClientContext();
   const onPortClick = usePortClick();
+  const meta = node.getNodeMeta<FlowNodeMeta>();
 
   const portsRender = ports.map((p) => (
-    <WorkflowPortRender key={p.id} entity={p} onClick={onPortClick} />
+    <WorkflowPortRender key={p.id} entity={p} onClick={!readonly ? onPortClick : undefined} />
   ));
 
   return (
@@ -61,6 +69,7 @@ export const NodeWrapper: React.FC<NodeWrapperProps> = (props) => {
         onBlur={onBlur}
         data-node-selected={String(selected)}
         style={{
+          ...meta.wrapperStyle,
           outline: form?.state.invalid ? '1px solid red' : 'none',
         }}
       >

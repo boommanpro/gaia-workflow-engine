@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { nanoid } from 'nanoid';
 import { Button } from 'antd';
 import { Field, FieldArray } from '@flowgram.ai/free-layout-editor';
@@ -43,11 +48,13 @@ export function ConditionInputs() {
                       }
                     />
 
-                    <Button
-                      type="text"
-                      icon={<CloseCircleOutlined />}
-                      onClick={() => field.delete(index)}
-                    />
+                    {!readonly && (
+                      <Button
+                        type="text"
+                        icon={<CloseCircleOutlined />}
+                        onClick={() => field.delete(index)}
+                      />
+                    )}
                   </div>
 
                   <Feedback errors={childState?.errors} invalid={childState?.invalid} />

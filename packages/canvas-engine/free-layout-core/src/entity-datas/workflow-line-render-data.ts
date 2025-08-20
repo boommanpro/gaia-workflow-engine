@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { IPoint, Rectangle } from '@flowgram.ai/utils';
 import { EntityData } from '@flowgram.ai/core';
 
@@ -31,8 +36,8 @@ export class WorkflowLineRenderData extends EntityData<WorkflowLineRenderDataSch
       version: '',
       contributions: new Map(),
       position: {
-        from: { x: 0, y: 0 },
-        to: { x: 0, y: 0 },
+        from: { x: 0, y: 0, location: 'right' },
+        to: { x: 0, y: 0, location: 'left' },
       },
     };
   }
@@ -89,18 +94,26 @@ export class WorkflowLineRenderData extends EntityData<WorkflowLineRenderDataSch
       .getData(WorkflowNodePortsData)!
       .getOutputPoint(this.entity.info.fromPort);
 
-    this.data.position.to = this.entity.info.drawingTo ??
-      this.entity.to?.getData(WorkflowNodePortsData)?.getInputPoint(this.entity.info.toPort) ?? {
+    if (this.entity.info.drawingTo) {
+      this.data.position.to = this.entity.info.drawingTo;
+    } else {
+      this.data.position.to = this.entity.to
+        ?.getData(WorkflowNodePortsData)
+        ?.getInputPoint(this.entity.info.toPort) ?? {
         x: this.data.position.from.x,
         y: this.data.position.from.y,
+        location: this.data.position.from.location === 'right' ? 'left' : 'top',
       };
+    }
 
     this.data.version = [
       this.lineType,
       this.data.position.from.x,
       this.data.position.from.y,
+      this.data.position.from.location,
       this.data.position.to.x,
       this.data.position.to.y,
+      this.data.position.to.location,
     ].join('-');
   }
 

@@ -1,6 +1,13 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
+import { useLayoutEffect } from 'react';
+
 import { nanoid } from 'nanoid';
-import { Field, FieldArray } from '@flowgram.ai/free-layout-editor';
-import { ConditionRow, ConditionRowValueType, VariableSelector } from '@flowgram.ai/form-materials';
+import { Field, FieldArray, WorkflowNodePortsData } from '@flowgram.ai/free-layout-editor';
+import { ConditionRow, ConditionRowValueType } from '@flowgram.ai/form-materials';
 import { Button } from '@douyinfe/semi-ui';
 import { IconPlus, IconCrossCircleStroked } from '@douyinfe/semi-icons';
 
@@ -15,7 +22,14 @@ interface ConditionValue {
 }
 
 export function ConditionInputs() {
-  const { readonly } = useNodeRenderContext();
+  const { node, readonly } = useNodeRenderContext();
+
+  useLayoutEffect(() => {
+    window.requestAnimationFrame(() => {
+      node.getData<WorkflowNodePortsData>(WorkflowNodePortsData).updateDynamicPorts();
+    });
+  }, [node]);
+
   return (
     <FieldArray name="conditions">
       {({ field }) => (
@@ -32,11 +46,14 @@ export function ConditionInputs() {
                       onChange={(v) => childField.onChange({ value: v, key: childField.value.key })}
                     />
 
-                    <Button
-                      theme="borderless"
-                      icon={<IconCrossCircleStroked />}
-                      onClick={() => field.delete(index)}
-                    />
+                    {!readonly && (
+                      <Button
+                        theme="borderless"
+                        disabled={readonly}
+                        icon={<IconCrossCircleStroked />}
+                        onClick={() => field.delete(index)}
+                      />
+                    )}
                   </div>
 
                   <Feedback errors={childState?.errors} invalid={childState?.invalid} />

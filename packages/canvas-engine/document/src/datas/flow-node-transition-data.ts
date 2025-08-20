@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { Point } from '@flowgram.ai/utils';
 import { EntityData } from '@flowgram.ai/core';
 

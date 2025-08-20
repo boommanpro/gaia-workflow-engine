@@ -1,17 +1,23 @@
-/* eslint-disable import/no-unresolved */
-import { PreviewEditor } from '../preview-editor';
-import { FixedLayoutSimple } from './index';
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
 
-import nodeRegistriesCode from '!!raw-loader!@flowgram.ai/demo-fixed-layout-simple/src/node-registries.ts';
-import initialDataCode from '!!raw-loader!@flowgram.ai/demo-fixed-layout-simple/src/initial-data.ts';
-import indexCssCode from '!!raw-loader!@flowgram.ai/demo-fixed-layout-simple/src/index.css';
-import useEditorPropsCode from '!!raw-loader!@flowgram.ai/demo-fixed-layout-simple/src/hooks/use-editor-props.tsx';
-import editorCode from '!!raw-loader!@flowgram.ai/demo-fixed-layout-simple/src/editor.tsx';
-import toolsCode from '!!raw-loader!@flowgram.ai/demo-fixed-layout-simple/src/components/tools.tsx';
-import nodeAdderCode from '!!raw-loader!@flowgram.ai/demo-fixed-layout-simple/src/components/node-adder.tsx';
-import miniMapCode from '!!raw-loader!@flowgram.ai/demo-fixed-layout-simple/src/components/minimap.tsx';
-import branchAdderCode from '!!raw-loader!@flowgram.ai/demo-fixed-layout-simple/src/components/branch-adder.tsx';
-import baseNodeCode from '!!raw-loader!@flowgram.ai/demo-fixed-layout-simple/src/components/base-node.tsx';
+/* eslint-disable import/no-unresolved */
+
+import nodeRegistriesCode from '@flowgram.ai/demo-fixed-layout-simple/src/node-registries.ts?raw';
+import initialDataCode from '@flowgram.ai/demo-fixed-layout-simple/src/initial-data.ts?raw';
+import indexCssCode from '@flowgram.ai/demo-fixed-layout-simple/src/index.css?raw';
+import useEditorPropsCode from '@flowgram.ai/demo-fixed-layout-simple/src/hooks/use-editor-props.tsx?raw';
+import editorCode from '@flowgram.ai/demo-fixed-layout-simple/src/editor.tsx?raw';
+import toolsCode from '@flowgram.ai/demo-fixed-layout-simple/src/components/tools.tsx?raw';
+import nodeAdderCode from '@flowgram.ai/demo-fixed-layout-simple/src/components/node-adder.tsx?raw';
+import miniMapCode from '@flowgram.ai/demo-fixed-layout-simple/src/components/minimap.tsx?raw';
+import branchAdderCode from '@flowgram.ai/demo-fixed-layout-simple/src/components/branch-adder.tsx?raw';
+import baseNodeCode from '@flowgram.ai/demo-fixed-layout-simple/src/components/base-node.tsx?raw';
+
+import { FixedLayoutSimple } from './index';
+import { PreviewEditor } from '../preview-editor';
 
 const indexCode = {
   code: editorCode,

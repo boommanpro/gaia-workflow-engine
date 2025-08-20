@@ -1,4 +1,10 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { mapValues } from 'lodash';
 
 import { ValidateTrigger } from '@/types';
 import { FormModel } from '@/core/form-model';
@@ -156,6 +162,28 @@ describe('FormModel', () => {
       expect(results.length).toEqual(0);
       expect(formModel.state?.errors?.['a.b.x']).toEqual([]);
       expect(formModel.state?.errors?.['a.b.y']).toEqual([]);
+    });
+    it('validate as dynamic function', async () => {
+      formModel.init({
+        initialValues: { a: 3, b: 'str' },
+        validate: (v, ctx) => {
+          expect(ctx).toEqual('context');
+          return mapValues(v, (value) => {
+            if (typeof value === 'string') {
+              return () => 'string error';
+            }
+            return () => 'num error';
+          });
+        },
+        context: 'context',
+      });
+      const fieldResult = await formModel.validateIn('a');
+      expect(fieldResult).toEqual(['num error']);
+      const results = await formModel.validate();
+      expect(results).toEqual([
+        { name: 'a', message: 'num error', level: 'error' },
+        { name: 'b', message: 'string error', level: 'error' },
+      ]);
     });
   });
   describe('FormModel set/get values', () => {

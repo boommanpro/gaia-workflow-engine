@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { useMemo } from 'react';
 
 import { createMinimapPlugin } from '@flowgram.ai/minimap-plugin';
@@ -9,6 +14,7 @@ import {
   Field,
   useNodeRender,
 } from '@flowgram.ai/free-layout-editor';
+import { CodeEditor } from '@flowgram.ai/form-materials';
 
 import { nodeRegistries } from '../node-registries';
 import { initialData } from '../initial-data';
@@ -52,6 +58,15 @@ export const useEditorProps = () =>
               <>
                 <Field<string> name="title">
                   {({ field }) => <div className="demo-free-node-title">{field.value}</div>}
+                </Field>
+                <Field<string> name="code">
+                  {({ field }) => (
+                    <CodeEditor
+                      languageId="typescript"
+                      value={field.value}
+                      onChange={field.onChange}
+                    />
+                  )}
                 </Field>
                 <div className="demo-free-node-content">
                   <Field<string> name="content">

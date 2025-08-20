@@ -1,4 +1,9 @@
-import { get } from 'lodash';
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
+import { get, clone, cloneDeep } from 'lodash';
 
 import { shallowSetIn } from '../utils';
 import { FieldValue } from '../types/field';
@@ -7,16 +12,12 @@ import { Path } from './path';
 export class Store<TValues = FieldValue> {
   protected _values: TValues;
 
-  get values() {
-    return this._values;
+  get values(): TValues {
+    return clone(this._values);
   }
 
   set values(v) {
-    this._values = v;
-  }
-
-  setInitialValues<TValue = FieldValue>(values: TValues) {
-    this._values = values;
+    this._values = cloneDeep(v);
   }
 
   setIn<TValue = FieldValue>(path: Path, value: TValue): void {
@@ -25,7 +26,7 @@ export class Store<TValues = FieldValue> {
   }
 
   getIn<TValue = FieldValue>(path: Path): TValue {
-    return get(this._values, path.value);
+    return get(this.values, path.value);
   }
 
   dispose() {}

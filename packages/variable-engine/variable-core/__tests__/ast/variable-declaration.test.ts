@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { vi, describe, test, expect } from 'vitest';
 
 import {
@@ -103,7 +108,7 @@ describe('test Basic Variable Declaration', () => {
     expect(previousVariable3.version).toBe(1); // 更新次数为一次
     expect(testScope.ast.version).toBe(2); // 调用了两次 fromJSON，因此更新了两次
     expect(globalVariableTable.variables.map((_v) => _v.key)).toMatchSnapshot();
-    expect(globalVariableTable.version).toBe(2); // 调用了两次 fromJSON，因此 version 是 2
+    expect(globalVariableTable.version).toBe(2 + 1); // 调用了两次 fromJSON + Object 变量的下钻发生变化，因此 version 是 2 + 1
     expect(testScope.available.variables.map((_v) => _v.key)).toMatchSnapshot();
   });
 

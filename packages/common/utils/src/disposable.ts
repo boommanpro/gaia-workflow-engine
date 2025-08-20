@@ -1,4 +1,9 @@
 /**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
+/**
  * An object that performs a cleanup operation when `.dispose()` is called.
  *
  * Some examples of how disposables are used:

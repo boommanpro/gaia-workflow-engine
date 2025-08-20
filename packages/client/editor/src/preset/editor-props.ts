@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { VariablePluginOptions } from '@flowgram.ai/variable-plugin';
 import { ReduxDevToolPluginOptions } from '@flowgram.ai/redux-devtool-plugin';
 import { PlaygroundReactProps, SelectionService } from '@flowgram.ai/playground-react';
@@ -13,8 +18,6 @@ import {
   type FlowNodeJSON,
   FlowNodeRegistry,
   FlowNodeType,
-  FlowTransitionLabel,
-  FlowTransitionLine,
 } from '@flowgram.ai/document';
 import { PluginContext } from '@flowgram.ai/core';
 
@@ -23,48 +26,51 @@ export interface EditorPluginContext extends PluginContext {
   selection: SelectionService;
 }
 
-/**
- * 固定布局配置
- */
 export interface EditorProps<
   CTX extends EditorPluginContext = EditorPluginContext,
   JSON = FlowDocumentJSON
 > extends PlaygroundReactProps<CTX> {
   /**
+   * Initialize data
    * 初始化数据
    */
   initialData?: JSON;
   /**
+   * whether it is readonly
    * 是否为 readonly
    */
   readonly?: boolean;
   /**
+   * node registries
    * 节点定义
    */
   nodeRegistries?: FlowNodeRegistry[];
   /**
-   * 获取默认的节点配置
+   * Get the default node registry, which will be merged with the 'nodeRegistries'
+   * 提供默认的节点注册，这个会和 nodeRegistries 做合并
    */
   getNodeDefaultRegistry?: (type: FlowNodeType) => FlowNodeRegistry;
   /**
-   * 节点引擎配置
+   * Node engine configuration
    */
   nodeEngine?: NodeCorePluginOptions & {
     /**
-     * 默认FormMeta
+     * Default formMeta
      */
     createDefaultFormMeta?: (node: FlowNodeEntity) => FormMetaOrFormMetaGenerator;
     /**
-     * 开启
+     * Enable node engine
      */
     enable?: boolean;
   };
   /**
+   * By default, all nodes are expanded
    * 默认是否展开所有节点
    */
   allNodesDefaultExpanded?: boolean;
   /**
-   * 画布物料
+   * Canvas material, Used to customize react components
+   * 画布物料, 用于自定义 react 组件
    */
   materials?: MaterialsPluginOptions;
   /**
@@ -74,49 +80,51 @@ export interface EditorProps<
   onLoad?: (ctx: CTX) => void;
   /**
    * 是否开启变量引擎
+   * Variable engine enable
    */
   variableEngine?: VariablePluginOptions;
   /**
-   * 是否开启历史
+   * Redo/Undo enable
    */
   history?: HistoryPluginOptions<CTX> & { disableShortcuts?: boolean };
 
   /**
-   * redux 开发者工具配置
+   * redux devtool configuration
    */
   reduxDevTool?: ReduxDevToolPluginOptions;
 
+  /**
+   * Scroll configuration
+   * 滚动配置
+   */
   scroll?: {
-    disableScrollLimit?: boolean; // 关闭滚动限制
+    enableScrollLimit?: boolean; // 开启滚动限制
     disableScrollBar?: boolean; //  关闭滚动条
+    disableScroll?: boolean; // 禁止滚动
   };
 
   /**
-   * 节点数据导出
-   * - node 当前节点
-   * - json 当前节点数据
+   * Node data transformation, called by ctx.document.fromJSON
+   * 节点数据转换, 由 ctx.document.fromJSON 调用
+   * @param node - current node
+   * @param json - Current node json data
    */
   toNodeJSON?(node: FlowNodeEntity, json: FlowNodeJSON): FlowNodeJSON;
   /**
-   * 节点数据导入
-   * - node 当前节点
-   * - json 当前节点数据
-   * - isFirstCreate 是否是第一次创建
+   * Node data transformation, called by ctx.document.toJSON
+   * 节点数据转换, 由 ctx.document.toJSON 调用
+   * @param node - current node
+   * @param json - Current node json data
+   * @param isFirstCreate - Whether it is created for the first time, If document.fromJSON is recalled, but the node already exists, isFirstCreate is false
    */
   fromNodeJSON?(node: FlowNodeEntity, json: FlowNodeJSON, isFirstCreate: boolean): FlowNodeJSON;
   /**
+   * Canvas internal constant customization
    * 画布内部常量自定义
    */
   constants?: Record<string, any>;
   /**
-   * 自定义节点线条
-   */
-  formatNodeLines?: (node: FlowNodeEntity, lines: FlowTransitionLine[]) => FlowTransitionLine[];
-  /**
-   * 自定义节点 label
-   */
-  formatNodeLabels?: (node: FlowNodeEntity, lines: FlowTransitionLabel[]) => FlowTransitionLabel[];
-  /**
+   * i18n
    * 国际化
    */
   i18n?: I18nPluginOptions;

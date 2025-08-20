@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { Rectangle, IPoint } from '@flowgram.ai/utils';
 
 export type IRectDistance = (rectA: Rectangle, rectB: Rectangle) => IPoint;

@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { PointerType, Vector2 } from './utils';
 import { State } from './state';
 import { GestureKey, CoordinatesKey, ModifierKey } from './config';

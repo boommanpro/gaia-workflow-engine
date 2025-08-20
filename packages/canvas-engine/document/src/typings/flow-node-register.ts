@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { type IPoint } from '@flowgram.ai/utils';
 import { PaddingSchema } from '@flowgram.ai/utils';
 import { PositionSchema } from '@flowgram.ai/utils';
@@ -30,13 +35,13 @@ export interface FlowNodeMeta {
   hidden?: boolean; // 是否隐藏
   // maxSize?: SizeSchema // 默认展开后的大小
   size?: SizeSchema; // 默认大小
+  autoResizeDisable?: boolean; // 禁用监听节点变化自动调整大小
   /**
    * @deprecated 使用 NodeRegister.getOrigin 代替
    */
   origin?: OriginSchema; // 原点配置，默认 垂直 { x: 0.5, y: 0 } 水平 { x: 0, y: 0.5 }
   defaultExpanded?: boolean; // 默认是否展开
   defaultCollapsed?: boolean; // 复合节点默认是否收起
-  expandedSize?: SizeSchema; // 默认缩小版大小
   spacing?: number | ((transform: FlowNodeTransformData) => number); // 兄弟节点间，等价于 marginBottom
   padding?: PaddingSchema | ((transform: FlowNodeTransformData) => PaddingSchema); // 节点设置了 padding，则不需要 inlineSpacingPre 和 inlineSpacingAfter
   inlineSpacingPre?: number | ((transform: FlowNodeTransformData) => number); // 父子节点间，等价于 paddingTop 或者 paddingLeft
@@ -56,6 +61,10 @@ export const DefaultSpacingKey = {
    * 普通节点间距。垂直 / 水平
    */
   NODE_SPACING: 'SPACING',
+  /**
+   * 分支节点间距
+   */
+  BRANCH_SPACING: 'BRANCH_SPACING',
   /**
    * 圆弧线条 x radius
    */
@@ -85,10 +94,15 @@ export const DefaultSpacingKey = {
 export const DEFAULT_SPACING = {
   NULL: 0,
   [DefaultSpacingKey.NODE_SPACING]: 32, // 普通节点间距。垂直 / 水平
-  MARGIN_RIGHT: 20, // 普通节点右边间距
+  [DefaultSpacingKey.BRANCH_SPACING]: 20, // 分支节点间距
+  /**
+   * @deprecated use 'BRANCH_SPACING' instead
+   */
+  MARGIN_RIGHT: 20, // 分支节点右边间距
   INLINE_BLOCK_PADDING_BOTTOM: 16, // block 底部留白
   INLINE_BLOCKS_PADDING_TOP: 30, // block list 上部留白间距
-  [DefaultSpacingKey.INLINE_BLOCKS_PADDING_BOTTOM]: 40, // block lit 下部留白间距，因为有两个拐弯，所以翻一倍
+  // JS 浮点数有误差，1046.6 -1006.6 = 39.9999999，会导致 间距/20 < 2 导致布局计算问题，因此需要额外增加 0.1 像素
+  [DefaultSpacingKey.INLINE_BLOCKS_PADDING_BOTTOM]: 40.1, // block lit 下部留白间距，因为有两个拐弯，所以翻一倍
   MIN_INLINE_BLOCK_SPACING: 200, // 分支间最小边距 (垂直布局)
   MIN_INLINE_BLOCK_SPACING_HORIZONTAL: 80, // 分支间最小边距 (水平布局)
   [DefaultSpacingKey.COLLAPSED_SPACING]: 12, // 复合节点距离上个节点的距离
@@ -136,7 +150,6 @@ export const DEFAULT_FLOW_NODE_META: (
     isStart: nodeType === 'start',
     hidden,
     defaultExpanded: document.options.allNodesDefaultExpanded,
-    expandedSize: { width: 520, height: 300 }, // 展开后的大小
     size: DEFAULT_SIZE,
     origin: document.layout.getDefaultNodeOrigin(),
     isInlineBlocks: nodeType === FlowNodeBaseType.INLINE_BLOCKS,

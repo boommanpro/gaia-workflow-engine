@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { interfaces } from 'inversify';
 
 import {
@@ -68,8 +73,8 @@ describe('workflow-lines-manager', () => {
       to: 'end_0',
     })!;
     const lineRenderData = line.getData(WorkflowLineRenderData);
-    expect(lineRenderData.position.from).toEqual({ x: 0, y: 0 });
-    expect(lineRenderData.position.to).toEqual({ x: 660, y: 30 });
+    expect(lineRenderData.position.from).toEqual({ x: 0, y: 0, location: 'right' });
+    expect(lineRenderData.position.to).toEqual({ x: 660, y: 30, location: 'left' });
     expect(lineRenderData.path).toEqual('M 12 12 L 652 42');
   });
 
@@ -120,7 +125,6 @@ describe('workflow-lines-manager', () => {
     documentOptions.isHideArrowLine = () => true;
     documentOptions.isFlowingLine = () => true;
     documentOptions.isDisabledLine = () => true;
-    documentOptions.isVerticalLine = () => false;
     documentOptions.setLineClassName = () => 'custom-line-class';
     documentOptions.setLineRenderType = () => WorkflowSimpleLineContribution.type;
     documentOptions.lineColor = {
@@ -234,6 +238,24 @@ describe('workflow-lines-manager', () => {
       expect(linesManager.isFlowingLine(line!)).toBe(true);
       // 选中状态应该优先于流动状态
       expect(linesManager.getLineColor(line!)).toBe('#00ff00');
+    });
+    it('line data change', () => {
+      const line = linesManager.createLine({
+        from: 'start_0',
+        to: 'end_0',
+        data: { a: 1 },
+      })!;
+      expect(line.toJSON()).toEqual({
+        sourceNodeID: 'start_0',
+        targetNodeID: 'end_0',
+        data: { a: 1 },
+      });
+      line.lineData = { a: 2 };
+      expect(line.toJSON()).toEqual({
+        sourceNodeID: 'start_0',
+        targetNodeID: 'end_0',
+        data: { a: 2 },
+      });
     });
   });
 });

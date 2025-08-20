@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { Subject } from 'rxjs';
 import { inject, injectable, interfaces, preDestroy } from 'inversify';
 import { Disposable, DisposableCollection } from '@flowgram.ai/utils';

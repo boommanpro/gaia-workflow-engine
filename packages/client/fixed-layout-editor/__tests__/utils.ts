@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { FlowDocument, FlowNodeEntity } from '@flowgram.ai/editor';
 
 export function getNodeChildrenIds(node: FlowNodeEntity | undefined, isBranch: boolean = false) {

@@ -2,8 +2,14 @@
   "extends": "@flowgram.ai/ts-config/tsconfig.flow.path.json",
   "compilerOptions": {
     "target": "ES2020",
-    "lib": ["DOM", "ES2020"],
-    "types": ["node"],
+    "lib": [
+      "DOM",
+      "ES2020"
+    ],
+    "types": [
+      "node"
+    ],
+    "moduleResolution": "bundler",
     "module": "ESNext",
     "jsx": "react-jsx",
     "noEmit": true,
@@ -15,10 +21,18 @@
     "allowImportingTsExtensions": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": [
+        "src/*"
+      ]
     }
   },
-  "include": ["src", "rspress.config.ts", "src/zh/playground/canvas-engine/components", "components", "components", "scripts"],
+  "include": [
+    "src",
+    "rspress.config.ts",
+    "src/zh/playground/canvas-engine/components",
+    "components",
+    "scripts"
+  ],
   "mdx": {
     "checkMdx": true
   }

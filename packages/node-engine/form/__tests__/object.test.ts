@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { describe, expect, it } from 'vitest';
 
 import { getIn, isEmptyArray, isNaN, isPromise, shallowSetIn } from '../src/utils';
@@ -196,6 +201,13 @@ describe('object', () => {
       const newObj = shallowSetIn(obj, 'x.0.y.z', true);
       expect(obj).toEqual({ x: [{ y: true }] });
       expect(newObj).toEqual({ x: [{ y: { z: true } }] });
+    });
+    it('set undefined value with unknown key', () => {
+      const obj = { a: '' };
+      let newObj = shallowSetIn(obj, 'a', undefined);
+      newObj = shallowSetIn(newObj, 'b', undefined);
+      expect(obj).toEqual({ a: '' });
+      expect(newObj).toEqual({ a: undefined, b: undefined });
     });
   });
 

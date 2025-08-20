@@ -1,5 +1,11 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import {
   FreeLayoutPluginContext,
+  PlaygroundConfigEntity,
   Rectangle,
   ShortcutsHandler,
   TransformData,
@@ -28,11 +34,14 @@ export class CopyShortcut implements ShortcutsHandler {
 
   public shortcuts = ['meta c', 'ctrl c'];
 
+  private playgroundConfig: PlaygroundConfigEntity;
+
   private document: WorkflowDocument;
 
   private selectService: WorkflowSelectService;
 
   constructor(context: FreeLayoutPluginContext) {
+    this.playgroundConfig = context.playground.config;
     this.document = context.get(WorkflowDocument);
     this.selectService = context.get(WorkflowSelectService);
     this.execute = this.execute.bind(this);
@@ -42,7 +51,7 @@ export class CopyShortcut implements ShortcutsHandler {
    * execute copy operation - 执行复制操作
    */
   public async execute(): Promise<void> {
-    if (await this.hasSelectedText()) {
+    if (this.readonly || (await this.hasSelectedText())) {
       return;
     }
     if (!this.isValid(this.selectedNodes)) {
@@ -53,7 +62,30 @@ export class CopyShortcut implements ShortcutsHandler {
   }
 
   /**
-   *  has selected text - 是否有文字被选中
+   * create clipboard data - 转换为剪贴板数据
+   */
+  public toClipboardData(nodes?: WorkflowNodeEntity[]): WorkflowClipboardData {
+    const validNodes = this.getValidNodes(nodes ? nodes : this.selectedNodes);
+    const source = this.toSource();
+    const json = this.toJSON(validNodes);
+    const bounds = this.getEntireBounds(validNodes);
+    return {
+      type: WorkflowClipboardDataID,
+      source,
+      json,
+      bounds,
+    };
+  }
+
+  /**
+   * readonly - 是否只读
+   */
+  private get readonly(): boolean {
+    return this.playgroundConfig.readonly;
+  }
+
+  /**
+   * has selected text - 是否有文字被选中
    */
   private async hasSelectedText(): Promise<boolean> {
     if (!window.getSelection()?.toString()) {
@@ -86,22 +118,6 @@ export class CopyShortcut implements ShortcutsHandler {
       return false;
     }
     return true;
-  }
-
-  /**
-   * create clipboard data - 转换为剪贴板数据
-   */
-  toClipboardData(nodes?: WorkflowNodeEntity[]): WorkflowClipboardData {
-    const validNodes = this.getValidNodes(nodes ? nodes : this.selectedNodes);
-    const source = this.toSource();
-    const json = this.toJSON(validNodes);
-    const bounds = this.getEntireBounds(validNodes);
-    return {
-      type: WorkflowClipboardDataID,
-      source,
-      json,
-      bounds,
-    };
   }
 
   /**
@@ -210,8 +226,17 @@ export class CopyShortcut implements ShortcutsHandler {
    * show success notification - 显示成功通知
    */
   private notifySuccess(): void {
-    const nodeTypes = this.selectedNodes.map((node) => node.flowNodeType);
-    if (nodeTypes.includes('start') || nodeTypes.includes('end')) {
+    const startEndNodeTypes: WorkflowNodeType[] = [
+      WorkflowNodeType.Start,
+      WorkflowNodeType.End,
+      WorkflowNodeType.BlockStart,
+      WorkflowNodeType.BlockEnd,
+    ];
+    if (
+      this.selectedNodes.some((node) =>
+        startEndNodeTypes.includes(node.flowNodeType as WorkflowNodeType)
+      )
+    ) {
       Toast.warning({
         content:
           'The Start/End node cannot be duplicated, other nodes have been copied to the clipboard',

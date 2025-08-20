@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { inject, injectable, postConstruct } from 'inversify';
 import { PlaygroundConfigEntity } from '@flowgram.ai/core';
 import { EntityManager } from '@flowgram.ai/core';

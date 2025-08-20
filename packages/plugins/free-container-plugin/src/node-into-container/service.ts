@@ -1,14 +1,12 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 /* eslint-disable @typescript-eslint/no-non-null-assertion -- no need */
 import { throttle } from 'lodash';
 import { inject, injectable } from 'inversify';
-import {
-  type PositionSchema,
-  Rectangle,
-  type Disposable,
-  DisposableCollection,
-  Emitter,
-  type IPoint,
-} from '@flowgram.ai/utils';
+import { type Disposable, DisposableCollection, Emitter } from '@flowgram.ai/utils';
 import {
   type NodesDragEvent,
   WorkflowDocument,
@@ -20,11 +18,12 @@ import {
   WorkflowSelectService,
 } from '@flowgram.ai/free-layout-core';
 import { HistoryService } from '@flowgram.ai/free-history-plugin';
-import { FlowNodeTransformData, FlowNodeRenderData, FlowNodeBaseType } from '@flowgram.ai/document';
+import { FlowNodeRenderData, FlowNodeBaseType } from '@flowgram.ai/document';
 import { PlaygroundConfigEntity, TransformData } from '@flowgram.ai/core';
 
 import type { NodeIntoContainerEvent, NodeIntoContainerState } from './type';
 import { NodeIntoContainerType } from './constant';
+import { ContainerUtils } from '../utils';
 
 @injectable()
 export class NodeIntoContainerService {
@@ -78,22 +77,21 @@ export class NodeIntoContainerService {
     if (
       !parentNode ||
       !containerNode ||
-      !this.isContainer(parentNode) ||
+      !ContainerUtils.isContainer(parentNode) ||
       !nodeJSON.meta?.position
     ) {
       return;
     }
+    const parentTransform = parentNode.getData<TransformData>(TransformData);
     this.operationService.moveNode(node, {
       parent: containerNode,
     });
-    const parentTransform = parentNode.getData<TransformData>(TransformData);
+    await ContainerUtils.nextFrame();
+    parentTransform.fireChange();
     this.operationService.updateNodePosition(node, {
       x: parentTransform.position.x + nodeJSON.meta!.position!.x,
       y: parentTransform.position.y + nodeJSON.meta!.position!.y,
     });
-    parentTransform.fireChange();
-    await this.nextFrame();
-    parentTransform.fireChange();
     this.emitter.fire({
       type: NodeIntoContainerType.Out,
       node,
@@ -106,11 +104,13 @@ export class NodeIntoContainerService {
   public canMoveOutContainer(node: WorkflowNodeEntity): boolean {
     const parentNode = node.parent;
     const containerNode = parentNode?.parent;
-    if (!parentNode || !containerNode || !this.isContainer(parentNode)) {
+    if (!parentNode || !containerNode || !ContainerUtils.isContainer(parentNode)) {
       return false;
     }
     const canDrop = this.dragService.canDropToNode({
       dragNodeType: node.flowNodeType,
+      dragNode: node,
+      dropNodeType: containerNode?.flowNodeType,
       dropNode: containerNode,
     });
     if (!canDrop.allowDrop) {
@@ -151,7 +151,7 @@ export class NodeIntoContainerService {
       }
       line.dispose();
     });
-    await this.nextFrame();
+    await ContainerUtils.nextFrame();
   }
 
   /** 初始化状态 */
@@ -182,7 +182,7 @@ export class NodeIntoContainerService {
         }
         this.historyService.startTransaction(); // 开始合并历史记录
         this.state.isDraggingNode = true;
-        this.state.transforms = this.getContainerTransforms();
+        this.state.transforms = ContainerUtils.getContainerTransforms(this.document.getAllNodes());
         this.state.dragNode = this.selectService.selectedNodes[0];
         this.state.dropNode = undefined;
         this.state.sourceParent = this.state.dragNode?.parent;
@@ -224,37 +224,8 @@ export class NodeIntoContainerService {
     this.moveOutContainer({ node: dragNode });
     this.state.isSkipEvent = true;
     event.dragger.stop(event.dragEvent.clientX, event.dragEvent.clientY);
-    await this.nextFrame();
+    await ContainerUtils.nextFrame();
     this.dragService.startDragSelectedNodes(event.triggerEvent);
-  }
-
-  /** 获取重叠位置 */
-  private getCollisionTransform(params: {
-    transforms: FlowNodeTransformData[];
-    targetRect?: Rectangle;
-    targetPoint?: PositionSchema;
-    withPadding?: boolean;
-  }): FlowNodeTransformData | undefined {
-    const { targetRect, targetPoint, transforms, withPadding = false } = params;
-    const collisionTransform = transforms.find((transform) => {
-      const { bounds, entity } = transform;
-      const padding = withPadding ? this.document.layout.getPadding(entity) : { left: 0, right: 0 };
-      const transformRect = new Rectangle(
-        bounds.x + padding.left + padding.right,
-        bounds.y,
-        bounds.width,
-        bounds.height
-      );
-      // 检测两个正方形是否相互碰撞
-      if (targetRect) {
-        return this.isRectIntersects(targetRect, transformRect);
-      }
-      if (targetPoint) {
-        return this.isPointInRect(targetPoint, transformRect);
-      }
-      return false;
-    });
-    return collisionTransform;
   }
 
   /** 设置放置节点高亮 */
@@ -282,26 +253,6 @@ export class NodeIntoContainerService {
     }
   }
 
-  /** 获取容器节点transforms */
-  private getContainerTransforms(): FlowNodeTransformData[] {
-    return this.document
-      .getAllNodes()
-      .filter((node) => {
-        if (node.originParent) {
-          return node.getNodeMeta().selectable && node.originParent.getNodeMeta().selectable;
-        }
-        return node.getNodeMeta().selectable;
-      })
-      .filter((node) => this.isContainer(node))
-      .sort((a, b) => {
-        const aIndex = a.renderData.stackIndex;
-        const bIndex = b.renderData.stackIndex;
-        //  确保层级高的节点在前面
-        return bIndex - aIndex;
-      })
-      .map((node) => node.transform);
-  }
-
   /** 放置节点到容器 */
   private async dropNodeToContainer(): Promise<void> {
     const { dropNode, dragNode, isDraggingNode } = this.state;
@@ -324,9 +275,10 @@ export class NodeIntoContainerService {
     const availableTransforms = transforms.filter(
       (transform) => transform.entity.id !== dragNode.id
     );
-    const collisionTransform = this.getCollisionTransform({
+    const collisionTransform = ContainerUtils.getCollisionTransform({
       targetPoint: mousePos,
       transforms: availableTransforms,
+      document: this.document,
     });
     const dropNode = collisionTransform?.entity;
     const canDrop = this.canDropToContainer({
@@ -358,6 +310,8 @@ export class NodeIntoContainerService {
     }
     const canDrop = this.dragService.canDropToNode({
       dragNodeType: dragNode.flowNodeType,
+      dropNodeType: dropNode?.flowNodeType,
+      dragNode,
       dropNode,
     });
     if (!canDrop.allowDrop) {
@@ -390,9 +344,16 @@ export class NodeIntoContainerService {
       parent: containerNode,
     });
 
-    this.operationService.updateNodePosition(node, this.adjustSubNodePosition(node, containerNode));
+    const containerPadding = this.document.layout.getPadding(containerNode);
+    const position = ContainerUtils.adjustSubNodePosition({
+      targetNode: node,
+      containerNode,
+      containerPadding,
+    });
 
-    await this.nextFrame();
+    this.operationService.updateNodePosition(node, position);
+
+    await ContainerUtils.nextFrame();
 
     this.emitter.fire({
       type: NodeIntoContainerType.In,
@@ -400,62 +361,5 @@ export class NodeIntoContainerService {
       sourceContainer: parentNode,
       targetContainer: containerNode,
     });
-  }
-
-  /**
-   * 如果存在容器节点，且传入鼠标坐标，需要用容器的坐标减去传入的鼠标坐标
-   */
-  private adjustSubNodePosition(
-    targetNode: WorkflowNodeEntity,
-    containerNode: WorkflowNodeEntity
-  ): IPoint {
-    if (containerNode.flowNodeType === FlowNodeBaseType.ROOT) {
-      return targetNode.transform.position;
-    }
-    const nodeWorldTransform = targetNode.transform.transform.worldTransform;
-    const containerWorldTransform = containerNode.transform.transform.worldTransform;
-    const nodePosition = {
-      x: nodeWorldTransform.tx,
-      y: nodeWorldTransform.ty,
-    };
-    const isParentEmpty = !containerNode.children || containerNode.children.length === 0;
-    const containerPadding = this.document.layout.getPadding(containerNode);
-    if (isParentEmpty) {
-      // 确保空容器节点不偏移
-      return {
-        x: 0,
-        y: containerPadding.top,
-      };
-    } else {
-      return {
-        x: nodePosition.x - containerWorldTransform.tx,
-        y: nodePosition.y - containerWorldTransform.ty,
-      };
-    }
-  }
-
-  private isContainer(node?: WorkflowNodeEntity): boolean {
-    return node?.getNodeMeta<WorkflowNodeMeta>().isContainer ?? false;
-  }
-
-  /** 判断点是否在矩形内 */
-  private isPointInRect(point: PositionSchema, rect: Rectangle): boolean {
-    return (
-      point.x >= rect.left && point.x <= rect.right && point.y >= rect.top && point.y <= rect.bottom
-    );
-  }
-
-  /** 判断两个矩形是否相交 */
-  private isRectIntersects(rectA: Rectangle, rectB: Rectangle): boolean {
-    // 检查水平方向是否有重叠
-    const hasHorizontalOverlap = rectA.right > rectB.left && rectA.left < rectB.right;
-    // 检查垂直方向是否有重叠
-    const hasVerticalOverlap = rectA.bottom > rectB.top && rectA.top < rectB.bottom;
-    // 只有当水平和垂直方向都有重叠时,两个矩形才相交
-    return hasHorizontalOverlap && hasVerticalOverlap;
-  }
-
-  private async nextFrame(): Promise<void> {
-    await new Promise((resolve) => requestAnimationFrame(resolve));
   }
 }

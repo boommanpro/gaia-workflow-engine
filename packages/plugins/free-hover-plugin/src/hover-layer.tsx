@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 /* eslint-disable complexity */
 import { inject, injectable } from 'inversify';
 import { type IPoint } from '@flowgram.ai/utils';
@@ -231,38 +236,32 @@ export class HoverLayer extends Layer<HoverLayerOptions> {
       }
     }
 
-    const nodeInContainer = !!(nodeHovered?.parent && nodeHovered.parent.flowNodeType !== 'root');
-
     // 获取最接近的线条
     // 线条会相交需要获取最接近点位的线条，不能删除的线条不能被选中
     const lineHovered = checkTargetFromLine
       ? this.linesManager.getCloseInLineFromMousePos(mousePos)
       : undefined;
-    const lineInContainer = !!lineHovered?.inContainer;
 
-    // 判断容器内节点是否 hover
-    if (nodeHovered && nodeInContainer) {
-      this.updateHoveredKey(nodeHovered.id);
-      return;
-    }
-    // 判断容器内线条是否 hover
-    if (lineHovered && lineInContainer) {
-      this.updateHoveredKey(lineHovered.id);
-      return;
+    if (nodeHovered && lineHovered) {
+      const nodeStackIndex = nodeHovered.renderData.stackIndex;
+      const lineStackIndex = lineHovered.stackIndex;
+      if (nodeStackIndex > lineStackIndex) {
+        return this.updateHoveredKey(nodeHovered.id);
+      } else {
+        return this.updateHoveredKey(lineHovered.id);
+      }
     }
 
     // 判断节点是否 hover
     if (nodeHovered) {
-      this.updateHoveredKey(nodeHovered.id);
-      return;
+      return this.updateHoveredKey(nodeHovered.id);
     }
     // 判断线条是否 hover
     if (lineHovered) {
-      this.hoverService.updateHoveredKey(lineHovered.id);
-      return;
+      return this.updateHoveredKey(lineHovered.id);
     }
 
-    // 上述逻辑都未命中 则清空 hoverd
+    // 上述逻辑都未命中 则清空 hovered
     hoverService.clearHovered();
 
     const currentState = this.editorStateConfig.getCurrentState();

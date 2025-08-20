@@ -1,13 +1,28 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { type NodeFormProps } from '@flowgram.ai/node';
 import { FlowNodeEntity } from '@flowgram.ai/document';
 
 import { type WorkflowPortEntity } from '../entities';
 
 export interface NodeRenderReturnType {
+  id: string;
+  type: string | number;
   /**
    * 当前节点
    */
   node: FlowNodeEntity;
+  /**
+   * 节点 data 数据
+   */
+  data: any;
+  /**
+   * 更新节点 data 数据
+   */
+  updateData: (newData: any) => void;
   /**
    * 节点选中
    */

@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { omit } from 'lodash';
 import { inject, injectable, multiInject, optional, postConstruct } from 'inversify';
 import { type Disposable, Emitter } from '@flowgram.ai/utils';
@@ -438,16 +443,30 @@ export class FlowDocument<T = FlowDocumentJSON> implements Disposable {
   /**
    * Check node extend
    * @param currentType
-   * @param parentType
+   * @param extendType
    */
-  isExtend(currentType: FlowNodeType, parentType: FlowNodeType): boolean {
-    return (this.getNodeRegistry(currentType).__extends__ || []).includes(parentType);
+  isExtend(currentType: FlowNodeType, extendType: FlowNodeType): boolean {
+    return (this.getNodeRegistry(currentType).__extends__ || []).includes(extendType);
+  }
+
+  /**
+   * Check node type
+   * @param currentType
+   * @param extendType
+   */
+  isTypeOrExtendType(currentType: FlowNodeType, extendType: FlowNodeType): boolean {
+    return currentType === extendType || this.isExtend(currentType, extendType);
   }
 
   /**
    * 导出数据，可以重载
    */
   toJSON(): T | any {
+    if (this.disposed) {
+      throw new Error(
+        'The FlowDocument has been disposed and it is no longer possible to call toJSON.'
+      );
+    }
     return {
       nodes: this.root.toJSON().blocks,
     };
@@ -591,6 +610,40 @@ export class FlowDocument<T = FlowDocumentJSON> implements Disposable {
       result.push(node.getData<T>(dataRegistry)!);
     });
     return result;
+  }
+
+  toNodeJSON(node: FlowNodeEntity): FlowNodeJSON {
+    if (this.options.toNodeJSON) {
+      return this.options.toNodeJSON(node);
+    }
+    const nodesMap: Record<string, FlowNodeJSON> = {};
+    let startNodeJSON: FlowNodeJSON;
+    this.traverse((node) => {
+      const isSystemNode = node.id.startsWith('$');
+      if (isSystemNode) return;
+      const nodeJSONData = node.getJSONData();
+      const nodeJSON: FlowNodeJSON = {
+        id: node.id,
+        type: node.flowNodeType,
+      };
+      if (nodeJSONData !== undefined) {
+        nodeJSON.data = nodeJSONData;
+      }
+      if (!startNodeJSON) startNodeJSON = nodeJSON;
+      let { parent } = node;
+      if (parent && parent.id.startsWith('$')) {
+        parent = parent.originParent;
+      }
+      const parentJSON = parent ? nodesMap[parent.id] : undefined;
+      if (parentJSON) {
+        if (!parentJSON.blocks) {
+          parentJSON.blocks = [];
+        }
+        parentJSON.blocks.push(nodeJSON);
+      }
+      nodesMap[node.id] = nodeJSON;
+    }, node);
+    return startNodeJSON!;
   }
 
   /**

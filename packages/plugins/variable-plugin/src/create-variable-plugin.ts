@@ -1,9 +1,15 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import {
   FlowNodeVariableData,
   FreeLayoutScopeChain,
   FixedLayoutScopeChain,
-  VariableLayoutConfig,
+  VariableChainConfig,
   bindGlobalScope,
+  ScopeChainTransformService,
 } from '@flowgram.ai/variable-layout';
 import {
   VariableContainerModule,
@@ -23,17 +29,29 @@ type Injector = (ctx: PluginContext) => Record<string, any>;
 
 export interface VariablePluginOptions {
   enable?: boolean;
-  // 业务扩展 AST 节点
+  /**
+   * Custom Extends ASTNode
+   */
   extendASTNodes?: (ASTNodeRegistry | [ASTNodeRegistry] | [ASTNodeRegistry, Injector])[];
-  // 布局方式
+  /**
+   * Layout method
+   */
   layout?: 'fixed' | 'free';
-  // 布局配置
-  layoutConfig?: VariableLayoutConfig;
+  /**
+   * @deprecated use chainConfig instead
+   */
+  layoutConfig?: VariableChainConfig;
+  /**
+   * Configuration for scope chain
+   */
+  chainConfig?: VariableChainConfig;
 }
 
 export const createVariablePlugin = definePluginCreator<VariablePluginOptions>({
   onBind({ bind }, opts) {
-    const { layout, layoutConfig } = opts;
+    const { layout, layoutConfig, chainConfig } = opts;
+
+    bind(ScopeChainTransformService).toSelf().inSingletonScope();
 
     if (layout === 'free') {
       bind(ScopeChain).to(FreeLayoutScopeChain).inSingletonScope();
@@ -41,8 +59,11 @@ export const createVariablePlugin = definePluginCreator<VariablePluginOptions>({
     if (layout === 'fixed') {
       bind(ScopeChain).to(FixedLayoutScopeChain).inSingletonScope();
     }
-    if (layoutConfig) {
-      bind(VariableLayoutConfig).toConstantValue(layoutConfig || {});
+    if (chainConfig) {
+      bind(VariableChainConfig).toConstantValue(chainConfig || {});
+    } else if (layoutConfig) {
+      console.warn(`Layout Config deprecated, use chainConfig instead`);
+      bind(VariableChainConfig).toConstantValue(layoutConfig || {});
     }
 
     bindGlobalScope(bind);

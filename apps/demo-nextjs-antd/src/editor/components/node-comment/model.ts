@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { Emitter } from '@flowgram.ai/free-layout-editor';
 
 import { CommentEditorEventParams } from './type';

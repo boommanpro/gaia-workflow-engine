@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { FlowNodeRegistry } from '../../typings';
 import iconCase from '../../assets/icon-case.png';
 import { formMeta } from './form-meta';

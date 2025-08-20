@@ -1,144 +1,54 @@
-# Output Variables
+# Outputting Variables
 
-## Node Output Variables
+In Flowgram, variables are the key hubs that connect various nodes. The output of one node is often the input of another. Therefore, how to elegantly define and output variables has become a required course. This article will take you to explore the various ways of outputting variables in Flowgram.
 
-### FlowNodeVariableData Output Variables
+We mainly divide variables into two categories:
 
-`Flowgram` manages node information based on [`ECS`](https://flowgram.ai/guide/concepts/ecs.html) (Entity-Component-System).
+- **Node Variables**: The scope is limited to a single node, usually as the output of that node for subsequent nodes to use.
+- **Global Variables**: The scope runs through the entire process, and any node can read and modify it. It is suitable for storing some public states or configurations.
 
-The [`FlowNodeVariableData`](https://flowgram.ai/auto-docs/editor/classes/FlowNodeVariableData.html) is a `Component` on the `FlowNodeEntity` node, specifically designed to handle **variable information** output from nodes.
+## Outputting Node Variables
 
-The following demo shows: How to obtain `FlowNodeVariableData` and use it to output variables from nodes.
+Outputting a node variable means that this variable is bound to the life cycle of the current node. When the node is created, the variable is born; when the node is deleted, the variable also disappears. We usually have two ways to output node variables:
 
-```tsx pure title="sync-variable-plugin.tsx"
+1.  **Through form configuration**: In the node's setting panel (Form), declare output variables through some preset configurations or custom logic. This method is very intuitive, what you see is what you get.
+2.  **Through API calls**: In the plugin (Plugin), dynamically add, modify or delete variables for the node by calling the `getNodeScope` API. This method is more flexible and suitable for handling complex and dynamic business scenarios.
+
+Next, we will explore the specific usage of these two methods in depth.
+
+### Method 1: Output through Form Configuration
+
+Configuring in the node's `form-meta.ts` file is the most common way to define node output variables. It can be divided into two ways: one is the "lazy version", using our built-in materials; the other is the "master version", completely customized.
+
+#### `provideJsonSchemaOutputs` Material
+
+If the structure of the variable that your node needs to output happens to be consistent with the `JSON Schema` structure of the form, then congratulations, the `provideJsonSchemaOutputs` side effect (Effect) material is tailor-made for you! It is like an automated "variable porter", which can automatically convert the data in the form into the output variable of the node as it is.
+
+It is very simple to use, just add two lines of configuration in the `effect` of `formMeta`:
+
+```tsx pure title="form-meta.ts"
 import {
-  FlowNodeVariableData,
-  ASTFactory,
-} from '@flowgram.ai/fixed-layout-editor';
+  syncVariableTitle,
+  provideJsonSchemaOutputs,
+} from '@flowgram.ai/form-materials';
 
-// ....
-
-flowDocument.onNodeCreate(({ node }) => {
-  const variableData = node.getData<FlowNodeVariableData>(FlowNodeVariableData);
-
-  // ....
-
-  // 1. Clear VariableData if No value
-  variableData.clearVar()
-
-  // 2. Set a String Variable as output
-  variableData.setVar(
-    ASTFactory.createVariableDeclaration({
-      meta: {
-        title: `Your Output Variable Title`,
-      },
-      key: `your_variable_global_unique_key_${node.id}`,
-      type: ASTFactory.createString(),
-    })
-  )
-
-  // 3. Set a Complicated Variable Data as output
-  variableData.setVar(
-    ASTFactory.createVariableDeclaration({
-      meta: {
-        title: `Your Output Variable Title`,
-      },
-      key: `your_variable_global_unique_key_${node.id}`,
-      type: ASTFactory.createArray({
-        items: ASTFactory.createObject({
-          properties: [
-            ASTFactory.createProperty({
-              key: 'stringType',
-              type: ASTFactory.createString(),
-            }),
-            ASTFactory.createProperty({
-              key: 'booleanType',
-              type: ASTFactory.createBoolean(),
-            }),
-            ASTFactory.createProperty({
-              key: 'numberType',
-              type: ASTFactory.createNumber(),
-            }),
-            ASTFactory.createProperty({
-              key: 'integerType',
-              type: ASTFactory.createInteger(),
-            }),
-          ],
-        }),
-      }),
-    })
-  );
-
-  // 4. Get Variable for current Node
-  console.log(variableData.getVar())
-
-  // ....
-})
-
-// ....
-
+export const formMeta = {
+  effect: {
+    title: syncVariableTitle, // Variable title is automatically synchronized
+    outputs: provideJsonSchemaOutputs,
+  },
+};
 ```
 
-See: [> Demo Detail](https://github.com/bytedance/flowgram.ai/blob/main/apps/demo-fixed-layout/src/plugins/sync-variable-plugin/sync-variable-plugin.ts#L25)
+#### Custom Output through Form Side Effects
 
-### Setting Multiple Output Variables for a Node
+Although `provideJsonSchemaOutputs` is convenient, it only adapts to JsonSchema.
 
-```tsx pure title="sync-variable-plugin.tsx"
-import {
-  FlowNodeVariableData,
-  ASTFactory,
-} from '@flowgram.ai/fixed-layout-editor';
+If you want to define your own set of Schema, then you need to customize the side effects of the form.
 
-// ....
+Flowgram provides a powerful auxiliary function `createEffectFromVariableProvider`, which can help you easily create a side effect for providing variables. You can think of it as a "variable processing factory", the input is the form data, and the output is the variable you have carefully processed.
 
-flowDocument.onNodeCreate(({ node }) => {
-  const variableData = node.getData<FlowNodeVariableData>(FlowNodeVariableData);
-
-  // ...
-  // 1. Create, Update, Read, Delete Variable in namespace_1
-  variableData.setVar(
-    'namespace_1',
-    ASTFactory.createVariableDeclaration({
-      meta: {
-        title: `Your Output Variable Title`,
-      },
-      key: `your_variable_global_unique_key_${node.id}`,
-      type: ASTFactory.createString(),
-    })
-  )
-
-  console.log(variableData.getVar('namespace_1'))
-
-  variableData.clearVar('namespace_1')
-
-  // ....
-
-  // 2. Create, Update, Read, Delete Variable in namespace_2
-  variableData.setVar(
-    'namespace_2',
-    ASTFactory.createVariableDeclaration({
-      meta: {
-        title: `Your Output Variable Title 2`,
-      },
-      key: `your_variable_global_unique_key_${node.id}_2`,
-      type: ASTFactory.createString(),
-    })
-  )
-
-  console.log(variableData.getVar('namespace_2'))
-
-  variableData.clearVar('namespace_2')
-
-  // ....
-})
-
-// ....
-
-```
-
-For more usage, see: [Class: FlowNodeVariableData](https://flowgram.ai/auto-docs/editor/classes/FlowNodeVariableData.html)
-
-### Setting Output Variables via Form Side Effects
+In the following example, we create output variables for the two fields of the form `path.to.value` and `path.to.value2`. When the user fills in these two fields in the form, the `parse` function will be triggered to convert the user's input value (`v`) into a standard variable declaration object.
 
 ```tsx pure title="node-registries.ts"
 import {
@@ -207,13 +117,85 @@ export const nodeRegistries: FlowNodeRegistry[] = [
 
 ```
 
-## Global Output Variables
+### Method 2: Use the `getNodeScope` API
 
-### Obtaining Global Variable Scope
+In addition to static configuration in the form, we can also get the scope in the plugin (Plugin) through the `getNodeScope` API to dynamically operate the variables of the node.
 
-The global scope can be obtained via `ctx` in a Plugin:
+This method gives you a high degree of freedom. You can add, delete, modify, and query the variables of the node at any time and any place.
+
+`getNodeScope` will return a node's variable scope (Scope) object, which has several core methods:
+
+- `setVar(variable)`: Set a variable.
+- `setVar(namespace, variable)`: Set a variable under the specified namespace.
+- `getVar()`: Get all variables.
+- `getVar(namespace)`: Get the variables under the specified namespace.
+- `clearVar()`: Clear all variables.
+- `clearVar(namespace)`: Clear the variables under the specified namespace.
+
+The following example demonstrates how to get the `Scope` of the start node and perform a series of operations on its variables in the `onInit` life cycle of the plugin.
 
 ```tsx pure title="sync-variable-plugin.tsx"
+import {
+  FlowDocument,
+  definePluginCreator,
+  PluginCreator,
+  getNodeScope,
+} from '@flowgram.ai/fixed-layout-editor';
+
+
+export const createSyncVariablePlugin: PluginCreator<SyncVariablePluginOptions> =
+  definePluginCreator<SyncVariablePluginOptions, FixedLayoutPluginContext>({
+    onInit(ctx, options) {
+      const startNode = ctx.get(FlowDocument).getNode('start_0');
+      const startScope =  getNodeScope(startNode)
+
+      // 1. Set Variable For Start Scope
+      startScope.setVar(
+        ASTFactory.createVariableDeclaration({
+          meta: {
+            title: `Your Output Variable Title`,
+          },
+          key: `your_variable_unique_key`,
+          type: ASTFactory.createString(),
+        })
+      )
+
+      // 2. Create, Update, Read, Delete Variable in namespace_2
+      startScope.setVar(
+        'namespace_2',
+        ASTFactory.createVariableDeclaration({
+          meta: {
+            title: `Your Output Variable Title 2`,
+          },
+          key: `your_variable_global_unique_key_2`,
+          type: ASTFactory.createString(),
+        })
+      )
+
+      console.log(startScope.getVar('namespace_2'))
+
+      // 3. Delete Variable in namespace_2
+      startScope.clearVar('namespace_2')
+    }
+  })
+
+```
+
+
+
+
+## Outputting Global Variables
+
+Global variables are like the "shared memory" of the entire process, which can be accessed and modified by any node and any plugin. It is very suitable for storing some states that run through, such as user information, environment configuration, and so on.
+
+Similar to node variables, we also have two main ways to obtain the scope of global variables (`GlobalScope`).
+
+### Method 1: Obtain in Plugin
+
+In the context of the plugin (`ctx`), we can directly "inject" the instance of `GlobalScope`:
+
+
+```tsx pure title="global-variable-plugin.tsx"
 import {
   GlobalScope,
   definePluginCreator,
@@ -221,7 +203,7 @@ import {
 } from '@flowgram.ai/fixed-layout-editor';
 
 
-export const createSyncVariablePlugin: PluginCreator<SyncVariablePluginOptions> =
+export const createGlobalVariablePlugin: PluginCreator<SyncVariablePluginOptions> =
   definePluginCreator<SyncVariablePluginOptions, FixedLayoutPluginContext>({
     onInit(ctx, options) {
       const globalScope = ctx.get(GlobalScope)
@@ -240,7 +222,10 @@ export const createSyncVariablePlugin: PluginCreator<SyncVariablePluginOptions> 
 
 ```
 
-It can also be obtained in React components within the canvas via `useService`:
+
+### Method 2: Obtain in React Component
+
+If you want to interact with global variables in the React component of the canvas, you can use the `useService` Hook to get the instance of `GlobalScope`:
 
 ```tsx pure title="global-variable-component.tsx"
 import {
@@ -271,9 +256,13 @@ function GlobalVariableComponent() {
 
 ```
 
-### Outputting Variables in Global Scope
 
-The API for outputting variables in [`GlobalScope`](https://flowgram.ai/auto-docs/editor/classes/GlobalScope.html) is similar to `FlowNodeVariableData`:
+
+### API of Global Scope
+
+The API of `GlobalScope` is designed to be almost identical to the node scope (`NodeScope`), providing methods such as `setVar`, `getVar`, `clearVar`, and also supporting namespaces. This consistent design greatly reduces our learning costs.
+
+Here is a comprehensive example of operating global variables in a plugin:
 
 ```tsx pure title="sync-variable-plugin.tsx"
 import {
@@ -321,4 +310,4 @@ onInit(ctx, options) {
 }
 ```
 
-See: [Class: GlobalScope](https://flowgram.ai/auto-docs/editor/classes/GlobalScope.html)
+See also: [Class: GlobalScope](https://flowgram.ai/auto-docs/editor/classes/GlobalScope.html)

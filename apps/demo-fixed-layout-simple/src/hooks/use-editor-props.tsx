@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { useMemo } from 'react';
 
 import { createMinimapPlugin } from '@flowgram.ai/minimap-plugin';
@@ -11,6 +16,7 @@ import {
   FlowTextKey,
 } from '@flowgram.ai/fixed-layout-editor';
 
+import { SlotAdder } from '../components/slot-adder';
 import { NodeAdder } from '../components/node-adder';
 import { BranchAdder } from '../components/branch-adder';
 import { BaseNode } from '../components/base-node';
@@ -83,6 +89,7 @@ export function useEditorProps(
            */
           [FlowRendererKey.ADDER]: NodeAdder,
           [FlowRendererKey.BRANCH_ADDER]: BranchAdder,
+          [FlowRendererKey.SLOT_ADDER]: SlotAdder,
           // [FlowRendererKey.DRAG_NODE]: DragNode,
         },
         renderDefaultNode: BaseNode, // 节点渲染

@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { WorkflowInputs, WorkflowOutputs } from '../base';
 
 export interface SnapshotData {
@@ -6,6 +11,7 @@ export interface SnapshotData {
   outputs: WorkflowOutputs;
   data: any;
   branch?: string;
+  error?: string;
 }
 
 export interface Snapshot extends SnapshotData {
@@ -15,7 +21,7 @@ export interface Snapshot extends SnapshotData {
 export interface ISnapshot {
   id: string;
   data: Partial<SnapshotData>;
-  addData(data: Partial<SnapshotData>): void;
+  update(data: Partial<SnapshotData>): void;
   validate(): boolean;
   export(): Snapshot;
 }

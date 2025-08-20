@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { EventTypes, Handler, UserDragConfig } from '../core/types';
 import { registerAction, dragAction } from '../core/actions';
 import { Recognizer } from './Recognizer';

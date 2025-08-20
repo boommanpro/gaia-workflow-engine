@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 export * from './fixed-layout-container-module';
 import {
   BlockIconRegistry,
@@ -12,6 +17,7 @@ import {
   RootRegistry,
   InlineBlocksRegistry,
   EndRegistry,
+  SlotRegistry,
 } from './activities';
 
 export const FixedLayoutRegistries = {
@@ -27,4 +33,8 @@ export const FixedLayoutRegistries = {
   RootRegistry,
   InlineBlocksRegistry,
   EndRegistry,
+  SlotRegistry,
 };
+
+// Export constant
+export { SlotSpacingKey } from './activities/slot/constants';

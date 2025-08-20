@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { type Layer, type LayerRegistry } from '../layer';
 
 export type PipeSupportEvent = MouseEvent | DragEvent | KeyboardEvent | UIEvent | TouchEvent | any;

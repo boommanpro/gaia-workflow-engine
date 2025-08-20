@@ -1,6 +1,11 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { IRules, Op, OpConfigs } from './types';
 
-export const rules: IRules = {
+export const defaultRules: IRules = {
   string: {
     [Op.EQ]: 'string',
     [Op.NEQ]: 'string',
@@ -8,8 +13,8 @@ export const rules: IRules = {
     [Op.NOT_CONTAINS]: 'string',
     [Op.IN]: 'array',
     [Op.NIN]: 'array',
-    [Op.IS_EMPTY]: 'string',
-    [Op.IS_NOT_EMPTY]: 'string',
+    [Op.IS_EMPTY]: null,
+    [Op.IS_NOT_EMPTY]: null,
   },
   number: {
     [Op.EQ]: 'number',
@@ -20,8 +25,6 @@ export const rules: IRules = {
     [Op.LTE]: 'number',
     [Op.IN]: 'array',
     [Op.NIN]: 'array',
-    [Op.IS_EMPTY]: null,
-    [Op.IS_NOT_EMPTY]: null,
   },
   integer: {
     [Op.EQ]: 'number',
@@ -32,8 +35,6 @@ export const rules: IRules = {
     [Op.LTE]: 'number',
     [Op.IN]: 'array',
     [Op.NIN]: 'array',
-    [Op.IS_EMPTY]: null,
-    [Op.IS_NOT_EMPTY]: null,
   },
   boolean: {
     [Op.EQ]: 'boolean',
@@ -42,8 +43,6 @@ export const rules: IRules = {
     [Op.IS_FALSE]: null,
     [Op.IN]: 'array',
     [Op.NIN]: 'array',
-    [Op.IS_EMPTY]: null,
-    [Op.IS_NOT_EMPTY]: null,
   },
   object: {
     [Op.IS_EMPTY]: null,
@@ -52,6 +51,10 @@ export const rules: IRules = {
   array: {
     [Op.IS_EMPTY]: null,
     [Op.IS_NOT_EMPTY]: null,
+    [Op.CONTAINS]: 'array',
+    [Op.NOT_CONTAINS]: 'array',
+    [Op.EQ]: 'array',
+    [Op.NEQ]: 'array',
   },
   map: {
     [Op.IS_EMPTY]: null,
@@ -59,7 +62,7 @@ export const rules: IRules = {
   },
 };
 
-export const opConfigs: OpConfigs = {
+export const defaultOpConfigs: OpConfigs = {
   [Op.EQ]: {
     label: 'Equal',
     abbreviation: '=',

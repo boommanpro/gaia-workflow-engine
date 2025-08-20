@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import React, { useMemo, useCallback, forwardRef } from 'react';
 
 import { interfaces } from 'inversify';
@@ -8,10 +13,16 @@ import {
   PlaygroundReactProvider,
   ClipboardService,
   SelectionService,
+  Playground,
 } from '@flowgram.ai/editor';
 
 import { FlowOperationService } from '../types';
-import { createFixedLayoutPreset, FixedLayoutPluginContext, FixedLayoutProps } from '../preset';
+import {
+  createFixedLayoutPreset,
+  FixedLayoutPluginContext,
+  FixedLayoutPluginTools,
+  FixedLayoutProps,
+} from '../preset';
 
 export const FixedLayoutEditorProvider = forwardRef<FixedLayoutPluginContext, FixedLayoutProps>(
   function FixedLayoutEditorProvider(props: FixedLayoutProps, ref) {
@@ -35,6 +46,15 @@ export const FixedLayoutEditorProvider = forwardRef<FixedLayoutPluginContext, Fi
           },
           get history(): HistoryService {
             return container.get<HistoryService>(HistoryService);
+          },
+          get tools(): FixedLayoutPluginTools {
+            return {
+              fitView: (easing?: boolean) => {
+                const playgroundConfig = container.get<Playground>(Playground).config;
+                const doc = container.get(FlowDocument);
+                return playgroundConfig.fitView(doc.root.bounds, easing, 30);
+              },
+            };
           },
         } as FixedLayoutPluginContext),
       []

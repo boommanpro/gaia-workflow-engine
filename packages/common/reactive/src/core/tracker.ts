@@ -1,4 +1,9 @@
 /**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
+/**
  * Fork from: https://github.com/meteor/meteor/blob/devel/packages/tracker/tracker.js
  */
 type ICallback<ARG = void, RET = void> = (arg: ARG) => RET;

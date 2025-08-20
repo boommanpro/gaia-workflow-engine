@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import type { CSSProperties, FC } from 'react';
 
 import type { FlowNodeEntity } from '@flowgram.ai/document';

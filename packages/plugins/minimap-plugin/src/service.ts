@@ -1,10 +1,15 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { debounce } from 'lodash';
 import { inject, injectable } from 'inversify';
 import { Disposable, DisposableCollection, IPoint, Rectangle } from '@flowgram.ai/utils';
 import { FlowNodeEntity, FlowNodeTransformData } from '@flowgram.ai/document';
 import { FlowNodeBaseType } from '@flowgram.ai/document';
 import { FlowDocument } from '@flowgram.ai/document';
-import { EntityManager, PlaygroundConfigEntity } from '@flowgram.ai/core';
+import { EntityManager, MouseTouchEvent, PlaygroundConfigEntity } from '@flowgram.ai/core';
 
 import type { MinimapRenderContext, MinimapServiceOptions, MinimapCanvasStyle } from './type';
 import { MinimapDraw } from './draw';
@@ -312,26 +317,29 @@ export class FlowMinimapService {
   private addEventListeners(): void {
     this.canvas.addEventListener('wheel', this.handleWheel);
     this.canvas.addEventListener('mousedown', this.handleStartDrag);
+    this.canvas.addEventListener('touchstart', this.handleStartDrag, { passive: false });
     this.canvas.addEventListener('mousemove', this.handleCursor);
   }
 
   private removeEventListeners(): void {
     this.canvas.removeEventListener('wheel', this.handleWheel);
     this.canvas.removeEventListener('mousedown', this.handleStartDrag);
+    this.canvas.removeEventListener('touchstart', this.handleStartDrag);
     this.canvas.removeEventListener('mousemove', this.handleCursor);
   }
 
   private handleWheel = (event: WheelEvent): void => {};
 
-  private handleStartDrag = (event: MouseEvent): void => {
-    event.preventDefault();
+  private handleStartDrag = (event: MouseEvent | TouchEvent): void => {
+    MouseTouchEvent.preventDefault(event);
     event.stopPropagation();
     const renderContext = this.createRenderContext();
     const { viewRect, scale, offset } = renderContext;
     const canvasRect = this.canvas.getBoundingClientRect();
+    const { clientX, clientY } = MouseTouchEvent.getEventCoord(event);
     const mousePoint: IPoint = {
-      x: event.clientX - canvasRect.left,
-      y: event.clientY - canvasRect.top,
+      x: clientX - canvasRect.left,
+      y: clientY - canvasRect.top,
     };
 
     const viewRectOnCanvas = this.rectOnCanvas({
@@ -344,20 +352,26 @@ export class FlowMinimapService {
     }
     this.isDragging = true;
     this.dragStart = mousePoint;
+    // click
     document.addEventListener('mousemove', this.handleDragging);
     document.addEventListener('mouseup', this.handleEndDrag);
+    // touch
+    document.addEventListener('touchmove', this.handleDragging, { passive: false });
+    document.addEventListener('touchend', this.handleEndDrag);
+    document.addEventListener('touchcancel', this.handleEndDrag);
   };
 
-  private handleDragging = (event: MouseEvent): void => {
+  private handleDragging = (event: MouseEvent | TouchEvent): void => {
     if (!this.isDragging || !this.dragStart) return;
-    event.preventDefault();
+    MouseTouchEvent.preventDefault(event);
     event.stopPropagation();
 
     const renderContext = this.createRenderContext();
     const { scale } = renderContext;
     const canvasRect = this.canvas.getBoundingClientRect();
-    const mouseX = event.clientX - canvasRect.left;
-    const mouseY = event.clientY - canvasRect.top;
+    const { clientX, clientY } = MouseTouchEvent.getEventCoord(event);
+    const mouseX = clientX - canvasRect.left;
+    const mouseY = clientY - canvasRect.top;
 
     const deltaX = (mouseX - this.dragStart.x) / scale;
     const deltaY = (mouseY - this.dragStart.y) / scale;
@@ -368,11 +382,16 @@ export class FlowMinimapService {
     this.render();
   };
 
-  private handleEndDrag = (event: MouseEvent): void => {
-    event.preventDefault();
+  private handleEndDrag = (event: MouseEvent | TouchEvent): void => {
+    MouseTouchEvent.preventDefault(event);
     event.stopPropagation();
+    // click
     document.removeEventListener('mousemove', this.handleDragging);
     document.removeEventListener('mouseup', this.handleEndDrag);
+    // touch
+    document.removeEventListener('touchmove', this.handleDragging);
+    document.removeEventListener('touchend', this.handleEndDrag);
+    document.removeEventListener('touchcancel', this.handleEndDrag);
     this.isDragging = false;
     this.dragStart = undefined;
     this.setActivate(this.isMouseInCanvas(event));
@@ -404,13 +423,14 @@ export class FlowMinimapService {
     }
   };
 
-  private isMouseInCanvas(event: MouseEvent): boolean {
+  private isMouseInCanvas(event: MouseEvent | TouchEvent): boolean {
     const canvasRect = this.canvas.getBoundingClientRect();
+    const { clientX, clientY } = MouseTouchEvent.getEventCoord(event);
     return (
-      event.clientX >= canvasRect.left &&
-      event.clientX <= canvasRect.right &&
-      event.clientY >= canvasRect.top &&
-      event.clientY <= canvasRect.bottom
+      clientX >= canvasRect.left &&
+      clientX <= canvasRect.right &&
+      clientY >= canvasRect.top &&
+      clientY <= canvasRect.bottom
     );
   }
 

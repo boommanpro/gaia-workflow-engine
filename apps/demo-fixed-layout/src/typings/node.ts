@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { IFlowValue } from '@flowgram.ai/form-materials';
 import {
   FlowNodeJSON as FlowNodeJSONDefault,

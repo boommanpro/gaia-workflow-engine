@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 export * from './use-entities';
 export * from './use-entity-data-from-context';
 export * from './use-entity-from-context';

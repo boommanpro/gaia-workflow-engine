@@ -1,4 +1,9 @@
-import { IFlowConstantRefValue, IFlowRefValue, JsonSchemaBasicType } from '../../typings';
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
+import { IFlowConstantRefValue, IFlowRefValue } from '@/typings';
 
 export enum Op {
   EQ = 'eq',
@@ -24,14 +29,14 @@ export interface OpConfig {
   rightDisplay?: string;
 }
 
-export type OpConfigs = Record<Op, OpConfig>;
+export type OpConfigs = Record<string, OpConfig>;
 
-export type IRule = Partial<Record<Op, JsonSchemaBasicType | null>>;
+export type IRule = Partial<Record<string, string | null>>;
 
-export type IRules = Record<JsonSchemaBasicType, IRule>;
+export type IRules = Record<string, IRule>;
 
 export interface ConditionRowValueType {
   left?: IFlowRefValue;
-  operator?: Op;
+  operator?: string;
   right?: IFlowConstantRefValue;
 }

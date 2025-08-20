@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { WorkflowVariableType } from '@flowgram.ai/runtime-interface';
 
 export namespace WorkflowRuntimeType {
@@ -56,5 +61,15 @@ export namespace WorkflowRuntimeType {
       return true;
     }
     return leftType === rightType;
+  };
+
+  export const getArrayItemsType = (types: WorkflowVariableType[]): WorkflowVariableType => {
+    const expectedType = types[0];
+    types.forEach((type) => {
+      if (type !== expectedType) {
+        throw new Error(`Array items type must be same, expect ${expectedType}, but got ${type}`);
+      }
+    });
+    return expectedType;
   };
 }

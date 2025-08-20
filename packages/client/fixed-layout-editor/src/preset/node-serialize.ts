@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { FlowNodeEntity, FlowNodeJSON, FlowNodeFormData } from '@flowgram.ai/editor';
 
 import { FixedLayoutProps } from './fixed-layout-props';

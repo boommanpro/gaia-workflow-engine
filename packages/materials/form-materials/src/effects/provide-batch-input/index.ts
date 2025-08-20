@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import {
   ASTFactory,
   EffectOptions,
@@ -6,7 +11,7 @@ import {
   getNodeForm,
 } from '@flowgram.ai/editor';
 
-import { IFlowRefValue } from '../../typings';
+import { IFlowRefValue } from '@/typings';
 
 export const provideBatchInputEffect: EffectOptions[] = createEffectFromVariableProvider({
   private: true,

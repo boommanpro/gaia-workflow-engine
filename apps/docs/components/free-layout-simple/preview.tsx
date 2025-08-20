@@ -1,14 +1,20 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 /* eslint-disable import/no-unresolved */
+
+import nodeRegistriesCode from '@flowgram.ai/demo-free-layout-simple/src/node-registries.ts?raw';
+import dataCode from '@flowgram.ai/demo-free-layout-simple/src/initial-data.ts?raw';
+import useEditorPropsCode from '@flowgram.ai/demo-free-layout-simple/src/hooks/use-editor-props.tsx?raw';
+import editorCode from '@flowgram.ai/demo-free-layout-simple/src/editor.tsx?raw';
+import toolsCode from '@flowgram.ai/demo-free-layout-simple/src/components/tools.tsx?raw';
+import nodeAddPanelCode from '@flowgram.ai/demo-free-layout-simple/src/components/node-add-panel.tsx?raw';
+import minimapCode from '@flowgram.ai/demo-free-layout-simple/src/components/minimap.tsx?raw';
+
 import { PreviewEditor } from '../preview-editor';
 import { FreeLayoutSimple } from '.';
-
-import nodeRegistriesCode from '!!raw-loader!@flowgram.ai/demo-free-layout-simple/src/node-registries.ts';
-import dataCode from '!!raw-loader!@flowgram.ai/demo-free-layout-simple/src/initial-data.ts';
-import useEditorPropsCode from '!!raw-loader!@flowgram.ai/demo-free-layout-simple/src/hooks/use-editor-props.tsx';
-import editorCode from '!!raw-loader!@flowgram.ai/demo-free-layout-simple/src/editor.tsx';
-import toolsCode from '!!raw-loader!@flowgram.ai/demo-free-layout-simple/src/components/tools.tsx';
-import nodeAddPanelCode from '!!raw-loader!@flowgram.ai/demo-free-layout-simple/src/components/node-add-panel.tsx';
-import minimapCode from '!!raw-loader!@flowgram.ai/demo-free-layout-simple/src/components/minimap.tsx';
 
 export const FreeLayoutSimplePreview = () => {
   const files = {

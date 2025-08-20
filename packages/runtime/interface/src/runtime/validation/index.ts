@@ -1,4 +1,9 @@
-import { WorkflowSchema } from '@schema/index';
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
+import { InvokeParams } from '@runtime/base';
 
 export interface ValidationResult {
   valid: boolean;
@@ -6,7 +11,7 @@ export interface ValidationResult {
 }
 
 export interface IValidation {
-  validate(schema: WorkflowSchema): ValidationResult;
+  invoke(params: InvokeParams): ValidationResult;
 }
 
 export const IValidation = Symbol.for('Validation');

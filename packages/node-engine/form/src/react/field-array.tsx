@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import * as React from 'react';
 
 import { isFunction } from 'lodash';
@@ -40,12 +45,9 @@ export function FieldArray<TValue extends FieldValue>({
   children,
 }: FieldArrayProps<TValue>): React.ReactElement {
   const formModel = useFormModel();
-  const fieldModel = React.useMemo(
-    () =>
-      formModel.getField<FieldArrayModel<TValue>>(name) ||
-      (formModel.createFieldArray(name) as FieldArrayModel<any>),
-    [name]
-  );
+  const fieldModel =
+    formModel.getField<FieldArrayModel<TValue>>(name) ||
+    (formModel.createFieldArray(name) as FieldArrayModel<any>);
 
   const field = React.useMemo(() => toFieldArray<TValue>(fieldModel), [fieldModel]);
 
@@ -58,6 +60,11 @@ export function FieldArray<TValue extends FieldValue>({
   const formState = React.useMemo(() => toFormState(formModelState), [formModelState]);
 
   React.useEffect(() => {
+    // 当 FieldArray 加上 key 且 key 变化时候会销毁 FieldModel
+    if (fieldModel.disposed) {
+      refresh();
+      return () => {};
+    }
     fieldModel.renderCount = fieldModel.renderCount + 1;
 
     if (!formModel.getValueIn(name) !== undefined && defaultValue !== undefined) {
@@ -106,6 +113,8 @@ export function FieldArray<TValue extends FieldValue>({
     }
     return <>Invalid Array render</>;
   };
+
+  if (fieldModel.disposed) return <></>;
 
   return (
     <FieldModelContext.Provider value={fieldModel}>{renderInner()}</FieldModelContext.Provider>

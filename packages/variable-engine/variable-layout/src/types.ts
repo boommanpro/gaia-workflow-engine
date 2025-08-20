@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { Scope } from '@flowgram.ai/variable-core';
 import { FlowNodeEntity } from '@flowgram.ai/document';
 
@@ -19,4 +24,4 @@ export interface ScopeVirtualNode {
 export type ScopeChainNode = FlowNodeEntity | ScopeVirtualNode;
 
 // 节点内部的作用域
-export type FlowNodeScope = Scope<FlowNodeScopeMeta>;
+export interface FlowNodeScope extends Scope<FlowNodeScopeMeta> {}

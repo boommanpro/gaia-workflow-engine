@@ -1,5 +1,11 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { isNil } from 'lodash-es';
 import {
+  ConditionItem,
   ExecutionContext,
   ExecutionResult,
   FlowGramNode,
@@ -7,12 +13,13 @@ import {
   WorkflowVariableType,
 } from '@flowgram.ai/runtime-interface';
 
-import { ConditionItem, ConditionValue, Conditions } from './type';
+import { WorkflowRuntimeType } from '@infra/index';
+import { ConditionValue, Conditions } from './type';
 import { conditionRules } from './rules';
 import { conditionHandlers } from './handlers';
 
 export class ConditionExecutor implements INodeExecutor {
-  public type = FlowGramNode.Condition;
+  public readonly type = FlowGramNode.Condition;
 
   public async execute(context: ExecutionContext): Promise<ExecutionResult> {
     const conditions: Conditions = context.node.data?.conditions;
@@ -26,9 +33,7 @@ export class ConditionExecutor implements INodeExecutor {
       .filter((item) => this.checkCondition(item));
     const activatedCondition = parsedConditions.find((item) => this.handleCondition(item));
     if (!activatedCondition) {
-      return {
-        outputs: {},
-      };
+      throw new Error('No condition is activated');
     }
     return {
       outputs: {},
@@ -58,14 +63,15 @@ export class ConditionExecutor implements INodeExecutor {
   private checkCondition(condition: ConditionValue): boolean {
     const rule = conditionRules[condition.leftType];
     if (isNil(rule)) {
-      throw new Error(`condition left type ${condition.leftType} is not supported`);
+      throw new Error(`Condition left type "${condition.leftType}" is not supported`);
     }
     const ruleType = rule[condition.operator];
     if (isNil(ruleType)) {
-      throw new Error(`condition operator ${condition.operator} is not supported`);
+      throw new Error(
+        `Condition left type "${condition.leftType}" has no operator "${condition.operator}"`
+      );
     }
-    if (ruleType !== condition.rightType) {
-      // throw new Error(`condition right type expected ${ruleType}, got ${condition.rightType}`);
+    if (!WorkflowRuntimeType.isTypeEqual(ruleType, condition.rightType)) {
       return false;
     }
     return true;
@@ -74,7 +80,7 @@ export class ConditionExecutor implements INodeExecutor {
   private handleCondition(condition: ConditionValue): boolean {
     const handler = conditionHandlers[condition.leftType];
     if (!handler) {
-      throw new Error(`condition left type ${condition.leftType} is not supported`);
+      throw new Error(`Condition left type ${condition.leftType} is not supported`);
     }
     const isActive = handler(condition);
     return isActive;

@@ -12,5 +12,5 @@ pnpm build
 
 ## Running the server
 ```bash
-pnpm start
+node dist/index.js
 ```

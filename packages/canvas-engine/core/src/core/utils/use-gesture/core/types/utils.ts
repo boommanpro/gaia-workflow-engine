@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 export type Vector2 = [number, number];
 export type WebKitGestureEvent = PointerEvent & { scale: number; rotation: number };
 export type Target = EventTarget | { current: EventTarget | null };

@@ -1,4 +1,9 @@
-import { IJsonSchema } from '../../typings';
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
+import { IJsonSchema } from '@flowgram.ai/json-schema';
 
 export interface PropertyValueType extends IJsonSchema {
   name?: string;
@@ -17,5 +22,4 @@ export interface ConfigType {
   defaultValueTitle?: string;
   defaultValuePlaceholder?: string;
   addButtonText?: string;
-  jsonFormatText?: string;
 }

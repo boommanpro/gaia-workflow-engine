@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 /* eslint-disable @typescript-eslint/naming-convention */
 import { injectable, inject } from 'inversify';
 import { HistoryService } from '@flowgram.ai/history';

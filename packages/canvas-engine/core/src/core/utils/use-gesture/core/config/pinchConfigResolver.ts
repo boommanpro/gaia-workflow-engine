@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { ModifierKey } from '../types'
 import { PinchConfig, GenericOptions, InternalPinchOptions, State, Vector2 } from '../types'
 import { call, assignDefault } from '../utils/fn'

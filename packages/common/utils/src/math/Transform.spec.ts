@@ -1,4 +1,9 @@
 /**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
+/**
  * @see https://github.com/pixijs/pixijs/blob/dev/packages/math/test/Transform.tests.ts
  */
 import { describe, it, expect } from 'vitest';

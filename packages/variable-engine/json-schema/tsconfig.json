@@ -1,0 +1,3 @@
+{
+  "extends": "@flowgram.ai/ts-config/tsconfig.flow.path.json",
+}

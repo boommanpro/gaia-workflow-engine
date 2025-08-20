@@ -1,11 +1,14 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { useCallback, useEffect, useState } from 'react';
 
 import { DisposableCollection } from '@flowgram.ai/utils';
 import { HistoryService } from '@flowgram.ai/history';
 import { FlowDocument, FlowLayoutDefault, FlowNodeRenderData } from '@flowgram.ai/editor';
 import { usePlayground, usePlaygroundContainer, useService } from '@flowgram.ai/editor';
-
-import { fitView } from '../utils/fit-view';
 
 export interface PlaygroundToolsPropsType {
   /**
@@ -16,10 +19,6 @@ export interface PlaygroundToolsPropsType {
    * 最小缩放比，默认 0.25
    */
   minZoom?: number;
-  /**
-   * fitView padding 边距，默认 30
-   */
-  padding?: number;
 }
 
 export interface PlaygroundTools {
@@ -43,7 +42,7 @@ export interface PlaygroundTools {
   /**
    * 自适应视区
    */
-  fitView: (easing?: boolean) => void;
+  fitView: (easing?: boolean, easingDuration?: number, padding?: number) => Promise<void>;
   /**
    * 是否垂直布局
    */
@@ -72,7 +71,7 @@ export interface PlaygroundTools {
 }
 
 export function usePlaygroundTools(props?: PlaygroundToolsPropsType): PlaygroundTools {
-  const { maxZoom = 2, minZoom = 0.25, padding = 30 } = props || {};
+  const { maxZoom, minZoom } = props || {};
   const playground = usePlayground();
   const container = usePlaygroundContainer();
   const historyService = container.isBound(HistoryService)
@@ -84,13 +83,14 @@ export function usePlaygroundTools(props?: PlaygroundToolsPropsType): Playground
   const [currentLayout, updateLayout] = useState(doc.layout);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
-
-  const fitViewOptions = {
-    maxZoom,
-    minZoom,
-    padding,
-  };
-
+  // 获取合适视角
+  const handleFitView = useCallback(
+    (easing?: boolean, easingDuration?: number, padding?: number) => {
+      padding = padding || 30;
+      return playground.config.fitView(doc.root.bounds, easing, padding, easingDuration);
+    },
+    [doc, playground]
+  );
   const changeLayout = useCallback(
     (newLayout?: FlowLayoutDefault) => {
       const allNodes = doc.getAllNodes();
@@ -104,10 +104,7 @@ export function usePlaygroundTools(props?: PlaygroundToolsPropsType): Playground
         renderData.node.classList.add('gedit-transition-ease');
       });
       setTimeout(() => {
-        fitView(doc, playground.config, {
-          ...fitViewOptions,
-          easingDuration: 300,
-        });
+        handleFitView();
       }, 10);
       setTimeout(() => {
         allNodes.map((node) => {
@@ -123,9 +120,6 @@ export function usePlaygroundTools(props?: PlaygroundToolsPropsType): Playground
 
   const handleZoomOut = useCallback(
     (easing?: boolean) => {
-      if (zoom < minZoom) {
-        return;
-      }
       playground?.config.zoomout(easing);
     },
     [zoom, playground]
@@ -133,24 +127,9 @@ export function usePlaygroundTools(props?: PlaygroundToolsPropsType): Playground
 
   const handleZoomIn = useCallback(
     (easing?: boolean) => {
-      if (zoom > maxZoom) {
-        return;
-      }
       playground?.config.zoomin(easing);
     },
     [zoom, playground]
-  );
-
-  // 获取合适视角
-  const handleFitView = useCallback(
-    (easing?: boolean, easingDuration?: number) => {
-      fitView(doc, playground.config, {
-        ...fitViewOptions,
-        easing,
-        easingDuration,
-      });
-    },
-    [doc, playground]
   );
 
   const handleUpdateZoom = useCallback(
@@ -178,6 +157,14 @@ export function usePlaygroundTools(props?: PlaygroundToolsPropsType): Playground
     }
     return () => dispose.dispose();
   }, [playground, historyService]);
+
+  useEffect(() => {
+    const config = playground.config.config;
+    playground.config.updateConfig({
+      maxZoom: maxZoom !== undefined ? maxZoom : config.maxZoom,
+      minZoom: minZoom !== undefined ? minZoom : config.minZoom,
+    });
+  }, [playground, maxZoom, minZoom]);
 
   return {
     zoomin: handleZoomIn,

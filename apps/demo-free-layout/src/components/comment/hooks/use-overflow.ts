@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { useCallback, useState, useEffect } from 'react';
 
 import { usePlayground } from '@flowgram.ai/free-layout-editor';

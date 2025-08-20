@@ -31,11 +31,37 @@ const nodeData: FlowNodeJSON = {
 
 ## 节点定义
 
-在自由布局场景，节点定义用于声明节点的初始化位置/大小，端口，表单渲染等, 详细见 [声明节点](guide/getting-started/create-free-layout-simple.html#4-声明节点)
+在自由布局场景，节点定义用于声明节点的初始化位置/大小，端口，表单渲染等, 详细见 [声明节点](/guide/getting-started/create-free-layout-simple.html#4-声明节点)
 
 ## 当前渲染节点获取
 
-通过 [useNodeRender](api/hooks/use-node-render.html) 获取节点相关方法
+通过 [useNodeRender](/api/hooks/use-node-render.html) 获取节点相关方法
+
+```tsx pure
+function BaseNode() {
+  const { id, type, data, updateData, node } = useNodeRender()
+}
+```
+
+## 获取当前节点的输入/输出节点或线条
+
+```ts pure
+import { WorkflowNodeLinesData } from '@flowgram.ai/free-layout-editor'
+
+// 获取当前节点的输入节点（通过连接线计算）
+node.getData(WorkflowNodeLinesData).inputNodes
+// 获取所有输入节点 （会往上递归获取所有）
+node.getData(WorkflowNodeLinesData).allInputNodes
+// 获取输出节点
+node.getData(WorkflowNodeLinesData).outputNodes
+// 获取所有输出节点
+node.getData(WorkflowNodeLinesData).allOutputNodes
+// 输入线条
+node.getData(WorkflowNodeLinesData).inputLines
+// 输出线条
+node.getData(WorkflowNodeLinesData).outputLines
+
+```
 
 ## 创建节点
 
@@ -96,22 +122,17 @@ function BaseNode({ node }) {
 
 ```tsx pure
 function BaseNode() {
-  const { form } = useNodeRender();
+  const { data, updateData } = useNodeRender();
   // 对应节点的 data 数据
-  console.log(form.values)
-
-  // 监听节点的数据变化
-  useEffect(() => {
-    const toDispose = form.onFormValuesChange(() => {
-      // changed
-    })
-    return () => toDispose.dispose()
-  }, [form])
+  console.log(data)
 
   function onChange(e) {
-    form.setValueIn('title', e.target.value)
+    updateData({
+      ...data,
+      title: e.target.value
+    })
   }
-  return <input value={form.getValueIn('title')} onChange={onChange}/>
+  return <input value={data.title} onChange={onChange}/>
 }
 ```
 - 通过 Field 更新表单数据, 详细见 [表单的使用](/guide/advanced/form.html)

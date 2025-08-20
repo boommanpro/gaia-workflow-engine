@@ -1,14 +1,20 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { last } from 'lodash-es';
 import { inject, injectable } from 'inversify';
 import { DisposableCollection, Emitter, type IPoint } from '@flowgram.ai/utils';
 import { FlowNodeRenderData, FlowNodeTransformData } from '@flowgram.ai/document';
-import { EntityManager, PlaygroundConfigEntity, TransformData } from '@flowgram.ai/core';
+import { EntityManager, PlaygroundConfigEntity } from '@flowgram.ai/core';
 
 import { WorkflowDocumentOptions } from './workflow-document-option';
 import { type WorkflowDocument } from './workflow-document';
 import {
   LineColor,
   LineColors,
+  LinePoint,
   LineRenderType,
   LineType,
   type WorkflowLineRenderContributionFactory,
@@ -17,10 +23,11 @@ import {
   type WorkflowContentChangeEvent,
   WorkflowContentChangeType,
   type WorkflowEdgeJSON,
+  WorkflowNodeRegistry,
 } from './typings';
 import { WorkflowHoverService, WorkflowSelectService } from './service';
 import { WorkflowNodeLinesData } from './entity-datas/workflow-node-lines-data';
-import { WorkflowLineRenderData } from './entity-datas';
+import { WorkflowLineRenderData, WorkflowNodePortsData } from './entity-datas';
 import {
   LINE_HOVER_DISTANCE,
   WorkflowLineEntity,
@@ -132,6 +139,10 @@ export class WorkflowLinesManager {
     );
   }
 
+  getLineById(id: string): WorkflowLineEntity | undefined {
+    return this.entityManager.getEntityById<WorkflowLineEntity>(id);
+  }
+
   replaceLine(
     oldPortInfo: WorkflowLinePortInfo,
     newPortInfo: WorkflowLinePortInfo
@@ -145,11 +156,11 @@ export class WorkflowLinesManager {
 
   createLine(
     options: {
-      drawingTo?: IPoint; // 无连接的线条
+      drawingTo?: LinePoint; // 无连接的线条
       key?: string; // 自定义 key
     } & WorkflowLinePortInfo
   ): WorkflowLineEntity | undefined {
-    const { from, to, drawingTo, fromPort, toPort } = options;
+    const { from, to, drawingTo, fromPort, toPort, data } = options;
     const available = Boolean(from && to);
     const key = options.key || WorkflowLineEntity.portInfoToLineId(options);
     let line = this.entityManager.getEntityById<WorkflowLineEntity>(key)!;
@@ -184,6 +195,7 @@ export class WorkflowLinesManager {
       toPort,
       to,
       drawingTo,
+      data,
     });
 
     this.registerData(line);
@@ -196,8 +208,6 @@ export class WorkflowLinesManager {
       }
       fromNode.removeLine(line);
       toNode?.removeLine(line);
-      // 连线销毁时检验 连线错误态 & 端口错误态
-      line.validate();
     });
     line.onDispose(() => {
       if (available) {
@@ -207,6 +217,14 @@ export class WorkflowLinesManager {
           entity: line,
         });
       }
+    });
+    line.onLineDataChange(({ oldValue }) => {
+      this.onAvailableLinesChangeEmitter.fire({
+        type: WorkflowContentChangeType.LINE_DATA_CHANGE,
+        toJSON: () => line.toJSON(),
+        oldValue,
+        entity: line,
+      });
     });
     // 是否为有效的线条
     if (available) {
@@ -256,51 +274,43 @@ export class WorkflowLinesManager {
     return this.toDispose.disposed;
   }
 
-  isErrorLine(fromPort: WorkflowPortEntity, toPort?: WorkflowPortEntity) {
+  isErrorLine(fromPort: WorkflowPortEntity, toPort?: WorkflowPortEntity, defaultValue?: boolean) {
     if (this.options.isErrorLine) {
       return this.options.isErrorLine(fromPort, toPort, this);
     }
 
-    return false;
+    return !!defaultValue;
   }
 
-  isReverseLine(line: WorkflowLineEntity): boolean {
+  isReverseLine(line: WorkflowLineEntity, defaultValue = false): boolean {
     if (this.options.isReverseLine) {
       return this.options.isReverseLine(line);
     }
 
-    return false;
+    return defaultValue;
   }
 
-  isHideArrowLine(line: WorkflowLineEntity): boolean {
+  isHideArrowLine(line: WorkflowLineEntity, defaultValue = false): boolean {
     if (this.options.isHideArrowLine) {
       return this.options.isHideArrowLine(line);
     }
 
-    return false;
+    return defaultValue;
   }
 
-  isFlowingLine(line: WorkflowLineEntity): boolean {
+  isFlowingLine(line: WorkflowLineEntity, defaultValue = false): boolean {
     if (this.options.isFlowingLine) {
       return this.options.isFlowingLine(line);
     }
 
-    return false;
+    return defaultValue;
   }
 
-  isDisabledLine(line: WorkflowLineEntity): boolean {
+  isDisabledLine(line: WorkflowLineEntity, defaultValue = false): boolean {
     if (this.options.isDisabledLine) {
       return this.options.isDisabledLine(line);
     }
-    return false;
-  }
-
-  isVerticalLine(line: WorkflowLineEntity): boolean {
-    if (this.options.isVerticalLine) {
-      return this.options.isVerticalLine(line);
-    }
-
-    return false;
+    return defaultValue;
   }
 
   setLineRenderType(line: WorkflowLineEntity): LineRenderType | undefined {
@@ -321,6 +331,10 @@ export class WorkflowLinesManager {
     // 隐藏的优先级比 hasError 高
     if (line.isHidden) {
       return this.lineColor.hidden;
+    }
+    // 颜色锁定
+    if (line.lockedColor) {
+      return line.lockedColor;
     }
     if (line.hasError) {
       return this.lineColor.error;
@@ -352,6 +366,14 @@ export class WorkflowLinesManager {
       toPort.portType !== 'input' ||
       toPort.disabled
     ) {
+      return false;
+    }
+    const fromCanAdd = fromPort.node.getNodeRegistry<WorkflowNodeRegistry>().canAddLine;
+    const toCanAdd = toPort.node.getNodeRegistry<WorkflowNodeRegistry>().canAddLine;
+    if (fromCanAdd && !fromCanAdd(fromPort, toPort, this, silent)) {
+      return false;
+    }
+    if (toCanAdd && !toCanAdd(fromPort, toPort, this, silent)) {
       return false;
     }
     if (this.options.canAddLine) {
@@ -406,18 +428,12 @@ export class WorkflowLinesManager {
    * @param pos
    */
   getPortFromMousePos(pos: IPoint): WorkflowPortEntity | undefined {
-    const allPorts = this.entityManager
-      .getEntities<WorkflowPortEntity>(WorkflowPortEntity)
-      .filter((port) => port.node.flowNodeType !== 'root');
+    const allNodes = this.getSortedNodes().reverse();
+    const allPorts = allNodes.map((node) => node.getData(WorkflowNodePortsData).allPorts).flat();
     const targetPort = allPorts.find((port) => port.isHovered(pos.x, pos.y));
     if (targetPort) {
-      // 后创建的要先校验
-      const targetNode = this.document
-        .getAllNodes()
-        .slice()
-        .reverse()
-        .filter((node) => targetPort.node?.parent?.id !== node.id)
-        .find((node) => node.getData(TransformData)!.contains(pos.x, pos.y));
+      const containNodes = this.getContainNodesFromMousePos(pos);
+      const targetNode = last(containNodes);
       // 点位可能会被节点覆盖
       if (targetNode && targetNode !== targetPort.node) {
         return;
@@ -431,27 +447,9 @@ export class WorkflowLinesManager {
    * @param pos - 鼠标位置
    */
   getNodeFromMousePos(pos: IPoint): WorkflowNodeEntity | undefined {
-    const allNodes = this.document
-      .getAllNodes()
-      .sort((a, b) => this.getNodeIndex(a) - this.getNodeIndex(b));
     // 先挑选出 bounds 区域符合的 node
-    const containNodes: WorkflowNodeEntity[] = [];
     const { selection } = this.selectService;
-    const zoom =
-      this.entityManager.getEntity<PlaygroundConfigEntity>(PlaygroundConfigEntity)?.config?.zoom ||
-      1;
-    allNodes.forEach((node) => {
-      const { bounds } = node.getData<FlowNodeTransformData>(FlowNodeTransformData);
-      // 交互要求，节点边缘 4px 的时候就生效连线逻辑
-      if (
-        bounds
-          .clone()
-          .pad(4 / zoom)
-          .contains(pos.x, pos.y)
-      ) {
-        containNodes.push(node);
-      }
-    });
+    const containNodes = this.getContainNodesFromMousePos(pos);
     // 当有元素被选中的时候选中元素在顶层
     if (selection?.length) {
       const filteredNodes = containNodes.filter((node) =>
@@ -472,6 +470,33 @@ export class WorkflowLinesManager {
 
   private registerData(line: WorkflowLineEntity) {
     line.addData(WorkflowLineRenderData);
+  }
+
+  private getSortedNodes() {
+    return this.document.getAllNodes().sort((a, b) => this.getNodeIndex(a) - this.getNodeIndex(b));
+  }
+
+  /** 获取鼠标坐标位置的所有节点（stackIndex 从小到大排序） */
+  private getContainNodesFromMousePos(pos: IPoint): WorkflowNodeEntity[] {
+    const allNodes = this.getSortedNodes();
+    const zoom =
+      this.entityManager.getEntity<PlaygroundConfigEntity>(PlaygroundConfigEntity)?.config?.zoom ||
+      1;
+    const containNodes = allNodes
+      .map((node) => {
+        const { bounds } = node.getData<FlowNodeTransformData>(FlowNodeTransformData);
+        // 交互要求，节点边缘 4px 的时候就认为选中节点
+        if (
+          bounds
+            .clone()
+            .pad(4 / zoom)
+            .contains(pos.x, pos.y)
+        ) {
+          return node;
+        }
+      })
+      .filter(Boolean) as WorkflowNodeEntity[];
+    return containNodes;
   }
 
   private getNodeIndex(node: WorkflowNodeEntity): number {

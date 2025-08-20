@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { isNil } from 'lodash';
 export const isHidden = (dom?: HTMLElement) => {
   if (!dom || isNil(dom?.offsetParent)) {

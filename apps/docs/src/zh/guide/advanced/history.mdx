@@ -99,13 +99,29 @@ export function useEditorProps() {
 
 ```tsx pure
 const { history } = useClientContext();
+
 history.stop()
 // 做一些不希望被捕获的操作， 这些变更不会被记录到操作栈
 ...
 history.start()
 ```
 
-### 1.3. Undo/Redo 调用
+### 1.3. History Undo/Redo 合并
+
+```tsx pure
+
+const { history } = useClientContext();
+
+history.startTransaction();
+
+// 这里的 任意操作都会被合并成一个
+...
+
+history.endTransaction();
+
+```
+
+### 1.4. Undo/Redo 调用
 一般 Undo/Redo 会在界面上提供两个按钮入口，点击了能触发 Undo 和 Redo，按钮本身需要有是否可以 Undo/Redo 的状态。
 
 ```tsx pure

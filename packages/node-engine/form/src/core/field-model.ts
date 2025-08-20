@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { nanoid } from 'nanoid';
 import { get, groupBy, some } from 'lodash';
 import { Disposable, DisposableCollection, Emitter } from '@flowgram.ai/utils';
@@ -361,8 +366,8 @@ export class FieldModel<TValue extends FieldValue = FieldValue> implements Dispo
 
       const groupedFeedbacks = groupBy(feedbacks, 'level');
 
-      warnings = warnings.concat(groupedFeedbacks[FeedbackLevel.Warning] as FieldWarning[]);
-      errors = errors.concat(groupedFeedbacks[FeedbackLevel.Error] as FieldError[]);
+      warnings = warnings.concat((groupedFeedbacks[FeedbackLevel.Warning] as FieldWarning[]) || []);
+      errors = errors.concat((groupedFeedbacks[FeedbackLevel.Error] as FieldError[]) || []);
     }
 
     return { errors, warnings };
@@ -383,5 +388,9 @@ export class FieldModel<TValue extends FieldValue = FieldValue> implements Dispo
 
   onDispose(fn: () => void) {
     this.toDispose.onDispose(fn);
+  }
+
+  get disposed() {
+    return this.toDispose.disposed;
   }
 }

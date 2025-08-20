@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import path from 'path';
 
 import type { ESLintConfig, Rules } from 'eslint-define-config';

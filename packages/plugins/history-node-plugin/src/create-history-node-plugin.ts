@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { FlowDocument } from '@flowgram.ai/document';
 import { bindContributions, definePluginCreator } from '@flowgram.ai/core';
 import { HistoryContainerModule, HistoryService, OperationContribution } from '@flowgram.ai/history';

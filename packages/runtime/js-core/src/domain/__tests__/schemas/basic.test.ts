@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { describe, expect, it } from 'vitest';
 import { IContainer, IEngine, WorkflowStatus } from '@flowgram.ai/runtime-interface';
 
@@ -17,15 +22,18 @@ describe('WorkflowRuntime basic schema', () => {
         llm_settings: {
           temperature: 0.5,
         },
-        prompt: 'How are you?',
+        work: {
+          role: 'Chat',
+          task: 'Tell me a story about love',
+        },
       },
     });
     expect(context.statusCenter.workflow.status).toBe(WorkflowStatus.Processing);
     const result = await processing;
     expect(context.statusCenter.workflow.status).toBe(WorkflowStatus.Succeeded);
     expect(result).toStrictEqual({
-      llm_res: `Hi, I'm an AI assistant, my name is ai-model, temperature is 0.5, system prompt is "You are a helpful AI assistant.", prompt is "How are you?"`,
-      llm_prompt: 'How are you?',
+      llm_res: `Hi, I am an AI model, my name is ai-model, temperature is 0.5, system prompt is "You are a helpful AI assistant.", prompt is "<Role>Chat</Role>\n\n<Task>\nTell me a story about love\n</Task>"`,
+      llm_task: 'Tell me a story about love',
     });
     const snapshots = snapshotsToVOData(context.snapshotCenter.exportAll());
     expect(snapshots).toStrictEqual([
@@ -35,7 +43,7 @@ describe('WorkflowRuntime basic schema', () => {
         outputs: {
           model_name: 'ai-model',
           llm_settings: { temperature: 0.5 },
-          prompt: 'How are you?',
+          work: { role: 'Chat', task: 'Tell me a story about love' },
         },
         data: {},
       },
@@ -46,12 +54,12 @@ describe('WorkflowRuntime basic schema', () => {
           apiKey: 'sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
           apiHost: 'https://mock-ai-url/api/v3',
           temperature: 0.5,
-          prompt: 'How are you?',
+          prompt: '<Role>Chat</Role>\n\n<Task>\nTell me a story about love\n</Task>',
           systemPrompt: 'You are a helpful AI assistant.',
         },
         outputs: {
           result:
-            'Hi, I\'m an AI assistant, my name is ai-model, temperature is 0.5, system prompt is "You are a helpful AI assistant.", prompt is "How are you?"',
+            'Hi, I am an AI model, my name is ai-model, temperature is 0.5, system prompt is "You are a helpful AI assistant.", prompt is "<Role>Chat</Role>\n\n<Task>\nTell me a story about love\n</Task>"',
         },
         data: {},
       },
@@ -59,13 +67,13 @@ describe('WorkflowRuntime basic schema', () => {
         nodeID: 'end_0',
         inputs: {
           llm_res:
-            'Hi, I\'m an AI assistant, my name is ai-model, temperature is 0.5, system prompt is "You are a helpful AI assistant.", prompt is "How are you?"',
-          llm_prompt: 'How are you?',
+            'Hi, I am an AI model, my name is ai-model, temperature is 0.5, system prompt is "You are a helpful AI assistant.", prompt is "<Role>Chat</Role>\n\n<Task>\nTell me a story about love\n</Task>"',
+          llm_task: 'Tell me a story about love',
         },
         outputs: {
           llm_res:
-            'Hi, I\'m an AI assistant, my name is ai-model, temperature is 0.5, system prompt is "You are a helpful AI assistant.", prompt is "How are you?"',
-          llm_prompt: 'How are you?',
+            'Hi, I am an AI model, my name is ai-model, temperature is 0.5, system prompt is "You are a helpful AI assistant.", prompt is "<Role>Chat</Role>\n\n<Task>\nTell me a story about love\n</Task>"',
+          llm_task: 'Tell me a story about love',
         },
         data: {},
       },

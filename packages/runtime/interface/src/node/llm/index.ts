@@ -1,4 +1,9 @@
-import { IFlowConstantRefValue } from '@schema/value';
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
+import { IFlowConstantRefValue, IFlowConstantValue, IFlowTemplateValue } from '@schema/value';
 import { WorkflowNodeSchema } from '@schema/node';
 import { IJsonSchema } from '@schema/json-schema';
 import { FlowGramNode } from '@node/constant';
@@ -12,8 +17,8 @@ interface LLMNodeData {
     modelType: IFlowConstantRefValue;
     baseURL: IFlowConstantRefValue;
     temperature: IFlowConstantRefValue;
-    systemPrompt: IFlowConstantRefValue;
-    prompt: IFlowConstantRefValue;
+    systemPrompt: IFlowConstantValue | IFlowTemplateValue;
+    prompt: IFlowConstantValue | IFlowTemplateValue;
   };
 }
 

@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { injectable } from 'inversify';
 import { type FlowNodeEntity, type FlowNodeJSON } from '@flowgram.ai/document';
 import { type PluginContext } from '@flowgram.ai/core';
@@ -40,7 +45,17 @@ export class FreeHistoryConfig {
     if (options.getLineURI) {
       this.getLineURI = options.getLineURI(ctx);
     }
+    if (options.enableChangeNode !== undefined) {
+      this.enableChangeNode = options.enableChangeNode;
+    }
+    if (options.enableChangeLineData !== undefined) {
+      this.enableChangeLineData = options.enableChangeLineData;
+    }
   }
+
+  enableChangeNode = true;
+
+  enableChangeLineData = true;
 
   enable = false;
 

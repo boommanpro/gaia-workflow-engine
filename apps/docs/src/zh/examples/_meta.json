@@ -4,6 +4,7 @@
     "name": "index",
     "label": "体验环境"
   },
+  "playground",
   {
     "type": "dir",
     "name": "fixed-layout",

@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { GestureKey, EngineClass, Action } from './types';
 import { WheelEngine } from './engines/WheelEngine';
 import { ScrollEngine } from './engines/ScrollEngine';

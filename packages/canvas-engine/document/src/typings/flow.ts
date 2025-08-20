@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { FlowNodeEntity } from '../entities';
 import { type FlowNodeMeta } from './flow-node-register';
 
@@ -36,6 +41,8 @@ export enum FlowNodeBaseType {
   MULTI_OUTPUTS = 'multiOutputs', // 多输出
   INPUT = 'input', // 输入节点
   OUTPUT = 'output', // 输出节点
+  SLOT = 'slot', // 插槽节点
+  SLOT_BLOCK = 'slotBlock', // 插槽子节点
 }
 
 export enum FlowNodeSplitType {

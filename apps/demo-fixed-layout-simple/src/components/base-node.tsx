@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { FlowNodeEntity, useNodeRender, useClientContext } from '@flowgram.ai/fixed-layout-editor';
 import { IconDeleteStroked } from '@douyinfe/semi-icons';
 
@@ -35,6 +40,7 @@ export const BaseNode = ({ node }: { node: FlowNodeEntity }) => {
          * isBlockIcon: 整个 condition 分支的 头部节点
          * isBlockOrderIcon: 分支的第一个节点
          */
+        opacity: nodeRender.dragging ? 0.3 : 1,
         ...(nodeRender.isBlockOrderIcon || nodeRender.isBlockIcon ? { width: 260 } : {}),
       }}
     >

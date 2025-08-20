@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { injectable, inject, multiInject, optional } from 'inversify';
 import { IPoint, OriginSchema, PaddingSchema, ScrollSchema, SizeSchema } from '@flowgram.ai/utils';
 

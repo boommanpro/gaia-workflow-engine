@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { debounce } from 'lodash';
 import { inject, injectable } from 'inversify';
 import { domUtils } from '@flowgram.ai/utils';
@@ -75,23 +80,26 @@ export class StackingContextManager {
       const element = nodeRenderData.node;
       element.style.position = 'absolute';
       if (level === undefined) {
-        element.style.zIndex = 'auto';
         nodeRenderData.stackIndex = 0;
+        element.style.zIndex = 'auto';
         return;
       }
-      const stackIndex = StackingConfig.startIndex + level;
-      element.style.zIndex = String(stackIndex);
-      nodeRenderData.stackIndex = stackIndex;
+      nodeRenderData.stackIndex = level;
+      const zIndex = StackingConfig.startIndex + level;
+      element.style.zIndex = String(zIndex);
     });
     this.lines.forEach((line) => {
       const level = lineLevel.get(line.id);
       const element = line.node;
       element.style.position = 'absolute';
       if (level === undefined) {
+        line.stackIndex = 0;
         element.style.zIndex = 'auto';
         return;
       }
-      element.style.zIndex = String(StackingConfig.startIndex + level);
+      line.stackIndex = level;
+      const zIndex = StackingConfig.startIndex + level;
+      element.style.zIndex = String(zIndex);
     });
   }
 

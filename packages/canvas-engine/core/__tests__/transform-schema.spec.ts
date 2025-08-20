@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { Container } from 'inversify';
 import { type IPoint, PI, Rectangle, type SizeSchema } from '@flowgram.ai/utils';
 

@@ -1,4 +1,9 @@
-import React, { useCallback, useEffect, useContext, useMemo, useRef } from 'react';
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
+import React, { useCallback, useEffect, useContext, useMemo, useRef, useState } from 'react';
 
 import { useObserve } from '@flowgram.ai/reactive';
 import { useStartDragNode } from '@flowgram.ai/fixed-drag-plugin';
@@ -17,6 +22,16 @@ import {
 import { FlowOperationService } from '../types';
 
 export interface NodeRenderReturnType {
+  id: string;
+  type: string | number;
+  /**
+   * 节点 data 数据
+   */
+  data: any;
+  /**
+   * 更新节点 data 数据
+   */
+  updateData: (newData: any) => void;
   /**
    * BlockOrderIcon节点，一般用于分支的第一个占位节点
    */
@@ -100,6 +115,9 @@ export function useNodeRender(nodeFromProps?: FlowNodeEntity): NodeRenderReturnT
   const playground = usePlayground();
   const isBlockOrderIcon = renderNode.flowNodeType === FlowNodeBaseType.BLOCK_ORDER_ICON;
   const isBlockIcon = renderNode.flowNodeType === FlowNodeBaseType.BLOCK_ICON;
+  const [formValueVersion, updateFormValueVersion] = useState<number>(0);
+  const formValueDependRef = useRef(false);
+  formValueDependRef.current = false;
   // 在 BlockIcon 情况，如果在触发 fromJSON 时候更新表单数据导致刷新节点会存在 renderNode.parent 为 undefined，所以这里 nodeCache 进行缓存
   const node =
     (isBlockOrderIcon || isBlockIcon ? renderNode.parent! : renderNode) || nodeCache.current;
@@ -154,10 +172,35 @@ export function useNodeRender(nodeFromProps?: FlowNodeEntity): NodeRenderReturnT
     return () => dispose?.dispose();
   }, [renderNode, isBlockIcon, isBlockOrderIcon]);
 
+  useEffect(() => {
+    const toDispose = form?.onFormValuesChange(() => {
+      if (formValueDependRef.current) {
+        updateFormValueVersion((v) => v + 1);
+      }
+    });
+    return () => toDispose?.dispose();
+  }, [form]);
+
   const readonly = playground.config.readonly;
 
   return useMemo(
     () => ({
+      id: node.id,
+      type: node.flowNodeType,
+      get data() {
+        if (form) {
+          formValueDependRef.current = true;
+          return form.values;
+        }
+        return getExtInfo();
+      },
+      updateData(values: any) {
+        if (form) {
+          form.updateFormValues(values);
+        } else {
+          updateExtInfo(values);
+        }
+      },
       node,
       isBlockOrderIcon,
       isBlockIcon,
@@ -177,6 +220,7 @@ export function useNodeRender(nodeFromProps?: FlowNodeEntity): NodeRenderReturnT
         return {
           ...form,
           get values() {
+            formValueDependRef.current = true;
             return form.values!;
           },
           get state() {
@@ -202,6 +246,7 @@ export function useNodeRender(nodeFromProps?: FlowNodeEntity): NodeRenderReturnT
       toggleExpand,
       form,
       formState,
+      formValueVersion,
     ]
   );
 }

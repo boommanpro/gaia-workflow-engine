@@ -1,74 +1,80 @@
 # Variable Basics
 
-## Business Context
+## What is a Variable?
 
-In workflow orchestration, information needs to be passed between nodes. To achieve this, we use **variables** to store and manage this information.
+Imagine you're building a complex Lego model where each module needs to connect precisely. In the world of Workflows, **variables** play a similar role as "connectors." They are the "messengers" used to pass information between different nodes.
 
-:::warning A variable consists of three main components:
+Simply put, a variable is a named container where you can store various things, such as user input, calculation results, or data retrieved from somewhere.
 
-1. **Unique Identifier**: The name of the variable, used to distinguish between different variables so they can be accurately referenced and used in the program. Examples: `userName` or `totalAmount`.
-2. **Value**: The data stored in the variable. Values can be of various types, such as numbers (e.g., `42`), strings (e.g., `"Hello!"`), booleans (e.g., `true`), etc.
-3. **Type**: The kind of data the variable can store. The type determines what values the variable can accept. For example, a variable can be an integer, float, string, boolean, etc.
+A variable typically consists of three parts:
 
-:::
+- **Name (Unique Identifier)**: Like your name, it allows everyone to find this variable accurately. For example, `userName`, `orderId`.
+- **Value**: The content inside the container. It can be a number `123`, text `"Hello Flowgram!"`, or a switch state `true` / `false`.
+- **Type**: Specifies what kind of things this container can hold. For instance, some can only hold numbers, while others can only hold text.
 
-Here’s an example of workflow orchestration: The WebSearch node retrieves knowledge and passes it to the LLM node for analysis via `natural_language_desc`.
+---
+
+For example, in an "Intelligent Q&A" flow:
 
 <div style={{display: 'flex', gap: '20px'}}>
   <img style={{width: "50%"}} loading="lazy" src="/variable/variable-biz-context-websearch-llm.png" />
   <div>
-    In this example:
-    <p style={{marginTop: 10}}>1. The WebSearch node stores the information (value) in a variable with the unique identifier `natural_language_desc`.</p>
-    <p style={{marginTop: 5}}>2. The LLM node retrieves the knowledge base information (value) via the `natural_language_desc` identifier and passes it to the LLM node for analysis.</p>
-    <p style={{marginTop: 5}}>3. The `natural_language_desc` variable is of type string, representing the content retrieved from the web, such as "DeepSeek released a new model today."</p>
+    <p style={{marginTop: 10}}>1. **`WebSearch` Node**: Responsible for searching the web and putting the found knowledge (e.g., the answer to "What's the weather like today?") into a variable named `natural_language_desc`.</p>
+    <p style={{marginTop: 5}}>2. **`LLM` Node**: It takes the `natural_language_desc` "messenger," reads its content, and then answers the user in a more natural and friendly way.</p>
+    <p style={{marginTop: 5}}>3. In this process, the type of `natural_language_desc` is "string" because it contains text content.</p>
   </div>
 </div>
 
-## What is the Variable Engine?
+## Why Do You Need a Variable Engine?
 
-The variable engine is an optional built-in feature provided by Flowgram to help streamline **variable information orchestration** in workflow design more efficiently. It enables the following functionalities:
+As the complexity of workflows increases, so do the number and management difficulty of variables.
+
+To address this challenge, Flowgram provides a powerful **Variable Engine**.
+
+It acts like a professional "data steward," systematically managing all variables to ensure the clarity and stability of the data flow.
+
+Enabling the Variable Engine will bring you the following core advantages:
 
 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "25px" }}>
   <div style={{ gridColumn: "span 2" }}>
-    <b>Scope Constraint Control</b>
-    <p className="rs-tip">With the variable engine, you can control the scope of variables, ensuring they are available within the appropriate range and avoiding unnecessary conflicts.</p>
+    <b>Scope Constraints: Precise Data Access Control</b>
+    <p className="rs-tip">The Variable Engine can precisely control the effective range (i.e., scope) of each variable. Like having specific keys for different rooms, it ensures that variables are only accessed within the intended nodes, effectively preventing data pollution and unexpected logical errors.</p>
     <div style={{display: "flex", gap: "25px"}}>
       <div>
         <img loading="lazy" src="/variable/variable-scope-feature-1.png" />
-        <p style={{marginTop: '10px'}}>In the diagram, the `query` variable from the Start node can be accessed by subsequent LLM and End nodes.</p>
+        <p style={{marginTop: '10px'}}>The `query` variable defined in the `Start` node can be easily accessed by the subsequent `LLM` and `End` nodes.</p>
       </div>
       <div>
         <img loading="lazy" src="/variable/variable-scope-feature-2.png" />
-        <p style={{marginTop: '10px'}}>In the diagram, the LLM node is inside a Condition branch, while the End node is outside. Thus, the End node's variable selector cannot access the `result` variable from the LLM node.</p>
+        <p style={{marginTop: '10px'}}>The `LLM` node is in a `Condition` branch, like being in a separate room. The `End` node outside naturally cannot access its `result` variable.</p>
       </div>
     </div>
   </div>
   <div>
-    <b>Variable Information Tree Maintenance</b>
-    <p className="rs-tip">The variable engine helps you build a clear variable information tree, making it easier to view and manage the state and relationships of all variables.</p>
+    <b>Variable Structure Insight: Easily Understand Complex Data</b>
+    <p className="rs-tip">When a variable becomes complex (e.g., an object with many levels), the Variable Engine allows you to explore its internal structure layer by layer, like peeling an onion, with all details at your fingertips.</p>
     <img loading="lazy" src="/variable/variable-tree-management.gif" />
-    <p style={{marginTop: '10px'}}>The diagram shows output variables from multiple nodes and global configurations, with some variables containing multiple sub-variables forming a tree structure.</p>
+    <p style={{marginTop: '10px'}}>In this diagram, you can see the output variables of all nodes and their hierarchical relationships, like a lush tree.</p>
   </div>
   <div>
-    <b>Automatic Type Inference</b>
-    <p className="rs-tip">The variable engine can automatically infer variable types based on context, reducing the need for manual type specification and improving development efficiency.</p>
+    <b>Automatic Type Inference: A Spark of Genius</b>
+    <p className="rs-tip">You no longer need to tell each variable what its type should be. The Variable Engine, like your "soulmate," will automatically infer its type based on the context.</p>
     <img loading="lazy" src="/variable/variable-batch-auto-infer.gif" />
-    <p style={{marginTop: '10px'}}>In the diagram, the Batch node processes the `arr` variable from the Start node. When the type of the `arr` variable changes, the type of the `item` variable output by the Batch node also changes accordingly.</p>
+    <p style={{marginTop: '10px'}}>For example, when the type of the `arr` variable in the `Start` node changes, the type of the `item` output by the `Batch` node will also be automatically updated to ensure type consistency.</p>
   </div>
 </div>
 
-## Enabling the Variable Engine
+## How to Enable the Variable Engine?
 
-[> API Detail](https://flowgram.ai/auto-docs/editor/interfaces/VariablePluginOptions.html)
+You can enable the Variable Engine with a simple configuration to experience its powerful features.
+
+[> View API Details](https://flowgram.ai/auto-docs/editor/interfaces/VariablePluginOptions.html)
 
 ```tsx pure title="use-editor-props.ts" {3}
-
-// EditorProps
+// Enable the Variable Engine in EditorProps
 {
   variableEngine: {
-    /**
-     * The variable engine must be enabled to use this feature.
-     */
+    // Set to true to enable the Variable Engine
     enable: true
   }
 }

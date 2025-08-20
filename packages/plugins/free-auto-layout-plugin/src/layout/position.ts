@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { WorkflowDocument } from '@flowgram.ai/free-layout-core';
 import { PositionSchema, startTween, TransformData } from '@flowgram.ai/core';
 
@@ -8,6 +13,19 @@ export class LayoutPosition {
   constructor(private readonly store: LayoutStore) {}
 
   public async position(): Promise<void> {
+    if (this.store.options.enableAnimation) {
+      return this.positionWithAnimation();
+    }
+    return this.positionDirectly();
+  }
+
+  private positionDirectly(): void {
+    this.store.nodes.forEach((layoutNode) => {
+      this.updateNodePosition({ layoutNode, step: 100 });
+    });
+  }
+
+  private async positionWithAnimation(): Promise<void> {
     return new Promise((resolve) => {
       startTween({
         from: { d: 0 },

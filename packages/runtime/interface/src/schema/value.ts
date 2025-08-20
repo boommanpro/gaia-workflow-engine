@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 // TODO copy packages/materials/form-materials/src/typings/flow-value/index.ts
 
 export interface IFlowConstantValue {

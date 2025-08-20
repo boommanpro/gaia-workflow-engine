@@ -1,179 +1,71 @@
-import { type MouseEvent, useCallback, useContext, useRef, useState } from 'react';
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
 
-import {
-    Field,
-    FieldRenderProps,
-    useClientContext,
-    useService,
-} from '@flowgram.ai/free-layout-editor';
-import { NodeIntoContainerService } from '@flowgram.ai/free-container-plugin';
-import { Button, Dropdown, IconButton, Input, Typography } from '@douyinfe/semi-ui';
-import { IconExport, IconMore, IconPlay } from '@douyinfe/semi-icons';
+import { useContext, useState } from 'react';
 
-import { Feedback } from '../feedback';
-import { FlowNodeRegistry } from '../../typings';
+import { useClientContext, CommandService } from '@flowgram.ai/free-layout-editor';
+import { Button } from '@douyinfe/semi-ui';
+import { IconClose, IconSmallTriangleDown, IconSmallTriangleLeft } from '@douyinfe/semi-icons';
+
+import { toggleLoopExpanded } from '../../utils';
 import { FlowCommandId } from '../../shortcuts';
-import { useModal } from '../../hooks/use-code-editor-modal.tsx';
 import { useIsSidebar, useNodeRenderContext } from '../../hooks';
-import { PanelEnum, SidebarContext } from '../../context';
+import { SidebarContext } from '../../context';
+import { NodeMenu } from '../../components/node-menu';
 import { getIcon } from './utils';
-import { Header, Operators, Title } from './styles';
-
-const { Text } = Typography;
-
-function DropdownContent() {
-    const [key, setKey] = useState(0);
-    const { node, deleteNode } = useNodeRenderContext();
-    const clientContext = useClientContext();
-    const registry = node.getNodeRegistry<FlowNodeRegistry>();
-    const nodeIntoContainerService = useService<NodeIntoContainerService>(NodeIntoContainerService);
-    const canMoveOut = nodeIntoContainerService.canMoveOutContainer(node);
-
-    const rerenderMenu = useCallback(() => {
-        setKey((prevKey) => prevKey + 1);
-    }, []);
-
-    const handleMoveOut = useCallback(
-        (e: MouseEvent) => {
-            e.stopPropagation();
-            nodeIntoContainerService.moveOutContainer({ node });
-            nodeIntoContainerService.removeNodeLines(node);
-            requestAnimationFrame(rerenderMenu);
-        },
-        [nodeIntoContainerService, node, rerenderMenu]
-    );
-
-    const handleCopy = useCallback(
-        (e: React.MouseEvent) => {
-            clientContext.playground.commandService.executeCommand(FlowCommandId.COPY, node);
-            e.stopPropagation(); // Disable clicking prevents the sidebar from opening
-        },
-        [clientContext, node]
-    );
-
-    const handleDelete = useCallback(
-        (e: React.MouseEvent) => {
-            deleteNode();
-            e.stopPropagation(); // Disable clicking prevents the sidebar from opening
-        },
-        [clientContext, node]
-    );
-
-    return (
-        <Dropdown
-            trigger="hover"
-            position="bottomRight"
-            onVisibleChange={rerenderMenu}
-            render={
-                <Dropdown.Menu key={key}>
-                    {canMoveOut && <Dropdown.Item onClick={handleMoveOut}>Move out</Dropdown.Item>}
-                    <Dropdown.Item onClick={handleCopy} disabled={registry.meta!.copyDisable === true}>
-                        Copy
-                    </Dropdown.Item>
-                    <Dropdown.Item
-                        onClick={handleDelete}
-                        disabled={!!(registry.canDelete?.(clientContext, node) || registry.meta!.deleteDisable)}
-                    >
-                        Delete
-                    </Dropdown.Item>
-                </Dropdown.Menu>
-            }
-        >
-            <IconButton
-                color="secondary"
-                size="small"
-                theme="borderless"
-                icon={<IconMore />}
-                onClick={(e) => e.stopPropagation()}
-            />
-        </Dropdown>
-    );
-}
+import { TitleInput } from './title-input';
+import { Header, Operators } from './styles';
 
 export function FormHeader() {
-    const { openModal, modal } = useModal('', 'json');
-    const { node, expanded, toggleExpand, readonly } = useNodeRenderContext();
-    const registry = node.getNodeRegistry<FlowNodeRegistry>();
-    const isSidebar = useIsSidebar();
-    const [isEditing, setIsEditing] = useState(false);
-    const inputRef = useRef<HTMLInputElement>(null);
-    const sidebar = useContext(SidebarContext);
+  const { node, expanded, toggleExpand, readonly } = useNodeRenderContext();
+  const [titleEdit, updateTitleEdit] = useState<boolean>(false);
+  const ctx = useClientContext();
+  const { setNodeId } = useContext(SidebarContext);
+  const isSidebar = useIsSidebar();
+  const handleExpand = (e: React.MouseEvent) => {
+    toggleExpand();
+    // 折叠 loop 子节点
+    if (node.flowNodeType === 'loop') {
+      toggleLoopExpanded(node);
+    }
+    e.stopPropagation(); // Disable clicking prevents the sidebar from opening
+  };
+  const handleDelete = () => {
+    ctx.get<CommandService>(CommandService).executeCommand(FlowCommandId.DELETE, [node]);
+  };
+  const handleClose = () => {
+    setNodeId(undefined);
+  };
 
-    const handleDoubleClick = () => {
-        if (!readonly) {
-            setIsEditing(true);
-            setTimeout(() => inputRef.current?.focus(), 0);
-        }
-    };
-
-    const handleBlur = (onChange: (value: string) => void, value: string) => {
-        onChange(value);
-        setIsEditing(false);
-    };
-
-    const handleExpand = (e: React.MouseEvent) => {
-        toggleExpand();
-        e.stopPropagation(); // Disable clicking prevents the sidebar from opening
-    };
-
-    const handleRun = (e: React.MouseEvent) => {
-        sidebar.updatePanelValue(PanelEnum.NodeRun, { isRunning: true, nodeRender: node });
-        e.stopPropagation(); // Disable clicking prevents the sidebar from opening
-    };
-
-    const handleConsole = (e: React.MouseEvent) => {
-        const jsonData = JSON.stringify(node.toJSON(), null, 2);
-        openModal(jsonData);
-    };
-    return (
-        <>
-            <Header>
-                {getIcon(node)}
-                <Title onDoubleClick={handleDoubleClick}>
-                    <Field name="title">
-                        {({ field: { value, onChange }, fieldState }: FieldRenderProps<string>) => (
-                            <div style={{ height: 24 }}>
-                                {isEditing ? (
-                                    <Input
-                                        ref={inputRef}
-                                        defaultValue={value}
-                                        onBlur={() => handleBlur(onChange, inputRef.current?.value || '')}
-                                        onEnterPress={() => handleBlur(onChange, inputRef.current?.value || '')}
-                                    />
-                                ) : (
-                                    <Text ellipsis={{ showTooltip: true }}>{value}</Text>
-                                )}
-                                <Feedback errors={fieldState?.errors} />
-                            </div>
-                        )}
-                    </Field>
-                </Title>
-                <span>{node.id}</span>
-                {isSidebar && !registry.meta!.runDisable && (
-                    <Button
-                        type="tertiary"
-                        icon={<IconPlay />}
-                        size="small"
-                        theme="borderless"
-                        onClick={handleRun}
-                    />
-                )}
-                {isSidebar && (
-                    <Button
-                        type="tertiary"
-                        icon={<IconExport />}
-                        size="small"
-                        theme="borderless"
-                        onClick={handleConsole}
-                    />
-                )}
-                {isSidebar || readonly || registry.meta!.hiddenOperators ? undefined : (
-                    <Operators>
-                        <DropdownContent />
-                    </Operators>
-                )}
-            </Header>
-            {modal}
-        </>
-    );
+  return (
+    <Header>
+      {getIcon(node)}
+      <TitleInput readonly={readonly} updateTitleEdit={updateTitleEdit} titleEdit={titleEdit} />
+      {node.renderData.expandable && !isSidebar && (
+        <Button
+          type="primary"
+          icon={expanded ? <IconSmallTriangleDown /> : <IconSmallTriangleLeft />}
+          size="small"
+          theme="borderless"
+          onClick={handleExpand}
+        />
+      )}
+      {readonly ? undefined : (
+        <Operators>
+          <NodeMenu node={node} deleteNode={handleDelete} updateTitleEdit={updateTitleEdit} />
+        </Operators>
+      )}
+      {isSidebar && (
+        <Button
+          type="primary"
+          icon={<IconClose />}
+          size="small"
+          theme="borderless"
+          onClick={handleClose}
+        />
+      )}
+    </Header>
+  );
 }

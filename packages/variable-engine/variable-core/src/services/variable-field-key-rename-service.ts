@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { difference } from 'lodash';
 import { inject, injectable, postConstruct, preDestroy } from 'inversify';
 import { DisposableCollection, Emitter } from '@flowgram.ai/utils';

@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { Event, Disposable } from '@flowgram.ai/utils';
 
 import { BaseVariableField, VariableDeclaration } from '../ast';
@@ -25,6 +30,7 @@ export interface IVariableTable extends Disposable {
   // addVariableToTable(variable: VariableDeclaration): void;
   // removeVariableFromTable(key: string): void;
   dispose(): void;
+  onVariableListChange(observer: (variables: VariableDeclaration[]) => void): Disposable;
   onAnyVariableChange(observer: (changedVariable: VariableDeclaration) => void): Disposable;
-  onAnyChange(observer: () => void): Disposable;
+  onListOrAnyVarChange(observer: () => void): Disposable;
 }

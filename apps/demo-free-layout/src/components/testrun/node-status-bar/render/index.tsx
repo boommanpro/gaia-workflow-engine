@@ -1,14 +1,21 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { FC, useMemo, useState } from 'react';
 
+import classnames from 'classnames';
 import { NodeReport, WorkflowStatus } from '@flowgram.ai/runtime-interface';
 import { Tag, Button, Select } from '@douyinfe/semi-ui';
 import { IconSpin } from '@douyinfe/semi-icons';
 
-import { IconWarningFill } from '../icon/warning';
-import { IconSuccessFill } from '../icon/success';
 import { NodeStatusHeader } from '../header';
-import './index.css';
 import { NodeStatusGroup } from '../group';
+import { IconWarningFill } from '../../../../assets/icon-warning';
+import { IconSuccessFill } from '../../../../assets/icon-success';
+
+import styles from './index.module.less';
 
 interface NodeStatusRenderProps {
   report: NodeReport;
@@ -33,31 +40,24 @@ export const NodeStatusRender: FC<NodeStatusRenderProps> = ({ report }) => {
 
   const tagColor = useMemo(() => {
     if (isNodeSucceed) {
-      return 'node-status-succeed';
+      return styles.nodeStatusSucceed;
     }
     if (isNodeFailed) {
-      return 'node-status-failed';
+      return styles.nodeStatusFailed;
     }
     if (isNodeProcessing) {
-      return 'node-status-processing';
+      return styles.nodeStatusProcessing;
     }
   }, [isNodeSucceed, isNodeFailed, isNodeProcessing]);
 
   const renderIcon = () => {
     if (isNodeProcessing) {
-      return (
-        <IconSpin
-          spin
-          style={{
-            color: 'rgba(77,83,232,1',
-          }}
-        />
-      );
+      return <IconSpin spin className={classnames(styles.icon, styles.processing)} />;
     }
     if (isNodeSucceed) {
       return <IconSuccessFill />;
     }
-    return <IconWarningFill className={tagColor} />;
+    return <IconWarningFill className={classnames(tagColor, styles.round)} />;
   };
   const renderDesc = () => {
     const getDesc = () => {
@@ -76,7 +76,7 @@ export const NodeStatusRender: FC<NodeStatusRenderProps> = ({ report }) => {
 
     const desc = getDesc();
 
-    return desc ? <p style={{ margin: 0 }}>{desc}</p> : null;
+    return desc ? <p className={styles.desc}>{desc}</p> : null;
   };
   const renderCost = () => (
     <Tag size="small" className={tagColor}>
@@ -89,49 +89,23 @@ export const NodeStatusRender: FC<NodeStatusRenderProps> = ({ report }) => {
       return null;
     }
 
-    const count = (
-      <p
-        style={{
-          fontWeight: 500,
-          color: '#333',
-          fontSize: '15px',
-          marginLeft: 12,
-        }}
-      >
-        Total: {snapshots.length}
-      </p>
-    );
+    const count = <p className={styles.count}>Total: {snapshots.length}</p>;
 
     if (snapshots.length <= displayCount) {
       return (
         <>
           {count}
-          <div
-            style={{
-              margin: '12px',
-              display: 'flex',
-              gap: '8px',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-            }}
-          >
+          <div className={styles.snapshotNavigation}>
             {snapshots.map((_, index) => (
               <Button
                 key={index}
                 size="small"
                 type={currentSnapshotIndex === index ? 'primary' : 'tertiary'}
                 onClick={() => setCurrentSnapshotIndex(index)}
-                style={{
-                  minWidth: '32px',
-                  height: '32px',
-                  padding: '0',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  border: '1px solid',
-                  borderColor:
-                    currentSnapshotIndex === index ? '#4d53e8' : 'rgba(29, 28, 35, 0.08)',
-                  fontWeight: currentSnapshotIndex === index ? '800' : '500',
-                }}
+                className={classnames(styles.snapshotButton, {
+                  [styles.active]: currentSnapshotIndex === index,
+                  [styles.inactive]: currentSnapshotIndex !== index,
+                })}
               >
                 {index + 1}
               </Button>
@@ -145,31 +119,17 @@ export const NodeStatusRender: FC<NodeStatusRenderProps> = ({ report }) => {
     return (
       <>
         {count}
-        <div
-          style={{
-            margin: '12px',
-            display: 'flex',
-            gap: '8px',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-          }}
-        >
+        <div className={styles.snapshotNavigation}>
           {snapshots.slice(0, displayCount).map((_, index) => (
             <Button
               key={index}
               size="small"
               type="tertiary"
               onClick={() => setCurrentSnapshotIndex(index)}
-              style={{
-                minWidth: '32px',
-                height: '32px',
-                padding: '0',
-                borderRadius: '4px',
-                fontSize: '12px',
-                border: '1px solid',
-                borderColor: currentSnapshotIndex === index ? '#4d53e8' : 'rgba(29, 28, 35, 0.08)',
-                fontWeight: currentSnapshotIndex === index ? '800' : '500',
-              }}
+              className={classnames(styles.snapshotButton, {
+                [styles.active]: currentSnapshotIndex === index,
+                [styles.inactive]: currentSnapshotIndex !== index,
+              })}
             >
               {index + 1}
             </Button>
@@ -177,13 +137,10 @@ export const NodeStatusRender: FC<NodeStatusRenderProps> = ({ report }) => {
           <Select
             value={currentSnapshotIndex >= displayCount ? currentSnapshotIndex : undefined}
             onChange={(value) => setCurrentSnapshotIndex(value as number)}
-            style={{
-              width: '100px',
-              height: '32px',
-              border: '1px solid',
-              borderColor:
-                currentSnapshotIndex >= displayCount ? '#4d53e8' : 'rgba(29, 28, 35, 0.08)',
-            }}
+            className={classnames(styles.snapshotSelect, {
+              [styles.active]: currentSnapshotIndex >= displayCount,
+              [styles.inactive]: currentSnapshotIndex < displayCount,
+            })}
             size="small"
             placeholder="Select"
           >
@@ -215,13 +172,10 @@ export const NodeStatusRender: FC<NodeStatusRenderProps> = ({ report }) => {
         </>
       }
     >
-      <div
-        style={{
-          width: '100%',
-          height: '100%',
-          padding: '0px 2px 10px 2px',
-        }}
-      >
+      <div className={styles.container}>
+        {isNodeFailed && currentSnapshot?.error && (
+          <div className={styles.error}>{currentSnapshot.error}</div>
+        )}
         {renderSnapshotNavigation()}
         <NodeStatusGroup title="Inputs" data={currentSnapshot?.inputs} />
         <NodeStatusGroup title="Outputs" data={currentSnapshot?.outputs} />

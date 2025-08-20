@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { WorkflowSchema } from '@flowgram.ai/runtime-interface';
 
 export const branchSchema: WorkflowSchema = {
@@ -7,8 +12,8 @@ export const branchSchema: WorkflowSchema = {
       type: 'start',
       meta: {
         position: {
-          x: 0,
-          y: 0,
+          x: 180,
+          y: 368.3,
         },
       },
       data: {
@@ -17,9 +22,6 @@ export const branchSchema: WorkflowSchema = {
           type: 'object',
           properties: {
             model_id: {
-              key: 0,
-              name: 'model_id',
-              isPropertyRequired: false,
               type: 'integer',
               default: 'Hello Flow.',
               extra: {
@@ -27,9 +29,6 @@ export const branchSchema: WorkflowSchema = {
               },
             },
             prompt: {
-              key: 5,
-              name: 'prompt',
-              isPropertyRequired: false,
               type: 'string',
               extra: {
                 index: 1,
@@ -45,8 +44,8 @@ export const branchSchema: WorkflowSchema = {
       type: 'end',
       meta: {
         position: {
-          x: 1500,
-          y: 0,
+          x: 1560,
+          y: 368.3,
         },
       },
       data: {
@@ -79,8 +78,8 @@ export const branchSchema: WorkflowSchema = {
       type: 'condition',
       meta: {
         position: {
-          x: 500,
-          y: 0,
+          x: 640,
+          y: 304.8,
         },
       },
       data: {
@@ -122,8 +121,8 @@ export const branchSchema: WorkflowSchema = {
       type: 'llm',
       meta: {
         position: {
-          x: 1000,
-          y: -500,
+          x: 1100,
+          y: 0,
         },
       },
       data: {
@@ -150,8 +149,8 @@ export const branchSchema: WorkflowSchema = {
             content: "I'm Model 1.",
           },
           prompt: {
-            type: 'ref',
-            content: ['start_0', 'prompt'],
+            type: 'template',
+            content: '{{start_0.prompt}}',
           },
         },
         inputs: {
@@ -172,9 +171,15 @@ export const branchSchema: WorkflowSchema = {
             },
             systemPrompt: {
               type: 'string',
+              extra: {
+                formComponent: 'prompt-editor',
+              },
             },
             prompt: {
               type: 'string',
+              extra: {
+                formComponent: 'prompt-editor',
+              },
             },
           },
         },
@@ -193,8 +198,8 @@ export const branchSchema: WorkflowSchema = {
       type: 'llm',
       meta: {
         position: {
-          x: 1000,
-          y: 500,
+          x: 1100,
+          y: 459.8,
         },
       },
       data: {
@@ -221,8 +226,8 @@ export const branchSchema: WorkflowSchema = {
             content: "I'm Model 2.",
           },
           prompt: {
-            type: 'ref',
-            content: ['start_0', 'prompt'],
+            type: 'template',
+            content: '{{start_0.prompt}}',
           },
         },
         inputs: {
@@ -243,9 +248,15 @@ export const branchSchema: WorkflowSchema = {
             },
             systemPrompt: {
               type: 'string',
+              extra: {
+                formComponent: 'prompt-editor',
+              },
             },
             prompt: {
               type: 'string',
+              extra: {
+                formComponent: 'prompt-editor',
+              },
             },
           },
         },

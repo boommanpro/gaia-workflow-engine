@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 'use client';
 
 import React, { useMemo } from 'react';
@@ -25,6 +30,7 @@ export function ConditionRow({ style, value, onChange, readonly }: PropTypes) {
     rule,
     op: operator,
     onChange: (v) => onChange({ ...value, operator: v }),
+    readonly,
   });
 
   const targetSchema = useMemo(() => {
@@ -62,7 +68,12 @@ export function ConditionRow({ style, value, onChange, readonly }: PropTypes) {
               onChange={(v) => onChange({ ...value, right: v })}
             />
           ) : (
-            <UIInput size="small" disabled value={opConfig?.rightDisplay || 'Empty'} />
+            <UIInput
+              size="small"
+              disabled
+              style={{ pointerEvents: 'none' }}
+              value={opConfig?.rightDisplay || 'Empty'}
+            />
           )}
         </UIRight>
       </UIValues>

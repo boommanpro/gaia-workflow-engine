@@ -1,5 +1,11 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { useCallback, useEffect, useState } from 'react';
 
+import { DisposableCollection } from '@flowgram.ai/utils';
 import {
   EditorState,
   EditorStateConfigEntity,
@@ -7,7 +13,6 @@ import {
   useConfigEntity,
   usePlayground,
 } from '@flowgram.ai/core';
-import { DisposableCollection } from '@flowgram.ai/utils';
 
 export interface PlaygroundToolsPropsType {
   /**
@@ -49,7 +54,7 @@ export interface PlaygroundTools {
 }
 
 export function usePlaygroundTools(props?: PlaygroundToolsPropsType): PlaygroundTools {
-  const { maxZoom = 2, minZoom = 0.25 } = props || {};
+  const { maxZoom, minZoom } = props || {};
   const playground = usePlayground();
   const editorState = useConfigEntity(EditorStateConfigEntity, true);
 
@@ -57,29 +62,23 @@ export function usePlaygroundTools(props?: PlaygroundToolsPropsType): Playground
 
   const handleZoomOut = useCallback(
     (easing?: boolean) => {
-      if (zoom < minZoom) {
-        return;
-      }
       playground.config.zoomout(easing);
     },
-    [zoom, playground, minZoom],
+    [playground]
   );
 
   const handleZoomIn = useCallback(
     (easing?: boolean) => {
-      if (zoom > maxZoom) {
-        return;
-      }
       playground.config.zoomin(easing);
     },
-    [zoom, playground, maxZoom],
+    [playground]
   );
 
   const handleUpdateZoom = useCallback(
     (value: number, easing?: boolean, easingDuration?: number) => {
       playground.config.updateZoom(value, easing, easingDuration);
     },
-    [playground],
+    [playground]
   );
 
   const handleToggleIneractiveType = useCallback(() => {
@@ -92,9 +91,17 @@ export function usePlaygroundTools(props?: PlaygroundToolsPropsType): Playground
 
   useEffect(() => {
     const dispose = new DisposableCollection();
-    dispose.push(playground.onZoom(z => setZoom(z)));
+    dispose.push(playground.onZoom((z) => setZoom(z)));
     return () => dispose.dispose();
   }, [playground]);
+
+  useEffect(() => {
+    const config = playground.config.config;
+    playground.config.updateConfig({
+      maxZoom: maxZoom !== undefined ? maxZoom : config.maxZoom,
+      minZoom: minZoom !== undefined ? minZoom : config.minZoom,
+    });
+  }, [playground, maxZoom, minZoom]);
 
   return {
     zoomin: handleZoomIn,

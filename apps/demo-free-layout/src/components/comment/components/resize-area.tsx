@@ -1,6 +1,11 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { CSSProperties, type FC } from 'react';
 
-import { useNodeRender, usePlayground } from '@flowgram.ai/free-layout-editor';
+import { MouseTouchEvent, useNodeRender, usePlayground } from '@flowgram.ai/free-layout-editor';
 
 import type { CommentEditorModel } from '../model';
 
@@ -26,23 +31,27 @@ export const ResizeArea: FC<IResizeArea> = (props) => {
 
   const { selectNode } = useNodeRender();
 
-  const handleMouseDown = (mouseDownEvent: React.MouseEvent) => {
-    mouseDownEvent.preventDefault();
-    mouseDownEvent.stopPropagation();
+  const handleResizeStart = (
+    startResizeEvent: React.MouseEvent | React.TouchEvent | MouseEvent
+  ) => {
+    MouseTouchEvent.preventDefault(startResizeEvent);
+    startResizeEvent.stopPropagation();
     if (!onResize) {
       return;
     }
     const { resizing, resizeEnd } = onResize();
     model.setFocus(false);
-    selectNode(mouseDownEvent);
+    selectNode(startResizeEvent as React.MouseEvent);
     playground.node.focus(); // 防止节点无法被删除
 
-    const startX = mouseDownEvent.clientX;
-    const startY = mouseDownEvent.clientY;
+    const { clientX: startX, clientY: startY } = MouseTouchEvent.getEventCoord(
+      startResizeEvent as MouseEvent
+    );
 
-    const handleMouseMove = (mouseMoveEvent: MouseEvent) => {
-      const deltaX = mouseMoveEvent.clientX - startX;
-      const deltaY = mouseMoveEvent.clientY - startY;
+    const handleResizing = (mouseMoveEvent: MouseEvent | TouchEvent) => {
+      const { clientX: moveX, clientY: moveY } = MouseTouchEvent.getEventCoord(mouseMoveEvent);
+      const deltaX = moveX - startX;
+      const deltaY = moveY - startY;
       const delta = getDelta?.({ x: deltaX, y: deltaY });
       if (!delta || !resizing) {
         return;
@@ -50,16 +59,22 @@ export const ResizeArea: FC<IResizeArea> = (props) => {
       resizing(delta);
     };
 
-    const handleMouseUp = () => {
+    const handleResizeEnd = () => {
       resizeEnd();
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.removeEventListener('click', handleMouseUp);
+      document.removeEventListener('mousemove', handleResizing);
+      document.removeEventListener('mouseup', handleResizeEnd);
+      document.removeEventListener('click', handleResizeEnd);
+      document.removeEventListener('touchmove', handleResizing);
+      document.removeEventListener('touchend', handleResizeEnd);
+      document.removeEventListener('touchcancel', handleResizeEnd);
     };
 
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-    document.addEventListener('click', handleMouseUp);
+    document.addEventListener('mousemove', handleResizing);
+    document.addEventListener('mouseup', handleResizeEnd);
+    document.addEventListener('click', handleResizeEnd);
+    document.addEventListener('touchmove', handleResizing, { passive: false });
+    document.addEventListener('touchend', handleResizeEnd);
+    document.addEventListener('touchcancel', handleResizeEnd);
   };
 
   return (
@@ -67,7 +82,8 @@ export const ResizeArea: FC<IResizeArea> = (props) => {
       className="workflow-comment-resize-area"
       style={style}
       data-flow-editor-selectable="false"
-      onMouseDown={handleMouseDown}
+      onMouseDown={handleResizeStart}
+      onTouchStart={handleResizeStart}
     />
   );
 };

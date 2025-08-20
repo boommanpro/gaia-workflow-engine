@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { decorate, injectable, Container, type interfaces } from 'inversify';
 import { EntityManager } from '@flowgram.ai/core';
 

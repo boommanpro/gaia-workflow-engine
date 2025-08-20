@@ -1,9 +1,15 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import {
   delay,
   EntityManager,
   FlowNodeTransformData,
   FreeLayoutPluginContext,
   IPoint,
+  PlaygroundConfigEntity,
   Rectangle,
   ShortcutsHandler,
   WorkflowDocument,
@@ -13,6 +19,7 @@ import {
   WorkflowNodeEntity,
   WorkflowNodeMeta,
   WorkflowSelectService,
+  Playground,
 } from '@flowgram.ai/free-layout-editor';
 import { Toast } from '@douyinfe/semi-ui';
 
@@ -25,6 +32,8 @@ export class PasteShortcut implements ShortcutsHandler {
 
   public shortcuts = ['meta v', 'ctrl v'];
 
+  private playgroundConfig: PlaygroundConfigEntity;
+
   private document: WorkflowDocument;
 
   private selectService: WorkflowSelectService;
@@ -35,15 +44,19 @@ export class PasteShortcut implements ShortcutsHandler {
 
   private dragService: WorkflowDragService;
 
+  private playground: Playground;
+
   /**
    * initialize paste shortcut handler - 初始化粘贴快捷键处理器
    */
   constructor(context: FreeLayoutPluginContext) {
+    this.playgroundConfig = context.playground.config;
     this.document = context.get(WorkflowDocument);
     this.selectService = context.get(WorkflowSelectService);
     this.entityManager = context.get(EntityManager);
     this.hoverService = context.get(WorkflowHoverService);
     this.dragService = context.get(WorkflowDragService);
+    this.playground = context.playground;
     this.execute = this.execute.bind(this);
   }
 
@@ -51,6 +64,9 @@ export class PasteShortcut implements ShortcutsHandler {
    * execute paste action - 执行粘贴操作
    */
   public async execute(): Promise<WorkflowNodeEntity[] | undefined> {
+    if (this.readonly) {
+      return;
+    }
     const data = await this.tryReadClipboard();
     if (!data) {
       return;
@@ -88,7 +104,17 @@ export class PasteShortcut implements ShortcutsHandler {
       parent,
     });
     this.selectNodes(nodes);
+    // 这里需要 focus 画布才能继续使用快捷键
+    // The focus canvas is needed here to continue using the shortcuts
+    this.playground.node.focus();
     return nodes;
+  }
+
+  /**
+   * readonly - 是否只读
+   */
+  private get readonly(): boolean {
+    return this.playgroundConfig.readonly;
   }
 
   private isValidData(data?: WorkflowClipboardData): boolean {
@@ -98,12 +124,27 @@ export class PasteShortcut implements ShortcutsHandler {
       });
       return false;
     }
-    // 跨域名表示不同环境，上架插件不同，不能复制
+    // Cross-domain means different environments, different plugins, cannot be copied - 跨域名表示不同环境，上架插件不同，不能复制
     if (data.source.host !== window.location.host) {
       Toast.error({
         content: 'Cannot paste nodes from different host',
       });
       return false;
+    }
+    // Check container - 检查容器
+    const parent = this.getSelectedContainer();
+    for (const nodeJSON of data.json.nodes) {
+      const res = this.dragService.canDropToNode({
+        dragNodeType: nodeJSON.type,
+        dropNodeType: parent?.flowNodeType,
+        dropNode: parent,
+      });
+      if (!res.allowDrop) {
+        Toast.error({
+          content: res.message ?? 'Cannot paste nodes to invalid container',
+        });
+        return false;
+      }
     }
     return true;
   }

@@ -1,4 +1,9 @@
-import { GetFollowNode, LayoutConfig, LayoutOptions, LayoutParams } from './type';
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
+import { LayoutConfig, LayoutOptions, LayoutParams } from './type';
 import { LayoutStore } from './store';
 import { LayoutPosition } from './position';
 import { DagreLayout } from './dagre';
@@ -16,9 +21,8 @@ export class Layout {
     this._position = new LayoutPosition(this._store);
   }
 
-  public init(params: LayoutParams, options: LayoutOptions = {}): void {
-    this._store.create(params);
-    this.setFollowNode(options.getFollowNode);
+  public init(params: LayoutParams, options: LayoutOptions): void {
+    this._store.create(params, options);
   }
 
   public layout(): void {
@@ -33,21 +37,5 @@ export class Layout {
       return;
     }
     return await this._position.position();
-  }
-
-  public setFollowNode(getFollowNode?: GetFollowNode): void {
-    if (!getFollowNode) return;
-    const context = { store: this._store };
-    this._store.nodes.forEach((node) => {
-      const followTo = getFollowNode(node, context)?.followTo;
-      if (!followTo) return;
-      const followToNode = this._store.getNode(followTo);
-      if (!followToNode) return;
-      if (!followToNode.followedBy) {
-        followToNode.followedBy = [];
-      }
-      followToNode.followedBy.push(node.id);
-      node.followTo = followTo;
-    });
   }
 }

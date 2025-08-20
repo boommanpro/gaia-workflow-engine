@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { I18n, type I18nLanguage } from '@flowgram.ai/i18n';
 import { definePluginCreator } from '@flowgram.ai/core';
 

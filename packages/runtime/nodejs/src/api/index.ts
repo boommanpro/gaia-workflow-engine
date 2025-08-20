@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { FlowGramAPINames } from '@flowgram.ai/runtime-interface';
 
 import { APIRouter } from './type';

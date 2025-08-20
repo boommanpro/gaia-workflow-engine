@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { FC, type MouseEvent, useCallback, useState } from 'react';
 
 import { Button, Dropdown } from 'antd';
@@ -44,7 +49,7 @@ export const NodeMenu: FC<NodeMenuProps> = ({ node, deleteNode, updateTitleEdit 
       e.stopPropagation();
       const sourceParent = node.parent;
       // move out of container - 移出容器
-      nodeIntoContainerService.moveOutContainer({ node });
+      await nodeIntoContainerService.moveOutContainer({ node });
       // clear invalid lines - 清除非法线条
       await nodeIntoContainerService.clearInvalidLines({
         dragNode: node,

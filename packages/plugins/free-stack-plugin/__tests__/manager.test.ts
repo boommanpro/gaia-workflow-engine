@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { it, expect, beforeEach, describe, vi } from 'vitest';
 import { debounce } from 'lodash';
 import { interfaces } from 'inversify';

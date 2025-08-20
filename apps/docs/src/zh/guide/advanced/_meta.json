@@ -2,24 +2,30 @@
   {
     "type": "dir",
     "name": "free-layout",
-    "label": "自由布局"
+    "label": "自由布局",
+    "collapsed": true
   },
   {
     "type": "dir",
     "name": "fixed-layout",
-    "label": "固定布局"
+    "label": "固定布局",
+    "collapsed": true
   },
   "form",
   "without-form",
   {
     "type": "dir",
     "name": "variable",
-    "label": "变量"
+    "label": "变量",
+    "collapsed": true
   },
+  "zoom-scroll",
   "history",
   "shortcuts",
   "minimap",
   "custom-plugin",
   "custom-service",
-  "form-materials"
+  "custom-layer",
+  "form-materials",
+  "background"
 ]

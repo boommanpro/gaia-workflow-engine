@@ -1,8 +1,13 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import React, { useCallback } from 'react';
 
+import { DisplaySchemaTag } from '@flowgram.ai/form-materials';
 import { Typography, Tooltip } from '@douyinfe/semi-ui';
 
-import { TypeTag } from '../type-tag';
 import './index.css';
 
 const { Text } = Typography;
@@ -14,6 +19,7 @@ interface FormItemProps {
   required?: boolean;
   description?: string;
   labelWidth?: number;
+  vertical?: boolean;
 }
 export function FormItem({
   children,
@@ -22,6 +28,7 @@ export function FormItem({
   description,
   type,
   labelWidth,
+  vertical,
 }: FormItemProps): JSX.Element {
   const renderTitle = useCallback(
     (showTooltip?: boolean) => (
@@ -42,9 +49,13 @@ export function FormItem({
         width: '100%',
         position: 'relative',
         display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
         gap: 8,
+        ...(vertical
+          ? { flexDirection: 'column' }
+          : {
+              justifyContent: 'center',
+              alignItems: 'center',
+            }),
       }}
     >
       <div
@@ -59,7 +70,7 @@ export function FormItem({
           flexShrink: 0,
         }}
       >
-        <TypeTag className="form-item-type-tag" type={type} />
+        <DisplaySchemaTag value={{ type }} />
         {description ? <Tooltip content={description}>{renderTitle()}</Tooltip> : renderTitle(true)}
       </div>
 

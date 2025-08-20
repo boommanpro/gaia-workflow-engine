@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 export enum FlowGramAPIMethod {
   GET = 'GET',
   POST = 'POST',
@@ -12,11 +17,10 @@ export enum FlowGramAPIName {
   TaskReport = 'TaskReport',
   TaskResult = 'TaskResult',
   TaskCancel = 'TaskCancel',
-  Validation = 'Validation',
+  TaskValidate = 'TaskValidate',
 }
 
 export enum FlowGramAPIModule {
   Info = 'Info',
   Task = 'Task',
-  Validation = 'Validation',
 }

@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { useMemo } from 'react';
 
 import { debounce } from 'lodash-es';
@@ -17,12 +22,13 @@ import { type FlowNodeRegistry } from '../typings';
 import { shortcutGetter } from '../shortcuts';
 import { CustomService } from '../services';
 import { GroupBoxHeader, GroupNode } from '../plugins/group-plugin';
-import { createSyncVariablePlugin, createClipboardPlugin } from '../plugins';
+import { createClipboardPlugin, createVariablePanelPlugin } from '../plugins';
 import { SelectorBoxPopover } from '../components/selector-box-popover';
 import NodeAdder from '../components/node-adder';
 import BranchAdder from '../components/branch-adder';
 import { BaseNode } from '../components/base-node';
-import { DragNode } from '../components';
+import { AgentLabel } from '../components/agent-label';
+import { DragNode, AgentAdder } from '../components';
 
 export function useEditorProps(
   initialData: FlowDocumentJSON,
@@ -34,6 +40,17 @@ export function useEditorProps(
        * Whether to enable the background
        */
       background: true,
+      /**
+       * 画布相关配置
+       * Canvas-related configurations
+       */
+      playground: {
+        /**
+         * Prevent Mac browser gestures from turning pages
+         * 阻止 mac 浏览器手势翻页
+         */
+        preventGlobalGesture: true,
+      },
       /**
        * Whether it is read-only or not, the node cannot be dragged in read-only mode
        */
@@ -91,6 +108,7 @@ export function useEditorProps(
        */
       constants: {
         // [ConstantKeys.NODE_SPACING]: 24,
+        // [ConstantKeys.BRANCH_SPACING]: 20,
         // [ConstantKeys.INLINE_SPACING_BOTTOM]: 24,
         // [ConstantKeys.INLINE_BLOCKS_INLINE_SPACING_BOTTOM]: 13,
         // [ConstantKeys.ROUNDED_LINE_X_RADIUS]: 8,
@@ -107,6 +125,7 @@ export function useEditorProps(
       selectBox: {
         SelectorBoxPopover,
       },
+
       // Config shortcuts
       shortcuts: (registry: ShortcutsRegistry, ctx) => {
         registry.addHandlers(...shortcutGetter.map((getter) => getter(ctx)));
@@ -141,6 +160,7 @@ export function useEditorProps(
         enable: true,
         enableChangeNode: true, // Listen Node engine data change
         onApply: debounce((ctx, opt) => {
+          if (ctx.document.disposed) return;
           // Listen change to trigger auto save
           console.log('auto save: ', ctx.document.toJSON());
         }, 100),
@@ -168,6 +188,8 @@ export function useEditorProps(
           [FlowRendererKey.ADDER]: NodeAdder, // Node Add Button
           [FlowRendererKey.BRANCH_ADDER]: BranchAdder, // Branch Add Button
           [FlowRendererKey.DRAG_NODE]: DragNode, // Component in node dragging
+          [FlowRendererKey.SLOT_ADDER]: AgentAdder, // Agent adder
+          [FlowRendererKey.SLOT_LABEL]: AgentLabel, // Agent label
         },
         renderDefaultNode: BaseNode, // node render
         renderTexts: {
@@ -183,6 +205,13 @@ export function useEditorProps(
        */
       onBind: ({ bind }) => {
         bind(CustomService).toSelf().inSingletonScope();
+      },
+      scroll: {
+        /**
+         * 限制滚动，防止节点都看不到
+         * Limit scrolling so that none of the nodes can see it
+         */
+        enableScrollLimit: true,
       },
       /**
        * Playground init
@@ -200,7 +229,8 @@ export function useEditorProps(
        */
       onAllLayersRendered: (ctx) => {
         setTimeout(() => {
-          ctx.playground.config.fitView(ctx.document.root.bounds.pad(30));
+          // fitView all nodes
+          ctx.tools.fitView();
         }, 10);
         console.log(ctx.document.toString(true)); // Get the document tree
       },
@@ -248,15 +278,16 @@ export function useEditorProps(
           },
         }),
         /**
-         * Variable plugin
-         * 变量插件
-         */
-        createSyncVariablePlugin({}),
-        /**
          * Clipboard plugin
          * 剪切板插件
          */
         createClipboardPlugin(),
+
+        /**
+         * Variable panel plugin
+         * 变量面板插件
+         */
+        createVariablePanelPlugin({}),
       ],
     }),
     []

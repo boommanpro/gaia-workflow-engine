@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { FormItemMaterialContext } from '../../models';
 
 // 这里参照了rehaje 的validator function 返回格式

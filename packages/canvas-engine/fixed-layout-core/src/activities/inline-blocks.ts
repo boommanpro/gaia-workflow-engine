@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { Point } from '@flowgram.ai/utils';
 import { FlowRendererKey } from '@flowgram.ai/renderer';
 import {
@@ -43,7 +48,7 @@ export const InlineBlocksRegistry: FlowNodeRegistry = {
         // 如果小于最小宽度，偏移最小宽度的距离
         const delta = Math.max(
           child.parent!.minInlineBlockSpacing - leftSpacing,
-          DEFAULT_SPACING.MARGIN_RIGHT - child.originDeltaX
+          getDefaultSpacing(child.entity, ConstantKeys.BRANCH_SPACING) - child.originDeltaX
         );
 
         return {
@@ -57,7 +62,7 @@ export const InlineBlocksRegistry: FlowNodeRegistry = {
         // 如果小于最小高度，偏移最小高度的距离
         const delta = Math.max(
           child.parent!.minInlineBlockSpacing - bottomSpacing,
-          DEFAULT_SPACING.MARGIN_RIGHT - child.originDeltaY
+          getDefaultSpacing(child.entity, ConstantKeys.BRANCH_SPACING) - child.originDeltaY
         );
 
         return {

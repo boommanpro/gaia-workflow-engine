@@ -1,0 +1,22 @@
+lockfileVersion: '6.0'
+
+dependencies:
+  ignore:
+    specifier: ^7.0.4
+    version: 7.0.4
+
+devDependencies:
+  '@types/node':
+    specifier: ^20
+    version: 20.0.0
+
+packages:
+
+  /@types/node@20.0.0:
+    resolution: {integrity: sha512-cD2uPTDnQQCVpmRefonO98/PPijuOnnEy5oytWJFPY1N9aJCz2wJ5kSGWO+zJoed2cY2JxQh6yBuUq4vIn61hw==}
+    dev: true
+
+  /ignore@7.0.4:
+    resolution: {integrity: sha512-gJzzk+PQNznz8ysRrC0aOkBNVRBDtE1n53IqyqEf3PXrYwomFs5q4pGMizBMJF+ykh03insJ27hB8gSrD2Hn8A==}
+    engines: {node: '>= 4'}
+    dev: false

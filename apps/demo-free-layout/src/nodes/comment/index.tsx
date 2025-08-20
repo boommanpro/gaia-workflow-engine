@@ -1,10 +1,16 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { WorkflowNodeType } from '../constants';
 import { FlowNodeRegistry } from '../../typings';
 
 export const CommentNodeRegistry: FlowNodeRegistry = {
   type: WorkflowNodeType.Comment,
   meta: {
-    sidebarDisable: true,
+    sidebarDisabled: true,
+    nodePanelVisible: false,
     defaultPorts: [],
     renderKey: WorkflowNodeType.Comment,
     size: {

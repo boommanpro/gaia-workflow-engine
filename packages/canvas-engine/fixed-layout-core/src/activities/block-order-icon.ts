@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { IPoint, Point } from '@flowgram.ai/utils';
 import { DefaultSpacingKey, getDefaultSpacing } from '@flowgram.ai/document';
 import {

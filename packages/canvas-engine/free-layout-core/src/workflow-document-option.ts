@@ -1,5 +1,10 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { FlowNodeErrorData } from '@flowgram.ai/form-core';
-import { FlowDocumentOptions, FlowNodeTransformData } from '@flowgram.ai/document';
+import { FlowDocumentOptions, FlowNodeTransformData, FlowNodeType } from '@flowgram.ai/document';
 import { TransformData } from '@flowgram.ai/core';
 
 import { type WorkflowLinesManager } from './workflow-lines-manager';
@@ -48,8 +53,6 @@ export interface WorkflowDocumentOptions extends FlowDocumentOptions {
   isFlowingLine?: (line: WorkflowLineEntity) => boolean;
   /** 是否禁用线条 */
   isDisabledLine?: (line: WorkflowLineEntity) => boolean;
-  /** 是否竖向线条 */
-  isVerticalLine?: (line: WorkflowLineEntity) => boolean;
   /** 拖拽线条结束 */
   onDragLineEnd?: (params: onDragLineEndParams) => Promise<void>;
   /** 获取线条渲染器 */
@@ -83,6 +86,17 @@ export interface WorkflowDocumentOptions extends FlowDocumentOptions {
     newToPort: WorkflowPortEntity,
     lines: WorkflowLinesManager
   ) => boolean;
+  /**
+   * 是否允许拖入子画布 (loop or group)
+   * Whether to allow dragging into the sub-canvas (loop or group)
+   * @param params
+   */
+  canDropToNode?: (params: {
+    dragNodeType?: FlowNodeType;
+    dragNode?: WorkflowNodeEntity;
+    dropNode?: WorkflowNodeEntity;
+    dropNodeType?: FlowNodeType;
+  }) => boolean;
 }
 
 export const WorkflowDocumentOptionsDefault: WorkflowDocumentOptions = {

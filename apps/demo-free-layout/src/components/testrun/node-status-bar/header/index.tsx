@@ -1,9 +1,16 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import React, { useState } from 'react';
 
+import classNames from 'classnames';
 import { IconChevronDown } from '@douyinfe/semi-icons';
 
 import { useNodeRenderContext } from '../../../../hooks';
-import { NodeStatusHeaderContentStyle, NodeStatusHeaderStyle } from './style';
+
+import styles from './index.module.less';
 
 interface NodeStatusBarProps {
   header?: React.ReactNode;
@@ -27,26 +34,34 @@ export const NodeStatusHeader: React.FC<React.PropsWithChildren<NodeStatusBarPro
   };
 
   return (
-    <NodeStatusHeaderStyle
+    <div
+      className={styles['node-status-header']}
       // 必须要禁止 down 冒泡，防止判定圈选和 node hover（不支持多边形）
       onMouseDown={(e) => e.stopPropagation()}
     >
-      <NodeStatusHeaderContentStyle
-        className={showDetail ? 'status-header-opened' : ''}
+      <div
+        className={classNames(
+          styles['node-status-header-content'],
+          showDetail && styles['node-status-header-content-opened']
+        )}
         // 必须要禁止 down 冒泡，防止判定圈选和 node hover（不支持多边形）
         onMouseDown={(e) => e.stopPropagation()}
         // 其他事件统一走点击事件，且也需要阻止冒泡
         onClick={handleToggleShowDetail}
       >
-        <div className="status-title">
+        <div className={styles['status-title']}>
           {header}
           {extraBtns.length > 0 ? extraBtns : null}
         </div>
-        <div className="status-btns">
-          <IconChevronDown className={showDetail ? 'is-show-detail' : ''} />
+        <div className={styles['status-btns']}>
+          <IconChevronDown
+            className={classNames({
+              [styles['is-show-detail']]: showDetail,
+            })}
+          />
         </div>
-      </NodeStatusHeaderContentStyle>
+      </div>
       {showDetail ? children : null}
-    </NodeStatusHeaderStyle>
+    </div>
   );
 };

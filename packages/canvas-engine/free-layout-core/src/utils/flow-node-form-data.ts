@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { FlowNodeFormData } from '@flowgram.ai/form-core';
 import { FlowNodeEntity, FlowNodeJSON } from '@flowgram.ai/document';
 

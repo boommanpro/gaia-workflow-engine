@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import React, { useState } from 'react';
 
 import {
@@ -78,7 +83,8 @@ function TryCatchCollapse(props: CustomLabelProps): JSX.Element {
             cursor: 'pointer',
             justifyContent: 'center',
             alignItems: 'center',
-            background: hoverActivated ? baseActivatedColor : baseColor,
+            background:
+              hoverActivated || activateData.lineActivated ? baseActivatedColor : baseColor,
           }}
           aria-hidden="true"
         >
@@ -132,7 +138,7 @@ function TryCatchCollapse(props: CustomLabelProps): JSX.Element {
         data-label-id={props.labelId}
         style={{
           fontSize: 12,
-          color: hoverActivated ? baseActivatedColor : baseColor,
+          color: hoverActivated || activateData.lineActivated ? baseActivatedColor : baseColor,
           textAlign: 'center',
           whiteSpace: 'nowrap',
           backgroundColor: 'var(--g-editor-background)',

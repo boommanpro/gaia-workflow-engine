@@ -2,24 +2,30 @@
   {
     "type": "dir",
     "name": "free-layout",
-    "label": "Free Layout"
+    "label": "Free Layout",
+    "collapsed": true
   },
   {
     "type": "dir",
     "name": "fixed-layout",
-    "label": "Fixed Layout"
+    "label": "Fixed Layout",
+    "collapsed": true
   },
   "form",
   "without-form",
   {
     "type": "dir",
     "name": "variable",
-    "label": "Variable"
+    "label": "Variable",
+    "collapsed": true
   },
+  "zoom-scroll",
   "history",
   "shortcuts",
   "minimap",
   "custom-plugin",
   "custom-service",
-  "form-materials"
+  "custom-layer",
+  "form-materials",
+  "background"
 ]

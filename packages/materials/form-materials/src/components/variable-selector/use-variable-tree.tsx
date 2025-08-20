@@ -1,22 +1,32 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import React, { useCallback } from 'react';
 
-import { useScopeAvailable, ASTMatch, BaseVariableField } from '@flowgram.ai/editor';
+import { IJsonSchema, JsonSchemaUtils } from '@flowgram.ai/json-schema';
+import { ASTMatch, BaseVariableField, useAvailableVariables } from '@flowgram.ai/editor';
 import { TreeNodeData } from '@douyinfe/semi-ui/lib/es/tree';
 import { Icon } from '@douyinfe/semi-ui';
 
-import { ArrayIcons, VariableTypeIcons } from '../type-selector/constants';
-import { JsonSchemaUtils } from '../../utils/json-schema';
-import { IJsonSchema } from '../../typings/json-schema';
+import { useTypeManager } from '@/plugins';
 
-type VariableField = BaseVariableField<{ icon?: string | JSX.Element; title?: string }>;
+type VariableField = BaseVariableField<{
+  icon?: string | JSX.Element;
+  title?: string;
+  disabled?: boolean;
+}>;
 
 export function useVariableTree(params: {
   includeSchema?: IJsonSchema | IJsonSchema[];
   excludeSchema?: IJsonSchema | IJsonSchema[];
+  customSkip?: (variable: VariableField) => boolean;
 }): TreeNodeData[] {
-  const { includeSchema, excludeSchema } = params;
+  const { includeSchema, excludeSchema, customSkip } = params;
 
-  const available = useScopeAvailable();
+  const typeManager = useTypeManager();
+  const variables = useAvailableVariables();
 
   const getVariableTypeIcon = useCallback((variable: VariableField) => {
     if (variable.meta?.icon) {
@@ -27,22 +37,9 @@ export function useVariableTree(params: {
       return variable.meta.icon;
     }
 
-    const _type = variable.type;
+    const schema = JsonSchemaUtils.astToSchema(variable.type, { drilldownObject: false });
 
-    if (ASTMatch.isArray(_type)) {
-      return (
-        <Icon
-          size="small"
-          svg={ArrayIcons[_type.items?.kind.toLowerCase()] || VariableTypeIcons.array}
-        />
-      );
-    }
-
-    if (ASTMatch.isCustomType(_type)) {
-      return <Icon size="small" svg={VariableTypeIcons[_type.typeName.toLowerCase()]} />;
-    }
-
-    return <Icon size="small" svg={VariableTypeIcons[variable.type?.kind.toLowerCase()]} />;
+    return <Icon size="small" svg={typeManager.getDisplayIcon(schema || {})} />;
   }, []);
 
   const renderVariable = (
@@ -61,10 +58,6 @@ export function useVariableTree(params: {
       children = (type.properties || [])
         .map((_property) => renderVariable(_property as VariableField, [...parentFields, variable]))
         .filter(Boolean) as TreeNodeData[];
-
-      if (!children?.length) {
-        return null;
-      }
     }
 
     const keyPath = [...parentFields.map((_field) => _field.key), variable.key];
@@ -76,7 +69,12 @@ export function useVariableTree(params: {
     const isSchemaExclude = excludeSchema
       ? JsonSchemaUtils.isASTMatchSchema(type, excludeSchema)
       : false;
-    const isSchemaMatch = isSchemaInclude && !isSchemaExclude;
+    const isCustomSkip = customSkip ? customSkip(variable) : false;
+
+    // disabled in meta when created
+    const isMetaDisabled = variable.meta?.disabled;
+
+    const isSchemaMatch = isSchemaInclude && !isSchemaExclude && !isCustomSkip && !isMetaDisabled;
 
     // If not match, and no children, return null
     if (!isSchemaMatch && !children?.length) {
@@ -91,11 +89,12 @@ export function useVariableTree(params: {
       icon: getVariableTypeIcon(variable),
       children,
       disabled: !isSchemaMatch,
-      rootMeta: parentFields[0]?.meta,
+      rootMeta: parentFields[0]?.meta || variable.meta,
+      isRoot: !parentFields?.length,
     };
   };
 
-  return [...available.variables.slice(0).reverse()]
+  return [...variables.slice(0).reverse()]
     .map((_variable) => renderVariable(_variable as VariableField))
     .filter(Boolean) as TreeNodeData[];
 }

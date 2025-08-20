@@ -16,13 +16,30 @@ console.log(ctx.playground)
 
 [> API Detail](https://flowgram.ai/auto-docs/core/classes/PlaygroundConfigEntity.html)
 
-### Properties
+### updateConfig
 - zoom `number` 当前缩放比例
-- scrollData `{ scrollX: number, scrollY: number }` 当前滚动位置
-- readonlyOrDisabled 画布是否为 readonly 或 disabled 状态
+- scrollX
+- scrollY
+- minZoom
+- maxZoom
 - readonly
 - disabled
+- width
+- height
 
+```ts pure
+// get current config state
+ctx.playground.config.config.zoom
+ctx.playground.config.config.readonly
+
+// updateConfig
+ctx.playground.config.updateConfig({
+  zoom: 0.8,
+  minZoom: 0.1,
+  maxZoom: 2,
+  readonly: true
+})
+```
 
 ### fitView
 
@@ -35,7 +52,7 @@ console.log(ctx.playground)
  * @param easing {number} 是否开启动画，默认开启
  * @param padding {number} 边界空白
  */
-ctx.playground.config.fitView(ctx.document.root.bounds, true, 10)
+ctx.playground.config.fitView(node.bounds, true, 10)
 ```
 
 ### scrollToView
@@ -90,10 +107,11 @@ const pos: { x: number, y: number } = ctx.playground.config.getPoseFromMouseEven
 ctx.playground.config.scroll({ scrollX: 100, scrollY: 100 }, true, 300)
 ```
 
-### getViewport
+### isViewportVisible
 
-获取当前画布的视窗大小
+判断当前节点是否在视窗以内
 
 ```ts pure
-const viewport = ctx.playground.config.getViewport()
+ctx.playground.config.isViewportVisible(node.bounds)
 ```
+

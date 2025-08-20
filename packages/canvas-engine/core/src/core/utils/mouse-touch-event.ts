@@ -1,6 +1,11 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 export namespace MouseTouchEvent {
   export const isTouchEvent = (event: TouchEvent | React.TouchEvent): event is TouchEvent =>
-    event?.touches instanceof TouchList;
+    'touches' in event;
 
   export const touchToMouseEvent = (event: Event): MouseEvent | Event => {
     if (!isTouchEvent(event as TouchEvent)) {

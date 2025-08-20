@@ -112,12 +112,6 @@ interface FreeLayoutProps {
      */
     isDisabledLine?: (ctx: FreeLayoutPluginContext, line: WorkflowLineEntity) => boolean;
     /**
-     * 判断线条是否竖向
-     * @param ctx
-     * @param line
-     */
-    isVerticalLine?: (ctx: FreeLayoutPluginContext, line: WorkflowLineEntity) => boolean;
-    /**
      * 拖拽线条结束
      * @param ctx
      * @param params
@@ -162,7 +156,38 @@ interface FreeLayoutProps {
 }
 ```
 
-### 1.自定义颜色
+### 1. 线条 ui 属性配置
+
+- 修改 UIState
+
+```tsx pure
+/**
+ *  more: https://github.com/bytedance/flowgram.ai/blob/main/packages/canvas-engine/free-layout-core/src/entities/workflow-line-entity.ts#L41
+ */
+line.updateUIState({
+  lockedColor: 'blue',
+  strokeWidth: 2,
+  strokeWidthSelected: 3,
+  className: 'xxx',
+  style: {}
+})
+```
+
+- 不同线条指定特定的颜色 (优先级最高)
+
+```tsx pure
+
+ctx.document.linesManager.getAllLines().forEach(line => {
+  if (line.from.flowNodeType === 'start') {
+    line.lockedColor = 'blue'
+  } else if (line.to.flowNodeType === 'end') {
+    line.lockedColor = 'yellow'
+  }
+})
+
+```
+
+- 全局颜色配置
 
 ```tsx pure
 

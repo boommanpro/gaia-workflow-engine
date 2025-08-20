@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import type { WorkflowLineEntity, WorkflowNodeEntity } from '@flowgram.ai/free-layout-core';
 
 import { LayoutStore } from './store';
@@ -66,6 +71,7 @@ export interface LayoutParams {
 
 export interface LayoutOptions {
   getFollowNode?: GetFollowNode;
+  enableAnimation?: boolean;
 }
 
 export interface LayoutConfig {

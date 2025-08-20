@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { bindConfigEntity } from '@flowgram.ai/core';
 export { delay } from '@flowgram.ai/utils';
 
@@ -15,6 +20,7 @@ export { delay } from '@flowgram.ai/utils';
  */
 export { bindConfigEntity };
 
+export { buildGroupJSON } from './build-group-json';
 export * from './nanoid';
 export * from './compose';
 export * from './fit-view';

@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { inject, injectable, optional } from 'inversify';
 import { Disposable, domUtils, PositionSchema } from '@flowgram.ai/utils';
 
@@ -145,6 +150,12 @@ export class PlaygroundLayer extends Layer<PlaygroundLayerOptions> {
         // 这里必须监听 NORMAL_LAYER，该图层最先触发
         PipelineLayerPriority.NORMAL_LAYER
       ),
+      this.listenPlaygroundEvent('touchend', (e: TouchEvent) => {
+        this.options.hoverService?.clearHovered();
+      }),
+      this.listenPlaygroundEvent('touchcancel', (e: TouchEvent) => {
+        this.options.hoverService?.clearHovered();
+      }),
       this.listenPlaygroundEvent(
         'mousedown',
         (e: MouseEvent) => {

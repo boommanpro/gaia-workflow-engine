@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 /* eslint-disable @typescript-eslint/naming-convention */
 import { cloneDeep, isEqual } from 'lodash';
 import { injectable } from 'inversify';

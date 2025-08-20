@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { FlowNodeRegistry } from '../../typings';
 import iconStart from '../../assets/icon-start.jpg';
 import { formMeta } from './form-meta';
@@ -9,8 +14,7 @@ export const StartNodeRegistry: FlowNodeRegistry = {
     isStart: true,
     deleteDisable: true,
     copyDisable: true,
-    runDisable: true,
-    hiddenOperators: true,
+    nodePanelVisible: false,
     defaultPorts: [{ type: 'output' }],
     size: {
       width: 360,

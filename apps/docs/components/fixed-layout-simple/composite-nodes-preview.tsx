@@ -1,12 +1,19 @@
-/* eslint-disable import/no-unresolved */
-import { FixedLayoutSimple } from './fixed-layout-simple.tsx';
-import { PreviewEditor } from '../preview-editor.tsx';
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
 
-import tryCatch from '!!raw-loader!@flowgram.ai/demo-fixed-layout-simple/src/data/tryCatch.ts';
-import multiOutputs from '!!raw-loader!@flowgram.ai/demo-fixed-layout-simple/src/data/multiOutputs.ts';
-import multiInputs from '!!raw-loader!@flowgram.ai/demo-fixed-layout-simple/src/data/multiInputs.ts';
-import loop from '!!raw-loader!@flowgram.ai/demo-fixed-layout-simple/src/data/loop.ts';
-import dynamicSplit from '!!raw-loader!@flowgram.ai/demo-fixed-layout-simple/src/data/dynamicSplit.ts';
+/* eslint-disable import/no-unresolved */
+
+import tryCatch from '@flowgram.ai/demo-fixed-layout-simple/src/data/tryCatch.ts?raw';
+import slot from '@flowgram.ai/demo-fixed-layout-simple/src/data/slot.ts?raw';
+import multiOutputs from '@flowgram.ai/demo-fixed-layout-simple/src/data/multiOutputs.ts?raw';
+import multiInputs from '@flowgram.ai/demo-fixed-layout-simple/src/data/multiInputs.ts?raw';
+import loop from '@flowgram.ai/demo-fixed-layout-simple/src/data/loop.ts?raw';
+import dynamicSplit from '@flowgram.ai/demo-fixed-layout-simple/src/data/dynamicSplit.ts?raw';
+
+import { PreviewEditor } from '../preview-editor.tsx';
+import { FixedLayoutSimple } from './fixed-layout-simple.tsx';
 
 export function CompositeNodesPreview(props: { cellHeight?: number }) {
   const previewWidth = '50%';
@@ -136,6 +143,31 @@ export function CompositeNodesPreview(props: { cellHeight?: number }) {
             }}
           >
             <FixedLayoutSimple hideTools demo="multiOutputs" />
+          </PreviewEditor>
+        </td>
+      </tr>
+      <tr>
+        <td style={{ textAlign: 'center' }}>slot</td>
+        <td>
+          <PreviewEditor
+            codeInRight
+            files={{
+              'index.tsx': {
+                code: slot,
+                active: true,
+              },
+            }}
+            previewStyle={{
+              width: previewWidth,
+              height: cellHeight,
+              position: 'relative',
+            }}
+            editorStyle={{
+              height: cellHeight,
+              width: editorWidth,
+            }}
+          >
+            <FixedLayoutSimple hideTools demo="slot" />
           </PreviewEditor>
         </td>
       </tr>

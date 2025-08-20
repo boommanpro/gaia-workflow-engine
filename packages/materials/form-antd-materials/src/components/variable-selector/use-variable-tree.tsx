@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import React, { useCallback } from 'react';
 
 import { ASTMatch, BaseVariableField, useScopeAvailable } from '@flowgram.ai/editor';
@@ -62,10 +67,6 @@ export function useVariableTree(params: {
       children = (type.properties || [])
         .map((_property) => renderVariable(_property as VariableField, [...parentFields, variable]))
         .filter(Boolean) as TreeNodeData[];
-
-      if (!children?.length) {
-        return null;
-      }
     }
 
     const keyPath = [...parentFields.map((_field) => _field.key), variable.key];

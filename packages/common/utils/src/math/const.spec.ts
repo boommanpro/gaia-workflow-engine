@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { describe, expect, test } from 'vitest';
 
 import { DEG_TO_RAD, PI, PI_2, RAD_TO_DEG, SHAPES } from './const';

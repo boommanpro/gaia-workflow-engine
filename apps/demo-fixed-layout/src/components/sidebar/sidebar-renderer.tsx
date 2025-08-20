@@ -1,4 +1,9 @@
-import { useCallback, useContext, useEffect, useMemo } from 'react';
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
+import { useCallback, useContext, useEffect, startTransition, useMemo } from 'react';
 
 import {
   PlaygroundEntityContext,
@@ -16,7 +21,10 @@ export const SidebarRenderer = () => {
   const { selection, playground, document } = useClientContext();
   const refresh = useRefresh();
   const handleClose = useCallback(() => {
-    setNodeId(undefined);
+    // Sidebar delayed closing
+    startTransition(() => {
+      setNodeId(undefined);
+    });
   }, []);
   const node = nodeId ? document.getNode(nodeId) : undefined;
   /**
@@ -81,7 +89,23 @@ export const SidebarRenderer = () => {
     ) : null;
 
   return (
-    <SideSheet mask={false} visible={visible} onCancel={handleClose}>
+    <SideSheet
+      mask={false}
+      visible={visible}
+      onCancel={handleClose}
+      closable={false}
+      width={360}
+      headerStyle={{
+        display: 'none',
+      }}
+      bodyStyle={{
+        padding: 0,
+      }}
+      style={{
+        background: 'none',
+        boxShadow: 'none',
+      }}
+    >
       <IsSidebarContext.Provider value={true}>{content}</IsSidebarContext.Provider>
     </SideSheet>
   );

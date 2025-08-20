@@ -1,11 +1,17 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { FC, useState } from 'react';
 
+import classNames from 'classnames';
+import { Tag } from '@douyinfe/semi-ui';
 import { IconSmallTriangleDown } from '@douyinfe/semi-icons';
 
 import { DataStructureViewer } from '../viewer';
 
-import './index.css';
-import { Tag } from '@douyinfe/semi-ui';
+import styles from './index.module.less';
 
 interface NodeStatusGroupProps {
   title: string;
@@ -14,7 +20,7 @@ interface NodeStatusGroupProps {
   disableCollapse?: boolean;
 }
 
-const isObjectHasContent = (obj: any = {}): boolean => Object.keys(obj).length > 0;
+const isObjectHasContent = (obj: any = {}): boolean => obj && Object.keys(obj).length > 0;
 
 export const NodeStatusGroup: FC<NodeStatusGroupProps> = ({
   title,
@@ -31,26 +37,20 @@ export const NodeStatusGroup: FC<NodeStatusGroupProps> = ({
 
   return (
     <>
-      <div className="node-status-group" onClick={() => hasContent && setIsExpanded(!isExpanded)}>
+      <div
+        className={styles['node-status-group']}
+        onClick={() => hasContent && !disableCollapse && setIsExpanded(!isExpanded)}
+      >
         {!disableCollapse && (
           <IconSmallTriangleDown
-            style={{
-              transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)',
-              transition: 'transform 0.2s',
-              cursor: 'pointer',
-              marginRight: '4px',
-              opacity: hasContent ? 1 : 0,
-            }}
+            className={classNames(styles['node-status-group-icon'], {
+              [styles['node-status-group-icon-expanded']]: isExpanded && hasContent,
+            })}
           />
         )}
         <span>{title}:</span>
         {!hasContent && (
-          <Tag
-            size="small"
-            style={{
-              marginLeft: 4,
-            }}
-          >
+          <Tag size="small" className={styles['node-status-group-tag']}>
             null
           </Tag>
         )}

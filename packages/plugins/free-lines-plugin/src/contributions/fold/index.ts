@@ -1,8 +1,14 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { IPoint, Rectangle } from '@flowgram.ai/utils';
 import {
   POINT_RADIUS,
   WorkflowLineEntity,
   WorkflowLineRenderContribution,
+  LinePoint,
 } from '@flowgram.ai/free-layout-core';
 import { LineType } from '@flowgram.ai/free-layout-core';
 
@@ -44,30 +50,30 @@ export class WorkflowFoldLineContribution implements WorkflowLineRenderContribut
     return this.data.bbox;
   }
 
-  public update(params: { fromPos: IPoint; toPos: IPoint }): void {
+  public update(params: { fromPos: LinePoint; toPos: LinePoint }): void {
     const { fromPos, toPos } = params;
-    const { vertical } = this.entity;
 
     // 根据方向预先计算源点和目标点的偏移
     const sourceOffset = {
-      x: vertical ? 0 : POINT_RADIUS,
-      y: vertical ? POINT_RADIUS : 0,
+      x: fromPos.location === 'bottom' ? 0 : POINT_RADIUS,
+      y: fromPos.location === 'bottom' ? POINT_RADIUS : 0,
     };
     const targetOffset = {
-      x: vertical ? 0 : -POINT_RADIUS,
-      y: vertical ? -POINT_RADIUS : 0,
+      x: toPos.location === 'top' ? 0 : -POINT_RADIUS,
+      y: toPos.location === 'top' ? -POINT_RADIUS : 0,
     };
 
     const points = FoldLine.getPoints({
       source: {
         x: fromPos.x + sourceOffset.x,
         y: fromPos.y + sourceOffset.y,
+        location: fromPos.location,
       },
       target: {
         x: toPos.x + targetOffset.x,
         y: toPos.y + targetOffset.y,
+        location: toPos.location,
       },
-      vertical,
     });
 
     const bbox = FoldLine.getBounds(points);

@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { useState } from 'react';
 
 import { usePlayground, usePlaygroundTools } from '@flowgram.ai/free-layout-editor';
@@ -6,7 +11,7 @@ import { Divider, Dropdown } from '@douyinfe/semi-ui';
 import { SelectZoom } from './styles';
 
 export const ZoomSelect = () => {
-  const tools = usePlaygroundTools();
+  const tools = usePlaygroundTools({ maxZoom: 2, minZoom: 0.25 });
   const playground = usePlayground();
   const [dropDownVisible, openDropDown] = useState(false);
   return (

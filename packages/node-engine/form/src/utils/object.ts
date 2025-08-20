@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { clone, toPath } from 'lodash';
 
 /**
@@ -76,7 +81,8 @@ export function shallowSetIn(obj: any, path: string, value: any): any {
   }
 
   // Return original object if new value is the same as current
-  if ((i === 0 ? obj : resVal)[pathArray[i]] === value) {
+  //  `pathArray[i] in obj` is to supoort set undefined value with unknown key
+  if ((i === 0 ? obj : resVal)[pathArray[i]] === value && pathArray[i] in obj) {
     return obj;
   }
 

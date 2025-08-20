@@ -1,45 +1,46 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import * as path from 'node:path';
 
-import { merge } from 'webpack-merge';
-import { defineConfig } from 'rspress/config';
-// import { pluginLlms } from '@rspress/plugin-llms';
+import { pluginLlms } from '@rspress/plugin-llms';
+import { transformerCompatibleMetaHighlight } from '@rspress/core/shiki-transformers';
+import { defineConfig } from '@rspress/core';
+import { pluginLess } from '@rsbuild/plugin-less';
 
 export default defineConfig({
   root: path.join(__dirname, 'src'),
   base: '/',
   title: 'FlowGram.AI',
   globalStyles: path.join(__dirname, './global.less'),
-  route: {
-    exclude: ['./global.d.ts'],
-  },
   builderConfig: {
+    performance: {
+      buildCache: false,
+      // 4MB log file size limit in Vercel platform
+      printFileSize: {
+        compressed: false,
+        detail: false,
+        total: true,
+      },
+    },
     source: {
       decorators: {
         version: 'legacy',
       },
     },
+    plugins: [pluginLess()],
     tools: {
-      rspack(options) {
-        return merge(options, {
+      rspack(options, { mergeConfig }) {
+        return mergeConfig(options, {
           module: {
             rules: [
               {
                 test: /\.mdc$/,
                 type: 'asset/source',
               },
-              {
-                resourceQuery: /raw/,
-                type: 'asset/source',
-              },
             ],
-          },
-          // 禁用 ES 模块输出（启用 CommonJS）
-          experiments: {
-            outputModule: false,
-          },
-          // 允许省略文件扩展名
-          resolve: {
-            fullySpecified: false,
           },
         });
       },
@@ -69,11 +70,32 @@ export default defineConfig({
   },
   lang: 'zh',
   logoText: 'FlowGram.AI',
+  markdown: {
+    shiki: {
+      transformers: [transformerCompatibleMetaHighlight()],
+    },
+  },
   plugins: [
-    // pluginLlms({
-    //   llmsTxt: true,
-    //   llmsFullTxt: true,
-    // }),
+    pluginLlms([
+      {
+        llmsTxt: {
+          name: 'llms.txt',
+        },
+        llmsFullTxt: {
+          name: 'llms-full.txt',
+        },
+        include: ({ page }) => page.lang === 'zh',
+      },
+      {
+        llmsTxt: {
+          name: 'en/llms.txt',
+        },
+        llmsFullTxt: {
+          name: 'en/llms-full.txt',
+        },
+        include: ({ page }) => page.lang === 'en',
+      },
+    ]),
   ],
   themeConfig: {
     localeRedirect: 'auto',

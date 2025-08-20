@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { createSelectBoxPlugin } from '@flowgram.ai/select-box-plugin';
 import { createFreeStackPlugin, StackingContextManager } from '@flowgram.ai/free-stack-plugin';
 import { createFreeLinesPlugin } from '@flowgram.ai/free-lines-plugin';
@@ -32,6 +37,7 @@ import {
   createPlaygroundReactPreset,
 } from '@flowgram.ai/editor';
 
+import { WorkflowAutoLayoutTool } from '../tools';
 import { fromNodeJSON, toNodeJSON } from './node-serialize';
 import { FreeLayoutProps, FreeLayoutPluginContext } from './free-layout-props';
 
@@ -135,7 +141,7 @@ export function createFreeLayoutPreset(
       );
     }
     if (opts.history?.enable) {
-      plugins.push(createFreeHistoryPlugin(opts.history));
+      plugins.push(createFreeHistoryPlugin(opts.history as any));
     }
 
     /**
@@ -144,6 +150,7 @@ export function createFreeLayoutPreset(
     plugins.push(
       createPlaygroundPlugin<FreeLayoutPluginContext>({
         onBind: (bindConfig) => {
+          bindConfig.bind(WorkflowAutoLayoutTool).toSelf().inSingletonScope();
           bindConfig.rebind(WorkflowDocumentOptions).toConstantValue({
             canAddLine: opts.canAddLine?.bind(null, ctx),
             canDeleteLine: opts.canDeleteLine?.bind(null, ctx),
@@ -154,12 +161,12 @@ export function createFreeLayoutPreset(
             isHideArrowLine: opts.isHideArrowLine?.bind(null, ctx),
             isFlowingLine: opts.isFlowingLine?.bind(null, ctx),
             isDisabledLine: opts.isDisabledLine?.bind(null, ctx),
-            isVerticalLine: opts.isVerticalLine?.bind(null, ctx),
             onDragLineEnd: opts.onDragLineEnd?.bind(null, ctx),
             setLineRenderType: opts.setLineRenderType?.bind(null, ctx),
             setLineClassName: opts.setLineClassName?.bind(null, ctx),
             canDeleteNode: opts.canDeleteNode?.bind(null, ctx),
             canResetLine: opts.canResetLine?.bind(null, ctx),
+            canDropToNode: opts.canDropToNode?.bind(null, ctx),
             cursors: opts.cursors ?? WorkflowDocumentOptionsDefault.cursors,
             lineColor: opts.lineColor ?? WorkflowDocumentOptionsDefault.lineColor,
             allNodesDefaultExpanded: opts.allNodesDefaultExpanded,
@@ -181,13 +188,16 @@ export function createFreeLayoutPreset(
               }
             },
           });
-          if (!opts.scroll?.disableScrollLimit) {
+          if (opts.scroll?.enableScrollLimit) {
             // 控制滚动范围
             ctx.playground.registerLayer(FlowScrollLimitLayer);
           }
           if (!opts.scroll?.disableScrollBar) {
             // 控制条
             ctx.playground.registerLayer(FlowScrollBarLayer);
+          }
+          if (opts.scroll?.disableScroll) {
+            ctx.playground.config.scrollDisable = true;
           }
           if (opts.onContentChange) {
             ctx.document.onContentChange((event) => opts.onContentChange!(ctx, event));

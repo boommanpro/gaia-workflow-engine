@@ -1,7 +1,12 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { isNil } from 'lodash-es';
 import {
   IState,
-  IFlowConstantRefValue,
+  IFlowValue,
   IFlowRefValue,
   IVariableParseResult,
   INode,
@@ -9,6 +14,8 @@ import {
   WorkflowOutputs,
   IVariableStore,
   WorkflowVariableType,
+  IFlowTemplateValue,
+  IJsonSchema,
 } from '@flowgram.ai/runtime-interface';
 
 import { uuid, WorkflowRuntimeType } from '@infra/utils';
@@ -33,27 +40,10 @@ export class WorkflowRuntimeState implements IState {
   public getNodeInputs(node: INode): WorkflowInputs {
     const inputsDeclare = node.declare.inputs;
     const inputsValues = node.declare.inputsValues;
-    if (!inputsDeclare || !inputsValues) {
-      return {};
-    }
-    return Object.entries(inputsValues).reduce((prev, [key, inputValue]) => {
-      const typeInfo = inputsDeclare.properties?.[key];
-      if (!typeInfo) {
-        return prev;
-      }
-      const expectType = typeInfo.type as WorkflowVariableType;
-      // get value
-      const result = this.parseValue(inputValue);
-      if (!result) {
-        return prev;
-      }
-      const { value, type } = result;
-      if (!WorkflowRuntimeType.isTypeEqual(type, expectType)) {
-        return prev;
-      }
-      prev[key] = value;
-      return prev;
-    }, {} as WorkflowInputs);
+    return this.parseInputs({
+      values: inputsValues,
+      declare: inputsDeclare,
+    });
   }
 
   public setNodeOutputs(params: { node: INode; outputs: WorkflowOutputs }): void {
@@ -81,9 +71,37 @@ export class WorkflowRuntimeState implements IState {
     });
   }
 
+  public parseInputs(params: {
+    values?: Record<string, IFlowValue>;
+    declare?: IJsonSchema;
+  }): WorkflowInputs {
+    const { values, declare } = params;
+    if (!declare || !values) {
+      return {};
+    }
+    return Object.entries(values).reduce((prev, [key, inputValue]) => {
+      const typeInfo = declare.properties?.[key];
+      if (!typeInfo) {
+        return prev;
+      }
+      const expectType = typeInfo.type as WorkflowVariableType;
+      // get value
+      const result = this.parseValue(inputValue);
+      if (!result) {
+        return prev;
+      }
+      const { value, type } = result;
+      if (!WorkflowRuntimeType.isTypeEqual(type, expectType)) {
+        return prev;
+      }
+      prev[key] = value;
+      return prev;
+    }, {} as WorkflowInputs);
+  }
+
   public parseRef<T = unknown>(ref: IFlowRefValue): IVariableParseResult<T> | null {
     if (ref?.type !== 'ref') {
-      throw new Error(`invalid ref value: ${ref}`);
+      throw new Error(`Invalid ref value: ${ref}`);
     }
     if (!ref.content || ref.content.length < 2) {
       return null;
@@ -100,9 +118,40 @@ export class WorkflowRuntimeState implements IState {
     return result;
   }
 
-  public parseValue<T = unknown>(flowValue: IFlowConstantRefValue): IVariableParseResult<T> | null {
+  public parseTemplate(template: IFlowTemplateValue): IVariableParseResult<string> | null {
+    if (template?.type !== 'template') {
+      throw new Error(`Invalid template value: ${template}`);
+    }
+    if (!template.content) {
+      return null;
+    }
+    const parsedValue = template.content.replace(
+      /\{\{([^\}]+)\}\}/g,
+      (match: string, pattern: string): string => {
+        // 将路径分割成数组，如 'start_0.work.role' => ['start_0', 'work', 'role']
+        const ref = pattern.trim().split('.');
+
+        const variable = this.parseRef<string>({
+          type: 'ref',
+          content: ref,
+        });
+
+        if (!variable) {
+          return '';
+        }
+
+        return variable.value;
+      }
+    );
+    return {
+      type: WorkflowVariableType.String,
+      value: parsedValue,
+    };
+  }
+
+  public parseValue<T = unknown>(flowValue: IFlowValue): IVariableParseResult<T> | null {
     if (!flowValue?.type) {
-      throw new Error(`invalid flow value type: ${(flowValue as any).type}`);
+      throw new Error(`Invalid flow value type: ${(flowValue as any).type}`);
     }
     // constant
     if (flowValue.type === 'constant') {
@@ -120,8 +169,12 @@ export class WorkflowRuntimeState implements IState {
     if (flowValue.type === 'ref') {
       return this.parseRef<T>(flowValue);
     }
+    // template
+    if (flowValue.type === 'template') {
+      return this.parseTemplate(flowValue) as IVariableParseResult<T> | null;
+    }
     // unknown type
-    throw new Error(`unknown flow value type: ${(flowValue as any).type}`);
+    throw new Error(`Unknown flow value type: ${(flowValue as any).type}`);
   }
 
   public isExecutedNode(node: INode): boolean {

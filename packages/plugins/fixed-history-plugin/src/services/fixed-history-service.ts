@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { injectable, inject } from 'inversify';
 import { HistoryService, Operation } from '@flowgram.ai/history';
 import { OperationRegistry } from '@flowgram.ai/history';

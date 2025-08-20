@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { ScaleSchemaDecoration, Schema } from '@flowgram.ai/utils';
 import type { ScaleSchema } from '@flowgram.ai/utils';
 

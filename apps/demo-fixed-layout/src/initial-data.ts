@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { FlowDocumentJSON } from './typings';
 
 export const initialData: FlowDocumentJSON = {
@@ -38,6 +43,111 @@ export const initialData: FlowDocumentJSON = {
       },
     },
     {
+      id: 'agent_0',
+      type: 'agent',
+      data: {
+        title: 'Agent',
+      },
+      blocks: [
+        {
+          id: 'agentLLM_0',
+          type: 'agentLLM',
+          blocks: [
+            {
+              id: 'llm_5',
+              type: 'llm',
+              meta: {
+                defaultExpanded: false,
+              },
+              data: {
+                title: 'LLM',
+                inputsValues: {
+                  modelType: {
+                    type: 'constant',
+                    content: 'gpt-3.5-turbo',
+                  },
+                  temperature: {
+                    type: 'constant',
+                    content: 0.5,
+                  },
+                  systemPrompt: {
+                    type: 'template',
+                    content: '# Role\nYou are an AI assistant.\n',
+                  },
+                  prompt: {
+                    type: 'template',
+                    content: '',
+                  },
+                },
+                inputs: {
+                  type: 'object',
+                  required: ['modelType', 'temperature', 'prompt'],
+                  properties: {
+                    modelType: {
+                      type: 'string',
+                    },
+                    temperature: {
+                      type: 'number',
+                    },
+                    systemPrompt: {
+                      type: 'string',
+                      extra: { formComponent: 'prompt-editor' },
+                    },
+                    prompt: {
+                      type: 'string',
+                      extra: { formComponent: 'prompt-editor' },
+                    },
+                  },
+                },
+                outputs: {
+                  type: 'object',
+                  properties: {
+                    result: { type: 'string' },
+                  },
+                },
+              },
+            },
+          ],
+        },
+        {
+          id: 'agentMemory_0',
+          type: 'agentMemory',
+          blocks: [
+            {
+              id: 'memory_0',
+              type: 'memory',
+              meta: {
+                defaultExpanded: false,
+              },
+              data: {
+                title: 'Memory',
+              },
+            },
+          ],
+        },
+        {
+          id: 'agentTools_0',
+          type: 'agentTools',
+          blocks: [
+            {
+              id: 'tool_0',
+              type: 'tool',
+              data: {
+                title: 'Tool0',
+              },
+            },
+            {
+              id: 'tool_1',
+              type: 'tool',
+              data: {
+                title: 'Tool1',
+              },
+            },
+          ],
+        },
+      ],
+    },
+    {
       id: 'llm_0',
       type: 'llm',
       blocks: [],
@@ -53,11 +163,11 @@ export const initialData: FlowDocumentJSON = {
             content: 0.5,
           },
           systemPrompt: {
-            type: 'constant',
-            content: 'You are an AI assistant.',
+            type: 'template',
+            content: '# Role\nYou are an AI assistant.\n',
           },
           prompt: {
-            type: 'constant',
+            type: 'template',
             content: '',
           },
         },
@@ -73,9 +183,11 @@ export const initialData: FlowDocumentJSON = {
             },
             systemPrompt: {
               type: 'string',
+              extra: { formComponent: 'prompt-editor' },
             },
             prompt: {
               type: 'string',
+              extra: { formComponent: 'prompt-editor' },
             },
           },
         },
@@ -148,7 +260,7 @@ export const initialData: FlowDocumentJSON = {
       type: 'loop',
       data: {
         title: 'Loop',
-        batchFor: {
+        loopFor: {
           type: 'ref',
           content: ['start_0', 'array_obj'],
         },
@@ -261,13 +373,8 @@ export const initialData: FlowDocumentJSON = {
       blocks: [],
       data: {
         title: 'End',
-        outputs: {
-          type: 'object',
-          properties: {
-            result: {
-              type: 'string',
-            },
-          },
+        inputsValues: {
+          success: { type: 'constant', content: true, schema: { type: 'boolean' } },
         },
       },
     },

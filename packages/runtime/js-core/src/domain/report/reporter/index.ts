@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import {
   ISnapshotCenter,
   IReporter,
@@ -5,6 +10,8 @@ import {
   IIOCenter,
   IReport,
   NodeReport,
+  WorkflowReports,
+  IMessageCenter,
 } from '@flowgram.ai/runtime-interface';
 
 import { WorkflowRuntimeReport } from '../report-value-object';
@@ -13,7 +20,8 @@ export class WorkflowRuntimeReporter implements IReporter {
   constructor(
     public readonly ioCenter: IIOCenter,
     public readonly snapshotCenter: ISnapshotCenter,
-    public readonly statusCenter: IStatusCenter
+    public readonly statusCenter: IStatusCenter,
+    public readonly messageCenter: IMessageCenter
   ) {}
 
   public init(): void {}
@@ -26,12 +34,13 @@ export class WorkflowRuntimeReporter implements IReporter {
       outputs: this.ioCenter.outputs,
       workflowStatus: this.statusCenter.workflow.export(),
       reports: this.nodeReports(),
+      messages: this.messageCenter.export(),
     });
     return report;
   }
 
-  private nodeReports(): Record<string, NodeReport> {
-    const reports: Record<string, NodeReport> = {};
+  private nodeReports(): WorkflowReports {
+    const reports: WorkflowReports = {};
     const statuses = this.statusCenter.exportNodeStatus();
     const snapshots = this.snapshotCenter.export();
     Object.keys(statuses).forEach((nodeID) => {

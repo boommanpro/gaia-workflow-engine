@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import React from 'react';
 
 import clsx from 'clsx';
@@ -14,10 +19,9 @@ import { ArrowRenderer } from './arrow';
 
 const PADDING = 12;
 
-// eslint-disable-next-line react/display-name
 export const LineSVG = (props: LineRenderProps) => {
   const { line, color, selected, children, strokePrefix, rendererRegistry } = props;
-  const { position, reverse, vertical, hideArrow } = line;
+  const { position, reverse, hideArrow, vertical } = line;
 
   const renderData = line.getData(WorkflowLineRenderData);
   const { bounds, path: bezierPath } = renderData;
@@ -32,14 +36,18 @@ export const LineSVG = (props: LineRenderProps) => {
   const toPos = toRelative(position.to);
 
   // 箭头位置计算
-  const arrowToPos: IPoint = vertical
-    ? { x: toPos.x, y: toPos.y - POINT_RADIUS }
-    : { x: toPos.x - POINT_RADIUS, y: toPos.y };
-  const arrowFromPos: IPoint = vertical
-    ? { x: fromPos.x, y: fromPos.y + POINT_RADIUS + LINE_OFFSET }
-    : { x: fromPos.x + POINT_RADIUS + LINE_OFFSET, y: fromPos.y };
+  const arrowToPos: IPoint =
+    position.to.location === 'top'
+      ? { x: toPos.x, y: toPos.y - POINT_RADIUS }
+      : { x: toPos.x - POINT_RADIUS, y: toPos.y };
+  const arrowFromPos: IPoint =
+    position.from.location === 'bottom'
+      ? { x: fromPos.x, y: fromPos.y + POINT_RADIUS + LINE_OFFSET }
+      : { x: fromPos.x + POINT_RADIUS + LINE_OFFSET, y: fromPos.y };
 
-  const strokeWidth = selected ? STROKE_WIDTH_SLECTED : STROKE_WIDTH;
+  const strokeWidth = selected
+    ? line.uiState.strokeWidthSelected ?? STROKE_WIDTH_SLECTED
+    : line.uiState.strokeWidth ?? STROKE_WIDTH;
 
   const strokeID = strokePrefix ? `${strokePrefix}-${line.id}` : line.id;
 
@@ -54,17 +62,15 @@ export const LineSVG = (props: LineRenderProps) => {
       fill="none"
       stroke={`url(#${strokeID})`}
       strokeWidth={strokeWidth}
-      className={clsx(
-        line.className,
-        // 显示流动线条的条件：没有自定义线条class，并且线条处于流动或处理中
-        !line.className && (line.processing || line.flowing ? 'dashed-line flowing-line' : '')
-      )}
+      className={line.processing || line.flowing ? 'dashed-line flowing-line' : ''}
     />
   );
 
   return (
     <LineStyle
+      className={clsx('gedit-flow-activity-edge', line.className)}
       style={{
+        ...line.uiState.style,
         left: bounds.x - PADDING,
         top: bounds.y - PADDING,
         position: 'absolute',

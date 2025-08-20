@@ -1,7 +1,12 @@
-import {Button} from '@douyinfe/semi-ui';
-import {IconPlus} from '@douyinfe/semi-icons';
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
 
-import {useAddNode} from './use-add-node';
+import { Button } from '@douyinfe/semi-ui';
+import { IconPlus } from '@douyinfe/semi-icons';
+
+import { useAddNode } from './use-add-node';
 
 export const AddNode = (props: { disabled: boolean }) => {
   const addNode = useAddNode();

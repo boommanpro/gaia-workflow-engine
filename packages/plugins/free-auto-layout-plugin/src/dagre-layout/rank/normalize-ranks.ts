@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { LayoutGraph } from '../graph';
 
 export const normalizeRanks = (graph: LayoutGraph): LayoutGraph => {

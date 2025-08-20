@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { Form, FormModelState, FormState } from '../types/form';
 import { FieldName, FieldValue } from '../types/field';
 import { FormModel } from './form-model';

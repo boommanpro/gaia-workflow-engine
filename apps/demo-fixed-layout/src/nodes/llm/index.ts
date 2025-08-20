@@ -1,6 +1,12 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { nanoid } from 'nanoid';
 
 import { defaultFormMeta } from '../default-form-meta';
+import { AgentLLMNodeRegistry } from '../agent/agent-llm';
 import { FlowNodeRegistry } from '../../typings';
 import iconLLM from '../../assets/icon-llm.jpg';
 
@@ -13,6 +19,12 @@ export const LLMNodeRegistry: FlowNodeRegistry = {
       'Call the large language model and use variables and prompt words to generate responses.',
   },
   formMeta: defaultFormMeta,
+  meta: {
+    draggable: (node) => node.parent?.flowNodeType !== AgentLLMNodeRegistry.type,
+  },
+  canDelete(ctx, node) {
+    return node.parent?.flowNodeType !== AgentLLMNodeRegistry.type;
+  },
   onAdd() {
     return {
       id: `llm_${nanoid(5)}`,
@@ -29,11 +41,11 @@ export const LLMNodeRegistry: FlowNodeRegistry = {
             content: 0.5,
           },
           systemPrompt: {
-            type: 'constant',
-            content: 'You are an AI assistant.',
+            type: 'template',
+            content: '# Role\nYou are an AI assistant.\n',
           },
           prompt: {
-            type: 'constant',
+            type: 'template',
             content: '',
           },
         },
@@ -49,9 +61,11 @@ export const LLMNodeRegistry: FlowNodeRegistry = {
             },
             systemPrompt: {
               type: 'string',
+              extra: { formComponent: 'prompt-editor' },
             },
             prompt: {
               type: 'string',
+              extra: { formComponent: 'prompt-editor' },
             },
           },
         },

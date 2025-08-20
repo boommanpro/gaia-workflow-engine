@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { ASTNodeJSON, ASTNodeJSONOrKind } from '../types';
 import { ASTMatch } from '../match';
 import { ASTNode } from '../ast-node';

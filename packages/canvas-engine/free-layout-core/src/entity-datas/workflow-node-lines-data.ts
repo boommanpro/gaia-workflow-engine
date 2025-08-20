@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { Disposable } from '@flowgram.ai/utils';
 import { EntityData } from '@flowgram.ai/core';
 
@@ -46,6 +51,10 @@ export class WorkflowNodeLinesData extends EntityData<WorkflowNodeLines> {
    */
   get outputLines(): WorkflowLineEntity[] {
     return this.data.outputLines;
+  }
+
+  get allLines(): WorkflowLineEntity[] {
+    return this.data.inputLines.concat(this.data.outputLines);
   }
 
   /**

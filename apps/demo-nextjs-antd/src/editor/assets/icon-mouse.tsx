@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 export function IconMouse(props: { width?: number; height?: number }) {
   const { width, height } = props;
   return (

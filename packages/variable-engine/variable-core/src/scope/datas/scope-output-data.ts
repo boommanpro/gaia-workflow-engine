@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { VariableTable } from '../variable-table';
 import { IVariableTable } from '../types';
 import { type Scope } from '../scope';
@@ -24,12 +29,36 @@ export class ScopeOutputData {
     return this.scope.variableEngine.globalVariableTable;
   }
 
+  get version() {
+    return this.variableTable.version;
+  }
+
+  /**
+   * @deprecated use onListOrAnyVarChange instead
+   */
   get onDataChange() {
     return this.variableTable.onDataChange.bind(this.variableTable);
   }
 
+  /**
+   * listen to variable list change
+   */
+  get onVariableListChange() {
+    return this.variableTable.onVariableListChange.bind(this.variableTable);
+  }
+
+  /**
+   * listen to any variable update in list
+   */
   get onAnyVariableChange() {
     return this.variableTable.onAnyVariableChange.bind(this.variableTable);
+  }
+
+  /**
+   * listen to variable list change + any variable update in list
+   */
+  get onListOrAnyVarChange() {
+    return this.variableTable.onListOrAnyVarChange.bind(this.variableTable);
   }
 
   protected _hasChanges = false;

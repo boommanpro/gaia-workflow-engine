@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { inject, injectable, multiInject, optional } from 'inversify';
 import { I18n } from '@flowgram.ai/i18n';
 import { type Layer, type LayerRegistry, PipelineRegistry } from '@flowgram.ai/core';
@@ -21,8 +26,15 @@ export enum FlowRendererKey {
   DRAG_HIGHLIGHT_ADDER = 'drag-highlight-adder', // 拖拽高亮
   DRAG_BRANCH_HIGHLIGHT_ADDER = 'drag-branch-highlight-adder', // 分支拖拽添加高亮
   SELECTOR_BOX_POPOVER = 'selector-box-popover', // 选择框右上角菜单
+  /**
+   * @deprecated
+   */
   CONTEXT_MENU_POPOVER = 'context-menu-popover', // 右键菜单
   SUB_CANVAS = 'sub-canvas', // 子画布渲染
+
+  SLOT_ADDER = 'slot-adder', // 插槽添加按钮
+  SLOT_LABEL = 'slot-label', // 插槽标签
+  SLOT_COLLAPSE = 'slot-collapse', // 插槽收起按钮渲染
 
   // 工作流线条箭头自定义渲染
   ARROW_RENDERER = 'arrow-renderer', // 工作流线条箭头渲染器

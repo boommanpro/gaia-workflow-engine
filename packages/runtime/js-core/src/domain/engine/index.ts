@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import {
   EngineServices,
   IEngine,
@@ -8,22 +13,34 @@ import {
   InvokeParams,
   ITask,
   FlowGramNode,
+  IValidation,
 } from '@flowgram.ai/runtime-interface';
 
+import { compareNodeGroups } from '@infra/utils';
 import { WorkflowRuntimeTask } from '../task';
 import { WorkflowRuntimeContext } from '../context';
 import { WorkflowRuntimeContainer } from '../container';
 
 export class WorkflowRuntimeEngine implements IEngine {
+  private readonly validation: IValidation;
+
   private readonly executor: IExecutor;
 
   constructor(service: EngineServices) {
+    this.validation = service.Validation;
     this.executor = service.Executor;
   }
 
   public invoke(params: InvokeParams): ITask {
     const context = WorkflowRuntimeContext.create();
     context.init(params);
+    const valid = this.validate(params, context);
+    if (!valid) {
+      return WorkflowRuntimeTask.create({
+        processing: Promise.resolve({}),
+        context,
+      });
+    }
     const processing = this.process(context);
     processing.then(() => {
       context.dispose();
@@ -40,11 +57,14 @@ export class WorkflowRuntimeEngine implements IEngine {
       return;
     }
     context.statusCenter.nodeStatus(node.id).process();
+    const snapshot = context.snapshotCenter.create({
+      nodeID: node.id,
+      data: node.data,
+    });
+    let nextNodes: INode[] = [];
     try {
       const inputs = context.state.getNodeInputs(node);
-      const snapshot = context.snapshotCenter.create({
-        nodeID: node.id,
-        data: node.data,
+      snapshot.update({
         inputs,
       });
       const result = await this.executor.execute({
@@ -52,22 +72,29 @@ export class WorkflowRuntimeEngine implements IEngine {
         inputs,
         runtime: context,
         container: WorkflowRuntimeContainer.instance,
+        snapshot,
       });
       if (context.statusCenter.workflow.terminated) {
         return;
       }
       const { outputs, branch } = result;
-      snapshot.addData({ outputs, branch });
+      snapshot.update({ outputs, branch });
       context.state.setNodeOutputs({ node, outputs });
       context.state.addExecutedNode(node);
       context.statusCenter.nodeStatus(node.id).success();
-      const nextNodes = this.getNextNodes({ node, branch, context });
-      await this.executeNext({ node, nextNodes, context });
+      nextNodes = this.getNextNodes({ node, branch, context });
     } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : 'An unknown error occurred';
+      snapshot.update({ error: errorMessage });
+      context.messageCenter.error({
+        nodeID: node.id,
+        message: errorMessage,
+      });
       context.statusCenter.nodeStatus(node.id).fail();
       console.error(e);
-      return;
+      throw e;
     }
+    await this.executeNext({ node, nextNodes, context });
   }
 
   private async process(context: IContext): Promise<WorkflowOutputs> {
@@ -80,8 +107,22 @@ export class WorkflowRuntimeEngine implements IEngine {
       return outputs;
     } catch (e) {
       context.statusCenter.workflow.fail();
-      throw e;
+      return {};
     }
+  }
+
+  private validate(params: InvokeParams, context: IContext): boolean {
+    const { valid, errors } = this.validation.invoke(params);
+    if (valid) {
+      return true;
+    }
+    errors?.forEach((message) => {
+      context.messageCenter.error({
+        message,
+      });
+    });
+    context.statusCenter.workflow.fail();
+    return false;
   }
 
   private canExecuteNode(params: { context: IContext; node: INode }) {
@@ -101,25 +142,33 @@ export class WorkflowRuntimeEngine implements IEngine {
     }
     const targetPort = node.ports.outputs.find((port) => port.id === branch);
     if (!targetPort) {
-      throw new Error(`branch ${branch} not found`);
+      throw new Error(`Engine branch ${branch} not found`);
     }
     const nextNodeIDs: Set<string> = new Set(targetPort.edges.map((edge) => edge.to.id));
     const nextNodes = allNextNodes.filter((nextNode) => nextNodeIDs.has(nextNode.id));
     const skipNodes = allNextNodes.filter((nextNode) => !nextNodeIDs.has(nextNode.id));
-    skipNodes.forEach((skipNode) => {
-      context.state.addExecutedNode(skipNode);
+    const nextGroups = nextNodes.map((nextNode) => [nextNode, ...nextNode.successors]);
+    const skipGroups = skipNodes.map((skipNode) => [skipNode, ...skipNode.successors]);
+    const { uniqueToB: skippedNodes } = compareNodeGroups(nextGroups, skipGroups);
+    skippedNodes.forEach((node) => {
+      context.state.addExecutedNode(node);
     });
     return nextNodes;
   }
 
   private async executeNext(params: { context: IContext; node: INode; nextNodes: INode[] }) {
     const { context, node, nextNodes } = params;
-    if (node.type === FlowGramNode.End) {
+    const terminatingNodeTypes = [
+      FlowGramNode.End,
+      FlowGramNode.BlockEnd,
+      FlowGramNode.Break,
+      FlowGramNode.Continue,
+    ];
+    if (terminatingNodeTypes.includes(node.type)) {
       return;
     }
     if (nextNodes.length === 0) {
-      // throw new Error(`node ${node.id} has no next nodes`); // inside loop node may have no next nodes
-      return;
+      throw new Error(`Node ${node.id} has no next nodes`); // inside loop node may have no next nodes
     }
     await Promise.all(
       nextNodes.map((nextNode) =>

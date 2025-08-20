@@ -5,7 +5,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 
 import { getProjectInfo, installDependencies, ProjectInfo } from './project.js';
-import { bfsMaterials, copyMaterial, listAllMaterials, Material } from './materials.js';
+import { copyMaterial, listAllMaterials, Material } from './materials.js';
 
 const program = new Command();
 
@@ -66,29 +66,26 @@ program
       process.exit(1);
     }
 
+    // 4. Copy the materials to the project
+    console.log(chalk.bold('The following materials will be added to your project'));
     console.log(material);
-
-    // 3. Get the component dependencies by BFS (include depMaterials and depPackages)
-    const { allMaterials, allPackages } = bfsMaterials(material!, materials);
+    let { packagesToInstall } = copyMaterial(material, projectInfo);
 
     // 4. Install the dependencies
-    let flowgramPackage = `@flowgram.ai/editor`;
-    if (projectInfo.flowgramVersion !== 'workspace:*') {
-      flowgramPackage = `@flowgram.ai/editor@${projectInfo.flowgramVersion}`;
-    }
-    const packagesToInstall: string[] = [flowgramPackage, ...allPackages];
+    packagesToInstall = packagesToInstall.map((_pkg) => {
+      if (
+        _pkg.startsWith(`@flowgram.ai/`) &&
+        projectInfo.flowgramVersion !== 'workspace:*' &&
+        !_pkg.endsWith(`@${projectInfo.flowgramVersion}`)
+      ) {
+        return `${_pkg}@${projectInfo.flowgramVersion}`;
+      }
+      return _pkg;
+    });
 
     console.log(chalk.bold('These npm dependencies will be added to your project'));
     console.log(packagesToInstall);
     installDependencies(packagesToInstall, projectInfo);
-
-    // 5. Copy the materials to the project
-    console.log(chalk.bold('These Materials will be added to your project'));
-    console.log(allMaterials);
-    allMaterials.forEach((mat: Material) => {
-      // Add type for mat
-      copyMaterial(mat, projectInfo);
-    });
   });
 
 program.parse(process.argv);

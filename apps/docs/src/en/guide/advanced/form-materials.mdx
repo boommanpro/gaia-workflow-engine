@@ -96,6 +96,26 @@ After the CLI runs successfully, the relevant materials will be automatically ad
   DynamicValueInput is used for configuring values (constant values + variable values).
 </MaterialDisplay>
 
+### JsonEditorWithVariables
+
+<MaterialDisplay
+  imgs={['/materials/json-editor-with-variables.png']}
+  filePath="components/json-editor-with-variables/index.tsx"
+  exportName="JsonEditorWithVariables"
+>
+  A JSON editor that supports variables.
+</MaterialDisplay>
+
+### CodeEditor
+
+<MaterialDisplay
+  imgs={['/materials/code-editor.png']}
+  filePath="components/code-editor/index.tsx"
+  exportName="CodeEditor"
+>
+  A code editor, currently only supports TypeScript (JavaScript).
+</MaterialDisplay>
+
 ### ConditionRow
 
 <MaterialDisplay
@@ -104,6 +124,62 @@ After the CLI runs successfully, the relevant materials will be automatically ad
   exportName="ConditionRow"
 >
   ConditionRow is used for configuring a **single row** of condition judgment.
+</MaterialDisplay>
+
+### PromptEditorWithVariables
+
+<MaterialDisplay
+  imgs={[{ src: '/materials/prompt-editor-with-variables.png', caption: 'LLM_3 and LLM_4 use variables from batch item of Loop' }]}
+  filePath="components/prompt-editor-with-variables/index.tsx"
+  exportName="PromptEditorWithVariables"
+>
+  PromptEditorWithVariables is a Prompt editor that supports variable configuration.
+
+  Below is a configuration example for the Prompt editor, where the `query` variable is of string type and the `enable` variable is of boolean type:
+  ```typescript
+  {
+    type: "template",
+    content: "#User Input:\nquery:{{start_0.query}}\nenable:{{start_0.enable}}"
+  }
+  ```
+</MaterialDisplay>
+
+### PromptEditorWithInputs
+
+<MaterialDisplay
+  imgs={['/materials/prompt-editor-with-inputs.png']}
+  filePath="components/prompt-editor-with-inputs/index.tsx"
+  exportName="PromptEditorWithInputs"
+>
+  A Prompt editor with input variables. You need to pass the value of inputsValues when using it:
+```typescript
+<PromptEditorWithInputs
+  inputsValues={{
+    a: { type: 'constant', content: "test" },
+    b: { type: 'ref', content: ["a", "b", "c"] }
+  }}
+/>
+```
+</MaterialDisplay>
+
+### InputsValues
+
+<MaterialDisplay
+  imgs={['/materials/inputs-values.png']}
+  filePath="components/inputs-values/index.tsx"
+  exportName="InputsValues"
+>
+  Key-value pair input, you can configure the `infer-inputs-plugin` material to implement inputs type inference.
+</MaterialDisplay>
+
+### BatchOutputs
+
+<MaterialDisplay
+  imgs={['/materials/batch-outputs.png']}
+  filePath="components/batch-outputs/index.tsx"
+  exportName="BatchOutputs"
+>
+  Loop output, you need to configure the `batch-outputs-plugin` material to implement loop output scope limitation + output variable automatic linkage derivation.
 </MaterialDisplay>
 
 ## Currently Supported Effect Materials
@@ -129,4 +205,69 @@ After the CLI runs successfully, the relevant materials will be automatically ad
 >
   When the name of a preceding output variable changes:
   - All references to that variable in form items are automatically renamed.
+</MaterialDisplay>
+
+### syncVariableTitle
+
+<MaterialDisplay
+  imgs={[{ src: '/materials/sync-variable-title.gif'  }]}
+  filePath="effects/sync-variable-title/index.ts"
+  exportName="syncVariableTitle"
+>
+  The node name in the variable system changes automatically.
+</MaterialDisplay>
+
+### provideJsonSchemaOutputs
+
+<MaterialDisplay
+  imgs={[{ src: '/materials/json-schema-editor.png' }]}
+  filePath="effects/provide-json-schema-outputs/index.ts"
+  exportName="provideJsonSchemaOutputs"
+>
+  The node JsonSchema is synchronized to the node output of the variable system, so that the downstream of the node can be selected.
+</MaterialDisplay>
+
+## Currently Supported FormPlugin Materials
+
+### batch-outputs-plugin
+
+<MaterialDisplay
+  imgs={[
+    { src: '/materials/batch-outputs-plugin-1.png', caption: 'The plugin limits the loop scope to only reference variables of nodes within the loop' },
+    { src: '/materials/batch-outputs-plugin-2.png', caption: 'Downstream nodes are automatically inferred based on the process' }
+  ]}
+  filePath="form-plugins/batch-outputs-plugin/index.ts"
+  exportName="createBatchOutputsFormPlugin"
+>
+  Loop output plugin, needs to be used with the `BatchOutputs` material
+
+  ```typescript
+  const formMeta = {
+    plugins: [createBatchOutputsFormPlugin({ outputKey: 'loopOutputs' })],
+  }
+  ```
+</MaterialDisplay>
+
+
+### infer-inputs-plugin
+
+<MaterialDisplay
+  imgs={[
+    { src: '/materials/infer-inputs-plugin.png', caption: 'inputs is the JsonSchema type of inputsValues' },
+  ]}
+  filePath="form-plugins/infer-inputs-plugin/index.ts"
+  exportName="inferInputsPlugin"
+>
+  When passing to the backend, the JsonSchema type of inputsValues is automatically calculated based on the variable engine
+
+  ```typescript
+  const formMeta = {
+    plugins: [
+      // headers stores the type definition of headersValues
+      createInferInputsPlugin({ sourceKey: 'headersValues', targetKey: 'headers' }),
+      // params stores the type definition of paramsValues
+      createInferInputsPlugin({ sourceKey: 'paramsValues', targetKey: 'params' }),
+    ],
+  }
+  ```
 </MaterialDisplay>

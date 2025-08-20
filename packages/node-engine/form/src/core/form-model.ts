@@ -1,5 +1,10 @@
-import { clone, flatten, get } from 'lodash';
-import { shallowEqual } from 'fast-equals';
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
+import { flatten, get } from 'lodash';
+import { deepEqual } from 'fast-equals';
 import { Disposable, Emitter } from '@flowgram.ai/utils';
 import { ReactiveState } from '@flowgram.ai/reactive';
 
@@ -15,7 +20,7 @@ import {
   OnFormValuesUpdatedPayload,
 } from '../types/form';
 import { FieldName, FieldValue } from '../types/field';
-import { Errors, FormValidateReturn, Warnings } from '../types';
+import { Errors, FeedbackLevel, FormValidateReturn, Validate, Warnings } from '../types';
 import { createFormModelState } from '../constants';
 import { getValidByErrors, mergeFeedbacks } from './utils';
 import { Store } from './store';
@@ -79,12 +84,12 @@ export class FormModel<TValues = any> implements Disposable {
   }
 
   get values() {
-    return clone(this.store.values) || clone(this.initialValues);
+    return this.store.values;
   }
 
   set values(v) {
     const prevValues = this.values;
-    if (shallowEqual(this.store.values || this.initialValues, v)) {
+    if (deepEqual(prevValues, v)) {
       return;
     }
     this.store.values = v;
@@ -133,7 +138,7 @@ export class FormModel<TValues = any> implements Disposable {
     this._options = options;
     if (options.initialValues) {
       const prevValues = this.store.values;
-      this.store.setInitialValues(options.initialValues);
+      this.store.values = options.initialValues;
       this.fireOnFormValuesInit({
         values: options.initialValues,
         prevValues,
@@ -234,21 +239,25 @@ export class FormModel<TValues = any> implements Disposable {
     }
   }
 
+  validateDisabled = false;
+
   clearValueIn(name: FieldName) {
     this.setValueIn(name, undefined);
   }
 
   async validateIn(name: FieldName) {
-    if (!this._options.validate) {
+    if (this.validateDisabled) return [];
+    const validateOptions = this.getValidateOptions();
+    if (!validateOptions) {
       return;
     }
 
-    const validateKeys = Object.keys(this._options.validate).filter((pattern) =>
+    const validateKeys = Object.keys(validateOptions).filter((pattern) =>
       Glob.isMatch(pattern, name)
     );
 
     const validatePromises = validateKeys.map(async (validateKey) => {
-      const validate = this._options.validate![validateKey];
+      const validate = validateOptions![validateKey];
 
       return validate({
         value: this.getValueIn(name),
@@ -261,19 +270,30 @@ export class FormModel<TValues = any> implements Disposable {
     return Promise.all(validatePromises);
   }
 
+  protected getValidateOptions(): Record<string, Validate> | undefined {
+    const validate = this._options.validate;
+    if (typeof validate === 'function') {
+      return validate(this.values, this.context);
+    }
+    return validate;
+  }
+
   async validate(): Promise<FormValidateReturn> {
-    if (!this._options.validate) {
+    if (this.validateDisabled) return [];
+    const validateOptions = this.getValidateOptions();
+    if (!validateOptions) {
       return [];
     }
 
-    const feedbacksArrPromises = Object.keys(this._options.validate).map(async (nameRule) => {
-      const validate = this._options.validate![nameRule];
-      const paths = Glob.findMatchPathsWithEmptyValue(this.values, nameRule);
+    const feedbacksArrPromises = Object.keys(validateOptions).map(async (nameRule) => {
+      const validate = validateOptions![nameRule];
+      const values = this.values;
+      const paths = Glob.findMatchPathsWithEmptyValue(values, nameRule);
       return Promise.all(
         paths.map(async (path) => {
           const result = await validate({
-            value: get(this.values, path),
-            formValues: this.values,
+            value: get(values, path),
+            formValues: values,
             context: this.context,
             name: path,
           });
@@ -281,8 +301,14 @@ export class FormModel<TValues = any> implements Disposable {
           const feedback = toFeedback(result, path);
           const field = this.getField(path);
 
-          const errors = feedbackToFieldErrorsOrWarnings<Errors>(path, feedback);
-          const warnings = feedbackToFieldErrorsOrWarnings<Warnings>(path, feedback);
+          const errors = feedbackToFieldErrorsOrWarnings<Errors>(
+            path,
+            feedback?.level === FeedbackLevel.Error ? feedback : undefined
+          );
+          const warnings = feedbackToFieldErrorsOrWarnings<Warnings>(
+            path,
+            feedback?.level === FeedbackLevel.Warning ? feedback : undefined
+          );
 
           if (field) {
             field.state.errors = errors;

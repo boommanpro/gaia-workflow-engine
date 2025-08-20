@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { isNil } from 'lodash-es';
 import { ChatOpenAI } from '@langchain/openai';
 import { SystemMessage, HumanMessage, BaseMessageLike } from '@langchain/core/messages';
@@ -18,7 +23,7 @@ export interface LLMExecutorInputs {
 }
 
 export class LLMExecutor implements INodeExecutor {
-  public type = FlowGramNode.LLM;
+  public readonly type = FlowGramNode.LLM;
 
   public async execute(context: ExecutionContext): Promise<ExecutionResult> {
     const inputs = context.inputs as LLMExecutorInputs;
@@ -33,6 +38,7 @@ export class LLMExecutor implements INodeExecutor {
       configuration: {
         baseURL: apiHost,
       },
+      maxRetries: 3,
     });
 
     const messages: BaseMessageLike[] = [];
@@ -42,7 +48,17 @@ export class LLMExecutor implements INodeExecutor {
     }
     messages.push(new HumanMessage(prompt));
 
-    const apiMessage = await model.invoke(messages);
+    let apiMessage;
+    try {
+      apiMessage = await model.invoke(messages);
+    } catch (error) {
+      // 调用 LLM API 失败
+      const errorMessage = (error as Error)?.message;
+      if (errorMessage === 'Connection error.') {
+        throw new Error(`Network error: unreachable api "${apiHost}"`);
+      }
+      throw error;
+    }
 
     const result = apiMessage.content;
     return {
@@ -56,14 +72,27 @@ export class LLMExecutor implements INodeExecutor {
     const { modelName, temperature, apiKey, apiHost, prompt } = inputs;
     const missingInputs = [];
 
-    if (isNil(modelName)) missingInputs.push('modelName');
+    if (!modelName) missingInputs.push('modelName');
     if (isNil(temperature)) missingInputs.push('temperature');
-    if (isNil(apiKey)) missingInputs.push('apiKey');
-    if (isNil(apiHost)) missingInputs.push('apiHost');
-    if (isNil(prompt)) missingInputs.push('prompt');
+    if (!apiKey) missingInputs.push('apiKey');
+    if (!apiHost) missingInputs.push('apiHost');
+    if (!prompt) missingInputs.push('prompt');
 
     if (missingInputs.length > 0) {
-      throw new Error(`LLM node missing required inputs: ${missingInputs.join(', ')}`);
+      throw new Error(`LLM node missing required inputs: "${missingInputs.join('", "')}"`);
+    }
+
+    this.checkApiHost(apiHost);
+  }
+
+  private checkApiHost(apiHost: string): void {
+    if (!apiHost || typeof apiHost !== 'string') {
+      throw new Error(`Invalid API host format - ${apiHost}`);
+    }
+
+    const url = new URL(apiHost);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      throw new Error(`Invalid API host protocol - ${url.protocol}`);
     }
   }
 }

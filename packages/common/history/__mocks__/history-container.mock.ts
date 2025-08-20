@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { Container, ContainerModule, type interfaces } from 'inversify';
 import { bindContributions } from '@flowgram.ai/utils';
 import { EditorRegister, Editor } from './editor.mock'

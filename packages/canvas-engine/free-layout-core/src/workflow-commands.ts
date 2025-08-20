@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 export enum WorkflowCommands {
   DELETE_NODES = 'DELETE_NODES',
   COPY_NODES = 'COPY_NODES',

@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import {
   FreeLayoutPluginContext,
   ShortcutsHandler,
@@ -7,6 +12,7 @@ import {
   WorkflowNodeMeta,
   WorkflowSelectService,
   HistoryService,
+  PlaygroundConfigEntity,
 } from '@flowgram.ai/free-layout-editor';
 import { Toast } from '@douyinfe/semi-ui';
 
@@ -18,6 +24,8 @@ export class DeleteShortcut implements ShortcutsHandler {
 
   public shortcuts = ['backspace', 'delete'];
 
+  private playgroundConfig: PlaygroundConfigEntity;
+
   private document: WorkflowDocument;
 
   private selectService: WorkflowSelectService;
@@ -28,6 +36,7 @@ export class DeleteShortcut implements ShortcutsHandler {
    * initialize delete shortcut - 初始化删除快捷键
    */
   constructor(context: FreeLayoutPluginContext) {
+    this.playgroundConfig = context.playground.config;
     this.document = context.get(WorkflowDocument);
     this.selectService = context.get(WorkflowSelectService);
     this.historyService = context.get(HistoryService);
@@ -38,6 +47,9 @@ export class DeleteShortcut implements ShortcutsHandler {
    * execute delete operation - 执行删除操作
    */
   public async execute(nodes?: WorkflowNodeEntity[]): Promise<void> {
+    if (this.readonly) {
+      return;
+    }
     const selection = Array.isArray(nodes) ? nodes : this.selectService.selection;
     if (
       !this.isValid(
@@ -61,6 +73,13 @@ export class DeleteShortcut implements ShortcutsHandler {
     // filter out disposed entities - 过滤掉已删除的实体
     this.selectService.selection = this.selectService.selection.filter((s) => !s.disposed);
     this.historyService.endTransaction();
+  }
+
+  /**
+   * readonly - 是否只读
+   */
+  private get readonly(): boolean {
+    return this.playgroundConfig.readonly;
   }
 
   /**

@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { interfaces } from 'inversify';
 import { FlowRendererContainerModule, FlowRendererRegistry } from '@flowgram.ai/renderer';
 import { createReduxDevToolPlugin } from '@flowgram.ai/redux-devtool-plugin';
@@ -9,7 +14,6 @@ import { createHistoryNodePlugin } from '@flowgram.ai/history-node-plugin';
 import { FlowDocumentContainerModule } from '@flowgram.ai/document';
 import { createPlaygroundPlugin, Plugin, PluginsProvider } from '@flowgram.ai/core';
 
-import { compose } from '../utils/compose';
 import { createFlowEditorClientPlugins } from '../clients/flow-editor-client-plugins';
 import { EditorPluginContext, EditorProps } from './editor-props';
 
@@ -75,20 +79,6 @@ export function createDefaultPreset<CTX extends EditorPluginContext = EditorPlug
           // 自定义画布内部常量
           if (opts.constants) {
             ctx.document.options.constants = opts.constants;
-          }
-          // 劫持节点线条
-          if (opts.formatNodeLines) {
-            ctx.document.options.formatNodeLines = compose([
-              ctx.document.options.formatNodeLines,
-              opts.formatNodeLines,
-            ]);
-          }
-          // 劫持节点 label
-          if (opts.formatNodeLabels) {
-            ctx.document.options.formatNodeLabels = compose([
-              ctx.document.options.formatNodeLabels,
-              opts.formatNodeLabels,
-            ]);
           }
           if (opts.getNodeDefaultRegistry) {
             ctx.document.options.getNodeDefaultRegistry = opts.getNodeDefaultRegistry;

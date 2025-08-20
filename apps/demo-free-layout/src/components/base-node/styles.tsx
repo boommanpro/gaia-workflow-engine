@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import styled from 'styled-components';
 import { IconInfoCircle } from '@douyinfe/semi-icons';
 
@@ -11,8 +16,7 @@ export const NodeWrapperStyle = styled.div`
   flex-direction: column;
   justify-content: center;
   position: relative;
-  min-width: 360px;
-  width: 100%;
+  width: 360px;
   height: auto;
 
   &.selected {

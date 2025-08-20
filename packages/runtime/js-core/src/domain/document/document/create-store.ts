@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import {
   FlowGramNode,
   WorkflowPortType,
@@ -95,7 +100,7 @@ export const createStore = (params: FlattenData): DocumentStore => {
     const from = store.nodes.get(sourceNodeID);
     const to = store.nodes.get(targetNodeID);
     if (!from || !to) {
-      throw new Error(`invalid edge schema ID: ${id}, from: ${sourceNodeID}, to: ${targetNodeID}`);
+      throw new Error(`Invalid edge schema ID: ${id}, from: ${sourceNodeID}, to: ${targetNodeID}`);
     }
     const edge = createEdge(store, {
       id,

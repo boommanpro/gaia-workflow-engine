@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { WorkflowNodeEntity, WorkflowPortEntity } from '@flowgram.ai/free-layout-core';
 
 import { isContainer } from './is-container';

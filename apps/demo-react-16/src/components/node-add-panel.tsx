@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import React from 'react';
 
 import { WorkflowDragService, useService } from '@flowgram.ai/free-layout-editor';

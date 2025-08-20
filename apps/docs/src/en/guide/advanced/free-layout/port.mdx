@@ -22,7 +22,7 @@ Add `defaultPorts` to node declaration, such as `{ type: 'input' }`, which will 
 
 - Dynamic Ports
 
-Add `dynamicPorts` to node declaration, when set to true it will look for DOM elements with `data-port-id` and `data-port-type` attributes as ports
+Add `useDynamicPort` to node declaration, when set to true it will look for DOM elements with `data-port-id` and `data-port-type` attributes as ports
 
 
 ```ts pure title="node-registries.ts"
@@ -30,7 +30,7 @@ Add `dynamicPorts` to node declaration, when set to true it will look for DOM el
   type: 'condition',
   meta: {
     defaultPorts: [{ type: 'input'}]
-    dynamicPort: true
+    useDynamicPort: true
   },
 }
 

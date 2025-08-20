@@ -1,9 +1,19 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import {
   WorkflowContentChangeType,
   WorkflowDocument,
   WorkflowDocumentOptionsDefault,
 } from '@flowgram.ai/free-layout-core';
-import { FlowNodeEntity, FlowNodeFormData, type FlowNodeJSON } from '@flowgram.ai/editor';
+import {
+  FlowNodeBaseType,
+  FlowNodeEntity,
+  FlowNodeFormData,
+  type FlowNodeJSON,
+} from '@flowgram.ai/editor';
 
 import { FreeLayoutProps } from './free-layout-props';
 
@@ -52,6 +62,16 @@ export function toNodeJSON(opts: FreeLayoutProps, node: FlowNodeEntity): FlowNod
     };
   } else {
     json = WorkflowDocumentOptionsDefault.toNodeJSON!(node);
+  }
+  // 处理分组节点
+  if (node.flowNodeType === FlowNodeBaseType.GROUP) {
+    const parentID = node.parent?.id ?? FlowNodeBaseType.ROOT;
+    const blockIDs = node.blocks.map((block) => block.id) ?? [];
+    json.data = {
+      ...json.data,
+      parentID,
+      blockIDs,
+    };
   }
   return opts.toNodeJSON ? opts.toNodeJSON(node, json) : json;
 }

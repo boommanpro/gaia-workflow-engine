@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 /* eslint-disable no-console */
 import {
   InvokeParams,
@@ -6,6 +11,8 @@ import {
   ITask,
   IReport,
   WorkflowOutputs,
+  IValidation,
+  ValidationResult,
 } from '@flowgram.ai/runtime-interface';
 
 import { WorkflowRuntimeContainer } from '@workflow/container';
@@ -62,6 +69,13 @@ export class WorkflowApplication {
       return;
     }
     return task.context.ioCenter.outputs;
+  }
+
+  public validate(params: InvokeParams): ValidationResult {
+    const validation = this.container.get<IValidation>(IValidation);
+    const result = validation.invoke(params);
+    console.log('> POST TaskValidate - valid: ', result.valid);
+    return result;
   }
 
   private static _instance: WorkflowApplication;

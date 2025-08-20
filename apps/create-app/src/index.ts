@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import path from 'path';
 
 import { execSync } from 'child_process';
@@ -39,14 +44,15 @@ const main = async () => {
           { name: 'Fixed Layout Demo Simple', value: 'demo-fixed-layout-simple' },
           { name: 'Free Layout Demo Simple', value: 'demo-free-layout-simple' },
           { name: 'Free Layout Nextjs Demo', value: 'demo-nextjs' },
-          { name: 'Free Layout Vite Demo Simple', value: 'demo-vite' }
+          { name: 'Free Layout Vite Demo Simple', value: 'demo-vite' },
+          { name: 'Demo Playground for infinite canvas', value: 'demo-playground' }
         ],
       },
     ]);
 
     folderName = repo;
   } else {
-    if (['fixed-layout', 'free-layout', 'fixed-layout-simple', 'free-layout-simple', 'nextjs'].includes(args[0])) {
+    if (['fixed-layout', 'free-layout', 'fixed-layout-simple', 'free-layout-simple', 'playground', 'nextjs'].includes(args[0])) {
       folderName = `demo-${args[0]}`;
     } else {
       console.error('Invalid argument. Please run "npx create-app" to choose demo.');

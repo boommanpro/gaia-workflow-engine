@@ -1,6 +1,12 @@
-import { isNil } from 'lodash-es';
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
 
-import { ConditionHandler, ConditionOperation } from '../type';
+import { isNil } from 'lodash-es';
+import { ConditionOperation } from '@flowgram.ai/runtime-interface';
+
+import { ConditionHandler } from '../type';
 
 export const conditionBooleanHandler: ConditionHandler = (condition) => {
   const { operator } = condition;

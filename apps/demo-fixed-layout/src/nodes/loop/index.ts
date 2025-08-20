@@ -1,9 +1,13 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { nanoid } from 'nanoid';
 
-import { defaultFormMeta } from '../default-form-meta';
 import { FlowNodeRegistry } from '../../typings';
 import iconLoop from '../../assets/icon-loop.svg';
-import { LoopFormRender } from './loop-form-render';
+import { formMeta } from './form-meta';
 
 export const LoopNodeRegistry: FlowNodeRegistry = {
   type: 'loop',
@@ -15,7 +19,7 @@ export const LoopNodeRegistry: FlowNodeRegistry = {
   meta: {
     expandable: false, // disable expanded
   },
-  formMeta: { ...defaultFormMeta, render: LoopFormRender },
+  formMeta,
   onAdd() {
     return {
       id: `loop_${nanoid(5)}`,

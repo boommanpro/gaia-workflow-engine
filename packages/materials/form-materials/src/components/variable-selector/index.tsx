@@ -1,14 +1,23 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import React, { useMemo } from 'react';
 
+import { IJsonSchema } from '@flowgram.ai/json-schema';
+import { I18n } from '@flowgram.ai/editor';
 import { TriggerRenderProps } from '@douyinfe/semi-ui/lib/es/treeSelect';
 import { TreeNodeData } from '@douyinfe/semi-ui/lib/es/tree';
+import { Popover } from '@douyinfe/semi-ui';
 import { IconChevronDownStroked, IconIssueStroked } from '@douyinfe/semi-icons';
 
-import { IJsonSchema } from '../../typings/json-schema';
-import { useVariableTree } from './use-variable-tree';
-import { UIRootTitle, UITag, UITreeSelect } from './styles';
+import { createInjectMaterial } from '@/shared';
 
-interface PropTypes {
+import { useVariableTree } from './use-variable-tree';
+import { UIPopoverContent, UIRootTitle, UITag, UITreeSelect, UIVarName } from './styles';
+
+export interface VariableSelectorProps {
   value?: string[];
   config?: {
     placeholder?: string;
@@ -23,7 +32,7 @@ interface PropTypes {
   triggerRender?: (props: TriggerRenderProps) => React.ReactNode;
 }
 
-export type VariableSelectorProps = PropTypes;
+export { useVariableTree };
 
 export const VariableSelector = ({
   value,
@@ -35,7 +44,7 @@ export const VariableSelector = ({
   excludeSchema,
   hasError,
   triggerRender,
-}: PropTypes) => {
+}: VariableSelectorProps) => {
   const treeData = useVariableTree({ includeSchema, excludeSchema });
 
   const treeValue = useMemo(() => {
@@ -86,24 +95,47 @@ export const VariableSelector = ({
             );
           }
 
+          const rootIcon = renderIcon(_option.rootMeta?.icon || _option?.icon);
+
+          const rootTitle = (
+            <UIRootTitle>
+              {_option.rootMeta?.title
+                ? `${_option.rootMeta?.title} ${_option.isRoot ? '' : '-'} `
+                : null}
+            </UIRootTitle>
+          );
+
           return (
-            <UITag
-              prefixIcon={renderIcon(_option.rootMeta?.icon || _option?.icon)}
-              closable={!readonly}
-              onClose={() => onChange(undefined)}
-            >
-              <UIRootTitle>
-                {_option.rootMeta?.title ? `${_option.rootMeta?.title} -` : null}
-              </UIRootTitle>
-              {_option.label}
-            </UITag>
+            <div>
+              <Popover
+                content={
+                  <UIPopoverContent>
+                    {rootIcon}
+                    {rootTitle}
+                    <UIVarName>{_option.keyPath.slice(1).join('.')}</UIVarName>
+                  </UIPopoverContent>
+                }
+              >
+                <UITag
+                  prefixIcon={rootIcon}
+                  closable={!readonly}
+                  onClose={() => onChange(undefined)}
+                >
+                  {rootTitle}
+                  {!_option.isRoot && <UIVarName $inSelector>{_option.label}</UIVarName>}
+                </UITag>
+              </Popover>
+            </div>
           );
         }}
         showClear={false}
         arrowIcon={<IconChevronDownStroked size="small" />}
         triggerRender={triggerRender}
-        placeholder={config?.placeholder ?? 'Select Variable...'}
+        placeholder={config?.placeholder ?? I18n.t('Select Variable')}
       />
     </>
   );
 };
+
+VariableSelector.renderKey = 'variable-selector-render-key';
+export const InjectVariableSelector = createInjectMaterial(VariableSelector);

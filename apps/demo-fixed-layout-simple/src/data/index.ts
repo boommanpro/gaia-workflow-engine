@@ -1,6 +1,12 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { FlowDocumentJSON, FlowLayoutDefault } from '@flowgram.ai/fixed-layout-editor';
 
 import { tryCatch } from './tryCatch';
+import { slot } from './slot';
 import { multiOutputs } from './multiOutputs';
 import { multiInputs } from './multiInputs';
 import { mindmap } from './mindmap';
@@ -16,4 +22,5 @@ export const FLOW_LIST: Record<string, FlowDocumentJSON & { defaultLayout?: Flow
   loop,
   multiInputs,
   multiOutputs,
+  slot,
 };

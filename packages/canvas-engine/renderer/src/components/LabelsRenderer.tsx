@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import React from 'react';
 
 import { type IPoint, Rectangle } from '@flowgram.ai/utils';
@@ -51,7 +56,7 @@ export function createLabels(labelProps: LabelOpts): void {
 
   // 标签绘制逻辑
   const renderLabel = (label: FlowTransitionLabel, index: number) => {
-    const { offset, renderKey, props, rotate, type } = label || {};
+    const { offset, renderKey, props, rotate, origin, type } = label || {};
     const offsetX = offset.x;
     const offsetY = offset.y;
 
@@ -143,6 +148,9 @@ export function createLabels(labelProps: LabelOpts): void {
         break;
     }
 
+    const originX = typeof origin?.[0] === 'number' ? origin?.[0] : 0.5;
+    const originY = typeof origin?.[1] === 'number' ? origin?.[1] : 0.5;
+
     return (
       <div
         key={`${data.entity.id}${index}`}
@@ -151,7 +159,7 @@ export function createLabels(labelProps: LabelOpts): void {
           position: 'absolute',
           left: offsetX,
           top: offsetY,
-          transform: 'translate(-50%, -50%)',
+          transform: `translate(-${originX * 100}%, -${originY * 100}%)`,
         }}
       >
         {child}

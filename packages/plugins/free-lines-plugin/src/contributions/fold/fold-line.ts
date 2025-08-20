@@ -1,4 +1,10 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { type IPoint, Point, Rectangle } from '@flowgram.ai/utils';
+import { LinePoint } from '@flowgram.ai/free-layout-core';
 
 /**
  * 计算点到线段的距离
@@ -42,6 +48,11 @@ const getPointToSegmentDistance = (point: IPoint, segStart: IPoint, segEnd: IPoi
   return Math.sqrt(dx * dx + dy * dy);
 };
 
+/**
+ * Fork from: https://github.com/xyflow/xyflow/blob/main/packages/system/src/utils/edges/smoothstep-edge.ts
+ * MIT License
+ * Copyright (c) 2019-2024 webkid GmbH
+ */
 export namespace FoldLine {
   const EDGE_RADIUS = 5;
   const OFFSET = 20;
@@ -56,34 +67,43 @@ export namespace FoldLine {
     return [centerX, centerY];
   }
 
-  const getDirection = ({ source, target }: { source: IPoint; target: IPoint }): IPoint =>
-    source.x < target.x ? { x: 1, y: 0 } : { x: -1, y: 0 };
+  const getDirection = ({ source, target }: { source: LinePoint; target: LinePoint }): IPoint => {
+    if (source.location === 'left' || source.location === 'right') {
+      return source.x < target.x ? { x: 1, y: 0 } : { x: -1, y: 0 };
+    }
+    return source.y < target.y ? { x: 0, y: 1 } : { x: 0, y: -1 };
+  };
 
+  const handleDirections = {
+    left: { x: -1, y: 0 },
+    right: { x: 1, y: 0 },
+    top: { x: 0, y: -1 },
+    bottom: { x: 0, y: 1 },
+  };
   // eslint-disable-next-line complexity
   export function getPoints({
     source,
     target,
-    vertical = false,
   }: {
-    source: IPoint;
-    target: IPoint;
-    vertical?: boolean;
+    source: LinePoint;
+    target: LinePoint;
   }): IPoint[] {
-    // from 节点的出发方向
-    const sourceDir = vertical ? { x: 0, y: 1 } : { x: 1, y: 0 };
-    // to 节点的接收方向
-    const targetDir = vertical ? { x: 0, y: -1 } : { x: -1, y: 0 };
-    const sourceGapped: IPoint = {
+    const sourceDir = handleDirections[source.location];
+    const targetDir = handleDirections[target.location];
+    const sourceGapped: LinePoint = {
       x: source.x + sourceDir.x * OFFSET,
       y: source.y + sourceDir.y * OFFSET,
+      location: source.location,
     };
-    const targetGapped: IPoint = {
+    const targetGapped: LinePoint = {
       x: target.x + targetDir.x * OFFSET,
       y: target.y + targetDir.y * OFFSET,
+      location: target.location,
     };
-    const dir = vertical
-      ? { x: 0, y: sourceGapped.y < targetGapped.y ? 1 : -1 }
-      : getDirection({ source: sourceGapped, target: targetGapped });
+    const dir = getDirection({
+      source: sourceGapped,
+      target: targetGapped,
+    });
     const dirAccessor = dir.x !== 0 ? 'x' : 'y';
     const currDir = dir[dirAccessor];
 

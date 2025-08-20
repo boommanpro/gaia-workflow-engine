@@ -1,12 +1,21 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import {
   Observable,
   Subject,
+  animationFrameScheduler,
+  debounceTime,
   distinctUntilChanged,
   map,
   merge,
   share,
   skip,
+  startWith,
   switchMap,
+  tap,
 } from 'rxjs';
 import { flatten } from 'lodash';
 import { shallowEqual } from 'fast-equals';
@@ -17,7 +26,8 @@ import { IVariableTable } from '../types';
 import { type Scope } from '../scope';
 import { subsToDisposable } from '../../utils/toDisposable';
 import { createMemo } from '../../utils/memo';
-import { Property, VariableDeclaration } from '../../ast';
+import { SubscribeConfig } from '../../ast/types';
+import { ASTNode, BaseVariableField, VariableDeclaration } from '../../ast';
 /**
  * 作用域可用变量
  */
@@ -28,9 +38,22 @@ export class ScopeAvailableData {
     return this.scope.variableEngine.globalVariableTable;
   }
 
+  protected _version: number = 0;
+
   protected refresh$: Subject<void> = new Subject();
 
   protected _variables: VariableDeclaration[] = [];
+
+  get version() {
+    return this._version;
+  }
+
+  protected bumpVersion() {
+    this._version = this._version + 1;
+    if (this._version === Number.MAX_SAFE_INTEGER) {
+      this._version = 0;
+    }
+  }
 
   // 刷新可访问变量列表
   refresh(): void {
@@ -68,8 +91,8 @@ export class ScopeAvailableData {
   );
 
   /**
-   * 监听任意变量变化
-   * @param observer 监听器，变量变化时会吐出值
+   * listen to any variable update in list
+   * @param observer
    * @returns
    */
   onAnyVariableChange(observer: (changedVariable: VariableDeclaration) => void) {
@@ -77,7 +100,7 @@ export class ScopeAvailableData {
   }
 
   /**
-   * 监听变量列表变化
+   * listen to variable list change
    * @param observer
    * @returns
    */
@@ -85,12 +108,22 @@ export class ScopeAvailableData {
     return subsToDisposable(this.variables$.subscribe(observer));
   }
 
+  /**
+   * @deprecated
+   */
   protected onDataChangeEmitter = new Emitter<VariableDeclaration[]>();
 
+  protected onListOrAnyVarChangeEmitter = new Emitter<VariableDeclaration[]>();
+
   /**
-   * 监听变量列表变化 + 任意子变量变化
+   * @deprecated use available.onListOrAnyVarChange instead
    */
   public onDataChange = this.onDataChangeEmitter.event;
+
+  /**
+   * listen to variable list change + any variable drilldown change
+   */
+  public onListOrAnyVarChange = this.onListOrAnyVarChangeEmitter.event;
 
   constructor(public readonly scope: Scope) {
     this.scope.toDispose.pushAll([
@@ -98,9 +131,13 @@ export class ScopeAvailableData {
         this._variables = _variables;
         this.memo.clear();
         this.onDataChangeEmitter.fire(this._variables);
+        this.bumpVersion();
+        this.onListOrAnyVarChangeEmitter.fire(this._variables);
       }),
       this.onAnyVariableChange(() => {
         this.onDataChangeEmitter.fire(this._variables);
+        this.bumpVersion();
+        this.onListOrAnyVarChangeEmitter.fire(this._variables);
       }),
       Disposable.create(() => {
         this.refresh$.complete();
@@ -135,11 +172,47 @@ export class ScopeAvailableData {
    * @param keyPath
    * @returns
    */
-  getByKeyPath(keyPath: string[] = []): VariableDeclaration | Property | undefined {
+  getByKeyPath(keyPath: string[] = []): BaseVariableField | undefined {
     // 检查变量是否在可访问范围内
     if (!this.variableKeys.includes(keyPath[0])) {
       return;
     }
     return this.globalVariableTable.getByKeyPath(keyPath);
+  }
+
+  /**
+   * Track Variable Change (Includes type update and children update) By KeyPath
+   * @returns
+   */
+  trackByKeyPath<Data = BaseVariableField | undefined>(
+    keyPath: string[] = [],
+    cb: (variable?: Data) => void,
+    opts?: SubscribeConfig<BaseVariableField | undefined, Data>
+  ): Disposable {
+    const { triggerOnInit = true, debounceAnimation, selector } = opts || {};
+
+    return subsToDisposable(
+      merge(this.anyVariableChange$, this.variables$)
+        .pipe(
+          triggerOnInit ? startWith() : tap(() => null),
+          map(() => {
+            const v = this.getByKeyPath(keyPath);
+            return selector ? selector(v) : (v as any);
+          }),
+          distinctUntilChanged(
+            (a, b) => shallowEqual(a, b),
+            (value) => {
+              if (value instanceof ASTNode) {
+                // 如果 value 是 ASTNode，则进行 hash 的比较
+                return value.hash;
+              }
+              return value;
+            }
+          ),
+          // 每个 animationFrame 内所有更新合并成一个
+          debounceAnimation ? debounceTime(0, animationFrameScheduler) : tap(() => null)
+        )
+        .subscribe(cb)
+    );
   }
 }

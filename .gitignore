@@ -1,5 +1,6 @@
 # e2e results
 test-results/
+doc_build/
 
 # Logs
 *.log

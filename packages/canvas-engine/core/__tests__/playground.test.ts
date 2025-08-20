@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { Rectangle } from '@flowgram.ai/utils';
 
 import { createPlayground } from '../__mocks__/playground-container.mock';
@@ -40,7 +45,7 @@ describe('playground', () => {
       playgroundConfig.getPosFromMouseEvent({
         clientX: 200,
         clientY: 200,
-      }),
+      })
     ).toMatchSnapshot();
     expect(
       playgroundConfig.getPosFromMouseEvent(
@@ -48,14 +53,14 @@ describe('playground', () => {
           clientX: 200,
           clientY: 200,
         },
-        false,
-      ),
+        false
+      )
     ).toMatchSnapshot();
     expect(
       playgroundConfig.toFixedPos({
         x: 200,
         y: 200,
-      }),
+      })
     ).toMatchSnapshot();
     expect(playgroundConfig.getViewport()).toMatchSnapshot();
     expect(playgroundConfig.getViewport(false)).toMatchSnapshot();
@@ -103,10 +108,38 @@ describe('playground', () => {
     const renderer = playground.pipelineRegistry.renderer;
 
     // 设置每一个 layer 都渲染完成，mock TTI 上报
-    renderer.layers.forEach(layer => {
+    renderer.layers.forEach((layer) => {
       renderer.reportLayerRendered(layer);
     });
-    const allLayersRendered = Array.from(renderer.layerRenderedMap.values()).every(v => v);
+    const allLayersRendered = Array.from(renderer.layerRenderedMap.values()).every((v) => v);
     expect(allLayersRendered).toEqual(true);
+  });
+  it('scrollDisable', () => {
+    const playground = createPlayground();
+    playground.config.scrollDisable = true;
+    playground.config.updateConfig({
+      scrollX: 10000,
+      scrollY: 10000,
+    });
+    expect(playground.config.scrollData).toEqual({ scrollX: 0, scrollY: 0 });
+    playground.config.scrollDisable = false;
+    playground.config.updateConfig({
+      scrollX: 10000,
+      scrollY: 10000,
+    });
+    expect(playground.config.scrollData).toEqual({ scrollX: 10000, scrollY: 10000 });
+  });
+  it('zoomDisable', () => {
+    const playground = createPlayground();
+    playground.config.zoomDisable = true;
+    playground.config.updateConfig({
+      zoom: 1.3,
+    });
+    expect(playground.config.zoom).toEqual(1);
+    playground.config.zoomDisable = false;
+    playground.config.updateConfig({
+      zoom: 1.3,
+    });
+    expect(playground.config.zoom).toEqual(1.3);
   });
 });

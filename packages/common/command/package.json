@@ -39,7 +39,7 @@
     "eslint": "^8.54.0",
     "jsdom": "^22.1.0",
     "tsup": "^8.0.1",
-    "typescript": "^5.0.4",
+    "typescript": "^5.8.3",
     "vitest": "^0.34.6"
   },
   "peerDependencies": {

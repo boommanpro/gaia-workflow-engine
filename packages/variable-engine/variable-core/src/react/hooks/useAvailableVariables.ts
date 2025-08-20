@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { useEffect } from 'react';
 
 import { useRefresh, useService } from '@flowgram.ai/core';
@@ -18,7 +23,7 @@ export function useAvailableVariables(): VariableDeclaration[] {
   useEffect(() => {
     // 没有作用域时，监听全局变量表
     if (!scope) {
-      const disposable = variableEngine.globalVariableTable.onAnyChange(() => {
+      const disposable = variableEngine.globalVariableTable.onListOrAnyVarChange(() => {
         refresh();
       });
 

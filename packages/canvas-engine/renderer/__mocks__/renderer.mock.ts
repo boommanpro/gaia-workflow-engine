@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { EntityManager, PlaygroundConfigEntity, PlaygroundContainerModule } from '@flowgram.ai/core'
 import { Container } from 'inversify'
 

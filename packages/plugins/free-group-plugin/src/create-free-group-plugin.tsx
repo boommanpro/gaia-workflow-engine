@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { ShortcutsRegistry } from '@flowgram.ai/shortcuts-plugin';
 import { FlowRendererRegistry } from '@flowgram.ai/renderer';
 import { WorkflowDocument } from '@flowgram.ai/free-layout-core';
@@ -11,14 +16,12 @@ import { GroupNodeRegistry } from './group-node';
 
 export const createFreeGroupPlugin = definePluginCreator<WorkflowGroupPluginOptions, PluginContext>(
   {
-    onBind({ bind, rebind }) {
+    onBind({ bind, rebind }, opts) {
       bind(WorkflowGroupService).toSelf().inSingletonScope();
+      bind(WorkflowGroupPluginOptions).toConstantValue(opts);
       rebind(FlowGroupService).toService(WorkflowGroupService);
     },
-    onInit(
-      ctx,
-      { groupNodeRender, disableGroupShortcuts = false, disableGroupNodeRegister = false }
-    ) {
+    onInit(ctx, { groupNodeRender, disableGroupShortcuts = false }) {
       // register node render
       if (groupNodeRender) {
         const renderRegistry = ctx.get<FlowRendererRegistry>(FlowRendererRegistry);
@@ -29,8 +32,8 @@ export const createFreeGroupPlugin = definePluginCreator<WorkflowGroupPluginOpti
         const shortcutsRegistry = ctx.get(ShortcutsRegistry);
         shortcutsRegistry.addHandlers(new GroupShortcut(ctx), new UngroupShortcut(ctx));
       }
-      if (!disableGroupNodeRegister) {
-        const document = ctx.get(WorkflowDocument);
+      const document = ctx.get(WorkflowDocument);
+      if (!document.getNodeRegistry(FlowNodeBaseType.GROUP)) {
         document.registerFlowNodes(GroupNodeRegistry);
       }
     },

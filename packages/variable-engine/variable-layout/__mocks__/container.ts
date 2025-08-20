@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { Container } from 'inversify';
 import {
   ASTFactory,
@@ -9,9 +14,10 @@ import {
   FreeLayoutScopeChain,
   FixedLayoutScopeChain,
   FlowNodeVariableData,
-  VariableLayoutConfig,
+  VariableChainConfig,
   GlobalScope,
   bindGlobalScope,
+  ScopeChainTransformService,
 } from '../src';
 import { EntityManager } from '@flowgram.ai/core';
 import { VariableEngine } from '@flowgram.ai/variable-core';
@@ -21,12 +27,14 @@ import {
 } from '@flowgram.ai/document';
 import { WorkflowDocumentContainerModule, WorkflowLinesManager, WorkflowSimpleLineContribution } from '@flowgram.ai/free-layout-core';
 
-export interface TestConfig extends VariableLayoutConfig {
+export interface TestConfig extends VariableChainConfig {
   enableGlobalScope?: boolean;
+  onInit?: (container: Container) => void;
+  runExtraTest?: (container: Container) => void
 }
 
 export function getContainer(layout: 'free' | 'fixed', config?: TestConfig): Container {
-  const { enableGlobalScope, ...layoutConfig } = config || {};
+  const { enableGlobalScope, onInit, runExtraTest, ...layoutConfig } = config || {};
 
   const container = createPlaygroundContainer() as Container;
   container.load(VariableContainerModule);
@@ -39,7 +47,7 @@ export function getContainer(layout: 'free' | 'fixed', config?: TestConfig): Con
   }
 
   if (layoutConfig) {
-    container.bind(VariableLayoutConfig).toConstantValue(layoutConfig);
+    container.bind(VariableChainConfig).toConstantValue(layoutConfig);
   }
   if (layout === 'free') {
     container.bind(ScopeChain).to(FreeLayoutScopeChain).inSingletonScope();
@@ -47,6 +55,8 @@ export function getContainer(layout: 'free' | 'fixed', config?: TestConfig): Con
   if (layout === 'fixed') {
     container.bind(ScopeChain).to(FixedLayoutScopeChain).inSingletonScope();
   }
+
+  container.bind(ScopeChainTransformService).toSelf().inSingletonScope();
 
   bindGlobalScope(container.bind.bind(container))
 
@@ -70,6 +80,8 @@ export function getContainer(layout: 'free' | 'fixed', config?: TestConfig): Con
     () => ({ variableEngine } as any),
   );
   document.registerNodeDatas(FlowNodeVariableData);
+
+  onInit?.(container);
 
   return container;
 }

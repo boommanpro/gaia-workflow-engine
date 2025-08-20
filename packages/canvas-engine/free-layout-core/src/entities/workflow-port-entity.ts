@@ -1,4 +1,9 @@
-import { type IPoint, Rectangle, Emitter } from '@flowgram.ai/utils';
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
+import { type IPoint, Rectangle, Emitter, Compare } from '@flowgram.ai/utils';
 import { FlowNodeTransformData } from '@flowgram.ai/document';
 import {
   Entity,
@@ -15,7 +20,7 @@ import {
   WORKFLOW_LINE_ENTITY,
   domReactToBounds,
 } from '../utils/statics';
-import { type WorkflowNodeMeta } from '../typings';
+import { type WorkflowNodeMeta, LinePointLocation, LinePoint } from '../typings';
 import { type WorkflowNodeEntity } from './workflow-node-entity';
 import { type WorkflowLineEntity } from './workflow-line-entity';
 
@@ -28,6 +33,22 @@ export interface WorkflowPort {
    */
   portID?: string | number;
   /**
+   * 输入或者输出点
+   */
+  type: WorkflowPortType;
+  /**
+   * 端口位置
+   */
+  location?: LinePointLocation;
+  /**
+   * 端口热区大小
+   */
+  size?: { width: number; height: number };
+  /**
+   * 相对于 position 的偏移
+   */
+  offset?: IPoint;
+  /**
    * 禁用端口
    */
   disabled?: boolean;
@@ -35,10 +56,6 @@ export interface WorkflowPort {
    * 将点位渲染到该父节点上
    */
   targetElement?: HTMLElement;
-  /**
-   * 输入或者输出点
-   */
-  type: WorkflowPortType;
 }
 
 export type WorkflowPorts = WorkflowPort[];
@@ -58,22 +75,25 @@ export class WorkflowPortEntity extends Entity<WorkflowPortEntityOpts> {
 
   readonly node: WorkflowNodeEntity;
 
-  targetElement?: HTMLElement;
-
   readonly portID: string | number = '';
 
-  readonly _disabled: boolean = false;
+  readonly portType: WorkflowPortType;
+
+  private _disabled?: boolean;
 
   private _hasError = false;
+
+  private _location?: LinePointLocation;
+
+  private _size?: { width: number; height: number };
+
+  private _offset?: IPoint;
 
   protected readonly _onErrorChangedEmitter = new Emitter<void>();
 
   onErrorChanged = this._onErrorChangedEmitter.event;
 
-  /**
-   * port 类型
-   */
-  portType: WorkflowPortType;
+  targetElement?: HTMLElement;
 
   static getPortEntityId(
     node: WorkflowNodeEntity,
@@ -83,12 +103,18 @@ export class WorkflowPortEntity extends Entity<WorkflowPortEntityOpts> {
     return getPortEntityId(node, portType, portID);
   }
 
-  // relativePosition
+  get position(): LinePointLocation | undefined {
+    return this._location;
+  }
+
   constructor(opts: WorkflowPortEntityOpts) {
     super(opts);
     this.portID = opts.portID || '';
     this.portType = opts.type;
-    this._disabled = opts.disabled ?? false;
+    this._disabled = opts.disabled;
+    this._offset = opts.offset;
+    this._location = opts.location;
+    this._size = opts.size;
     this.node = opts.node;
     this.updateTargetElement(opts.targetElement);
     this.toDispose.push(this.node.getData(TransformData)!.onDataChange(() => this.fireChange()));
@@ -102,8 +128,10 @@ export class WorkflowPortEntity extends Entity<WorkflowPortEntityOpts> {
 
   // 设置连线的错误态，外部应使用 validate 进行更新
   set hasError(hasError: boolean) {
-    this._hasError = hasError;
-    this._onErrorChangedEmitter.fire();
+    if (hasError !== this._hasError) {
+      this._hasError = hasError;
+      this._onErrorChangedEmitter.fire();
+    }
   }
 
   validate() {
@@ -114,9 +142,6 @@ export class WorkflowPortEntity extends Entity<WorkflowPortEntityOpts> {
         return false;
       }
 
-      // 保证 hasError 最新
-      line.validateSelf();
-
       return line.hasError;
     });
     // 如果没有连线错误，需校验端口自身错误
@@ -125,35 +150,72 @@ export class WorkflowPortEntity extends Entity<WorkflowPortEntityOpts> {
   }
 
   isErrorPort() {
-    return (this.node.document as WorkflowDocument).isErrorPort(this);
+    return (this.node.document as WorkflowDocument).isErrorPort(this, this.hasError);
   }
 
-  get point(): IPoint {
+  get location(): LinePointLocation {
+    if (this._location) {
+      return this._location;
+    }
+    if (this.portType === 'input') {
+      return 'left';
+    }
+    return 'right';
+  }
+
+  get point(): LinePoint {
     const { targetElement } = this;
     const { bounds } = this.node.getData(FlowNodeTransformData)!;
+    const location = this.location;
     if (targetElement) {
       const pos = domReactToBounds(targetElement.getBoundingClientRect()).center;
-      return this.entityManager
+      const point = this.entityManager
         .getEntity<PlaygroundConfigEntity>(PlaygroundConfigEntity)!
         .getPosFromMouseEvent({
           clientX: pos.x,
           clientY: pos.y,
         });
+      return {
+        x: point.x,
+        y: point.y,
+        location,
+      };
     }
-    if (this.portType === 'input') {
-      // 默认为左边重点
-      return bounds.leftCenter;
+    let point = { x: 0, y: 0 };
+    const offset = this._offset || { x: 0, y: 0 };
+    switch (location) {
+      case 'left':
+        point = bounds.leftCenter;
+        break;
+      case 'top':
+        point = bounds.topCenter;
+        break;
+      case 'right':
+        point = bounds.rightCenter;
+        break;
+      case 'bottom':
+        point = bounds.bottomCenter;
+        break;
     }
-    return bounds.rightCenter;
+    return {
+      x: point.x + offset.x,
+      y: point.y + offset.y,
+      location,
+    };
   }
 
   /**
-   * 点的区域
+   * 端口热区
    */
   get bounds(): Rectangle {
     const { point } = this;
-    const halfSize = PORT_SIZE / 2;
-    return new Rectangle(point.x - halfSize, point.y - halfSize, PORT_SIZE, PORT_SIZE);
+    const size = this._size || { width: PORT_SIZE, height: PORT_SIZE };
+    return new Rectangle(
+      point.x - size.width / 2,
+      point.y - size.height / 2,
+      size.width,
+      size.height
+    );
   }
 
   isHovered(x: number, y: number): boolean {
@@ -229,6 +291,33 @@ export class WorkflowPortEntity extends Entity<WorkflowPortEntityOpts> {
       }
     });
     return lines;
+  }
+
+  update(data: Exclude<WorkflowPort, 'portID' | 'type'>) {
+    let changed = false;
+    if (data.targetElement !== this.targetElement) {
+      this.targetElement = data.targetElement;
+      changed = true;
+    }
+    if (data.location !== this._location) {
+      this._location = data.location;
+      changed = true;
+    }
+    if (Compare.isChanged(data.offset, this._offset)) {
+      this._offset = data.offset;
+      changed = true;
+    }
+    if (Compare.isChanged(data.size, this._size)) {
+      this._size = data.size;
+      changed = true;
+    }
+    if (data.disabled !== this._disabled) {
+      this._disabled = data.disabled;
+      changed = true;
+    }
+    if (changed) {
+      this.fireChange();
+    }
   }
 
   dispose(): void {

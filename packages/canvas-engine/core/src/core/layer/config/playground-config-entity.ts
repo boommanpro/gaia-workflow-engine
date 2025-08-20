@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { Disposable, domUtils, Emitter, PromiseDeferred, Rectangle } from '@flowgram.ai/utils'
 import {
   ConfigEntity,
@@ -32,7 +37,9 @@ export interface PlaygroundConfigEntityData {
   pageBounds?: { x: number; y: number; width: number; height: number } // 编辑的画布边框，用于处理外部对齐问题
   disabled: boolean // 禁用状态
   readonly: boolean // readonly 状态
+  scrollDisable: boolean
   grabDisable: boolean // 禁用抓取拖拽画布能力
+  zoomDisable: boolean
 }
 
 export interface PlaygroundConfigRevealOpts {
@@ -93,6 +100,22 @@ export class PlaygroundConfigEntity extends ConfigEntity<PlaygroundConfigEntityD
       grabDisable
     })
   }
+  get scrollDisable(): boolean {
+    return this.config.scrollDisable;
+  }
+  set scrollDisable(scrollDisable: boolean) {
+    this.updateConfig({
+      scrollDisable
+    })
+  }
+  get zoomDisable(): boolean {
+    return this.config.zoomDisable;
+  }
+  set zoomDisable(zoomDisable: boolean) {
+    this.updateConfig({
+      zoomDisable
+    })
+  }
   getDefaultConfig(): PlaygroundConfigEntityData {
     return {
       scrollX: 0,
@@ -101,7 +124,7 @@ export class PlaygroundConfigEntity extends ConfigEntity<PlaygroundConfigEntityD
       originY: 0,
       width: 0,
       height: 0,
-      minZoom: 0.1,
+      minZoom: 0.25,
       maxZoom: 2,
       zoom: 1,
       clientX: 0,
@@ -112,6 +135,8 @@ export class PlaygroundConfigEntity extends ConfigEntity<PlaygroundConfigEntityD
       disabled: false,
       readonly: false,
       grabDisable: false,
+      scrollDisable: false,
+      zoomDisable: false,
       mouseScrollDelta: MOUSE_SCROLL_DELTA
     }
   }
@@ -153,7 +178,12 @@ export class PlaygroundConfigEntity extends ConfigEntity<PlaygroundConfigEntityD
     if (props.overflowY === 'hidden') {
       props.scrollY = this.config.originY
     }
+    const scrollDisable = props.scrollDisable || this.scrollDisable
     const { readonly, disabled, grabDisable } = this
+    if (scrollDisable) {
+      props.scrollX = this.config.scrollX
+      props.scrollY = this.config.scrollY
+    }
     super.updateConfig(
       this._scrollLimitFn
         ? { ...props, ...this._scrollLimitFn({ scrollX: props.scrollX!, scrollY: props.scrollY! }) }
@@ -191,6 +221,7 @@ export class PlaygroundConfigEntity extends ConfigEntity<PlaygroundConfigEntityD
 
   protected normalizeZoom(zoom: number): number {
     if (!this.zoomEnable) return 1
+    if (this.zoomDisable) return this.config.zoom;
     if (zoom < this.config.minZoom) {
       zoom = this.config.minZoom
     } else if (zoom > this.config.maxZoom) {
@@ -472,13 +503,16 @@ export class PlaygroundConfigEntity extends ConfigEntity<PlaygroundConfigEntityD
     }
   }
 
+  /**
+   * @deprecated use 'zoomDisable' instead
+   */
   get zoomEnable(): boolean {
     return this._zoomEnable
   }
 
   /**
    * 开启缩放
-   * @param zoomEnable
+   * @deprecated use 'zoomDisable' instead
    */
   set zoomEnable(zoomEnable: boolean) {
     if (this._zoomEnable !== zoomEnable) {
@@ -551,14 +585,16 @@ export class PlaygroundConfigEntity extends ConfigEntity<PlaygroundConfigEntityD
    * @param bounds 目标大小
    * @param easing 是否开启动画，默认开启
    * @param padding 边界空白
+   * @param easingDuration
    */
-  fitView(bounds: Rectangle, easing = true, padding = 0): Promise<void> {
+  fitView(bounds: Rectangle, easing = true, padding = 0, easingDuration = 300): Promise<void> {
     const viewport = this.getViewport(false);
-    const zoom = SizeSchema.fixSize(bounds.pad(padding, padding), viewport);
+    const zoom = SizeSchema.fixSize(bounds.clone().pad(padding, padding), viewport);
     return this.scrollToView({
       bounds,
       zoom,
       easing,
+      easingDuration,
       scrollToCenter: true,
     });
 

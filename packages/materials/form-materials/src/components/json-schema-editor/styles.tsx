@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import React from 'react';
 
 import styled, { css } from 'styled-components';
@@ -34,37 +39,30 @@ export const UILabel = styled.div`
   margin-bottom: 2px;
 `;
 
-export const UIProperties = styled.div<{ $shrink?: boolean }>`
+export const UITreeItems = styled.div<{ $shrink?: boolean }>`
   display: grid;
   grid-template-columns: auto 1fr;
 
   ${({ $shrink }) =>
     $shrink &&
     css`
-      padding-left: 10px;
+      padding-left: 3px;
       margin-top: 10px;
     `}
 `;
 
-export const UIPropertyLeft = styled.div<{
+export const UITreeItemLeft = styled.div<{
   $isLast?: boolean;
   $showLine?: boolean;
-  $isExpand?: boolean;
-  type?: string;
-  $isFirst?: boolean;
-  $index?: number;
-  $parentExpand?: boolean;
-  $parentType?: string;
+  $showCollapse?: boolean;
 }>`
   grid-column: 1;
   position: relative;
   width: 16px;
 
-  ${({ $showLine, $isLast, $parentType }) => {
-    let height = '100%';
-    if ($parentType && $isLast) {
-      height = '24px';
-    }
+  ${({ $showLine, $isLast, $showCollapse }) => {
+    let height = $isLast ? '24px' : '100%';
+    let width = $showCollapse ? '12px' : '30px';
 
     return (
       $showLine &&
@@ -74,7 +72,7 @@ export const UIPropertyLeft = styled.div<{
           content: '';
           height: ${height};
           position: absolute;
-          left: -22px;
+          left: -14px;
           top: -16px;
           width: 1px;
           background: #d9d9d9;
@@ -85,9 +83,9 @@ export const UIPropertyLeft = styled.div<{
           /* 横线 */
           content: '';
           position: absolute;
-          left: -22px; // 横线起点和竖线对齐
+          left: -14px; // 横线起点和竖线对齐
           top: 8px; // 跟随你的行高调整
-          width: 18px; // 横线长度
+          width: ${width}; // 横线长度
           height: 1px;
           background: #d9d9d9;
           display: block;
@@ -97,7 +95,7 @@ export const UIPropertyLeft = styled.div<{
   }}
 `;
 
-export const UIPropertyRight = styled.div`
+export const UITreeItemRight = styled.div`
   grid-column: 2;
   margin-bottom: 10px;
 
@@ -106,47 +104,11 @@ export const UIPropertyRight = styled.div`
   }
 `;
 
-export const UIPropertyMain = styled.div<{
-  $expand?: boolean;
-  type?: string;
-  $collapse?: boolean;
-  $showCollapse?: boolean;
-}>`
+export const UITreeItemMain = styled.div<{}>`
   display: flex;
   flex-direction: column;
   gap: 10px;
   position: relative;
-
-  ${({ $expand, type, $collapse, $showCollapse }) => {
-    const beforeElement = `
-      &::before {
-        /* 竖线 */
-        content: '';
-        height: 100%;
-        position: absolute;
-        left: -12px;
-        top: 18px;
-        width: 1px;
-        background: #d9d9d9;
-        display: block;
-      }`;
-
-    return (
-      $expand &&
-      css`
-        background-color: #f5f5f5;
-        padding: 10px;
-        border-radius: 4px;
-
-        ${$showCollapse &&
-        $collapse &&
-        (type === 'array' || type === 'object') &&
-        css`
-          ${beforeElement}
-        `}
-      `
-    );
-  }}
 `;
 
 export const UICollapsible = styled.div<{ $collapse?: boolean }>`
@@ -193,35 +155,6 @@ export const IconAddChildren = () => <Icon size="small" svg={iconAddChildrenSvg}
 
 export const DefaultValueWrapper = styled.div`
   margin: 0;
-`;
-
-export const JSONViewerWrapper = styled.div`
-  padding: 0 0 24px;
-  &:first-child {
-    margin-top: 0px;
-  }
-`;
-
-export const JSONHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background-color: var(--semi-color-fill-0);
-  border-radius: 6px 6px 0 0;
-  height: 36px;
-  padding: 0 8px 0 12px;
-`;
-
-export const JSONHeaderLeft = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 10px;
-`;
-
-export const JSONHeaderRight = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 10px;
 `;
 
 export const ConstantInputWrapper = styled.div`

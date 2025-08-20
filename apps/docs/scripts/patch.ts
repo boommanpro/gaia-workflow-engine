@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 // @ts-ignore
 import path from 'path';
 // @ts-ignore
@@ -8,13 +13,14 @@ async function patchLinks(outputDir: string) {
    * 修复 Markdown 文件中的链接。
    * 1. [foo](bar) -> [foo](./bar)
    * 2. [foo](./bar) -> [foo](./bar) (保持不变)
+   * 3. [foo](http(s)://...) -> [foo](http(s)://...) (保持不变)
    */
   const normalizeLinksInFile = async (filePath: string) => {
     try {
       const content = await fs.readFile(filePath, 'utf-8');
       const newContent = content.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, p1, p2) => {
         // 如果链接以 '/' 或 './' 开头，则保持不变
-        if (['/', '.'].includes(p2[0])) {
+        if (['/', '.'].includes(p2[0]) || p2.startsWith('http://') || p2.startsWith('https://')) {
           return `[${p1}](${p2})`;
         }
         // 否则添加 './'

@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { type Disposable } from '@flowgram.ai/utils';
 
 import type { EntityDataRegistry } from './entity-data';

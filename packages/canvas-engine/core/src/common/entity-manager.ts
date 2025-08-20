@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { inject, injectable, interfaces, multiInject, optional, postConstruct } from 'inversify';
 import { Disposable, DisposableCollection, Emitter } from '@flowgram.ai/utils';
 

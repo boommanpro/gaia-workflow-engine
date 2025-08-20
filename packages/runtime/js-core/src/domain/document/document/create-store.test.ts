@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { describe, expect, it } from 'vitest';
 import { FlowGramNode, WorkflowPortType } from '@flowgram.ai/runtime-interface';
 
@@ -104,6 +109,6 @@ describe('createStore', () => {
         nodeBlocks: new Map(),
         nodeEdges: new Map(),
       })
-    ).toThrow('invalid edge schema ID');
+    ).toThrow('Invalid edge schema ID');
   });
 });

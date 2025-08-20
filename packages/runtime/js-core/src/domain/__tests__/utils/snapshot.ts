@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { Snapshot, VOData } from '@flowgram.ai/runtime-interface';
 
 export const snapshotsToVOData = (snapshots: Snapshot[]): VOData<Snapshot>[] =>

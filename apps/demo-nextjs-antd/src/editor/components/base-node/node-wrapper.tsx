@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import React, { useContext, useState } from 'react';
 
 import { useClientContext, WorkflowPortRender } from '@flowgram.ai/free-layout-editor';

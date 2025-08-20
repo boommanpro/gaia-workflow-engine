@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { Event, type Rectangle } from '@flowgram.ai/utils';
 import { Entity, type EntityOpts } from '@flowgram.ai/core';
 
@@ -337,37 +342,7 @@ export class FlowNodeEntity extends Entity<FlowNodeEntityConfig> {
    * @param newId
    */
   toJSON(): FlowNodeJSON {
-    if (this.document.options.toNodeJSON) {
-      return this.document.options.toNodeJSON(this);
-    }
-    const nodesMap: Record<string, FlowNodeJSON> = {};
-    let startNodeJSON: FlowNodeJSON;
-    this.document.traverse((node) => {
-      const isSystemNode = node.id.startsWith('$');
-      if (isSystemNode) return;
-      const nodeJSONData = this.getJSONData();
-      const nodeJSON: FlowNodeJSON = {
-        id: node.id,
-        type: node.flowNodeType,
-      };
-      if (nodeJSONData !== undefined) {
-        nodeJSON.data = nodeJSONData;
-      }
-      if (!startNodeJSON) startNodeJSON = nodeJSON;
-      let { parent } = node;
-      if (parent && parent.id.startsWith('$')) {
-        parent = parent.originParent;
-      }
-      const parentJSON = parent ? nodesMap[parent.id] : undefined;
-      if (parentJSON) {
-        if (!parentJSON.blocks) {
-          parentJSON.blocks = [];
-        }
-        parentJSON.blocks.push(nodeJSON);
-      }
-      nodesMap[node.id] = nodeJSON;
-    }, this);
-    return startNodeJSON!;
+    return this.document.toNodeJSON(this);
   }
 
   get isVertical(): boolean {
@@ -412,6 +387,21 @@ export class FlowNodeEntity extends Entity<FlowNodeEntityConfig> {
    */
   get bounds(): Rectangle {
     return this.transform.bounds;
+  }
+
+  /**
+   * Check node extend type
+   */
+  isExtend(parentType: FlowNodeType): boolean {
+    return this.document.isExtend(this.flowNodeType, parentType);
+  }
+
+  /**
+   * Check node type
+   * @param parentType
+   */
+  isTypeOrExtendType(parentType: FlowNodeType): boolean {
+    return this.document.isTypeOrExtendType(this.flowNodeType, parentType);
   }
 }
 

@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import type React from 'react';
 import { useCallback, useEffect, useRef, useState, useContext, useMemo } from 'react';
 
@@ -25,6 +30,13 @@ function checkTargetDraggable(el: any): boolean {
     !el.closest('.flow-canvas-not-draggable')
   );
 }
+/**
+ * - 下面的 firefox 为了修复一个 bug
+ * - firefox 下 draggable 属性会影响节点 input 内容 focus：https://jsfiddle.net/Aydar/ztsvbyep/3/
+ * - 该 bug 在 firefox 浏览器上存在了很久，需要作兼容：https://bugzilla.mozilla.org/show_bug.cgi?id=739071
+ */
+const isFirefox = navigator?.userAgent?.includes?.('Firefox');
+
 export function useNodeRender(nodeFromProps?: WorkflowNodeEntity): NodeRenderReturnType {
   const node = nodeFromProps || useContext<WorkflowNodeEntity>(PlaygroundEntityContext);
   const renderData = node.getData(FlowNodeRenderData)!;
@@ -33,6 +45,9 @@ export function useNodeRender(nodeFromProps?: WorkflowNodeEntity): NodeRenderRet
   const dragService = useService<WorkflowDragService>(WorkflowDragService);
   const selectionService = useService<WorkflowSelectService>(WorkflowSelectService);
   const isDragging = useRef(false);
+  const [formValueVersion, updateFormValueVersion] = useState<number>(0);
+  const formValueDependRef = useRef(false);
+  formValueDependRef.current = false;
   const nodeRef = useRef<HTMLDivElement | null>(null);
   const [linkingNodeId, setLinkingNodeId] = useState('');
 
@@ -97,12 +112,6 @@ export function useNodeRender(nodeFromProps?: WorkflowNodeEntity): NodeRenderRet
   // 监听端口变化
   useListenEvents(portsData.onDataChange);
 
-  /**
-   * - 下面的 firefox 为了修复一个 bug：https://meego.feishu.cn/bot_bot/issue/detail/3001017843
-   * - firefox 下 draggable 属性会影响节点 input 内容 focus：https://jsfiddle.net/Aydar/ztsvbyep/3/
-   * - 该 bug 在 firefox 浏览器上存在了很久，需要作兼容：https://bugzilla.mozilla.org/show_bug.cgi?id=739071
-   */
-  const isFirefox = navigator?.userAgent?.includes?.('Firefox');
   const onFocus = useCallback(() => {
     if (isFirefox) {
       nodeRef.current?.setAttribute('draggable', 'false');
@@ -126,35 +135,85 @@ export function useNodeRender(nodeFromProps?: WorkflowNodeEntity): NodeRenderRet
   const toggleExpand = useCallback(() => {
     renderData.toggleExpand();
   }, [renderData]);
+  const selected = selectionService.isSelected(node.id);
+  const activated = selectionService.isActivated(node.id);
+  const expanded = renderData.expanded;
+  useEffect(() => {
+    const toDispose = form?.onFormValuesChange(() => {
+      if (formValueDependRef.current) {
+        updateFormValueVersion((v) => v + 1);
+      }
+    });
+    return () => toDispose?.dispose();
+  }, [form]);
 
-  return {
-    node,
-    selected: selectionService.isSelected(node.id),
-    activated: selectionService.isActivated(node.id),
-    expanded: renderData.expanded,
-    startDrag,
-    ports: portsData.allPorts,
-    deleteNode,
-    selectNode,
-    readonly,
-    linkingNodeId,
-    nodeRef,
-    onFocus,
-    onBlur,
-    getExtInfo,
-    updateExtInfo,
-    toggleExpand,
-    get form() {
-      if (!form) return undefined;
-      return {
-        ...form,
-        get values() {
-          return form.values!;
-        },
-        get state() {
-          return formState;
-        },
-      };
-    },
-  };
+  return useMemo(
+    () => ({
+      id: node.id,
+      type: node.flowNodeType,
+      get data() {
+        if (form) {
+          formValueDependRef.current = true;
+          return form.values;
+        }
+        return getExtInfo();
+      },
+      updateData(values: any) {
+        if (form) {
+          form.updateFormValues(values);
+        } else {
+          updateExtInfo(values);
+        }
+      },
+      node,
+      selected,
+      activated,
+      expanded,
+      startDrag,
+      get ports() {
+        return portsData.allPorts;
+      },
+      deleteNode,
+      selectNode,
+      readonly,
+      linkingNodeId,
+      nodeRef,
+      onFocus,
+      onBlur,
+      getExtInfo,
+      updateExtInfo,
+      toggleExpand,
+      get form() {
+        if (!form) return undefined;
+        return {
+          ...form,
+          get values() {
+            formValueDependRef.current = true;
+            return form.values!;
+          },
+          get state() {
+            return formState;
+          },
+        };
+      },
+    }),
+    [
+      node,
+      selected,
+      activated,
+      expanded,
+      startDrag,
+      deleteNode,
+      selectNode,
+      readonly,
+      linkingNodeId,
+      nodeRef,
+      onFocus,
+      onBlur,
+      getExtInfo,
+      updateExtInfo,
+      toggleExpand,
+      formValueVersion,
+    ]
+  );
 }

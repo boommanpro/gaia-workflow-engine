@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { parseTypeJsonOrKind } from '../utils/helpers';
 import { ASTKind, ASTNodeJSONOrKind } from '../types';
 import { type UnionJSON } from './union';

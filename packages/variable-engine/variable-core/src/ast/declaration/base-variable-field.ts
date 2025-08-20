@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { shallowEqual } from 'fast-equals';
 
 import { getParentFields } from '../utils/variable-field';
@@ -35,6 +40,10 @@ export abstract class BaseVariableField<VariableMeta = any> extends ASTNode<
     return getParentFields(this);
   }
 
+  get keyPath(): string[] {
+    return [...this.parentFields.reverse().map((_field) => _field.key), this.key];
+  }
+
   get meta(): VariableMeta {
     return this._meta;
   }
@@ -45,6 +54,10 @@ export abstract class BaseVariableField<VariableMeta = any> extends ASTNode<
 
   get initializer(): BaseExpression | undefined {
     return this._initializer;
+  }
+
+  get hash(): string {
+    return `[${this._version}]${this.keyPath.join('.')}`;
   }
 
   /**
@@ -96,7 +109,7 @@ export abstract class BaseVariableField<VariableMeta = any> extends ASTNode<
    * @returns
    */
   onTypeChange(observer: (type: ASTNode | undefined) => void) {
-    return this.subscribe(observer, { selector: curr => curr.type });
+    return this.subscribe(observer, { selector: (curr) => curr.type });
   }
 
   /**

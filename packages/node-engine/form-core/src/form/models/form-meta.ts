@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { type IFormItemMeta, type IFormMeta, type IFormMetaOptions } from '../types';
 import { FormPathService } from '../services';
 

@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { cloneDeep } from 'lodash';
 import { inject, injectable } from 'inversify';
 import { FlowNodeFormData, FormModel } from '@flowgram.ai/form-core';

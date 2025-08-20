@@ -1,10 +1,15 @@
-import { IFlowConstantRefValue, IJsonSchema, PositionSchema } from '@schema/index';
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
+import { IFlowValue, IJsonSchema, PositionSchema } from '@schema/index';
 import { FlowGramNode } from '@node/constant';
 import { IPort } from './port';
 import { IEdge } from './edge';
 
 export interface NodeDeclare {
-  inputsValues?: Record<string, IFlowConstantRefValue>;
+  inputsValues?: Record<string, IFlowValue>;
   inputs?: IJsonSchema;
   outputs?: IJsonSchema;
 }
@@ -28,6 +33,8 @@ export interface INode<T = any> {
   children: INode[];
   prev: INode[];
   next: INode[];
+  successors: INode[];
+  predecessors: INode[];
   isBranch: boolean;
 }
 

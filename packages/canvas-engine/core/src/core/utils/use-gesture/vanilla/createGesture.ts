@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { Action, GestureHandlers, UserGestureConfig } from '../core/types';
 import { registerAction } from '../core/actions';
 import { parseMergedHandlers } from '../core';

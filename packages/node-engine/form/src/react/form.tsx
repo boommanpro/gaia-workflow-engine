@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import React, { Children, useEffect, useMemo } from 'react';
 
 import { isFunction } from 'lodash';
@@ -27,6 +32,15 @@ export type FormProps<TValues> = FormOptions & {
 };
 
 /**
+ * `FormContentRender` allows you to write `useWatch` to `formMeta.render`
+ */
+function FormContentRender(
+  props: { render: (props: FormRenderProps<any>) => React.ReactNode } & FormRenderProps<any>
+): JSX.Element {
+  const { form, render } = props;
+  return <>{render({ form })}</>;
+}
+/**
  * Hoc That init and provide Form instance. You can also provide form instance from outside by using control prop
  * @param props
  */
@@ -51,7 +65,13 @@ export function Form<TValues>(props: FormProps<TValues>) {
 
   return (
     <FormModelContext.Provider value={formModel}>
-      {children ? (isFunction(children) ? children({ form }) : Children.only(children)) : null}
+      {children ? (
+        isFunction(children) ? (
+          <FormContentRender form={form} render={children} />
+        ) : (
+          Children.only(children)
+        )
+      ) : null}
     </FormModelContext.Provider>
   );
 }

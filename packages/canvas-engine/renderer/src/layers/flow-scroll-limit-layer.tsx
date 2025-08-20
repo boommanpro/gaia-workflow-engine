@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { inject, injectable } from 'inversify';
 import { FlowDocument, FlowNodeTransformData } from '@flowgram.ai/document';
 import { Layer } from '@flowgram.ai/core';

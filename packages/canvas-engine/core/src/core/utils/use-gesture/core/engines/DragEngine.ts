@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { V } from '../utils/maths';
 import { pointerId, getPointerType, pointerValues } from '../utils/events';
 import { Vector2 } from '../types';

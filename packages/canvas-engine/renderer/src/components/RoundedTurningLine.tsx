@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import React, { useMemo } from 'react';
 
 import { isNil } from 'lodash';
@@ -99,6 +104,12 @@ function RoundedTurningLine(props: PropsType): JSX.Element | null {
             ry = Math.min(nextDelta.y, radiusY);
             const moveY = isNil(point.moveY) ? ry : point.moveY;
             outPoint.y += to.y < point.y ? -moveY : +moveY;
+          }
+
+          // radius overflow 策略为截断，则回复 rx, ry 为原始 radius
+          if (point.radiusOverflow === 'truncate') {
+            rx = radiusX;
+            ry = radiusY;
           }
 
           // 是否是顺时针？

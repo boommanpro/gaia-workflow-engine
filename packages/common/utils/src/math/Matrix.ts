@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 /* eslint-disable prefer-destructuring */
 import type { Transform } from './Transform';
 import type { IPoint } from './IPoint';

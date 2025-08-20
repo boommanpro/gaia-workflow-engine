@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { type WorkflowLineEntity } from '@flowgram.ai/free-layout-core';
 import { WorkflowContentChangeType } from '@flowgram.ai/free-layout-core';
 
@@ -19,6 +24,7 @@ export const deleteLineChange: ContentChangeTypeToOperation<DeleteLineOperation>
       to: line.info.to || '',
       fromPort: line.info.fromPort || '',
       toPort: line.info.toPort || '',
+      data: line.info.data,
       id: line.id,
     };
     return {

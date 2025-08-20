@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { FlowMinimapService, MinimapRender } from '@flowgram.ai/minimap-plugin';
 import { useService } from '@flowgram.ai/fixed-layout-editor';
 

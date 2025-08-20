@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { IStatus, IStatusCenter, StatusData, WorkflowStatus } from '@flowgram.ai/runtime-interface';
 
 import { WorkflowRuntimeStatus } from '../status-entity';

@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { useControlTips } from './use-control';
 import { GroupTipsStyle } from './style';
 import { isMacOS } from './is-mac-os';

@@ -1,13 +1,23 @@
 {
   "name": "@flowgram.ai/runtime-nodejs",
-  "version": "0.1.0",
-  "description": "",
-  "keywords": [],
+  "version": "0.1.8",
+  "homepage": "https://flowgram.ai/",
+  "repository": "https://github.com/bytedance/flowgram.ai",
   "license": "MIT",
+  "type": "module",
+  "exports": {
+    "types": "./dist/index.d.ts",
+    "import": "./dist/index.js"
+  },
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "dev": "tsx watch src",
     "build": "npm run build:fast -- --dts-resolve",
-    "build:fast": "tsup src/index.ts --format cjs,esm --sourcemap --legacy-output",
+    "build:fast": "tsup src/index.ts --format esm --sourcemap --out-dir dist",
     "build:watch": "npm run build:fast -- --dts-resolve",
     "lint": "eslint --cache src",
     "lint-fix": "eslint --fix src",
@@ -44,7 +54,7 @@
     "eslint": "^8.54.0",
     "npm-run-all": "^4.1.5",
     "@babel/eslint-parser": "~7.19.1",
-    "typescript": "^5.0.4",
+    "typescript": "^5.8.3",
     "tsup": "^8.0.1",
     "tsx": "~4.19.4",
     "eslint-plugin-json": "^4.0.1",

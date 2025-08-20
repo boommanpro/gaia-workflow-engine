@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import type React from 'react';
 
 import { nanoid } from 'nanoid';
@@ -297,6 +302,7 @@ export class WorkflowDragService {
         const dropNode = this._dropNode;
         const { allowDrop } = this.canDropToNode({
           dragNodeType: type,
+          dropNodeType: dropNode?.flowNodeType,
           dropNode,
         });
         const dragNode = allowDrop ? await this.dropCard(type, e, data, dropNode) : undefined;
@@ -325,8 +331,7 @@ export class WorkflowDragService {
   public adjustSubNodePosition(
     subNodeType?: string,
     containerNode?: WorkflowNodeEntity,
-    mousePos?: IPoint,
-    resetEmptyPos: boolean = true
+    mousePos?: IPoint
   ): IPoint {
     if (!mousePos) {
       return { x: 0, y: 0 };
@@ -336,8 +341,8 @@ export class WorkflowDragService {
     }
     const isParentEmpty = !containerNode.children || containerNode.children.length === 0;
     const parentPadding = this.document.layout.getPadding(containerNode);
-    const parentTransform = containerNode.getData<TransformData>(TransformData);
-    if (isParentEmpty && resetEmptyPos) {
+    const containerWorldTransform = containerNode.transform.transform.worldTransform;
+    if (isParentEmpty) {
       // 确保空容器节点不偏移
       return {
         x: 0,
@@ -345,8 +350,8 @@ export class WorkflowDragService {
       };
     } else {
       return {
-        x: mousePos.x - parentTransform.position.x,
-        y: mousePos.y - parentTransform.position.y,
+        x: mousePos.x - containerWorldTransform.tx,
+        y: mousePos.y - containerWorldTransform.ty,
       };
     }
   }
@@ -366,12 +371,31 @@ export class WorkflowDragService {
   /**
    * 判断是否可以放置节点
    */
-  public canDropToNode(params: { dragNodeType?: FlowNodeType; dropNode?: WorkflowNodeEntity }): {
+
+  public canDropToNode(params: {
+    dragNodeType?: FlowNodeType;
+    dragNode?: WorkflowNodeEntity;
+    dropNode?: WorkflowNodeEntity;
+    dropNodeType?: FlowNodeType;
+  }): {
     allowDrop: boolean;
     message?: string;
     dropNode?: WorkflowNodeEntity;
   } {
+    const { canDropToNode } = this.document.options;
     const { dragNodeType, dropNode } = params;
+    if (canDropToNode) {
+      const result = canDropToNode(params);
+      if (result) {
+        return {
+          allowDrop: true,
+          dropNode,
+        };
+      }
+      return {
+        allowDrop: false,
+      };
+    }
     if (!dragNodeType) {
       return {
         allowDrop: false,
@@ -581,17 +605,23 @@ export class WorkflowDragService {
             originLine.highlightColor = this.linesManager.lineColor.hidden;
           }
           dragSuccess = true;
+          const pos = config.getPosFromMouseEvent(event);
           // 创建临时的线条
           line = this.linesManager.createLine({
             from: fromPort.node.id,
             fromPort: fromPort.portID,
-            drawingTo: config.getPosFromMouseEvent(event),
+            data: originLine?.lineData,
+            drawingTo: {
+              x: pos.x,
+              y: pos.y,
+              location: fromPort.location === 'right' ? 'left' : 'top',
+            },
           });
           if (!line) {
             return;
           }
           config.updateCursor('grab');
-          line.highlightColor = this.linesManager.lineColor.drawing;
+          line.highlightColor = originLine?.lockedColor || this.linesManager.lineColor.drawing;
           this.hoverService.updateHoveredKey('');
         }
         if (!line) {
@@ -621,22 +651,26 @@ export class WorkflowDragService {
           type: 'onDrag',
         });
 
-        this.setLineColor(line, this.linesManager.lineColor.drawing);
-        if (toNode && !this.isContainer(toNode)) {
+        this.setLineColor(line, originLine?.lockedColor || this.linesManager.lineColor.drawing);
+        if (toNode && this.canBuildContainerLine(toNode, dragPos)) {
           // 如果鼠标 hover 在 node 中的时候，默认连线到这个 node 的初始位置
-          const portsData = toNode.getData(WorkflowNodePortsData)!;
-          const { inputPorts } = portsData;
-          if (inputPorts.length === 1) {
-            toPort = inputPorts[0];
-          }
+          toPort = this.getNearestPort(toNode, dragPos);
           const { hasError } = this.handleDragOnNode(toNode, fromPort, line, toPort, originLine);
           lineErrorReset = hasError;
         }
 
         if (line.toPort) {
-          line.drawingTo = { x: line.toPort.point.x, y: line.toPort.point.y };
+          line.drawingTo = {
+            x: line.toPort.point.x,
+            y: line.toPort.point.y,
+            location: line.toPort.location,
+          };
         } else {
-          line.drawingTo = { x: dragPos.x, y: dragPos.y };
+          line.drawingTo = {
+            x: dragPos.x,
+            y: dragPos.y,
+            location: line.fromPort.location === 'right' ? 'left' : 'top',
+          };
         }
 
         // 触发原 toPort 的校验
@@ -688,6 +722,7 @@ export class WorkflowDragService {
                 fromPort: fromPort.portID,
                 to: toPort.node.id,
                 toPort: toPort.portID,
+                data: originLine?.lineData,
               }
             : undefined;
           // Step2: 检测 reset
@@ -758,5 +793,27 @@ export class WorkflowDragService {
         this._onDragLineEndCallbacks.delete(id);
       },
     };
+  }
+
+  /** 能否建立容器连线 */
+  private canBuildContainerLine(node: WorkflowNodeEntity, mousePos: IPoint): boolean {
+    const isContainer = this.isContainer(node);
+    if (!isContainer) {
+      return true;
+    }
+    const { padding, bounds } = node.transform;
+    const contentRect = new Rectangle(bounds.x, bounds.y, (padding.left * 2) / 3, bounds.height);
+    return contentRect.contains(mousePos.x, mousePos.y);
+  }
+
+  /** 获取最近的 port */
+  private getNearestPort(node: WorkflowNodeEntity, mousePos: IPoint): WorkflowPortEntity {
+    const portsData = node.getData(WorkflowNodePortsData)!;
+    const distanceSortedPorts = portsData.inputPorts.sort((a, b) => {
+      const aDistance = Math.abs(mousePos.y - a.point.y);
+      const bDistance = Math.abs(mousePos.y - b.point.y);
+      return aDistance - bDistance;
+    });
+    return distanceSortedPorts[0];
   }
 }

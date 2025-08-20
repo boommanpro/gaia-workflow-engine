@@ -1,14 +1,22 @@
-import React, { useMemo } from 'react';
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
 
+import React from 'react';
+
+import { JsonSchemaUtils, IJsonSchema } from '@flowgram.ai/json-schema';
 import { IconButton } from '@douyinfe/semi-ui';
 import { IconSetting } from '@douyinfe/semi-icons';
 
-import { Strategy } from '../constant-input/types';
-import { ConstantInput } from '../constant-input';
-import { IFlowConstantRefValue } from '../../typings/flow-value';
-import { UIContainer, UIMain, UITrigger } from './styles';
-import { VariableSelector } from '../variable-selector';
-import { IJsonSchema } from '../../typings';
+import { IFlowConstantRefValue } from '@/typings';
+import { createInjectMaterial } from '@/shared';
+import { InjectVariableSelector } from '@/components/variable-selector';
+import { TypeSelector } from '@/components/type-selector';
+import { ConstantInput, ConstantInputStrategy } from '@/components/constant-input';
+
+import { UIContainer, UIMain, UITrigger, UIType } from './styles';
+import { useIncludeSchema, useRefVariable, useSelectSchema } from './hooks';
 
 interface PropsType {
   value?: IFlowConstantRefValue;
@@ -18,7 +26,8 @@ interface PropsType {
   style?: React.CSSProperties;
   schema?: IJsonSchema;
   constantProps?: {
-    strategies?: Strategy[];
+    strategies?: ConstantInputStrategy[];
+    schema?: IJsonSchema; // set schema of constant input only
     [key: string]: any;
   };
 }
@@ -28,22 +37,60 @@ export function DynamicValueInput({
   onChange,
   readonly,
   style,
-  schema,
+  schema: schemaFromProps,
   constantProps,
 }: PropsType) {
-  // When is number type, include integer as well
-  const includeSchema = useMemo(() => {
-    if (schema?.type === 'number') {
-      return [schema, { type: 'integer' }];
+  const refVariable = useRefVariable(value);
+  const [selectSchema, setSelectSchema] = useSelectSchema(schemaFromProps, constantProps, value);
+  const includeSchema = useIncludeSchema(schemaFromProps);
+
+  const renderTypeSelector = () => {
+    if (schemaFromProps) {
+      return <TypeSelector value={schemaFromProps} readonly={true} />;
     }
-    return schema;
-  }, [schema]);
+
+    if (value?.type === 'ref') {
+      const schema = refVariable?.type ? JsonSchemaUtils.astToSchema(refVariable?.type) : undefined;
+
+      return <TypeSelector value={schema} readonly={true} />;
+    }
+
+    return (
+      <TypeSelector
+        value={selectSchema}
+        onChange={(_v) => {
+          setSelectSchema(_v || { type: 'string' });
+          let content;
+
+          if (_v?.type === 'object') {
+            content = '{}';
+          }
+
+          if (_v?.type === 'array') {
+            content = '[]';
+          }
+
+          if (_v?.type === 'boolean') {
+            content = false;
+          }
+
+          onChange({
+            type: 'constant',
+            content,
+            schema: _v || { type: 'string' },
+          });
+        }}
+        readonly={readonly}
+      />
+    );
+  };
 
   const renderMain = () => {
     if (value?.type === 'ref') {
       // Display Variable Or Delete
       return (
-        <VariableSelector
+        <InjectVariableSelector
+          style={{ width: '100%' }}
           value={value?.content}
           onChange={(_v) => onChange(_v ? { type: 'ref', content: _v } : undefined)}
           includeSchema={includeSchema}
@@ -52,19 +99,30 @@ export function DynamicValueInput({
       );
     }
 
+    const constantSchema = schemaFromProps || selectSchema || { type: 'string' };
+
     return (
       <ConstantInput
         value={value?.content}
-        onChange={(_v) => onChange({ type: 'constant', content: _v })}
-        schema={schema || { type: 'string' }}
+        onChange={(_v) => onChange({ type: 'constant', content: _v, schema: constantSchema })}
+        schema={constantSchema || { type: 'string' }}
         readonly={readonly}
+        fallbackRenderer={() => (
+          <InjectVariableSelector
+            style={{ width: '100%' }}
+            onChange={(_v) => onChange(_v ? { type: 'ref', content: _v } : undefined)}
+            includeSchema={includeSchema}
+            readonly={readonly}
+          />
+        )}
         {...constantProps}
+        strategies={[...(constantProps?.strategies || [])]}
       />
     );
   };
 
   const renderTrigger = () => (
-    <VariableSelector
+    <InjectVariableSelector
       style={{ width: '100%' }}
       value={value?.type === 'ref' ? value?.content : undefined}
       onChange={(_v) => onChange({ type: 'ref', content: _v })}
@@ -78,8 +136,12 @@ export function DynamicValueInput({
 
   return (
     <UIContainer style={style}>
+      <UIType>{renderTypeSelector()}</UIType>
       <UIMain>{renderMain()}</UIMain>
       <UITrigger>{renderTrigger()}</UITrigger>
     </UIContainer>
   );
 }
+
+DynamicValueInput.renderKey = 'dynamic-value-input-render-key';
+export const InjectDynamicValueInput = createInjectMaterial(DynamicValueInput);

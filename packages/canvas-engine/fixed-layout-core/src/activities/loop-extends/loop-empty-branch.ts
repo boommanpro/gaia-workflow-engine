@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { type FlowNodeRegistry, FlowTransitionLabelEnum } from '@flowgram.ai/document';
 
 import { LoopSpacings, LoopTypeEnum } from './constants';

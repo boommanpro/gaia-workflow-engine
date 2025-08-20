@@ -1,6 +1,11 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { useEffect, useState } from 'react';
 
-import { usePlaygroundTools, useClientContext } from '@flowgram.ai/free-layout-editor';
+import { usePlaygroundTools, useClientContext, LineType } from '@flowgram.ai/free-layout-editor';
 
 export function Tools() {
   const { history } = useClientContext();
@@ -24,6 +29,15 @@ export function Tools() {
       <button onClick={() => tools.zoomout()}>ZoomOut</button>
       <button onClick={() => tools.fitView()}>Fitview</button>
       <button onClick={() => tools.autoLayout()}>AutoLayout</button>
+      <button
+        onClick={() =>
+          tools.switchLineType(
+            tools.lineType === LineType.BEZIER ? LineType.LINE_CHART : LineType.BEZIER
+          )
+        }
+      >
+        {tools.lineType === LineType.BEZIER ? 'Bezier' : 'Fold'}
+      </button>
       <button onClick={() => history.undo()} disabled={!canUndo}>
         Undo
       </button>

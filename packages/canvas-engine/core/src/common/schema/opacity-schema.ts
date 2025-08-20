@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { OpacitySchemaDecoration, Schema } from '@flowgram.ai/utils';
 import type { OpacitySchema } from '@flowgram.ai/utils';
 

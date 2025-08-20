@@ -1,14 +1,6 @@
-import 'reflect-metadata';
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
 
-Object.defineProperty(window, 'TouchList', {
-  value: class TouchList {
-    constructor(touches: Touch[] = []) {
-      touches.forEach((touch, index) => {
-        this[index] = touch;
-      });
-      Object.defineProperty(this, 'length', {
-        value: touches.length,
-      });
-    }
-  },
-});
+import 'reflect-metadata';

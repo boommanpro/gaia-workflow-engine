@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { InternalGestureOptions } from '../types'
 import { Vector2, State, GenericOptions } from '../types'
 import { V } from '../utils/maths'

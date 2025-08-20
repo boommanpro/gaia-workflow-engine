@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import {
   WorkflowLinesManager,
   WorkflowNodeEntity,
@@ -23,12 +28,11 @@ export const buildLine: IBuildLine = (params) => {
   const shouldBuildFromLine = portsData.inputPorts?.length > 0;
   if (fromPort && shouldBuildFromLine) {
     const toTargetPort = portsData.inputPorts[0];
-    const isSingleInput = portsData.inputPorts.length === 1;
     linesManager.createLine({
       from: fromPort.node.id,
       fromPort: fromPort.portID,
       to: node.id,
-      toPort: isSingleInput ? undefined : toTargetPort.id,
+      toPort: toTargetPort.portID,
     });
   }
   const shouldBuildToLine = portsData.outputPorts?.length > 0;

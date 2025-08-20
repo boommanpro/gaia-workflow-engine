@@ -1,4 +1,9 @@
 /**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
+/**
  * Wrap the given `value` between `min` and `max`.
  * value ∈ [min, max)
  * e.g.

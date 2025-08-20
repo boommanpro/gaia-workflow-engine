@@ -1,10 +1,14 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { isEqual } from 'lodash-es';
 import { FlowNodeRenderData } from '@flowgram.ai/document';
 import { EntityData, SizeData } from '@flowgram.ai/core';
-import { type IPoint } from '@flowgram.ai/utils';
 
 import { type WorkflowPortType, getPortEntityId } from '../utils/statics';
-import { type WorkflowNodeMeta } from '../typings';
+import { type LinePoint, type WorkflowNodeMeta } from '../typings';
 import { WorkflowPortEntity } from '../entities/workflow-port-entity';
 import { type WorkflowNodeEntity, type WorkflowPort, type WorkflowPorts } from '../entities';
 
@@ -44,11 +48,11 @@ export class WorkflowNodePortsData extends EntityData {
           if (entity.getData!(SizeData).width && entity.getData!(SizeData).height) {
             this.updateDynamicPorts();
           }
-        }),
+        })
       );
     }
     this.onDispose(() => {
-      this.allPorts.forEach(port => port.dispose());
+      this.allPorts.forEach((port) => port.dispose());
     });
   }
 
@@ -57,16 +61,26 @@ export class WorkflowNodePortsData extends EntityData {
   }
 
   /**
-   * 更新静态的 ports 数据
+   * Update all ports data, includes static ports and dynamic ports
+   * @param ports
    */
-  public updateStaticPorts(ports: WorkflowPorts): void {
+  public updateAllPorts(ports?: WorkflowPorts) {
     const meta = this.entity.getNodeMeta<WorkflowNodeMeta>();
-    this._staticPorts = ports;
+    if (ports) {
+      this._staticPorts = ports;
+    }
     if (meta.useDynamicPort) {
       this.updateDynamicPorts();
     } else {
       this.updatePorts(this._staticPorts);
     }
+  }
+
+  /**
+   * @deprecated use `updateAllPorts` instead
+   */
+  public updateStaticPorts(ports: WorkflowPorts): void {
+    this.updateAllPorts(ports);
   }
 
   /**
@@ -79,11 +93,11 @@ export class WorkflowNodePortsData extends EntityData {
     const dynamicPorts: WorkflowPorts = [];
     if (elements.length > 0) {
       dynamicPorts.push(
-        ...Array.from(elements).map(element => ({
+        ...Array.from(elements).map((element) => ({
           portID: element.getAttribute('data-port-id')!,
           type: element.getAttribute('data-port-type')! as WorkflowPortType,
           targetElement: element,
-        })),
+        }))
       );
     }
     this.updatePorts(staticPorts.concat(dynamicPorts));
@@ -94,7 +108,7 @@ export class WorkflowNodePortsData extends EntityData {
    */
   public getPortEntityByKey(
     portType: WorkflowPortType,
-    portKey?: string | number,
+    portKey?: string | number
   ): WorkflowPortEntity {
     const entity = this.getOrCreatePortEntity({
       type: portType,
@@ -106,15 +120,15 @@ export class WorkflowNodePortsData extends EntityData {
   /**
    * 更新 ports 数据
    */
-  public updatePorts(ports: WorkflowPorts): void {
+  protected updatePorts(ports: WorkflowPorts): void {
     if (!isEqual(this._prePorts, ports)) {
-      const portKeys = ports.map(port => this.getPortId(port.type, port.portID));
-      this._portIDSet.forEach(portId => {
+      const portKeys = ports.map((port) => this.getPortId(port.type, port.portID));
+      this._portIDSet.forEach((portId) => {
         if (!portKeys.includes(portId)) {
           this.getPortEntity(portId)?.dispose();
         }
       });
-      ports.forEach(port => this.updatePortEntity(port));
+      ports.forEach((port) => this.updatePortEntity(port));
       this._prePorts = ports;
       this.fireChange();
     }
@@ -123,11 +137,10 @@ export class WorkflowNodePortsData extends EntityData {
     // 原因：假设有这样的连线：dynamic port → end 节点。
     // line.validate 时，line.fromPort 可能为 undefined（未创建实体），导致 end 节点上的 port 未正确校验
     // 所以需要在所有 port entities 准备完成后，通过再次调用 line.validate 来触发连线另一端的 port 更新
-    this.allPorts.forEach(port => {
-      port.allLines.forEach(line => {
+    this.allPorts.forEach((port) => {
+      port.allLines.forEach((line) => {
         line.validate();
       });
-      port.validate();
     });
   }
 
@@ -136,7 +149,7 @@ export class WorkflowNodePortsData extends EntityData {
    */
   public get allPorts(): WorkflowPortEntity[] {
     return Array.from(this._portIDSet)
-      .map(portId => this.getPortEntity(portId)!)
+      .map((portId) => this.getPortEntity(portId)!)
       .filter(Boolean); // dispose 时，会获取不到 port
   }
 
@@ -144,41 +157,41 @@ export class WorkflowNodePortsData extends EntityData {
    * 获取输入点位
    */
   public get inputPorts(): WorkflowPortEntity[] {
-    return this.allPorts.filter(port => port.portType === 'input');
+    return this.allPorts.filter((port) => port.portType === 'input');
   }
 
   /**
    * 获取输出点位
    */
   public get outputPorts(): WorkflowPortEntity[] {
-    return this.allPorts.filter(port => port.portType === 'output');
+    return this.allPorts.filter((port) => port.portType === 'output');
   }
 
   /**
    * 获取输入点位置
    */
-  public get inputPoints(): IPoint[] {
-    return this.inputPorts.map(port => port.point);
+  public get inputPoints(): LinePoint[] {
+    return this.inputPorts.map((port) => port.point);
   }
 
   /**
    * 获取输出点位置
    */
-  public get outputPoints(): IPoint[] {
-    return this.inputPorts.map(port => port.point);
+  public get outputPoints(): LinePoint[] {
+    return this.inputPorts.map((port) => port.point);
   }
 
   /**
    * 根据 key 获取 输入点位置
    */
-  public getInputPoint(key?: string | number): IPoint {
+  public getInputPoint(key?: string | number): LinePoint {
     return this.getPortEntityByKey('input', key).point;
   }
 
   /**
    * 根据 key 获取输出点位置
    */
-  public getOutputPoint(key?: string | number): IPoint {
+  public getOutputPoint(key?: string | number): LinePoint {
     return this.getPortEntityByKey('output', key).point;
   }
 
@@ -233,9 +246,7 @@ export class WorkflowNodePortsData extends EntityData {
    */
   protected updatePortEntity(portInfo: WorkflowPort): WorkflowPortEntity {
     const portEntity = this.getOrCreatePortEntity(portInfo);
-    if (portInfo.targetElement) {
-      portEntity.updateTargetElement(portInfo.targetElement);
-    }
+    portEntity.update(portInfo);
     return portEntity;
   }
 }

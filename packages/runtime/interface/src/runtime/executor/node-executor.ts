@@ -1,4 +1,10 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { FlowGramNode } from '@node/index';
+import { ISnapshot } from '../snapshot';
 import { INode } from '../document';
 import { IContext } from '../context';
 import { IContainer } from '../container';
@@ -9,6 +15,7 @@ export interface ExecutionContext {
   inputs: WorkflowInputs;
   container: IContainer;
   runtime: IContext;
+  snapshot: ISnapshot;
 }
 
 export interface ExecutionResult {

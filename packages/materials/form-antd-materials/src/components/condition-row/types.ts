@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { IFlowConstantRefValue, IFlowRefValue, JsonSchemaBasicType } from '../../typings';
 
 export enum Op {

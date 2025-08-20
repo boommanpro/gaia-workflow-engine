@@ -1,8 +1,13 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { omit } from 'lodash';
 import { injectable } from 'inversify';
 
 import { POST_CONSTRUCT_AST_SYMBOL } from './utils/inversify';
-import { ASTKindType, ASTNodeJSON, CreateASTParams } from './types';
+import { ASTKindType, ASTNodeJSON, CreateASTParams, NewASTAction } from './types';
 import { ArrayType } from './type/array';
 import {
   BooleanType,
@@ -85,6 +90,8 @@ export class ASTRegisters {
     node.changeLocked = true;
     node.fromJSON(omit(json, ['key', 'kind']));
     node.changeLocked = false;
+
+    node.dispatchGlobalEvent<NewASTAction>({ type: 'NewAST' });
 
     if (Reflect.hasMetadata(POST_CONSTRUCT_AST_SYMBOL, node)) {
       const postConstructKey = Reflect.getMetadata(POST_CONSTRUCT_AST_SYMBOL, node);

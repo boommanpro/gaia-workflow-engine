@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { useCallback, useContext } from 'react';
 
 import { FlowNodeEntity, useNodeRender } from '@flowgram.ai/fixed-layout-editor';
@@ -55,6 +60,7 @@ export const BaseNode = ({ node }: { node: FlowNodeEntity }) => {
            */
           ...(nodeRender.isBlockOrderIcon || nodeRender.isBlockIcon ? {} : {}),
           ...nodeRender.node.getNodeRegistry().meta.style,
+          opacity: nodeRender.dragging ? 0.3 : 1,
           outline: form?.state.invalid ? '1px solid red' : 'none',
         }}
       >

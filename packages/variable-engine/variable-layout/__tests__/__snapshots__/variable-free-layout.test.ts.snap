@@ -109,41 +109,41 @@ exports[`Variable Free Layout > test get Deps 1`] = `
 Map {
   "start_0" => [],
   "end_0" => [
-    "base_2",
-    "base_1",
     "start_0",
-    "base_3",
     "loop_1",
+    "base_1",
+    "base_3",
+    "base_2",
   ],
   "base_1" => [
     "start_0",
   ],
   "base_2" => [
-    "base_1",
     "start_0",
+    "base_1",
   ],
   "loop_1" => [
-    "base_1",
     "start_0",
+    "base_1",
   ],
   "base_in_loop_1" => [
-    "base_1",
     "start_0",
+    "base_1",
   ],
   "base_in_loop_2" => [
-    "base_1",
     "start_0",
+    "base_1",
   ],
   "base_in_loop_3" => [
-    "base_in_loop_1",
-    "base_in_loop_2",
-    "base_1",
     "start_0",
+    "base_1",
+    "base_in_loop_2",
+    "base_in_loop_1",
   ],
   "base_3" => [
-    "loop_1",
-    "base_1",
     "start_0",
+    "base_1",
+    "loop_1",
   ],
 }
 `;
@@ -154,11 +154,11 @@ Map {
     "start_0_private",
   ],
   "end_0" => [
-    "base_2",
-    "base_1",
     "start_0",
-    "base_3",
     "loop_1",
+    "base_1",
+    "base_3",
+    "base_2",
     "end_0_private",
   ],
   "base_1" => [
@@ -166,39 +166,39 @@ Map {
     "base_1_private",
   ],
   "base_2" => [
-    "base_1",
     "start_0",
+    "base_1",
     "base_2_private",
   ],
   "loop_1" => [
-    "base_1",
     "start_0",
+    "base_1",
     "loop_1_private",
   ],
   "base_in_loop_1" => [
-    "base_in_loop_1_private",
-    "base_1",
     "start_0",
+    "base_1",
     "loop_1_private",
+    "base_in_loop_1_private",
   ],
   "base_in_loop_2" => [
-    "base_in_loop_2_private",
-    "base_1",
     "start_0",
+    "base_1",
     "loop_1_private",
+    "base_in_loop_2_private",
   ],
   "base_in_loop_3" => [
-    "base_in_loop_1",
-    "base_in_loop_2",
-    "base_in_loop_3_private",
-    "base_1",
     "start_0",
+    "base_1",
     "loop_1_private",
+    "base_in_loop_2",
+    "base_in_loop_1",
+    "base_in_loop_3_private",
   ],
   "base_3" => [
-    "loop_1",
-    "base_1",
     "start_0",
+    "base_1",
+    "loop_1",
     "base_3_private",
   ],
 }
@@ -246,44 +246,44 @@ exports[`Variable Free Layout > test get private scope Deps 1`] = `
 Map {
   "start_0_private" => [],
   "end_0_private" => [
-    "base_2",
-    "base_1",
     "start_0",
-    "base_3",
     "loop_1",
+    "base_1",
+    "base_3",
+    "base_2",
   ],
   "base_1_private" => [
     "start_0",
   ],
   "base_2_private" => [
-    "base_1",
     "start_0",
+    "base_1",
   ],
   "loop_1_private" => [
-    "base_1",
     "start_0",
+    "base_1",
   ],
   "base_in_loop_1_private" => [
-    "base_1",
     "start_0",
+    "base_1",
     "loop_1_private",
   ],
   "base_in_loop_2_private" => [
-    "base_1",
     "start_0",
+    "base_1",
     "loop_1_private",
   ],
   "base_in_loop_3_private" => [
-    "base_in_loop_1",
-    "base_in_loop_2",
-    "base_1",
     "start_0",
+    "base_1",
     "loop_1_private",
+    "base_in_loop_2",
+    "base_in_loop_1",
   ],
   "base_3_private" => [
-    "loop_1",
-    "base_1",
     "start_0",
+    "base_1",
+    "loop_1",
   ],
 }
 `;

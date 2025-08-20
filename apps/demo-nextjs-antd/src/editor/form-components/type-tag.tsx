@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import styled from 'styled-components';
 import { Tag, Tooltip } from 'antd';
 import { ArrayIcons, VariableTypeIcons } from '@flowgram.ai/form-antd-materials';

@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import styled from 'styled-components';
 import type { SelectProps } from 'antd/es/select';
 import type { InputNumberProps } from 'antd/es/input-number';

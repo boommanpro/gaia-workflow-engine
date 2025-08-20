@@ -96,6 +96,12 @@ export const nodeRegistries: FlowNodeRegistry[] = [
 
 Get node-related methods through [useNodeRender](/api/hooks/use-node-render.html)
 
+```tsx pure
+function BaseNode() {
+  const { id, type, data, updateData, node } = useNodeRender()
+}
+```
+
 ## Creating Nodes
 
 Create through [FlowOperationService](/api/services/flow-operation-service.html)
@@ -163,23 +169,19 @@ function BaseNode({ node }) {
 
 ```tsx pure
 function BaseNode() {
-  const { form } = useNodeRender();
-  // Corresponding node data
-  console.log(form.values)
-
-  // Monitor node data changes
-  useEffect(() => {
-    const toDispose = form.onFormValuesChange(() => {
-      // changed
-    })
-    return () => toDispose.dispose()
-  }, [form])
+  const { data, updateData } = useNodeRender();
+  // Corresponds to node's data
+  console.log(data)
 
   function onChange(e) {
-    form.setValueIn('title', e.target.value)
+    updateData({
+      ...data,
+      title: e.target.value
+    })
   }
-  return <input value={form.getValueIn('title')} onChange={onChange}/>
+  return <input value={data.title} onChange={onChange}/>
 }
+
 ```
 
 - Update form data through Field, see [Form Usage](/guide/advanced/form.html) for details

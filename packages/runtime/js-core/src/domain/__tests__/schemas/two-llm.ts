@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { WorkflowSchema } from '@flowgram.ai/runtime-interface';
 
 export const twoLLMSchema: WorkflowSchema = {
@@ -17,9 +22,6 @@ export const twoLLMSchema: WorkflowSchema = {
           type: 'object',
           properties: {
             query: {
-              key: 5,
-              name: 'query',
-              isPropertyRequired: false,
               type: 'string',
               default: 'Hello Flow.',
               extra: {
@@ -27,9 +29,6 @@ export const twoLLMSchema: WorkflowSchema = {
               },
             },
             enable: {
-              key: 6,
-              name: 'enable',
-              isPropertyRequired: false,
               type: 'boolean',
               default: true,
               extra: {
@@ -37,9 +36,6 @@ export const twoLLMSchema: WorkflowSchema = {
               },
             },
             array_obj: {
-              key: 7,
-              name: 'array_obj',
-              isPropertyRequired: false,
               type: 'array',
               items: {
                 type: 'object',
@@ -57,17 +53,12 @@ export const twoLLMSchema: WorkflowSchema = {
               },
             },
             num: {
-              key: 10,
-              name: 'num',
-              isPropertyRequired: false,
               type: 'number',
               extra: {
                 index: 3,
               },
             },
             model: {
-              key: 24,
-              name: 'model',
               type: 'string',
               extra: {
                 index: 5,
@@ -136,8 +127,8 @@ export const twoLLMSchema: WorkflowSchema = {
             content: ['start_0', 'num'],
           },
           prompt: {
-            type: 'ref',
-            content: ['start_0', 'query'],
+            type: 'template',
+            content: '{{start_0.query}}',
           },
         },
         inputs: {
@@ -158,9 +149,15 @@ export const twoLLMSchema: WorkflowSchema = {
             },
             systemPrompt: {
               type: 'string',
+              extra: {
+                formComponent: 'prompt-editor',
+              },
             },
             prompt: {
               type: 'string',
+              extra: {
+                formComponent: 'prompt-editor',
+              },
             },
           },
         },
@@ -207,8 +204,8 @@ export const twoLLMSchema: WorkflowSchema = {
             content: 'AAAA',
           },
           prompt: {
-            type: 'ref',
-            content: ['start_0', 'query'],
+            type: 'template',
+            content: '{{start_0.query}}',
           },
         },
         inputs: {
@@ -229,9 +226,15 @@ export const twoLLMSchema: WorkflowSchema = {
             },
             systemPrompt: {
               type: 'string',
+              extra: {
+                formComponent: 'prompt-editor',
+              },
             },
             prompt: {
               type: 'string',
+              extra: {
+                formComponent: 'prompt-editor',
+              },
             },
           },
         },

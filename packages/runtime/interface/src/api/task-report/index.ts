@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import z from 'zod';
 
 import { IReport } from '@runtime/index';
@@ -25,7 +30,8 @@ export const TaskReportDefine: FlowGramAPIDefine = {
       inputs: WorkflowZodSchema.Inputs,
       outputs: WorkflowZodSchema.Outputs,
       workflowStatus: WorkflowZodSchema.Status,
-      reports: z.record(z.string(), WorkflowZodSchema.NodeReport),
+      reports: WorkflowZodSchema.Reports,
+      messages: WorkflowZodSchema.Messages,
     }),
   },
 };

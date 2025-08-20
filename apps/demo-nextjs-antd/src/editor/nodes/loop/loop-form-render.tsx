@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { Field, FlowNodeJSON, FormRenderProps } from '@flowgram.ai/free-layout-editor';
 import { SubCanvasRender } from '@flowgram.ai/free-container-plugin';
 import { BatchVariableSelector, IFlowRefValue } from '@flowgram.ai/form-antd-materials';

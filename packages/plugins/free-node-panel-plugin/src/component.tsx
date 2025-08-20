@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import React, { FC, ReactNode, useEffect, useRef } from 'react';
 
 import { PositionSchema } from '@flowgram.ai/utils';

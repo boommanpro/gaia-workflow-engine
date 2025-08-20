@@ -1,5 +1,10 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { PositionSchema } from '@flowgram.ai/utils';
-import { WorkflowNodeEntity } from '@flowgram.ai/free-layout-core';
+import { nanoid, WorkflowNodeEntity } from '@flowgram.ai/free-layout-core';
 import { FlowNodeRegistry, FlowNodeBaseType, FlowNodeTransformData } from '@flowgram.ai/document';
 
 export const GroupNodeRegistry: FlowNodeRegistry = {
@@ -30,5 +35,18 @@ export const GroupNodeRegistry: FlowNodeRegistry = {
   },
   formMeta: {
     render: () => <></>,
+  },
+  onAdd() {
+    return {
+      type: FlowNodeBaseType.GROUP,
+      id: `group_${nanoid(5)}`,
+      meta: {
+        position: {
+          x: 0,
+          y: 0,
+        },
+      },
+      data: {},
+    };
   },
 };

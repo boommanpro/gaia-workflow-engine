@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { type IPoint } from '@flowgram.ai/utils';
 import { FlowNodeTransformData } from '@flowgram.ai/document';
 import { TransformData, startTween } from '@flowgram.ai/core';

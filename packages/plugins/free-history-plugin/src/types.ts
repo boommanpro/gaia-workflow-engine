@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 /* eslint-disable @typescript-eslint/naming-convention */
 import { type IPoint } from '@flowgram.ai/utils';
 import { type Operation, type OperationMeta } from '@flowgram.ai/history';
@@ -15,6 +20,7 @@ import { type EntityData, type PluginContext } from '@flowgram.ai/core';
 export enum FreeOperationType {
   addLine = 'addLine',
   deleteLine = 'deleteLine',
+  changeLineData = 'changeLineData',
   moveNode = 'moveNode',
   addNode = 'addNode',
   deleteNode = 'deleteNode',
@@ -28,6 +34,11 @@ export interface AddOrDeleteLineOperationValue extends WorkflowLinePortInfo {
   id: string;
 }
 
+export interface ChangeLineDataValue {
+  id: string;
+  oldValue: unknown;
+  newValue: unknown;
+}
 export interface AddOrDeleteWorkflowNodeOperationValue {
   node: WorkflowNodeJSON;
   parentID?: string;
@@ -36,6 +47,11 @@ export interface AddOrDeleteWorkflowNodeOperationValue {
 export interface AddLineOperation extends Operation {
   type: FreeOperationType.addLine;
   value: AddOrDeleteLineOperationValue;
+}
+
+export interface ChangeLineDataOperation extends Operation {
+  type: FreeOperationType.changeLineData;
+  value: ChangeLineDataValue;
 }
 
 export interface DeleteLineOperation extends Operation {
@@ -99,6 +115,12 @@ export interface ChangeNodeDataValue {
   path: string;
 }
 
+export interface ChangeLineDataValue {
+  id: string;
+  newValue: unknown;
+  oldValue: unknown;
+}
+
 export interface ChangeNodeDataOperation extends Operation {
   type: FreeOperationType.changeNodeData;
   value: ChangeNodeDataValue;
@@ -136,17 +158,18 @@ export type GetLineURI = (id: string) => string | any;
 /**
  * 插件配置
  */
-export interface FreeHistoryPluginOptions {
+export interface FreeHistoryPluginOptions<CTX extends PluginContext = PluginContext> {
   enable?: boolean;
   limit?: number;
-  nodeToJSON?: (ctx: PluginContext) => NodeToJson;
-  getNodeLabelById?: (ctx: PluginContext) => GetNodeLabelById;
-  getNodeLabel?: (ctx: PluginContext) => GetNodeLabel;
-  getBlockLabel?: (ctx: PluginContext) => GetBlockLabel;
-  getNodeURI?: (ctx: PluginContext) => GetNodeURI;
-  getLineURI?: (ctx: PluginContext) => GetLineURI;
+  nodeToJSON?: (ctx: CTX) => NodeToJson;
+  getNodeLabelById?: (ctx: CTX) => GetNodeLabelById;
+  getNodeLabel?: (ctx: CTX) => GetNodeLabel;
+  getBlockLabel?: (ctx: CTX) => GetBlockLabel;
+  getNodeURI?: (ctx: CTX) => GetNodeURI;
+  getLineURI?: (ctx: CTX) => GetLineURI;
   operationMetas?: OperationMeta[];
-  enableChangeNode?: boolean;
+  enableChangeNode?: boolean; // default true
+  enableChangeLineData?: boolean; // default true
   uri?: string | any;
 }
 

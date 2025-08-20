@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import ReactDOM from 'react-dom';
 import React, { useEffect, useRef } from 'react';
 
@@ -22,15 +27,10 @@ export const PlaygroundReactRenderer: React.FC<PlaygroundReactRendererProps> = (
    * 初始化画布
    */
   useEffect(() => {
-    if (ref.current) {
-      playground.setParent(ref.current);
-      playground.ready();
-      if (playgroundConfig.autoFocus) {
-        playground.node.focus();
-      }
-      return () => {
-        playground.dispose();
-      };
+    playground.setParent(ref.current);
+    playground.ready();
+    if (playgroundConfig.autoFocus) {
+      playground.node.focus();
     }
   }, []);
   const PlaygroundComp = playground.toReactComponent();

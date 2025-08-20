@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { vi } from 'vitest';
 import { interfaces } from 'inversify';
 import { Playground, PositionData } from '@flowgram.ai/core';

@@ -97,6 +97,12 @@ export const nodeRegistries: FlowNodeRegistry[] = [
 
 通过 [useNodeRender](/api/hooks/use-node-render.html) 获取节点相关方法
 
+```tsx pure
+function BaseNode() {
+  const { id, type, data, updateData, node } = useNodeRender()
+}
+```
+
 ## 创建节点
 
 通过 [FlowOperationService](/api/services/flow-operation-service.html) 创建
@@ -164,22 +170,17 @@ function BaseNode({ node }) {
 
 ```tsx pure
 function BaseNode() {
-  const { form } = useNodeRender();
+  const { data, updateData } = useNodeRender();
   // 对应节点的 data 数据
-  console.log(form.values)
-
-  // 监听节点的数据变化
-  useEffect(() => {
-    const toDispose = form.onFormValuesChange(() => {
-      // changed
-    })
-    return () => toDispose.dispose()
-  }, [form])
+  console.log(data)
 
   function onChange(e) {
-    form.setValueIn('title', e.target.value)
+    updateData({
+      ...data,
+      title: e.target.value
+    })
   }
-  return <input value={form.getValueIn('title')} onChange={onChange}/>
+  return <input value={data.title} onChange={onChange}/>
 }
 ```
 - 通过 Field 更新表单数据, 详细见 [表单的使用](/guide/advanced/form.html)

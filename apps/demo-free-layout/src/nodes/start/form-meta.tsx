@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import {
   Field,
   FieldRenderProps,
@@ -5,11 +10,17 @@ import {
   FormMeta,
   ValidateTrigger,
 } from '@flowgram.ai/free-layout-editor';
-import { JsonSchemaEditor } from '@flowgram.ai/form-materials';
+import {
+  DisplayOutputs,
+  IJsonSchema,
+  JsonSchemaEditor,
+  provideJsonSchemaOutputs,
+  syncVariableTitle,
+} from '@flowgram.ai/form-materials';
 
 import { FlowNodeJSON, JsonSchema } from '../../typings';
 import { useIsSidebar } from '../../hooks';
-import { FormHeader, FormContent, FormOutputs } from '../../form-components';
+import { FormHeader, FormContent } from '../../form-components';
 
 export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => {
   const isSidebar = useIsSidebar();
@@ -37,7 +48,7 @@ export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => {
     <>
       <FormHeader />
       <FormContent>
-        <FormOutputs />
+        <DisplayOutputs displayFromScope />
       </FormContent>
     </>
   );
@@ -48,5 +59,9 @@ export const formMeta: FormMeta<FlowNodeJSON> = {
   validateTrigger: ValidateTrigger.onChange,
   validate: {
     title: ({ value }: { value: string }) => (value ? undefined : 'Title is required'),
+  },
+  effect: {
+    title: syncVariableTitle,
+    outputs: provideJsonSchemaOutputs,
   },
 };

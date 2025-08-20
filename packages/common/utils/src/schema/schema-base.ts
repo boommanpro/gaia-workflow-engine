@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { type PositionSchema, type SizeSchema } from './schema-transform';
 import { type SchemaDecoration } from './schema';
 

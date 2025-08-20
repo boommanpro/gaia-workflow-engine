@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 /* eslint-disable no-console */
 import { useMemo } from 'react';
 
@@ -6,7 +11,11 @@ import { createMinimapPlugin } from '@flowgram.ai/minimap-plugin';
 import { createFreeSnapPlugin } from '@flowgram.ai/free-snap-plugin';
 import { createFreeNodePanelPlugin } from '@flowgram.ai/free-node-panel-plugin';
 import { createFreeLinesPlugin } from '@flowgram.ai/free-lines-plugin';
-import { FreeLayoutProps, WorkflowNodeLinesData } from '@flowgram.ai/free-layout-editor';
+import {
+  FlowNodeBaseType,
+  FreeLayoutProps,
+  WorkflowNodeLinesData,
+} from '@flowgram.ai/free-layout-editor';
 import { createFreeGroupPlugin } from '@flowgram.ai/free-group-plugin';
 import { createContainerNodePlugin } from '@flowgram.ai/free-container-plugin';
 
@@ -15,7 +24,11 @@ import { FlowNodeRegistry, FlowDocumentJSON } from '../typings';
 import { shortcuts } from '../shortcuts';
 import { CustomService } from '../services';
 import { WorkflowRuntimeService } from '../plugins/runtime-plugin/runtime-service';
-import { createSyncVariablePlugin, createRuntimePlugin, createContextMenuPlugin } from '../plugins';
+import {
+  createRuntimePlugin,
+  createContextMenuPlugin,
+  createVariablePanelPlugin,
+} from '../plugins';
 import { defaultFormMeta } from '../nodes/default-form-meta';
 import { WorkflowNodeType } from '../nodes';
 import { SelectorBoxPopover } from '../components/selector-box-popover';
@@ -31,6 +44,17 @@ export function useEditorProps(
        * Whether to enable the background
        */
       background: true,
+      /**
+       * 画布相关配置
+       * Canvas-related configurations
+       */
+      playground: {
+        /**
+         * Prevent Mac browser gestures from turning pages
+         * 阻止 mac 浏览器手势翻页
+         */
+        preventGlobalGesture: true,
+      },
       /**
        * Whether it is read-only or not, the node cannot be dragged in read-only mode
        */
@@ -90,8 +114,17 @@ export function useEditorProps(
        * 判断是否连线
        */
       canAddLine(ctx, fromPort, toPort) {
-        // not the same node
+        // Cannot be a self-loop on the same node / 不能是同一节点自循环
         if (fromPort.node === toPort.node) {
+          return false;
+        }
+        // Cannot be in different containers - 不能在不同容器
+        if (
+          fromPort.node.parent?.id !== toPort.node.parent?.id &&
+          ![fromPort.node.parent?.flowNodeType, toPort.node.parent?.flowNodeType].includes(
+            FlowNodeBaseType.GROUP
+          )
+        ) {
           return false;
         }
         /**
@@ -115,8 +148,50 @@ export function useEditorProps(
         return true;
       },
       /**
+       * 是否允许拖入子画布 (loop or group)
+       * Whether to allow dragging into the sub-canvas (loop or group)
+       */
+      canDropToNode: (ctx, params) => {
+        const { dragNodeType, dropNodeType } = params;
+        /**
+         * 开始/结束节点无法更改容器
+         * The start and end nodes cannot change container
+         */
+        if (
+          [
+            WorkflowNodeType.Start,
+            WorkflowNodeType.End,
+            WorkflowNodeType.BlockStart,
+            WorkflowNodeType.BlockEnd,
+          ].includes(dragNodeType as WorkflowNodeType)
+        ) {
+          return false;
+        }
+        /**
+         * 继续循环与终止循环只能在循环节点中
+         * Continue loop and break loop can only be in loop nodes
+         */
+        if (
+          [WorkflowNodeType.Continue, WorkflowNodeType.Break].includes(
+            dragNodeType as WorkflowNodeType
+          ) &&
+          dropNodeType !== WorkflowNodeType.Loop
+        ) {
+          return false;
+        }
+        /**
+         * 循环节点无法嵌套循环节点
+         * Loop node cannot nest loop node
+         */
+        if (dragNodeType === WorkflowNodeType.Loop && dropNodeType === WorkflowNodeType.Loop) {
+          return false;
+        }
+        return true;
+      },
+      /**
        * Drag the end of the line to create an add panel (feature optional)
        * 拖拽线条结束需要创建一个添加面板 （功能可选）
+       * 希望提供控制线条粗细的配置项
        */
       onDragLineEnd,
       /**
@@ -125,7 +200,15 @@ export function useEditorProps(
       selectBox: {
         SelectorBoxPopover,
       },
+      scroll: {
+        /**
+         * Whether to restrict the node from rolling out of the canvas needs to be closed because there is a running results pane
+         * 是否限制节点不能滚出画布，由于有运行结果面板，所以需要关闭
+         */
+        enableScrollLimit: false,
+      },
       materials: {
+        components: {},
         /**
          * Render Node
          */
@@ -157,13 +240,13 @@ export function useEditorProps(
        * Content change
        */
       onContentChange: debounce((ctx, event) => {
+        if (ctx.document.disposed) return;
         console.log('Auto Save: ', event, ctx.document.toJSON());
       }, 1000),
       /**
        * Running line
        */
       isFlowingLine: (ctx, line) => ctx.get(WorkflowRuntimeService).isFlowingLine(line),
-
       /**
        * Shortcuts
        */
@@ -177,15 +260,15 @@ export function useEditorProps(
       /**
        * Playground init
        */
-      onInit() {
+      onInit(ctx) {
         console.log('--- Playground init ---');
       },
       /**
        * Playground render
        */
       onAllLayersRendered(ctx) {
-        //  Fitview
-        ctx.document.fitView(false);
+        // ctx.tools.autoLayout(); // init auto layout
+        ctx.tools.fitView(false);
         console.log('--- Playground rendered ---');
       },
       /**
@@ -237,11 +320,7 @@ export function useEditorProps(
           },
           inactiveDebounceTime: 1,
         }),
-        /**
-         * Variable plugin
-         * 变量插件
-         */
-        createSyncVariablePlugin({}),
+
         /**
          * Snap plugin
          * 自动对齐及辅助线插件
@@ -275,6 +354,9 @@ export function useEditorProps(
          * ContextMenu plugin
          */
         createContextMenuPlugin({}),
+        /**
+         * Runtime plugin
+         */
         createRuntimePlugin({
           mode: 'browser',
           // mode: 'server',
@@ -284,6 +366,12 @@ export function useEditorProps(
           //   protocol: 'http',
           // },
         }),
+
+        /**
+         * Variable panel plugin
+         * 变量面板插件
+         */
+        createVariablePanelPlugin({}),
       ],
     }),
     []

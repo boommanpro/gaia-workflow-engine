@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { Emitter } from '@flowgram.ai/utils';
 
 import { FieldValue } from '../types';
@@ -33,7 +38,7 @@ export class FieldArrayModel<TValue = FieldValue> extends FieldModel<Array<TValu
       const p1 = f1.path.value;
       const p2 = f2.path.value;
       const i1 = parseInt(p1[p1.length - 1]);
-      const i2 = parseInt(p1[p2.length - 1]);
+      const i2 = parseInt(p2[p2.length - 1]);
       return i1 - i2;
     });
   }

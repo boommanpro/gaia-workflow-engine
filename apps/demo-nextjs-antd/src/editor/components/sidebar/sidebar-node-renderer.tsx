@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { FlowNodeEntity, useNodeRender } from '@flowgram.ai/free-layout-editor';
 
 import { NodeRenderContext } from '@editor/context';

@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { vi } from 'vitest';
 
 import { createPlayground } from '../__mocks__/playground-container.mock';

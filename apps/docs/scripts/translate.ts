@@ -1,4 +1,9 @@
 /**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
+/**
  * How to use it:
  * - cd apps/docs
  * - Add apps/docs/.env file, to set OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL

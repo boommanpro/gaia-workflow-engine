@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { injectable } from 'inversify';
 import { Compare, type Disposable, Emitter, type Event } from '@flowgram.ai/utils';
 

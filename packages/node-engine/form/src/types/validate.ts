@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { MaybePromise } from '@flowgram.ai/utils';
 
 import { FieldName } from './field';
@@ -24,7 +29,7 @@ export interface Feedback<FeedbackLevel> {
   /**
    * Feedback message
    */
-  message: string;
+  message: string | React.ReactNode;
 }
 
 export type FieldError = Feedback<FeedbackLevel.Error>;

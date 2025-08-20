@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { nanoid } from 'nanoid';
 
 import { FlowNodeRegistry } from '../../typings';
@@ -17,6 +22,10 @@ export const ConditionNodeRegistry: FlowNodeRegistry = {
     // Condition Outputs use dynamic port
     useDynamicPort: true,
     expandable: false, // disable expanded
+    size: {
+      width: 360,
+      height: 210,
+    },
   },
   formMeta,
   onAdd() {

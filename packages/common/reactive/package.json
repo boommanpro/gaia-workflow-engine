@@ -41,7 +41,7 @@
     "react": "^18",
     "react-dom": "^18",
     "tsup": "^8.0.1",
-    "typescript": "^5.0.4",
+    "typescript": "^5.8.3",
     "vitest": "^0.34.6"
   },
   "peerDependencies": {

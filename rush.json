@@ -573,15 +573,6 @@
             ]
         },
         {
-            "packageName": "@flowgram.ai/fixed-reactor-plugin",
-            "projectFolder": "packages/plugins/fixed-reactor-plugin",
-            "versionPolicyName": "publishPolicy",
-            "tags": [
-                "level-1",
-                "team-flow"
-            ]
-        },
-        {
             "packageName": "@flowgram.ai/form",
             "projectFolder": "packages/node-engine/form",
             "versionPolicyName": "publishPolicy",
@@ -789,6 +780,15 @@
             ]
         },
         {
+            "packageName": "@flowgram.ai/json-schema",
+            "projectFolder": "packages/variable-engine/json-schema",
+            "versionPolicyName": "publishPolicy",
+            "tags": [
+                "level-1",
+                "team-flow"
+            ]
+        },
+        {
             "packageName": "@flowgram.ai/variable-plugin",
             "projectFolder": "packages/plugins/variable-plugin",
             "versionPolicyName": "publishPolicy",
@@ -854,6 +854,15 @@
         {
             "packageName": "@flowgram.ai/form-antd-materials",
             "projectFolder": "packages/materials/form-antd-materials",
+            "versionPolicyName": "publishPolicy",
+            "tags": [
+                "level-1",
+                "team-flow"
+            ]
+        },
+        {
+            "packageName": "@flowgram.ai/type-editor",
+            "projectFolder": "packages/materials/type-editor",
             "versionPolicyName": "publishPolicy",
             "tags": [
                 "level-1",

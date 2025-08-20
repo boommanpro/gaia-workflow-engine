@@ -220,7 +220,7 @@ export const nodeRegistries: WorkflowNodeRegistry[] = [
       deleteDisable: true, // Start node cannot be deleted
       copyDisable: true, // Start node cannot be copied
       defaultPorts: [{ type: 'output' }], // Define node input and output ports, start node only has output port
-      // dynamicPort: true, // For dynamic ports, will look for DOM with data-port-id and data-port-type attributes as ports
+      // useDynamicPort: true, // For dynamic ports, will look for DOM with data-port-id and data-port-type attributes as ports
     },
     /**
      * Configure node form validation and rendering

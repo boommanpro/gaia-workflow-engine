@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 const { excludeIgnoredFiles } = require('./utils');
 const micromatch = require('micromatch');
 const path = require('path');

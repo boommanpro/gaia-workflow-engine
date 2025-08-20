@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { I18n as I18nStore } from 'i18n-js';
 import { Emitter } from '@flowgram.ai/utils';
 

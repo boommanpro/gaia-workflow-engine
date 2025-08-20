@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { type OperationMeta } from '@flowgram.ai/history';
 
 export const baseOperationMeta: Partial<OperationMeta> = {

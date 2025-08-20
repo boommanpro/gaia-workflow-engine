@@ -16,13 +16,30 @@ Canvas configuration, provides zoom, scroll, etc.
 
 [> API Detail](https://flowgram.ai/auto-docs/core/classes/PlaygroundConfigEntity.html)
 
-### Properties
+### updateConfig
 - zoom `number` Current zoom ratio
-- scrollData `{ scrollX: number, scrollY: number }` Current scroll position
-- readonlyOrDisabled `boolean` Whether the canvas is readonly or disabled
+- scrollX
+- scrollY
+- minZoom
+- maxZoom
 - readonly
 - disabled
+- width
+- height
 
+```ts pure
+// get current config state
+ctx.playground.config.config.zoom
+ctx.playground.config.config.readonly
+
+// updateConfig
+ctx.playground.config.updateConfig({
+  zoom: 0.8,
+  minZoom: 0.1,
+  maxZoom: 2,
+  readonly: true
+})
+```
 
 ### fitView
 
@@ -35,7 +52,7 @@ Node fit canvas window, need to pass in the node's bounds
  * @param easing {number} Whether to start animation, default is true
  * @param padding {number} Boundary padding
  */
-ctx.playground.config.fitView(ctx.document.root.bounds, true, 10)
+ctx.playground.config.fitView(node.bounds, true, 10)
 ```
 
 ### scrollToView
@@ -90,10 +107,10 @@ Scroll canvas, need to pass in the scroll position, and whether to smooth scroll
 ctx.playground.config.scroll({ scrollX: 100, scrollY: 100 }, true, 300)
 ```
 
-### getViewport
+### isViewportVisible
 
-Get the current canvas viewport size
+Determine whether the current node is within the viewport
 
 ```ts pure
-const viewport = ctx.playground.config.getViewport()
+ctx.playground.config.isViewportVisible(node.bounds)
 ```

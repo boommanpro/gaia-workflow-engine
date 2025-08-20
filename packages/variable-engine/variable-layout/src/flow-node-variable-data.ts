@@ -1,4 +1,9 @@
-import { VariableEngine } from '@flowgram.ai/variable-core';
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
+import { BaseVariableField, VariableEngine } from '@flowgram.ai/variable-core';
 import { type ASTNode, ASTNodeJSON } from '@flowgram.ai/variable-core';
 import { FlowNodeEntity } from '@flowgram.ai/document';
 import { EntityData } from '@flowgram.ai/core';
@@ -164,19 +169,29 @@ export class FlowNodeVariableData extends EntityData {
         node: this.entity,
         type: FlowNodeScopeTypeEnum.private,
       } as FlowNodeScopeMeta);
-      // 1. Notify the covering scopes of private to update dependencies
-      this._private.coverScopes.forEach((_scope) => {
-        _scope.refreshDeps();
-      });
-      // 2. Notify the dependent scopes of private to update their covers
-      this._private.depScopes.forEach((_scope) => {
-        _scope.refreshCovers();
-      });
-      // 3. The private scope itself needs to refresh its dependencies
-      this._private.available.refresh();
+
+      this.variableEngine.chain.refreshAllChange();
 
       this.toDispose.push(this._private);
     }
     return this._private;
+  }
+
+  /**
+   * Find a variable field by key path in the public scope by scope chain.
+   * @param keyPath - The key path of the variable field.
+   * @returns The variable field, or undefined if not found.
+   */
+  getByKeyPath(keyPath: string[]): BaseVariableField | undefined {
+    return this.public.available.getByKeyPath(keyPath);
+  }
+
+  /**
+   * Find a variable field by key path in the private scope by scope chain.
+   * @param keyPath - The key path of the variable field.
+   * @returns The variable field, or undefined if not found.
+   */
+  getByKeyPathInPrivate(keyPath: string[]): BaseVariableField | undefined {
+    return this.private?.available.getByKeyPath(keyPath);
   }
 }

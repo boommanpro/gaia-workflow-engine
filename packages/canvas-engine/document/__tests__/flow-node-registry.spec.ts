@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { createDocumentContainer } from './flow-document-container.mock';
@@ -75,6 +80,8 @@ describe('flow-node-registry', () => {
     expect(doc.isExtend('c', 'dynamicSplit')).toBeTruthy();
     expect(doc.isExtend('c', 'b')).toBeTruthy();
     expect(doc.isExtend('c', 'a')).toBeTruthy();
+    expect(doc.isTypeOrExtendType('dynamicSplit', 'dynamicSplit')).toBeTruthy();
+    expect(doc.isTypeOrExtendType('c', 'a')).toBeTruthy();
   });
   it('base extend', () => {
     expect(doc.getNodeRegistry('a').onAdd).toBeTypeOf('function');

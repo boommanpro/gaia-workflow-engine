@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { postConstructAST } from '../utils/inversify';
 import { ASTKind, ASTNodeJSON } from '../types';
 import { BaseType } from '../type';
@@ -28,6 +33,7 @@ export class WrapArrayExpression extends BaseExpression<WrapArrayExpressionJSON>
   refreshReturnType() {
     // 被遍历表达式的返回值
     const childReturnTypeJSON = this.wrapFor?.returnType?.toJSON();
+
     this.updateChildNodeByKey('_returnType', {
       kind: ASTKind.Array,
       items: childReturnTypeJSON,
@@ -51,9 +57,12 @@ export class WrapArrayExpression extends BaseExpression<WrapArrayExpressionJSON>
 
   @postConstructAST()
   protected init() {
+    this.refreshReturnType = this.refreshReturnType.bind(this);
+
     this.toDispose.push(
       this.subscribe(this.refreshReturnType, {
         selector: (curr) => curr.wrapFor?.returnType,
+        triggerOnInit: true,
       })
     );
   }

@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import React, { CSSProperties, useEffect, useRef, useState } from 'react';
 
 import { MinimapInactiveStyle } from './type';
@@ -82,6 +87,12 @@ export const MinimapRender: React.FC<MinimapProps> = (props) => {
           service.setActivate(true);
         }}
         onMouseLeave={() => {
+          service.setActivate(false);
+        }}
+        onTouchStartCapture={() => {
+          service.setActivate(true);
+        }}
+        onTouchEndCapture={() => {
           service.setActivate(false);
         }}
       ></div>

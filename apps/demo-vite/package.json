@@ -19,7 +19,7 @@
     "start": "vite",
     "build": "exit 0",
     "clean": "rimraf dist",
-    "build:production": "vite build",
+    "build:prod": "vite build",
     "lint": "eslint ./src --cache",
     "lint:fix": "eslint ./src --fix",
     "test": "exit",
@@ -31,6 +31,7 @@
     "@flowgram.ai/free-layout-editor": "workspace:*",
     "@flowgram.ai/free-snap-plugin": "workspace:*",
     "@flowgram.ai/minimap-plugin": "workspace:*",
+    "@flowgram.ai/form-materials": "workspace:*",
     "react": "^18",
     "react-dom": "^18"
   },

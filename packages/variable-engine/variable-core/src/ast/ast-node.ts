@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import {
   BehaviorSubject,
   animationFrameScheduler,
@@ -12,8 +17,8 @@ import { shallowEqual } from 'fast-equals';
 import { Disposable, DisposableCollection } from '@flowgram.ai/utils';
 
 import { subsToDisposable } from '../utils/toDisposable';
-import { type Scope } from '../scope';
 import { updateChildNodeHelper } from './utils/helpers';
+import { type Scope } from '../scope';
 import {
   type ASTNodeJSON,
   type ObserverOrNext,
@@ -23,7 +28,6 @@ import {
   SubscribeConfig,
   GlobalEventActionType,
   DisposeASTAction,
-  NewASTAction,
   UpdateASTAction,
 } from './types';
 import { ASTNodeFlags } from './flags';
@@ -73,7 +77,7 @@ export abstract class ASTNode<JSON extends ASTNodeJSON = any, InjectOpts = any>
   /**
    * 节点的版本号，每 fireChange 一次 version + 1
    */
-  private _version: number = 0;
+  protected _version: number = 0;
 
   /**
    * 更新锁
@@ -109,8 +113,8 @@ export abstract class ASTNode<JSON extends ASTNodeJSON = any, InjectOpts = any>
     Disposable.create(() => {
       // 子元素删除时，父元素触发更新
       this.parent?.fireChange();
-      this.children.forEach(child => child.dispose());
-    }),
+      this.children.forEach((child) => child.dispose());
+    })
   );
 
   /**
@@ -133,8 +137,6 @@ export abstract class ASTNode<JSON extends ASTNodeJSON = any, InjectOpts = any>
 
     // 后续调用 fromJSON 内的所有 fireChange 合并成一个
     this.fromJSON = this.withBatchUpdate(this.fromJSON.bind(this));
-
-    this.dispatchGlobalEvent<NewASTAction>({ type: 'NewAST' });
   }
 
   /**
@@ -191,7 +193,7 @@ export abstract class ASTNode<JSON extends ASTNodeJSON = any, InjectOpts = any>
     child.toDispose.push(
       Disposable.create(() => {
         this._children.delete(child);
-      }),
+      })
     );
 
     return child;
@@ -204,7 +206,7 @@ export abstract class ASTNode<JSON extends ASTNodeJSON = any, InjectOpts = any>
   protected updateChildNodeByKey(keyInThis: keyof this, nextJSON?: ASTNodeJSON) {
     this.withBatchUpdate(updateChildNodeHelper).call(this, {
       getChildNode: () => this[keyInThis] as ASTNode,
-      updateChildNode: _node => ((this as any)[keyInThis] = _node),
+      updateChildNode: (_node) => ((this as any)[keyInThis] = _node),
       removeChildNode: () => ((this as any)[keyInThis] = undefined),
       nextJSON,
     });
@@ -216,7 +218,7 @@ export abstract class ASTNode<JSON extends ASTNodeJSON = any, InjectOpts = any>
    * @returns
    */
   protected withBatchUpdate<ParamTypes extends any[], ReturnType>(
-    updater: (...args: ParamTypes) => ReturnType,
+    updater: (...args: ParamTypes) => ReturnType
   ) {
     return (...args: ParamTypes) => {
       // batchUpdate 里面套 batchUpdate 只能生效一次
@@ -281,7 +283,7 @@ export abstract class ASTNode<JSON extends ASTNodeJSON = any, InjectOpts = any>
    */
   subscribe<Data = this>(
     observer: ObserverOrNext<Data>,
-    { selector, debounceAnimation, triggerOnInit }: SubscribeConfig<this, Data> = {},
+    { selector, debounceAnimation, triggerOnInit }: SubscribeConfig<this, Data> = {}
   ): Disposable {
     return subsToDisposable(
       this.value$
@@ -289,25 +291,25 @@ export abstract class ASTNode<JSON extends ASTNodeJSON = any, InjectOpts = any>
           map(() => (selector ? selector(this) : (this as any))),
           distinctUntilChanged(
             (a, b) => shallowEqual(a, b),
-            value => {
+            (value) => {
               if (value instanceof ASTNode) {
                 // 如果 value 是 ASTNode，则进行 hash 的比较
                 return value.hash;
               }
               return value;
-            },
+            }
           ),
           // 默认跳过 BehaviorSubject 第一次触发
           triggerOnInit ? tap(() => null) : skip(1),
           // 每个 animationFrame 内所有更新合并成一个
-          debounceAnimation ? debounceTime(0, animationFrameScheduler) : tap(() => null),
+          debounceAnimation ? debounceTime(0, animationFrameScheduler) : tap(() => null)
         )
-        .subscribe(observer),
+        .subscribe(observer)
     );
   }
 
   dispatchGlobalEvent<ActionType extends GlobalEventActionType = GlobalEventActionType>(
-    event: Omit<ActionType, 'ast'>,
+    event: Omit<ActionType, 'ast'>
   ) {
     this.scope.event.dispatch({
       ...event,

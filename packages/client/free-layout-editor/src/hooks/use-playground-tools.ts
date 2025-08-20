@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 /* eslint-disable no-cond-assign */
 import { useCallback, useEffect, useState } from 'react';
 
@@ -11,10 +16,10 @@ import {
   usePlayground,
   useService,
 } from '@flowgram.ai/free-layout-core';
-import { LayoutOptions } from '@flowgram.ai/free-auto-layout-plugin';
 import { EditorState } from '@flowgram.ai/editor';
 
 import { useAutoLayout } from './use-auto-layout';
+import { FreeLayoutPluginTools } from '../preset';
 
 interface SetCursorStateCallbackEvent {
   isPressingSpaceBar: boolean;
@@ -26,7 +31,7 @@ export interface PlaygroundTools {
   zoomin: (easing?: boolean) => void;
   zoomout: (easing?: boolean) => void;
   fitView: (easing?: boolean) => void;
-  autoLayout: (options?: LayoutOptions) => Promise<() => void>;
+  autoLayout: FreeLayoutPluginTools['autoLayout'];
   /**
    * 切换线条
    */
@@ -44,7 +49,19 @@ export interface PlaygroundTools {
   setMouseScrollDelta: (mouseScrollDelta: number | ((zoom: number) => number)) => void;
 }
 
-export function usePlaygroundTools(): PlaygroundTools {
+export interface PlaygroundToolsPropsType {
+  /**
+   * 最大缩放比，默认 2
+   */
+  maxZoom?: number;
+  /**
+   * 最小缩放比，默认 0.25
+   */
+  minZoom?: number;
+}
+
+export function usePlaygroundTools(props?: PlaygroundToolsPropsType): PlaygroundTools {
+  const { maxZoom, minZoom } = props || {};
   const playground = usePlayground();
   const doc = useService<WorkflowDocument>(WorkflowDocument);
 
@@ -55,9 +72,6 @@ export function usePlaygroundTools(): PlaygroundTools {
 
   const handleZoomOut = useCallback(
     (easing?: boolean) => {
-      if (zoom < 0.1) {
-        return;
-      }
       playground?.config.zoomout(easing);
     },
     [zoom, playground]
@@ -65,9 +79,6 @@ export function usePlaygroundTools(): PlaygroundTools {
 
   const handleZoomIn = useCallback(
     (easing?: boolean) => {
-      if (zoom > 1.9) {
-        return;
-      }
       playground?.config.zoomin(easing);
     },
     [zoom, playground]
@@ -170,6 +181,14 @@ export function usePlaygroundTools(): PlaygroundTools {
       mouseScrollDelta: delta,
     });
   }
+
+  useEffect(() => {
+    const config = playground.config.config;
+    playground.config.updateConfig({
+      maxZoom: maxZoom !== undefined ? maxZoom : config.maxZoom,
+      minZoom: minZoom !== undefined ? minZoom : config.minZoom,
+    });
+  }, [playground, maxZoom, minZoom]);
 
   return {
     zoomin: handleZoomIn,

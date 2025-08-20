@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { FC, useCallback, useState, type MouseEvent } from 'react';
 
 import {
@@ -45,13 +50,13 @@ export const NodeMenu: FC<NodeMenuProps> = ({ node, deleteNode, updateTitleEdit 
       const sourceParent = node.parent;
       // move out of container - 移出容器
       nodeIntoContainerService.moveOutContainer({ node });
+      await delay(16);
       // clear invalid lines - 清除非法线条
       await nodeIntoContainerService.clearInvalidLines({
         dragNode: node,
         sourceParent,
       });
       rerenderMenu();
-      await delay(16);
       // select node - 选中节点
       selectService.selectNode(node);
       // start drag node - 开始拖拽

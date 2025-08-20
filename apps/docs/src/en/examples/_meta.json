@@ -4,6 +4,7 @@
     "name": "index",
     "label": "Experience Environment"
   },
+  "playground",
   {
     "type": "dir",
     "name": "fixed-layout",

@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { FlowNodeBaseType } from '../../typings';
 import { FlowNodeEntity } from '../../entities';
 import { FlowGroupController } from './flow-group-controller';

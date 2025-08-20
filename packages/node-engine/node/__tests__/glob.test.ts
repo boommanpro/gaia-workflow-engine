@@ -1,7 +1,11 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 // test src/glob.ts
 import { describe, expect, it } from 'vitest';
-
-import { Glob } from '../src/glob';
+import { Glob } from '@flowgram.ai/form';
 
 describe('glob', () => {
   it('return original path array if no *', () => {

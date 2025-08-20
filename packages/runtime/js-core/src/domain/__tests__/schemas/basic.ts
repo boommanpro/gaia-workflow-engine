@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import type { WorkflowSchema } from '@flowgram.ai/runtime-interface';
 
 export const basicSchema: WorkflowSchema = {
@@ -8,7 +13,7 @@ export const basicSchema: WorkflowSchema = {
       meta: {
         position: {
           x: 180,
-          y: 69,
+          y: 171.6,
         },
       },
       data: {
@@ -17,25 +22,18 @@ export const basicSchema: WorkflowSchema = {
           type: 'object',
           properties: {
             model_name: {
-              key: 14,
-              name: 'model_name',
               type: 'string',
+              extra: {
+                index: 0,
+              },
+            },
+            llm_settings: {
+              type: 'object',
               extra: {
                 index: 1,
               },
-              isPropertyRequired: true,
-            },
-            llm_settings: {
-              key: 17,
-              name: 'llm_settings',
-              type: 'object',
-              extra: {
-                index: 2,
-              },
               properties: {
                 temperature: {
-                  key: 18,
-                  name: 'temperature',
                   type: 'number',
                   extra: {
                     index: 1,
@@ -44,17 +42,29 @@ export const basicSchema: WorkflowSchema = {
               },
               required: [],
             },
-            prompt: {
-              key: 19,
-              name: 'prompt',
-              type: 'string',
+            work: {
+              type: 'object',
               extra: {
-                index: 3,
+                index: 2,
               },
-              isPropertyRequired: true,
+              properties: {
+                role: {
+                  type: 'string',
+                  extra: {
+                    index: 0,
+                  },
+                },
+                task: {
+                  type: 'string',
+                  extra: {
+                    index: 1,
+                  },
+                },
+              },
+              required: ['role', 'task'],
             },
           },
-          required: ['model_name', 'prompt'],
+          required: ['model_name', 'work'],
         },
       },
     },
@@ -63,8 +73,8 @@ export const basicSchema: WorkflowSchema = {
       type: 'end',
       meta: {
         position: {
-          x: 1121.3,
-          y: 69,
+          x: 1124.4,
+          y: 171.6,
         },
       },
       data: {
@@ -74,9 +84,9 @@ export const basicSchema: WorkflowSchema = {
             type: 'ref',
             content: ['llm_0', 'result'],
           },
-          llm_prompt: {
+          llm_task: {
             type: 'ref',
-            content: ['start_0', 'prompt'],
+            content: ['start_0', 'work', 'task'],
           },
         },
         inputs: {
@@ -85,7 +95,7 @@ export const basicSchema: WorkflowSchema = {
             llm_res: {
               type: 'string',
             },
-            llm_prompt: {
+            llm_task: {
               type: 'string',
             },
           },
@@ -97,7 +107,7 @@ export const basicSchema: WorkflowSchema = {
       type: 'llm',
       meta: {
         position: {
-          x: 650.65,
+          x: 652.2,
           y: 0,
         },
       },
@@ -121,8 +131,8 @@ export const basicSchema: WorkflowSchema = {
             content: ['start_0', 'llm_settings', 'temperature'],
           },
           prompt: {
-            type: 'ref',
-            content: ['start_0', 'prompt'],
+            type: 'template',
+            content: '<Role>{{start_0.work.role}}</Role>\n\n<Task>\n{{start_0.work.task}}\n</Task>',
           },
           systemPrompt: {
             type: 'constant',
@@ -147,9 +157,15 @@ export const basicSchema: WorkflowSchema = {
             },
             systemPrompt: {
               type: 'string',
+              extra: {
+                formComponent: 'prompt-editor',
+              },
             },
             prompt: {
               type: 'string',
+              extra: {
+                formComponent: 'prompt-editor',
+              },
             },
           },
         },

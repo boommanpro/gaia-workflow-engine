@@ -1,11 +1,16 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { isEqual } from 'lodash-es';
-import { domUtils, type IPoint, Rectangle } from '@flowgram.ai/utils';
+import { domUtils, type IPoint, Rectangle, Emitter } from '@flowgram.ai/utils';
 import { Entity, type EntityOpts } from '@flowgram.ai/core';
 
 import { type WorkflowLinesManager } from '../workflow-lines-manager';
 import { type WorkflowDocument } from '../workflow-document';
 import { WORKFLOW_LINE_ENTITY } from '../utils/statics';
-import { LineRenderType, type LinePosition } from '../typings/workflow-line';
+import { LineRenderType, type LinePosition, LinePoint } from '../typings/workflow-line';
 import { type WorkflowEdgeJSON } from '../typings';
 import { WorkflowNodePortsData } from '../entity-datas/workflow-node-ports-data';
 import { WorkflowLineRenderData } from '../entity-datas';
@@ -20,18 +25,77 @@ export interface WorkflowLinePortInfo {
   to?: string; // 后置节点 id
   fromPort?: string | number; // 连线的 port 位置
   toPort?: string | number; // 连线的 port 位置
+  data?: any;
 }
 
 export interface WorkflowLineEntityOpts extends EntityOpts, WorkflowLinePortInfo {
   document: WorkflowDocument;
   linesManager: WorkflowLinesManager;
-  drawingTo?: IPoint;
+  drawingTo?: LinePoint;
 }
 
 export interface WorkflowLineInfo extends WorkflowLinePortInfo {
-  drawingTo?: IPoint; // 正在画中的元素
-  isDefaultLine?: boolean; // 是否为默认的线
-  highlightColor?: string; // 高亮显示
+  drawingTo?: LinePoint; // 正在画中的元素
+}
+
+export interface WorkflowLineUIState {
+  /**
+   * 是否出错
+   */
+  hasError: boolean;
+  /**
+   * 流动
+   */
+  flowing: boolean;
+  /**
+   * 禁用
+   */
+  disabled: boolean;
+  /**
+   * 箭头反转
+   */
+  reverse: boolean;
+  /**
+   * 隐藏箭头
+   */
+  hideArrow: boolean;
+  /**
+   * 线条宽度
+   * @default 2
+   */
+  strokeWidth?: number;
+  /**
+   * 选中后的线条宽度
+   * @default 3
+   */
+  strokeWidthSelected?: number;
+  /**
+   * 收缩
+   * @default 10
+   */
+  shrink: number;
+  /**
+   * @deprecated use `lockedColor` instead
+   */
+  highlightColor: string;
+  /**
+   * 曲率
+   * only for Bezier,
+   * @default 0.25
+   */
+  curvature: number;
+  /**
+   * Line locked color
+   */
+  lockedColor: string;
+  /**
+   * React className
+   */
+  className?: string;
+  /**
+   * React style
+   */
+  style?: React.CSSProperties;
 }
 
 /**
@@ -49,17 +113,78 @@ export class WorkflowLineEntity extends Entity<WorkflowLineEntityOpts> {
     return `${from}_${fromPort || ''}-${to || ''}_${toPort || ''}`;
   }
 
+  private _onLineDataChangeEmitter = new Emitter<{ oldValue: any; newValue: any }>();
+
   readonly document: WorkflowDocument;
 
   readonly linesManager: WorkflowLinesManager;
+
+  readonly onLineDataChange = this._onLineDataChangeEmitter.event;
 
   private _from: WorkflowNodeEntity;
 
   private _to?: WorkflowNodeEntity;
 
-  private _processing = false;
+  private _lineData: any;
 
-  private _hasError = false;
+  private _uiState: WorkflowLineUIState = {
+    hasError: false,
+    flowing: false,
+    disabled: false,
+    hideArrow: false,
+    reverse: false,
+    shrink: 10,
+    curvature: 0.25,
+    highlightColor: '',
+    lockedColor: '',
+  };
+
+  /**
+   * 线条的 UI 状态
+   */
+  get uiState(): WorkflowLineUIState {
+    return this._uiState;
+  }
+
+  /**
+   * 更新线条的 ui 状态
+   * @param newState
+   */
+  updateUIState(newState: Partial<WorkflowLineUIState>): void {
+    let changed = false;
+    Object.keys(newState).forEach((key: string) => {
+      const value: any = newState[key as keyof WorkflowLineUIState] as any;
+      if (this._uiState[key as keyof WorkflowLineUIState] !== value) {
+        (this._uiState as any)[key as keyof WorkflowLineUIState] = value;
+        changed = true;
+      }
+    });
+    if (changed) {
+      this.fireChange();
+    }
+  }
+
+  /**
+   * 线条的扩展数据
+   */
+  get lineData(): any {
+    return this._lineData;
+  }
+
+  /**
+   * 更新线条扩展数据
+   * @param data
+   */
+  set lineData(newValue: any) {
+    const oldValue = this._lineData;
+    if (!isEqual(oldValue, newValue)) {
+      this._lineData = newValue;
+      this._onLineDataChangeEmitter.fire({ oldValue, newValue });
+      this.fireChange();
+    }
+  }
+
+  public stackIndex = 0;
 
   /**
    * 线条数据
@@ -86,10 +211,20 @@ export class WorkflowLineEntity extends Entity<WorkflowLineEntityOpts> {
       drawingTo: opts.drawingTo,
       fromPort: opts.fromPort,
       toPort: opts.toPort,
+      data: opts.data,
     });
     if (opts.drawingTo) {
       this.isDrawing = true;
     }
+    this.onEntityChange(() => {
+      this.fromPort?.validate();
+      this.toPort?.validate();
+    });
+    this.onDispose(() => {
+      this.fromPort?.validate();
+      this.toPort?.validate();
+    });
+    this.toDispose.push(this._onLineDataChangeEmitter);
     // this.onDispose(() => {
     // this._infoDispose.dispose();
     // });
@@ -121,32 +256,30 @@ export class WorkflowLineEntity extends Entity<WorkflowLineEntityOpts> {
 
   /**
    * 获取是否 testrun processing
+   * @deprecated  use `flowing` instead
    */
   get processing(): boolean {
-    return this._processing;
+    return this._uiState.flowing;
   }
 
   /**
    * 设置 testrun processing 状态
+   * @deprecated  use `flowing` instead
    */
   set processing(status: boolean) {
-    if (this._processing !== status) {
-      this._processing = status;
-      this.fireChange();
-    }
+    this.flowing = status;
   }
 
   // 获取连线是否为错误态
   get hasError() {
-    return this._hasError;
+    return this.uiState.hasError;
   }
 
   // 设置连线的错误态
   set hasError(hasError: boolean) {
-    if (this._hasError !== hasError) {
-      this._hasError = hasError;
-      this.fireChange();
-    }
+    this.updateUIState({
+      hasError,
+    });
     if (this._node) {
       this._node.dataset.hasError = this.hasError ? 'true' : 'false';
     }
@@ -163,6 +296,7 @@ export class WorkflowLineEntity extends Entity<WorkflowLineEntityOpts> {
     if (this.toPort === toPort) {
       return;
     }
+    const prePort = this.toPort;
     if (
       toPort &&
       toPort.portType === 'input' &&
@@ -171,7 +305,6 @@ export class WorkflowLineEntity extends Entity<WorkflowLineEntityOpts> {
       const { node, portID } = toPort;
       this._to = node;
       this.info.drawingTo = undefined;
-      this.info.isDefaultLine = false;
       this.info.to = node.id;
       this.info.toPort = portID;
     } else {
@@ -179,13 +312,19 @@ export class WorkflowLineEntity extends Entity<WorkflowLineEntityOpts> {
       this.info.to = undefined;
       this.info.toPort = '';
     }
+    /**
+     * 移动到端口又快速移出，需要更新 prePort 的状态
+     */
+    if (prePort) {
+      prePort.validate();
+    }
     this.fireChange();
   }
 
   /**
    * 设置线条画线时的目标位置
    */
-  set drawingTo(pos: IPoint | undefined) {
+  set drawingTo(pos: LinePoint | undefined) {
     const oldDrawingTo = this.info.drawingTo;
     if (!pos) {
       this.info.drawingTo = undefined;
@@ -194,7 +333,6 @@ export class WorkflowLineEntity extends Entity<WorkflowLineEntityOpts> {
     }
     if (!oldDrawingTo || pos.x !== oldDrawingTo.x || pos.y !== oldDrawingTo.y) {
       this.info.to = undefined;
-      this.info.isDefaultLine = false;
       this.info.drawingTo = pos;
       this.fireChange();
     }
@@ -203,19 +341,28 @@ export class WorkflowLineEntity extends Entity<WorkflowLineEntityOpts> {
   /**
    * 获取线条正在画线的位置
    */
-  get drawingTo(): IPoint | undefined {
+  get drawingTo(): LinePoint | undefined {
     return this.info.drawingTo;
   }
 
   get highlightColor(): string {
-    return this.info.highlightColor || '';
+    return this.uiState.highlightColor || '';
   }
 
-  set highlightColor(color) {
-    if (this.info.highlightColor !== color) {
-      this.info.highlightColor = color;
-      this.fireChange();
-    }
+  set highlightColor(highlightColor) {
+    this.updateUIState({
+      highlightColor,
+    });
+  }
+
+  get lockedColor(): string {
+    return this.uiState.lockedColor;
+  }
+
+  set lockedColor(lockedColor: string) {
+    this.updateUIState({
+      lockedColor,
+    });
   }
 
   /**
@@ -254,27 +401,40 @@ export class WorkflowLineEntity extends Entity<WorkflowLineEntityOpts> {
 
   /** 是否反转箭头 */
   get reverse(): boolean {
-    return this.linesManager.isReverseLine(this);
+    return this.linesManager.isReverseLine(this, this.uiState.reverse);
   }
 
   /** 是否隐藏箭头 */
   get hideArrow(): boolean {
-    return this.linesManager.isHideArrowLine(this);
+    return this.linesManager.isHideArrowLine(this, this.uiState.hideArrow);
   }
 
   /** 是否流动 */
   get flowing(): boolean {
-    return this.linesManager.isFlowingLine(this);
+    return this.linesManager.isFlowingLine(this, this.uiState.flowing);
+  }
+
+  set flowing(flowing: boolean) {
+    if (this._uiState.flowing !== flowing) {
+      this._uiState.flowing = flowing;
+      this.fireChange();
+    }
   }
 
   /** 是否禁用 */
   get disabled(): boolean {
-    return this.linesManager.isDisabledLine(this);
+    return this.linesManager.isDisabledLine(this, this.uiState.disabled);
   }
 
   /** 是否竖向 */
   get vertical(): boolean {
-    return this.linesManager.isVerticalLine(this);
+    const fromLocation = this.fromPort.location;
+    const toLocation = this.toPort?.location;
+    if (toLocation) {
+      return toLocation === 'top';
+    } else {
+      return fromLocation === 'bottom';
+    }
   }
 
   /** 获取线条渲染器类型 */
@@ -283,8 +443,10 @@ export class WorkflowLineEntity extends Entity<WorkflowLineEntityOpts> {
   }
 
   /** 获取线条样式 */
-  get className(): string | undefined {
-    return this.linesManager.setLineClassName(this) ?? '';
+  get className(): string {
+    return [this.linesManager.setLineClassName(this), this._uiState.className]
+      .filter((s) => !!s)
+      .join(' ');
   }
 
   get color(): string | undefined {
@@ -300,23 +462,25 @@ export class WorkflowLineEntity extends Entity<WorkflowLineEntityOpts> {
       this.info = info;
       this._from = this.document.getNode(info.from)!;
       this._to = info.to ? this.document.getNode(info.to) : undefined;
+      this._lineData = info.data;
       this.fireChange();
     }
   }
 
   // 校验连线是否为错误态
   validate() {
-    const { fromPort, toPort } = this;
     this.validateSelf();
-    fromPort?.validate();
-    toPort?.validate();
   }
 
-  validateSelf() {
+  /**
+   * use `validate` instead
+   * @deprecated
+   */
+  protected validateSelf() {
     const { fromPort, toPort } = this;
 
     if (fromPort) {
-      this.hasError = this.linesManager.isErrorLine(fromPort, toPort);
+      this.hasError = this.linesManager.isErrorLine(fromPort, toPort, this.uiState.hasError);
     }
   }
 
@@ -345,12 +509,15 @@ export class WorkflowLineEntity extends Entity<WorkflowLineEntityOpts> {
   }
 
   toJSON(): WorkflowEdgeJSON {
-    const json = {
+    const json: WorkflowEdgeJSON = {
       sourceNodeID: this.info.from,
       targetNodeID: this.info.to!,
       sourcePortID: this.info.fromPort,
       targetPortID: this.info.toPort,
     };
+    if (this._lineData !== undefined) {
+      json.data = this._lineData;
+    }
     if (!json.sourcePortID) {
       delete json.sourcePortID;
     }

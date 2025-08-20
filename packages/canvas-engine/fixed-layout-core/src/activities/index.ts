@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 export * from './dynamic-split';
 export * from './static-split';
 export * from './block';
@@ -16,3 +21,4 @@ export * from './input';
 export * from './output';
 export * from './multi-outputs';
 export * from './multi-inputs';
+export * from './slot';

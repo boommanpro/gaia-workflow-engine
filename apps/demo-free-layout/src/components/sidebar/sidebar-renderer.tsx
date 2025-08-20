@@ -1,95 +1,113 @@
-// sidebar-renderer.tsx
-import React, { useCallback, useEffect } from 'react';
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
+import { useCallback, useContext, useEffect, useMemo, startTransition } from 'react';
 
 import {
   PlaygroundEntityContext,
-  useClientContext,
   useRefresh,
+  useClientContext,
 } from '@flowgram.ai/free-layout-editor';
 import { SideSheet } from '@douyinfe/semi-ui';
 
-import { IsSidebarContext, NodeRenderContext, PanelEnum, useSidebarContext } from '../../context';
-import { NodeContent } from './styles.tsx';
-import RunWorkflowSidebar from '../run-workflow-panel';
-import RunNodeSidebar from '../run-node-panel';
+import { FlowNodeMeta } from '../../typings';
+import { SidebarContext, IsSidebarContext } from '../../context';
+import { SidebarNodeRenderer } from './sidebar-node-renderer';
 
 export const SidebarRenderer = () => {
-  const { selection, playground } = useClientContext();
+  const { nodeId, setNodeId } = useContext(SidebarContext);
+  const { selection, playground, document } = useClientContext();
   const refresh = useRefresh();
-  const { updatePanelValue, getFirstEnablePanel } = useSidebarContext();
-
   const handleClose = useCallback(() => {
-    let key = getFirstEnablePanel();
-    console.log(key);
-    if (key) {
-      updatePanelValue(key.key, {
-        ...key.value,
-        isRunning: false,
-      });
-    }
-  }, [getFirstEnablePanel, updatePanelValue]);
+    // Sidebar delayed closing
+    startTransition(() => {
+      setNodeId(undefined);
+    });
+  }, []);
+  const node = nodeId ? document.getNode(nodeId) : undefined;
+  /**
+   * Listen readonly
+   */
   useEffect(() => {
-    const disposable = playground.config.onReadonlyOrDisabledChange(() => refresh());
+    const disposable = playground.config.onReadonlyOrDisabledChange(() => {
+      handleClose();
+      refresh();
+    });
     return () => disposable.dispose();
   }, [playground]);
-
+  /**
+   * Listen selection
+   */
   useEffect(() => {
-    let firstEnablePanel = getFirstEnablePanel();
     const toDispose = selection.onSelectionChanged(() => {
+      /**
+       * 如果没有选中任何节点，则自动关闭侧边栏
+       * If no node is selected, the sidebar is automatically closed
+       */
       if (selection.selection.length === 0) {
         handleClose();
-      } else if (selection.selection.length === 1 && !firstEnablePanel) {
+      } else if (selection.selection.length === 1 && selection.selection[0] !== node) {
         handleClose();
       }
     });
     return () => toDispose.dispose();
-  }, [selection, handleClose]);
+  }, [selection, handleClose, node]);
+  /**
+   * Close when node disposed
+   */
+  useEffect(() => {
+    if (node) {
+      const toDispose = node.onDispose(() => {
+        setNodeId(undefined);
+      });
+      return () => toDispose.dispose();
+    }
+    return () => {};
+  }, [node]);
+
+  const visible = useMemo(() => {
+    if (!node) {
+      return false;
+    }
+    const { sidebarDisabled = false } = node.getNodeMeta<FlowNodeMeta>();
+    return !sidebarDisabled;
+  }, [node]);
 
   if (playground.config.readonly) {
     return null;
   }
-
-  if (selection.selection.length == 1 && selection.selection[0]._metaCache?.hiddenSidebar) {
-    return null;
-  }
-
-  let firstEnablePanel = getFirstEnablePanel();
-  if (!firstEnablePanel) {
-    return null;
-  }
-  const content = (() => {
-    switch (firstEnablePanel?.key) {
-      case PanelEnum.NodeEdit:
-        return (
-          <PlaygroundEntityContext.Provider
-            key={firstEnablePanel.value.nodeRender.node.id}
-            value={firstEnablePanel.value.nodeRender.node}
-          >
-            <NodeRenderContext.Provider value={firstEnablePanel.value.nodeRender}>
-              {firstEnablePanel.value.nodeRender.form?.render()}
-            </NodeRenderContext.Provider>
-          </PlaygroundEntityContext.Provider>
-        );
-      case PanelEnum.NodeRun:
-        return <RunNodeSidebar />;
-      // 可以继续添加其他 PanelEnum 的处理逻辑
-      case PanelEnum.WorkflowRun:
-        return <RunWorkflowSidebar />;
-      default:
-        return null;
-    }
-  })();
+  /**
+   * Add "key" to rerender the sidebar when the node changes
+   */
+  const content =
+    node && visible ? (
+      <PlaygroundEntityContext.Provider key={node.id} value={node}>
+        <SidebarNodeRenderer node={node} />
+      </PlaygroundEntityContext.Provider>
+    ) : null;
 
   return (
     <SideSheet
-      style={{ position: 'relative', height: '100%' }}
       mask={false}
-      visible={!!firstEnablePanel}
+      visible={visible}
       onCancel={handleClose}
+      closable={false}
+      motion={false}
+      width={500}
+      headerStyle={{
+        display: 'none',
+      }}
+      bodyStyle={{
+        padding: 0,
+      }}
+      style={{
+        background: 'none',
+        boxShadow: 'none',
+      }}
     >
-      <NodeContent style={{ position: 'relative', height: `100%` }}>
-        <IsSidebarContext.Provider value={true}>{content}</IsSidebarContext.Provider>
-      </NodeContent>
+      <IsSidebarContext.Provider value={true}>{content}</IsSidebarContext.Provider>
     </SideSheet>
   );
 };

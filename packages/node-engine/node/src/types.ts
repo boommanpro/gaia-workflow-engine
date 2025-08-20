@@ -1,6 +1,11 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import * as React from 'react';
 
-import { FormModel, IFormMeta, NodeFormContext } from '@flowgram.ai/form-core';
+import { FormModel, IFormMeta, NodeContext } from '@flowgram.ai/form-core';
 import { FieldName, FieldValue } from '@flowgram.ai/form/src/types';
 import {
   FormRenderProps,
@@ -15,13 +20,6 @@ import { FormModelV2 } from './form-model-v2';
 export interface Node {}
 
 export interface Flow {}
-
-/**
- * NodeContext contains
- * - node: the Editor's node entity.
- * - playgroundContext: the Editor's playgroundContext injected when initiate the Editor.
- */
-type NodeContext = NodeFormContext;
 
 export type Validate<TFieldValue = any, TFormValues = any> = (props: {
   value: TFieldValue;
@@ -99,7 +97,9 @@ export interface FormMeta<TValues = any> {
   /**
    * Form data's validation rules. It's a key value map, where the key is a pattern of data's path (or field name), the value is a validate function.
    */
-  validate?: Record<FieldName, Validate>;
+  validate?:
+    | Record<FieldName, Validate>
+    | ((values: TValues, ctx: NodeContext) => Record<FieldName, Validate>);
   /**
    * Form data's effects. It's a key value map, where the key is a pattern of data's path (or field name), the value is an array of effect configuration.
    */
@@ -136,6 +136,13 @@ export function isFormMetaV2(formMeta: IFormMeta | FormMeta) {
 
 export type FormPluginCtx = {
   formModel: FormModelV2;
+} & NodeContext;
+
+export type FormPluginSetupMetaCtx = {
+  mergeEffect: (effect: Record<string, EffectOptions[]>) => void;
+  mergeValidate: (validate: Record<FieldName, Validate>) => void;
+  addFormatOnInit: (formatOnInit: FormMeta['formatOnInit']) => void;
+  addFormatOnSubmit: (formatOnSubmit: FormMeta['formatOnSubmit']) => void;
 } & NodeContext;
 
 export interface onFormValueChangeInPayload<TValue = FieldValue, TFormValues = FieldValue> {

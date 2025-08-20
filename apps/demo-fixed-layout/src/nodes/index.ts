@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { type FlowNodeRegistry } from '../typings';
 import { TryCatchNodeRegistry } from './trycatch';
 import { SwitchNodeRegistry } from './switch';
@@ -11,6 +16,7 @@ import { CatchBlockNodeRegistry } from './catch-block';
 import { CaseDefaultNodeRegistry } from './case-default';
 import { CaseNodeRegistry } from './case';
 import { BreakLoopNodeRegistry } from './break-loop';
+import { AgentNodeRegistries } from './agent';
 
 export const FlowNodeRegistries: FlowNodeRegistry[] = [
   StartNodeRegistry,
@@ -25,4 +31,5 @@ export const FlowNodeRegistries: FlowNodeRegistry[] = [
   IFBlockNodeRegistry,
   BreakLoopNodeRegistry,
   CaseDefaultNodeRegistry,
+  ...AgentNodeRegistries,
 ];

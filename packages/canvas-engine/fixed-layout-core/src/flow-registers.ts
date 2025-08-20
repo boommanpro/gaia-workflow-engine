@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { injectable } from 'inversify';
 import {
   FlowLabelsLayer,
@@ -6,8 +11,6 @@ import {
   FlowNodesTransformLayer,
   type FlowRendererContribution,
   type FlowRendererRegistry,
-  FlowScrollBarLayer,
-  FlowScrollLimitLayer,
 } from '@flowgram.ai/renderer';
 import {
   type FlowDocument,
@@ -37,6 +40,8 @@ import {
   MultiInputsRegistry,
   InputRegistry,
   OuputRegistry,
+  SlotRegistry,
+  SlotBlockRegistry,
 } from './activities';
 
 @injectable()
@@ -69,7 +74,9 @@ export class FlowRegisters
       MultiOuputsRegistry,
       MultiInputsRegistry,
       InputRegistry,
-      OuputRegistry
+      OuputRegistry,
+      SlotRegistry,
+      SlotBlockRegistry
     );
     /**
      * 注册节点数据 (ECS - Component)
@@ -94,9 +101,7 @@ export class FlowRegisters
       FlowNodesContentLayer, // 节点内容渲染
       FlowLinesLayer, // 线条渲染
       FlowLabelsLayer, // Label 渲染
-      PlaygroundLayer, // 画布基础层，提供缩放、手势等能力
-      FlowScrollLimitLayer, // 控制滚动范围
-      FlowScrollBarLayer // 滚动条
+      PlaygroundLayer // 画布基础层，提供缩放、手势等能力
     );
   }
 

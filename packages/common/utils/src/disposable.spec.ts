@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import { describe, test, expect } from 'vitest';
 
 import { DisposableCollection, DisposableImpl } from './disposable-collection';
