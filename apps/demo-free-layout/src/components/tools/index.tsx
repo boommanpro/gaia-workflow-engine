@@ -16,8 +16,6 @@ import { ZoomSelect } from './zoom-select';
 import { SwitchLine } from './switch-line';
 import { ToolContainer, ToolSection } from './styles';
 import { Save } from './save';
-import { RunWorkflow } from './run-workflow.tsx';
-import { Run } from './run';
 import { Readonly } from './readonly';
 import { MinimapSwitch } from './minimap-switch';
 import { Minimap } from './minimap';
@@ -26,8 +24,7 @@ import { FitView } from './fit-view';
 import { Console } from './console';
 import { Comment } from './comment';
 import { AutoLayout } from './auto-layout';
-import { AddNote } from './add-note';
-import {Import} from "./import.tsx";
+import {Import} from "./import";
 
 export const DemoTools = () => {
   const { history, playground } = useClientContext();
@@ -59,7 +56,7 @@ export const DemoTools = () => {
         <MinimapSwitch minimapVisible={minimapVisible} setMinimapVisible={setMinimapVisible} />
         <Minimap visible={minimapVisible} />
         <Readonly />
-        <AddNote />
+        <Comment />
         <Tooltip content="Undo">
           <IconButton
             type="tertiary"
@@ -84,7 +81,6 @@ export const DemoTools = () => {
         <Save disabled={playground.config.readonly} />
         <Import />
         <Console />
-        <RunWorkflow />
         <TestRunButton disabled={playground.config.readonly} />
       </ToolSection>
     </ToolContainer>
