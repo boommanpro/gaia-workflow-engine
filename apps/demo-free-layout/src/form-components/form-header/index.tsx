@@ -7,7 +7,7 @@ import { useContext, useState } from 'react';
 
 import { useClientContext, CommandService } from '@flowgram.ai/free-layout-editor';
 import { Button } from '@douyinfe/semi-ui';
-import { IconClose, IconSmallTriangleDown, IconSmallTriangleLeft } from '@douyinfe/semi-icons';
+import { IconClose, IconSmallTriangleDown, IconSmallTriangleLeft, IconExport } from '@douyinfe/semi-icons';
 
 import { toggleLoopExpanded } from '../../utils';
 import { FlowCommandId } from '../../shortcuts';
@@ -17,8 +17,10 @@ import { NodeMenu } from '../../components/node-menu';
 import { getIcon } from './utils';
 import { TitleInput } from './title-input';
 import { Header, Operators } from './styles';
+import { useModal } from '../../hooks/use-code-editor-modal';
 
 export function FormHeader() {
+  const { openModal, modal } = useModal('', 'json');
   const { node, expanded, toggleExpand, readonly } = useNodeRenderContext();
   const [titleEdit, updateTitleEdit] = useState<boolean>(false);
   const ctx = useClientContext();
@@ -39,33 +41,48 @@ export function FormHeader() {
     setNodeId(undefined);
   };
 
+  const handleExport = () => {
+    const jsonData = JSON.stringify(node.toJSON(), null, 2);
+    openModal(jsonData);
+  };
+
   return (
-    <Header>
-      {getIcon(node)}
-      <TitleInput readonly={readonly} updateTitleEdit={updateTitleEdit} titleEdit={titleEdit} />
-      {node.renderData.expandable && !isSidebar && (
-        <Button
-          type="primary"
-          icon={expanded ? <IconSmallTriangleDown /> : <IconSmallTriangleLeft />}
-          size="small"
-          theme="borderless"
-          onClick={handleExpand}
-        />
-      )}
-      {readonly ? undefined : (
-        <Operators>
-          <NodeMenu node={node} deleteNode={handleDelete} updateTitleEdit={updateTitleEdit} />
-        </Operators>
-      )}
-      {isSidebar && (
-        <Button
-          type="primary"
-          icon={<IconClose />}
-          size="small"
-          theme="borderless"
-          onClick={handleClose}
-        />
-      )}
-    </Header>
+    <>
+      <Header>
+        {getIcon(node)}
+        <TitleInput readonly={readonly} updateTitleEdit={updateTitleEdit} titleEdit={titleEdit} />
+        {node.renderData.expandable && !isSidebar && (
+          <Button
+            type="primary"
+            icon={expanded ? <IconSmallTriangleDown /> : <IconSmallTriangleLeft />}
+            size="small"
+            theme="borderless"
+            onClick={handleExpand}
+          />
+        )}
+        {readonly ? undefined : (
+          <Operators>
+            <Button
+              type="primary"
+              icon={<IconExport />}
+              size="small"
+              theme="borderless"
+              onClick={handleExport}
+            />
+            <NodeMenu node={node} deleteNode={handleDelete} updateTitleEdit={updateTitleEdit} />
+          </Operators>
+        )}
+        {isSidebar && (
+          <Button
+            type="primary"
+            icon={<IconClose />}
+            size="small"
+            theme="borderless"
+            onClick={handleClose}
+          />
+        )}
+      </Header>
+      {modal}
+    </>
   );
 }
