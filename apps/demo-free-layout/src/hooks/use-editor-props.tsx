@@ -358,13 +358,13 @@ export function useEditorProps(
          * Runtime plugin
          */
         createRuntimePlugin({
-          mode: 'browser',
-          // mode: 'server',
-          // serverConfig: {
-          //   domain: 'localhost',
-          //   port: 4000,
-          //   protocol: 'http',
-          // },
+          // mode: 'browser',
+          mode: 'server',
+          serverConfig: {
+            domain: 'localhost',
+            port: 8080,
+            protocol: 'http',
+          },
         }),
 
         /**

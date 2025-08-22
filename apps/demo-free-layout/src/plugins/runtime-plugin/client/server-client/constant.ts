@@ -7,6 +7,6 @@ import { ServerConfig } from '../../type';
 
 export const DEFAULT_SERVER_CONFIG: ServerConfig = {
   domain: 'localhost',
-  port: 4000,
+  port: 8080,
   protocol: 'http',
 };
