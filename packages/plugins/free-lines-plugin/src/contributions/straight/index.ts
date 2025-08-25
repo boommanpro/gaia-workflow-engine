@@ -5,10 +5,12 @@
 
 import { IPoint, Point, Rectangle } from '@flowgram.ai/utils';
 import {
-  POINT_RADIUS,
   WorkflowLineEntity,
   WorkflowLineRenderContribution,
   LinePoint,
+  LineCenterPoint,
+  getLineCenter,
+  LineType,
 } from '@flowgram.ai/free-layout-core';
 
 import { LINE_PADDING } from '../../constants/lines';
@@ -18,10 +20,11 @@ export interface StraightData {
   points: IPoint[];
   path: string;
   bbox: Rectangle;
+  center: LineCenterPoint;
 }
 
 export class WorkflowStraightLineContribution implements WorkflowLineRenderContribution {
-  public static type = 'WorkflowStraightLineContribution';
+  public static type = LineType.STRAIGHT;
 
   public entity: WorkflowLineEntity;
 
@@ -50,17 +53,22 @@ export class WorkflowStraightLineContribution implements WorkflowLineRenderContr
     return this.data.bbox;
   }
 
+  get center() {
+    return this.data?.center;
+  }
+
   public update(params: { fromPos: LinePoint; toPos: LinePoint }): void {
     const { fromPos, toPos } = params;
+    const shrink = this.entity.uiState.shrink;
 
     // 根据方向预先计算源点和目标点的偏移
     const sourceOffset = {
-      x: fromPos.location === 'bottom' ? 0 : POINT_RADIUS,
-      y: fromPos.location === 'bottom' ? POINT_RADIUS : 0,
+      x: fromPos.location === 'bottom' ? 0 : shrink,
+      y: fromPos.location === 'bottom' ? shrink : 0,
     };
     const targetOffset = {
-      x: toPos.location === 'top' ? 0 : -POINT_RADIUS,
-      y: toPos.location === 'top' ? -POINT_RADIUS : 0,
+      x: toPos.location === 'top' ? 0 : -shrink,
+      y: toPos.location === 'top' ? -shrink : 0,
     };
 
     const points = [
@@ -89,6 +97,7 @@ export class WorkflowStraightLineContribution implements WorkflowLineRenderContr
       points,
       path,
       bbox,
+      center: getLineCenter(fromPos, toPos, bbox, LINE_PADDING),
     };
   }
 }

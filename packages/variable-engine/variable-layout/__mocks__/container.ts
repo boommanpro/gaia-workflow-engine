@@ -25,7 +25,7 @@ import {
   FlowDocument,
   FlowDocumentContainerModule,
 } from '@flowgram.ai/document';
-import { WorkflowDocumentContainerModule, WorkflowLinesManager, WorkflowSimpleLineContribution } from '@flowgram.ai/free-layout-core';
+import { WorkflowDocumentContainerModule } from '@flowgram.ai/free-layout-core';
 
 export interface TestConfig extends VariableChainConfig {
   enableGlobalScope?: boolean;
@@ -42,8 +42,8 @@ export function getContainer(layout: 'free' | 'fixed', config?: TestConfig): Con
 
   if (layout === 'free') {
     container.load(WorkflowDocumentContainerModule);
-    container.get(WorkflowLinesManager).registerContribution(WorkflowSimpleLineContribution);
-    container.get(WorkflowLinesManager).switchLineType(WorkflowSimpleLineContribution.type);
+    // container.get(WorkflowLinesManager).registerContribution(WorkflowSimpleLineContribution);
+    //container.get(WorkflowLinesManager).switchLineType(WorkflowSimpleLineContribution.type);
   }
 
   if (layoutConfig) {

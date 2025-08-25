@@ -57,7 +57,6 @@ function addLicenseHeader(targetDir, licenseContent, options = {}) {
       const fullPath = path.join(currentDir, entry.name);
 
       if (
-        entry.isDirectory() &&
         ig.ignores(path.relative(targetDir, fullPath))
       ) {
         continue;

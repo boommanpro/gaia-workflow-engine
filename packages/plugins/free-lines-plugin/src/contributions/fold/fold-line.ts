@@ -81,13 +81,10 @@ export namespace FoldLine {
     bottom: { x: 0, y: 1 },
   };
   // eslint-disable-next-line complexity
-  export function getPoints({
-    source,
-    target,
-  }: {
-    source: LinePoint;
-    target: LinePoint;
-  }): IPoint[] {
+  export function getPoints({ source, target }: { source: LinePoint; target: LinePoint }): {
+    points: IPoint[];
+    center: IPoint;
+  } {
     const sourceDir = handleDirections[source.location];
     const targetDir = handleDirections[target.location];
     const sourceGapped: LinePoint = {
@@ -191,7 +188,13 @@ export namespace FoldLine {
       target,
     ];
 
-    return pathPoints;
+    return {
+      points: pathPoints,
+      center: {
+        x: centerX,
+        y: centerY,
+      },
+    };
   }
 
   function getBend(a: IPoint, b: IPoint, c: IPoint): string {

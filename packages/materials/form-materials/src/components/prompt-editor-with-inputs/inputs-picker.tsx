@@ -5,7 +5,7 @@
 
 import React, { useMemo } from 'react';
 
-import { last } from 'lodash';
+import { isPlainObject, last } from 'lodash';
 import {
   type ArrayType,
   ASTMatch,
@@ -16,7 +16,7 @@ import {
 import { TreeNodeData } from '@douyinfe/semi-ui/lib/es/tree';
 import { Tree } from '@douyinfe/semi-ui';
 
-import { IFlowValue } from '@/typings';
+import { FlowValueUtils } from '@/shared';
 
 type VariableField = BaseVariableField<{ icon?: string | JSX.Element; title?: string }>;
 
@@ -24,7 +24,7 @@ export function InputsPicker({
   inputsValues,
   onSelect,
 }: {
-  inputsValues: Record<string, IFlowValue>;
+  inputsValues: any;
   onSelect: (v: string) => void;
 }) {
   const available = useScopeAvailable();
@@ -76,23 +76,40 @@ export function InputsPicker({
     };
   };
 
+  const getTreeData = (value: any, keyPath: string[]): TreeNodeData | undefined => {
+    const currKey = keyPath.join('.');
+
+    if (FlowValueUtils.isFlowValue(value)) {
+      if (FlowValueUtils.isRef(value)) {
+        const variable = available.getByKeyPath(value.content || []);
+        if (variable) {
+          return renderVariable(variable, keyPath);
+        }
+      }
+      return {
+        key: currKey,
+        value: currKey,
+        label: last(keyPath),
+      };
+    }
+
+    if (isPlainObject(value)) {
+      return {
+        key: currKey,
+        value: currKey,
+        label: last(keyPath),
+        children: Object.entries(value)
+          .map(([key, value]) => getTreeData(value, [...keyPath, key])!)
+          .filter(Boolean),
+      };
+    }
+  };
+
   const treeData: TreeNodeData[] = useMemo(
     () =>
-      Object.entries(inputsValues).map(([key, value]) => {
-        if (value?.type === 'ref') {
-          const variable = available.getByKeyPath(value.content || []);
-
-          if (variable) {
-            return renderVariable(variable, [key]);
-          }
-        }
-
-        return {
-          key,
-          value: key,
-          label: key,
-        };
-      }),
+      Object.entries(inputsValues)
+        .map(([key, value]) => getTreeData(value, [key])!)
+        .filter(Boolean),
     []
   );
 

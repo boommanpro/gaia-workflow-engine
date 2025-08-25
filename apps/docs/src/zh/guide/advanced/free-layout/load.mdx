@@ -151,6 +151,18 @@ function App({ data }) {
 }
 ```
 
+- 批量添加节点和线条
+
+```tsx pure
+ctx.document.batchAddFromJSON({
+  nodes: [...],
+  edges: [...]
+}, {
+  // 可选，如果要添加到子画布中用这个
+  parent: loopNode
+})
+```
+
 ## 监听变化并自动保存
 
 ```tsx pure

@@ -115,8 +115,7 @@ export const LineAddButton = (props: LineRenderProps) => {
     <div
       className="line-add-button"
       style={{
-        left: '50%',
-        top: '50%',
+        transform: `translate(-50%, -50%) translate(${line.center.labelX}px, ${line.center.labelY}px)`,
         color,
       }}
       data-testid="sdk.workflow.canvas.line.add"

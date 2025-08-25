@@ -10,6 +10,7 @@ import { type WorkflowLineEntity } from '../entities';
 export enum LineType {
   BEZIER, // 贝塞尔曲线
   LINE_CHART, // 折叠线
+  STRAIGHT, // 直线
 }
 
 export type LineRenderType = LineType | string;
@@ -21,6 +22,7 @@ export interface LinePoint {
   y: number;
   location: LinePointLocation;
 }
+
 export interface LinePosition {
   from: LinePoint;
   to: LinePoint;
@@ -46,9 +48,17 @@ export enum LineColors {
   FLOWING = 'var(--g-workflow-line-color-flowing,#4d53e8)', // 流动线条，默认使用主题色
 }
 
+export interface LineCenterPoint {
+  x: number;
+  y: number;
+  labelX: number; // Relative to where the line begins
+  labelY: number; // Relative to where the line begins
+}
+
 export interface WorkflowLineRenderContribution {
   entity: WorkflowLineEntity;
   path: string;
+  center?: LineCenterPoint;
   bounds: Rectangle;
   update: (params: { fromPos: LinePoint; toPos: LinePoint }) => void;
   calcDistance: (pos: IPoint) => number;

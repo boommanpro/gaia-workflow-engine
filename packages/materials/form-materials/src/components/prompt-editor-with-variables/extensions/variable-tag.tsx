@@ -143,7 +143,7 @@ export function VariableTagInject() {
   // 基于 {{var}} 的正则进行匹配，匹配后进行自定义渲染
   useLayoutEffect(() => {
     const atMatcher = new MatchDecorator({
-      regexp: /\{\{([^\}]+)\}\}/g,
+      regexp: /\{\{([^\}\{]+)\}\}/g,
       decoration: (match) =>
         Decoration.replace({
           widget: new VariableTagWidget({

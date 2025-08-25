@@ -7,8 +7,7 @@ import { interfaces } from 'inversify';
 import {
   WorkflowJSON,
   WorkflowDocumentContainerModule,
-  WorkflowLinesManager,
-  WorkflowSimpleLineContribution,
+  // WorkflowLinesManager,
 } from '@flowgram.ai/free-layout-core';
 import { FlowDocumentContainerModule } from '@flowgram.ai/document';
 import { PlaygroundMockTools } from '@flowgram.ai/core';
@@ -18,9 +17,9 @@ export function createWorkflowContainer(): interfaces.Container {
     FlowDocumentContainerModule,
     WorkflowDocumentContainerModule,
   ]);
-  const linesManager = container.get(WorkflowLinesManager);
-  linesManager.registerContribution(WorkflowSimpleLineContribution);
-  linesManager.switchLineType(WorkflowSimpleLineContribution.type);
+  // const linesManager = container.get(WorkflowLinesManager);
+  // linesManager.registerContribution(WorkflowSimpleLineContribution);
+  // linesManager.switchLineType(WorkflowSimpleLineContribution.type);
   return container;
 }
 

@@ -15,4 +15,3 @@ export * from './workflow-document';
 export * from './workflow-document-container-module';
 export * from './workflow-lines-manager';
 export * from './workflow-document-option';
-export * from './utils/simple-line';

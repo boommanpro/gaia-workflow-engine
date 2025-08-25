@@ -55,10 +55,12 @@ node.getData(WorkflowNodeLinesData).allInputNodes
 node.getData(WorkflowNodeLinesData).outputNodes
 // get all output nodes
 node.getData(WorkflowNodeLinesData).allOutputNodes
-// input lines
+// input lines (contains the line that isDrawing or isHidden)
 node.getData(WorkflowNodeLinesData).inputLines
-// output lines
+// output lines (contains the line that isDrawing or isHidden)
 node.getData(WorkflowNodeLinesData).outputLines
+// all availableLines (Doesn't contain the lines that isDrawing or isHidden)
+node.getData(WorkflowNodeLinesData).availableLines
 ```
 
 ## Create Node

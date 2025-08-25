@@ -20,16 +20,16 @@ const defaultCode = `// Here, you can retrieve input variables from the node usi
 // const ret = { "name": 'Xiaoming', "hobbies": ["Reading", "Traveling"] };
 
 async function main({ params }) {
-    // Build the output object
-    const ret = {
-        "key0": params.input + params.input, // Concatenate the input parameter 'input' twice
-        "key1": ["hello", "world"], // Output an array
-        "key2": { // Output an Object
-            "key21": "hi"
-        },
-    };
+  // Build the output object
+  const ret = {
+    "key0": params.input + params.input, // Concatenate the input parameter 'input' twice
+    "key1": ["hello", "world"], // Output an array
+    "key2": { // Output an Object
+      "key21": "hi"
+    },
+  };
 
-    return ret;
+  return ret;
 }`;
 
 export const CodeNodeRegistry: FlowNodeRegistry = {

@@ -72,17 +72,6 @@ program
     let { packagesToInstall } = copyMaterial(material, projectInfo);
 
     // 4. Install the dependencies
-    packagesToInstall = packagesToInstall.map((_pkg) => {
-      if (
-        _pkg.startsWith(`@flowgram.ai/`) &&
-        projectInfo.flowgramVersion !== 'workspace:*' &&
-        !_pkg.endsWith(`@${projectInfo.flowgramVersion}`)
-      ) {
-        return `${_pkg}@${projectInfo.flowgramVersion}`;
-      }
-      return _pkg;
-    });
-
     console.log(chalk.bold('These npm dependencies will be added to your project'));
     console.log(packagesToInstall);
     installDependencies(packagesToInstall, projectInfo);

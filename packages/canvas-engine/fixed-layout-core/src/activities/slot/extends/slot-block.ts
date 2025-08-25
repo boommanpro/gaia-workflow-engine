@@ -58,6 +58,10 @@ export const SlotBlockRegistry: FlowNodeRegistry = {
 
     let startPortVertices: Vertex[] = [{ x: start.x, y: portPoint.y }];
 
+    /**
+     * When Radius is not enough, we should use truncate strategy
+     * 弧度不够时，采取截断策略
+     */
     if (transition.entity.isVertical) {
       const deltaY = Math.abs(portPoint.y - start.y);
       let deltaX = radius;
@@ -83,6 +87,25 @@ export const SlotBlockRegistry: FlowNodeRegistry = {
           x: start.x + deltaX,
           y: portPoint.y,
           ...(isTruncated ? { radiusX: 0, radiusY: 0 } : {}),
+        },
+      ];
+    }
+
+    /**
+     * When One Children, we should keep dash array align, so we draw one line directly to child nodes
+     * 只有一个子节点时，我们通常需要保证两条虚线是连贯的，因此我们直接合并，绘制一条线连到子节点
+     */
+    if (transition.transform.children.length === 1) {
+      return [
+        {
+          type: FlowTransitionLineEnum.ROUNDED_LINE,
+          from: start,
+          to: getPortChildInput(transition.transform.children[0]),
+          vertices: startPortVertices,
+          style: {
+            strokeDasharray: '5 5',
+          },
+          radius,
         },
       ];
     }

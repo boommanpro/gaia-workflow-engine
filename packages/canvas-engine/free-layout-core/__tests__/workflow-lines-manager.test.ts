@@ -11,9 +11,9 @@ import {
   WorkflowNodeLinesData,
   WorkflowDocumentOptions,
   WorkflowLineRenderData,
-  WorkflowSimpleLineContribution,
   LineColors,
 } from '../src';
+import { WorkflowSimpleLineContribution } from './simple-line';
 import { createWorkflowContainer } from './mocks';
 describe('workflow-lines-manager', () => {
   let linesManager: WorkflowLinesManager;
@@ -39,15 +39,65 @@ describe('workflow-lines-manager', () => {
       },
     });
   });
-  it('base create', async () => {
+  it('base create and dispose', async () => {
     expect(linesManager.toJSON()).toEqual([]);
-    // document.createWorkflowNode()
     const line = linesManager.createLine({
       from: 'start_0',
       to: 'end_0',
     })!;
+    const startNode = document.getNode('start_0')!.getData(WorkflowNodeLinesData);
+    const endNode = document.getNode('end_0')!.getData(WorkflowNodeLinesData);
+    expect(startNode.outputLines.length).toEqual(1);
+    expect(startNode.allLines.length).toEqual(1);
+    expect(endNode.inputLines.length).toEqual(1);
+    expect(endNode.allLines.length).toEqual(1);
+    expect(startNode.allOutputNodes.length).toEqual(1);
+    expect(endNode.allInputNodes.length).toEqual(1);
     expect(line.id).toBe('start_0_-end_0_');
     expect(linesManager.toJSON()).toEqual([{ sourceNodeID: 'start_0', targetNodeID: 'end_0' }]);
+    // line destroy
+    line.dispose();
+    expect(startNode.outputLines.length).toEqual(0);
+    expect(startNode.allLines.length).toEqual(0);
+    expect(endNode.inputLines.length).toEqual(0);
+    expect(endNode.allLines.length).toEqual(0);
+    expect(startNode.allOutputNodes.length).toEqual(0);
+    expect(endNode.allInputNodes.length).toEqual(0);
+    linesManager.createLine({
+      from: 'start_0',
+      to: 'end_0',
+    })!;
+    expect(startNode.outputLines.length).toEqual(1);
+    // node destroy
+    endNode.entity.dispose();
+    expect(startNode.outputLines.length).toEqual(0);
+    expect(startNode.allLines.length).toEqual(0);
+  });
+  it('base create drawing line or hidden line', async () => {
+    const line = linesManager.createLine({
+      from: 'start_0',
+      drawingTo: { x: 0, y: 0, location: 'right' },
+    })!;
+    const startNode = document.getNode('start_0')!.getData(WorkflowNodeLinesData);
+    expect(startNode.outputLines.length).toEqual(1);
+    expect(startNode.availableLines.length).toEqual(0);
+    line.dispose();
+    expect(startNode.outputLines.length).toEqual(0);
+    expect(startNode.availableLines.length).toEqual(0);
+    const line2 = linesManager.createLine({
+      from: 'start_0',
+      to: 'end_0',
+    })!;
+    line2.updateUIState({
+      highlightColor: line2.linesManager.lineColor.hidden,
+    });
+    expect(startNode.outputLines.length).toEqual(1);
+    expect(startNode.availableLines.length).toEqual(0);
+    line2.updateUIState({
+      highlightColor: '',
+    });
+    expect(startNode.outputLines.length).toEqual(1);
+    expect(startNode.availableLines.length).toEqual(1);
   });
 
   it('test base create line node', async () => {

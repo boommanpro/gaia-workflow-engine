@@ -56,10 +56,12 @@ node.getData(WorkflowNodeLinesData).allInputNodes
 node.getData(WorkflowNodeLinesData).outputNodes
 // 获取所有输出节点
 node.getData(WorkflowNodeLinesData).allOutputNodes
-// 输入线条
+// 输入线条 (包含 isDrawing 或 isHidden 的线条)
 node.getData(WorkflowNodeLinesData).inputLines
-// 输出线条
+// 输出线条 (包含 isDrawing 或 isHidden 的线条)
 node.getData(WorkflowNodeLinesData).outputLines
+// 所有线条 (不包含 isDrawing 或 isHidden 的线条)
+node.getData(WorkflowNodeLinesData).availableLines
 
 ```
 

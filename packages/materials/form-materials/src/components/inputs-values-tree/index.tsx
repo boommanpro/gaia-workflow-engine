@@ -47,7 +47,13 @@ export function InputsValuesTree(props: PropsType) {
         disabled={readonly}
         icon={<IconPlus />}
         size="small"
-        onClick={add}
+        onClick={() => {
+          add({
+            type: 'constant',
+            content: '',
+            schema: { type: 'string' },
+          });
+        }}
       >
         {I18n.t('Add')}
       </Button>

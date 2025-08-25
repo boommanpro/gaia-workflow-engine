@@ -146,6 +146,17 @@ function App({ data }) {
   )
 }
 ```
+- Batch add nodes and lines
+
+```tsx pure
+ctx.document.batchAddFromJSON({
+  nodes: [...],
+  edges: [...]
+}, {
+  // Optionally, use this if you want to add to a subcanvas
+  parent: loopNode
+})
+```
 
 ## Listen for Changes and Auto-Save
 

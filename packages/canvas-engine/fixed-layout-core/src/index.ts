@@ -4,6 +4,7 @@
  */
 
 export * from './fixed-layout-container-module';
+import { SlotIconRegistry, SlotInlineBlocksRegistry } from './activities/slot/extends';
 import {
   BlockIconRegistry,
   BlockOrderIconRegistry,
@@ -18,6 +19,7 @@ import {
   InlineBlocksRegistry,
   EndRegistry,
   SlotRegistry,
+  SlotBlockRegistry,
 } from './activities';
 
 export const FixedLayoutRegistries = {
@@ -34,6 +36,9 @@ export const FixedLayoutRegistries = {
   InlineBlocksRegistry,
   EndRegistry,
   SlotRegistry,
+  SlotBlockRegistry,
+  SlotIconRegistry,
+  SlotInlineBlocksRegistry,
 };
 
 // Export constant

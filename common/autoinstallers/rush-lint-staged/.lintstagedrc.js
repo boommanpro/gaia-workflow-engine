@@ -9,6 +9,12 @@ const path = require('path');
 const fs = require('fs');
 
 module.exports = {
+  '**/*.{js,ts,tsx,jsx,mjs,cjs,scss,less,css,sh}': async files => {
+    return [
+      `rush license-header`,
+      `git add ${files.join(' ')}`,
+    ];
+  },
   '**/*.{ts,tsx,js,jsx,mjs}': async files => {
     const match = micromatch.not(files, [
       '**/common/_templates/!(_*)/**/(.)?*',

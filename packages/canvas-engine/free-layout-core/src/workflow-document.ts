@@ -674,9 +674,28 @@ export class WorkflowDocument extends FlowDocument {
   }
 
   /**
-   * 逐层创建节点和线条
+   * 批量添加节点
+   * @deprecated use 'batchAddFromJSON' instead
+   * @param json
+   * @param options
    */
   public renderJSON(
+    json: WorkflowJSON,
+    options?: {
+      parent?: WorkflowNodeEntity;
+      isClone?: boolean;
+    }
+  ): {
+    nodes: WorkflowNodeEntity[];
+    edges: WorkflowLineEntity[];
+  } {
+    return this.batchAddFromJSON(json, options);
+  }
+
+  /**
+   * 批量添加节点
+   */
+  public batchAddFromJSON(
     json: WorkflowJSON,
     options?: {
       parent?: WorkflowNodeEntity;

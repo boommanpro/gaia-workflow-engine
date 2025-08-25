@@ -5,8 +5,9 @@
 
 import { IPoint, Point, Rectangle } from '@flowgram.ai/utils';
 
-import { WorkflowLineRenderContribution } from '../typings';
-import { POINT_RADIUS, WorkflowLineEntity } from '../entities';
+import { getLineCenter } from '../src/utils/get-line-center';
+import { LineCenterPoint, WorkflowLineRenderContribution } from '../src/typings';
+import { POINT_RADIUS, WorkflowLineEntity } from '../src/entities';
 
 const LINE_PADDING = 12;
 
@@ -14,10 +15,11 @@ export interface StraightData {
   points: IPoint[];
   path: string;
   bbox: Rectangle;
+  center: LineCenterPoint;
 }
 
 export class WorkflowSimpleLineContribution implements WorkflowLineRenderContribution {
-  public static type = 'WorkflowSimpleLineContribution';
+  public static type = 'SimpleLine';
 
   public entity: WorkflowLineEntity;
 
@@ -44,6 +46,10 @@ export class WorkflowSimpleLineContribution implements WorkflowLineRenderContrib
       return new Rectangle();
     }
     return this.data.bbox;
+  }
+
+  get center() {
+    return this.data!.center;
   }
 
   public update(params: { fromPos: IPoint; toPos: IPoint }): void {
@@ -86,6 +92,7 @@ export class WorkflowSimpleLineContribution implements WorkflowLineRenderContrib
       points,
       path,
       bbox,
+      center: getLineCenter(fromPos, toPos, bbox, LINE_PADDING),
     };
   }
 

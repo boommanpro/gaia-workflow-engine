@@ -3,10 +3,11 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { isNil, uniq } from 'lodash';
+import { isNil } from 'lodash';
 import { FeedbackLevel, FlowNodeEntity, getNodeScope } from '@flowgram.ai/editor';
 
-import { IFlowTemplateValue, IFlowValue } from '@/typings';
+import { IFlowValue } from '@/typings';
+import { FlowValueUtils } from '@/shared';
 
 interface Context {
   node: FlowNodeEntity;
@@ -43,7 +44,7 @@ export function validateFlowValue(value: IFlowValue | undefined, ctx: Context) {
   }
 
   if (value?.type === 'template') {
-    const allRefs = getTemplateKeyPaths(value);
+    const allRefs = FlowValueUtils.getTemplateKeyPaths(value);
 
     for (const ref of allRefs) {
       const variable = getNodeScope(node).available.getByKeyPath(ref);
@@ -57,17 +58,4 @@ export function validateFlowValue(value: IFlowValue | undefined, ctx: Context) {
   }
 
   return undefined;
-}
-
-/**
- * get template key paths
- * @param value
- * @returns
- */
-function getTemplateKeyPaths(value: IFlowTemplateValue) {
-  // find all keyPath wrapped in {{}}
-  const keyPathReg = /{{(.*?)}}/g;
-  return uniq(value.content?.match(keyPathReg) || []).map((_keyPath) =>
-    _keyPath.slice(2, -2).split('.')
-  );
 }

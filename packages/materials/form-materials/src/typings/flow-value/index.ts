@@ -13,7 +13,7 @@ export type FlowValueType = 'constant' | 'ref' | 'expression' | 'template';
 
 export interface IFlowConstantValue {
   type: 'constant';
-  content?: string | number | boolean;
+  content?: any;
   schema?: IJsonSchema;
   extra?: IFlowValueExtra;
 }

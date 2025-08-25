@@ -5,11 +5,16 @@
 
 import React from 'react';
 
-import { JsonSchemaUtils, IJsonSchema } from '@flowgram.ai/json-schema';
+import {
+  JsonSchemaUtils,
+  IJsonSchema,
+  useTypeManager,
+  type JsonSchemaTypeManager,
+} from '@flowgram.ai/json-schema';
 import { IconButton } from '@douyinfe/semi-ui';
 import { IconSetting } from '@douyinfe/semi-icons';
 
-import { IFlowConstantRefValue } from '@/typings';
+import { IFlowConstantRefValue, IFlowConstantValue } from '@/typings';
 import { createInjectMaterial } from '@/shared';
 import { InjectVariableSelector } from '@/components/variable-selector';
 import { TypeSelector } from '@/components/type-selector';
@@ -32,6 +37,12 @@ interface PropsType {
   };
 }
 
+const DEFAULT_VALUE: IFlowConstantValue = {
+  type: 'constant',
+  content: '',
+  schema: { type: 'string' },
+};
+
 export function DynamicValueInput({
   value,
   onChange,
@@ -43,6 +54,8 @@ export function DynamicValueInput({
   const refVariable = useRefVariable(value);
   const [selectSchema, setSelectSchema] = useSelectSchema(schemaFromProps, constantProps, value);
   const includeSchema = useIncludeSchema(schemaFromProps);
+
+  const typeManager = useTypeManager() as JsonSchemaTypeManager;
 
   const renderTypeSelector = () => {
     if (schemaFromProps) {
@@ -60,24 +73,20 @@ export function DynamicValueInput({
         value={selectSchema}
         onChange={(_v) => {
           setSelectSchema(_v || { type: 'string' });
-          let content;
 
+          const schema = _v || { type: 'string' };
+          let content = typeManager.getDefaultValue(schema);
           if (_v?.type === 'object') {
             content = '{}';
           }
-
           if (_v?.type === 'array') {
             content = '[]';
-          }
-
-          if (_v?.type === 'boolean') {
-            content = false;
           }
 
           onChange({
             type: 'constant',
             content,
-            schema: _v || { type: 'string' },
+            schema,
           });
         }}
         readonly={readonly}
@@ -92,7 +101,7 @@ export function DynamicValueInput({
         <InjectVariableSelector
           style={{ width: '100%' }}
           value={value?.content}
-          onChange={(_v) => onChange(_v ? { type: 'ref', content: _v } : undefined)}
+          onChange={(_v) => onChange(_v ? { type: 'ref', content: _v } : DEFAULT_VALUE)}
           includeSchema={includeSchema}
           readonly={readonly}
         />
@@ -110,7 +119,7 @@ export function DynamicValueInput({
         fallbackRenderer={() => (
           <InjectVariableSelector
             style={{ width: '100%' }}
-            onChange={(_v) => onChange(_v ? { type: 'ref', content: _v } : undefined)}
+            onChange={(_v) => onChange(_v ? { type: 'ref', content: _v } : DEFAULT_VALUE)}
             includeSchema={includeSchema}
             readonly={readonly}
           />

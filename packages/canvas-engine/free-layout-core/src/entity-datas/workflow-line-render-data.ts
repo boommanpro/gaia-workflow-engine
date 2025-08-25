@@ -7,6 +7,7 @@ import { IPoint, Rectangle } from '@flowgram.ai/utils';
 import { EntityData } from '@flowgram.ai/core';
 
 import {
+  LineCenterPoint,
   LinePosition,
   LineRenderType,
   WorkflowLineRenderContribution,
@@ -83,6 +84,13 @@ export class WorkflowLineRenderData extends EntityData<WorkflowLineRenderDataSch
 
   private get lineType(): LineRenderType {
     return this.entity.renderType ?? this.entity.linesManager.lineType;
+  }
+
+  /**
+   * 获取 center 位置
+   */
+  get center(): LineCenterPoint {
+    return this.currentLine?.center || { x: 0, y: 0, labelX: 0, labelY: 0 };
   }
 
   /**

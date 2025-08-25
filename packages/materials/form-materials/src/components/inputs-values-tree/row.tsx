@@ -125,7 +125,11 @@ export function InputValueRow(
                   theme="borderless"
                   icon={<IconAddChildren />}
                   onClick={() => {
-                    add();
+                    add({
+                      type: 'constant',
+                      content: '',
+                      schema: { type: 'string' },
+                    });
                     setCollapse(true);
                   }}
                 />

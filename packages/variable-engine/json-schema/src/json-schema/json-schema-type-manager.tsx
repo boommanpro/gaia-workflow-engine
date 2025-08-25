@@ -138,4 +138,9 @@ export class JsonSchemaTypeManager<
     const registry = this.getTypeBySchema(type);
     return registry?.canAddField(type);
   };
+
+  public getDefaultValue = (type: Schema) => {
+    const registry = this.getTypeBySchema(type);
+    return registry?.getDefaultValue();
+  };
 }

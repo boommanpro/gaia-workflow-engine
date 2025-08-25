@@ -30,8 +30,20 @@ export function VariableTree() {
       return;
     }
 
+    /**
+     * When user input {{xxxx}}, {{{xxx}}}(more brackets if possible), replace all brackets with {{xxxx}}
+     */
+    let { from, to } = range;
+    while (editor.$view.state.doc.sliceString(from - 1, from) === '{') {
+      from--;
+    }
+    while (editor.$view.state.doc.sliceString(to, to + 1) === '}') {
+      to++;
+    }
+
     editor.replaceText({
-      ...range,
+      from,
+      to,
       text: '{{' + variablePath + '}}',
     });
 

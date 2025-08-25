@@ -86,12 +86,22 @@ export function TypeSelector(props: TypeSelectorProps) {
     []
   );
 
+  const isDisabled = readonly || disabled;
+
   return (
     <Cascader
-      disabled={readonly || disabled}
+      disabled={isDisabled}
       size="small"
       triggerRender={() => (
-        <IconButton size="small" style={style} disabled={readonly || disabled} icon={icon} />
+        <IconButton
+          size="small"
+          style={{
+            ...(isDisabled ? { pointerEvents: 'none' } : {}),
+            ...(style || {}),
+          }}
+          disabled={isDisabled}
+          icon={icon}
+        />
       )}
       treeData={options}
       value={selectValue}

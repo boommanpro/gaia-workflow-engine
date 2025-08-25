@@ -11,5 +11,4 @@
 if [ "$PRE_LINT" != "1" ]; then
   node common/scripts/install-run-rush.js -q lint-staged || exit $?
   node common/scripts/install-run-rush.js check
-  node common/scripts/install-run-rush.js license-header
 fi

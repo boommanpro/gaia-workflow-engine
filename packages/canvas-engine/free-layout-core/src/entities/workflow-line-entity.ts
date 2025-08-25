@@ -10,7 +10,12 @@ import { Entity, type EntityOpts } from '@flowgram.ai/core';
 import { type WorkflowLinesManager } from '../workflow-lines-manager';
 import { type WorkflowDocument } from '../workflow-document';
 import { WORKFLOW_LINE_ENTITY } from '../utils/statics';
-import { LineRenderType, type LinePosition, LinePoint } from '../typings/workflow-line';
+import {
+  LineRenderType,
+  type LinePosition,
+  LinePoint,
+  LineCenterPoint,
+} from '../typings/workflow-line';
 import { type WorkflowEdgeJSON } from '../typings';
 import { WorkflowNodePortsData } from '../entity-datas/workflow-node-ports-data';
 import { WorkflowLineRenderData } from '../entity-datas';
@@ -370,6 +375,10 @@ export class WorkflowLineEntity extends Entity<WorkflowLineEntityOpts> {
    */
   get bounds(): Rectangle {
     return this.getData(WorkflowLineRenderData).bounds;
+  }
+
+  get center(): LineCenterPoint {
+    return this.getData(WorkflowLineRenderData).center;
   }
 
   /**

@@ -121,7 +121,7 @@ export namespace FlowValueUtils {
    */
   export function getTemplateKeyPaths(value: IFlowTemplateValue) {
     // find all keyPath wrapped in {{}}
-    const keyPathReg = /{{(.*?)}}/g;
+    const keyPathReg = /\{\{([^\}\{]+)\}\}/g;
     return uniq(value.content?.match(keyPathReg) || []).map((_keyPath) =>
       _keyPath.slice(2, -2).split('.')
     );

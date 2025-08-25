@@ -61,12 +61,21 @@ export function listAllMaterials(): Material[] {
   return _materials;
 }
 
+export const getFormMaterialDependencies = (): Record<string, string> => {
+  const packageJsonPath: string = path.join(__dirname, '..', 'package.json');
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+
+  return packageJson.dependencies;
+};
+
 export const copyMaterial = (
   material: Material,
   projectInfo: ProjectInfo
 ): {
   packagesToInstall: string[];
 } => {
+  const formMaterialDependencies = getFormMaterialDependencies();
+
   const sourceDir: string = material.path;
   const materialRoot: string = path.join(
     projectInfo.projectPath,
@@ -92,10 +101,28 @@ export const copyMaterial = (
               { ...importDeclaration, source: '@flowgram.ai/form-materials' },
             ])
           );
+          if (projectInfo.flowgramVersion !== 'workspace:*') {
+            packagesToInstall.add(`@flowgram.ai/form-materials@${projectInfo.flowgramVersion}`);
+            continue;
+          }
           packagesToInstall.add('@flowgram.ai/form-materials');
         } else if (!source.startsWith('.') && !source.startsWith('react')) {
-          // check if is third party npm packages
-          packagesToInstall.add(source);
+          // check if is in form material dependencies
+          const [dep, version] =
+            Object.entries(formMaterialDependencies).find(([_key]) => source.startsWith(_key)) ||
+            [];
+          if (!dep) {
+            continue;
+          }
+          if (version === 'workspace:*') {
+            if (projectInfo.flowgramVersion !== 'workspace:*') {
+              packagesToInstall.add(`${dep}@${projectInfo.flowgramVersion}`);
+            } else {
+              packagesToInstall.add(dep);
+            }
+          } else {
+            packagesToInstall.add(`${dep}@${version}`);
+          }
         }
       }
     }

@@ -38,6 +38,11 @@ export const GroupNodeRegistry: FlowNodeRegistry = {
       return !transform.bounds.contains(mousePos.x, mousePos.y);
     },
     expandable: false,
+    /**
+     * It cannot be added through the panel
+     * 不能通过面板添加
+     */
+    nodePanelVisible: false,
   },
   formMeta: {
     render: () => <></>,

@@ -57,6 +57,10 @@ export class WorkflowNodeLinesData extends EntityData<WorkflowNodeLines> {
     return this.data.inputLines.concat(this.data.outputLines);
   }
 
+  get availableLines(): WorkflowLineEntity[] {
+    return this.allLines.filter((line) => !line.isDrawing && !line.isHidden);
+  }
+
   /**
    * 输入节点
    */

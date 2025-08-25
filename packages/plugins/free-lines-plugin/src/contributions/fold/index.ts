@@ -5,20 +5,21 @@
 
 import { IPoint, Rectangle } from '@flowgram.ai/utils';
 import {
-  POINT_RADIUS,
   WorkflowLineEntity,
   WorkflowLineRenderContribution,
   LinePoint,
+  LineCenterPoint,
 } from '@flowgram.ai/free-layout-core';
 import { LineType } from '@flowgram.ai/free-layout-core';
 
-import { LINE_PADDING } from '../../constants/lines';
+import { toRelative } from '../utils';
 import { FoldLine } from './fold-line';
 
 export interface FoldData {
   points: IPoint[];
   path: string;
   bbox: Rectangle;
+  center: LineCenterPoint;
 }
 
 export class WorkflowFoldLineContribution implements WorkflowLineRenderContribution {
@@ -50,20 +51,25 @@ export class WorkflowFoldLineContribution implements WorkflowLineRenderContribut
     return this.data.bbox;
   }
 
+  get center() {
+    return this.data?.center;
+  }
+
   public update(params: { fromPos: LinePoint; toPos: LinePoint }): void {
     const { fromPos, toPos } = params;
+    const shrink = this.entity.uiState.shrink;
 
     // 根据方向预先计算源点和目标点的偏移
     const sourceOffset = {
-      x: fromPos.location === 'bottom' ? 0 : POINT_RADIUS,
-      y: fromPos.location === 'bottom' ? POINT_RADIUS : 0,
+      x: fromPos.location === 'bottom' ? 0 : shrink,
+      y: fromPos.location === 'bottom' ? shrink : 0,
     };
     const targetOffset = {
-      x: toPos.location === 'top' ? 0 : -POINT_RADIUS,
-      y: toPos.location === 'top' ? -POINT_RADIUS : 0,
+      x: toPos.location === 'top' ? 0 : -shrink,
+      y: toPos.location === 'top' ? -shrink : 0,
     };
 
-    const points = FoldLine.getPoints({
+    const { points, center } = FoldLine.getPoints({
       source: {
         x: fromPos.x + sourceOffset.x,
         y: fromPos.y + sourceOffset.y,
@@ -79,17 +85,21 @@ export class WorkflowFoldLineContribution implements WorkflowLineRenderContribut
     const bbox = FoldLine.getBounds(points);
 
     // 调整所有点到 SVG 视口坐标系
-    const adjustedPoints = points.map((p) => ({
-      x: p.x - bbox.x + LINE_PADDING,
-      y: p.y - bbox.y + LINE_PADDING,
-    }));
+    const adjustedPoints = points.map((p) => toRelative(p, bbox));
 
     const path = FoldLine.getSmoothStepPath(adjustedPoints);
 
+    const relativeCenter = toRelative(center, bbox);
     this.data = {
       points,
       path,
       bbox,
+      center: {
+        x: center.x,
+        y: center.y,
+        labelX: relativeCenter.x,
+        labelY: relativeCenter.y,
+      },
     };
   }
 }

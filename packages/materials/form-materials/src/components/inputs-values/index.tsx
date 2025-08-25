@@ -67,7 +67,18 @@ export function InputsValues({
           </UIRow>
         ))}
       </UIRows>
-      <Button disabled={readonly} icon={<IconPlus />} size="small" onClick={() => add()}>
+      <Button
+        disabled={readonly}
+        icon={<IconPlus />}
+        size="small"
+        onClick={() =>
+          add({
+            type: 'constant',
+            content: '',
+            schema: { type: 'string' },
+          })
+        }
+      >
         {I18n.t('Add')}
       </Button>
     </div>

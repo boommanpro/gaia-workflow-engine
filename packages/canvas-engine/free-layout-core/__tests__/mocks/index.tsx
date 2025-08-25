@@ -13,12 +13,12 @@ import {
   PlaygroundEntityContext,
 } from '@flowgram.ai/core';
 
+import { WorkflowSimpleLineContribution } from '../simple-line';
 import {
   WorkflowDocument,
   WorkflowDocumentContainerModule,
   WorkflowJSON,
   WorkflowLinesManager,
-  WorkflowSimpleLineContribution,
 } from '../../src';
 
 /**

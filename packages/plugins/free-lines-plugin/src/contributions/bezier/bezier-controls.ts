@@ -6,6 +6,29 @@
 import { type IPoint } from '@flowgram.ai/utils';
 import { LinePoint, LinePointLocation } from '@flowgram.ai/free-layout-core';
 
+/**
+ * Fork from: https://github.com/xyflow/xyflow/blob/main/packages/system/src/utils/edges/bezier-edge.ts
+ * MIT License
+ * Copyright (c) 2019-2024 webkid GmbH
+ */
+export function getBezierEdgeCenter(
+  fromPos: IPoint,
+  toPos: IPoint,
+  fromControl: IPoint,
+  toControl: IPoint
+): IPoint {
+  /*
+   * cubic bezier t=0.5 mid point, not the actual mid point, but easy to calculate
+   * https://stackoverflow.com/questions/67516101/how-to-find-distance-mid-point-of-bezier-curve
+   */
+  const x = fromPos.x * 0.125 + fromControl.x * 0.375 + toControl.x * 0.375 + toPos.x * 0.125;
+  const y = fromPos.y * 0.125 + fromControl.y * 0.375 + toControl.y * 0.375 + toPos.y * 0.125;
+  return {
+    x,
+    y,
+  };
+}
+
 function getControlOffset(distance: number, curvature: number): number {
   if (distance >= 0) {
     return 0.5 * distance;
@@ -57,7 +80,7 @@ export function getBezierControlPoints(
   fromPos: LinePoint,
   toPos: LinePoint,
   curvature = 0.25
-): IPoint[] {
+): { controls: [IPoint, IPoint]; center: IPoint } {
   const fromControl = getControlWithCurvature({
     location: fromPos.location,
     x1: fromPos.x,
@@ -74,5 +97,9 @@ export function getBezierControlPoints(
     y2: fromPos.y,
     curvature,
   });
-  return [fromControl, toControl];
+  const center = getBezierEdgeCenter(fromPos, toPos, fromControl, toControl);
+  return {
+    controls: [fromControl, toControl],
+    center,
+  };
 }

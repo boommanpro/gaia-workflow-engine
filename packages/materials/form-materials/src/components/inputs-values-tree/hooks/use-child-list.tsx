@@ -23,7 +23,7 @@ export function useChildList(
   canAddField: boolean;
   hasChildren: boolean;
   list: ListItem[];
-  add: (key?: string) => void;
+  add: (defaultValue?: any) => void;
   updateKey: (id: string, key: string) => void;
   updateValue: (id: string, value: any) => void;
   remove: (id: string) => void;
