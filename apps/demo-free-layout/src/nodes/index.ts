@@ -18,21 +18,23 @@ import { CodeNodeRegistry } from './code';
 import { BreakNodeRegistry } from './break';
 import { BlockStartNodeRegistry } from './block-start';
 import { BlockEndNodeRegistry } from './block-end';
+import {BranchNodeRegistry} from "./branches";
 export { WorkflowNodeType } from './constants';
 
 export const nodeRegistries: FlowNodeRegistry[] = [
-  ConditionNodeRegistry,
+  // ConditionNodeRegistry,
   StartNodeRegistry,
   EndNodeRegistry,
-  LLMNodeRegistry,
-  LoopNodeRegistry,
+  // LLMNodeRegistry,
+  // LoopNodeRegistry,
   CommentNodeRegistry,
-  BlockStartNodeRegistry,
-  BlockEndNodeRegistry,
-  HTTPNodeRegistry,
+  // BlockStartNodeRegistry,
+  // BlockEndNodeRegistry,
+  // HTTPNodeRegistry,
   CodeNodeRegistry,
-  ContinueNodeRegistry,
-  BreakNodeRegistry,
-  VariableNodeRegistry,
+  // ContinueNodeRegistry,
+  // BreakNodeRegistry,
+  // VariableNodeRegistry,
   GroupNodeRegistry,
+  BranchNodeRegistry,
 ];

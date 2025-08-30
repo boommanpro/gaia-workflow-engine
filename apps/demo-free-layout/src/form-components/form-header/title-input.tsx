@@ -3,13 +3,14 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { useRef, useEffect } from 'react';
+import {useEffect, useRef} from 'react';
 
-import { Field, FieldRenderProps } from '@flowgram.ai/free-layout-editor';
-import { Typography, Input } from '@douyinfe/semi-ui';
+import {Field, FieldRenderProps} from '@flowgram.ai/free-layout-editor';
+import {Input, Typography} from '@douyinfe/semi-ui';
 
-import { Title } from './styles';
-import { Feedback } from '../feedback';
+import {Title} from './styles';
+import {Feedback} from '../feedback';
+
 const { Text } = Typography;
 
 export function TitleInput(props: {
@@ -37,9 +38,20 @@ export function TitleInput(props: {
                 onChange={onChange}
                 ref={ref}
                 onBlur={() => updateTitleEdit(false)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    updateTitleEdit(false);
+                  }
+                }}
+                autoFocus
               />
             ) : (
-              <Text ellipsis={{ showTooltip: true }}>{value}</Text>
+              <div
+                onDoubleClick={() => !readonly && updateTitleEdit(true)}
+                style={{ cursor: readonly ? 'default' : 'pointer' }}
+              >
+                <Text ellipsis={{ showTooltip: true }}>{value}</Text>
+              </div>
             )}
             <Feedback errors={fieldState?.errors} />
           </div>

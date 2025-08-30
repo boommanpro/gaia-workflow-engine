@@ -3,26 +3,26 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { useContext, useState } from 'react';
+import {useContext, useState} from 'react';
 
-import { useClientContext, CommandService } from '@flowgram.ai/free-layout-editor';
-import { Button } from '@douyinfe/semi-ui';
-import { IconClose, IconSmallTriangleDown, IconSmallTriangleLeft, IconExport } from '@douyinfe/semi-icons';
+import {CommandService, useClientContext} from '@flowgram.ai/free-layout-editor';
+import {Button} from '@douyinfe/semi-ui';
+import {IconClose, IconExport, IconSmallTriangleDown, IconSmallTriangleLeft} from '@douyinfe/semi-icons';
 
-import { toggleLoopExpanded } from '../../utils';
-import { FlowCommandId } from '../../shortcuts';
-import { useIsSidebar, useNodeRenderContext } from '../../hooks';
-import { SidebarContext } from '../../context';
-import { NodeMenu } from '../../components/node-menu';
-import { getIcon } from './utils';
-import { TitleInput } from './title-input';
-import { Header, Operators } from './styles';
-import { useModal } from '../../hooks/use-code-editor-modal';
+import {toggleLoopExpanded} from '../../utils';
+import {FlowCommandId} from '../../shortcuts';
+import {useIsSidebar, useNodeRenderContext} from '../../hooks';
+import {SidebarContext} from '../../context';
+import {NodeMenu} from '../../components/node-menu';
+import {getIcon} from './utils';
+import {TitleInput} from './title-input';
+import {Header, Operators} from './styles';
+import {useModal} from '../../hooks/use-code-editor-modal';
 
 export function FormHeader() {
   const { openModal, modal } = useModal('', 'json');
   const { node, expanded, toggleExpand, readonly } = useNodeRenderContext();
-  const [titleEdit, updateTitleEdit] = useState<boolean>(false);
+  const [titleEdit, setTitleEdit] = useState<boolean>(false);
   const ctx = useClientContext();
   const { setNodeId } = useContext(SidebarContext);
   const isSidebar = useIsSidebar();
@@ -50,7 +50,7 @@ export function FormHeader() {
     <>
       <Header>
         {getIcon(node)}
-        <TitleInput readonly={readonly} updateTitleEdit={updateTitleEdit} titleEdit={titleEdit} />
+        <TitleInput readonly={readonly} titleEdit={titleEdit} updateTitleEdit={setTitleEdit} />
         {node.renderData.expandable && !isSidebar && (
           <Button
             type="primary"
@@ -69,7 +69,7 @@ export function FormHeader() {
               theme="borderless"
               onClick={handleExport}
             />
-            <NodeMenu node={node} deleteNode={handleDelete} updateTitleEdit={updateTitleEdit} />
+            <NodeMenu node={node} deleteNode={handleDelete} updateTitleEdit={setTitleEdit} />
           </Operators>
         )}
         {isSidebar && (
