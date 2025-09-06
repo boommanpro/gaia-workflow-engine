@@ -1,6 +1,10 @@
 import { Editor } from './editor';
 function App() {
-    return <Editor />;
+    return (
+        <div className={'main-app'}>
+            <Editor/>
+        </div>
+    );
 }
 
 export default App;
