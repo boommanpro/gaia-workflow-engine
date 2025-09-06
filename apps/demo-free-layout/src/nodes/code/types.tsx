@@ -13,7 +13,7 @@ export interface CodeNodeJSON extends FlowNodeJSON {
     inputs: IJsonSchema<'object'>;
     outputs: IJsonSchema<'object'>;
     script: {
-      language: 'javascript';
+      language: 'jsReturn' | 'java' | 'groovy';
       content: string;
     };
   };

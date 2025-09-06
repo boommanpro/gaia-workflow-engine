@@ -54,7 +54,7 @@ export const CodeNodeRegistry: FlowNodeRegistry = {
           input: { type: 'constant', content: '' },
         },
         script: {
-          language: 'javascript',
+          language: 'jsReturn',
           content: defaultCode,
         },
         outputs: {
