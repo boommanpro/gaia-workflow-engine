@@ -32,6 +32,8 @@ link: https://boommanpro.github.io/flowgram-ai-rule-engine/
 感兴趣的同学可以一起二次开发，服务端（Java版本）后续会开放出来，敬请期待
 
 ## 时间线
+2025.9.6 前后端支持string-format组件，支持spel、thymeleaf语法
+
 2025.8.22 服务端支持,项目地址：https://github.com/boommanpro/gaia-workflow
 
 2025.8.20 更新分支到官网最新，重构代码分支

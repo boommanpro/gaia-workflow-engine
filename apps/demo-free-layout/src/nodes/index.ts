@@ -19,6 +19,7 @@ import { BreakNodeRegistry } from './break';
 import { BlockStartNodeRegistry } from './block-start';
 import { BlockEndNodeRegistry } from './block-end';
 import {BranchNodeRegistry} from "./branches";
+import {StringFormatNodeRegistry} from "./string-format";
 export { WorkflowNodeType } from './constants';
 
 export const nodeRegistries: FlowNodeRegistry[] = [
@@ -37,4 +38,5 @@ export const nodeRegistries: FlowNodeRegistry[] = [
   // VariableNodeRegistry,
   GroupNodeRegistry,
   BranchNodeRegistry,
+  StringFormatNodeRegistry,
 ];
