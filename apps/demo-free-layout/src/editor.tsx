@@ -3,17 +3,16 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { EditorRenderer, FreeLayoutEditorProvider } from '@flowgram.ai/free-layout-editor';
+import {EditorRenderer, FreeLayoutEditorProvider} from '@flowgram.ai/free-layout-editor';
 
 import '@flowgram.ai/free-layout-editor/index.css';
 import './index.css';
 import './styles/index.css';
-import { nodeRegistries } from './nodes';
-import { initialData } from './initial-data';
-import { useEditorProps } from './hooks';
-import { DemoTools } from './components/tools';
-import { SidebarProvider, SidebarRenderer } from './components/sidebar';
-import { useEffect, useRef } from 'react';
+import {nodeRegistries} from './nodes';
+import {initialData} from './initial-data';
+import {useEditorProps} from './hooks';
+import {DemoTools} from './components/tools';
+import {SidebarProvider, SidebarRenderer} from './components/sidebar';
 
 let loadedWorkflowData = null;
 
@@ -36,41 +35,6 @@ export const Editor = () => {
 
   const editorProps = useEditorProps(initialWorkflowData, nodeRegistries);
 
-  const hasLoadedRef = useRef(false);
-
-  useEffect(() => {
-    // 监听来自主应用的加载工作流事件
-    const handleLoadWorkflow = (data) => {
-      console.log('Editor组件收到加载工作流事件:', data);
-      if (data.payload && !hasLoadedRef.current) {
-        // 重新加载文档数据
-        if (editorProps.document && data.payload.content) {
-          console.log('正在加载工作流内容到编辑器');
-          editorProps.document.reload(data.payload.content)
-            .then(() => {
-              console.log('工作流内容加载完成');
-              editorProps.document.fitView();
-            })
-            .catch((error) => {
-              console.error('工作流内容加载失败:', error);
-            });
-          hasLoadedRef.current = true;
-        }
-      }
-    };
-
-    // 如果是微前端环境，监听wujie事件
-    if (window.$wujie) {
-      window.$wujie.bus.$on('loadWorkflow', handleLoadWorkflow);
-    }
-
-    // 清理函数
-    return () => {
-      if (window.$wujie) {
-        window.$wujie.bus.$off('loadWorkflow', handleLoadWorkflow);
-      }
-    };
-  }, [editorProps]);
 
   return (
     <div className="doc-free-feature-overview-div">

@@ -25,7 +25,14 @@ export function Save(props: { disabled: boolean }) {
     const allForms = clientContext.document.getAllNodes().map((node) => getNodeForm(node));
     await Promise.all(allForms.map(async (form) => form?.validate()));
     console.log('>>>>> save data: ', clientContext.document.toJSON());
+    if (window.$wujie) {
+      let content = clientContext.document.toJSON();
+      const payload = {success: true, content: content};
+      window.$wujie.bus.$emit('workflowSaved',payload);
+    }
   }, [clientContext]);
+
+
 
   /**
    * Listen single node validate

@@ -28,6 +28,8 @@ link: https://boommanpro.github.io/flowgram-ai-rule-engine/
    - 支持false功能
    - 支持left和right的表达式功能
    - 支持与和或的功能
+8. 支持format-string节点，用于数据格式化
+9. 支持java后端能力
 
 感兴趣的同学可以一起二次开发，服务端（Java版本）后续会开放出来，敬请期待
 
