@@ -36,10 +36,10 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           branch: gh-pages
-          folder: apps/demo-free-layout/dist
+          folder: apps/demo-free-layout/workflow-editor
           force: true
           commit-message: website deploy
 
       - name: Cleanup
-        run: rm -rf dist
+        run: rm -rf workflow-editor
         working-directory: apps/demo-free-layout
