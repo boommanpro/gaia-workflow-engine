@@ -27,6 +27,7 @@ import { injectable } from '@flowgram.ai/free-layout-editor';
 import { ServerConfig } from '../../type';
 import type { ServerError } from './type';
 import { DEFAULT_SERVER_CONFIG } from './constant';
+import {getAuthorization} from "../../setup-auth";
 
 @injectable()
 export class WorkflowRuntimeServerClient implements IRuntimeClient {
@@ -103,9 +104,26 @@ export class WorkflowRuntimeServerClient implements IRuntimeClient {
         method,
         redirect: 'follow',
       };
+      console.log('request', url, requestOptions)
+      // 添加认证头
+      let authorization = getAuthorization();
+      if (authorization) {
+        requestOptions.headers = {
+          'Content-Type': 'application/json',
+          'Authorization': authorization
+        };
+      } else {
+        requestOptions.headers = {
+          'Content-Type': 'application/json',
+        };
+      }
 
       if (options.body) {
+        if (!requestOptions.headers) {
+          requestOptions.headers = {};
+        }
         requestOptions.headers = {
+          ...requestOptions.headers,
           'Content-Type': 'application/json',
         };
         requestOptions.body = JSON.stringify(options.body);
@@ -142,6 +160,12 @@ export class WorkflowRuntimeServerClient implements IRuntimeClient {
   }
 
   private getURL(path: string): string {
+    // 如果域名为空或空字符串，则使用相对路径
+    if (!this.config.domain) {
+      // 确保路径以/开头
+      return path.startsWith('/') ? path : `/${path}`;
+    }
+    
     const protocol = this.config.protocol ?? window.location.protocol;
     const host = this.config.port
       ? `${this.config.domain}:${this.config.port}`

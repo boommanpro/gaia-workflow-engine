@@ -9,6 +9,7 @@ import { WorkflowNodeType } from '../constants';
 import { FlowNodeRegistry } from '../../typings';
 import iconCode from '../../assets/icon-script.png';
 import { formMeta } from './form-meta';
+import { generateValidId } from '../utils';
 
 let index = 0;
 
@@ -38,7 +39,7 @@ export const StringFormatNodeRegistry: FlowNodeRegistry = {
   },
   onAdd() {
     return {
-      id: `string_format_${nanoid(5)}`,
+      id: generateValidId('string_format', 5),
       type: 'string-format',
       data: {
         title: `StringFormat_${++index}`,

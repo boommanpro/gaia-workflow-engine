@@ -13,6 +13,7 @@ import {initialData} from './initial-data';
 import {useEditorProps} from './hooks';
 import {DemoTools} from './components/tools';
 import {SidebarProvider, SidebarRenderer} from './components/sidebar';
+import {setupAuthorization} from "./plugins/runtime-plugin";
 
 let loadedWorkflowData = null;
 
@@ -28,6 +29,7 @@ export const Editor = () => {
   if (window.$wujie?.props?.workflowData?.content) {
     console.log('使用wujie传递的工作流数据:', window.$wujie.props.workflowData.content);
     initialWorkflowData = window.$wujie.props.workflowData.content;
+    setupAuthorization(window.$wujie.props.authorization);
   } else if (loadedWorkflowData) {
     console.log('使用全局设置的工作流数据:', loadedWorkflowData);
     initialWorkflowData = loadedWorkflowData;

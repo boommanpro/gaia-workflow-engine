@@ -9,6 +9,7 @@ import { FlowNodeRegistry } from '../../typings';
 import iconContinue from '../../assets/icon-continue.jpg';
 import { formMeta } from './form-meta';
 import { WorkflowNodeType } from '../constants';
+import { generateValidId } from '../utils';
 
 let index = 0;
 export const ContinueNodeRegistry: FlowNodeRegistry = {
@@ -34,7 +35,7 @@ export const ContinueNodeRegistry: FlowNodeRegistry = {
   formMeta,
   onAdd() {
     return {
-      id: `continue_${nanoid(5)}`,
+      id: generateValidId('continue', 5),
       type: 'continue',
       data: {
         title: `Continue_${++index}`,

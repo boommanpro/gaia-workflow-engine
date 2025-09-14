@@ -215,4 +215,10 @@ export class WorkflowRuntimeService {
         }
       });
   }
+  
+  // 添加设置认证信息的方法
+  public setAuthorization(auth: string | null) {
+    // 这里可以添加更多处理逻辑，如果需要的话
+    console.log('Setting authorization for runtime service:', auth);
+  }
 }

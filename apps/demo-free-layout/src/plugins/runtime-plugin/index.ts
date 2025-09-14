@@ -5,3 +5,4 @@
 
 export { createRuntimePlugin } from './create-runtime-plugin';
 export { WorkflowRuntimeClient } from './client';
+export { setupAuthorization, getAuthorization } from './setup-auth';

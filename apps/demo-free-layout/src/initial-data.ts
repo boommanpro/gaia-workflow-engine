@@ -52,7 +52,7 @@ export const initialData: FlowDocumentJSON ={
       "type": "end",
       "meta": {
         "position": {
-          "x": 1560,
+          "x": 1627.8401464307506,
           "y": 178.5
         }
       },
@@ -82,8 +82,8 @@ export const initialData: FlowDocumentJSON ={
           "c": {
             "type": "ref",
             "content": [
-              "code_KZCi_",
-              "c"
+              "code_q6CmU",
+              "helloCodeExecute"
             ],
             "extra": {
               "index": 2
@@ -124,21 +124,21 @@ export const initialData: FlowDocumentJSON ={
       }
     },
     {
-      "id": "condition_mhwdG",
+      "id": "condition_alRhO",
       "type": "branches",
       "meta": {
         "position": {
-          "x": 640,
-          "y": 0
+          "x": 684.8383160463699,
+          "y": -35.45851128737033
         }
       },
       "data": {
-        "title": "数据处理",
+        "title": "Branches",
         "branches": [
           {
-            "id": "branch_2-6Bp",
-            "title": "分支1",
-            "logic": "and",
+            "id": "branch_R_7LT",
+            "title": "Branch 1",
+            "logic": "or",
             "conditions": [
               {
                 "value": {
@@ -151,17 +151,10 @@ export const initialData: FlowDocumentJSON ={
                       "enable"
                     ]
                   },
-                  "operator": "is_false"
+                  "operator": "is_true"
                 },
-                "key": "if_L4E_Ka"
-              }
-            ]
-          },
-          {
-            "id": "branch_wRrD1",
-            "title": "Branch 2",
-            "logic": "and",
-            "conditions": [
+                "key": "if_FtVDum"
+              },
               {
                 "value": {
                   "type": "expression",
@@ -170,36 +163,25 @@ export const initialData: FlowDocumentJSON ={
                     "type": "ref",
                     "content": [
                       "start_0",
-                      "enable"
+                      "query"
                     ]
                   },
-                  "operator": "eq",
-                  "right": {
-                    "type": "constant",
-                    "content": true,
-                    "schema": {
-                      "type": "boolean",
-                      "extra": {
-                        "weak": true
-                      }
-                    }
-                  }
+                  "operator": "is_not_empty"
                 },
-                "key": "if_h4o9i8"
+                "key": "if_xqJWdz"
               }
             ]
           }
-        ],
-        "description": "分支节点"
+        ]
       }
     },
     {
-      "id": "code_KZCi_",
+      "id": "code_q6CmU",
       "type": "code",
       "meta": {
         "position": {
-          "x": 1100,
-          "y": 233
+          "x": 1217.8401464307506,
+          "y": 156.63361805979258
         }
       },
       "data": {
@@ -215,7 +197,7 @@ export const initialData: FlowDocumentJSON ={
               "index": 0
             }
           },
-          "b": {
+          "v": {
             "type": "ref",
             "content": [
               "start_0",
@@ -227,13 +209,13 @@ export const initialData: FlowDocumentJSON ={
           }
         },
         "script": {
-          "language": "javascript",
-          "content": "// Here, you can retrieve input variables from the node using 'params' and output results using 'ret'.\n// 'params' has been correctly injected into the environment.\n// Here's an example of getting the value of the parameter named 'input' from the node input:\n// const input = params.input;\n// Here's an example of outputting a 'ret' object containing multiple data types:\n// const ret = { \"name\": 'Xiaoming', \"hobbies\": [\"Reading\", \"Traveling\"] };\n\nreturn {\n  c:a+b\n}"
+          "language": "java",
+          "content": "package cn.boommanpro.gaiaworkflow;\n\nimport cn.boommanpro.gaia.workflow.code.CodeExecute;\n\nimport java.util.HashMap;\nimport java.util.Map;\n\npublic class HelloCodeExecute implements CodeExecute {\n    @Override\n    public Map<String, Object> execute(Map<String, Object> inputs) {\n        HashMap<String, Object> result = new HashMap<>();\n        result.putAll(inputs);\n        result.put(\"helloCodeExecute\", \"123\");\n        return result;\n    }\n}\n"
         },
         "outputs": {
           "type": "object",
           "properties": {
-            "c": {
+            "helloCodeExecute": {
               "type": "string"
             }
           },
@@ -245,7 +227,7 @@ export const initialData: FlowDocumentJSON ={
             "a": {
               "type": "string"
             },
-            "b": {
+            "v": {
               "type": "boolean"
             }
           }
@@ -256,21 +238,21 @@ export const initialData: FlowDocumentJSON ={
   "edges": [
     {
       "sourceNodeID": "start_0",
-      "targetNodeID": "condition_mhwdG"
+      "targetNodeID": "condition_alRhO"
     },
     {
-      "sourceNodeID": "condition_mhwdG",
-      "targetNodeID": "end_0",
-      "sourcePortID": "branch_2-6Bp"
-    },
-    {
-      "sourceNodeID": "code_KZCi_",
+      "sourceNodeID": "code_q6CmU",
       "targetNodeID": "end_0"
     },
     {
-      "sourceNodeID": "condition_mhwdG",
-      "targetNodeID": "code_KZCi_",
-      "sourcePortID": "branch_wRrD1"
+      "sourceNodeID": "condition_alRhO",
+      "targetNodeID": "code_q6CmU",
+      "sourcePortID": "branch_R_7LT"
+    },
+    {
+      "sourceNodeID": "condition_alRhO",
+      "targetNodeID": "code_q6CmU",
+      "sourcePortID": "else"
     }
   ]
 }

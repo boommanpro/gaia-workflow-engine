@@ -15,6 +15,7 @@ import { useNodeRenderContext } from '../../../hooks';
 import { FormItem } from '../../../form-components';
 import { Feedback } from '../../../form-components';
 import { ConditionPort } from './styles';
+import { generateValidId } from '../../utils';
 
 interface ConditionValue {
   key: string;
@@ -69,7 +70,7 @@ export function ConditionInputs() {
                 icon={<IconPlus />}
                 onClick={() =>
                   field.append({
-                    key: `if_${nanoid(6)}`,
+                    key: generateValidId('if', 6),
                     value: { type: 'expression', content: '' },
                   })
                 }

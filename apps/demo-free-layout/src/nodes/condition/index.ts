@@ -9,6 +9,7 @@ import { FlowNodeRegistry } from '../../typings';
 import iconCondition from '../../assets/icon-condition.svg';
 import { formMeta } from './form-meta';
 import { WorkflowNodeType } from '../constants';
+import { generateValidId } from '../utils';
 
 export const ConditionNodeRegistry: FlowNodeRegistry = {
   type: WorkflowNodeType.Condition,
@@ -30,17 +31,17 @@ export const ConditionNodeRegistry: FlowNodeRegistry = {
   formMeta,
   onAdd() {
     return {
-      id: `condition_${nanoid(5)}`,
+      id: generateValidId('condition', 5),
       type: 'condition',
       data: {
         title: 'Condition',
         conditions: [
           {
-            key: `if_${nanoid(5)}`,
+            key: generateValidId('if', 5),
             value: {},
           },
           {
-            key: `if_${nanoid(5)}`,
+            key: generateValidId('if', 5),
             value: {},
           },
         ],

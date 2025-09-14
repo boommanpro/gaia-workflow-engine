@@ -9,6 +9,7 @@ import { WorkflowNodeType } from '../constants';
 import { FlowNodeRegistry } from '../../typings';
 import iconCode from '../../assets/icon-script.png';
 import { formMeta } from './form-meta';
+import { generateValidId } from '../utils';
 
 let index = 0;
 
@@ -46,7 +47,7 @@ export const CodeNodeRegistry: FlowNodeRegistry = {
   },
   onAdd() {
     return {
-      id: `code_${nanoid(5)}`,
+      id: generateValidId('code', 5),
       type: 'code',
       data: {
         title: `Code_${++index}`,

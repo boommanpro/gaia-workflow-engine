@@ -14,6 +14,7 @@ import { FlowNodeRegistry } from '../../typings';
 import iconLoop from '../../assets/icon-loop.jpg';
 import { formMeta } from './form-meta';
 import { WorkflowNodeType } from '../constants';
+import { generateValidId } from '../utils';
 
 let index = 0;
 export const LoopNodeRegistry: FlowNodeRegistry = {
@@ -68,14 +69,14 @@ export const LoopNodeRegistry: FlowNodeRegistry = {
   },
   onAdd() {
     return {
-      id: `loop_${nanoid(5)}`,
+      id: generateValidId('loop', 5),
       type: WorkflowNodeType.Loop,
       data: {
         title: `Loop_${++index}`,
       },
       blocks: [
         {
-          id: `block_start_${nanoid(5)}`,
+          id: generateValidId('block_start', 5),
           type: WorkflowNodeType.BlockStart,
           meta: {
             position: {
@@ -86,7 +87,7 @@ export const LoopNodeRegistry: FlowNodeRegistry = {
           data: {},
         },
         {
-          id: `block_end_${nanoid(5)}`,
+          id: generateValidId('block_end', 5),
           type: WorkflowNodeType.BlockEnd,
           meta: {
             position: {

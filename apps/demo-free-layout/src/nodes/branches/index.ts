@@ -9,6 +9,7 @@ import {FlowNodeRegistry} from '../../typings';
 import iconCondition from '../../assets/icon-condition.svg';
 import {formMeta} from './form-meta';
 import {WorkflowNodeType} from '../constants';
+import { generateValidId } from '../utils';
 
 export const BranchNodeRegistry: FlowNodeRegistry = {
   type: WorkflowNodeType.Branches,
@@ -30,18 +31,18 @@ export const BranchNodeRegistry: FlowNodeRegistry = {
   formMeta,
   onAdd() {
     return {
-      id: `condition_${nanoid(5)}`,
+      id: generateValidId('condition', 5),
       type: 'branches',
       data: {
         title: 'Branches',
         branches: [
           {
-            id: `branch_${nanoid(5)}`,
+            id: generateValidId('branch', 5),
             title: 'Branch 1',
             logic: 'and',
             conditions: [
               {
-                key: `if_${nanoid(6)}`,
+                key: generateValidId('if', 6),
                 value: { type: 'expression', content: '' },
               }
             ]

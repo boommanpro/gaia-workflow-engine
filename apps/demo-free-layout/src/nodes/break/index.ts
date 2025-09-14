@@ -9,6 +9,7 @@ import { FlowNodeRegistry } from '../../typings';
 import iconBreak from '../../assets/icon-break.jpg';
 import { formMeta } from './form-meta';
 import { WorkflowNodeType } from '../constants';
+import { generateValidId } from '../utils';
 
 let index = 0;
 export const BreakNodeRegistry: FlowNodeRegistry = {
@@ -34,7 +35,7 @@ export const BreakNodeRegistry: FlowNodeRegistry = {
   formMeta,
   onAdd() {
     return {
-      id: `break_${nanoid(5)}`,
+      id: generateValidId('break', 5),
       type: 'break',
       data: {
         title: `Break_${++index}`,

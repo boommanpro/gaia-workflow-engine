@@ -361,9 +361,9 @@ export function useEditorProps(
           // mode: 'browser',
           mode: 'server',
           serverConfig: {
-            domain: 'localhost',
-            port: 8080,
-            protocol: 'http',
+            domain: process.env.REACT_APP_SERVER_DOMAIN || 'localhost',
+            port: process.env.REACT_APP_SERVER_PORT ? parseInt(process.env.REACT_APP_SERVER_PORT, 10) : (process.env.REACT_APP_SERVER_DOMAIN ? undefined : 48080),
+            protocol: process.env.REACT_APP_SERVER_PROTOCOL || 'http',
           },
         }),
 

@@ -9,6 +9,7 @@ import { WorkflowNodeType } from '../constants';
 import { FlowNodeRegistry } from '../../typings';
 import iconVariable from '../../assets/icon-variable.png';
 import { formMeta } from './form-meta';
+import { generateValidId } from '../utils';
 
 let index = 0;
 
@@ -26,7 +27,7 @@ export const VariableNodeRegistry: FlowNodeRegistry = {
   },
   onAdd() {
     return {
-      id: `variable_${nanoid(5)}`,
+      id: generateValidId('variable', 5),
       type: 'variable',
       data: {
         title: `Variable_${++index}`,

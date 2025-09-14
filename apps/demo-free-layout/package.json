@@ -54,6 +54,7 @@
     "@types/react-dom": "^18",
     "@types/styled-components": "^5",
     "cross-env": "~7.0.3",
+    "dotenv": "^16.4.5",
     "eslint": "^8.54.0",
     "immer": "^10.1.1"
   },
@@ -63,10 +64,11 @@
   },
   "scripts": {
     "build": "node_modules/.bin/cross-env NODE_ENV=production rsbuild build",
+    "build:prod": "node_modules/.bin/cross-env NODE_ENV=production ENV_FILE=.env.production rsbuild build",
     "build:fast": "exit 0",
     "build:watch": "exit 0",
     "clean": "rimraf dist",
-    "dev": "node_modules/.bin/cross-env MODE=app NODE_ENV=development rsbuild dev --open",
+    "dev": "node_modules/.bin/cross-env NODE_ENV=development rsbuild dev --open",
     "lint": "node_modules/.bin/eslint ./src --cache",
     "lint:fix": "node_modules/.bin/eslint ./src --fix",
     "start": "node_modules/.bin/cross-env NODE_ENV=development rsbuild dev --open",

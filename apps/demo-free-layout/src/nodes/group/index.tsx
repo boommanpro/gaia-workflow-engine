@@ -11,6 +11,7 @@ import {
 } from '@flowgram.ai/free-layout-editor';
 
 import { FlowNodeRegistry } from '../../typings';
+import { generateValidId } from '../utils';
 
 let index = 0;
 export const GroupNodeRegistry: FlowNodeRegistry = {
@@ -50,7 +51,7 @@ export const GroupNodeRegistry: FlowNodeRegistry = {
   onAdd() {
     return {
       type: FlowNodeBaseType.GROUP,
-      id: `group_${nanoid(5)}`,
+      id: generateValidId('group', 5),
       meta: {
         position: {
           x: 0,

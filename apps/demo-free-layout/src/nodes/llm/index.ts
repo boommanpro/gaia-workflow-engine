@@ -8,6 +8,7 @@ import { nanoid } from 'nanoid';
 import { WorkflowNodeType } from '../constants';
 import { FlowNodeRegistry } from '../../typings';
 import iconLLM from '../../assets/icon-llm.jpg';
+import { generateValidId } from '../utils';
 
 let index = 0;
 export const LLMNodeRegistry: FlowNodeRegistry = {
@@ -25,7 +26,7 @@ export const LLMNodeRegistry: FlowNodeRegistry = {
   },
   onAdd() {
     return {
-      id: `llm_${nanoid(5)}`,
+      id: generateValidId('llm', 5),
       type: 'llm',
       data: {
         title: `LLM_${++index}`,
