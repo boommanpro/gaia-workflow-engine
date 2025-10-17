@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { isObject } from 'lodash';
+import { isObject } from 'lodash-es';
 
 interface LegacyFlowRefValueSchema {
   type: 'ref';

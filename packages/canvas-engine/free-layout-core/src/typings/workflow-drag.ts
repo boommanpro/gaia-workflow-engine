@@ -42,7 +42,7 @@ export interface NodesDraggingEvent extends INodesDragEvent {
 export type NodesDragEvent = NodesDragStartEvent | NodesDraggingEvent | NodesDragEndEvent;
 
 export type onDragLineEndParams = {
-  fromPort: WorkflowPortEntity;
+  fromPort?: WorkflowPortEntity;
   toPort?: WorkflowPortEntity;
   mousePos: PositionSchema;
   line?: WorkflowLineEntity;

@@ -30,14 +30,14 @@ export interface IVariableStore {
     params: {
       nodeID: string;
       key: string;
-      value: Object;
+      value: unknown;
     } & VariableTypeInfo
   ): void;
   setValue(params: {
     nodeID: string;
     variableKey: string;
     variablePath?: string[];
-    value: Object;
+    value: unknown;
   }): void;
   getValue<T = unknown>(params: {
     nodeID: string;

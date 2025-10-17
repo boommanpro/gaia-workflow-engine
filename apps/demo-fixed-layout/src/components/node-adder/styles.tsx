@@ -26,7 +26,4 @@ export const Wrap = styled.div`
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  svg: {
-    transform: scale(0.7);
-  }
 `;

@@ -6,6 +6,7 @@
 import { useMemo } from 'react';
 
 import { debounce } from 'lodash-es';
+import { createPanelManagerPlugin } from '@flowgram.ai/panel-manager-plugin';
 import { createMinimapPlugin } from '@flowgram.ai/minimap-plugin';
 import { createGroupPlugin } from '@flowgram.ai/group-plugin';
 import { defaultFixedSemiMaterials } from '@flowgram.ai/fixed-semi-materials';
@@ -23,6 +24,7 @@ import { shortcutGetter } from '../shortcuts';
 import { CustomService } from '../services';
 import { GroupBoxHeader, GroupNode } from '../plugins/group-plugin';
 import { createClipboardPlugin, createVariablePanelPlugin } from '../plugins';
+import { nodeFormPanelFactory } from '../components/sidebar';
 import { SelectorBoxPopover } from '../components/selector-box-popover';
 import NodeAdder from '../components/node-adder';
 import BranchAdder from '../components/branch-adder';
@@ -45,6 +47,7 @@ export function useEditorProps(
        * Canvas-related configurations
        */
       playground: {
+        ineractiveType: 'MOUSE',
         /**
          * Prevent Mac browser gestures from turning pages
          * 阻止 mac 浏览器手势翻页
@@ -265,7 +268,6 @@ export function useEditorProps(
             nodeBorderColor: 'rgba(6, 7, 9, 0.10)',
             overlayColor: 'rgba(255, 255, 255, 0)',
           },
-          inactiveDebounceTime: 1,
         }),
         /**
          * Group plugin
@@ -288,6 +290,9 @@ export function useEditorProps(
          * 变量面板插件
          */
         createVariablePanelPlugin({}),
+        createPanelManagerPlugin({
+          factories: [nodeFormPanelFactory],
+        }),
       ],
     }),
     []

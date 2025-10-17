@@ -23,7 +23,6 @@ export const branchTwoLayersSchema: WorkflowSchema = {
           properties: {
             model_id: {
               type: 'integer',
-              default: 'Hello Flow.',
               extra: {
                 index: 0,
               },

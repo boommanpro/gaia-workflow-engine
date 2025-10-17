@@ -11,6 +11,9 @@ module.exports = defineConfig({
   packageRoot: __dirname,
   parserOptions: {
     requireConfigFile: false,
+    babelOptions: {
+      presets: [require.resolve('next/babel')],
+    },
   },
   rules: {
     'no-console': 'off',

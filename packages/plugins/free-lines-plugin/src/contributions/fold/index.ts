@@ -12,7 +12,7 @@ import {
 } from '@flowgram.ai/free-layout-core';
 import { LineType } from '@flowgram.ai/free-layout-core';
 
-import { toRelative } from '../utils';
+import { posWithShrink, toRelative } from '../utils';
 import { FoldLine } from './fold-line';
 
 export interface FoldData {
@@ -60,24 +60,16 @@ export class WorkflowFoldLineContribution implements WorkflowLineRenderContribut
     const shrink = this.entity.uiState.shrink;
 
     // 根据方向预先计算源点和目标点的偏移
-    const sourceOffset = {
-      x: fromPos.location === 'bottom' ? 0 : shrink,
-      y: fromPos.location === 'bottom' ? shrink : 0,
-    };
-    const targetOffset = {
-      x: toPos.location === 'top' ? 0 : -shrink,
-      y: toPos.location === 'top' ? -shrink : 0,
-    };
+    const source = posWithShrink(fromPos, fromPos.location, shrink);
+    const target = posWithShrink(toPos, toPos.location, shrink);
 
     const { points, center } = FoldLine.getPoints({
       source: {
-        x: fromPos.x + sourceOffset.x,
-        y: fromPos.y + sourceOffset.y,
+        ...source,
         location: fromPos.location,
       },
       target: {
-        x: toPos.x + targetOffset.x,
-        y: toPos.y + targetOffset.y,
+        ...target,
         location: toPos.location,
       },
     });

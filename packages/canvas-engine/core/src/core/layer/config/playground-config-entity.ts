@@ -23,8 +23,6 @@ export interface PlaygroundConfigEntityData {
   originY: number // 左上角默认开始原点坐标
   width: number // 编辑区宽，在 onResize 触发后重制
   height: number // 编辑区高，在 onResize 触发后重制
-  clientX: number // 如果有拖拽场景需要传入
-  clientY: number // 如果有拖拽场景需要传入
   reverseScroll: boolean // 支持反方向滚动
   overflowX: 'hidden' | 'scroll'
   overflowY: 'hidden' | 'scroll'
@@ -56,7 +54,7 @@ export interface PlaygroundConfigRevealOpts {
 export const SCALE_WIDTH = 0
 
 /** 鼠标缩放 delta */
-export const MOUSE_SCROLL_DELTA = 0.05;
+export const MOUSE_SCROLL_DELTA = (zoom: number) => zoom / 20;
 export type PlaygroundScrollLimitFn = (scroll: { scrollX: number; scrollY: number }) => {
   scrollX: number
   scrollY: number
@@ -78,6 +76,7 @@ export class PlaygroundConfigEntity extends ConfigEntity<PlaygroundConfigEntityD
   private _onGrabDisableChangeEmitter = new Emitter<boolean>()
   readonly onGrabDisableChange = this._onGrabDisableChangeEmitter.event;
   readonly onReadonlyOrDisabledChange = this._onReadonlyOrDisabledChangeEmitter.event
+  playgroundDomNode: HTMLElement = document.createElement('div')
 
   cursor = 'default'
   constructor(opts: any) {
@@ -127,8 +126,6 @@ export class PlaygroundConfigEntity extends ConfigEntity<PlaygroundConfigEntityD
       minZoom: 0.25,
       maxZoom: 2,
       zoom: 1,
-      clientX: 0,
-      clientY: 0,
       reverseScroll: true,
       overflowX: 'scroll',
       overflowY: 'scroll',
@@ -259,21 +256,26 @@ export class PlaygroundConfigEntity extends ConfigEntity<PlaygroundConfigEntityD
     const { config } = this
     const scale = withScale ? this.zoom : 1
     const { clientX, clientY } = MouseTouchEvent.getEventCoord(event)
+    const clientRect = this.playgroundDomNode.getBoundingClientRect()
     return {
-      x: (clientX + config.scrollX - config.clientX) / scale,
-      y: (clientY + config.scrollY - config.clientY) / scale,
+      x: (clientX + config.scrollX - clientRect.x) / scale,
+      y: (clientY + config.scrollY - clientRect.y) / scale,
     }
   }
-
+  getClientBounds(): Rectangle {
+    const clientRect = this.playgroundDomNode.getBoundingClientRect()
+    return new Rectangle(clientRect.x, clientRect.y, clientRect.width, clientRect.height)
+  }
   /**
    * 将画布中的位置转成相对 window 的位置
    * @param pos
    */
   toFixedPos(pos: PositionSchema): PositionSchema {
     const { config } = this
+    const clientRect = this.playgroundDomNode.getBoundingClientRect()
     return {
-      x: pos.x - config.scrollX + config.clientX,
-      y: pos.y - config.scrollY + config.clientY,
+      x: pos.x - config.scrollX + clientRect.x,
+      y: pos.y - config.scrollY + clientRect.y,
     }
   }
 

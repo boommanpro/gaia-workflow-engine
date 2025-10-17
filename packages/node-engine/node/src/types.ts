@@ -6,7 +6,7 @@
 import * as React from 'react';
 
 import { FormModel, IFormMeta, NodeContext } from '@flowgram.ai/form-core';
-import { FieldName, FieldValue } from '@flowgram.ai/form/src/types';
+import { FieldName, FieldValue } from '@flowgram.ai/form';
 import {
   FormRenderProps,
   IForm,

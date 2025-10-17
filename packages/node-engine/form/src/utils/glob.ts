@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { flatten, get, isArray, isObject } from 'lodash';
+import { flatten, get, isArray, isObject } from 'lodash-es';
 
 export namespace Glob {
   export const DIVIDER = '.';

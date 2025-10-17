@@ -5,13 +5,13 @@
 
 import {
   WorkflowVariableType,
-  ConditionOperation,
+  ConditionOperator,
   ConditionItem,
 } from '@flowgram.ai/runtime-interface';
 
 export type Conditions = ConditionItem[];
 
-export type ConditionRule = Partial<Record<ConditionOperation, WorkflowVariableType | null>>;
+export type ConditionRule = Partial<Record<ConditionOperator, WorkflowVariableType | null>>;
 
 export type ConditionRules = Record<WorkflowVariableType, ConditionRule>;
 
@@ -21,7 +21,7 @@ export interface ConditionValue {
   rightValue: unknown | null;
   leftType: WorkflowVariableType;
   rightType: WorkflowVariableType;
-  operator: ConditionOperation;
+  operator: ConditionOperator;
 }
 
 export type ConditionHandler = (condition: ConditionValue) => boolean;

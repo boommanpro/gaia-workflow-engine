@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { isArray, isObject } from 'lodash';
+import { isArray, isObject } from 'lodash-es';
 import {
   DataEvent,
   Effect,

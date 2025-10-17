@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { set, get } from 'lodash';
+import { set, get } from 'lodash-es';
 import { IJsonSchema } from '@flowgram.ai/json-schema';
 
 import { typeEditorUtils } from '../utils';

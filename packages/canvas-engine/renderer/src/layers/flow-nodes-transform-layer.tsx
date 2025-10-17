@@ -12,7 +12,7 @@ import {
   FlowNodeTransformData,
 } from '@flowgram.ai/document';
 import { Layer, observeEntity, observeEntityDatas } from '@flowgram.ai/core';
-// import { throttle } from 'lodash'
+// import { throttle } from 'lodash-es'
 
 import { FlowRendererResizeObserver } from '../flow-renderer-resize-observer';
 

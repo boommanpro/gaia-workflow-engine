@@ -5,7 +5,7 @@
 
 import React from 'react';
 
-import { throttle } from 'lodash';
+import { throttle } from 'lodash-es';
 import { inject, injectable } from 'inversify';
 import { domUtils } from '@flowgram.ai/utils';
 import {
@@ -56,7 +56,7 @@ export class FlowLabelsLayer extends Layer {
   /**
    * 可视区域变化
    */
-  onViewportChange = throttle(() => {
+  onViewportChange: ReturnType<typeof throttle> = throttle(() => {
     this.render();
   }, 100);
 

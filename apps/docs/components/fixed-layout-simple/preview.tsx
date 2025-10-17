@@ -25,26 +25,33 @@ const indexCode = {
 };
 
 export const FixedLayoutSimplePreview = () => (
-  <PreviewEditor
-    files={{
-      'editor.tsx': indexCode,
-      'index.css': indexCssCode,
-      'initial-data.ts': initialDataCode,
-      'node-registries.ts': nodeRegistriesCode,
-      'use-editor-props.tsx': useEditorPropsCode,
-      'base-node.tsx': baseNodeCode,
-      'branch-adder.tsx': branchAdderCode,
-      'minimap.tsx': miniMapCode,
-      'node-adder.tsx': nodeAdderCode,
-      'tools.tsx': toolsCode,
-    }}
-    previewStyle={{
-      height: 500,
-    }}
-    editorStyle={{
-      height: 500,
+  <div
+    style={{
+      zIndex: 1,
+      position: 'relative',
     }}
   >
-    <FixedLayoutSimple />
-  </PreviewEditor>
+    <PreviewEditor
+      files={{
+        'editor.tsx': indexCode,
+        'index.css': indexCssCode,
+        'initial-data.ts': initialDataCode,
+        'node-registries.ts': nodeRegistriesCode,
+        'use-editor-props.tsx': useEditorPropsCode,
+        'base-node.tsx': baseNodeCode,
+        'branch-adder.tsx': branchAdderCode,
+        'minimap.tsx': miniMapCode,
+        'node-adder.tsx': nodeAdderCode,
+        'tools.tsx': toolsCode,
+      }}
+      previewStyle={{
+        height: 500,
+      }}
+      editorStyle={{
+        height: 500,
+      }}
+    >
+      <FixedLayoutSimple />
+    </PreviewEditor>
+  </div>
 );

@@ -5,7 +5,7 @@
 
 import React, { Children, useEffect, useMemo } from 'react';
 
-import { isFunction } from 'lodash';
+import { isFunction } from 'lodash-es';
 
 import { toForm } from 'src/core/to-form';
 import { FormControl, FormOptions, FormRenderProps } from '../types/form';

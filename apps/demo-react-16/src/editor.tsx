@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: MIT
  */
 
-import React from 'react';
-
 import { EditorRenderer, FreeLayoutEditorProvider } from '@flowgram.ai/free-layout-editor';
 
 import { useEditorProps } from './hooks/use-editor-props';

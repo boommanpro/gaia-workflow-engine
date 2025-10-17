@@ -6,8 +6,18 @@
 import React from 'react';
 
 import { inject, injectable } from 'inversify';
-import { Layer } from '@flowgram.ai/core';
 import { domUtils } from '@flowgram.ai/utils';
+import {
+  FlowNodeEntity,
+  FlowNodeTransformData,
+  FlowDocumentTransformerEntity,
+} from '@flowgram.ai/document';
+import {
+  Layer,
+  observeEntityDatas,
+  observeEntity,
+  PlaygroundConfigEntity,
+} from '@flowgram.ai/core';
 
 import { MinimapLayerOptions } from './type';
 import { FlowMinimapService } from './service';
@@ -18,6 +28,14 @@ export class FlowMinimapLayer extends Layer<MinimapLayerOptions> {
   public static type = 'FlowMinimapLayer';
 
   @inject(FlowMinimapService) private readonly service: FlowMinimapService;
+
+  @observeEntityDatas(FlowNodeEntity, FlowNodeTransformData)
+  transformDatas: FlowNodeTransformData[];
+
+  @observeEntity(PlaygroundConfigEntity) configEntity: PlaygroundConfigEntity;
+
+  @observeEntity(FlowDocumentTransformerEntity)
+  readonly documentTransformer: FlowDocumentTransformerEntity;
 
   public readonly node: HTMLElement;
 
@@ -30,6 +48,9 @@ export class FlowMinimapLayer extends Layer<MinimapLayerOptions> {
   }
 
   public render(): JSX.Element {
+    if (this.documentTransformer.loading) return <></>;
+    this.documentTransformer.refresh();
+    this.service.render();
     if (this.options.disableLayer) {
       return <></>;
     }

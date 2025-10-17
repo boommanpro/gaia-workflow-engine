@@ -74,4 +74,12 @@ export interface FlowNodeRegistry extends FlowNodeRegistryDefault {
 export interface FlowDocumentJSON {
   nodes: FlowNodeJSON[];
   edges: WorkflowEdgeJSON[];
+  /**
+   * Global Variable Schema Definition
+   * 全局变量的 Schema 定义
+   *
+   * Warning: In real occasion, it's better to store the schema and value of these global variables in a reliable place, since the value of a variable might be leaked in saved schema.
+   * 注意：在真实场景下，全局变量的 Schema 定义和值都应该存储在更可靠的地方，因为全局变量的值可能会泄露在保存的 Schema 中。
+   */
+  globalVariable?: JsonSchema;
 }

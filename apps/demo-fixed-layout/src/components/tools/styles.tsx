@@ -14,7 +14,7 @@ export const ToolContainer = styled.div`
   pointer-events: none;
   gap: 8px;
 
-  z-index: 99;
+  z-index: 20;
 `;
 
 export const ToolSection = styled.div`

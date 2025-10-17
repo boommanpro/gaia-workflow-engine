@@ -15,7 +15,6 @@ import {
   WorkflowLineEntity,
   WorkflowNodeEntity,
   WorkflowNodeJSON,
-  WorkflowNodeLinesData,
   WorkflowNodeMeta,
   WorkflowSelectService,
 } from '@flowgram.ai/free-layout-editor';
@@ -174,10 +173,15 @@ export class CopyShortcut implements ShortcutsHandler {
     const lineSet = new Set<WorkflowLineEntity>();
     const nodeIdSet = new Set(nodes.map((n) => n.id));
     nodes.forEach((node) => {
-      const linesData = node.getData(WorkflowNodeLinesData);
+      const linesData = node.lines;
       const lines = [...linesData.inputLines, ...linesData.outputLines];
       lines.forEach((line) => {
-        if (nodeIdSet.has(line.from.id) && line.to?.id && nodeIdSet.has(line.to.id)) {
+        if (
+          line.from?.id &&
+          nodeIdSet.has(line.from.id) &&
+          line.to?.id &&
+          nodeIdSet.has(line.to.id)
+        ) {
           lineSet.add(line);
         }
       });

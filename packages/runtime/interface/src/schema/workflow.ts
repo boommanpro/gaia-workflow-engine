@@ -4,11 +4,13 @@
  */
 
 import type { WorkflowNodeSchema } from './node';
-import { WorkflowGroupSchema } from './group';
+import type { IJsonSchema } from './json-schema';
+import type { WorkflowGroupSchema } from './group';
 import type { WorkflowEdgeSchema } from './edge';
 
 export interface WorkflowSchema {
   nodes: WorkflowNodeSchema[];
   edges: WorkflowEdgeSchema[];
   groups?: WorkflowGroupSchema[];
+  globalVariable?: IJsonSchema;
 }

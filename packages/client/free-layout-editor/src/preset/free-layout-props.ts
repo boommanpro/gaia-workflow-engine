@@ -29,6 +29,7 @@ import {
   FlowNodeType,
 } from '@flowgram.ai/editor';
 
+import { WorkflowOperationService } from '../types';
 import { AutoLayoutResetFn, AutoLayoutToolOptions } from '../tools';
 
 export const FreeLayoutPluginContext = PluginContext;
@@ -45,6 +46,10 @@ export interface FreeLayoutPluginContext extends EditorPluginContext {
   document: WorkflowDocument;
   clipboard: ClipboardService;
   selection: SelectionService;
+  /**
+   * 提供对画布节点相关操作方法, 并 支持 redo/undo
+   */
+  operation: WorkflowOperationService;
   history: HistoryService;
   tools: FreeLayoutPluginTools;
 }
@@ -77,6 +82,11 @@ export interface FreeLayoutProps extends EditorProps<FreeLayoutPluginContext, Wo
     grab?: string;
     grabbing?: string;
   };
+  /**
+   * Line support both-way connection (default true)
+   * 线条支持双向连接
+   */
+  twoWayConnection?: boolean;
   /**
    * History configuration
    */
@@ -215,16 +225,15 @@ export interface FreeLayoutProps extends EditorProps<FreeLayoutPluginContext, Wo
   /**
    * Whether to allow lines to be reset
    * 是否允许重置线条
-   * @param fromPort - source port
-   * @param oldToPort - old target port
-   * @param newToPort - new target port
+   * @param ctx
+   * @param oldLine - old line
+   * @param newLineInfo - new line info
    * @param lines - lines manager
    */
   canResetLine?: (
     ctx: FreeLayoutPluginContext,
-    fromPort: WorkflowPortEntity,
-    oldToPort: WorkflowPortEntity,
-    newToPort: WorkflowPortEntity,
+    oldLine: WorkflowLineEntity,
+    newLineInfo: Required<WorkflowLinePortInfo>,
     lines: WorkflowLinesManager
   ) => boolean;
   /**

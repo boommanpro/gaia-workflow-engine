@@ -5,7 +5,7 @@
 
 import { IJsonSchema } from '@flowgram.ai/json-schema';
 
-import { IFlowValue } from '@/typings';
+import { IFlowValue } from '@/shared';
 import { ConstantInputStrategy } from '@/components/constant-input';
 
 export interface PropsType {

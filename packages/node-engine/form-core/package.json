@@ -35,21 +35,20 @@
     "@flowgram.ai/document": "workspace:*",
     "@flowgram.ai/utils": "workspace:*",
     "inversify": "^6.0.1",
-    "lodash": "^4.17.21",
+    "lodash-es": "^4.17.21",
     "reflect-metadata": "~0.2.2"
   },
   "devDependencies": {
     "@flowgram.ai/eslint-config": "workspace:*",
-    "@flowgram.ai/form": "workspace:*",
     "@flowgram.ai/ts-config": "workspace:*",
-    "@types/lodash": "^4.14.137",
+    "@types/lodash-es": "^4.17.12",
     "@types/react": "^18",
     "@types/react-dom": "^18",
-    "@vitest/coverage-v8": "^0.32.0",
+    "@vitest/coverage-v8": "^3.2.4",
     "eslint": "^8.54.0",
     "tsup": "^8.0.1",
     "typescript": "^5.8.3",
-    "vitest": "^0.34.6"
+    "vitest": "^3.2.4"
   },
   "peerDependencies": {
     "react": ">=16.8",

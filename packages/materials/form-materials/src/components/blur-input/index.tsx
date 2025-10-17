@@ -3,9 +3,17 @@
  * SPDX-License-Identifier: MIT
  */
 
+/* eslint-disable react/prop-types */
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
 import React, { useEffect, useState } from 'react';
 
-import Input, { InputProps } from '@douyinfe/semi-ui/lib/es/input';
+import { Input } from '@douyinfe/semi-ui';
+
+type InputProps = React.ComponentPropsWithRef<typeof Input>;
 
 export function BlurInput(props: InputProps) {
   const [value, setValue] = useState('');
@@ -16,6 +24,7 @@ export function BlurInput(props: InputProps) {
 
   return (
     <Input
+      ref={props.ref}
       {...props}
       value={value}
       onChange={(value) => {

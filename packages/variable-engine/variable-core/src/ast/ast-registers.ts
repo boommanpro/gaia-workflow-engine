@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { omit } from 'lodash';
+import { omit } from 'lodash-es';
 import { injectable } from 'inversify';
 
 import { POST_CONSTRUCT_AST_SYMBOL } from './utils/inversify';
@@ -18,18 +18,16 @@ import {
   ObjectType,
   StringType,
 } from './type';
-import {
-  EnumerateExpression,
-  // KeyPathExpression,
-  KeyPathExpressionV2,
-  WrapArrayExpression,
-} from './expression';
+import { EnumerateExpression, KeyPathExpression, WrapArrayExpression } from './expression';
 import { Property, VariableDeclaration, VariableDeclarationList } from './declaration';
 import { DataNode, MapNode } from './common';
 import { ASTNode, ASTNodeRegistry } from './ast-node';
 
 type DataInjector = () => Record<string, any>;
 
+/**
+ * Register the AST node to the engine.
+ */
 @injectable()
 export class ASTRegisters {
   protected injectors: Map<ASTKindType, DataInjector> = new Map();
@@ -37,7 +35,7 @@ export class ASTRegisters {
   protected astMap: Map<ASTKindType, ASTNodeRegistry> = new Map();
 
   /**
-   * 核心 AST 节点注册
+   * Core AST node registration.
    */
   constructor() {
     this.registerAST(StringType);
@@ -51,8 +49,7 @@ export class ASTRegisters {
     this.registerAST(Property);
     this.registerAST(VariableDeclaration);
     this.registerAST(VariableDeclarationList);
-    // this.registerAST(KeyPathExpression);
-    this.registerAST(KeyPathExpressionV2);
+    this.registerAST(KeyPathExpression);
 
     this.registerAST(EnumerateExpression);
     this.registerAST(WrapArrayExpression);
@@ -61,8 +58,8 @@ export class ASTRegisters {
   }
 
   /**
-   * 创建 AST 节点
-   * @param param 创建参数
+   * Creates an AST node.
+   * @param param Creation parameters.
    * @returns
    */
   createAST<ReturnNode extends ASTNode = ASTNode>(
@@ -86,7 +83,7 @@ export class ASTRegisters {
       injector?.() || {}
     ) as ReturnNode;
 
-    // 初始化创建不触发 fireChange
+    // Do not trigger fireChange during initial creation.
     node.changeLocked = true;
     node.fromJSON(omit(json, ['key', 'kind']));
     node.changeLocked = false;
@@ -102,7 +99,7 @@ export class ASTRegisters {
   }
 
   /**
-   * 根据 AST 节点类型获取节点 Registry
+   * Gets the node Registry by AST node type.
    * @param kind
    * @returns
    */
@@ -111,7 +108,7 @@ export class ASTRegisters {
   }
 
   /**
-   * 注册 AST 节点
+   * Registers an AST node.
    * @param ASTNode
    * @param injector
    */

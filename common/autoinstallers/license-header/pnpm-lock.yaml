@@ -1,22 +1,39 @@
-lockfileVersion: '6.0'
+lockfileVersion: '9.0'
 
-dependencies:
-  ignore:
-    specifier: ^7.0.4
-    version: 7.0.4
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
 
-devDependencies:
-  '@types/node':
-    specifier: ^20
-    version: 20.0.0
+importers:
+
+  .:
+    dependencies:
+      ignore:
+        specifier: ^7.0.4
+        version: 7.0.5
+    devDependencies:
+      '@types/node':
+        specifier: ^20
+        version: 20.19.13
 
 packages:
 
-  /@types/node@20.0.0:
-    resolution: {integrity: sha512-cD2uPTDnQQCVpmRefonO98/PPijuOnnEy5oytWJFPY1N9aJCz2wJ5kSGWO+zJoed2cY2JxQh6yBuUq4vIn61hw==}
-    dev: true
+  '@types/node@20.19.13':
+    resolution: {integrity: sha512-yCAeZl7a0DxgNVteXFHt9+uyFbqXGy/ShC4BlcHkoE0AfGXYv/BUiplV72DjMYXHDBXFjhvr6DD1NiRVfB4j8g==}
 
-  /ignore@7.0.4:
-    resolution: {integrity: sha512-gJzzk+PQNznz8ysRrC0aOkBNVRBDtE1n53IqyqEf3PXrYwomFs5q4pGMizBMJF+ykh03insJ27hB8gSrD2Hn8A==}
+  ignore@7.0.5:
+    resolution: {integrity: sha512-Hs59xBNfUIunMFgWAbGX5cq6893IbWg4KnrjbYwX3tx0ztorVgTDA6B2sxf8ejHJ4wz8BqGUMYlnzNBer5NvGg==}
     engines: {node: '>= 4'}
-    dev: false
+
+  undici-types@6.21.0:
+    resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
+
+snapshots:
+
+  '@types/node@20.19.13':
+    dependencies:
+      undici-types: 6.21.0
+
+  ignore@7.0.5: {}
+
+  undici-types@6.21.0: {}

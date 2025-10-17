@@ -10,6 +10,8 @@ import {
   FlowOperationBaseService,
 } from '@flowgram.ai/document';
 
+import { WorkflowJSON } from './workflow-json';
+
 export interface NodePostionUpdateEvent {
   node: FlowNodeEntity;
   oldPosition: IPoint;
@@ -28,6 +30,11 @@ export interface WorkflowOperationBaseService extends FlowOperationBaseService {
    * @returns
    */
   updateNodePosition(nodeOrId: FlowNodeEntityOrId, position: IPoint): void;
+
+  /**
+   * 更新节点与线条
+   */
+  fromJSON(json: WorkflowJSON): void;
 }
 
 export const WorkflowOperationBaseService = Symbol('WorkflowOperationBaseService');

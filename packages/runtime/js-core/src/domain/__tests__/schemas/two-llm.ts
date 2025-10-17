@@ -23,14 +23,12 @@ export const twoLLMSchema: WorkflowSchema = {
           properties: {
             query: {
               type: 'string',
-              default: 'Hello Flow.',
               extra: {
                 index: 0,
               },
             },
             enable: {
               type: 'boolean',
-              default: true,
               extra: {
                 index: 1,
               },
@@ -85,10 +83,6 @@ export const twoLLMSchema: WorkflowSchema = {
           properties: {
             result: {
               type: 'string',
-              default: {
-                type: 'ref',
-                content: ['llm_BjEpK', 'result'],
-              },
             },
           },
         },

@@ -5,7 +5,7 @@
 
 import { useCallback, useImperativeHandle, useMemo, useState } from 'react';
 
-import { noop } from 'lodash';
+import { noop } from 'lodash-es';
 
 import { TypeSelectorRef, type CascaderOption, type SearchResultItem } from '../type';
 

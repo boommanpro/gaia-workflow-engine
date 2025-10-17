@@ -6,7 +6,7 @@
 import { useLayoutEffect } from 'react';
 
 import { nanoid } from 'nanoid';
-import { Field, FieldArray, I18n, WorkflowNodePortsData } from '@flowgram.ai/free-layout-editor';
+import { Field, FieldArray, I18n } from '@flowgram.ai/free-layout-editor';
 import { ConditionRow, ConditionRowValueType } from '@flowgram.ai/form-materials';
 import { Button } from '@douyinfe/semi-ui';
 import { IconPlus, IconCrossCircleStroked } from '@douyinfe/semi-icons';
@@ -27,7 +27,7 @@ export function ConditionInputs() {
 
   useLayoutEffect(() => {
     window.requestAnimationFrame(() => {
-      node.getData<WorkflowNodePortsData>(WorkflowNodePortsData).updateDynamicPorts();
+      node.ports.updateDynamicPorts();
     });
   }, [node]);
 
@@ -38,11 +38,11 @@ export function ConditionInputs() {
           {field.map((child, index) => (
             <Field<ConditionValue> key={child.name} name={child.name}>
               {({ field: childField, fieldState: childState }) => (
-                <FormItem name="if" type="boolean" required={true} labelWidth={40}>
+                <FormItem name="if" type="boolean" required={true} labelWidth={50}>
                   <div style={{ display: 'flex', alignItems: 'center' }}>
                     <ConditionRow
                       readonly={readonly}
-                      style={{ flexGrow: 1 }}
+                      style={{ flexGrow: 1, overflow: 'hidden' }}
                       value={childField.value.value}
                       onChange={(v) => childField.onChange({ value: v, key: childField.value.key })}
                     />
@@ -63,6 +63,9 @@ export function ConditionInputs() {
               )}
             </Field>
           ))}
+          <FormItem name="else" type="boolean" required={true} labelWidth={100}>
+            <ConditionPort data-port-id="else" data-port-type="output" />
+          </FormItem>
           {!readonly && (
             <div>
               <Button

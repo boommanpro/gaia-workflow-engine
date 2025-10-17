@@ -5,15 +5,17 @@
 
 import { definePluginCreator } from '@flowgram.ai/core';
 
+import { FreeStackPluginOptions } from './type';
 import { StackingContextManager } from './manager';
 
-export const createFreeStackPlugin = definePluginCreator({
+export const createFreeStackPlugin = definePluginCreator<FreeStackPluginOptions>({
+  singleton: true,
   onBind({ bind }) {
     bind(StackingContextManager).toSelf().inSingletonScope();
   },
-  onInit(ctx) {
+  onInit(ctx, options) {
     const stackingContextManager = ctx.get<StackingContextManager>(StackingContextManager);
-    stackingContextManager.init();
+    stackingContextManager.init(options);
   },
   onReady(ctx) {
     const stackingContextManager = ctx.get<StackingContextManager>(StackingContextManager);

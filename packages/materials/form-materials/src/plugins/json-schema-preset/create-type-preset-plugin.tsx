@@ -10,8 +10,10 @@ import {
 } from '@flowgram.ai/json-schema';
 import { definePluginCreator } from '@flowgram.ai/editor';
 
-import { jsonSchemaTypePreset } from './type-definition';
-import { JsonSchemaTypeRegistry } from './manager';
+import { JsonSchemaTypeRegistry } from './types';
+import { initRegistries, jsonSchemaTypePreset } from './type-definition';
+
+initRegistries();
 
 export const createTypePresetPlugin = definePluginCreator<{
   types?: Partial<JsonSchemaTypeRegistry> & Pick<JsonSchemaTypeRegistry, 'type'>[];

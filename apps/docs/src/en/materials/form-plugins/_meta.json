@@ -1,0 +1,5 @@
+[
+  "batch-outputs-plugin",
+  "infer-assign-plugin",
+  "infer-inputs-plugin"
+]

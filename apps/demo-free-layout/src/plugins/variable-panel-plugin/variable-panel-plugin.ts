@@ -3,8 +3,13 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { ASTFactory, definePluginCreator, GlobalScope } from '@flowgram.ai/free-layout-editor';
-import { JsonSchemaUtils } from '@flowgram.ai/form-materials';
+import {
+  ASTFactory,
+  definePluginCreator,
+  GlobalScope,
+  VariableDeclaration,
+} from '@flowgram.ai/free-layout-editor';
+import { IJsonSchema, JsonSchemaUtils } from '@flowgram.ai/form-materials';
 
 import iconVariable from '../../assets/icon-variable.png';
 import { VariablePanelLayer } from './variable-panel-layer';
@@ -19,22 +24,46 @@ const fetchMockVariableFromRemote = async () => {
   };
 };
 
-export const createVariablePanelPlugin = definePluginCreator({
-  onInit(ctx) {
+export type GetGlobalVariableSchema = () => IJsonSchema;
+export const GetGlobalVariableSchema = Symbol('GlobalVariableSchemaGetter');
+
+export const createVariablePanelPlugin = definePluginCreator<{ initialData?: IJsonSchema }>({
+  onBind({ bind }) {
+    bind(GetGlobalVariableSchema).toDynamicValue((ctx) => () => {
+      const variable = ctx.container.get(GlobalScope).getVar() as VariableDeclaration;
+      return JsonSchemaUtils.astToSchema(variable?.type);
+    });
+  },
+  onInit(ctx, opts) {
     ctx.playground.registerLayer(VariablePanelLayer);
 
-    // Fetch Global Variable
-    fetchMockVariableFromRemote().then((v) => {
-      ctx.get(GlobalScope).setVar(
+    const globalScope = ctx.get(GlobalScope);
+
+    if (opts.initialData) {
+      globalScope.setVar(
         ASTFactory.createVariableDeclaration({
           key: 'global',
           meta: {
             title: 'Global',
             icon: iconVariable,
           },
-          type: JsonSchemaUtils.schemaToAST(v),
+          type: JsonSchemaUtils.schemaToAST(opts.initialData),
         })
       );
-    });
+    } else {
+      // You can also fetch global variable from remote
+      fetchMockVariableFromRemote().then((v) => {
+        globalScope.setVar(
+          ASTFactory.createVariableDeclaration({
+            key: 'global',
+            meta: {
+              title: 'Global',
+              icon: iconVariable,
+            },
+            type: JsonSchemaUtils.schemaToAST(v),
+          })
+        );
+      });
+    }
   },
 });

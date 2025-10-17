@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { isEmpty } from 'lodash';
+import { isEmpty } from 'lodash-es';
 import {
   DataEvent,
   Effect,

@@ -5,8 +5,8 @@
 
 import { useLayoutEffect } from 'react';
 
-import { useInjector } from '@coze-editor/editor/react';
-import { astDecorator } from '@coze-editor/editor';
+import { useInjector } from '@flowgram.ai/coze-editor/react';
+import { astDecorator } from '@flowgram.ai/coze-editor';
 import { EditorView } from '@codemirror/view';
 
 function JinjaHighlight() {

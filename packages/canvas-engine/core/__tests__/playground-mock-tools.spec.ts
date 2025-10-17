@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
+import { describe, it, expect } from 'vitest';
 import { ContainerModule } from 'inversify';
 
 import { EntityManager, PlaygroundLayer, PlaygroundMockTools, Playground, Layer } from '../src';
@@ -14,7 +15,7 @@ describe('playground-mock-tools', () => {
     const container = createContainer();
     expect(container.get(EntityManager)).toBeInstanceOf(EntityManager);
     const container2 = createContainer([
-      new ContainerModule(bind => {
+      new ContainerModule((bind) => {
         bind('abc').toConstantValue('abc');
       }),
     ]);
@@ -85,12 +86,8 @@ describe('playground-mock-tools', () => {
     layer.playground.resize({
       width: 100,
       height: 100,
-      clientX: 0,
-      clientY: 0,
     });
-    expect(layer.onResize.mock.calls).toEqual([
-      [{ clientX: 0, clientY: 0, width: 100, height: 100 }],
-    ]);
+    expect(layer.onResize.mock.calls).toEqual([[{ width: 100, height: 100 }]]);
     expect(layer.onViewportChange.mock.calls.length).toEqual(3);
     layer.playground.config.readonly = true;
     layer.playground.config.disabled = true;
@@ -103,29 +100,15 @@ describe('playground-mock-tools', () => {
     const layerState = createLayerTestState(PlaygroundLayer);
     expect(layerState.onReady.mock.calls.length).toEqual(1);
     expect(layerState.autorun.mock.calls.length).toEqual(1);
-    expect(layerState.onResize.mock.calls.length).toEqual(0);
-    expect(layerState.onResize.mock.lastCall).toEqual(undefined);
     layerState.playground.config.updateConfig({
       scrollX: 100,
     });
-    expect(layerState.onResize.mock.calls.length).toEqual(0);
     expect(layerState.onReady.mock.calls.length).toEqual(1);
     expect(layerState.autorun.mock.calls.length).toEqual(2);
     layerState.playground.resize({
       width: 100,
       height: 100,
-      clientX: 0,
-      clientY: 0,
     });
-    expect(layerState.onResize.mock.calls.length).toEqual(1);
     expect(layerState.autorun.mock.calls.length).toEqual(3);
-    expect(layerState.onResize.mock.lastCall).toEqual([
-      {
-        clientX: 0,
-        clientY: 0,
-        width: 100,
-        height: 100,
-      },
-    ]);
   });
 });

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { mean } from 'lodash';
+import { mean } from 'lodash-es';
 import {
   FlowNodeRegistry,
   FlowNodeBaseType,

@@ -3,8 +3,9 @@
  * SPDX-License-Identifier: MIT
  */
 
+import { type Xor } from '@flowgram.ai/utils';
 import { FlowDragLayer } from '@flowgram.ai/renderer';
-import { FlowNodeEntity } from '@flowgram.ai/document';
+import { FlowNodeEntity, FlowNodeJSON } from '@flowgram.ai/document';
 import { definePluginCreator, PluginContext } from '@flowgram.ai/core';
 
 // import { SelectorBounds } from './selector-bounds';
@@ -22,7 +23,17 @@ export interface FixDragPluginOptions<CTX extends PluginContext = PluginContext>
    */
   canDrop?: (
     ctx: CTX,
-    dropData: { dragNodes: FlowNodeEntity[]; dropNode: FlowNodeEntity; isBranch?: boolean }
+    dropData: {
+      dropNode: FlowNodeEntity;
+      isBranch?: boolean;
+    } & Xor<
+      {
+        dragNodes: FlowNodeEntity[];
+      },
+      {
+        dragJSON: FlowNodeJSON;
+      }
+    >
   ) => boolean;
 }
 

@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, test } from 'vitest';
-import { isEqual } from 'lodash';
+import { isEqual } from 'lodash-es';
 import { Container, injectable } from 'inversify';
 import { Emitter } from '@flowgram.ai/utils';
 
@@ -24,7 +24,7 @@ interface PyExpressionJSON {
   uri: string;
 }
 
-const delay = (timeout: number) => new Promise(resolve => setTimeout(resolve, timeout));
+const delay = (timeout: number) => new Promise((resolve) => setTimeout(resolve, timeout));
 
 describe('Case Run Down: Python Expression In Blockwise', () => {
   @injectable()
@@ -67,7 +67,7 @@ describe('Case Run Down: Python Expression In Blockwise', () => {
     // Blockwise 中 表达式通过 uri 来进行索引定位
     fromJSON(json: PyExpressionJSON): void {
       if (json.uri !== this._uri || json.content !== this._content) {
-        this.service.infer(json).then(res => {
+        this.service.infer(json).then((res) => {
           this._prevType = res;
           this.updateChildNodeByKey('returnType', res);
         });
@@ -88,7 +88,7 @@ describe('Case Run Down: Python Expression In Blockwise', () => {
             this.updateChildNodeByKey('returnType', nextType);
             this._prevType = nextType;
           }
-        }),
+        })
       );
     }
   }
@@ -98,7 +98,7 @@ describe('Case Run Down: Python Expression In Blockwise', () => {
     ...json,
   });
 
-  const container: Container = getContainer(bind => {
+  const container: Container = getContainer((bind) => {
     bind(PythonService).toSelf().inSingletonScope();
   });
 
@@ -119,7 +119,7 @@ describe('Case Run Down: Python Expression In Blockwise', () => {
           uri: 'blockwise://expression/a',
           content: 'a + b',
         }),
-      }),
+      })
     );
 
     await delay(0);
@@ -149,7 +149,7 @@ describe('Case Run Down: Python Expression In Blockwise', () => {
           uri: 'blockwise://expression/b',
           content: 'a + b',
         }),
-      }),
+      })
     );
     await delay(0);
     expect(variable2.type?.kind).toEqual('Number');

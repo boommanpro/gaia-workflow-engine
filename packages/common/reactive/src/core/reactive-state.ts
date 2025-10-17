@@ -13,7 +13,7 @@ import { createProxy } from '../utils/create-proxy';
 export class ReactiveState<V extends Record<string, any>> extends ReactiveBaseState<V> {
   private _keyDeps: Map<string, Dependency> = new Map();
 
-  set(key: keyof V & string, value: any): boolean {
+  set<K extends keyof V & string>(key: K, value: V[K]): boolean {
     this._ensureKey(key);
     const oldValue = this._value[key];
     if (!this._isEqual(oldValue, value)) {
@@ -24,7 +24,7 @@ export class ReactiveState<V extends Record<string, any>> extends ReactiveBaseSt
     return false;
   }
 
-  get(key: keyof V & string) {
+  get<K extends keyof V & string>(key: K): V[K] {
     this._ensureKey(key);
     this._addDepend(this._keyDeps.get(key)!);
     return this._value[key];

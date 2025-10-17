@@ -16,6 +16,7 @@ import {
   WorkflowVariableType,
   IFlowTemplateValue,
   IJsonSchema,
+  WorkflowSchema,
 } from '@flowgram.ai/runtime-interface';
 
 import { uuid, WorkflowRuntimeType } from '@infra/utils';
@@ -29,7 +30,8 @@ export class WorkflowRuntimeState implements IState {
     this.id = uuid();
   }
 
-  public init(): void {
+  public init(schema?: WorkflowSchema): void {
+    this.setGlobalVariable(schema?.globalVariable);
     this.executedNodes = new Set();
   }
 
@@ -48,18 +50,18 @@ export class WorkflowRuntimeState implements IState {
 
   public setNodeOutputs(params: { node: INode; outputs: WorkflowOutputs }): void {
     const { node, outputs } = params;
-    const outputsDeclare = node.declare.outputs;
-    // TODO validation service type check, deeply compare input & schema
-    if (!outputsDeclare) {
+    const outputsDeclare = node.declare.outputs as IJsonSchema<'object'>;
+    if (outputsDeclare?.type !== 'object' || !outputsDeclare.properties) {
       return;
     }
-    Object.entries(outputs).forEach(([key, value]) => {
-      const typeInfo = outputsDeclare.properties?.[key];
-      if (!typeInfo) {
+    Object.entries(outputsDeclare.properties).forEach(([key, typeInfo]) => {
+      if (!key || !typeInfo) {
         return;
       }
       const type = typeInfo.type as WorkflowVariableType;
       const itemsType = typeInfo.items?.type as WorkflowVariableType;
+      const defaultValue = this.parseJSONContent(typeInfo.default, type);
+      const value = outputs[key] ?? defaultValue;
       // create variable
       this.variableStore.setVariable({
         nodeID: node.id,
@@ -79,19 +81,19 @@ export class WorkflowRuntimeState implements IState {
     if (!declare || !values) {
       return {};
     }
-    return Object.entries(values).reduce((prev, [key, inputValue]) => {
+    return Object.entries(values).reduce((prev, [key, flowValue]) => {
       const typeInfo = declare.properties?.[key];
       if (!typeInfo) {
         return prev;
       }
-      const expectType = typeInfo.type as WorkflowVariableType;
+      const declareType = typeInfo.type as WorkflowVariableType;
       // get value
-      const result = this.parseValue(inputValue);
+      const result = this.parseFlowValue({ flowValue, declareType });
       if (!result) {
         return prev;
       }
       const { value, type } = result;
-      if (!WorkflowRuntimeType.isTypeEqual(type, expectType)) {
+      if (!WorkflowRuntimeType.isTypeEqual(type, declareType)) {
         return prev;
       }
       prev[key] = value;
@@ -149,14 +151,18 @@ export class WorkflowRuntimeState implements IState {
     };
   }
 
-  public parseValue<T = unknown>(flowValue: IFlowValue): IVariableParseResult<T> | null {
+  public parseFlowValue<T = unknown>(params: {
+    flowValue: IFlowValue;
+    declareType: WorkflowVariableType;
+  }): IVariableParseResult<T> | null {
+    const { flowValue, declareType } = params;
     if (!flowValue?.type) {
       throw new Error(`Invalid flow value type: ${(flowValue as any).type}`);
     }
     // constant
     if (flowValue.type === 'constant') {
-      const value = flowValue.content as T;
-      const type = WorkflowRuntimeType.getWorkflowType(value);
+      const value = this.parseJSONContent<T>(flowValue.content, declareType);
+      const type = declareType ?? WorkflowRuntimeType.getWorkflowType(value);
       if (isNil(value) || !type) {
         return null;
       }
@@ -183,5 +189,46 @@ export class WorkflowRuntimeState implements IState {
 
   public addExecutedNode(node: INode): void {
     this.executedNodes.add(node.id);
+  }
+
+  private parseJSONContent<T = unknown>(
+    jsonContent: string | unknown,
+    declareType: WorkflowVariableType
+  ): T {
+    const JSONTypes = [
+      WorkflowVariableType.Object,
+      WorkflowVariableType.Array,
+      WorkflowVariableType.Map,
+    ];
+    if (declareType && JSONTypes.includes(declareType) && typeof jsonContent === 'string') {
+      try {
+        return JSON.parse(jsonContent) as T;
+      } catch (e) {
+        return jsonContent as T;
+      }
+    }
+    return jsonContent as T;
+  }
+
+  private setGlobalVariable(globalVariableDeclare: IJsonSchema | undefined): void {
+    if (globalVariableDeclare?.type !== 'object' || !globalVariableDeclare.properties) {
+      return;
+    }
+    Object.entries(globalVariableDeclare.properties).forEach(([key, typeInfo]) => {
+      if (!key || !typeInfo) {
+        return;
+      }
+      const type = typeInfo.type as WorkflowVariableType;
+      const itemsType = typeInfo.items?.type as WorkflowVariableType;
+      const defaultValue = this.parseJSONContent(typeInfo.default, type);
+      // create variable
+      this.variableStore.setVariable({
+        nodeID: 'global',
+        key,
+        value: defaultValue,
+        type,
+        itemsType,
+      });
+    });
   }
 }

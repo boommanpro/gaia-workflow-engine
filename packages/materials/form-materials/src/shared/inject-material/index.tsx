@@ -11,6 +11,8 @@ import {
   usePlaygroundContainer,
 } from '@flowgram.ai/editor';
 
+type WithRenderKey<T> = T & { renderKey?: string };
+
 /**
  * Creates a material component wrapper with dependency injection support
  *
@@ -48,12 +50,15 @@ import {
  * @returns Wrapper component with dependency injection support
  */
 export function createInjectMaterial<Props>(
-  Component: React.FC<Props> & { renderKey?: string },
+  Component: WithRenderKey<React.FC<Props> | React.ExoticComponent<Props>>,
   params?: {
     renderKey?: string;
   }
-): React.FC<Props> {
-  const InjectComponent: React.FC<Props> = (props) => {
+): WithRenderKey<React.FC<Props>> {
+  // Determine render key: prioritize param specified, then component renderKey, finally component name
+  const renderKey = params?.renderKey || Component.renderKey || Component.name || '';
+
+  const InjectComponent: WithRenderKey<React.FC<Props>> = (props) => {
     const container = usePlaygroundContainer();
 
     // Check if renderer registry is bound in container
@@ -64,9 +69,6 @@ export function createInjectMaterial<Props>(
 
     // Get renderer registry instance
     const rendererRegistry = container.get(FlowRendererRegistry);
-
-    // Determine render key: prioritize param specified, then component renderKey, finally component name
-    const renderKey = params?.renderKey || Component.renderKey || Component.name || '';
 
     // Get corresponding renderer from registry
     const renderer = rendererRegistry.tryToGetRendererComponent(renderKey);
@@ -82,6 +84,8 @@ export function createInjectMaterial<Props>(
       ...props,
     });
   };
+
+  InjectComponent.renderKey = renderKey;
 
   return InjectComponent;
 }

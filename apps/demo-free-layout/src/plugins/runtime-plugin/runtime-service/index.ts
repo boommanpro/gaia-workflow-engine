@@ -17,12 +17,11 @@ import {
   Playground,
   WorkflowLineEntity,
   WorkflowNodeEntity,
-  WorkflowNodeLinesData,
   Emitter,
-  getNodeForm,
 } from '@flowgram.ai/free-layout-editor';
 
 import { WorkflowRuntimeClient } from '../client';
+import { GetGlobalVariableSchema } from '../../variable-panel-plugin';
 import { WorkflowNodeType } from '../../../nodes';
 
 const SYNC_TASK_REPORT_INTERVAL = 500;
@@ -40,6 +39,8 @@ export class WorkflowRuntimeService {
   @inject(WorkflowDocument) document: WorkflowDocument;
 
   @inject(WorkflowRuntimeClient) runtimeClient: WorkflowRuntimeClient;
+
+  @inject(GetGlobalVariableSchema) getGlobalVariableSchema: GetGlobalVariableSchema;
 
   private runningNodes: WorkflowNodeEntity[] = [];
 
@@ -68,9 +69,7 @@ export class WorkflowRuntimeService {
   public onResultChanged = this.resultEmitter.event;
 
   public isFlowingLine(line: WorkflowLineEntity) {
-    return this.runningNodes.some((node) =>
-      node.getData(WorkflowNodeLinesData).inputLines.includes(line)
-    );
+    return this.runningNodes.some((node) => node.lines.inputLines.includes(line));
   }
 
   public async taskRun(inputs: WorkflowInputs): Promise<string | undefined> {
@@ -84,7 +83,11 @@ export class WorkflowRuntimeService {
       });
       return;
     }
-    const schema = this.document.toJSON();
+    const schema = {
+      ...this.document.toJSON(),
+      globalVariable: this.getGlobalVariableSchema(),
+    };
+
     const validateResult = await this.runtimeClient.TaskValidate({
       schema: JSON.stringify(schema),
       inputs,
@@ -132,7 +135,7 @@ export class WorkflowRuntimeService {
   }
 
   private async validateForm(): Promise<boolean> {
-    const allForms = this.document.getAllNodes().map((node) => getNodeForm(node));
+    const allForms = this.document.getAllNodes().map((node) => node.form);
     const formValidations = await Promise.all(allForms.map(async (form) => form?.validate()));
     const validations = formValidations.filter((validation) => validation !== undefined);
     const isValid = validations.every((validation) => validation);

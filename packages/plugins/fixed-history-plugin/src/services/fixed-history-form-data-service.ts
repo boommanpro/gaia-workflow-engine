@@ -3,11 +3,11 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 import { inject, injectable } from 'inversify';
+import { Disposable, Emitter } from '@flowgram.ai/utils';
 import { FlowNodeFormData, FormModel } from '@flowgram.ai/form-core';
 import { FlowDocument } from '@flowgram.ai/document';
-import { Disposable, Emitter } from '@flowgram.ai/utils';
 
 @injectable()
 export class FixedHistoryFormDataService implements Disposable {
@@ -24,7 +24,7 @@ export class FixedHistoryFormDataService implements Disposable {
   onFormValueChangeByHistory = this._formValueChangeByHistoryEmitter.event;
 
   resetCache(flowNodeFormData: FlowNodeFormData, value: any) {
-    Object.keys(value).forEach(key => {
+    Object.keys(value).forEach((key) => {
       this.setCache(flowNodeFormData, key, value[key]);
     });
   }

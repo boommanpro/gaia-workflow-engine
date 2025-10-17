@@ -7,14 +7,16 @@ import React from 'react';
 
 import styled from 'styled-components';
 
-import { CodeEditor, CodeEditorPropsType } from '@/components/code-editor';
+import { CodeEditor, type CodeEditorPropsType } from '@/components/code-editor';
 
 const UIMini = styled.div`
   .ͼ1 .cm-content {
-    padding: 0;
   }
 `;
 
+/**
+ * @deprecated use mini in CodeEditorPropsType instead
+ */
 export function CodeEditorMini(props: CodeEditorPropsType) {
   return (
     <UIMini>
@@ -23,6 +25,7 @@ export function CodeEditorMini(props: CodeEditorPropsType) {
         options={{
           lineNumbersGutter: false,
           foldGutter: false,
+          minHeight: 24,
           ...(props.options || {}),
         }}
       />

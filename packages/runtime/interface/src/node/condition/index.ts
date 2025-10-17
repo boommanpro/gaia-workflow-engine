@@ -6,15 +6,15 @@
 import { IFlowConstantRefValue, IFlowRefValue } from '@schema/value';
 import { WorkflowNodeSchema } from '@schema/node';
 import { FlowGramNode } from '@node/constant';
-import { ConditionOperation } from './constant';
+import { ConditionOperator } from './constant';
 
-export { ConditionOperation };
+export { ConditionOperator };
 
 export interface ConditionItem {
   key: string;
   value: {
     left: IFlowRefValue;
-    operator: ConditionOperation;
+    operator: ConditionOperator;
     right: IFlowConstantRefValue;
   };
 }

@@ -3,22 +3,29 @@
  * SPDX-License-Identifier: MIT
  */
 
-import type { FlowNodeEntity } from '@flowgram.ai/fixed-layout-editor';
+import type { FlowNodeEntity, FlowNodeJSON, Xor } from '@flowgram.ai/fixed-layout-editor';
 
 import { FlowNodeRegistries } from '../../nodes';
 import { Icon } from '../../form-components/form-header/styles';
 import { UIDragNodeContainer, UIDragCounts } from './styles';
 
-export interface PropsType {
-  dragStart: FlowNodeEntity;
+export type PropsType = Xor<
+  {
+    dragStart: FlowNodeEntity;
+  },
+  {
+    dragJSON: FlowNodeJSON;
+  }
+> & {
   dragNodes: FlowNodeEntity[];
-}
+};
 
 export function DragNode(props: PropsType): JSX.Element {
-  const { dragStart, dragNodes } = props;
+  const { dragStart, dragNodes, dragJSON } = props;
 
-  const icon = FlowNodeRegistries.find((registry) => registry.type === dragStart?.flowNodeType)
-    ?.info?.icon;
+  const icon = FlowNodeRegistries.find(
+    (registry) => registry.type === dragStart?.flowNodeType || dragJSON?.type
+  )?.info?.icon;
 
   const dragLength = (dragNodes || [])
     .map((_node) =>
@@ -31,7 +38,7 @@ export function DragNode(props: PropsType): JSX.Element {
   return (
     <UIDragNodeContainer>
       <Icon src={icon} />
-      {dragStart?.id}
+      {dragStart?.id || dragJSON?.id}
       {dragLength > 1 && (
         <>
           <UIDragCounts>{dragLength}</UIDragCounts>

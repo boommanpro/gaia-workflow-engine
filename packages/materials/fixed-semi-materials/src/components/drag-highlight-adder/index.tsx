@@ -5,7 +5,7 @@
 
 import React from 'react';
 
-import { min } from 'lodash';
+import { min } from 'lodash-es';
 import { type FlowNodeEntity, FlowNodeTransformData } from '@flowgram.ai/fixed-layout-editor';
 
 import { Ellipse } from '../../assets';

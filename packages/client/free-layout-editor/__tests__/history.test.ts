@@ -6,7 +6,6 @@
 import { describe, it, expect } from 'vitest';
 import { WorkflowDocument } from '@flowgram.ai/free-layout-core';
 import { HistoryService } from '@flowgram.ai/free-history-plugin';
-import { getNodeForm } from '@flowgram.ai/editor';
 
 import { mockJSON } from '../__mocks__/flow.mocks';
 import { createEditor } from './create-editor';
@@ -103,7 +102,7 @@ describe('free-layout history', () => {
     const flowDocument = editor.get(WorkflowDocument);
     flowDocument.fromJSON(mockJSON);
     const node = flowDocument.getNode('start_0');
-    const form = getNodeForm(node);
+    const form = node.form;
     form.setValueIn('title', 'title changed');
     expect(historyEvent).toEqual({
       type: 'changeFormValues',

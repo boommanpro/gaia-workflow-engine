@@ -10,7 +10,6 @@ export * from './use-listen-events';
 export * from './use-playground';
 export * from './use-playground-container';
 export * from './use-playground-context';
-export * from './use-playground-latest';
 export * from './use-service';
 export * from './use-refresh';
 export * from './use-config-entity';

@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { debounce } from 'lodash';
-import { ConfigEntity, type EntityOpts } from '@flowgram.ai/core';
+import { debounce } from 'lodash-es';
 import { type Disposable } from '@flowgram.ai/utils';
+import { ConfigEntity, type EntityOpts } from '@flowgram.ai/core';
 
 import { LABEL_SIDE_TYPE } from '../typings';
 import { type FlowNodeEntity } from './flow-node-entity';
@@ -19,6 +19,8 @@ interface FlowRendererState {
   nodeDragIds?: string[]; // 框选批量拖拽
   nodeDragIdsWithChildren?: string[]; // 批量拖拽（含子节点）
   dragLabelSide?: LABEL_SIDE_TYPE;
+  dragging?: boolean;
+  isBranch?: boolean;
 }
 /**
  * 渲染相关的全局状态管理
@@ -46,6 +48,26 @@ export class FlowRendererStateEntity extends ConfigEntity<
   setNodeHovered(node: FlowNodeEntity | undefined): void {
     this.updateConfig({
       nodeHoveredId: node?.id,
+    });
+  }
+
+  get dragging() {
+    return this.config.dragging;
+  }
+
+  setDragging(dragging: boolean) {
+    this.updateConfig({
+      dragging,
+    });
+  }
+
+  get isBranch() {
+    return this.config.isBranch;
+  }
+
+  setIsBranch(isBranch: boolean) {
+    this.updateConfig({
+      isBranch,
     });
   }
 
@@ -83,22 +105,22 @@ export class FlowRendererStateEntity extends ConfigEntity<
   // 拖拽多个节点时
   getDragEntities(): FlowNodeEntity[] {
     const { nodeDragIds } = this.config;
-    return (nodeDragIds || []).map(_id => this.entityManager.getEntityById(_id)!);
+    return (nodeDragIds || []).map((_id) => this.entityManager.getEntityById(_id)!);
   }
 
   // 设置拖拽的节点
   setDragEntities(nodes: FlowNodeEntity[]): void {
     this.updateConfig({
-      nodeDragIds: nodes.map(_node => _node.id),
+      nodeDragIds: nodes.map((_node) => _node.id),
       nodeDragIdsWithChildren: nodes
-        .map(_node => [_node.id, ..._node.allCollapsedChildren.map(_n => _n.id)])
+        .map((_node) => [_node.id, ..._node.allCollapsedChildren.map((_n) => _n.id)])
         .flat(),
     });
   }
 
   onNodeHoveredChange(
     fn: (hoveredNode: FlowNodeEntity | undefined) => void,
-    debounceTime = 100, // 延迟执行避免频繁 hover
+    debounceTime = 100 // 延迟执行避免频繁 hover
   ): Disposable {
     return this.onConfigChanged(debounce(() => fn(this.getNodeHovered()), debounceTime));
   }

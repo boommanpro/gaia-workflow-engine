@@ -3,16 +3,17 @@
  * SPDX-License-Identifier: MIT
  */
 
-import React, { useState, useContext } from 'react';
+import React, { useState } from 'react';
 
+import { usePanelManager } from '@flowgram.ai/panel-manager-plugin';
 import { WorkflowPortRender } from '@flowgram.ai/free-layout-editor';
 import { useClientContext } from '@flowgram.ai/free-layout-editor';
 
 import { FlowNodeMeta } from '../../typings';
 import { useNodeRenderContext, usePortClick } from '../../hooks';
-import { SidebarContext } from '../../context';
 import { scrollToView } from './utils';
 import { NodeWrapperStyle } from './styles';
+import { nodeFormPanelFactory } from '../sidebar';
 
 export interface NodeWrapperProps {
   isScrollToView?: boolean;
@@ -29,11 +30,12 @@ export const NodeWrapper: React.FC<NodeWrapperProps> = (props) => {
   const { node, selected, startDrag, ports, selectNode, nodeRef, onFocus, onBlur, readonly } =
     nodeRender;
   const [isDragging, setIsDragging] = useState(false);
-  const sidebar = useContext(SidebarContext);
   const form = nodeRender.form;
   const ctx = useClientContext();
   const onPortClick = usePortClick();
   const meta = node.getNodeMeta<FlowNodeMeta>();
+
+  const panelManager = usePanelManager();
 
   const portsRender = ports.map((p) => (
     <WorkflowPortRender key={p.id} entity={p} onClick={!readonly ? onPortClick : undefined} />
@@ -56,7 +58,11 @@ export const NodeWrapper: React.FC<NodeWrapperProps> = (props) => {
         onClick={(e) => {
           selectNode(e);
           if (!isDragging) {
-            sidebar.setNodeId(nodeRender.node.id);
+            panelManager.open(nodeFormPanelFactory.key, 'right', {
+              props: {
+                nodeId: nodeRender.node.id,
+              },
+            });
             // 可选：将 isScrollToView 设为 true，可以让节点选中后滚动到画布中间
             // Optional: Set isScrollToView to true to scroll the node to the center of the canvas after it is selected.
             if (isScrollToView) {

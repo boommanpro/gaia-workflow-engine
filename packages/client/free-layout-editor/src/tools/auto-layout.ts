@@ -6,19 +6,18 @@
 import { injectable, inject, optional } from 'inversify';
 import { PositionSchema } from '@flowgram.ai/utils';
 import { HistoryService } from '@flowgram.ai/history';
-import { fitView, WorkflowDocument, WorkflowNodeEntity } from '@flowgram.ai/free-layout-core';
+import { WorkflowDocument, WorkflowNodeEntity } from '@flowgram.ai/free-layout-core';
 import { FreeOperationType } from '@flowgram.ai/free-history-plugin';
 import { AutoLayoutService, LayoutOptions } from '@flowgram.ai/free-auto-layout-plugin';
 import { Playground, TransformData } from '@flowgram.ai/editor';
 
 export type AutoLayoutResetFn = () => void;
 
-export type AutoLayoutToolOptions = LayoutOptions & {
-  disableFitView?: boolean;
-};
+export type AutoLayoutToolOptions = LayoutOptions;
 
 /**
  * Auto layout tool - 自动布局工具
+ * https://flowgram.ai/guide/plugin/free-auto-layout-plugin.html
  */
 @injectable()
 export class WorkflowAutoLayoutTool {
@@ -32,13 +31,10 @@ export class WorkflowAutoLayoutTool {
   @inject(HistoryService) @optional() private historyService: HistoryService;
 
   public async handle(options: AutoLayoutToolOptions = {}): Promise<AutoLayoutResetFn> {
-    const { disableFitView = false, ...layoutOptions } = options;
     if (this.playground.config.readonly) {
       return () => {};
     }
-    this.fitView(disableFitView);
-    const resetFn = await this.autoLayout(layoutOptions);
-    this.fitView(disableFitView);
+    const resetFn = await this.autoLayout(options);
     return resetFn;
   }
 
@@ -56,13 +52,6 @@ export class WorkflowAutoLayoutTool {
       nodes,
       startPositions,
     });
-  }
-
-  private fitView(disable = false): void {
-    if (disable) {
-      return;
-    }
-    fitView(this.document, this.playground.config);
   }
 
   private getNodePosition(node: WorkflowNodeEntity): PositionSchema {

@@ -62,12 +62,12 @@ describe('flow-drag-entity', () => {
   it('flow drag scroll', () => {
     const el = global.document.createElement('div');
     // 页面不滚动
-    expect(flowDragEntity.scrollDirection(NOT_SCROLL_EVENT, el, 0, 0)).toMatchSnapshot();
+    expect(flowDragEntity.scrollDirection(NOT_SCROLL_EVENT, 0, 0)).toMatchSnapshot();
     // 页面滚动
-    expect(flowDragEntity.scrollDirection(SCROLL_TOP_EVENT, el, 0, 0)).toMatchSnapshot();
-    expect(flowDragEntity.scrollDirection(SCROLL_LEFT_EVENT, el, 0, 0)).toMatchSnapshot();
-    expect(flowDragEntity.scrollDirection(SCROLL_RIGHT_EVENT, el, 0, 0)).toMatchSnapshot();
-    expect(flowDragEntity.scrollDirection(SCROLL_BOTTOM_EVENT, el, 0, 0)).toMatchSnapshot();
+    expect(flowDragEntity.scrollDirection(SCROLL_TOP_EVENT, 0, 0)).toMatchSnapshot();
+    expect(flowDragEntity.scrollDirection(SCROLL_LEFT_EVENT, 0, 0)).toMatchSnapshot();
+    expect(flowDragEntity.scrollDirection(SCROLL_RIGHT_EVENT, 0, 0)).toMatchSnapshot();
+    expect(flowDragEntity.scrollDirection(SCROLL_BOTTOM_EVENT, 0, 0)).toMatchSnapshot();
     // 停止滚动
     flowDragEntity.stopAllScroll();
     expect(flowDragEntity.hasScroll).toEqual(false);

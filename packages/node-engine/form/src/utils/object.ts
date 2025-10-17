@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { clone, toPath } from 'lodash';
+import { clone, toPath } from 'lodash-es';
 
 /**
  * These functions are copied from Formik.

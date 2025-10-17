@@ -4,7 +4,7 @@
  */
 
 import { vi, describe, test, beforeEach, expect } from 'vitest';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 
 import { ASTNode, ASTNodeFlags, VariableEngine, VariableFieldKeyRenameService } from '../../src';
 import { simpleVariableList } from '../../__mocks__/variables';
@@ -44,14 +44,14 @@ describe('test Listen Variable Key Rename', () => {
   let renameInfo: { before: string[]; after: string[] } | null = null;
   let disposeList: string[][] = [];
 
-  renameService.onRename(_rename => {
+  renameService.onRename((_rename) => {
     renameInfo = {
       before: getFieldKeys(_rename.before),
       after: getFieldKeys(_rename.after),
     };
   });
 
-  renameService.onDisposeInList(_field => {
+  renameService.onDisposeInList((_field) => {
     disposeList.push(getFieldKeys(_field));
   });
 
@@ -70,7 +70,7 @@ describe('test Listen Variable Key Rename', () => {
   test.each([
     // 更改一个字段
     [
-      produceNextJSON(json => {
+      produceNextJSON((json) => {
         json.declarations[0].key = 'string1111';
       }),
       ['string'],
@@ -79,7 +79,7 @@ describe('test Listen Variable Key Rename', () => {
     ],
     // 更改一个下钻字段
     [
-      produceNextJSON(json => {
+      produceNextJSON((json) => {
         json.declarations[4].type.properties[0].key = 'changedKey';
       }),
       ['object', 'key1'],
@@ -88,7 +88,7 @@ describe('test Listen Variable Key Rename', () => {
     ],
     // 更改字段和他的类型
     [
-      produceNextJSON(json => {
+      produceNextJSON((json) => {
         json.declarations[0].key = 'string1111';
         json.declarations[0].type = 'Number';
       }),
@@ -98,7 +98,7 @@ describe('test Listen Variable Key Rename', () => {
     ],
     // 更改多个下钻字段
     [
-      produceNextJSON(json => {
+      produceNextJSON((json) => {
         json.declarations[4].type.properties[0].key = 'changedKey';
         json.declarations[4].type.properties[1].key = 'changedKey222';
       }),
@@ -111,7 +111,7 @@ describe('test Listen Variable Key Rename', () => {
     ],
     // 更改多个字段
     [
-      produceNextJSON(json => {
+      produceNextJSON((json) => {
         json.declarations[0].key = 'string1111';
         json.declarations[1].key = 'boolean1111';
       }),
@@ -121,7 +121,7 @@ describe('test Listen Variable Key Rename', () => {
     ],
     // 删除变量
     [
-      produceNextJSON(json => {
+      produceNextJSON((json) => {
         json.declarations = json.declarations.slice(1);
       }),
       null,
@@ -130,7 +130,7 @@ describe('test Listen Variable Key Rename', () => {
     ],
     // 添加变量
     [
-      produceNextJSON(json => {
+      produceNextJSON((json) => {
         json.declarations.push({ kind: 'String', key: 'newKey' });
       }),
       null,

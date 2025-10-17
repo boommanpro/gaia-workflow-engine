@@ -72,8 +72,5 @@ module.exports = {
     'no-shadow': 'off',
     'class-methods-use-this': 'off',
     'default-param-last': 'off',
-    'no-unused-vars': 'off',
-    'import/prefer-default-export': 'off',
-    'import/extensions': 'off',
   },
 }

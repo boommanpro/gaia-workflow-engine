@@ -353,8 +353,11 @@ export class FlowNodeEntity extends Entity<FlowNodeEntityConfig> {
    * 修改节点扩展信息
    * @param info
    */
-  updateExtInfo<T extends Record<string, any> = Record<string, any>>(extInfo: T): void {
-    this.getData(FlowNodeRenderData).updateExtInfo(extInfo);
+  updateExtInfo<T extends Record<string, any> = Record<string, any>>(
+    extInfo: T,
+    fullUpdate?: boolean
+  ): void {
+    this.getData(FlowNodeRenderData).updateExtInfo(extInfo, fullUpdate);
   }
 
   /**

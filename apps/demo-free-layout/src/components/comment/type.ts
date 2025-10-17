@@ -22,8 +22,14 @@ interface CommentEditorBlurEvent {
   type: CommentEditorEvent.Blur;
 }
 
+interface CommentEditorInitEvent {
+  type: CommentEditorEvent.Init;
+  value: string;
+}
+
 export type CommentEditorEventParams =
   | CommentEditorChangeEvent
   | CommentEditorMultiSelectEvent
   | CommentEditorSelectEvent
-  | CommentEditorBlurEvent;
+  | CommentEditorBlurEvent
+  | CommentEditorInitEvent;

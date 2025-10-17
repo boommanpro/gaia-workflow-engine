@@ -8,6 +8,10 @@ import { definePluginCreator } from '@flowgram.ai/core';
 import { AutoLayoutOptions } from './type';
 import { AutoLayoutService } from './services';
 
+/**
+ * Auto layout plugin - 自动布局插件
+ * https://flowgram.ai/guide/plugin/free-auto-layout-plugin.html
+ */
 export const createFreeAutoLayoutPlugin = definePluginCreator<AutoLayoutOptions>({
   onBind: ({ bind }) => {
     bind(AutoLayoutService).toSelf().inSingletonScope();

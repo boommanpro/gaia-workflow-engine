@@ -99,6 +99,26 @@ export function useEditorProps(
         },
       },
       /**
+       * Drag/Drop config
+       */
+      dragdrop: {
+        /**
+         * Callback when drag drop
+         */
+        onDrop: (ctx, dropData) => {
+          // console.log(
+          //   '>>> onDrop: ',
+          //   dropData.dropNode.id,
+          //   dropData.dragNodes.map(n => n.id),
+          // );
+        },
+        canDrop: (ctx, dropData) => {
+          // dropData.dragjson
+          console.log('>>> canDrop: ', dropData.isBranch, dropData.dropNode.id, dropData.dragNodes);
+          return true;
+        },
+      },
+      /**
        * Node engine enable, you can configure formMeta in the FlowNodeRegistry
        */
       nodeEngine: {
@@ -182,7 +202,6 @@ export function useEditorProps(
             nodeBorderColor: 'rgba(6, 7, 9, 0.10)',
             overlayColor: 'rgba(255, 255, 255, 0)',
           },
-          inactiveDebounceTime: 1,
         }),
       ],
     }),

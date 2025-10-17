@@ -2,7 +2,12 @@
   {
     "text": "指引",
     "link": "/guide/introduction",
-    "activeMatch": "/guide/introduction"
+    "activeMatch": "/guide/"
+  },
+  {
+    "text": "物料",
+    "link": "/materials/introduction",
+    "activeMatch": "/materials/"
   },
   {
     "text": "例子",
@@ -10,12 +15,16 @@
     "activeMatch": "/examples/"
   },
   {
-    "text": "常用 API",
+    "text": "API",
     "link": "/api/",
     "activeMatch": "/api/"
   },
   {
-    "text": "API 文档",
+    "text": "掘金专栏",
+    "link": "https://juejin.cn/column/7479814468601315362"
+  },
+  {
+    "text": "TypeDocs",
     "link": "/auto-docs/",
     "activeMatch": "/auto-docs/"
   }

@@ -16,6 +16,7 @@ import {
   Playground,
 } from '@flowgram.ai/editor';
 
+import { WorkflowOperationService } from '../types';
 import { WorkflowAutoLayoutTool } from '../tools';
 import {
   createFreeLayoutPreset,
@@ -43,6 +44,9 @@ export const FreeLayoutEditorProvider = forwardRef<FreeLayoutPluginContext, Free
           },
           get history(): HistoryService {
             return container.get<HistoryService>(HistoryService);
+          },
+          get operation(): WorkflowOperationService {
+            return container.get<WorkflowOperationService>(WorkflowOperationService);
           },
           get tools(): FreeLayoutPluginTools {
             const autoLayoutTool = container.get<WorkflowAutoLayoutTool>(WorkflowAutoLayoutTool);

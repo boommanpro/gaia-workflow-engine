@@ -5,7 +5,7 @@
 
 import React, { FC, useCallback, useMemo, useState } from 'react';
 
-import { debounce } from 'lodash';
+import { debounce } from 'lodash-es';
 import { IJsonSchema } from '@flowgram.ai/json-schema';
 import { Button, Divider, Empty, Modal, Space, TextArea } from '@douyinfe/semi-ui';
 import { IllustrationFailure, IllustrationFailureDark } from '@douyinfe/semi-illustrations';

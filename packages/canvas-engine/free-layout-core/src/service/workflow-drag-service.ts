@@ -17,6 +17,7 @@ import {
   Rectangle,
   delay,
   Disposable,
+  Point,
 } from '@flowgram.ai/utils';
 import {
   FlowNodeTransformData,
@@ -38,8 +39,7 @@ import { WorkflowLinesManager } from '../workflow-lines-manager';
 import { WorkflowDocumentOptions } from '../workflow-document-option';
 import { WorkflowDocument } from '../workflow-document';
 import { LineEventProps, NodesDragEvent, OnDragLineEnd } from '../typings/workflow-drag';
-import { type WorkflowNodeJSON, type WorkflowNodeMeta } from '../typings';
-import { WorkflowNodePortsData } from '../entity-datas';
+import { LinePointLocation, type WorkflowNodeJSON, type WorkflowNodeMeta } from '../typings';
 import {
   type WorkflowLineEntity,
   type WorkflowLinePortInfo,
@@ -48,6 +48,7 @@ import {
 } from '../entities';
 import { WorkflowSelectService } from './workflow-select-service';
 import { WorkflowHoverService } from './workflow-hover-service';
+import { WorkflowPortType } from '../utils';
 
 const DRAG_TIMEOUT = 100;
 const DRAG_MIN_DELTA = 5;
@@ -65,6 +66,19 @@ function checkDragSuccess(
     return true;
   }
   return false;
+}
+
+function reverseLocation(sourceLocation: LinePointLocation): LinePointLocation {
+  switch (sourceLocation) {
+    case 'bottom':
+      return 'top';
+    case 'left':
+      return 'right';
+    case 'top':
+      return 'bottom';
+    case 'right':
+      return 'left';
+  }
 }
 
 @injectable()
@@ -137,10 +151,6 @@ export class WorkflowDragService {
       return Promise.resolve(false);
     }
     this.isDragging = true;
-    const sameParent = this.childrenOfContainer(selectedNodes);
-    if (sameParent && sameParent.flowNodeType !== FlowNodeBaseType.ROOT) {
-      selectedNodes = [sameParent];
-    }
     // 节点整体开始位置
     let startPosition = this.getNodesPosition(selectedNodes);
     // 单个节点开始位置
@@ -209,6 +219,7 @@ export class WorkflowDragService {
           triggerEvent,
           dragger,
         });
+        this.resetContainerInternalPosition(selectedNodes);
       },
     });
     const { clientX, clientY } = MouseTouchEvent.getEventCoord(triggerEvent);
@@ -263,7 +274,7 @@ export class WorkflowDragService {
         const targetNode = event.currentTarget as HTMLDivElement;
         domNode = cloneNode ? cloneNode(e) : (targetNode.cloneNode(true) as HTMLDivElement);
         const bounds = targetNode.getBoundingClientRect();
-        startPos = { x: bounds.left, y: bounds.top };
+        startPos = { x: bounds.left + window.scrollX, y: bounds.top + window.scrollY };
         domUtils.setStyle(domNode, {
           zIndex: 1000,
           position: 'absolute',
@@ -509,31 +520,49 @@ export class WorkflowDragService {
     this.hoverService.clearHovered();
   }
 
-  private handleDragOnNode(
-    toNode: WorkflowNodeEntity,
-    fromPort: WorkflowPortEntity,
+  private checkDraggingPort(
+    isDrawingTo: boolean,
     line: WorkflowLineEntity,
-    toPort?: WorkflowPortEntity,
+    draggingNode: WorkflowNodeEntity,
+    draggingPort?: WorkflowPortEntity,
     originLine?: WorkflowLineEntity
   ): {
     hasError: boolean;
   } {
-    if (
-      toPort &&
-      (originLine?.toPort === toPort ||
-        (toPort.portType === 'input' && this.linesManager.canAddLine(fromPort, toPort, true)))
-    ) {
-      // 同一条线条则不用在判断 canAddLine
-      this.hoverService.updateHoveredKey(toPort.id);
-      line.setToPort(toPort);
+    let successDrawing = false;
+    if (isDrawingTo) {
+      successDrawing = !!(
+        draggingPort &&
+        // 同一条线条则不用在判断 canAddLine
+        (originLine?.toPort === draggingPort ||
+          (draggingPort.portType === 'input' &&
+            this.linesManager.canAddLine(line.fromPort!, draggingPort, true)))
+      );
+    } else {
+      successDrawing = !!(
+        draggingPort &&
+        // 同一条线条则不用在判断 canAddLine
+        (originLine?.fromPort === draggingPort ||
+          (draggingPort.portType === 'output' &&
+            this.linesManager.canAddLine(draggingPort, line.toPort!, true)))
+      );
+    }
+
+    if (successDrawing) {
+      this.hoverService.updateHoveredKey(draggingPort!.id);
+      if (isDrawingTo) {
+        line.setToPort(draggingPort!);
+      } else {
+        line.setFromPort(draggingPort!);
+      }
       this._onDragLineEventEmitter.fire({
         type: 'onDrag',
-        onDragNodeId: toNode.id,
+        onDragNodeId: draggingNode.id,
       });
       return {
         hasError: false,
       };
-    } else if (this.isContainer(toNode)) {
+    } else if (this.isContainer(draggingNode)) {
       // 在容器内进行连线的情况，需忽略
       return {
         hasError: false,
@@ -546,12 +575,49 @@ export class WorkflowDragService {
     }
   }
 
+  /**
+   * 容器内子节点总体位置重置为0
+   */
+  private resetContainerInternalPosition(nodes: WorkflowNodeEntity[]) {
+    const container = this.childrenOfContainer(nodes);
+    if (!container) {
+      return;
+    }
+    const bounds: Rectangle = Rectangle.enlarge(
+      container.blocks.map((node) => {
+        const x = node.transform.position.x - node.transform.bounds.width / 2;
+        const y = node.transform.position.y;
+        const width = node.transform.bounds.width;
+        const height = node.transform.bounds.height;
+        return new Rectangle(x, y, width, height);
+      })
+    );
+    const containerTransform = container.getData(TransformData);
+    containerTransform.update({
+      position: {
+        x: containerTransform.position.x + bounds.x,
+        y: containerTransform.position.y + bounds.y,
+      },
+    });
+    this.document.layout.updateAffectedTransform(container);
+    container.blocks.forEach((node) => {
+      const transform = node.getData(TransformData);
+      transform.update({
+        position: {
+          x: transform.position.x - bounds.x,
+          y: transform.position.y - bounds.y,
+        },
+      });
+      this.document.layout.updateAffectedTransform(node);
+    });
+  }
+
   private childrenOfContainer(nodes: WorkflowNodeEntity[]): WorkflowNodeEntity | undefined {
     if (nodes.length === 0) {
       return;
     }
     const sourceContainer = nodes[0]?.parent;
-    if (!sourceContainer || sourceContainer.collapsedChildren.length !== nodes.length) {
+    if (!sourceContainer || sourceContainer.flowNodeType === FlowNodeBaseType.ROOT) {
       return;
     }
     const valid = nodes.every((node) => node?.parent === sourceContainer);
@@ -567,17 +633,18 @@ export class WorkflowDragService {
    * @param event
    */
   async startDrawingLine(
-    fromPort: WorkflowPortEntity,
+    port: WorkflowPortEntity,
     event: { clientX: number; clientY: number },
     originLine?: WorkflowLineEntity
   ): Promise<{
     dragSuccess?: boolean; // 是否拖拽成功，不成功则为选择节点
     newLine?: WorkflowLineEntity; // 新的线条
   }> {
-    const isFromInActivePort = !originLine && fromPort.isErrorPort() && fromPort.disabled;
+    const isDrawingTo = port.portType === 'output';
+    const isInActivePort = !originLine && port.isErrorPort() && port.disabled;
     if (
       originLine?.disabled ||
-      isFromInActivePort ||
+      isInActivePort ||
       this.playgroundConfig.readonly ||
       this.playgroundConfig.disabled
     ) {
@@ -591,10 +658,12 @@ export class WorkflowDragService {
       newLine?: WorkflowLineEntity; // 新的线条
     }>();
     const preCursor = config.cursor;
-    let line: WorkflowLineEntity | undefined,
-      toPort: WorkflowPortEntity | undefined,
-      toNode: WorkflowNodeEntity | undefined,
-      lineErrorReset = false;
+    let line: WorkflowLineEntity | undefined;
+    let newLineInfo: {
+      fromPort?: WorkflowPortEntity;
+      toPort?: WorkflowPortEntity;
+      hasError: boolean;
+    };
     const startTime = Date.now();
     let dragSuccess = false;
     const dragger = new PlaygroundDrag({
@@ -607,16 +676,29 @@ export class WorkflowDragService {
           dragSuccess = true;
           const pos = config.getPosFromMouseEvent(event);
           // 创建临时的线条
-          line = this.linesManager.createLine({
-            from: fromPort.node.id,
-            fromPort: fromPort.portID,
-            data: originLine?.lineData,
-            drawingTo: {
-              x: pos.x,
-              y: pos.y,
-              location: fromPort.location === 'right' ? 'left' : 'top',
-            },
-          });
+          if (isDrawingTo) {
+            line = this.linesManager.createLine({
+              from: port.node.id,
+              fromPort: port.portID,
+              data: originLine?.lineData,
+              drawingTo: {
+                x: pos.x,
+                y: pos.y,
+                location: port.location === 'right' ? 'left' : 'top',
+              },
+            });
+          } else {
+            line = this.linesManager.createLine({
+              to: port.node.id,
+              toPort: port.portID,
+              data: originLine?.lineData,
+              drawingFrom: {
+                x: pos.x,
+                y: pos.y,
+                location: port.location === 'left' ? 'right' : 'bottom',
+              },
+            });
+          }
           if (!line) {
             return;
           }
@@ -627,61 +709,15 @@ export class WorkflowDragService {
         if (!line) {
           return;
         }
-
-        lineErrorReset = false;
-
         const dragPos = config.getPosFromMouseEvent(e);
-
-        // 默认 toNode 获取
-        toNode = this.linesManager.getNodeFromMousePos(dragPos);
-        // 默认 toPort 获取
-        toPort = this.linesManager.getPortFromMousePos(dragPos);
-
-        if (!toPort) {
-          line.setToPort(undefined);
-        } else if (!this.linesManager.canAddLine(fromPort, toPort, true)) {
-          line.highlightColor = this.linesManager.lineColor.error;
-          lineErrorReset = true;
-          line.setToPort(undefined);
-        } else {
-          line.setToPort(toPort);
-        }
-
-        this._onDragLineEventEmitter.fire({
-          type: 'onDrag',
-        });
-
-        this.setLineColor(line, originLine?.lockedColor || this.linesManager.lineColor.drawing);
-        if (toNode && this.canBuildContainerLine(toNode, dragPos)) {
-          // 如果鼠标 hover 在 node 中的时候，默认连线到这个 node 的初始位置
-          toPort = this.getNearestPort(toNode, dragPos);
-          const { hasError } = this.handleDragOnNode(toNode, fromPort, line, toPort, originLine);
-          lineErrorReset = hasError;
-        }
-
-        if (line.toPort) {
-          line.drawingTo = {
-            x: line.toPort.point.x,
-            y: line.toPort.point.y,
-            location: line.toPort.location,
-          };
-        } else {
-          line.drawingTo = {
-            x: dragPos.x,
-            y: dragPos.y,
-            location: line.fromPort.location === 'right' ? 'left' : 'top',
-          };
-        }
-
-        // 触发原 toPort 的校验
-        originLine?.validate();
-        line.validate();
+        newLineInfo = this.updateDrawingLine(isDrawingTo, line, dragPos, originLine);
       },
       // eslint-disable-next-line complexity
       onDragEnd: async (e) => {
         const dragPos = config.getPosFromMouseEvent(e);
         const onDragLineEndCallbacks = Array.from(this._onDragLineEndCallbacks.values());
         config.updateCursor(preCursor);
+        const { fromPort, toPort, hasError } = newLineInfo || {};
         await Promise.all(
           onDragLineEndCallbacks.map((callback) =>
             callback({
@@ -708,39 +744,36 @@ export class WorkflowDragService {
         };
         if (dragSuccess) {
           // Step 1: check same line
-          if (originLine && originLine.toPort === toPort) {
+          if (originLine && originLine.toPort === toPort && originLine.fromPort === fromPort) {
             // 线条没变化则直接返回，不做处理
             return end();
           }
           // 非 input 节点不能连接
-          if (toPort && toPort.portType !== 'input') {
+          if (
+            (toPort && toPort.portType !== 'input') ||
+            (fromPort && fromPort.portType !== 'output')
+          ) {
             return end();
           }
-          const newLineInfo: Required<WorkflowLinePortInfo> | undefined = toPort
-            ? {
-                from: fromPort.node.id,
-                fromPort: fromPort.portID,
-                to: toPort.node.id,
-                toPort: toPort.portID,
-                data: originLine?.lineData,
-              }
-            : undefined;
+          const newLinePortInfo: Required<WorkflowLinePortInfo> | undefined =
+            toPort && fromPort
+              ? {
+                  from: fromPort.node.id,
+                  fromPort: fromPort.portID,
+                  to: toPort.node.id,
+                  toPort: toPort.portID,
+                  data: originLine?.lineData,
+                }
+              : undefined;
           // Step2: 检测 reset
-          const isReset = originLine && toPort;
-          if (
-            isReset &&
-            !this.linesManager.canReset(
-              originLine.fromPort,
-              originLine.toPort as WorkflowPortEntity,
-              toPort as WorkflowPortEntity
-            )
-          ) {
+          const isReset = originLine && newLinePortInfo;
+          if (isReset && !this.linesManager.canReset(originLine, newLinePortInfo)) {
             return end();
           }
           // Step 3: delete line
           if (
             originLine &&
-            (!this.linesManager.canRemove(originLine, newLineInfo, false) || lineErrorReset)
+            (!this.linesManager.canRemove(originLine, newLinePortInfo, false) || hasError)
           ) {
             // 线条无法删除则返回，不再触发 canAddLine
             return end();
@@ -748,11 +781,11 @@ export class WorkflowDragService {
             originLine?.dispose();
           }
           //  Step 4:  add line
-          if (!toPort || !this.linesManager.canAddLine(fromPort, toPort, false)) {
+          if (!newLinePortInfo || !this.linesManager.canAddLine(fromPort!, toPort!, false)) {
             // 无法添加成功
             return end();
           }
-          const newLine = this.linesManager.createLine(newLineInfo as WorkflowLinePortInfo);
+          const newLine = this.linesManager.createLine(newLinePortInfo);
           if (!newLine) {
             end();
           }
@@ -770,14 +803,124 @@ export class WorkflowDragService {
     return deferred.promise;
   }
 
+  private updateDrawingLine(
+    isDrawingTo: boolean,
+    line: WorkflowLineEntity,
+    dragPos: IPoint,
+    originLine?: WorkflowLineEntity
+  ): { fromPort?: WorkflowPortEntity; toPort?: WorkflowPortEntity; hasError: boolean } {
+    let hasError = false;
+
+    const mouseNode = this.linesManager.getNodeFromMousePos(dragPos);
+    let toNode: WorkflowNodeEntity | undefined;
+    let toPort: WorkflowPortEntity | undefined;
+    let fromPort: WorkflowPortEntity | undefined;
+    let fromNode: WorkflowNodeEntity | undefined;
+
+    if (isDrawingTo) {
+      fromPort = line.fromPort!;
+      toNode = mouseNode;
+      toPort = this.linesManager.getPortFromMousePos(dragPos, 'input');
+      if (toNode && this.canBuildContainerLine(toNode, dragPos)) {
+        // 如果鼠标 hover 在 node 中的时候，默认连线到这个 node 的初始位置
+        toPort = this.getNearestPort(toNode, dragPos, 'input');
+        hasError = this.checkDraggingPort(isDrawingTo, line, toNode, toPort, originLine).hasError;
+      }
+      if (!toPort) {
+        line.setToPort(undefined);
+      } else if (!this.linesManager.canAddLine(fromPort, toPort, true)) {
+        hasError = true;
+        line.setToPort(undefined);
+      } else {
+        line.setToPort(toPort);
+      }
+
+      if (line.toPort) {
+        line.drawingTo = {
+          x: line.toPort.point.x,
+          y: line.toPort.point.y,
+          location: line.toPort.location,
+        };
+      } else {
+        line.drawingTo = {
+          x: dragPos.x,
+          y: dragPos.y,
+          location: reverseLocation(line.fromPort!.location),
+        };
+      }
+    } else {
+      toPort = line.toPort!;
+      fromNode = mouseNode;
+      fromPort = this.linesManager.getPortFromMousePos(dragPos, 'output');
+      if (fromNode && this.canBuildContainerLine(fromNode, dragPos)) {
+        // 如果鼠标 hover 在 node 中的时候，默认连线到这个 node 的初始位置
+        fromPort = this.getNearestPort(fromNode, dragPos, 'output');
+        hasError = this.checkDraggingPort(
+          isDrawingTo,
+          line,
+          fromNode,
+          fromPort,
+          originLine
+        ).hasError;
+      }
+      if (!fromPort) {
+        line.setFromPort(undefined);
+      } else if (!this.linesManager.canAddLine(fromPort, toPort, true)) {
+        hasError = true;
+        line.setFromPort(undefined);
+      } else {
+        line.setFromPort(fromPort);
+      }
+
+      if (line.fromPort) {
+        line.drawingFrom = {
+          x: line.fromPort.point.x,
+          y: line.fromPort.point.y,
+          location: line.fromPort.location,
+        };
+      } else {
+        line.drawingFrom = {
+          x: dragPos.x,
+          y: dragPos.y,
+          location: reverseLocation(line.toPort!.location),
+        };
+      }
+    }
+
+    this._onDragLineEventEmitter.fire({
+      type: 'onDrag',
+    });
+
+    if (hasError) {
+      this.setLineColor(line, this.linesManager.lineColor.error);
+    } else {
+      this.setLineColor(line, originLine?.lockedColor || this.linesManager.lineColor.drawing);
+    }
+    // 触发原 toPort 的校验
+    originLine?.validate();
+    line.validate();
+    return {
+      fromPort: fromPort,
+      toPort: toPort,
+      hasError,
+    };
+  }
+
   /**
    * 重新连接线条
    * @param line
    * @param e
    */
   async resetLine(line: WorkflowLineEntity, e: MouseEvent): Promise<void> {
-    const { fromPort } = line;
-    const { dragSuccess } = await this.startDrawingLine(fromPort, e, line);
+    const { fromPort, toPort } = line;
+    const mousePos = this.playgroundConfig.getPosFromMouseEvent(e);
+    const distanceFrom = Point.getDistance(fromPort!.point, mousePos);
+    const distanceTo = Point.getDistance(toPort!.point, mousePos);
+    const { dragSuccess } = await this.startDrawingLine(
+      distanceTo <= distanceFrom || !this.document.options.twoWayConnection ? fromPort! : toPort!,
+      e,
+      line
+    );
     if (!dragSuccess) {
       // 没有拖拽成功则表示为选中节点
       this.selectService.select(line);
@@ -802,18 +945,30 @@ export class WorkflowDragService {
       return true;
     }
     const { padding, bounds } = node.transform;
-    const contentRect = new Rectangle(bounds.x, bounds.y, (padding.left * 2) / 3, bounds.height);
-    return contentRect.contains(mousePos.x, mousePos.y);
+    const DEFAULT_DELTA = 10;
+    const leftDelta = (padding.left * 2) / 3 || DEFAULT_DELTA;
+    const rightDelta = (padding.right * 2) / 3 || DEFAULT_DELTA;
+    const bottomDelta = (padding.bottom * 2) / 3 || DEFAULT_DELTA;
+    const topDelta = (padding.top * 2) / 3 || DEFAULT_DELTA;
+    const rectangles = [
+      new Rectangle(bounds.x, bounds.y, leftDelta, bounds.height), // left
+      new Rectangle(bounds.x, bounds.y, bounds.width, topDelta), // top
+      new Rectangle(bounds.x, bounds.y + bounds.height - bottomDelta, bounds.width, bottomDelta), // bottom
+      new Rectangle(bounds.x + bounds.width - rightDelta, bounds.y, rightDelta, bounds.height), // right
+    ];
+    return rectangles.some((rect) => rect.contains(mousePos.x, mousePos.y));
   }
 
   /** 获取最近的 port */
-  private getNearestPort(node: WorkflowNodeEntity, mousePos: IPoint): WorkflowPortEntity {
-    const portsData = node.getData(WorkflowNodePortsData)!;
-    const distanceSortedPorts = portsData.inputPorts.sort((a, b) => {
-      const aDistance = Math.abs(mousePos.y - a.point.y);
-      const bDistance = Math.abs(mousePos.y - b.point.y);
-      return aDistance - bDistance;
-    });
+  private getNearestPort(
+    node: WorkflowNodeEntity,
+    mousePos: IPoint,
+    portType: WorkflowPortType = 'input'
+  ): WorkflowPortEntity {
+    const portsData = node.ports!;
+    const distanceSortedPorts = (
+      portType === 'input' ? portsData.inputPorts : portsData.outputPorts
+    ).sort((a, b) => Point.getDistance(mousePos, a.point) - Point.getDistance(mousePos, b.point));
     return distanceSortedPorts[0];
   }
 }

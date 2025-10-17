@@ -5,7 +5,7 @@
 
 import React, { useImperativeHandle, useState } from 'react';
 
-import { noop } from 'lodash';
+import { noop } from 'lodash-es';
 import { IJsonSchema } from '@flowgram.ai/json-schema';
 import { Space } from '@douyinfe/semi-ui';
 

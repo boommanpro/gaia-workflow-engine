@@ -3,13 +3,13 @@
  * SPDX-License-Identifier: MIT
  */
 
+import { Rectangle } from '@flowgram.ai/utils';
 import {
   type FlowNodeTransitionData,
   FlowTransitionLabelEnum,
   LABEL_SIDE_TYPE,
 } from '@flowgram.ai/document';
 import { ConfigEntity, type EntityOpts, PlaygroundConfigEntity } from '@flowgram.ai/core';
-import { Rectangle } from '@flowgram.ai/utils';
 
 import { DEFAULT_LABEL_ACTIVATE_HEIGHT } from '../components/utils';
 
@@ -42,8 +42,6 @@ export class FlowDragEntity extends ConfigEntity<FlowDragEntityConfig> {
 
   static type = 'FlowDragEntity';
 
-  private containerDom: HTMLDivElement;
-
   private containerX = 0;
 
   private containerY = 0;
@@ -60,14 +58,14 @@ export class FlowDragEntity extends ConfigEntity<FlowDragEntityConfig> {
     super(conf);
     this.playgroundConfigEntity = this.entityManager.getEntity<PlaygroundConfigEntity>(
       PlaygroundConfigEntity,
-      true,
+      true
     )!;
   }
 
   isCollision(
     transition: FlowNodeTransitionData,
     rect: Rectangle,
-    isBranch: boolean,
+    isBranch: boolean
   ): CollisionRetType {
     const scale = this.playgroundConfigEntity.finalScale || 0;
     if (isBranch) {
@@ -80,12 +78,12 @@ export class FlowDragEntity extends ConfigEntity<FlowDragEntityConfig> {
   isNodeCollision(
     transition: FlowNodeTransitionData,
     rect: Rectangle,
-    scale: number,
+    scale: number
   ): CollisionRetType {
     const { labels } = transition;
     const { isVertical } = transition.entity;
 
-    const hasCollision = labels.some(label => {
+    const hasCollision = labels.some((label) => {
       if (
         !label ||
         ![
@@ -107,7 +105,7 @@ export class FlowDragEntity extends ConfigEntity<FlowDragEntityConfig> {
         (label.offset.x - hoverWidth / 2) * scale,
         (label.offset.y - hoverHeight / 2) * scale,
         hoverWidth * scale,
-        hoverHeight * scale,
+        hoverHeight * scale
       );
       // 检测两个正方形是否相互碰撞
       return Rectangle.intersects(labelRect, rect);
@@ -124,13 +122,13 @@ export class FlowDragEntity extends ConfigEntity<FlowDragEntityConfig> {
   isBranchCollision(
     transition: FlowNodeTransitionData,
     rect: Rectangle,
-    scale: number,
+    scale: number
   ): CollisionRetType {
     const { labels } = transition;
     const { isVertical } = transition.entity;
 
     let labelOffsetType: LABEL_SIDE_TYPE = LABEL_SIDE_TYPE.NORMAL_BRANCH;
-    const hasCollision = labels.some(label => {
+    const hasCollision = labels.some((label) => {
       if (!label || label.type !== FlowTransitionLabelEnum.BRANCH_DRAGGING_LABEL) {
         return false;
       }
@@ -142,7 +140,7 @@ export class FlowDragEntity extends ConfigEntity<FlowDragEntityConfig> {
         (label.offset.x - hoverWidth / 2) * scale,
         (label.offset.y - hoverHeight / 2) * scale,
         hoverWidth * scale,
-        hoverHeight * scale,
+        hoverHeight * scale
       );
       // 检测两个正方形是否相互碰撞
       const collision = Rectangle.intersects(labelRect, rect);
@@ -179,7 +177,6 @@ export class FlowDragEntity extends ConfigEntity<FlowDragEntityConfig> {
         } else {
           this.containerX -= SCROLL_DELTA;
         }
-        this.setDomStyle();
       }
     }, SCROLL_INTERVAL);
     this._scrollXInterval = { interval, origin };
@@ -213,7 +210,6 @@ export class FlowDragEntity extends ConfigEntity<FlowDragEntityConfig> {
         } else {
           this.containerY -= SCROLL_DELTA;
         }
-        this.setDomStyle();
       }
     }, SCROLL_INTERVAL);
     this._scrollYInterval = { interval, origin };
@@ -231,41 +227,31 @@ export class FlowDragEntity extends ConfigEntity<FlowDragEntityConfig> {
     this._stopScrollY();
   }
 
-  setDomStyle() {
-    this.containerDom.style.left = `${this.containerX}px`;
-    this.containerDom.style.top = `${this.containerY}px`;
-  }
-
-  scrollDirection(
-    e: MouseEvent,
-    containerDom: HTMLDivElement,
-    x: number,
-    y: number,
-  ): ScrollDirection | undefined {
+  scrollDirection(e: MouseEvent, x: number, y: number): ScrollDirection | undefined {
     const playgroundConfig = this.playgroundConfigEntity.config;
     const currentScrollX = playgroundConfig.scrollX;
     const currentScrollY = playgroundConfig.scrollY;
-    this.containerDom = containerDom;
     this.containerX = x;
     this.containerY = y;
+    const clientRect = this.playgroundConfigEntity.playgroundDomNode.getBoundingClientRect();
 
-    const mouseToBottom = playgroundConfig.height + playgroundConfig.clientY - e.clientY;
+    const mouseToBottom = playgroundConfig.height + clientRect.y - e.clientY;
     if (mouseToBottom < SCROLL_BOUNDING) {
       this._startScrollY(currentScrollY, true);
       return ScrollDirection.BOTTOM;
     }
-    const mouseToTop = e.clientY - playgroundConfig.clientY;
+    const mouseToTop = e.clientY - clientRect.y;
     if (mouseToTop < SCROLL_BOUNDING) {
       this._startScrollY(currentScrollY, false);
       return ScrollDirection.TOP;
     }
     this._stopScrollY();
-    const mouseToRight = playgroundConfig.width + playgroundConfig.clientX - e.clientX;
+    const mouseToRight = playgroundConfig.width + clientRect.x - e.clientX;
     if (mouseToRight < SCROLL_BOUNDING) {
       this._startScrollX(currentScrollX, true);
       return ScrollDirection.RIGHT;
     }
-    const mouseToLeft = e.clientX - playgroundConfig.clientX;
+    const mouseToLeft = e.clientX - clientRect.x;
     if (mouseToLeft < SCROLL_BOUNDING + EDITOR_LEFT_BAR_WIDTH) {
       this._startScrollX(currentScrollX, false);
       return ScrollDirection.LEFT;

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { themes } from '@coze-editor/editor/preset-code';
+import { themes } from '@flowgram.ai/coze-editor/preset-code';
 
 import { lightTheme } from './light';
 import { darkTheme } from './dark';

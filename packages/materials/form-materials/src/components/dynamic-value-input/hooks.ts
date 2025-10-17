@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { IJsonSchema } from '@flowgram.ai/json-schema';
 import { useScopeAvailable } from '@flowgram.ai/editor';
 
-import { IFlowConstantRefValue } from '@/typings';
+import { IFlowConstantRefValue } from '@/shared';
 
 export function useRefVariable(value?: IFlowConstantRefValue) {
   const available = useScopeAvailable();
@@ -67,7 +67,7 @@ export function useIncludeSchema(schemaFromProps?: IJsonSchema) {
     if (schemaFromProps?.type === 'number') {
       return [schemaFromProps, { type: 'integer' }];
     }
-    return { ...schemaFromProps, extra: { ...schemaFromProps?.extra, weak: true } };
+    return { ...schemaFromProps, extra: { weak: true, ...schemaFromProps?.extra } };
   }, [schemaFromProps]);
 
   return includeSchema;

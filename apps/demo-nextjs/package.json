@@ -22,12 +22,13 @@
     "build:prod": "next build",
     "start": "next start",
     "lint": "eslint ./src --cache",
-    "lint:fix": "eslint ./src --fix"
+    "lint:fix": "eslint ./src --fix",
+    "ts-check": "tsc --noEmit"
   },
   "dependencies": {
     "react": "^18",
     "react-dom": "^18",
-    "next": "15.2.4",
+    "next": "^15.5.2",
     "lodash-es": "^4.17.21",
     "classnames": "^2.5.1",
     "server-only": "^0.0.1",

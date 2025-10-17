@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 
 import { createMinimapPlugin } from '@flowgram.ai/minimap-plugin';
 import { createFreeSnapPlugin } from '@flowgram.ai/free-snap-plugin';
@@ -141,7 +141,6 @@ export const useEditorProps = () =>
             nodeBorderColor: 'rgba(6, 7, 9, 0.10)',
             overlayColor: 'rgba(255, 255, 255, 0)',
           },
-          inactiveDebounceTime: 1,
         }),
         /**
          * Snap plugin

@@ -44,7 +44,7 @@ export const LineAddButton = (props: LineRenderProps) => {
     };
 
     // get container node for the new node - 获取新节点的容器节点
-    const containerNode = fromPort.node.parent;
+    const containerNode = fromPort!.node.parent;
 
     // show node selection panel - 显示节点选择面板
     const result = await nodePanelService.singleSelectNodePanel({
@@ -52,6 +52,7 @@ export const LineAddButton = (props: LineRenderProps) => {
       containerNode,
       panelProps: {
         enableScrollClose: true,
+        fromPort,
       },
     });
     if (!result) {

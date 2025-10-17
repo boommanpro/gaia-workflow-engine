@@ -4,3 +4,4 @@
  */
 
 export { useSize } from './use-size';
+export { usePlaceholder } from './use-placeholder';

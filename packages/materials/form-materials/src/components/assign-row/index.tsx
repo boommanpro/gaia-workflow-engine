@@ -8,12 +8,12 @@ import React from 'react';
 import { IconButton } from '@douyinfe/semi-ui';
 import { IconMinus } from '@douyinfe/semi-icons';
 
-import { IFlowConstantRefValue } from '@/typings';
+import { IFlowConstantRefValue } from '@/shared';
 import { InjectVariableSelector } from '@/components/variable-selector';
 import { InjectDynamicValueInput } from '@/components/dynamic-value-input';
+import { BlurInput } from '@/components/blur-input';
 
 import { AssignRowProps } from './types';
-import { BlurInput } from './components/blur-input';
 
 export function AssignRow(props: AssignRowProps) {
   const {
@@ -81,4 +81,4 @@ export function AssignRow(props: AssignRowProps) {
   );
 }
 
-export { AssignValueType } from './types';
+export { type AssignValueType } from './types';

@@ -9,7 +9,7 @@ import { ReactiveState, Tracker } from '../src';
 
 describe('reactive-state', () => {
   it('base', () => {
-    const state = new ReactiveState<{ a: number; b: number }>({ a: 0, b: 0 });
+    const state = new ReactiveState({ a: 0, b: 0 });
     const { value } = state;
     let autorunTimes = -1;
     const compute = Tracker.autorun<number>(() => {

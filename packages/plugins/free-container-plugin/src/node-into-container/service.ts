@@ -4,7 +4,7 @@
  */
 
 /* eslint-disable @typescript-eslint/no-non-null-assertion -- no need */
-import { throttle } from 'lodash';
+import { throttle } from 'lodash-es';
 import { inject, injectable } from 'inversify';
 import { type Disposable, DisposableCollection, Emitter } from '@flowgram.ai/utils';
 import {
@@ -146,7 +146,7 @@ export class NodeIntoContainerService {
   public async removeNodeLines(node: WorkflowNodeEntity): Promise<void> {
     const lines = this.linesManager.getAllLines();
     lines.forEach((line) => {
-      if (line.from.id !== node.id && line.to?.id !== node.id) {
+      if (line.from?.id !== node.id && line.to?.id !== node.id) {
         return;
       }
       line.dispose();

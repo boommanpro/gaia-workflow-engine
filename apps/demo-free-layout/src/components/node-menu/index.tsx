@@ -8,6 +8,7 @@ import { FC, useCallback, useState, type MouseEvent } from 'react';
 import {
   delay,
   useClientContext,
+  usePlaygroundTools,
   useService,
   WorkflowDragService,
   WorkflowNodeEntity,
@@ -23,7 +24,7 @@ import { CopyShortcut } from '../../shortcuts/copy';
 
 interface NodeMenuProps {
   node: WorkflowNodeEntity;
-  updateTitleEdit: (setEditing: boolean) => void;
+  updateTitleEdit?: (setEditing: boolean) => void;
   deleteNode: () => void;
 }
 
@@ -35,6 +36,7 @@ export const NodeMenu: FC<NodeMenuProps> = ({ node, deleteNode, updateTitleEdit 
   const selectService = useService(WorkflowSelectService);
   const dragService = useService(WorkflowDragService);
   const canMoveOut = nodeIntoContainerService.canMoveOutContainer(node);
+  const tools = usePlaygroundTools();
 
   const rerenderMenu = useCallback(() => {
     // force destroy component - 强制销毁组件触发重新渲染
@@ -83,9 +85,26 @@ export const NodeMenu: FC<NodeMenuProps> = ({ node, deleteNode, updateTitleEdit 
     },
     [clientContext, node]
   );
-  const handleEditTitle = useCallback(() => {
-    updateTitleEdit(true);
-  }, [updateTitleEdit]);
+  const handleEditTitle = useCallback(
+    (e: React.MouseEvent) => {
+      updateTitleEdit?.(true);
+      e.stopPropagation(); // Disable clicking prevents the sidebar from opening
+    },
+    [updateTitleEdit]
+  );
+
+  const handleAutoLayout = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation(); // Disable clicking prevents the sidebar from opening
+      tools.autoLayout({
+        containerNode: node,
+        enableAnimation: true,
+        animationDuration: 1000,
+        disableFitView: true,
+      });
+    },
+    [tools]
+  );
 
   if (!visible) {
     return <></>;
@@ -102,6 +121,9 @@ export const NodeMenu: FC<NodeMenuProps> = ({ node, deleteNode, updateTitleEdit 
           <Dropdown.Item onClick={handleCopy} disabled={registry.meta!.copyDisable === true}>
             Create Copy
           </Dropdown.Item>
+          {registry.meta.isContainer && (
+            <Dropdown.Item onClick={handleAutoLayout}>Auto Layout</Dropdown.Item>
+          )}
           <Dropdown.Item
             onClick={handleDelete}
             disabled={!!(registry.canDelete?.(clientContext, node) || registry.meta!.deleteDisable)}

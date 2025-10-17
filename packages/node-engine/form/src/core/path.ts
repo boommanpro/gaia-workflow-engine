@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { toPath } from 'lodash';
+import { toPath } from 'lodash-es';
 
 export class Path {
   protected _path: string[] = [];

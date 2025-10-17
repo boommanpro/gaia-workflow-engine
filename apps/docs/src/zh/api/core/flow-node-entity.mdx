@@ -25,6 +25,11 @@
 - allChildren: `FlowNodeEntity[]` 获取所有子节点, 不包含折叠的子节点
 - transform: [FlowNodeTransformData](https://flowgram.ai/auto-docs/document/classes/FlowNodeTransformData.html) 获取节点的 transform 矩阵数据
 - renderData: [FlowNodeRenderData](https://flowgram.ai/auto-docs/document/classes/FlowNodeRenderData.html) 获取节点的渲染数据, 包含渲染状态等
+- form: [NodeFormProps](https://flowgram.ai/auto-docs/editor/interfaces/NodeFormProps.html) 获取节点的表单数据, 等价于 [getNodeForm](/api/utils/get-node-form.html)
+- scope: [FlowNodeScope](https://flowgram.ai/auto-docs/editor/interfaces/FlowNodeScope) 变量作用域
+- privateScope: [FlowNodeScope](https://flowgram.ai/auto-docs/editor/interfaces/FlowNodeScope) 变量私有作用域
+- lines: [WorkflowNodeLinesData](https://flowgram.ai/auto-docs/free-layout-core/classes/WorkflowNodeLinesData.html) 自由布局线条数据
+- ports: [WorkflowNodePortsData](https://flowgram.ai/auto-docs/free-layout-core/classes/WorkflowNodePortsData.html) 自由布局端口数据
 
 
 ## Methods
@@ -61,7 +66,7 @@ const nodeRegistry = node.getNodeRegistry<FlowNodeRegistry>()
 ```ts pure
 node.getData(FlowNodeTransformData) // transform 矩阵数据, 包含节点的 x，y，width，height 等信息
 node.getData(FlowNodeRenderData) // 节点的渲染数据, 包含渲染状态等数据
-node.getData(WorkflowNodeLinesData) // 自由布局的线条数据
+node.lines // 自由布局的线条数据
 
 ```
 

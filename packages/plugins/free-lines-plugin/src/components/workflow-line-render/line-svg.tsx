@@ -7,13 +7,12 @@ import React from 'react';
 
 import clsx from 'clsx';
 import { type IPoint } from '@flowgram.ai/utils';
-import { POINT_RADIUS } from '@flowgram.ai/free-layout-core';
 import { WorkflowLineRenderData } from '@flowgram.ai/free-layout-core';
 
 import { type ArrowRendererComponent } from '../../types/arrow-renderer';
 import { LineRenderProps } from '../../type';
+import { posWithShrink } from '../../contributions/utils';
 import { STROKE_WIDTH_SLECTED, STROKE_WIDTH } from '../../constants/points';
-import { LINE_OFFSET } from '../../constants/lines';
 import { LineStyle } from './index.style';
 import { ArrowRenderer } from './arrow';
 
@@ -36,14 +35,8 @@ export const LineSVG = (props: LineRenderProps) => {
   const toPos = toRelative(position.to);
 
   // 箭头位置计算
-  const arrowToPos: IPoint =
-    position.to.location === 'top'
-      ? { x: toPos.x, y: toPos.y - POINT_RADIUS }
-      : { x: toPos.x - POINT_RADIUS, y: toPos.y };
-  const arrowFromPos: IPoint =
-    position.from.location === 'bottom'
-      ? { x: fromPos.x, y: fromPos.y + POINT_RADIUS + LINE_OFFSET }
-      : { x: fromPos.x + POINT_RADIUS + LINE_OFFSET, y: fromPos.y };
+  const arrowToPos: IPoint = posWithShrink(toPos, position.to.location, line.uiState.shrink);
+  const arrowFromPos: IPoint = posWithShrink(fromPos, position.from.location, line.uiState.shrink);
 
   const strokeWidth = selected
     ? line.uiState.strokeWidthSelected ?? STROKE_WIDTH_SLECTED
@@ -95,10 +88,9 @@ export const LineSVG = (props: LineRenderProps) => {
           {path}
           <ArrowComponent
             id={strokeID}
-            reverseArrow={reverse}
             pos={reverse ? arrowFromPos : arrowToPos}
             strokeWidth={strokeWidth}
-            vertical={vertical}
+            location={reverse ? position.from.location : position.to.location}
             hide={hideArrow}
             line={line}
           />

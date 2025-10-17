@@ -15,6 +15,7 @@ import {
 
 import { LINE_PADDING } from '../../constants/lines';
 import { projectPointOnLine } from './point-on-line';
+import { posWithShrink } from '../utils';
 
 export interface StraightData {
   points: IPoint[];
@@ -62,25 +63,10 @@ export class WorkflowStraightLineContribution implements WorkflowLineRenderContr
     const shrink = this.entity.uiState.shrink;
 
     // 根据方向预先计算源点和目标点的偏移
-    const sourceOffset = {
-      x: fromPos.location === 'bottom' ? 0 : shrink,
-      y: fromPos.location === 'bottom' ? shrink : 0,
-    };
-    const targetOffset = {
-      x: toPos.location === 'top' ? 0 : -shrink,
-      y: toPos.location === 'top' ? -shrink : 0,
-    };
+    const source = posWithShrink(fromPos, fromPos.location, shrink);
+    const target = posWithShrink(toPos, toPos.location, shrink);
 
-    const points = [
-      {
-        x: fromPos.x + sourceOffset.x,
-        y: fromPos.y + sourceOffset.y,
-      },
-      {
-        x: toPos.x + targetOffset.x,
-        y: toPos.y + targetOffset.y,
-      },
-    ];
+    const points = [source, target];
 
     const bbox = Rectangle.createRectangleWithTwoPoints(points[0], points[1]);
 

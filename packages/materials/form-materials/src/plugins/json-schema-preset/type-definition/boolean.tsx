@@ -9,7 +9,9 @@ import React from 'react';
 import { I18n } from '@flowgram.ai/editor';
 import { Select } from '@douyinfe/semi-ui';
 
-import { type JsonSchemaTypeRegistry } from '../manager';
+import { ConditionPresetOp } from '@/components/condition-context/op';
+
+import { type JsonSchemaTypeRegistry } from '../types';
 
 export const booleanRegistry: Partial<JsonSchemaTypeRegistry> = {
   type: 'boolean',
@@ -29,5 +31,19 @@ export const booleanRegistry: Partial<JsonSchemaTypeRegistry> = {
         {...rest}
       />
     );
+  },
+  conditionRule: {
+    [ConditionPresetOp.EQ]: { type: 'boolean' },
+    [ConditionPresetOp.NEQ]: { type: 'boolean' },
+    [ConditionPresetOp.IS_TRUE]: null,
+    [ConditionPresetOp.IS_FALSE]: null,
+    [ConditionPresetOp.IN]: {
+      type: 'array',
+      items: { type: 'boolean' },
+    },
+    [ConditionPresetOp.NIN]: {
+      type: 'array',
+      items: { type: 'boolean' },
+    },
   },
 };

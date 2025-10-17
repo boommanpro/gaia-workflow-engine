@@ -5,35 +5,37 @@
 
 import React from 'react';
 
+import { IPoint } from '@flowgram.ai/utils';
+import { LinePointLocation } from '@flowgram.ai/free-layout-core';
+
 import { type ArrowRendererProps } from '../../types/arrow-renderer';
 import { LINE_OFFSET } from '../../constants/lines';
 
-export function ArrowRenderer({
-  id,
-  pos,
-  reverseArrow,
-  strokeWidth,
-  vertical,
-  hide,
-}: ArrowRendererProps) {
+function getArrowPath(pos: IPoint, location: LinePointLocation): string {
+  switch (location) {
+    case 'left':
+      return `M ${pos.x - LINE_OFFSET},${pos.y - LINE_OFFSET} L ${pos.x},${pos.y} L ${
+        pos.x - LINE_OFFSET
+      },${pos.y + LINE_OFFSET}`;
+    case 'right':
+      return `M ${pos.x + LINE_OFFSET},${pos.y + LINE_OFFSET} L ${pos.x},${pos.y} L ${
+        pos.x + LINE_OFFSET
+      },${pos.y - LINE_OFFSET}`;
+    case 'bottom':
+      return `M ${pos.x - LINE_OFFSET},${pos.y + LINE_OFFSET} L ${pos.x},${pos.y} L ${
+        pos.x + LINE_OFFSET
+      },${pos.y + LINE_OFFSET}`;
+    case 'top':
+      return `M ${pos.x - LINE_OFFSET},${pos.y - LINE_OFFSET} L ${pos.x},${pos.y} L ${
+        pos.x + LINE_OFFSET
+      },${pos.y - LINE_OFFSET}`;
+  }
+}
+export function ArrowRenderer({ id, pos, strokeWidth, location, hide }: ArrowRendererProps) {
   if (hide) {
     return null;
   }
-  const arrowPath = vertical
-    ? reverseArrow
-      ? `M ${pos.x - LINE_OFFSET},${pos.y} L ${pos.x},${pos.y - LINE_OFFSET} L ${
-          pos.x + LINE_OFFSET
-        },${pos.y}`
-      : `M ${pos.x - LINE_OFFSET},${pos.y - LINE_OFFSET} L ${pos.x},${pos.y} L ${
-          pos.x + LINE_OFFSET
-        },${pos.y - LINE_OFFSET}`
-    : reverseArrow
-    ? `M ${pos.x},${pos.y + LINE_OFFSET} L ${pos.x - LINE_OFFSET},${pos.y} L ${pos.x},${
-        pos.y - LINE_OFFSET
-      }`
-    : `M ${pos.x - LINE_OFFSET},${pos.y - LINE_OFFSET} L ${pos.x},${pos.y} L ${
-        pos.x - LINE_OFFSET
-      },${pos.y + LINE_OFFSET}`;
+  const arrowPath = getArrowPath(pos, location);
 
   return (
     <path

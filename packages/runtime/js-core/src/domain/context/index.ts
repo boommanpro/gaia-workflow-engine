@@ -70,7 +70,7 @@ export class WorkflowRuntimeContext implements IContext {
     this.cache.init();
     this.document.init(schema);
     this.variableStore.init();
-    this.state.init();
+    this.state.init(schema);
     this.ioCenter.init(inputs);
     this.snapshotCenter.init();
     this.statusCenter.init();

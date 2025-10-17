@@ -5,7 +5,7 @@
 
 import { useCallback } from 'react';
 
-import { FlowNodeEntity, useNodeRender } from '@flowgram.ai/free-layout-editor';
+import { FlowNodeEntity, useClientContext, useNodeRender } from '@flowgram.ai/free-layout-editor';
 import { ConfigProvider } from '@douyinfe/semi-ui';
 
 import { NodeStatusBar } from '../testrun/node-status-bar';
@@ -19,6 +19,7 @@ export const BaseNode = ({ node }: { node: FlowNodeEntity }) => {
    * 提供节点渲染相关的方法
    */
   const nodeRender = useNodeRender();
+  const ctx = useClientContext();
   /**
    * It can only be used when nodeEngine is enabled
    * 只有在节点引擎开启时候才能使用表单
@@ -29,7 +30,10 @@ export const BaseNode = ({ node }: { node: FlowNodeEntity }) => {
    * Used to make the Tooltip scale with the node, which can be implemented by itself depending on the UI library
    * 用于让 Tooltip 跟随节点缩放, 这个可以根据不同的 ui 库自己实现
    */
-  const getPopupContainer = useCallback(() => node.renderData.node || document.body, []);
+  const getPopupContainer = useCallback(
+    () => ctx.playground.node.querySelector('.gedit-flow-render-layer') as HTMLDivElement,
+    []
+  );
 
   return (
     <ConfigProvider getPopupContainer={getPopupContainer}>

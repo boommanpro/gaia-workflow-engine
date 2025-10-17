@@ -6,8 +6,6 @@
 import {
   type FlowNodeEntity,
   FlowNodeRenderData,
-  FlowDocument,
-  useService,
   useClientContext,
 } from '@flowgram.ai/fixed-layout-editor';
 import { IconPlus } from '@douyinfe/semi-icons';
@@ -22,12 +20,10 @@ export function AgentAdder(props: PropsType) {
   const { node } = props;
 
   const nodeData = node.firstChild?.getData<FlowNodeRenderData>(FlowNodeRenderData);
-  const document = useService(FlowDocument) as FlowDocument;
   const ctx = useClientContext();
 
   async function addPort() {
-    document.addNode({
-      ...ToolNodeRegistry.onAdd!(ctx, node),
+    ctx.operation.addNode(ToolNodeRegistry.onAdd!(ctx, node), {
       parent: node,
     });
   }

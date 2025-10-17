@@ -15,5 +15,7 @@ export enum WorkflowVariableType {
   Boolean = 'boolean',
   Object = 'object',
   Array = 'array',
+  Map = 'map',
+  DateTime = 'date-time',
   Null = 'null',
 }

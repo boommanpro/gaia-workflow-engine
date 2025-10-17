@@ -17,6 +17,7 @@ import { Run } from './run';
 import { Readonly } from './readonly';
 import { MinimapSwitch } from './minimap-switch';
 import { Minimap } from './minimap';
+import { Interactive } from './interactive';
 import { FitView } from './fit-view';
 
 export const DemoTools = () => {
@@ -33,6 +34,7 @@ export const DemoTools = () => {
   return (
     <ToolContainer className="fixed-demo-tools">
       <ToolSection>
+        <Interactive />
         <SwitchVertical />
         <ZoomSelect />
         <FitView fitView={tools.fitView} />

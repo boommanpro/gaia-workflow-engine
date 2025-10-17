@@ -5,16 +5,17 @@
 
 import React, { useMemo } from 'react';
 
-import { I18n } from '@flowgram.ai/editor';
-import { Input } from '@douyinfe/semi-ui';
+import { JsonSchemaUtils } from '@flowgram.ai/json-schema';
+import { I18n, useScopeAvailable } from '@flowgram.ai/editor';
+import { Button, Input, Select } from '@douyinfe/semi-ui';
+import { IconChevronDownStroked } from '@douyinfe/semi-icons';
 
 import { InjectVariableSelector } from '@/components/variable-selector';
 import { InjectDynamicValueInput } from '@/components/dynamic-value-input';
+import { IConditionRule, ConditionOpConfigs, useCondition } from '@/components/condition-context';
 
-import { ConditionRowValueType, IRules, OpConfigs } from './types';
+import { ConditionRowValueType } from './types';
 import { UIContainer, UILeft, UIOperator, UIRight, UIValues } from './styles';
-import { useRule } from './hooks/useRule';
-import { useOp } from './hooks/useOp';
 
 interface PropTypes {
   value?: ConditionRowValueType;
@@ -22,8 +23,8 @@ interface PropTypes {
   style?: React.CSSProperties;
   readonly?: boolean;
   ruleConfig?: {
-    ops?: OpConfigs;
-    rules?: IRules;
+    ops?: ConditionOpConfigs;
+    rules?: Record<string, IConditionRule>;
   };
 }
 
@@ -40,19 +41,44 @@ export function ConditionRow({
   ruleConfig = defaultRuleConfig,
 }: PropTypes) {
   const { left, operator, right } = value || {};
-  const { rule } = useRule(left, ruleConfig.rules);
-  const { renderOpSelect, opConfig } = useOp({
-    rule,
-    op: operator,
-    onChange: (v) => onChange({ ...value, operator: v }),
-    readonly,
-    userOps: ruleConfig.ops,
+
+  const available = useScopeAvailable();
+
+  const variable = useMemo(() => {
+    if (!left) return undefined;
+    return available.getByKeyPath(left.content);
+  }, [available, left]);
+
+  const leftSchema = useMemo(() => {
+    if (!variable) return undefined;
+    return JsonSchemaUtils.astToSchema(variable.type, { drilldown: false });
+  }, [variable?.type?.hash]);
+
+  const { rule, opConfig, opOptionList, targetSchema } = useCondition({
+    leftSchema,
+    operator,
   });
 
-  const targetSchema = useMemo(() => {
-    const targetType: string | null = rule?.[operator || ''] || null;
-    return targetType ? { type: targetType, extra: { weak: true } } : null;
-  }, [rule, opConfig]);
+  const renderOpSelect = () => (
+    <Select
+      style={{ height: 22 }}
+      disabled={readonly}
+      size="small"
+      value={operator}
+      optionList={opOptionList}
+      onChange={(v) => {
+        onChange({
+          ...value,
+          operator: v as string,
+        });
+      }}
+      triggerRender={({ value }) => (
+        <Button size="small" disabled={!rule}>
+          {opConfig?.abbreviation || <IconChevronDownStroked size="small" />}
+        </Button>
+      )}
+    />
+  );
 
   return (
     <UIContainer style={style}>

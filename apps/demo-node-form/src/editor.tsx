@@ -14,12 +14,15 @@ import { useEditorProps } from './hooks/use-editor-props';
 import '@flowgram.ai/free-layout-editor/index.css';
 import './index.css';
 interface EditorProps {
-  registry: FlowNodeRegistry;
-  initialData: WorkflowJSON;
+  registries?: FlowNodeRegistry[];
+  initialData?: WorkflowJSON;
 }
 
-export const Editor = ({ registry, initialData }: EditorProps) => {
-  const editorProps = useEditorProps({ registries: [registry], initialData });
+export const Editor = ({ registries, initialData }: EditorProps) => {
+  const editorProps = useEditorProps({
+    registries,
+    initialData,
+  });
   return (
     <FreeLayoutEditorProvider {...editorProps}>
       <div className="demo-free-container">

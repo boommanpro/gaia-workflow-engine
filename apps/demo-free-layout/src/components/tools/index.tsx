@@ -25,6 +25,7 @@ import { Console } from './console';
 import { Comment } from './comment';
 import { AutoLayout } from './auto-layout';
 import {Import} from "./import";
+import { ProblemButton } from '../problem-panel';
 
 export const DemoTools = () => {
   const { history, playground } = useClientContext();
@@ -75,6 +76,7 @@ export const DemoTools = () => {
             onClick={() => history.redo()}
           />
         </Tooltip>
+        <ProblemButton />
         <Divider layout="vertical" style={{ height: '16px' }} margin={3} />
         <AddNode disabled={playground.config.readonly} />
         <Divider layout="vertical" style={{ height: '16px' }} margin={3} />

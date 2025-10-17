@@ -5,7 +5,7 @@
 
 import React, { useMemo } from 'react';
 
-import { isNil } from 'lodash';
+import { isNil } from 'lodash-es';
 import { Point } from '@flowgram.ai/utils';
 import { type FlowTransitionLine } from '@flowgram.ai/document';
 import { useService } from '@flowgram.ai/core';

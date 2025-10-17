@@ -28,8 +28,8 @@
     "watch": "npm run build:fast -- --dts-resolve --watch --ignore-watch dist"
   },
   "dependencies": {
-    "@langchain/openai": "^0.5.11",
-    "@langchain/core": "^0.3.57",
+    "@langchain/openai": "0.5.18",
+    "@langchain/core": "^0.3.58",
     "lodash-es": "^4.17.21",
     "uuid": "^9.0.0",
     "zod": "^3.24.4"
@@ -40,12 +40,12 @@
     "@flowgram.ai/ts-config": "workspace:*",
     "@types/lodash-es": "^4.17.12",
     "@types/uuid": "^9.0.1",
-    "@vitest/coverage-v8": "^0.32.0",
+    "@vitest/coverage-v8": "^3.2.4",
     "eslint": "^8.54.0",
     "dotenv": "~16.5.0",
     "tsup": "^8.0.1",
     "typescript": "^5.8.3",
-    "vitest": "^0.34.6"
+    "vitest": "^3.2.4"
   },
   "publishConfig": {
     "access": "public",

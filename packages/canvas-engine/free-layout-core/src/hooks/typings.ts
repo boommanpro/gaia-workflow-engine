@@ -85,7 +85,7 @@ export interface NodeRenderReturnType {
    * 更新节点的扩展数据
    * @param extInfo
    */
-  updateExtInfo<T = any>(extInfo: T): void;
+  updateExtInfo<T = any>(extInfo: T, fullUpdate?: boolean): void;
   /**
    * 展开/收起节点
    * @param expanded

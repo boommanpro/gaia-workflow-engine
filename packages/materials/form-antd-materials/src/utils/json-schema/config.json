@@ -1,5 +1,9 @@
 {
   "name": "json-schema",
-  "depMaterials": ["typings/json-schema"],
-  "depPackages": ["lodash"]
+  "depMaterials": [
+    "typings/json-schema"
+  ],
+  "depPackages": [
+    "lodash-es"
+  ]
 }

@@ -14,7 +14,6 @@ import { Tooltip, Popover } from '@douyinfe/semi-ui';
 import { MousePadSelector } from './mouse-pad-selector';
 
 export const CACHE_KEY = 'workflow_prefer_interactive_type';
-export const SHOW_KEY = 'show_workflow_interactive_type_guide';
 export const IS_MAC_OS = /(Macintosh|MacIntel|MacPPC|Mac68K|iPad)/.test(navigator.userAgent);
 
 export const getPreferInteractiveType = () => {
@@ -48,8 +47,6 @@ export const Interactive = () => {
     interactiveType === InteractiveType.Mouse ? 'Mouse-Friendly' : 'Touchpad-Friendly';
 
   useEffect(() => {
-    tools.setMouseScrollDelta((zoom) => zoom / 20);
-
     // read from localStorage
     const preferInteractiveType = getPreferInteractiveType();
     tools.setInteractiveType(preferInteractiveType as IdeInteractiveType);

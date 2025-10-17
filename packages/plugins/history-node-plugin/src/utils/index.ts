@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { get } from 'lodash';
+import { get } from 'lodash-es';
 import { FormModelV2, isFormModelV2 } from '@flowgram.ai/node';
 import { HistoryService, Operation } from '@flowgram.ai/history';
 import { StackOperation } from '@flowgram.ai/history';

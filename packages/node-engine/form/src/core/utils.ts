@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { isEmpty, isEqual } from 'lodash';
+import { isEmpty, isEqual } from 'lodash-es';
 
 import { Glob } from '../utils';
 import { Errors, Feedback, OnFormValuesChangePayload, ValidateTrigger, Warnings } from '../types';

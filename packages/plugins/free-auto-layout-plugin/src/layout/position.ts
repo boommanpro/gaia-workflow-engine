@@ -4,7 +4,7 @@
  */
 
 import { WorkflowDocument } from '@flowgram.ai/free-layout-core';
-import { PositionSchema, startTween, TransformData } from '@flowgram.ai/core';
+import { PositionSchema, startTween } from '@flowgram.ai/core';
 
 import { LayoutNode } from './type';
 import { LayoutStore } from './store';
@@ -30,7 +30,7 @@ export class LayoutPosition {
       startTween({
         from: { d: 0 },
         to: { d: 100 },
-        duration: 300,
+        duration: this.store.options.animationDuration ?? 0,
         onUpdate: (v) => {
           this.store.nodes.forEach((layoutNode) => {
             this.updateNodePosition({ layoutNode, step: v.d });
@@ -45,19 +45,23 @@ export class LayoutPosition {
 
   private updateNodePosition(params: { layoutNode: LayoutNode; step: number }): void {
     const { layoutNode, step } = params;
-    const transform = layoutNode.entity.getData(TransformData);
-    const position: PositionSchema = {
+    const { transform } = layoutNode.entity.transform;
+    const layoutPosition: PositionSchema = {
       x: layoutNode.position.x + layoutNode.offset.x,
-      y: layoutNode.position.y + layoutNode.offset.y,
+      // layoutNode.position.y 是中心点，但画布节点原点在上边沿的中间，所以 y 坐标需要转化后一下
+      y: layoutNode.position.y - layoutNode.size.height / 2 + layoutNode.offset.y,
     };
-    const deltaX = ((position.x - transform.position.x) * step) / 100;
-    const deltaY = ((position.y - transform.bounds.height / 2 - transform.position.y) * step) / 100;
+
+    const deltaX = ((layoutPosition.x - transform.position.x) * step) / 100;
+    const deltaY = ((layoutPosition.y - transform.position.y) * step) / 100;
+
+    const position = {
+      x: transform.position.x + deltaX,
+      y: transform.position.y + deltaY,
+    };
 
     transform.update({
-      position: {
-        x: transform.position.x + deltaX,
-        y: transform.position.y + deltaY,
-      },
+      position,
     });
     const document = layoutNode.entity.document as WorkflowDocument;
     document.layout.updateAffectedTransform(layoutNode.entity);

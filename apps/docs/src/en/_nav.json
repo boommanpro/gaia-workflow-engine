@@ -2,7 +2,12 @@
   {
     "text": "Guide",
     "link": "/guide/introduction",
-    "activeMatch": "/guide/introduction"
+    "activeMatch": "/guide/"
+  },
+  {
+    "text": "Materials",
+    "link": "/materials/introduction",
+    "activeMatch": "/materials/"
   },
   {
     "text": "Examples",
@@ -10,12 +15,16 @@
     "activeMatch": "/examples/"
   },
   {
-    "text": "Common APIs",
+    "text": "API",
     "link": "/api/",
     "activeMatch": "/api/"
   },
   {
-    "text": "API Documentation",
+    "text": "Blogs",
+    "link": "https://juejin.cn/column/7479814468601315362"
+  },
+  {
+    "text": "TypeDocs",
     "link": "/auto-docs/",
     "activeMatch": "/auto-docs/"
   }

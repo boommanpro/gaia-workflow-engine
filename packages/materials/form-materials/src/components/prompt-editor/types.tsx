@@ -5,7 +5,7 @@
 
 import React from 'react';
 
-import { IFlowTemplateValue } from '@/typings';
+import { IFlowTemplateValue } from '@/shared';
 
 export type PropsType = React.PropsWithChildren<{
   value?: IFlowTemplateValue;

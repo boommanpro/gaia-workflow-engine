@@ -1,0 +1,29 @@
+[
+  "introduction",
+  "cli",
+  {
+    "type": "dir",
+    "name": "components",
+    "label": "Form Components"
+  },
+  {
+    "type": "dir",
+    "name": "effects",
+    "label": "Form Effects"
+  },
+  {
+    "type": "dir",
+    "name": "form-plugins",
+    "label": "Form Plugins"
+  },
+  {
+    "type": "dir",
+    "name": "validate",
+    "label": "Validate"
+  },
+  {
+    "type": "dir",
+    "name": "common",
+    "label": "Common"
+  }
+]

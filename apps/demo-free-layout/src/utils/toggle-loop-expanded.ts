@@ -3,13 +3,24 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { WorkflowNodeEntity, WorkflowNodeLinesData } from '@flowgram.ai/free-layout-editor';
+import { WorkflowNodeEntity } from '@flowgram.ai/free-layout-editor';
+
+const HeightCollapsed = 54;
+const HeightExpanded = 225;
 
 export function toggleLoopExpanded(
   node: WorkflowNodeEntity,
-  expanded: boolean = node.transform.collapsed,
-  heightCollapsed = 54
+  expanded: boolean = node.transform.collapsed
 ) {
+  if (node.blocks.length === 0) {
+    const bounds = node.bounds.clone();
+    node.transform.size = {
+      width: bounds.width,
+      height: node.transform.collapsed === expanded ? HeightCollapsed : HeightExpanded,
+    };
+    node.transform.transform.fireChange();
+    return;
+  }
   const bounds = node.bounds.clone();
   const prePosition = {
     x: node.transform.position.x,
@@ -32,7 +43,7 @@ export function toggleLoopExpanded(
     // 折叠起来，宽高不再根据子节点变化，需要手动设置
     node.transform.size = {
       width: bounds.width,
-      height: heightCollapsed,
+      height: HeightCollapsed,
     };
   } else {
     node.transform.transform.update({
@@ -50,9 +61,11 @@ export function toggleLoopExpanded(
   // 隐藏子节点线条
   // Hide the child node lines
   node.blocks.forEach((block) => {
-    block.getData(WorkflowNodeLinesData).allLines.forEach((line) => {
+    block.lines.allLines.forEach((line) => {
       line.updateUIState({
-        style: !expanded ? { display: 'none' } : {},
+        style: !expanded
+          ? { ...line.uiState.style, display: 'none' }
+          : { ...line.uiState.style, display: 'block' },
       });
     });
   });

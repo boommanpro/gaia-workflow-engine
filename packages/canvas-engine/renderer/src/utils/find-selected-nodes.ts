@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { uniq } from 'lodash';
+import { uniq } from 'lodash-es';
 import { type FlowNodeEntity } from '@flowgram.ai/document';
 
 function getNodePath(node: FlowNodeEntity): FlowNodeEntity[] {

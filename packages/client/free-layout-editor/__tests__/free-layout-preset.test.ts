@@ -6,18 +6,34 @@
 import React from 'react';
 
 import { describe, it, expect } from 'vitest';
+import { WorkflowDocument } from '@flowgram.ai/free-layout-core';
 import { FlowDocument, FlowNodeFormData } from '@flowgram.ai/editor';
 
+import { WorkflowOperationService } from '../src/types';
 import { mockJSON, mockJSON2, mockSimpleJSON, mockSimpleJSON2 } from '../__mocks__/flow.mocks';
 import { createEditor } from './create-editor';
 
 describe('free-layout-preset', () => {
   it('fromJSON and toJSON', () => {
     const editor = createEditor({});
-    const document = editor.get(FlowDocument);
+    const document = editor.get(WorkflowDocument);
     document.fromJSON(mockJSON);
     expect(document.toJSON()).toEqual(mockJSON);
     document.fromJSON(mockJSON2);
+    expect(document.toJSON()).toEqual(mockJSON2);
+  });
+  it('operation fromJSON', () => {
+    const editor = createEditor({
+      history: {
+        enable: true,
+      },
+    });
+    const operation = editor.get<WorkflowOperationService>(WorkflowOperationService);
+    const document = editor.get(WorkflowDocument);
+    operation.fromJSON(mockJSON);
+    expect(document.toJSON()).toEqual(mockJSON);
+    document.clear();
+    operation.fromJSON(mockJSON2);
     expect(document.toJSON()).toEqual(mockJSON2);
   });
   it('custom fromNodeJSON and toNodeJSON', () => {

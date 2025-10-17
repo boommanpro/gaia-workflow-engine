@@ -20,7 +20,15 @@ export function CompositeNodesPreview(props: { cellHeight?: number }) {
   const editorWidth = '50%';
   const cellHeight = props.cellHeight || 300;
   return (
-    <table className="" style={{ width: '100%', border: '1px solid var(--rp-c-divider-light)' }}>
+    <table
+      className=""
+      style={{
+        width: '100%',
+        border: '1px solid var(--rp-c-divider-light)',
+        zIndex: 1,
+        position: 'relative',
+      }}
+    >
       <tr>
         <td style={{ textAlign: 'center' }}>dynamicSplit</td>
         <td>

@@ -3,37 +3,30 @@
  * SPDX-License-Identifier: MIT
  */
 
-import {
-  WorkflowLineEntity,
-  WorkflowNodeEntity,
-  WorkflowNodeLinesData,
-} from '@flowgram.ai/free-layout-core';
-import { FlowNodeBaseType, FlowNodeTransformData } from '@flowgram.ai/document';
+import { WorkflowNodeEntity } from '@flowgram.ai/free-layout-core';
+import { FlowNodeBaseType } from '@flowgram.ai/document';
 
 import type {
   GetFollowNode,
+  ILayoutStore,
   LayoutConfig,
   LayoutEdge,
   LayoutNode,
   LayoutOptions,
   LayoutParams,
+  LayoutStoreData,
 } from './type';
 
-interface LayoutStoreData {
-  nodes: Map<string, LayoutNode>;
-  edges: Map<string, LayoutEdge>;
-}
-
-export class LayoutStore {
+export class LayoutStore implements ILayoutStore {
   private indexMap: Map<string, string>;
 
   private init: boolean = false;
 
   private store: LayoutStoreData;
 
-  private container: WorkflowNodeEntity;
-
   public options: LayoutOptions;
+
+  public container: LayoutNode;
 
   constructor(public readonly config: LayoutConfig) {}
 
@@ -66,6 +59,7 @@ export class LayoutStore {
   }
 
   public create(params: LayoutParams, options: LayoutOptions): void {
+    this.container = params.container;
     this.store = this.createStore(params);
     this.indexMap = this.createIndexMap();
     this.setOptions(options);
@@ -74,10 +68,7 @@ export class LayoutStore {
 
   /** 创建布局数据 */
   private createStore(params: LayoutParams): LayoutStoreData {
-    const { nodes, edges, container } = params;
-    this.container = container;
-    const layoutNodes = this.createLayoutNodes(nodes);
-    const layoutEdges = this.createEdgesStore(edges);
+    const { layoutNodes, layoutEdges } = params;
     const virtualEdges = this.createVirtualEdges(params);
     const store = {
       nodes: new Map(),
@@ -88,55 +79,11 @@ export class LayoutStore {
     return store;
   }
 
-  /** 创建节点布局数据 */
-  private createLayoutNodes(nodes: WorkflowNodeEntity[]): LayoutNode[] {
-    const layoutNodes = nodes.map((node, index) => {
-      const { bounds } = node.getData(FlowNodeTransformData);
-      const layoutNode: LayoutNode = {
-        id: node.id,
-        entity: node,
-        index: '', // 初始化时，index 未计算
-        rank: -1, // 初始化时，节点还未布局，层级为-1
-        order: -1, // 初始化时，节点还未布局，顺序为-1
-        position: { x: bounds.center.x, y: bounds.center.y },
-        offset: { x: 0, y: 0 },
-        size: { width: bounds.width, height: bounds.height },
-        hasChildren: node.collapsedChildren?.length > 0,
-      };
-      return layoutNode;
-    });
-    return layoutNodes;
-  }
-
-  /** 创建线条布局数据 */
-  private createEdgesStore(edges: WorkflowLineEntity[]): LayoutEdge[] {
-    const layoutEdges = edges
-      .map((edge) => {
-        const { from, to } = edge.info;
-        if (!from || !to || edge.vertical) {
-          return;
-        }
-        const layoutEdge: LayoutEdge = {
-          id: edge.id,
-          entity: edge,
-          from,
-          to,
-          fromIndex: '', // 初始化时，index 未计算
-          toIndex: '', // 初始化时，index 未计算
-          name: edge.id,
-        };
-        return layoutEdge;
-      })
-      .filter(Boolean) as LayoutEdge[];
-    return layoutEdges;
-  }
-
   /** 创建虚拟线条数据 */
-  private createVirtualEdges(params: {
-    nodes: WorkflowNodeEntity[];
-    edges: WorkflowLineEntity[];
-  }): LayoutEdge[] {
-    const { nodes, edges } = params;
+  private createVirtualEdges(params: LayoutParams): LayoutEdge[] {
+    const { layoutNodes, layoutEdges } = params;
+    const nodes = layoutNodes.map((layoutNode) => layoutNode.entity);
+    const edges = layoutEdges.map((layoutEdge) => layoutEdge.entity);
     const groupNodes = nodes.filter((n) => n.flowNodeType === FlowNodeBaseType.GROUP);
     const virtualEdges = groupNodes
       .map((group) => {
@@ -163,7 +110,7 @@ export class LayoutStore {
           })
           .filter(Boolean) as LayoutEdge[];
         const groupToEdges = edges
-          .filter((edge) => blockIdSet.has(edge.from.id ?? ''))
+          .filter((edge) => blockIdSet.has(edge.from?.id ?? ''))
           .map((edge) => {
             const { from, to } = edge.info;
             if (!from || !to || edge.vertical) {
@@ -242,8 +189,8 @@ export class LayoutStore {
 
     // 第3级排序：按照从开始节点进行遍历排序
     const visited = new Set<string>();
-    const visit = (node: WorkflowNodeEntity) => {
-      if (visited.has(node.id)) {
+    const visit = (node?: WorkflowNodeEntity) => {
+      if (!node || visited.has(node.id)) {
         return;
       }
       visited.add(node.id);
@@ -253,7 +200,7 @@ export class LayoutStore {
         visit(child);
       });
       // 访问后续节点
-      const { outputLines } = node.getData(WorkflowNodeLinesData);
+      const { outputLines } = node.lines;
       const sortedLines = outputLines.sort((a, b) => {
         const aNode = this.getNode(a.to?.id);
         const bNode = this.getNode(b.to?.id);
@@ -277,7 +224,7 @@ export class LayoutStore {
         visit(to);
       });
     };
-    visit(this.container);
+    visit(this.container.entity);
 
     // 使用 reduceRight 去重并保留最后一个出现的节点 id
     const uniqueNodeIds: string[] = nodeIdList.reduceRight((acc: string[], nodeId: string) => {

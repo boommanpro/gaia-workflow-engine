@@ -9,7 +9,9 @@ import React from 'react';
 import { I18n } from '@flowgram.ai/editor';
 import { Input, TextArea } from '@douyinfe/semi-ui';
 
-import { type JsonSchemaTypeRegistry } from '../manager';
+import { ConditionPresetOp } from '@/components/condition-context/op';
+
+import { type JsonSchemaTypeRegistry } from '../types';
 
 export const stringRegistry: Partial<JsonSchemaTypeRegistry> = {
   type: 'string',
@@ -30,4 +32,20 @@ export const stringRegistry: Partial<JsonSchemaTypeRegistry> = {
         {...props}
       />
     ),
+  conditionRule: {
+    [ConditionPresetOp.EQ]: { type: 'string' },
+    [ConditionPresetOp.NEQ]: { type: 'string' },
+    [ConditionPresetOp.CONTAINS]: { type: 'string' },
+    [ConditionPresetOp.NOT_CONTAINS]: { type: 'string' },
+    [ConditionPresetOp.IN]: {
+      type: 'array',
+      items: { type: 'string' },
+    },
+    [ConditionPresetOp.NIN]: {
+      type: 'array',
+      items: { type: 'string' },
+    },
+    [ConditionPresetOp.IS_EMPTY]: null,
+    [ConditionPresetOp.IS_NOT_EMPTY]: null,
+  },
 };

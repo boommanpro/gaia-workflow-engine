@@ -31,7 +31,7 @@ export function GlobalVariableEditor() {
   }, []);
 
   if (!globalVar) {
-    return;
+    return null;
   }
 
   const value = globalVar.type ? JsonSchemaUtils.astToSchema(globalVar.type) : { type: 'object' };

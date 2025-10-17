@@ -16,6 +16,12 @@ export function useStartDragNode() {
   return useMemo(
     () => ({
       startDrag: dragLayer ? dragLayer.startDrag.bind(dragLayer) : (e: any) => {},
+      dragOffset: dragLayer
+        ? dragLayer.dragOffset
+        : {
+            x: 0,
+            y: 0,
+          },
     }),
     [dragLayer]
   );

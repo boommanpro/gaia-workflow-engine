@@ -49,7 +49,7 @@ export const useSize = () => {
   // 同步表单外部值变化：初始化/undo/redo/协同
   useEffect(() => {
     const disposer = formModel.onFormValuesChange(({ name }) => {
-      if (name !== CommentEditorFormField.Size) {
+      if (name !== CommentEditorFormField.Size && name !== '') {
         return;
       }
       const newSize = formModel.getValueIn<{ width: number; height: number }>(

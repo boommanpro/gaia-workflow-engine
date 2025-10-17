@@ -10,7 +10,7 @@ import {
   VariableFieldKeyRenameService,
 } from '@flowgram.ai/editor';
 
-import { IFlowRefValue, IFlowTemplateValue } from '@/typings';
+import { IFlowRefValue, IFlowTemplateValue } from '@/shared';
 import { FlowValueUtils } from '@/shared';
 
 /**

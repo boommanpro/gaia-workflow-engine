@@ -5,5 +5,13 @@
 
 import { FlowNodeEntity } from '@flowgram.ai/document';
 
+import type { WorkflowNodeLinesData, WorkflowNodePortsData } from '../entity-datas';
+
+declare module '@flowgram.ai/document' {
+  interface FlowNodeEntity {
+    lines: WorkflowNodeLinesData;
+    ports: WorkflowNodePortsData;
+  }
+}
 export type WorkflowNodeEntity = FlowNodeEntity;
 export const WorkflowNodeEntity = FlowNodeEntity;

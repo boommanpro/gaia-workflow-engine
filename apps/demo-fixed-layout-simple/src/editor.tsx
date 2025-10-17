@@ -13,6 +13,7 @@ import { initialData } from './initial-data';
 import { useEditorProps } from './hooks/use-editor-props';
 import { FLOW_LIST } from './data';
 import { Tools } from './components/tools';
+import { NodeAddPanel } from './components/node-add-panel';
 import { Minimap } from './components/minimap';
 import { FlowSelect } from './components/flow-select';
 
@@ -24,7 +25,12 @@ export const Editor = (props: { demo?: string; hideTools?: boolean }) => {
   return (
     <FixedLayoutEditorProvider {...editorProps}>
       <div className="demo-fixed-container">
-        <EditorRenderer>{/* add child panel here */}</EditorRenderer>
+        <div className="demo-fixed-layout">
+          {!props.hideTools ? <NodeAddPanel /> : null}
+          <EditorRenderer className="demo-fixed-editor">
+            {/* add child panel here */}
+          </EditorRenderer>
+        </div>
       </div>
       {!props.hideTools ? (
         <>

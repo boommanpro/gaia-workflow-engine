@@ -21,8 +21,8 @@ import { DEFAULT_DEMO_REGISTRY } from '../node-registries';
 import { DEFAULT_INITIAL_DATA } from '../initial-data';
 
 interface EditorProps {
-  registries: FlowNodeRegistry[];
-  initialData: WorkflowJSON;
+  registries?: FlowNodeRegistry[];
+  initialData?: WorkflowJSON;
 }
 
 export const useEditorProps = ({
@@ -151,7 +151,6 @@ export const useEditorProps = ({
             nodeBorderColor: 'rgba(6, 7, 9, 0.10)',
             overlayColor: 'rgba(255, 255, 255, 0)',
           },
-          inactiveDebounceTime: 1,
         }),
         /**
          * Snap plugin

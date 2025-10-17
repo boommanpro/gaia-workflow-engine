@@ -6,9 +6,9 @@
 import React from 'react';
 
 import {
-  Playground,
   FlowNodeRenderData,
   FlowNodeTransformData,
+  usePlayground,
   type CollapseProps,
 } from '@flowgram.ai/fixed-layout-editor';
 
@@ -17,6 +17,7 @@ import { Container } from './styles';
 
 function Collapse(props: CollapseProps): JSX.Element {
   const { collapseNode, activateNode, hoverActivated, style } = props;
+  const playground = usePlayground();
 
   const activateData = activateNode?.getData(FlowNodeRenderData);
   const transform = collapseNode.getData(FlowNodeTransformData)!;
@@ -27,7 +28,7 @@ function Collapse(props: CollapseProps): JSX.Element {
 
   const scrollToActivateNode = () => {
     setTimeout(() => {
-      Playground.getLatest()?.scrollToView({
+      playground.config.scrollToView({
         position: activateNode?.getData(FlowNodeTransformData)?.outputPoint,
         scrollToCenter: true,
       });

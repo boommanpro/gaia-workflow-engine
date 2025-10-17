@@ -11,7 +11,7 @@ import { DndProvider } from 'react-dnd';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import React from 'react';
 
-import { isEqual } from 'lodash';
+import { isEqual } from 'lodash-es';
 import classNames from 'classnames';
 import { IJsonSchema } from '@flowgram.ai/json-schema';
 import { Space } from '@douyinfe/semi-ui';

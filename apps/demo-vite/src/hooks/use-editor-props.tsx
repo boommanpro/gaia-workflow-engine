@@ -14,7 +14,6 @@ import {
   Field,
   useNodeRender,
 } from '@flowgram.ai/free-layout-editor';
-import { CodeEditor } from '@flowgram.ai/form-materials';
 
 import { nodeRegistries } from '../node-registries';
 import { initialData } from '../initial-data';
@@ -59,15 +58,7 @@ export const useEditorProps = () =>
                 <Field<string> name="title">
                   {({ field }) => <div className="demo-free-node-title">{field.value}</div>}
                 </Field>
-                <Field<string> name="code">
-                  {({ field }) => (
-                    <CodeEditor
-                      languageId="typescript"
-                      value={field.value}
-                      onChange={field.onChange}
-                    />
-                  )}
-                </Field>
+
                 <div className="demo-free-node-content">
                   <Field<string> name="content">
                     <input />
@@ -151,7 +142,6 @@ export const useEditorProps = () =>
             nodeBorderColor: 'rgba(6, 7, 9, 0.10)',
             overlayColor: 'rgba(255, 255, 255, 0)',
           },
-          inactiveDebounceTime: 1,
         }),
         /**
          * Snap plugin

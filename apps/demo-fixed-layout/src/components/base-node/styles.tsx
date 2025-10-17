@@ -17,6 +17,7 @@ export const BaseNodeStyle = styled.div`
   justify-content: center;
   position: relative;
   width: 360px;
+  cursor: default;
   &.activated {
     border: 1px solid #82a7fc;
   }

@@ -5,7 +5,7 @@
 
 import React, { useState, useLayoutEffect } from 'react';
 
-import { VariableSelector, TypeSelector, DynamicValueInput } from '@flowgram.ai/form-materials';
+import { TypeSelector, DynamicValueInput } from '@flowgram.ai/form-materials';
 import { Input, Button } from '@douyinfe/semi-ui';
 import { IconCrossCircleStroked } from '@douyinfe/semi-icons';
 

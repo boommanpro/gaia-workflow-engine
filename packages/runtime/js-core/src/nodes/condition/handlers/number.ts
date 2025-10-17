@@ -4,7 +4,7 @@
  */
 
 import { isNil } from 'lodash-es';
-import { ConditionOperation } from '@flowgram.ai/runtime-interface';
+import { ConditionOperator } from '@flowgram.ai/runtime-interface';
 
 import { ConditionHandler } from '../type';
 
@@ -12,42 +12,42 @@ export const conditionNumberHandler: ConditionHandler = (condition) => {
   const { operator } = condition;
   const leftValue = condition.leftValue as number;
   // Switch case share scope, so we need to use if else here
-  if (operator === ConditionOperation.EQ) {
+  if (operator === ConditionOperator.EQ) {
     const rightValue = condition.rightValue as number;
     return leftValue === rightValue;
   }
-  if (operator === ConditionOperation.NEQ) {
+  if (operator === ConditionOperator.NEQ) {
     const rightValue = condition.rightValue as number;
     return leftValue !== rightValue;
   }
-  if (operator === ConditionOperation.GT) {
+  if (operator === ConditionOperator.GT) {
     const rightValue = condition.rightValue as number;
     return leftValue > rightValue;
   }
-  if (operator === ConditionOperation.GTE) {
+  if (operator === ConditionOperator.GTE) {
     const rightValue = condition.rightValue as number;
     return leftValue >= rightValue;
   }
-  if (operator === ConditionOperation.LT) {
+  if (operator === ConditionOperator.LT) {
     const rightValue = condition.rightValue as number;
     return leftValue < rightValue;
   }
-  if (operator === ConditionOperation.LTE) {
+  if (operator === ConditionOperator.LTE) {
     const rightValue = condition.rightValue as number;
     return leftValue <= rightValue;
   }
-  if (operator === ConditionOperation.IN) {
+  if (operator === ConditionOperator.IN) {
     const rightValue = condition.rightValue as number[];
     return rightValue.includes(leftValue);
   }
-  if (operator === ConditionOperation.NIN) {
+  if (operator === ConditionOperator.NIN) {
     const rightValue = condition.rightValue as number[];
     return !rightValue.includes(leftValue);
   }
-  if (operator === ConditionOperation.IS_EMPTY) {
+  if (operator === ConditionOperator.IS_EMPTY) {
     return isNil(leftValue);
   }
-  if (operator === ConditionOperation.IS_NOT_EMPTY) {
+  if (operator === ConditionOperator.IS_NOT_EMPTY) {
     return !isNil(leftValue);
   }
   return false;

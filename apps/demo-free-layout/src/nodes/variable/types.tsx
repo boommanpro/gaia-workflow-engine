@@ -4,7 +4,7 @@
  */
 
 import { FlowNodeJSON } from '@flowgram.ai/free-layout-editor';
-import { IFlowValue, IJsonSchema } from '@flowgram.ai/form-materials';
+import { AssignValueType, IJsonSchema } from '@flowgram.ai/form-materials';
 
 export interface VariableNodeJSON extends FlowNodeJSON {
   data: {

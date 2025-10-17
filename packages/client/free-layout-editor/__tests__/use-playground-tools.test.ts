@@ -75,7 +75,7 @@ describe(
       const endPos = doc.getNode('end_0')!.getData(PositionData)!;
       expect(endPos.x - startPos.x).toEqual(800);
       const revert = await toolsData.current.autoLayout();
-      expect(endPos.x - startPos.x).toEqual(760);
+      expect(endPos.x - startPos.x).toEqual(810);
       revert(); // 回滚
       expect(endPos.x - startPos.x).toEqual(800);
     });

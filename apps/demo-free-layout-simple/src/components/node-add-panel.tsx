@@ -7,7 +7,7 @@ import React from 'react';
 
 import { WorkflowDragService, useService } from '@flowgram.ai/free-layout-editor';
 
-const cardkeys = ['Node1', 'Node2', 'Condition', 'Chain', 'Tool'];
+const cardkeys = ['Node1', 'Node2', 'Condition', 'Chain', 'Tool', 'Twoway'];
 
 export const NodeAddPanel: React.FC = (props) => {
   const startDragSerivce = useService<WorkflowDragService>(WorkflowDragService);

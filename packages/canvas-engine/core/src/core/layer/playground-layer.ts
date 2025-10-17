@@ -9,7 +9,7 @@ import { Disposable, domUtils, PositionSchema } from '@flowgram.ai/utils';
 import { Gesture } from '../utils/use-gesture';
 import { PlaygroundGesture } from '../utils/playground-gesture';
 import { MouseTouchEvent, PlaygroundDrag } from '../utils';
-import { type PipelineDimension, PipelineLayerPriority } from '../pipeline';
+import { PipelineLayerPriority } from '../pipeline';
 import { ProtectWheelArea } from '../../common/protect-wheel-area';
 import { observeEntity } from '../../common';
 import { Layer, LayerOptions } from './layer';
@@ -19,7 +19,6 @@ import {
   EditorStateConfigEntity,
   PlaygroundConfigEntity,
   type PlaygroundConfigEntityData,
-  MOUSE_SCROLL_DELTA,
 } from './config';
 
 /**
@@ -70,8 +69,6 @@ export class PlaygroundLayer extends Layer<PlaygroundLayerOptions> {
     scrollX: 0,
     scrollY: 0,
   };
-
-  private size?: PipelineDimension;
 
   private cursorStyle: HTMLStyleElement = document.createElement('style');
 
@@ -295,17 +292,12 @@ export class PlaygroundLayer extends Layer<PlaygroundLayerOptions> {
     }
     if (state.cursor) {
       this.playgroundConfigEntity.updateCursor(state.cursor);
-
-      if (this.currentGesture && this.currentGesture.target.parentNode) {
-        (this.currentGesture.target.parentNode as HTMLElement).style.cursor = this.getCursor(
-          state.cursor
-        );
+      if (this.currentGesture) {
+        this.playgroundNode.style.cursor = this.getCursor(state.cursor);
       }
     } else {
       this.playgroundConfigEntity.updateCursor('');
-      if (this.currentGesture && this.currentGesture.target.parentNode) {
-        (this.currentGesture.target.parentNode as HTMLElement).style.cursor = '';
-      }
+      this.playgroundNode.style.cursor = '';
     }
 
     // 避免触发控件交互
@@ -393,32 +385,12 @@ export class PlaygroundLayer extends Layer<PlaygroundLayerOptions> {
 
   createGesture(): void {
     if (!this.currentGesture) {
-      this.currentGesture = new PlaygroundGesture(this.pipelineNode.parentElement!, this.config);
+      this.currentGesture = new PlaygroundGesture(this.playgroundNode, this.config);
       this.currentGesture.onDispose(() => {
         this.currentGesture = undefined;
       });
       this.toDispose.push(this.currentGesture);
     }
-  }
-
-  /**
-   * 监听 resize
-   * @param size
-   */
-  onResize(size: PipelineDimension): void {
-    this.size = { ...size };
-    this.updateSizeWithRulerConfig();
-  }
-
-  updateSizeWithRulerConfig(): void {
-    const { size } = this;
-    if (!size) return;
-    this.config.updateConfig({
-      width: size.width,
-      height: size.height,
-      clientX: size.clientX,
-      clientY: size.clientY,
-    });
   }
 
   protected handleScrollEvent(event: WheelEvent): void {
@@ -437,7 +409,7 @@ export class PlaygroundLayer extends Layer<PlaygroundLayerOptions> {
     if (typeof mouseScrollDelta === 'function') {
       return mouseScrollDelta(zoom);
     }
-    return mouseScrollDelta ?? MOUSE_SCROLL_DELTA;
+    return mouseScrollDelta!;
   }
 
   /**
@@ -554,8 +526,7 @@ export class PlaygroundLayer extends Layer<PlaygroundLayerOptions> {
       width: playgroundConfig.width,
       height: playgroundConfig.height,
     });
-    this.pipelineNode.parentElement!.style.cursor = finalCursor;
-
+    this.playgroundNode.style.cursor = finalCursor;
     // Note: 为什么要通过 style 注入样式
     // 原因：在 pipelineNode.parentElement 上设置 style.cursor，子元素继承样式时 cursor 样式优先级不够（子元素自身也存在 cursor 配置）
     if (cursor === 'grab' || cursor === 'grabbing') {

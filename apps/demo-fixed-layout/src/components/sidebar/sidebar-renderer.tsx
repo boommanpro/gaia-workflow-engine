@@ -3,27 +3,31 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { useCallback, useContext, useEffect, startTransition, useMemo } from 'react';
+import { useCallback, useEffect, startTransition } from 'react';
 
+import { type PanelFactory, usePanelManager } from '@flowgram.ai/panel-manager-plugin';
 import {
   PlaygroundEntityContext,
   useRefresh,
   useClientContext,
 } from '@flowgram.ai/fixed-layout-editor';
-import { SideSheet } from '@douyinfe/semi-ui';
 
 import { FlowNodeMeta } from '../../typings';
-import { SidebarContext, IsSidebarContext } from '../../context';
+import { IsSidebarContext } from '../../context';
 import { SidebarNodeRenderer } from './sidebar-node-renderer';
 
-export const SidebarRenderer = () => {
-  const { nodeId, setNodeId } = useContext(SidebarContext);
+export interface NodeFormPanelProps {
+  nodeId: string;
+}
+
+export const SidebarRenderer: React.FC<NodeFormPanelProps> = ({ nodeId }) => {
+  const panelManager = usePanelManager();
   const { selection, playground, document } = useClientContext();
   const refresh = useRefresh();
   const handleClose = useCallback(() => {
     // Sidebar delayed closing
     startTransition(() => {
-      setNodeId(undefined);
+      panelManager.close(nodeFormPanelFactory.key);
     });
   }, []);
   const node = nodeId ? document.getNode(nodeId) : undefined;
@@ -60,53 +64,32 @@ export const SidebarRenderer = () => {
   useEffect(() => {
     if (node) {
       const toDispose = node.onDispose(() => {
-        setNodeId(undefined);
+        panelManager.close(nodeFormPanelFactory.key);
       });
       return () => toDispose.dispose();
     }
     return () => {};
   }, [node]);
 
-  const visible = useMemo(() => {
-    if (!node) {
-      return false;
-    }
-    const { sidebarDisable = false } = node.getNodeMeta<FlowNodeMeta>();
-    return !sidebarDisable;
-  }, [node]);
+  if (!node || node.getNodeMeta<FlowNodeMeta>().sidebarDisabled === true) {
+    return null;
+  }
 
   if (playground.config.readonly) {
     return null;
   }
-  /**
-   * Add "key" to rerender the sidebar when the node changes
-   */
-  const content =
-    node && visible ? (
+
+  return (
+    <IsSidebarContext.Provider value={true}>
       <PlaygroundEntityContext.Provider key={node.id} value={node}>
         <SidebarNodeRenderer node={node} />
       </PlaygroundEntityContext.Provider>
-    ) : null;
-
-  return (
-    <SideSheet
-      mask={false}
-      visible={visible}
-      onCancel={handleClose}
-      closable={false}
-      width={360}
-      headerStyle={{
-        display: 'none',
-      }}
-      bodyStyle={{
-        padding: 0,
-      }}
-      style={{
-        background: 'none',
-        boxShadow: 'none',
-      }}
-    >
-      <IsSidebarContext.Provider value={true}>{content}</IsSidebarContext.Provider>
-    </SideSheet>
+    </IsSidebarContext.Provider>
   );
+};
+
+export const nodeFormPanelFactory: PanelFactory<NodeFormPanelProps> = {
+  key: 'node-form-panel',
+  defaultSize: 400,
+  render: (props: NodeFormPanelProps) => <SidebarRenderer {...props} />,
 };

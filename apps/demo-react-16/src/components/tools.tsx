@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: MIT
  */
 
-import React from 'react';
 import { useEffect, useState } from 'react';
 
 import { usePlaygroundTools, useClientContext } from '@flowgram.ai/free-layout-editor';

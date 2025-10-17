@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { isArray, isObject, isPlainObject, uniq } from 'lodash';
+import { isArray, isObject, isPlainObject, uniq } from 'lodash-es';
 import { IJsonSchema, JsonSchemaUtils } from '@flowgram.ai/json-schema';
 import { Scope } from '@flowgram.ai/editor';
 
@@ -15,8 +15,7 @@ import {
   IFlowValue,
   IFlowConstantRefValue,
   FlowValueType,
-} from '@/typings';
-
+} from './types';
 import { constantSchema, refSchema, expressionSchema, templateSchema } from './schema';
 
 export namespace FlowValueUtils {
@@ -71,42 +70,55 @@ export namespace FlowValueUtils {
   export function* traverse(
     value: any,
     options: {
-      includeTypes?: FlowValueType[];
+      includeTypes: FlowValueType[];
       path?: string;
+      pathArr?: string[];
     }
-  ): Generator<{ value: IFlowValue; path: string }> {
-    const { includeTypes = ['ref', 'template'], path = '' } = options;
+  ): Generator<{ value: IFlowValue; path: string; pathArr: string[] }> {
+    const {
+      includeTypes = ['ref', 'template', 'expression', 'constant'],
+      path = '',
+      pathArr = [],
+    } = options || {};
 
     if (isPlainObject(value)) {
       if (isRef(value) && includeTypes.includes('ref')) {
-        yield { value, path };
+        yield { value, path, pathArr };
         return;
       }
 
       if (isTemplate(value) && includeTypes.includes('template')) {
-        yield { value, path };
+        yield { value, path, pathArr };
         return;
       }
 
       if (isExpression(value) && includeTypes.includes('expression')) {
-        yield { value, path };
+        yield { value, path, pathArr };
         return;
       }
 
       if (isConstant(value) && includeTypes.includes('constant')) {
-        yield { value, path };
+        yield { value, path, pathArr };
         return;
       }
 
       for (const [_key, _value] of Object.entries(value)) {
-        yield* traverse(_value, { ...options, path: `${path}.${_key}` });
+        yield* traverse(_value, {
+          ...options,
+          path: path ? `${path}.${_key}` : _key,
+          pathArr: [...pathArr, _key],
+        });
       }
       return;
     }
 
     if (isArray(value)) {
       for (const [_idx, _value] of value.entries()) {
-        yield* traverse(_value, { ...options, path: `${path}[${_idx}]` });
+        yield* traverse(_value, {
+          ...options,
+          path: path ? `${path}[${_idx}]` : `[${_idx}]`,
+          pathArr: [...pathArr, `[${_idx}]`],
+        });
       }
       return;
     }

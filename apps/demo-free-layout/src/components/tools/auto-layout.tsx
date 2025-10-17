@@ -14,7 +14,16 @@ export const AutoLayout = () => {
   const tools = usePlaygroundTools();
   const playground = usePlayground();
   const autoLayout = useCallback(async () => {
-    await tools.autoLayout();
+    await tools.autoLayout({
+      enableAnimation: true,
+      animationDuration: 1000,
+      layoutConfig: {
+        rankdir: 'LR',
+        align: undefined,
+        nodesep: 100,
+        ranksep: 100,
+      },
+    });
   }, [tools]);
 
   return (

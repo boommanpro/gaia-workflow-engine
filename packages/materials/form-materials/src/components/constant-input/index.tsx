@@ -12,7 +12,7 @@ import { useTypeManager } from '@/plugins';
 
 import { PropsType, Strategy as ConstantInputStrategy } from './types';
 
-export { ConstantInputStrategy };
+export { type ConstantInputStrategy };
 
 export function ConstantInput(props: PropsType) {
   const { value, onChange, schema, strategies, fallbackRenderer, readonly, ...rest } = props;

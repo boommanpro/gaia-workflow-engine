@@ -33,6 +33,7 @@ export const initialData: WorkflowJSON = {
       data: {
         title: 'Condition',
         content: 'Condition node content',
+        ports: ['if', 'else'],
       },
     },
     {
@@ -119,6 +120,34 @@ export const initialData: WorkflowJSON = {
         content: 'xxxx',
       },
     },
+    {
+      id: '106070',
+      type: 'twoway',
+      meta: {
+        position: {
+          x: 550,
+          y: 310,
+        },
+      },
+      data: {
+        title: 'New Twoway',
+        content: 'xxxx',
+      },
+    },
+    {
+      id: '122116',
+      type: 'twoway',
+      meta: {
+        position: {
+          x: 866.0091156462586,
+          y: 422.4669387755102,
+        },
+      },
+      data: {
+        title: 'New Twoway',
+        content: 'xxxx',
+      },
+    },
   ],
   edges: [
     {
@@ -152,6 +181,18 @@ export const initialData: WorkflowJSON = {
       sourceNodeID: 'chain0',
       targetNodeID: '105108',
       sourcePortID: 'p5',
+    },
+    {
+      sourceNodeID: '122116',
+      targetNodeID: '106070',
+      sourcePortID: 'output-left',
+      targetPortID: 'input-right',
+    },
+    {
+      sourceNodeID: '106070',
+      targetNodeID: '122116',
+      sourcePortID: 'output-right',
+      targetPortID: 'input-left',
     },
   ],
 };

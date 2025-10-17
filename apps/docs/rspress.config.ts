@@ -5,16 +5,19 @@
 
 import * as path from 'node:path';
 
+import mermaid from 'rspress-plugin-mermaid';
 import { pluginLlms } from '@rspress/plugin-llms';
 import { transformerCompatibleMetaHighlight } from '@rspress/core/shiki-transformers';
-import { defineConfig } from '@rspress/core';
+import { defineConfig, RspressPlugin } from '@rspress/core';
 import { pluginLess } from '@rsbuild/plugin-less';
 
 export default defineConfig({
   root: path.join(__dirname, 'src'),
   base: '/',
   title: 'FlowGram.AI',
+  description: 'FlowGram.AI',
   globalStyles: path.join(__dirname, './global.less'),
+  head: ['<meta name="keywords" content="FlowGram, flowgram">'],
   builderConfig: {
     performance: {
       buildCache: false,
@@ -42,11 +45,49 @@ export default defineConfig({
               },
             ],
           },
+          /**
+           * ignore warnings from @coze-editor/editor/language-typescript
+           */
+          ignoreWarnings: [/Critical dependency: the request of a dependency is an expression/],
         });
       },
     },
   },
-  ssg: false,
+  ssg: {
+    experimentalExcludeRoutePaths: [
+      /\/auto-docs\//,
+      // these pages do not support SSR
+      // document is not defined
+      '/en/examples/node-form/basic',
+      '/en/examples/node-form/array',
+      '/en/examples/node-form/dynamic',
+      '/en/guide/getting-started/create-fixed-layout-simple',
+      '/en/guide/getting-started/create-free-layout-simple',
+      '/en/examples/node-form/effect',
+      '/en/guide/fixed-layout/composite-nodes',
+      '/en/examples/playground',
+      '/en/examples/fixed-layout/fixed-composite-nodes',
+      '/en/examples/fixed-layout/fixed-layout-simple',
+      '/en/examples/free-layout/free-layout-simple',
+      '/en/examples/fixed-layout/fixed-feature-overview',
+      '/en/examples/free-layout/free-feature-overview',
+      /\/en\/materials\/.*\/.*/,
+      /\/materials\/.*\/.*/,
+      '/examples/node-form/basic',
+      '/examples/node-form/array',
+      '/examples/node-form/dynamic',
+      '/guide/getting-started/create-fixed-layout-simple',
+      '/guide/getting-started/create-free-layout-simple',
+      '/examples/node-form/effect',
+      '/guide/fixed-layout/composite-nodes',
+      '/examples/playground',
+      '/examples/fixed-layout/fixed-composite-nodes',
+      '/examples/fixed-layout/fixed-layout-simple',
+      '/examples/free-layout/free-layout-simple',
+      '/examples/fixed-layout/fixed-feature-overview',
+      '/examples/free-layout/free-feature-overview',
+    ],
+  },
   // locales 为一个对象数组
   locales: [
     {
@@ -96,6 +137,7 @@ export default defineConfig({
         include: ({ page }) => page.lang === 'en',
       },
     ]),
+    mermaid() as RspressPlugin,
   ],
   themeConfig: {
     localeRedirect: 'auto',

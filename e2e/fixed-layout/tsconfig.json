@@ -12,11 +12,26 @@
     "noImplicitAny": true,
     "allowJs": true,
     "resolveJsonModule": true,
-    "types": ["node"],
-    "typeRoots": ["node_modules/@types"],
+    "types": [
+      "node"
+    ],
+    "typeRoots": [
+      "node_modules/@types"
+    ],
     "jsx": "react",
-    "lib": ["es6", "dom", "es2020", "es2019.Array"]
+    "lib": [
+      "es6",
+      "dom",
+      "es2020",
+      "es2019.Array"
+    ]
   },
-  "include": ["./tests", "playwright.config.ts"],
-  "exclude": ["node_modules"]
+  "include": [
+    "./tests",
+    "playwright.config.ts",
+    "./utils"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }

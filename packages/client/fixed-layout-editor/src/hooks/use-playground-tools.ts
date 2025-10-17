@@ -7,7 +7,13 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { DisposableCollection } from '@flowgram.ai/utils';
 import { HistoryService } from '@flowgram.ai/history';
-import { FlowDocument, FlowLayoutDefault, FlowNodeRenderData } from '@flowgram.ai/editor';
+import {
+  FlowDocument,
+  FlowLayoutDefault,
+  FlowNodeRenderData,
+  PlaygroundInteractiveType,
+  EditorState,
+} from '@flowgram.ai/editor';
 import { usePlayground, usePlaygroundContainer, useService } from '@flowgram.ai/editor';
 
 export interface PlaygroundToolsPropsType {
@@ -52,6 +58,9 @@ export interface PlaygroundTools {
    */
   changeLayout: (layout?: FlowLayoutDefault) => void;
 
+  /** 交互模式：鼠标 or 触控板 */
+  interactiveType: PlaygroundInteractiveType;
+  setInteractiveType: (type: PlaygroundInteractiveType) => void;
   /**
    * 是否可 redo
    */
@@ -78,6 +87,7 @@ export function usePlaygroundTools(props?: PlaygroundToolsPropsType): Playground
     ? container.get(HistoryService)
     : undefined;
   const doc = useService<FlowDocument>(FlowDocument);
+  const [interactiveType, setInteractiveType] = useState<PlaygroundInteractiveType>('PAD');
 
   const [zoom, setZoom] = useState(1);
   const [currentLayout, updateLayout] = useState(doc.layout);
@@ -142,6 +152,15 @@ export function usePlaygroundTools(props?: PlaygroundToolsPropsType): Playground
   const handleUndo = useCallback(() => historyService?.undo(), [historyService]);
   const handleRedo = useCallback(() => historyService?.redo(), [historyService]);
 
+  function handleUpdateInteractiveType(interactiveType: PlaygroundInteractiveType) {
+    if (interactiveType === 'MOUSE') {
+      playground.editorState.changeState(EditorState.STATE_MOUSE_FRIENDLY_SELECT.id);
+    } else if (interactiveType === 'PAD') {
+      playground.editorState.changeState(EditorState.STATE_SELECT.id);
+    }
+    setInteractiveType(interactiveType);
+  }
+
   useEffect(() => {
     const dispose = new DisposableCollection();
     if (playground) {
@@ -178,5 +197,7 @@ export function usePlaygroundTools(props?: PlaygroundToolsPropsType): Playground
     canUndo,
     undo: handleUndo,
     redo: handleRedo,
+    interactiveType,
+    setInteractiveType: handleUpdateInteractiveType,
   };
 }

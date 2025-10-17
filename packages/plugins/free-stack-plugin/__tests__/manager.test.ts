@@ -4,7 +4,7 @@
  */
 
 import { it, expect, beforeEach, describe, vi } from 'vitest';
-import { debounce } from 'lodash';
+import { debounce } from 'lodash-es';
 import { interfaces } from 'inversify';
 import {
   delay,
@@ -28,14 +28,14 @@ let container: interfaces.Container;
 let document: WorkflowDocument;
 let stackingContextManager: IStackingContextManager;
 
-beforeEach(async () => {
+beforeEach(() => {
   container = createWorkflowContainer();
   container.bind(StackingContextManager).to(StackingContextManager);
   document = container.get<WorkflowDocument>(WorkflowDocument);
   stackingContextManager = container.get<StackingContextManager>(
     StackingContextManager
   ) as unknown as IStackingContextManager;
-  await document.fromJSON(workflowJSON);
+  document.fromJSON(workflowJSON);
 });
 
 describe('StackingContextManager public methods', () => {
@@ -122,17 +122,17 @@ describe('StackingContextManager private methods', () => {
     const hoverService = container.get<WorkflowHoverService>(WorkflowHoverService);
     const selectService = container.get<WorkflowSelectService>(WorkflowSelectService);
     expect(stackingContextManager.context).toStrictEqual({
-      hoveredEntity: undefined,
       hoveredEntityID: undefined,
-      selectedEntities: [],
-      selectedIDs: [],
+      selectedIDs: new Set(),
+      selectedNodes: [],
+      sortNodes: stackingContextManager.options.sortNodes,
     });
     hoverService.updateHoveredKey('start_0');
     const breakNode = document.getNode('break_0')!;
     const variableNode = document.getNode('variable_0')!;
     selectService.selection = [breakNode, variableNode];
     expect(stackingContextManager.context.hoveredEntityID).toEqual('start_0');
-    expect(stackingContextManager.context.selectedIDs).toEqual(['break_0', 'variable_0']);
+    expect(stackingContextManager.context.selectedIDs).toEqual(new Set(['break_0', 'variable_0']));
   });
 
   it('should callback compute when onZoom trigger', () => {

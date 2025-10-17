@@ -5,9 +5,10 @@
 
 import React, { useMemo } from 'react';
 
-import { isPlainObject } from 'lodash';
+import { isPlainObject } from 'lodash-es';
 import { useScopeAvailable } from '@flowgram.ai/editor';
 
+import { IInputsValues } from '@/shared/flow-value';
 import { FlowValueUtils } from '@/shared';
 import { DisplayFlowValue } from '@/components/display-flow-value';
 
@@ -15,7 +16,7 @@ import { DisplayInputsWrapper } from './styles';
 import { DisplaySchemaTag } from '../display-schema-tag';
 
 interface PropsType {
-  value?: any;
+  value?: IInputsValues;
   showIconInTree?: boolean;
 }
 

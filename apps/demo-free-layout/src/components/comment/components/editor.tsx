@@ -3,11 +3,12 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { type FC, type CSSProperties, useEffect, useRef, useState, useMemo } from 'react';
+import { type FC, type CSSProperties, useEffect, useRef } from 'react';
 
 import { usePlayground } from '@flowgram.ai/free-layout-editor';
 
 import { CommentEditorModel } from '../model';
+import { usePlaceholder } from '../hooks';
 import { CommentEditorEvent } from '../constant';
 
 interface ICommentEditor {
@@ -20,8 +21,8 @@ interface ICommentEditor {
 export const CommentEditor: FC<ICommentEditor> = (props) => {
   const { model, style, onChange } = props;
   const playground = usePlayground();
+  const placeholder = usePlaceholder({ model });
   const editorRef = useRef<HTMLTextAreaElement | null>(null);
-  const placeholder = model.value || model.focused ? undefined : 'Enter a comment...';
 
   // 同步编辑器内部值变化
   useEffect(() => {

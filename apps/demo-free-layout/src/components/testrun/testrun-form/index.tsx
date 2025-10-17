@@ -6,7 +6,7 @@
 import { FC } from 'react';
 
 import classNames from 'classnames';
-import { CodeEditor, DisplaySchemaTag } from '@flowgram.ai/form-materials';
+import { DisplaySchemaTag, JsonCodeEditor } from '@flowgram.ai/form-materials';
 import { Input, Switch, InputNumber } from '@douyinfe/semi-ui';
 
 import { useFormMeta } from '../hooks/use-form-meta';
@@ -67,21 +67,13 @@ export const TestRunForm: FC<TestRunFormProps> = ({ values, setValues }) => {
       case 'object':
         return (
           <div className={classNames(styles.fieldInput, styles.codeEditorWrapper)}>
-            <CodeEditor
-              languageId="json"
-              value={field.value}
-              onChange={(value) => field.onChange(value)}
-            />
+            <JsonCodeEditor value={field.value} onChange={(value) => field.onChange(value)} />
           </div>
         );
       case 'array':
         return (
           <div className={classNames(styles.fieldInput, styles.codeEditorWrapper)}>
-            <CodeEditor
-              languageId="json"
-              value={field.value}
-              onChange={(value) => field.onChange(value)}
-            />
+            <JsonCodeEditor value={field.value} onChange={(value) => field.onChange(value)} />
           </div>
         );
       default:

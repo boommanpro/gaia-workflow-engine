@@ -9,15 +9,24 @@
     "strictPropertyInitialization": false,
     "strict": true,
     "esModuleInterop": true,
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "skipLibCheck": true,
     "noUnusedLocals": true,
     "noImplicitAny": true,
     "allowJs": true,
     "resolveJsonModule": true,
-    "types": ["node"],
+    "types": [
+      "node"
+    ],
     "jsx": "react-jsx",
-    "lib": ["es6", "dom", "es2020", "es2019.Array"]
+    "lib": [
+      "es6",
+      "dom",
+      "es2020",
+      "es2019.Array"
+    ]
   },
-  "include": ["./src"],
+  "include": [
+    "./src"
+  ],
 }

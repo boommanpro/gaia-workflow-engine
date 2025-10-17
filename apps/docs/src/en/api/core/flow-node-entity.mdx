@@ -25,6 +25,11 @@ Node entity, `WorkflowNodeEntity` is the alias for the node used for free layout
 - allChildren: `FlowNodeEntity[]` Get all child nodes, not including collapsed child nodes
 - transform: [FlowNodeTransformData](https://flowgram.ai/auto-docs/document/classes/FlowNodeTransformData.html) Get the node's transform matrix data
 - renderData: [FlowNodeRenderData](https://flowgram.ai/auto-docs/document/classes/FlowNodeRenderData.html) Get the node's render data, including render status
+- form: [NodeFormProps](https://flowgram.ai/auto-docs/editor/interfaces/NodeFormProps.html) Get the node's form data, like [getNodeForm](/api/utils/get-node-form.html)
+- scope: [FlowNodeScope](https://flowgram.ai/auto-docs/editor/interfaces/FlowNodeScope) Get the node's variable public scope
+- privateScope: [FlowNodeScope](https://flowgram.ai/auto-docs/editor/interfaces/FlowNodeScope) Get the node's variable private scope
+- lines: [WorkflowNodeLinesData](https://flowgram.ai/auto-docs/free-layout-core/classes/WorkflowNodeLinesData.html) Get the node's lines data (Only FreeLayout)
+- ports: [WorkflowNodePortsData](https://flowgram.ai/auto-docs/free-layout-core/classes/WorkflowNodePortsData.html) Get the node's ports data (Only FreeLayout)
 
 
 ## Methods

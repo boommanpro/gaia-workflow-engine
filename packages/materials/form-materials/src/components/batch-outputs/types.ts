@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { IFlowRefValue } from '@/typings';
+import { IFlowRefValue } from '@/shared';
 
 export type ValueType = Record<string, IFlowRefValue | undefined>;
 

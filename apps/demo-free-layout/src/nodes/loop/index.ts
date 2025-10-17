@@ -38,16 +38,16 @@ export const LoopNodeRegistry: FlowNodeRegistry = {
       width: 424,
       height: 244,
     },
-    autoResizeDisable: true,
+    // autoResizeDisable: true,
     /**
      * The subcanvas padding setting
      * 子画布 padding 设置
      */
     padding: () => ({
       top: 120,
-      bottom: 60,
-      left: 60,
-      right: 60,
+      bottom: 80,
+      left: 80,
+      right: 80,
     }),
     /**
      * Controls the node selection status within the subcanvas
@@ -66,6 +66,7 @@ export const LoopNodeRegistry: FlowNodeRegistry = {
       minWidth: 'unset',
       width: '100%',
     },
+    // defaultPorts: [{ type: 'output', location: 'right' }, { type: 'input', location: 'left'}, { type: 'output', location: 'bottom', portID: 'bottom' }, { type: 'input', location: 'top', portID: 'top'}]
   },
   onAdd() {
     return {
@@ -80,8 +81,8 @@ export const LoopNodeRegistry: FlowNodeRegistry = {
           type: WorkflowNodeType.BlockStart,
           meta: {
             position: {
-              x: -80,
-              y: 120,
+              x: 32,
+              y: 0,
             },
           },
           data: {},
@@ -91,8 +92,8 @@ export const LoopNodeRegistry: FlowNodeRegistry = {
           type: WorkflowNodeType.BlockEnd,
           meta: {
             position: {
-              x: 80,
-              y: 120,
+              x: 192,
+              y: 0,
             },
           },
           data: {},

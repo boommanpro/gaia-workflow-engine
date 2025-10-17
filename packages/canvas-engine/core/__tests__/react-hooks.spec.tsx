@@ -5,6 +5,7 @@
 
 import React from 'react';
 
+import { expect } from 'vitest';
 import { describe, it } from 'vitest';
 import { ContainerModule, injectable, interfaces } from 'inversify';
 import { renderHook } from '@testing-library/react-hooks';
@@ -17,7 +18,6 @@ import {
   useEntityFromContext,
   useListenEvents,
   usePlaygroundContext,
-  usePlaygroundLatest,
   useRefresh,
   useService,
 } from '../src/react-hooks';
@@ -131,16 +131,6 @@ describe('react-hooks', () => {
     renderHook(() => useEntityDataFromContext(dataRegistry), {
       wrapper: containerWrapper,
     });
-  });
-
-  it('use-playground-latest', () => {
-    const { result } = renderHook(() => usePlaygroundLatest(), { wrapper });
-    // 首次渲染有内容
-    expect(result.current).not.toBeUndefined();
-    const prevLen = Playground.getAllInstances()?.length;
-    // 再次渲染，newPlayground !== playground。
-    renderHook(() => usePlaygroundLatest(), { wrapper });
-    expect(Playground.getAllInstances()?.length).toEqual(prevLen + 1);
   });
 
   it('use-playground-context', () => {

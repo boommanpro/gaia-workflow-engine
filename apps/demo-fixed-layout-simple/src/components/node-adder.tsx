@@ -3,17 +3,12 @@
  * SPDX-License-Identifier: MIT
  */
 
-import {
-  FlowNodeEntity,
-  FlowOperationService,
-  useClientContext,
-  usePlayground,
-  useService,
-} from '@flowgram.ai/fixed-layout-editor';
+import { FlowNodeEntity, useClientContext, usePlayground } from '@flowgram.ai/fixed-layout-editor';
 import { Dropdown } from '@douyinfe/semi-ui';
 import { IconPlusCircle } from '@douyinfe/semi-icons';
 
 import { nodeRegistries } from '../node-registries';
+import { useAddNode } from '../hooks/use-add-node';
 
 export const NodeAdder = (props: {
   from: FlowNodeEntity;
@@ -23,21 +18,8 @@ export const NodeAdder = (props: {
   const { from, hoverActivated } = props;
   const playground = usePlayground();
   const context = useClientContext();
-  const flowOperationService = useService(FlowOperationService) as FlowOperationService;
 
-  const add = (addProps: any) => {
-    const blocks = addProps.blocks ? addProps.blocks : undefined;
-    const block = flowOperationService.addFromNode(from, {
-      ...addProps,
-      blocks,
-    });
-    setTimeout(() => {
-      playground.scrollToView({
-        bounds: block.bounds,
-        scrollToCenter: true,
-      });
-    }, 10);
-  };
+  const { handleAdd } = useAddNode();
 
   if (playground.config.readonlyOrDisabled) return null;
 
@@ -50,7 +32,7 @@ export const NodeAdder = (props: {
               key={registry.type}
               onClick={() => {
                 const props = registry?.onAdd(context, from);
-                add(props);
+                handleAdd(props, from);
               }}
             >
               {registry.type}

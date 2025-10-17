@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { find, mergeWith } from 'lodash';
+import { find, mergeWith } from 'lodash-es';
 import { FormFeedback, FormPathService } from '@flowgram.ai/form-core';
-import { FormValidateReturn } from '@flowgram.ai/form/src/types';
+import type { FieldError, FieldWarning, FormValidateReturn } from '@flowgram.ai/form';
 import { type FieldModel, FieldName } from '@flowgram.ai/form';
 
 import { DataEvent, EffectOptions, EffectReturn } from './types';
@@ -38,7 +38,7 @@ export function formFeedbacksToNodeCoreFormFeedbacks(
   formFeedbacks: FormValidateReturn
 ): FormFeedback[] {
   return formFeedbacks.map(
-    (f) =>
+    (f: FieldError | FieldWarning) =>
       ({
         feedbackStatus: f.level,
         feedbackText: f.message,

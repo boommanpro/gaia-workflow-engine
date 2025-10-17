@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { omit } from 'lodash';
+import { omit } from 'lodash-es';
 
 import { HistoryService, UndoRedoService } from '../src';
 import { createHistoryContainer } from '../__mocks__/history-container.mock';

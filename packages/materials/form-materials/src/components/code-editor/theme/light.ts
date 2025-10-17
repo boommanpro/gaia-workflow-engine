@@ -3,117 +3,110 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { createTheme, tags as t } from '@coze-editor/editor/preset-code';
+import { createTheme, tags as t } from '@flowgram.ai/coze-editor/preset-code';
 import { type Extension } from '@codemirror/state';
 
-const colors = {
-  background: '#F7F7FC',
-  // syntax
-  comment: '#000A298A',
-  key: '#00818C',
-  string: '#D1009D',
-  number: '#C74200',
-  boolean: '#2B57D9',
-  null: '#2B57D9',
-  separator: '#0F1529D1',
+export const colors = {
+  background: '#f4f5f5',
+  foreground: '#444d56',
+  selection: '#0366d625',
+  cursor: '#044289',
+  dropdownBackground: '#fff',
+  dropdownBorder: '#e1e4e8',
+  activeLine: '#c6c6c622',
+  matchingBracket: '#34d05840',
+  keyword: '#d73a49',
+  storage: '#d73a49',
+  variable: '#e36209',
+  parameter: '#24292e',
+  function: '#005cc5',
+  string: '#032f62',
+  constant: '#005cc5',
+  type: '#005cc5',
+  class: '#6f42c1',
+  number: '#005cc5',
+  comment: '#6a737d',
+  heading: '#005cc5',
+  invalid: '#cb2431',
+  regexp: '#032f62',
 };
 
 export const lightTheme: Extension = createTheme({
   variant: 'light',
   settings: {
-    background: '#fff',
-    foreground: '#000',
-    caret: '#000',
-    selection: '#d9d9d9',
-    gutterBackground: '#f0f0f0',
-    gutterForeground: '#666',
+    background: colors.background,
+    foreground: colors.foreground,
+    caret: colors.cursor,
+    selection: colors.selection,
+    gutterBackground: colors.background,
+    gutterForeground: colors.foreground,
     gutterBorderColor: 'transparent',
     gutterBorderWidth: 0,
-    lineHighlight: '#e1e1e180',
-    bracketColors: ['#FFD700', '#DD99FF', '#78B0FF'],
+    lineHighlight: 'transparent',
+    bracketColors: ['#F59E0B', '#8B5CF6', '#06B6D4'],
     tooltip: {
-      backgroundColor: '#f0f0f0',
-      color: '#000',
-      border: '1px solid #ccc',
+      backgroundColor: colors.dropdownBackground,
+      color: colors.foreground,
+      border: 'none',
+      boxShadow: '0 0 1px rgba(0, 0, 0, .3), 0 4px 14px rgba(0, 0, 0, .1)!important',
+      maxWidth: '400px',
     },
     link: {
-      color: '#007bff',
+      color: '#2563EB',
+      caret: colors.cursor,
     },
     completionItemHover: {
-      backgroundColor: '#f0f0f0',
+      backgroundColor: '#F3F4F6',
     },
     completionItemSelected: {
-      backgroundColor: '#e0e0e0',
+      backgroundColor: colors.selection,
+      color: colors.foreground,
     },
     completionItemIcon: {
-      color: '#333',
+      color: '#4B5563',
     },
     completionItemLabel: {
-      color: '#333',
+      color: '#1F2937',
     },
     completionItemInfo: {
-      color: '#333',
+      color: '#4B5563',
     },
     completionItemDetail: {
-      color: '#666',
+      color: '#6B7280',
     },
   },
   styles: [
-    // JSON
+    { tag: t.keyword, color: colors.keyword },
     {
-      tag: t.comment,
-      color: colors.comment,
+      tag: [t.name, t.deleted, t.character, t.macroName],
+      color: colors.variable,
     },
+    { tag: [t.propertyName], color: colors.function },
     {
-      tag: [t.propertyName],
-      color: colors.key,
-    },
-    {
-      tag: [t.string],
+      tag: [t.processingInstruction, t.string, t.inserted, t.special(t.string)],
       color: colors.string,
     },
+    { tag: [t.function(t.variableName), t.labelName], color: colors.function },
     {
-      tag: [t.number],
+      tag: [t.color, t.constant(t.name), t.standard(t.name)],
+      color: colors.constant,
+    },
+    { tag: [t.definition(t.name), t.separator], color: colors.variable },
+    { tag: [t.className], color: colors.class },
+    {
+      tag: [t.number, t.changed, t.annotation, t.modifier, t.self, t.namespace],
       color: colors.number,
     },
-    {
-      tag: [t.bool],
-      color: colors.boolean,
-    },
-    {
-      tag: [t.null],
-      color: colors.null,
-    },
-    {
-      tag: [t.separator],
-      color: colors.separator,
-    },
-
-    // markdown
-    {
-      tag: [t.heading],
-      color: '#3e76ef',
-    },
-    {
-      tag: [t.processingInstruction],
-      color: '#3e76ef',
-    },
-
-    // shell
-    // curl
-    {
-      tag: [t.standard(t.variableName)],
-      color: '#00804A',
-    },
-    // -X
-    {
-      tag: [t.attributeName],
-      color: '#C74200',
-    },
-    // url in string (includes quotes), e.g. "https://..."
-    {
-      tag: [t.special(t.string)],
-      color: '#2B57D9',
-    },
+    { tag: [t.typeName], color: colors.type, fontStyle: colors.type },
+    { tag: [t.operator, t.operatorKeyword], color: colors.keyword },
+    { tag: [t.url, t.escape, t.regexp, t.link], color: colors.regexp },
+    { tag: [t.meta, t.comment], color: colors.comment },
+    { tag: t.strong, fontWeight: 'bold' },
+    { tag: t.emphasis, fontStyle: 'italic' },
+    { tag: t.link, textDecoration: 'underline' },
+    { tag: t.heading, fontWeight: 'bold', color: colors.heading },
+    { tag: [t.atom, t.bool, t.special(t.variableName)], color: colors.variable },
+    { tag: t.invalid, color: colors.invalid },
+    { tag: t.strikethrough, textDecoration: 'line-through' },
   ],
 });

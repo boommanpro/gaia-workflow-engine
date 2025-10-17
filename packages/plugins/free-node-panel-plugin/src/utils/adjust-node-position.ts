@@ -39,10 +39,17 @@ export const adjustNodePosition: IAdjustNodePosition = (params) => {
     };
   } else if (fromPort && !toPort) {
     // 仅输入
-    adjustedPosition = {
-      x: position.x + size.width / 2,
-      y: position.y - size.height / 2,
-    };
+    if (fromPort.location === 'bottom') {
+      adjustedPosition = {
+        x: position.x,
+        y: position.y,
+      };
+    } else {
+      adjustedPosition = {
+        x: position.x + size.width / 2,
+        y: position.y - size.height / 2,
+      };
+    }
   } else if (!fromPort && toPort) {
     // 仅输出
     adjustedPosition = {

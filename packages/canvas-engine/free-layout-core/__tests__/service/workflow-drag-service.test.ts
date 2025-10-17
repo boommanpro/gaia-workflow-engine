@@ -73,8 +73,8 @@ describe('workflow-drag-service', () => {
     newLine?: WorkflowLineEntity; // 新的线条
   }> {
     const { from, to, middlePoints } = params;
-    const fromPortsData = from?.getData(WorkflowNodePortsData)!;
-    const toPortsData = to?.getData(WorkflowNodePortsData)!;
+    const fromPortsData = from?.ports!;
+    const toPortsData = to?.ports!;
     const fromPort = fromPortsData?.outputPorts?.[0] ?? params.fromPort;
     const fromPoint = fromPortsData?.getOutputPoint();
     const toPoint = toPortsData?.getInputPoint() ?? params.toPoint;
@@ -135,9 +135,9 @@ describe('workflow-drag-service', () => {
     });
     startNode = document.getNode('start_0')!;
     endNode = document.getNode('end_0')!;
-    startPorts = startNode.getData(WorkflowNodePortsData)!;
-    endPorts = endNode.getData(WorkflowNodePortsData)!;
-    conditionPorts = document.getNode('condition_0')!.getData(WorkflowNodePortsData)!;
+    startPorts = startNode.ports!;
+    endPorts = endNode.ports!;
+    conditionPorts = document.getNode('condition_0')!.ports!;
   });
   it('startDrawingLine', async () => {
     // 连接到 end 节点
@@ -266,7 +266,7 @@ describe('workflow-drag-service', () => {
     const line = newLine as WorkflowLineEntity;
     expect(linesManager.getAllLines().length).toBe(1);
     expect(line.inContainer).toBeTruthy();
-    expect(line.from.id).toBe(fromNodeId);
+    expect(line.from?.id).toBe(fromNodeId);
     expect(line.to?.id).toBe(toNodeId);
     expect(dragSuccess).toBeTruthy();
     expect(line.id).toBe(`${fromNodeId}_-${toNodeId}_`);
@@ -341,15 +341,15 @@ describe('workflow-drag-service', () => {
     });
     expect(dragResult).toEqual(true);
     expect(breakNode.getData(PositionData).toJSON()).toEqual({
-      x: 0,
+      x: 140,
       y: 0,
     });
     expect(variableNode.getData(PositionData).toJSON()).toEqual({
-      x: 400,
+      x: 540,
       y: 0,
     });
     expect(loopNode.getData(PositionData).toJSON()).toEqual({
-      x: 1300,
+      x: 1160,
       y: 100,
     });
   });

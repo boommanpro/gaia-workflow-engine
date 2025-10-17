@@ -6,6 +6,7 @@
 import { isNil } from 'lodash-es';
 import {
   ConditionItem,
+  ConditionOperator,
   ExecutionContext,
   ExecutionResult,
   FlowGramNode,
@@ -33,7 +34,10 @@ export class ConditionExecutor implements INodeExecutor {
       .filter((item) => this.checkCondition(item));
     const activatedCondition = parsedConditions.find((item) => this.handleCondition(item));
     if (!activatedCondition) {
-      throw new Error('No condition is activated');
+      return {
+        outputs: {},
+        branch: 'else',
+      };
     }
     return {
       outputs: {},
@@ -47,7 +51,13 @@ export class ConditionExecutor implements INodeExecutor {
     const parsedLeft = context.runtime.state.parseRef(left);
     const leftValue = parsedLeft?.value ?? null;
     const leftType = parsedLeft?.type ?? WorkflowVariableType.Null;
-    const parsedRight = Boolean(right) ? context.runtime.state.parseValue(right) : null;
+    const expectedRightType = this.getRuleType({ leftType, operator });
+    const parsedRight = Boolean(right)
+      ? context.runtime.state.parseFlowValue({
+          flowValue: right,
+          declareType: expectedRightType,
+        })
+      : null;
     const rightValue = parsedRight?.value ?? null;
     const rightType = parsedRight?.type ?? WorkflowVariableType.Null;
     return {
@@ -84,5 +94,21 @@ export class ConditionExecutor implements INodeExecutor {
     }
     const isActive = handler(condition);
     return isActive;
+  }
+
+  private getRuleType(params: {
+    leftType: WorkflowVariableType;
+    operator: ConditionOperator;
+  }): WorkflowVariableType {
+    const { leftType, operator } = params;
+    const rule = conditionRules[leftType];
+    if (isNil(rule)) {
+      return WorkflowVariableType.Null;
+    }
+    const ruleType = rule[operator];
+    if (isNil(ruleType)) {
+      return WorkflowVariableType.Null;
+    }
+    return ruleType;
   }
 }

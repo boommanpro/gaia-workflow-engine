@@ -32,6 +32,7 @@ export interface FlowDocumentOptions {
   constants?: Record<string, any>;
   formatNodeLines?: (node: FlowNodeEntity, lines: FlowTransitionLine[]) => FlowTransitionLine[];
   formatNodeLabels?: (node: FlowNodeEntity, lines: FlowTransitionLabel[]) => FlowTransitionLabel[];
+  preNodeCreate?: (node: FlowNodeEntity) => void;
   /**
    * 获取默认的节点配置
    */

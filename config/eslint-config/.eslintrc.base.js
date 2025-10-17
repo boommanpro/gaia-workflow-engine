@@ -88,7 +88,6 @@ module.exports = {
         'react/jsx-no-useless-fragment': 'off',
         'no-unused-vars': 'off',
         'no-redeclare': 'off',
-        'no-empty-fuNction': 'off',
         'prefer-destructurin': 'off',
         'no-underscore-dangle': 'off',
         'no-empty-function': 'off',
@@ -123,7 +122,6 @@ module.exports = {
         'no-shadow': 'off',
         'class-methods-use-this': 'off',
         'default-param-last': 'off',
-        'import/no-extraneous-dependencies': 'off',
         'prettier/prettier': [
           'warn',
           {
@@ -133,9 +131,7 @@ module.exports = {
             usePrettierrc: false,
           },
         ],
-        'no-unused-vars': 'off',
         'import/no-cycle': 'error',
-        'import/prefer-default-export': 'off',
         'import/no-extraneous-dependencies': [
           'error',
           {
@@ -143,7 +139,6 @@ module.exports = {
           },
         ],
         'import/no-relative-packages': 'error',
-        'import/extensions': 'off',
         'import/order': [
           'warn',
           {

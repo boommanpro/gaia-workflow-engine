@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { throttle } from 'lodash';
+import { throttle } from 'lodash-es';
 import { type Disposable } from '@flowgram.ai/utils';
 
 // TODO 先用 throttle 替代

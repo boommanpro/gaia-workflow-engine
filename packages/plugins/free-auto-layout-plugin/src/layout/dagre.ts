@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { FlowNodeTransformData } from '@flowgram.ai/document';
 import { Graph as DagreGraph } from '@dagrejs/graphlib';
 
 import { dagreLib } from '../dagre-lib/index';
@@ -68,13 +67,7 @@ export class DagreLayout {
   }
 
   private graphSetData(): void {
-    const nodes = Array.from(this.store.nodes.values());
-    const edges = Array.from(this.store.edges.values()).sort((next, prev) => {
-      if (next.fromIndex === prev.fromIndex) {
-        return next.toIndex! < prev.toIndex! ? -1 : 1;
-      }
-      return next.fromIndex < prev.fromIndex ? -1 : 1;
-    });
+    const { nodes, edges } = this.store;
     nodes.forEach((layoutNode) => {
       this.graph.setNode(layoutNode.index, {
         originID: layoutNode.id,
@@ -82,13 +75,20 @@ export class DagreLayout {
         height: layoutNode.size.height,
       });
     });
-    edges.forEach((layoutEdge) => {
-      this.graph.setEdge({
-        v: layoutEdge.fromIndex,
-        w: layoutEdge.toIndex,
-        name: layoutEdge.name,
+    edges
+      .sort((next, prev) => {
+        if (next.fromIndex === prev.fromIndex) {
+          return next.toIndex! < prev.toIndex! ? -1 : 1;
+        }
+        return next.fromIndex < prev.fromIndex ? -1 : 1;
+      })
+      .forEach((layoutEdge) => {
+        this.graph.setEdge({
+          v: layoutEdge.fromIndex,
+          w: layoutEdge.toIndex,
+          name: layoutEdge.name,
+        });
       });
-    });
   }
 
   private layoutSetPosition(): void {
@@ -118,13 +118,12 @@ export class DagreLayout {
   }
 
   private getOffsetX(layoutNode: LayoutNode): number {
-    if (!layoutNode.hasChildren) {
+    if (layoutNode.layoutNodes.length === 0) {
       return 0;
     }
     // 存在子节点才需计算padding带来的偏移
-    const nodeTransform = layoutNode.entity.getData(FlowNodeTransformData);
-    const { bounds, padding } = nodeTransform;
-    const leftOffset = -bounds.width / 2 + padding.left;
+    const { padding } = layoutNode;
+    const leftOffset = -layoutNode.size.width / 2 + padding.left;
     return leftOffset;
   }
 

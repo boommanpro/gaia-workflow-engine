@@ -38,6 +38,7 @@ import {
 } from '@flowgram.ai/editor';
 
 import { WorkflowAutoLayoutTool } from '../tools';
+import { createOperationPlugin } from '../plugins/create-operation-plugin';
 import { fromNodeJSON, toNodeJSON } from './node-serialize';
 import { FreeLayoutProps, FreeLayoutPluginContext } from './free-layout-props';
 
@@ -170,6 +171,7 @@ export function createFreeLayoutPreset(
             cursors: opts.cursors ?? WorkflowDocumentOptionsDefault.cursors,
             lineColor: opts.lineColor ?? WorkflowDocumentOptionsDefault.lineColor,
             allNodesDefaultExpanded: opts.allNodesDefaultExpanded,
+            twoWayConnection: opts.twoWayConnection ?? true,
             toNodeJSON: (node) => toNodeJSON(opts, node),
             fromNodeJSON: (node, json, isFirstCreate) =>
               fromNodeJSON(opts, node, json, isFirstCreate),
@@ -205,6 +207,7 @@ export function createFreeLayoutPreset(
         },
         containerModules: [WorkflowDocumentContainerModule],
       }),
+      createOperationPlugin(opts),
       /**
        * 渲染层级管理
        */

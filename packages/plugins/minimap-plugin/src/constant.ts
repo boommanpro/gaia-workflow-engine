@@ -33,9 +33,7 @@ export const MinimapDefaultInactiveStyle: MinimapInactiveStyle = {
 export const MinimapDefaultOptions: MinimapServiceOptions = {
   canvasStyle: MinimapDefaultCanvasStyle,
   canvasClassName: 'gedit-minimap-canvas',
-  enableActiveDebounce: false,
-  enableInactiveDebounce: true,
   enableDisplayAllNodes: false,
-  activeDebounceTime: 0,
-  inactiveDebounceTime: 5,
+  activeThrottleTime: 0,
+  inactiveThrottleTime: 24,
 };

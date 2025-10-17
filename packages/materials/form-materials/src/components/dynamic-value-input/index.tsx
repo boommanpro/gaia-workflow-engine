@@ -14,7 +14,7 @@ import {
 import { IconButton } from '@douyinfe/semi-ui';
 import { IconSetting } from '@douyinfe/semi-icons';
 
-import { IFlowConstantRefValue, IFlowConstantValue } from '@/typings';
+import { IFlowConstantRefValue, IFlowConstantValue } from '@/shared';
 import { createInjectMaterial } from '@/shared';
 import { InjectVariableSelector } from '@/components/variable-selector';
 import { TypeSelector } from '@/components/type-selector';

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { flatten, get } from 'lodash';
+import { flatten, get } from 'lodash-es';
 import { deepEqual } from 'fast-equals';
 import { Disposable, Emitter } from '@flowgram.ai/utils';
 import { ReactiveState } from '@flowgram.ai/reactive';

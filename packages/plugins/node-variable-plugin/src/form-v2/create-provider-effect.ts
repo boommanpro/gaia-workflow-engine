@@ -20,26 +20,28 @@ export function createEffectFromVariableProvider(
   const getScope = (node: FlowNodeEntity): Scope => {
     const variableData: FlowNodeVariableData = node.getData(FlowNodeVariableData);
 
-    if (options.private) {
+    if (options.private || options.scope === 'private') {
       return variableData.initPrivate();
     }
     return variableData.public;
   };
 
-  const transformValueToAST: Effect = ({ value, context }) => {
+  const transformValueToAST: Effect = ({ value, name, context, formValues, form }) => {
     if (!context) {
       return;
     }
     const { node } = context;
     const scope = getScope(node);
 
-    scope.ast.set(options.namespace || '', {
+    scope.ast.set(options.namespace || name || '', {
       kind: ASTKind.VariableDeclarationList,
       declarations: options.parse(value, {
         node,
         scope,
         options,
-        formItem: undefined,
+        name,
+        formValues,
+        form,
       }),
     });
   };
@@ -55,15 +57,16 @@ export function createEffectFromVariableProvider(
           node: context.node,
           scope,
           options,
-          formItem: undefined,
+          name: params.name,
+          formValues: params.formValues,
+          form: params.form,
         });
 
-        if (disposable) {
-          // 作用域销毁时同时销毁该监听
-          scope.toDispose.push(disposable);
-        }
-
         transformValueToAST(params);
+
+        return () => {
+          disposable?.dispose();
+        };
       }) as Effect,
     },
     {

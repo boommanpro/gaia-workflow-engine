@@ -4,11 +4,10 @@
  */
 
 import { Field } from '@flowgram.ai/free-layout-editor';
-import { CodeEditor } from '@flowgram.ai/form-materials';
-import { Divider, Select } from '@douyinfe/semi-ui';
+import { TypeScriptCodeEditor } from '@flowgram.ai/form-materials';
+import { Divider } from '@douyinfe/semi-ui';
 
 import { useIsSidebar, useNodeRenderContext } from '../../../hooks';
-import { FormItem } from '../../../form-components';
 
 export function Code() {
   const isSidebar = useIsSidebar();
@@ -18,42 +17,12 @@ export function Code() {
     return null;
   }
 
-  const languageOptions = [
-    { label: 'JavaScript (Return)', value: 'jsReturn' },
-    { label: 'Java', value: 'java' },
-    { label: 'Groovy', value: 'groovy' },
-  ];
-
-  const getLanguageId = (language: string) => {
-    switch (language) {
-      case 'java':
-        return 'java';
-      case 'groovy':
-        return 'groovy';
-      default:
-        return 'javascript';
-    }
-  };
-
   return (
     <>
       <Divider />
-      <FormItem name="language" type="string">
-        <Field<string> name="script.language">
-          {({ field }) => (
-            <Select
-              optionList={languageOptions}
-              value={field.value}
-              onChange={(value) => field.onChange(value as string)}
-              disabled={readonly}
-            />
-          )}
-        </Field>
-      </FormItem>
       <Field<string> name="script.content">
         {({ field }) => (
-          <CodeEditor
-            languageId={getLanguageId(field.value)}
+          <TypeScriptCodeEditor
             value={field.value}
             onChange={(value) => field.onChange(value)}
             readonly={readonly}

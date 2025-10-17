@@ -7,22 +7,26 @@
 import { useMemo } from 'react';
 
 import { debounce } from 'lodash-es';
+import { createPanelManagerPlugin } from '@flowgram.ai/panel-manager-plugin';
 import { createMinimapPlugin } from '@flowgram.ai/minimap-plugin';
+import { createFreeStackPlugin } from '@flowgram.ai/free-stack-plugin';
 import { createFreeSnapPlugin } from '@flowgram.ai/free-snap-plugin';
 import { createFreeNodePanelPlugin } from '@flowgram.ai/free-node-panel-plugin';
 import { createFreeLinesPlugin } from '@flowgram.ai/free-lines-plugin';
 import {
   FlowNodeBaseType,
+  FreeLayoutPluginContext,
   FreeLayoutProps,
-  WorkflowNodeLinesData,
+  WorkflowNodeEntity,
 } from '@flowgram.ai/free-layout-editor';
 import { createFreeGroupPlugin } from '@flowgram.ai/free-group-plugin';
 import { createContainerNodePlugin } from '@flowgram.ai/free-container-plugin';
 
-import { onDragLineEnd } from '../utils';
+import { canContainNode, onDragLineEnd } from '../utils';
 import { FlowNodeRegistry, FlowDocumentJSON } from '../typings';
 import { shortcuts } from '../shortcuts';
 import { CustomService } from '../services';
+import { GetGlobalVariableSchema } from '../plugins/variable-panel-plugin';
 import { WorkflowRuntimeService } from '../plugins/runtime-plugin/runtime-service';
 import {
   createRuntimePlugin,
@@ -31,7 +35,10 @@ import {
 } from '../plugins';
 import { defaultFormMeta } from '../nodes/default-form-meta';
 import { WorkflowNodeType } from '../nodes';
+import { testRunPanelFactory } from '../components/testrun/testrun-panel';
+import { nodeFormPanelFactory } from '../components/sidebar';
 import { SelectorBoxPopover } from '../components/selector-box-popover';
+import { problemPanelFactory } from '../components/problem-panel';
 import { BaseNode, CommentRender, GroupNodeRender, LineAddButton, NodePanel } from '../components';
 
 export function useEditorProps(
@@ -59,6 +66,11 @@ export function useEditorProps(
        * Whether it is read-only or not, the node cannot be dragged in read-only mode
        */
       readonly: false,
+      /**
+       * Line support both-way connection (default true)
+       * 线条支持双向连接
+       */
+      twoWayConnection: true,
       /**
        * Initial data
        * 初始化数据
@@ -131,7 +143,7 @@ export function useEditorProps(
          * 线条环检测，不允许连接到前面的节点
          * Line loop detection, which is not allowed to connect to the node in front of it
          */
-        return !fromPort.node.getData(WorkflowNodeLinesData).allInputNodes.includes(toPort.node);
+        return !fromPort.node.lines.allInputNodes.includes(toPort.node);
       },
       /**
        * Check whether the line can be deleted, this triggers on the default shortcut `Bakspace` or `Delete`
@@ -151,43 +163,15 @@ export function useEditorProps(
        * 是否允许拖入子画布 (loop or group)
        * Whether to allow dragging into the sub-canvas (loop or group)
        */
-      canDropToNode: (ctx, params) => {
-        const { dragNodeType, dropNodeType } = params;
-        /**
-         * 开始/结束节点无法更改容器
-         * The start and end nodes cannot change container
-         */
-        if (
-          [
-            WorkflowNodeType.Start,
-            WorkflowNodeType.End,
-            WorkflowNodeType.BlockStart,
-            WorkflowNodeType.BlockEnd,
-          ].includes(dragNodeType as WorkflowNodeType)
-        ) {
-          return false;
-        }
-        /**
-         * 继续循环与终止循环只能在循环节点中
-         * Continue loop and break loop can only be in loop nodes
-         */
-        if (
-          [WorkflowNodeType.Continue, WorkflowNodeType.Break].includes(
-            dragNodeType as WorkflowNodeType
-          ) &&
-          dropNodeType !== WorkflowNodeType.Loop
-        ) {
-          return false;
-        }
-        /**
-         * 循环节点无法嵌套循环节点
-         * Loop node cannot nest loop node
-         */
-        if (dragNodeType === WorkflowNodeType.Loop && dropNodeType === WorkflowNodeType.Loop) {
-          return false;
-        }
-        return true;
-      },
+      canDropToNode: (ctx, params) => canContainNode(params.dragNodeType!, params.dropNodeType!),
+      /**
+       * Whether to reset line
+       * 是否允许重连
+       * @param ctx
+       * @param oldLine
+       * @param newLineInfo
+       */
+      canResetLine: (ctx, oldLine, newLineInfo) => true,
       /**
        * Drag the end of the line to create an add panel (feature optional)
        * 拖拽线条结束需要创建一个添加面板 （功能可选）
@@ -234,14 +218,21 @@ export function useEditorProps(
        */
       history: {
         enable: true,
-        enableChangeNode: true, // Listen Node engine data change
+        /**
+         * Listen form data change, default true
+         */
+        enableChangeNode: true,
       },
       /**
        * Content change
        */
-      onContentChange: debounce((ctx, event) => {
+      onContentChange: debounce((ctx: FreeLayoutPluginContext, event) => {
         if (ctx.document.disposed) return;
-        console.log('Auto Save: ', event, ctx.document.toJSON());
+
+        console.log('Auto Save: ', event, {
+          ...ctx.document.toJSON(),
+          globalVariable: ctx.get<GetGlobalVariableSchema>(GetGlobalVariableSchema)(),
+        });
       }, 1000),
       /**
        * Running line
@@ -289,6 +280,24 @@ export function useEditorProps(
       },
       plugins: () => [
         /**
+         * Custom node sorting, the code below will make the comment nodes always below the normal nodes
+         * 自定义节点排序，下边的代码会让 comment 节点永远在普通节点下边
+         */
+        createFreeStackPlugin({
+          sortNodes: (nodes: WorkflowNodeEntity[]) => {
+            const commentNodes: WorkflowNodeEntity[] = [];
+            const otherNodes: WorkflowNodeEntity[] = [];
+            nodes.forEach((node) => {
+              if (node.flowNodeType === WorkflowNodeType.Comment) {
+                commentNodes.push(node);
+              } else {
+                otherNodes.push(node);
+              }
+            });
+            return [...commentNodes, ...otherNodes];
+          },
+        }),
+        /**
          * Line render plugin
          * 连线渲染插件
          */
@@ -318,7 +327,6 @@ export function useEditorProps(
             nodeBorderColor: 'rgba(6, 7, 9, 0.10)',
             overlayColor: 'rgba(255, 255, 255, 0.55)',
           },
-          inactiveDebounceTime: 1,
         }),
 
         /**
@@ -356,22 +364,30 @@ export function useEditorProps(
         createContextMenuPlugin({}),
         /**
          * Runtime plugin
+         * ⚠️ Browser mode is for demo only; for production, please deploy the server-side runtime
+         * https://flowgram.ai/guide/runtime/introduction.html
          */
         createRuntimePlugin({
-          // mode: 'browser',
-          mode: 'server',
-          serverConfig: {
-            domain: process.env.REACT_APP_SERVER_DOMAIN || 'localhost',
-            port: process.env.REACT_APP_SERVER_PORT ? parseInt(process.env.REACT_APP_SERVER_PORT, 10) : (process.env.REACT_APP_SERVER_DOMAIN ? undefined : 48080),
-            protocol: process.env.REACT_APP_SERVER_PROTOCOL || 'http',
-          },
+          mode: 'browser', // browser mode is for demo only!
+          // mode: 'server',
+          // serverConfig: {
+          //   domain: 'localhost',
+          //   port: 4000,
+          //   protocol: 'http',
+          // },
         }),
 
         /**
          * Variable panel plugin
          * 变量面板插件
          */
-        createVariablePanelPlugin({}),
+        createVariablePanelPlugin({
+          initialData: initialData.globalVariable,
+        }),
+        /** Float layout plugin */
+        createPanelManagerPlugin({
+          factories: [nodeFormPanelFactory, testRunPanelFactory, problemPanelFactory],
+        }),
       ],
     }),
     []

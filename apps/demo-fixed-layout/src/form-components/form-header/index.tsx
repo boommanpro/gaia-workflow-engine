@@ -5,6 +5,7 @@
 
 import { useContext, useCallback, useMemo, useState } from 'react';
 
+import { usePanelManager } from '@flowgram.ai/panel-manager-plugin';
 import { useClientContext } from '@flowgram.ai/fixed-layout-editor';
 import { IconButton, Dropdown, Button } from '@douyinfe/semi-ui';
 import { IconClose, IconSmallTriangleDown, IconSmallTriangleLeft } from '@douyinfe/semi-icons';
@@ -13,7 +14,8 @@ import { IconMore } from '@douyinfe/semi-icons';
 import { FlowNodeRegistry } from '../../typings';
 import { FlowCommandId } from '../../shortcuts/constants';
 import { useIsSidebar } from '../../hooks';
-import { NodeRenderContext, SidebarContext } from '../../context';
+import { NodeRenderContext } from '../../context';
+import { nodeFormPanelFactory } from '../../components/sidebar';
 import { getIcon } from './utils';
 import { TitleInput } from './title-input';
 import { Header, Operators } from './styles';
@@ -23,6 +25,7 @@ function DropdownContent(props: { updateTitleEdit: (editing: boolean) => void })
   const { node, deleteNode } = useContext(NodeRenderContext);
   const clientContext = useClientContext();
   const registry = node.getNodeRegistry<FlowNodeRegistry>();
+
   const handleCopy = useCallback(
     (e: React.MouseEvent) => {
       clientContext.playground.commandService.executeCommand(FlowCommandId.COPY, node);
@@ -66,15 +69,14 @@ function DropdownContent(props: { updateTitleEdit: (editing: boolean) => void })
 export function FormHeader() {
   const { node, expanded, startDrag, toggleExpand, readonly } = useContext(NodeRenderContext);
   const [titleEdit, updateTitleEdit] = useState<boolean>(false);
-
-  const { setNodeId } = useContext(SidebarContext);
+  const panelManager = usePanelManager();
   const isSidebar = useIsSidebar();
   const handleExpand = (e: React.MouseEvent) => {
     toggleExpand();
     e.stopPropagation(); // Disable clicking prevents the sidebar from opening
   };
   const handleClose = () => {
-    setNodeId(undefined);
+    panelManager.close(nodeFormPanelFactory.key);
   };
 
   return (
@@ -82,7 +84,7 @@ export function FormHeader() {
       onMouseDown={(e) => {
         // trigger drag node
         startDrag(e);
-        // e.stopPropagation();
+        e.stopPropagation();
       }}
     >
       {getIcon(node)}

@@ -6,15 +6,8 @@
 import React from 'react';
 
 import { nanoid } from 'nanoid';
-import { debounce } from 'lodash';
 import { inject, injectable, optional, named } from 'inversify';
-import {
-  Disposable,
-  DisposableCollection,
-  domUtils,
-  Emitter,
-  type Event,
-} from '@flowgram.ai/utils';
+import { Disposable, DisposableCollection, domUtils, type Event } from '@flowgram.ai/utils';
 import { CommandService } from '@flowgram.ai/command';
 
 import { SelectionService } from './services';
@@ -44,11 +37,6 @@ import {
 } from './common';
 // import { PlaygroundCommandRegistry, PlaygroundId, toContextMenuPath } from './playground-registries';
 
-const playgroundInstances: Set<Playground> = new Set();
-
-const playgroundInstanceCreateEmitter = new Emitter<Playground>();
-const playgroundInstanceDisposeEmitter = new Emitter<Playground>();
-
 @injectable()
 export class Playground<CONTEXT = PlaygroundContext> implements Disposable {
   readonly toDispose = new DisposableCollection();
@@ -65,37 +53,12 @@ export class Playground<CONTEXT = PlaygroundContext> implements Disposable {
 
   readonly onScroll: Event<{ scrollX: number; scrollY: number }>;
 
+  get onResize() {
+    return this.pipelineRegistry.onResizeEmitter.event;
+  }
+
   // 唯一 className，适配画布多实例场景
   private playgroundClassName = nanoid();
-
-  static getLatest(): Playground | undefined {
-    const instances = Playground.getAllInstances();
-    return instances[instances.length - 1];
-  }
-
-  // static getSelection(selectionService: SelectionService): Entity[] {
-  //   const selection = selectionService.selection;
-  //   if (!selection || !Array.isArray(selection)) return [];
-  //   if (selection.find(s => !(s instanceof Entity) || !s.hasAble(Selectable))) return [];
-  //   return selection;
-  // }
-  static getAllInstances(): Playground[] {
-    const result: Playground[] = [];
-    for (const p of playgroundInstances.values()) {
-      result.push(p);
-    }
-    return result;
-  }
-
-  /**
-   * 有实例创建
-   */
-  static onInstanceCreate = playgroundInstanceCreateEmitter.event;
-
-  /**
-   * 有实例销毁
-   */
-  static onInstanceDispose = playgroundInstanceDisposeEmitter.event;
 
   constructor(
     // @inject(PlaygroundId) readonly id: PlaygroundId,
@@ -134,9 +97,7 @@ export class Playground<CONTEXT = PlaygroundContext> implements Disposable {
       this.commandService,
       this.selectionService,
       Disposable.create(() => {
-        playgroundInstances.delete(this);
         this.node.remove();
-        playgroundInstanceDisposeEmitter.fire(this);
       }),
       pipelineRenderer.onAllLayersRendered(() => {
         this.contributions.forEach((contrib) => contrib.onAllLayersRendered?.(this));
@@ -147,6 +108,7 @@ export class Playground<CONTEXT = PlaygroundContext> implements Disposable {
       this.entityManager.createEntity<EditorStateConfigEntity>(EditorStateConfigEntity);
     this.entityManager.createEntity(PlaygroundConfigEntity);
     this.node = playgroundConfig.node || document.createElement('div');
+    this.config.playgroundDomNode = this.node;
     this.toDispose.pushAll([
       // 浏览器原生的 scrollIntoView 会导致页面的滚动
       // 需要禁用这种操作，否则会引发画布 viewport 计算问题
@@ -189,7 +151,6 @@ export class Playground<CONTEXT = PlaygroundContext> implements Disposable {
     this.onFocus = this.pipelineRegistry.onFocusEmitter.event;
     this.onZoom = this.pipelineRegistry.onZoomEmitter.event;
     this.onScroll = this.pipelineRegistry.onScrollEmitter.event;
-    playgroundInstances.add(this);
   }
 
   get context(): CONTEXT {
@@ -208,7 +169,6 @@ export class Playground<CONTEXT = PlaygroundContext> implements Disposable {
     for (const contrib of contributions) {
       if (contrib.onInit) contrib.onInit(this);
     }
-    playgroundInstanceCreateEmitter.fire(this);
   }
 
   get pipelineNode(): HTMLDivElement {
@@ -273,10 +233,10 @@ export class Playground<CONTEXT = PlaygroundContext> implements Disposable {
     if (this.isReady) return;
     this.isReady = true;
     if (this.playgroundConfig.autoResize) {
-      const resize = debounce(() => {
+      const resize = () => {
         if (this.disposed) return;
         this.resize();
-      }, 0);
+      };
       if (typeof ResizeObserver !== 'undefined') {
         const resizeObserver = new ResizeObserver(resize);
         resizeObserver.observe(this.node);
@@ -292,11 +252,6 @@ export class Playground<CONTEXT = PlaygroundContext> implements Disposable {
           })
         );
       }
-      this.toDispose.push(
-        domUtils.addStandardDisposableListener(window.document, 'scroll', resize, {
-          passive: true,
-        })
-      );
       this.resize();
     }
     this.pipelineRegistry.ready();
@@ -323,12 +278,10 @@ export class Playground<CONTEXT = PlaygroundContext> implements Disposable {
    * 这里会由 widget 透传进来
    * @param msg
    */
-  resize(msg?: PipelineDimension, scrollToCenter = true): void {
+  resize(msg?: PipelineDimension, scrollToCenter = true): boolean {
     if (!msg) {
       const boundingRect = this.node.getBoundingClientRect();
       msg = {
-        clientX: boundingRect.left,
-        clientY: boundingRect.top,
         width: boundingRect.width,
         height: boundingRect.height,
       };
@@ -336,8 +289,9 @@ export class Playground<CONTEXT = PlaygroundContext> implements Disposable {
     // 页面宽度变更 触发滚动偏移
     const { width, height } = this.config.config;
     if (msg.width === 0 || msg.height === 0) {
-      return;
+      return false;
     }
+    const oldConfig = this.config.config;
     let { scrollX, scrollY } = this.config.config;
     // 这个在处理滚动
     if (scrollToCenter && width && Math.round(msg.width) !== width) {
@@ -346,8 +300,16 @@ export class Playground<CONTEXT = PlaygroundContext> implements Disposable {
     if (scrollToCenter && height && Math.round(msg.height) !== height) {
       scrollY += (height - msg.height) / 2;
     }
-    this.config.updateConfig({ ...msg, scrollX, scrollY });
-    this.pipelineRegistry.onResizeEmitter.fire(msg);
+    if (
+      Math.round(msg.width) !== width ||
+      Math.round(msg.height) !== height ||
+      oldConfig.scrollX !== scrollX ||
+      oldConfig.scrollY !== scrollY
+    ) {
+      this.config.updateConfig({ ...msg, scrollX, scrollY });
+      this.pipelineRegistry.onResizeEmitter.fire(msg);
+    }
+    return true;
   }
 
   /**

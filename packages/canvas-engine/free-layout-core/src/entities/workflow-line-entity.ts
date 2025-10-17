@@ -17,7 +17,6 @@ import {
   LineCenterPoint,
 } from '../typings/workflow-line';
 import { type WorkflowEdgeJSON } from '../typings';
-import { WorkflowNodePortsData } from '../entity-datas/workflow-node-ports-data';
 import { WorkflowLineRenderData } from '../entity-datas';
 import { type WorkflowPortEntity } from './workflow-port-entity';
 import { type WorkflowNodeEntity } from './workflow-node-entity';
@@ -26,7 +25,7 @@ export const LINE_HOVER_DISTANCE = 8; // 线条 hover 的最小检测距离
 export const POINT_RADIUS = 10;
 
 export interface WorkflowLinePortInfo {
-  from: string; // 前置节点 id
+  from?: string; // 前置节点 id
   to?: string; // 后置节点 id
   fromPort?: string | number; // 连线的 port 位置
   toPort?: string | number; // 连线的 port 位置
@@ -37,10 +36,12 @@ export interface WorkflowLineEntityOpts extends EntityOpts, WorkflowLinePortInfo
   document: WorkflowDocument;
   linesManager: WorkflowLinesManager;
   drawingTo?: LinePoint;
+  drawingFrom?: LinePoint;
 }
 
 export interface WorkflowLineInfo extends WorkflowLinePortInfo {
   drawingTo?: LinePoint; // 正在画中的元素
+  drawingFrom?: LinePoint;
 }
 
 export interface WorkflowLineUIState {
@@ -126,7 +127,7 @@ export class WorkflowLineEntity extends Entity<WorkflowLineEntityOpts> {
 
   readonly onLineDataChange = this._onLineDataChangeEmitter.event;
 
-  private _from: WorkflowNodeEntity;
+  private _from?: WorkflowNodeEntity;
 
   private _to?: WorkflowNodeEntity;
 
@@ -215,10 +216,11 @@ export class WorkflowLineEntity extends Entity<WorkflowLineEntityOpts> {
       to: opts.to,
       drawingTo: opts.drawingTo,
       fromPort: opts.fromPort,
+      drawingFrom: opts.drawingFrom,
       toPort: opts.toPort,
       data: opts.data,
     });
-    if (opts.drawingTo) {
+    if (opts.drawingTo || opts.drawingFrom) {
       this.isDrawing = true;
     }
     this.onEntityChange(() => {
@@ -238,7 +240,7 @@ export class WorkflowLineEntity extends Entity<WorkflowLineEntityOpts> {
   /**
    * 获取线条的前置节点
    */
-  get from(): WorkflowNodeEntity {
+  get from(): WorkflowNodeEntity | undefined {
     return this._from;
   }
 
@@ -305,7 +307,7 @@ export class WorkflowLineEntity extends Entity<WorkflowLineEntityOpts> {
     if (
       toPort &&
       toPort.portType === 'input' &&
-      this.linesManager.canAddLine(this.fromPort, toPort, true)
+      this.linesManager.canAddLine(this.fromPort!, toPort, true)
     ) {
       const { node, portID } = toPort;
       this._to = node;
@@ -316,6 +318,39 @@ export class WorkflowLineEntity extends Entity<WorkflowLineEntityOpts> {
       this._to = undefined;
       this.info.to = undefined;
       this.info.toPort = '';
+    }
+    /**
+     * 移动到端口又快速移出，需要更新 prePort 的状态
+     */
+    if (prePort) {
+      prePort.validate();
+    }
+    this.fireChange();
+  }
+
+  setFromPort(fromPort?: WorkflowPortEntity) {
+    // 只有绘制中的线条才允许设置 port, 主要用于吸附到点
+    if (!this.isDrawing) {
+      throw new Error('[setFromPort] only support drawing line.');
+    }
+    if (this.fromPort === fromPort) {
+      return;
+    }
+    const prePort = this.fromPort;
+    if (
+      fromPort &&
+      fromPort.portType === 'output' &&
+      this.linesManager.canAddLine(fromPort, this.toPort!, true)
+    ) {
+      const { node, portID } = fromPort;
+      this._from = node;
+      this.info.drawingFrom = undefined;
+      this.info.from = node.id;
+      this.info.fromPort = portID;
+    } else {
+      this._from = undefined;
+      this.info.from = undefined;
+      this.info.fromPort = '';
     }
     /**
      * 移动到端口又快速移出，需要更新 prePort 的状态
@@ -341,6 +376,24 @@ export class WorkflowLineEntity extends Entity<WorkflowLineEntityOpts> {
       this.info.drawingTo = pos;
       this.fireChange();
     }
+  }
+
+  set drawingFrom(pos: LinePoint | undefined) {
+    const oldDrawingFrom = this.info.drawingFrom;
+    if (!pos) {
+      this.info.drawingFrom = undefined;
+      this.fireChange();
+      return;
+    }
+    if (!oldDrawingFrom || pos.x !== oldDrawingFrom.x || pos.y !== oldDrawingFrom.y) {
+      this.info.from = undefined;
+      this.info.drawingFrom = pos;
+      this.fireChange();
+    }
+  }
+
+  get drawingFrom(): LinePoint | undefined {
+    return this.info.drawingFrom;
   }
 
   /**
@@ -388,17 +441,18 @@ export class WorkflowLineEntity extends Entity<WorkflowLineEntityOpts> {
     return this.getData(WorkflowLineRenderData).calcDistance(pos);
   }
 
-  get fromPort(): WorkflowPortEntity {
-    return this.from
-      .getData(WorkflowNodePortsData)
-      .getPortEntityByKey('output', this.info.fromPort);
+  get fromPort(): WorkflowPortEntity | undefined {
+    if (!this.from) {
+      return undefined;
+    }
+    return this.from.ports.getPortEntityByKey('output', this.info.fromPort);
   }
 
   get toPort(): WorkflowPortEntity | undefined {
     if (!this.to) {
       return undefined;
     }
-    return this.to.getData(WorkflowNodePortsData).getPortEntityByKey('input', this.info.toPort);
+    return this.to.ports.getPortEntityByKey('input', this.info.toPort);
   }
 
   /**
@@ -435,9 +489,11 @@ export class WorkflowLineEntity extends Entity<WorkflowLineEntityOpts> {
     return this.linesManager.isDisabledLine(this, this.uiState.disabled);
   }
 
-  /** 是否竖向 */
+  /**
+   * @deprecated
+   */
   get vertical(): boolean {
-    const fromLocation = this.fromPort.location;
+    const fromLocation = this.fromPort?.location;
     const toLocation = this.toPort?.location;
     if (toLocation) {
       return toLocation === 'top';
@@ -469,7 +525,7 @@ export class WorkflowLineEntity extends Entity<WorkflowLineEntityOpts> {
   protected initInfo(info: WorkflowLineInfo): void {
     if (!isEqual(info, this.info)) {
       this.info = info;
-      this._from = this.document.getNode(info.from)!;
+      this._from = info.from ? this.document.getNode(info.from) : undefined;
       this._to = info.to ? this.document.getNode(info.to) : undefined;
       this._lineData = info.data;
       this.fireChange();
@@ -509,7 +565,7 @@ export class WorkflowLineEntity extends Entity<WorkflowLineEntityOpts> {
     this._node = domUtils.createDivWithClass('gedit-flow-activity-line');
     this._node.dataset.testid = 'sdk.workflow.canvas.line';
     this._node.dataset.lineId = this.id;
-    this._node.dataset.fromNodeId = this.from.id;
+    this._node.dataset.fromNodeId = this.from?.id ?? '';
     this._node.dataset.fromPortId = this.fromPort?.id ?? '';
     this._node.dataset.toNodeId = this.to?.id ?? '';
     this._node.dataset.toPortId = this.toPort?.id ?? '';
@@ -519,7 +575,7 @@ export class WorkflowLineEntity extends Entity<WorkflowLineEntityOpts> {
 
   toJSON(): WorkflowEdgeJSON {
     const json: WorkflowEdgeJSON = {
-      sourceNodeID: this.info.from,
+      sourceNodeID: this.info.from!,
       targetNodeID: this.info.to!,
       sourcePortID: this.info.fromPort,
       targetPortID: this.info.toPort,

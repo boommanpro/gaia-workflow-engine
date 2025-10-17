@@ -12,6 +12,8 @@ export enum CommentEditorFormField {
 
 /** 编辑器事件 */
 export enum CommentEditorEvent {
+  /** 初始化事件 */
+  Init = 'init',
   /** 内容变更事件 */
   Change = 'change',
   /** 多选事件 */

@@ -89,7 +89,7 @@ export class PasteShortcut implements ShortcutsHandler {
     const offset = this.calcPasteOffset(data.bounds);
     const parent = this.getSelectedContainer();
     this.applyOffset({ json, offset, parent });
-    const { nodes } = this.document.renderJSON(json, {
+    const { nodes } = this.document.batchAddFromJSON(json, {
       parent,
     });
     this.selectNodes(nodes);

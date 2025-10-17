@@ -3,12 +3,12 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { LayoutConfig, LayoutOptions, LayoutParams } from './type';
+import { ILayout, LayoutConfig, LayoutOptions, LayoutParams } from './type';
 import { LayoutStore } from './store';
 import { LayoutPosition } from './position';
 import { DagreLayout } from './dagre';
 
-export class Layout {
+export class Layout implements ILayout {
   private readonly _store: LayoutStore;
 
   private readonly _layout: DagreLayout;

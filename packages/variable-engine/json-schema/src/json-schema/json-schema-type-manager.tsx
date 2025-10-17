@@ -8,6 +8,7 @@ import { injectable } from 'inversify';
 
 import { IJsonSchema, JsonSchemaTypeRegistry, JsonSchemaTypeRegistryCreator } from './types';
 import { defaultTypeDefinitionRegistry } from './type-definition/default';
+import { dateTimeRegistryCreator } from './type-definition/date-time';
 import { BaseTypeManager } from '../base';
 import {
   arrayRegistryCreator,
@@ -37,6 +38,9 @@ export class JsonSchemaTypeManager<
     if (typeSchema.enum) {
       return 'enum';
     }
+    if (typeSchema.format && typeSchema.type === 'string') {
+      return typeSchema.format;
+    }
 
     return typeSchema.type || typeSchema.$ref || 'unknown';
   }
@@ -47,13 +51,14 @@ export class JsonSchemaTypeManager<
     const registries = [
       defaultTypeDefinitionRegistry,
       stringRegistryCreator,
-      numberRegistryCreator,
       integerRegistryCreator,
+      numberRegistryCreator,
       booleanRegistryCreator,
       objectRegistryCreator,
       arrayRegistryCreator,
       unknownRegistryCreator,
       mapRegistryCreator,
+      dateTimeRegistryCreator,
     ];
 
     registries.forEach((registry) => {
@@ -116,7 +121,7 @@ export class JsonSchemaTypeManager<
 
   public getDisplayIcon = (type: Schema) => {
     const registry = this.getTypeBySchema(type);
-    return registry?.getDisplayIcon(type) || registry?.icon || <></>;
+    return registry?.getDisplayIcon?.(type) || registry?.icon || <></>;
   };
 
   public getTypeSchemaProperties = (type: Schema) => {

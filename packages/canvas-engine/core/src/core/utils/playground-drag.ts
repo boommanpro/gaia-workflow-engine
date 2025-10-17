@@ -20,7 +20,7 @@ const SCROLL_DELTA = 4;
 /* istanbul ignore next */
 const SCROLL_AUTO_DISTANCE = 20; // 自动滚动到边缘距离
 /* istanbul ignore next */
-const SCROLL_INTERVAL = 20;
+const SCROLL_INTERVAL = 6;
 
 /* istanbul ignore next */
 function createMouseEvent(type: string, clientX: number, clientY: number): MouseEvent {

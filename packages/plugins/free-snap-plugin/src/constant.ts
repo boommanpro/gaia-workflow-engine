@@ -10,7 +10,7 @@ export const SnapDefaultOptions: WorkflowSnapServiceOptions & WorkflowSnapLayerO
   edgeThreshold: 7,
   enableGridSnapping: false,
   gridSize: 20,
-  enableMultiSnapping: false,
+  enableMultiSnapping: true,
   enableOnlyViewportSnapping: true,
   edgeColor: '#4E40E5',
   alignColor: '#4E40E5',

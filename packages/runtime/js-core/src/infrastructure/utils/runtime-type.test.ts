@@ -44,6 +44,42 @@ describe('WorkflowRuntimeType', () => {
       });
     });
 
+    describe('datetime values', () => {
+      it('should return DateTime for valid ISO 8601 string with milliseconds and Z', () => {
+        const result = WorkflowRuntimeType.getWorkflowType('2025-09-11T12:05:49.000Z');
+        expect(result).toBe(WorkflowVariableType.DateTime);
+      });
+
+      it('should return DateTime for valid ISO 8601 string without milliseconds', () => {
+        const result = WorkflowRuntimeType.getWorkflowType('2025-09-11T12:05:49Z');
+        expect(result).toBe(WorkflowVariableType.DateTime);
+      });
+
+      it('should return DateTime for valid ISO 8601 string without Z suffix', () => {
+        const result = WorkflowRuntimeType.getWorkflowType('2025-09-11T12:05:49.000');
+        expect(result).toBe(WorkflowVariableType.DateTime);
+      });
+
+      it('should return String for invalid datetime strings', () => {
+        const invalidDateTimes = [
+          '2025-13-11T12:05:49.000Z', // Invalid month
+          '2025-09-32T12:05:49.000Z', // Invalid day
+          '2025-09-11T25:05:49.000Z', // Invalid hour
+          '2025-09-11T12:65:49.000Z', // Invalid minute
+          '2025-09-11T12:05:65.000Z', // Invalid second
+          '2025-09-11 12:05:49.000Z', // Missing T separator
+          'not-a-date', // Completely invalid
+          '2025-09-11', // Date only
+          '12:05:49', // Time only
+        ];
+
+        invalidDateTimes.forEach((invalidDateTime) => {
+          const result = WorkflowRuntimeType.getWorkflowType(invalidDateTime);
+          expect(result).toBe(WorkflowVariableType.String);
+        });
+      });
+    });
+
     describe('boolean values', () => {
       it('should return Boolean for true', () => {
         const result = WorkflowRuntimeType.getWorkflowType(true);

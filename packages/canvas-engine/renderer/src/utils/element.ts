@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { isNil } from 'lodash';
+import { isNil } from 'lodash-es';
 export const isHidden = (dom?: HTMLElement) => {
   if (!dom || isNil(dom?.offsetParent)) {
     return true;

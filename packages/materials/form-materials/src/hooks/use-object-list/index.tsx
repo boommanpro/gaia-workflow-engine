@@ -6,7 +6,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { nanoid } from 'nanoid';
-import { difference, get, isObject, set } from 'lodash';
+import { difference, get, isObject, set } from 'lodash-es';
 
 function genId() {
   return nanoid();

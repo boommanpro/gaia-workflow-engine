@@ -8,7 +8,7 @@ import React, { useMemo } from 'react';
 import { JsonSchemaTypeManager, JsonSchemaUtils } from '@flowgram.ai/json-schema';
 import { useScopeAvailable } from '@flowgram.ai/editor';
 
-import { IFlowValue } from '@/typings';
+import { IFlowValue } from '@/shared';
 import { FlowValueUtils } from '@/shared';
 import { DisplaySchemaTag } from '@/components/display-schema-tag';
 

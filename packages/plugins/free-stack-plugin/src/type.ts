@@ -3,12 +3,17 @@
  * SPDX-License-Identifier: MIT
  */
 
-import type { WorkflowEntityHoverable } from '@flowgram.ai/free-layout-core';
-import type { Entity } from '@flowgram.ai/core';
+import type { WorkflowNodeEntity } from '@flowgram.ai/free-layout-core';
 
-export type StackingContext = {
-  hoveredEntity?: WorkflowEntityHoverable;
+export interface StackingContext {
   hoveredEntityID?: string;
-  selectedEntities: Entity[];
-  selectedIDs: string[];
-};
+  selectedNodes: WorkflowNodeEntity[];
+  selectedIDs: Set<string>;
+  sortNodes: (nodes: WorkflowNodeEntity[]) => WorkflowNodeEntity[];
+}
+
+export interface StackContextManagerOptions {
+  sortNodes: (nodes: WorkflowNodeEntity[]) => WorkflowNodeEntity[];
+}
+
+export type FreeStackPluginOptions = Partial<StackContextManagerOptions>;

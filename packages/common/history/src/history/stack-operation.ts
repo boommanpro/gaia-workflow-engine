@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 import { DisposableCollection } from '@flowgram.ai/utils';
 
 import { OperationService } from '../operation/operation-service';
@@ -31,7 +31,7 @@ export class StackOperation implements IUndoRedoElement {
 
   constructor(operationService: OperationService, operations: Operation[] = []) {
     this._operationService = operationService;
-    this._operations = operations.map(op => this._operation(op));
+    this._operations = operations.map((op) => this._operation(op));
     this._id = operationService.config.generateId();
   }
 
@@ -82,7 +82,7 @@ export class StackOperation implements IUndoRedoElement {
     let operations: Operation[] = this._operations;
 
     if (type !== UndoRedoChangeType.UNDO) {
-      operations = this._operations.map(op => this._inverse(op)).reverse();
+      operations = this._operations.map((op) => this._inverse(op)).reverse();
     }
 
     for (const op of operations) {

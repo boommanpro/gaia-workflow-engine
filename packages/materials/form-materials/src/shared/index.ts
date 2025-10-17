@@ -3,6 +3,30 @@
  * SPDX-License-Identifier: MIT
  */
 
-export * from './format-legacy-refs';
-export * from './inject-material';
-export * from './flow-value';
+export {
+  FlowValueUtils,
+  type FlowValueType,
+  type IFlowConstantRefValue,
+  type IFlowConstantValue,
+  type IFlowExpressionValue,
+  type IFlowRefValue,
+  type IFlowTemplateValue,
+  type IFlowValue,
+  type IFlowValueExtra,
+  type IInputsValues,
+} from './flow-value';
+export {
+  formatLegacyRefOnInit,
+  formatLegacyRefOnSubmit,
+  formatLegacyRefToNewRef,
+  formatNewRefToLegacyRef,
+  isLegacyFlowRefValueSchema,
+  isNewFlowRefValueSchema,
+} from './format-legacy-refs';
+export { createInjectMaterial } from './inject-material';
+export { lazySuspense, withSuspense } from './lazy-suspense';
+export {
+  polyfillCreateRoot,
+  unstableSetCreateRoot,
+  type IPolyfillRoot,
+} from './polyfill-create-root';

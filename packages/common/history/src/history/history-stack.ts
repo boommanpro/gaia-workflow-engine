@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 import { injectable, inject } from 'inversify';
 import { DisposableCollection, Emitter } from '@flowgram.ai/utils';
 
@@ -59,7 +59,7 @@ export class HistoryStack {
   }
 
   findById(id: string): HistoryItem | undefined {
-    return this._items.find(item => item.id === id);
+    return this._items.find((item) => item.id === id);
   }
 
   changeByIndex(index: number, service: HistoryService, item: HistoryStackItem) {
@@ -73,7 +73,7 @@ export class HistoryStack {
   }
 
   addOperation(service: HistoryService, id: string, op: OperationWithId) {
-    const historyItem = this._items.find(item => item.id === id);
+    const historyItem = this._items.find((item) => item.id === id);
     if (!historyItem) {
       console.warn('no history item found');
       return;
@@ -93,12 +93,12 @@ export class HistoryStack {
   }
 
   updateOperation(service: HistoryService, id: string, op: OperationWithId) {
-    const historyItem = this._items.find(item => item.id === id);
+    const historyItem = this._items.find((item) => item.id === id);
     if (!historyItem) {
       console.warn('no history item found');
       return;
     }
-    const index = historyItem.operations.findIndex(op => op.id === op.id);
+    const index = historyItem.operations.findIndex((op) => op.id === op.id);
     if (index < 0) {
       console.warn('no operation found');
       return;
@@ -129,8 +129,8 @@ export class HistoryStack {
       ...item,
       uri: service.context.uri,
       time: HistoryStack.dateFormat(item.timestamp),
-      operations: item.operations.map(op =>
-        this._getHistoryOperation(service, op, item.type !== UndoRedoChangeType.PUSH),
+      operations: item.operations.map((op) =>
+        this._getHistoryOperation(service, op, item.type !== UndoRedoChangeType.PUSH)
       ),
     };
   }
@@ -138,7 +138,7 @@ export class HistoryStack {
   private _getHistoryOperation(
     service: HistoryService,
     op: Operation,
-    generateId: boolean = false,
+    generateId: boolean = false
   ): HistoryOperation {
     let id;
     if (generateId) {

@@ -9,7 +9,7 @@ import { I18n } from '@flowgram.ai/editor';
 import { Button, IconButton } from '@douyinfe/semi-ui';
 import { IconDelete, IconPlus } from '@douyinfe/semi-icons';
 
-import { IFlowConstantRefValue, IFlowValue } from '@/typings';
+import { IFlowConstantRefValue, IFlowValue } from '@/shared';
 import { useObjectList } from '@/hooks';
 import { InjectDynamicValueInput } from '@/components/dynamic-value-input';
 import { BlurInput } from '@/components/blur-input';

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { get, groupBy, isEmpty, isNil, mapKeys, uniq } from 'lodash';
+import { get, groupBy, isEmpty, isNil, mapKeys, uniq } from 'lodash-es';
 import { Disposable, DisposableCollection, Emitter } from '@flowgram.ai/utils';
 import {
   FlowNodeFormData,

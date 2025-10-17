@@ -6,6 +6,7 @@
 import React from 'react';
 
 import { type IPoint } from '@flowgram.ai/utils';
+import { LinePointLocation } from '@flowgram.ai/free-layout-core';
 import { type WorkflowLineEntity } from '@flowgram.ai/free-layout-core';
 
 /**
@@ -16,12 +17,9 @@ export interface ArrowRendererProps {
   id: string;
   /** 箭头位置 */
   pos: IPoint;
-  /** 是否反转箭头方向 */
-  reverseArrow: boolean;
+  location: LinePointLocation;
   /** 描边宽度 */
   strokeWidth: number;
-  /** 是否为垂直方向 */
-  vertical?: boolean;
   /** 是否隐藏箭头 */
   hide?: boolean;
   /** 线条实体，提供更多上下文信息 */

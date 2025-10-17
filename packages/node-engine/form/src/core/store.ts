@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { get, clone, cloneDeep } from 'lodash';
+import { get, clone, cloneDeep } from 'lodash-es';
 
 import { shallowSetIn } from '../utils';
 import { FieldValue } from '../types/field';

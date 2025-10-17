@@ -9,9 +9,9 @@ import {
   FlowNodeRenderData,
   FlowNodeTransformData,
   type CustomLabelProps,
-  Playground,
   useBaseColor,
   FlowTextKey,
+  usePlayground,
   FlowRendererRegistry,
 } from '@flowgram.ai/fixed-layout-editor';
 import { IconChevronLeft } from '@douyinfe/semi-icons';
@@ -19,6 +19,7 @@ import { IconChevronLeft } from '@douyinfe/semi-icons';
 function TryCatchCollapse(props: CustomLabelProps): JSX.Element {
   const { node } = props;
   const { baseColor, baseActivatedColor } = useBaseColor();
+  const playground = usePlayground();
 
   const activateData = node.getData(FlowNodeRenderData)!;
   const transform = node.getData(FlowNodeTransformData)!;
@@ -35,7 +36,7 @@ function TryCatchCollapse(props: CustomLabelProps): JSX.Element {
 
   const scrollToActivateNode = () => {
     setTimeout(() => {
-      Playground.getLatest()?.scrollToView({
+      playground.config.scrollToView({
         position: node?.getData(FlowNodeTransformData)?.inputPoint,
         scrollToCenter: true,
       });

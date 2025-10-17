@@ -40,7 +40,7 @@ export const WorkflowPortRender: React.FC<WorkflowPortRenderProps> =
     const hoverService = useService<WorkflowHoverService>(WorkflowHoverService);
     const linesManager = useService<WorkflowLinesManager>(WorkflowLinesManager);
     const { entity, onClick } = props;
-    const { portType, relativePosition, disabled } = entity;
+    const { relativePosition, disabled } = entity;
     const [targetElement, setTargetElement] = useState(entity.targetElement);
     const [posX, updatePosX] = useState(relativePosition.x);
     const [posY, updatePosY] = useState(relativePosition.y);
@@ -88,7 +88,7 @@ export const WorkflowPortRender: React.FC<WorkflowPortRenderProps> =
 
     // 监听变化
     const className = classNames('workflow-port-render', props.className || '', {
-      hovered: !readonly && hovered && !disabled && portType !== 'input',
+      hovered: !readonly && hovered && !disabled,
       // 有线条链接的时候深蓝色小圆点
       linked,
     });

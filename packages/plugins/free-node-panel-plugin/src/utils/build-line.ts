@@ -27,7 +27,10 @@ export const buildLine: IBuildLine = (params) => {
 
   const shouldBuildFromLine = portsData.inputPorts?.length > 0;
   if (fromPort && shouldBuildFromLine) {
-    const toTargetPort = portsData.inputPorts[0];
+    const isVertical = fromPort.location === 'bottom';
+    const toTargetPort =
+      portsData.inputPorts.find((port) => (isVertical ? port.location === 'top' : true)) ||
+      portsData.inputPorts[0];
     linesManager.createLine({
       from: fromPort.node.id,
       fromPort: fromPort.portID,

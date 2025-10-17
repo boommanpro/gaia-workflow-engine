@@ -6,6 +6,7 @@
 import React from 'react';
 
 import { inject, injectable } from 'inversify';
+import { domUtils } from '@flowgram.ai/utils';
 import {
   CommandRegistry,
   ContextMenuService,
@@ -17,7 +18,6 @@ import {
   PlaygroundConfigEntity,
   SelectionService,
 } from '@flowgram.ai/core';
-import { domUtils } from '@flowgram.ai/utils';
 
 import {
   FlowRendererCommandCategory,
@@ -86,18 +86,13 @@ export class FlowContextMenuLayer extends Layer {
           e.preventDefault();
 
           this.nodeRef.current?.setVisible(true);
-          const dragBlockX =
-            e.clientX -
-            (this.pipelineNode.offsetLeft || 0) -
-            this.playgroundConfigEntity.config.clientX;
-          const dragBlockY =
-            e.clientY -
-            (this.pipelineNode.offsetTop || 0) -
-            this.playgroundConfigEntity.config.clientY;
+          const clientBounds = this.playgroundConfigEntity.getClientBounds();
+          const dragBlockX = e.clientX - (this.pipelineNode.offsetLeft || 0) - clientBounds.x;
+          const dragBlockY = e.clientY - (this.pipelineNode.offsetTop || 0) - clientBounds.y;
           this.node.style.left = `${dragBlockX}px`;
           this.node.style.top = `${dragBlockY}px`;
         },
-        PipelineLayerPriority.BASE_LAYER,
+        PipelineLayerPriority.BASE_LAYER
       ),
       this.listenPlaygroundEvent('mousedown', () => {
         this.nodeRef.current?.setVisible(false);
@@ -126,10 +121,10 @@ export class FlowContextMenuLayer extends Layer {
    */
   renderCommandMenus(): JSX.Element[] {
     return this.commandRegistry.commands
-      .filter(cmd => cmd.category === FlowRendererCommandCategory.SELECTOR_BOX)
-      .map(cmd => {
+      .filter((cmd) => cmd.category === FlowRendererCommandCategory.SELECTOR_BOX)
+      .map((cmd) => {
         const CommandRenderer = this.rendererRegistry.getRendererComponent(
-          (cmd.icon as string) || cmd.id,
+          (cmd.icon as string) || cmd.id
         )?.renderer;
         return (
           <CommandRenderer
@@ -141,12 +136,12 @@ export class FlowContextMenuLayer extends Layer {
           />
         );
       })
-      .filter(c => c);
+      .filter((c) => c);
   }
 
   render(): JSX.Element {
     const SelectorBoxPopover = this.rendererRegistry.getRendererComponent(
-      FlowRendererKey.CONTEXT_MENU_POPOVER,
+      FlowRendererKey.CONTEXT_MENU_POPOVER
     ).renderer;
     return <SelectorBoxPopover ref={this.nodeRef} content={this.renderCommandMenus()} />;
   }

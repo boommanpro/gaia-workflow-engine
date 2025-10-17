@@ -4,7 +4,7 @@
  */
 
 import { isNil } from 'lodash-es';
-import { ConditionOperation } from '@flowgram.ai/runtime-interface';
+import { ConditionOperator } from '@flowgram.ai/runtime-interface';
 
 import { ConditionHandler } from '../type';
 
@@ -12,10 +12,10 @@ export const conditionObjectHandler: ConditionHandler = (condition) => {
   const { operator } = condition;
   const leftValue = condition.leftValue as object;
   // Switch case share scope, so we need to use if else here
-  if (operator === ConditionOperation.IS_EMPTY) {
+  if (operator === ConditionOperator.IS_EMPTY) {
     return isNil(leftValue);
   }
-  if (operator === ConditionOperation.IS_NOT_EMPTY) {
+  if (operator === ConditionOperator.IS_NOT_EMPTY) {
     return !isNil(leftValue);
   }
   return false;

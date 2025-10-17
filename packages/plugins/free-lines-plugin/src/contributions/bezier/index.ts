@@ -13,7 +13,7 @@ import {
 } from '@flowgram.ai/free-layout-core';
 import { LineType } from '@flowgram.ai/free-layout-core';
 
-import { toRelative } from '../utils';
+import { posWithShrink, toRelative } from '../utils';
 import { getBezierControlPoints } from './bezier-controls';
 
 export interface BezierData {
@@ -111,15 +111,9 @@ export class WorkflowBezierLineContribution implements WorkflowLineRenderContrib
     const controls = params.controls.map((c) => toRelative(c, bbox));
     const shrink = this.entity.uiState.shrink;
 
-    const renderFromPos: IPoint =
-      params.fromPos.location === 'bottom'
-        ? { x: fromPos.x, y: fromPos.y + shrink }
-        : { x: fromPos.x + shrink, y: fromPos.y };
+    const renderFromPos: IPoint = posWithShrink(fromPos, params.fromPos.location, shrink);
 
-    const renderToPos: IPoint =
-      params.toPos.location === 'top'
-        ? { x: toPos.x, y: toPos.y - shrink }
-        : { x: toPos.x - shrink, y: toPos.y };
+    const renderToPos: IPoint = posWithShrink(toPos, params.toPos.location, shrink);
 
     const controlPoints = controls.map((s) => `${s.x} ${s.y}`).join(',');
     return `M${renderFromPos.x} ${renderFromPos.y} C ${controlPoints}, ${renderToPos.x} ${renderToPos.y}`;

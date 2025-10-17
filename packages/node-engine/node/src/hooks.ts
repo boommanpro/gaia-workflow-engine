@@ -7,7 +7,7 @@ import { useEffect } from 'react';
 
 import { useRefresh } from '@flowgram.ai/utils';
 import { FlowNodeFormData } from '@flowgram.ai/form-core';
-import { Errors, Warnings } from '@flowgram.ai/form/src/types';
+import { Errors, Warnings } from '@flowgram.ai/form';
 import { FormState, useFormErrors, useFormState, useFormWarnings } from '@flowgram.ai/form';
 import { FlowNodeEntity } from '@flowgram.ai/document';
 

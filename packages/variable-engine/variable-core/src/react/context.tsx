@@ -3,7 +3,9 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { createContext, useContext } from 'react';
+/* eslint-disable react/prop-types */
+
+import React, { createContext, useContext } from 'react';
 
 import { Scope } from '../scope';
 
@@ -13,6 +15,52 @@ interface ScopeContextProps {
 
 const ScopeContext = createContext<ScopeContextProps>(null!);
 
-export const ScopeProvider = ScopeContext.Provider;
-export const useScopeContext = (): ScopeContextProps | null => useContext(ScopeContext);
-export const useCurrentScope = () => useContext(ScopeContext)?.scope;
+/**
+ * ScopeProvider provides the scope to its children via context.
+ */
+export const ScopeProvider = (
+  props: React.PropsWithChildren<{
+    /**
+     * scope used in the context
+     */
+    scope?: Scope;
+    /**
+     * @deprecated use scope prop instead, this is kept for backward compatibility
+     */
+    value?: ScopeContextProps;
+  }>
+) => {
+  const { scope, value, children } = props;
+
+  const scopeToUse = scope || value?.scope;
+
+  if (!scopeToUse) {
+    throw new Error('[ScopeProvider] scope is required');
+  }
+
+  return <ScopeContext.Provider value={{ scope: scopeToUse }}>{children}</ScopeContext.Provider>;
+};
+
+/**
+ * useCurrentScope returns the scope provided by ScopeProvider.
+ * @returns
+ */
+export const useCurrentScope = (params?: {
+  /**
+   * whether to throw error when no scope in ScopeProvider is found
+   */
+  strict?: boolean;
+}): Scope => {
+  const { strict = false } = params || {};
+
+  const context = useContext(ScopeContext);
+
+  if (!context) {
+    if (strict) {
+      throw new Error('useCurrentScope must be used within a <ScopeProvider scope={scope}>');
+    }
+    console.warn('useCurrentScope should be used within a <ScopeProvider scope={scope}>');
+  }
+
+  return context?.scope;
+};

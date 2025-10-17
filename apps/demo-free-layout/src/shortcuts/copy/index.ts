@@ -4,6 +4,7 @@
  */
 
 import {
+  FlowNodeBaseType,
   FreeLayoutPluginContext,
   PlaygroundConfigEntity,
   Rectangle,
@@ -15,7 +16,6 @@ import {
   WorkflowLineEntity,
   WorkflowNodeEntity,
   WorkflowNodeJSON,
-  WorkflowNodeLinesData,
   WorkflowNodeMeta,
   WorkflowSelectService,
 } from '@flowgram.ai/free-layout-editor';
@@ -162,20 +162,23 @@ export class CopyShortcut implements ShortcutsHandler {
    * get JSON representation of nodes - 获取节点的JSON表示
    */
   private getNodeJSONs(nodes: WorkflowNodeEntity[]): WorkflowNodeJSON[] {
-    const nodeJSONs = nodes.map((node) => {
-      const nodeJSON = this.document.toNodeJSON(node);
-      if (!nodeJSON.meta?.position) {
-        return nodeJSON;
-      }
-      const { bounds } = node.getData(TransformData);
-      // Use absolute positioning as coordinates - 使用绝对定位作为坐标
-      nodeJSON.meta.position = {
-        x: bounds.x,
-        y: bounds.y,
-      };
-      return nodeJSON;
-    });
+    const nodeJSONs = nodes.map((node) =>
+      node.flowNodeType === FlowNodeBaseType.GROUP
+        ? this.getGroupNodeJSON(node)
+        : this.document.toNodeJSON(node)
+    );
     return nodeJSONs.filter(Boolean);
+  }
+
+  /**
+   * get JSON representation of group node - 获取分组节点的JSON
+   */
+  private getGroupNodeJSON(node: WorkflowNodeEntity): WorkflowNodeJSON {
+    const rawJSON = this.document.toNodeJSON(node);
+    return {
+      ...rawJSON,
+      blocks: node.blocks.map((block) => this.document.toNodeJSON(block)),
+    };
   }
 
   /**
@@ -183,17 +186,35 @@ export class CopyShortcut implements ShortcutsHandler {
    */
   private getEdgeJSONs(nodes: WorkflowNodeEntity[]): WorkflowEdgeJSON[] {
     const lineSet = new Set<WorkflowLineEntity>();
-    const nodeIdSet = new Set(nodes.map((n) => n.id));
-    nodes.forEach((node) => {
-      const linesData = node.getData(WorkflowNodeLinesData);
+    const expandedNodes = this.expandGroupNodes(nodes);
+    const nodeIdSet = new Set(expandedNodes.map((n) => n.id));
+    expandedNodes.forEach((node) => {
+      const linesData = node.lines;
       const lines = [...linesData.inputLines, ...linesData.outputLines];
       lines.forEach((line) => {
-        if (nodeIdSet.has(line.from.id) && line.to?.id && nodeIdSet.has(line.to.id)) {
+        if (
+          line.from?.id &&
+          nodeIdSet.has(line.from.id) &&
+          line.to?.id &&
+          nodeIdSet.has(line.to.id)
+        ) {
           lineSet.add(line);
         }
       });
     });
     return Array.from(lineSet).map((line) => line.toJSON());
+  }
+
+  /**
+   * expand group nodes - 展开分组子节点
+   */
+  private expandGroupNodes(nodes: WorkflowNodeEntity[]): WorkflowNodeEntity[] {
+    return nodes.flatMap((node) => {
+      if (node.flowNodeType === FlowNodeBaseType.GROUP) {
+        return [node, ...node.blocks];
+      }
+      return node;
+    });
   }
 
   /**

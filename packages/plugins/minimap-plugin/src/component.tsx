@@ -5,28 +5,27 @@
 
 import React, { CSSProperties, useEffect, useRef, useState } from 'react';
 
+import { usePlaygroundContainer } from '@flowgram.ai/core';
+
 import { MinimapInactiveStyle } from './type';
 import { FlowMinimapService } from './service';
 import { MinimapDefaultInactiveStyle } from './constant';
 
 interface MinimapProps {
-  service: FlowMinimapService;
+  service?: FlowMinimapService;
   panelStyles?: CSSProperties;
   containerStyles?: CSSProperties;
   inactiveStyle?: Partial<MinimapInactiveStyle>;
 }
 
 export const MinimapRender: React.FC<MinimapProps> = (props) => {
-  const {
-    service,
-    panelStyles = {},
-    containerStyles = {},
-    inactiveStyle: customInactiveStyle = {},
-  } = props;
+  const { panelStyles = {}, containerStyles = {}, inactiveStyle: customInactiveStyle = {} } = props;
   const inactiveStyle = {
     ...MinimapDefaultInactiveStyle,
     ...customInactiveStyle,
   };
+  const playgroundContainer = usePlaygroundContainer();
+  const service = props.service || playgroundContainer?.get(FlowMinimapService);
   const panelRef = useRef<HTMLDivElement>(null);
   const [activated, setActivated] = useState<boolean>(false);
 
@@ -38,10 +37,13 @@ export const MinimapRender: React.FC<MinimapProps> = (props) => {
     const disposer = service.onActive((activate: boolean) => {
       setActivated(activate);
     });
+    service.setVisible(true);
+    service.render();
     return () => {
       disposer.dispose();
+      service.setVisible(false);
     };
-  }, []);
+  }, [service]);
 
   // 计算缩放比例和透明度
   const scale: number = activated ? 1 : inactiveStyle.scale;

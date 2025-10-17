@@ -17,6 +17,7 @@ export const createRuntimePlugin = definePluginCreator<RuntimePluginOptions, Plu
   onBind({ bind, rebind }, options) {
     bind(WorkflowRuntimeClient).toSelf().inSingletonScope();
     bind(WorkflowRuntimeServerClient).toSelf().inSingletonScope();
+    bind(WorkflowRuntimeBrowserClient).toSelf().inSingletonScope();
     if (options.mode === 'server') {
       rebind(WorkflowRuntimeClient).to(WorkflowRuntimeServerClient);
     } else {
@@ -26,7 +27,7 @@ export const createRuntimePlugin = definePluginCreator<RuntimePluginOptions, Plu
   },
   onInit(ctx, options) {
     if (options.mode === 'server') {
-      const serverClient = ctx.get(WorkflowRuntimeServerClient);
+      const serverClient = ctx.get<WorkflowRuntimeServerClient>(WorkflowRuntimeClient);
       serverClient.init(options.serverConfig);
     }
   },

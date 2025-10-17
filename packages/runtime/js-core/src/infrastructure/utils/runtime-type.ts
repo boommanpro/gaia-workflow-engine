@@ -14,6 +14,15 @@ export namespace WorkflowRuntimeType {
 
     // 处理基本类型
     if (typeof value === 'string') {
+      // Check if string is a valid ISO 8601 datetime format
+      const iso8601Regex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?$/;
+      if (iso8601Regex.test(value)) {
+        const date = new Date(value);
+        // Validate that the date is actually valid
+        if (!isNaN(date.getTime())) {
+          return WorkflowVariableType.DateTime;
+        }
+      }
       return WorkflowVariableType.String;
     }
 
@@ -50,17 +59,17 @@ export namespace WorkflowRuntimeType {
   };
 
   export const isTypeEqual = (
-    leftType: WorkflowVariableType,
-    rightType: WorkflowVariableType
+    typeA: WorkflowVariableType,
+    typeB: WorkflowVariableType
   ): boolean => {
     // 处理 Number 和 Integer 等价的情况
     if (
-      (leftType === WorkflowVariableType.Number && rightType === WorkflowVariableType.Integer) ||
-      (leftType === WorkflowVariableType.Integer && rightType === WorkflowVariableType.Number)
+      (typeA === WorkflowVariableType.Number && typeB === WorkflowVariableType.Integer) ||
+      (typeA === WorkflowVariableType.Integer && typeB === WorkflowVariableType.Number)
     ) {
       return true;
     }
-    return leftType === rightType;
+    return typeA === typeB;
   };
 
   export const getArrayItemsType = (types: WorkflowVariableType[]): WorkflowVariableType => {

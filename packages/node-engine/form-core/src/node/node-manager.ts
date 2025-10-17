@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { flow } from 'lodash';
+import { flow } from 'lodash-es';
 import { injectable, multiInject, optional, postConstruct } from 'inversify';
 
 import { NodeErrorRenderProps } from '../error';
@@ -58,6 +58,6 @@ export class NodeManager {
 
   @postConstruct()
   protected init(): void {
-    this.nodeContributions.forEach(contrib => contrib.onRegister?.(this));
+    this.nodeContributions.forEach((contrib) => contrib.onRegister?.(this));
   }
 }

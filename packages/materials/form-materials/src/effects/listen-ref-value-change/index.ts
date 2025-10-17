@@ -12,7 +12,7 @@ import {
   getNodeScope,
 } from '@flowgram.ai/editor';
 
-import { IFlowRefValue } from '@/typings';
+import { IFlowRefValue } from '@/shared';
 
 /**
  * Example:

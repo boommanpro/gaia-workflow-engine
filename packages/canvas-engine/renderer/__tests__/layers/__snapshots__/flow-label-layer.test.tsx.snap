@@ -98,7 +98,7 @@ exports[`flow-label-layer > test render 1`] = `
   >
     <div
       data-label-id="mock"
-      style="font-size: 12px; color: rgb(187, 191, 196); text-align: center; white-space: nowrap; line-height: 20px;"
+      style="font-size: 12px; color: rgb(187, 191, 196); text-align: center; white-space: nowrap; background-color: var(--g-editor-background); line-height: 20px;"
     >
       123
     </div>
@@ -109,7 +109,7 @@ exports[`flow-label-layer > test render 1`] = `
   >
     <div
       data-label-id="mock"
-      style="font-size: 12px; color: rgb(187, 191, 196); text-align: center; white-space: nowrap; line-height: 20px; width: 100px; transform: rotate(90deg);"
+      style="font-size: 12px; color: rgb(187, 191, 196); text-align: center; white-space: nowrap; background-color: var(--g-editor-background); line-height: 20px; width: 100px; transform: rotate(90deg);"
     >
       catch-text
     </div>

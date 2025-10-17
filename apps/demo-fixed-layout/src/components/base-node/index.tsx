@@ -3,13 +3,15 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { useCallback, useContext } from 'react';
+import { useCallback } from 'react';
 
+import { usePanelManager } from '@flowgram.ai/panel-manager-plugin';
 import { FlowNodeEntity, useNodeRender } from '@flowgram.ai/fixed-layout-editor';
 import { ConfigProvider } from '@douyinfe/semi-ui';
 
-import { NodeRenderContext, SidebarContext } from '../../context';
+import { NodeRenderContext } from '../../context';
 import { BaseNodeStyle, ErrorIcon } from './styles';
+import { nodeFormPanelFactory } from '../sidebar';
 
 export const BaseNode = ({ node }: { node: FlowNodeEntity }) => {
   /**
@@ -29,10 +31,7 @@ export const BaseNode = ({ node }: { node: FlowNodeEntity }) => {
    */
   const getPopupContainer = useCallback(() => node.renderData.node || document.body, []);
 
-  /**
-   * Sidebar control
-   */
-  const sidebar = useContext(SidebarContext);
+  const panelManager = usePanelManager();
 
   return (
     <ConfigProvider getPopupContainer={getPopupContainer}>
@@ -49,7 +48,11 @@ export const BaseNode = ({ node }: { node: FlowNodeEntity }) => {
           if (nodeRender.dragging) {
             return;
           }
-          sidebar.setNodeId(nodeRender.node.id);
+          panelManager.open(nodeFormPanelFactory.key, 'right', {
+            props: {
+              nodeId: nodeRender.node.id,
+            },
+          });
         }}
         style={{
           /**

@@ -3,18 +3,17 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { set, uniqBy } from 'lodash';
+import { set, uniqBy } from 'lodash-es';
 import { JsonSchemaUtils } from '@flowgram.ai/json-schema';
 import {
   ASTFactory,
   createEffectFromVariableProvider,
   defineFormPluginCreator,
   FlowNodeRegistry,
-  getNodeForm,
   getNodeScope,
 } from '@flowgram.ai/editor';
 
-import { IFlowRefValue, IFlowValue } from '@/typings';
+import { IFlowRefValue, IFlowValue } from '@/shared';
 
 type AssignValueType =
   | {
@@ -51,7 +50,7 @@ export const createInferAssignPlugin = defineFormPluginCreator<InputConfig>({
             ASTFactory.createVariableDeclaration({
               key: `${ctx.node.id}`,
               meta: {
-                title: getNodeForm(ctx.node)?.getValueIn('title'),
+                title: ctx.node.form?.getValueIn('title'),
                 icon: ctx.node.getNodeRegistry<FlowNodeRegistry>().info?.icon,
               },
               type: ASTFactory.createObject({

@@ -35,11 +35,9 @@ export interface MinimapInactiveStyle {
 export interface MinimapServiceOptions {
   canvasStyle: Partial<MinimapCanvasStyle>;
   canvasClassName: string;
-  enableInactiveDebounce: boolean;
-  enableActiveDebounce: boolean;
   enableDisplayAllNodes: boolean;
-  activeDebounceTime: number;
-  inactiveDebounceTime: number;
+  activeThrottleTime: number;
+  inactiveThrottleTime: number;
 }
 
 export interface MinimapLayerOptions {

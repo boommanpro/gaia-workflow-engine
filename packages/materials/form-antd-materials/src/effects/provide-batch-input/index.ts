@@ -8,7 +8,6 @@ import {
   EffectOptions,
   FlowNodeRegistry,
   createEffectFromVariableProvider,
-  getNodeForm,
 } from '@flowgram.ai/editor';
 
 import { IFlowRefValue } from '../../typings';
@@ -19,7 +18,7 @@ export const provideBatchInputEffect: EffectOptions[] = createEffectFromVariable
     ASTFactory.createVariableDeclaration({
       key: `${ctx.node.id}_locals`,
       meta: {
-        title: getNodeForm(ctx.node)?.getValueIn('title'),
+        title: ctx.node.form?.getValueIn('title'),
         icon: ctx.node.getNodeRegistry<FlowNodeRegistry>().info?.icon,
       },
       type: ASTFactory.createObject({

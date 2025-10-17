@@ -4,10 +4,10 @@
  */
 
 /* eslint-disable @typescript-eslint/naming-convention */
-import { cloneDeep, isEqual } from 'lodash';
+import { cloneDeep, isEqual } from 'lodash-es';
 import { injectable } from 'inversify';
-import { type EntityData } from '@flowgram.ai/core';
 import { type Disposable, DisposableCollection } from '@flowgram.ai/utils';
+import { type EntityData } from '@flowgram.ai/core';
 
 @injectable()
 export class HistoryEntityManager implements Disposable {
@@ -18,14 +18,14 @@ export class HistoryEntityManager implements Disposable {
   addEntityData(entityData: EntityData) {
     this._entityDataValues.set(entityData, cloneDeep(entityData.toJSON()));
     this._toDispose.push(
-      entityData.onWillChange(event => {
+      entityData.onWillChange((event) => {
         const value = event.toJSON();
         const oldValue = this._entityDataValues.get(entityData);
         if (isEqual(value, oldValue)) {
           return;
         }
         this._entityDataValues.set(entityData, cloneDeep(value));
-      }),
+      })
     );
   }
 

@@ -4,7 +4,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { mapValues } from 'lodash';
+import { mapValues } from 'lodash-es';
 
 import { ValidateTrigger } from '@/types';
 import { FormModel } from '@/core/form-model';

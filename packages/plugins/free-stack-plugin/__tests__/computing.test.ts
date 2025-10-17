@@ -5,7 +5,6 @@
 
 import { it, expect, beforeEach, describe } from 'vitest';
 import { interfaces } from 'inversify';
-import { EntityManager } from '@flowgram.ai/core';
 import {
   WorkflowDocument,
   WorkflowHoverService,
@@ -13,6 +12,7 @@ import {
   WorkflowLinesManager,
   WorkflowSelectService,
 } from '@flowgram.ai/free-layout-core';
+import { EntityManager } from '@flowgram.ai/core';
 
 import { StackingComputing } from '../src/stacking-computing';
 import { StackingContextManager } from '../src/manager';
@@ -24,14 +24,14 @@ let document: WorkflowDocument;
 let stackingContextManager: IStackingContextManager;
 let stackingComputing: IStackingComputing;
 
-beforeEach(async () => {
+beforeEach(() => {
   container = createWorkflowContainer();
   container.bind(StackingContextManager).to(StackingContextManager);
   document = container.get<WorkflowDocument>(WorkflowDocument);
   stackingContextManager = container.get<StackingContextManager>(
-    StackingContextManager,
+    StackingContextManager
   ) as unknown as IStackingContextManager;
-  await document.fromJSON(workflowJSON);
+  document.fromJSON(workflowJSON);
   stackingContextManager.init();
   stackingComputing = new StackingComputing() as unknown as IStackingComputing;
 });
@@ -96,7 +96,7 @@ describe('StackingComputing compute', () => {
     const linesManager = container.get<WorkflowLinesManager>(WorkflowLinesManager);
     const drawingLine = linesManager.createLine({
       from: 'start_0',
-      drawingTo: { x: 100, y: 100 },
+      drawingTo: { x: 100, y: 100, location: 'left' },
     })!;
     const { lineLevel, maxLevel } = stackingComputing.compute({
       root: document.root,
@@ -123,6 +123,11 @@ describe('StackingComputing compute', () => {
 
 describe('StackingComputing builtin methods', () => {
   it('computeNodeIndexesMap', () => {
+    stackingComputing.compute({
+      root: document.root,
+      nodes: stackingContextManager.nodes,
+      context: stackingContextManager.context,
+    });
     const nodeIndexes = stackingComputing.computeNodeIndexesMap(stackingContextManager.nodes);
     expect(Object.fromEntries(nodeIndexes)).toEqual({
       root: 0,

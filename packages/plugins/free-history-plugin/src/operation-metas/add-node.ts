@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { cloneDeep } from 'lodash';
-import { type PluginContext } from '@flowgram.ai/core';
-import { WorkflowDocument, type WorkflowNodeJSON } from '@flowgram.ai/free-layout-core';
+import { cloneDeep } from 'lodash-es';
 import { type OperationMeta } from '@flowgram.ai/history';
+import { WorkflowDocument, type WorkflowNodeJSON } from '@flowgram.ai/free-layout-core';
+import { type PluginContext } from '@flowgram.ai/core';
 
 import { type AddOrDeleteWorkflowNodeOperationValue, FreeOperationType } from '../types';
 import { FreeHistoryConfig } from '../free-history-config';
@@ -19,7 +19,7 @@ export const addNodeOperationMeta: OperationMeta<
 > = {
   ...baseOperationMeta,
   type: FreeOperationType.addNode,
-  inverse: op => ({
+  inverse: (op) => ({
     ...op,
     type: FreeOperationType.deleteNode,
   }),
@@ -28,7 +28,7 @@ export const addNodeOperationMeta: OperationMeta<
     await document.createWorkflowNode(
       cloneDeep(operation.value.node) as WorkflowNodeJSON,
       false,
-      operation.value.parentID,
+      operation.value.parentID
     );
   },
   getLabel: (op, ctx) => {

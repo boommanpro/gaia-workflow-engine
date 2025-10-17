@@ -123,7 +123,6 @@ export const useEditorProps = () =>
             nodeBorderColor: 'rgba(6, 7, 9, 0.10)',
             overlayColor: 'rgba(255, 255, 255, 0)',
           },
-          inactiveDebounceTime: 1,
         }),
         /**
          * Snap plugin

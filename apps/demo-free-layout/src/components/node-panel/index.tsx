@@ -3,25 +3,34 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { FC } from 'react';
+import { useRef } from 'react';
 
-import { NodePanelRenderProps } from '@flowgram.ai/free-node-panel-plugin';
+import { NodePanelRenderProps as NodePanelRenderPropsDefault } from '@flowgram.ai/free-node-panel-plugin';
 import { Popover } from '@douyinfe/semi-ui';
+import { WorkflowPortEntity } from '@flowgram.ai/free-layout-editor'
 
 import { NodePlaceholder } from './node-placeholder';
 import { NodeList } from './node-list';
 import './index.less';
 
-export const NodePanel: FC<NodePanelRenderProps> = (props) => {
+interface NodePanelRenderProps extends NodePanelRenderPropsDefault {
+  panelProps?: {
+    fromPort?: WorkflowPortEntity; // 从哪个端口添加 From which port to add
+    enableNodePlaceholder?: boolean;
+  };
+}
+export const NodePanel: React.FC<NodePanelRenderProps> = (props) => {
   const { onSelect, position, onClose, containerNode, panelProps = {} } = props;
-  const { enableNodePlaceholder } = panelProps;
+  const { enableNodePlaceholder, fromPort } = panelProps;
+  const ref = useRef<HTMLDivElement>(null);
 
   return (
     <Popover
       trigger="click"
       visible={true}
       onVisibleChange={(v) => (v ? null : onClose())}
-      content={<NodeList onSelect={onSelect} containerNode={containerNode} />}
+      content={<NodeList onSelect={onSelect} containerNode={containerNode} fromPort={fromPort} />}
+      getPopupContainer={containerNode ? () => ref.current || document.body : undefined}
       placement="right"
       popupAlign={{ offset: [30, 0] }}
       overlayStyle={{
@@ -29,6 +38,7 @@ export const NodePanel: FC<NodePanelRenderProps> = (props) => {
       }}
     >
       <div
+        ref={ref}
         style={
           enableNodePlaceholder
             ? {

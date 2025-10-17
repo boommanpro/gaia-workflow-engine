@@ -4,10 +4,12 @@
  */
 
 import { interfaces } from 'inversify';
+import { FlowNodeScope, getNodePrivateScope, getNodeScope } from '@flowgram.ai/variable-plugin';
 import { FlowRendererContainerModule, FlowRendererRegistry } from '@flowgram.ai/renderer';
 import { createReduxDevToolPlugin } from '@flowgram.ai/redux-devtool-plugin';
 import { createNodeVariablePlugin } from '@flowgram.ai/node-variable-plugin';
 import { createNodeCorePlugin } from '@flowgram.ai/node-core-plugin';
+import { getNodeForm, NodeFormProps } from '@flowgram.ai/node';
 import { createMaterialsPlugin } from '@flowgram.ai/materials-plugin';
 import { createI18nPlugin } from '@flowgram.ai/i18n-plugin';
 import { createHistoryNodePlugin } from '@flowgram.ai/history-node-plugin';
@@ -63,7 +65,7 @@ export function createDefaultPreset<CTX extends EditorPluginContext = EditorPlug
         plugins.push(createNodeVariablePlugin({}));
       }
 
-      if (opts.history?.enable) {
+      if (opts.history?.enable && opts.history?.enableChangeNode !== false) {
         plugins.push(createHistoryNodePlugin({}));
       }
     }
@@ -83,11 +85,44 @@ export function createDefaultPreset<CTX extends EditorPluginContext = EditorPlug
           if (opts.getNodeDefaultRegistry) {
             ctx.document.options.getNodeDefaultRegistry = opts.getNodeDefaultRegistry;
           }
-          // TODO
-          // if (opts.onContentChange) {
-          //   ctx.document.onContentChange(event => opts.onContentChange!(ctx, event));
-          // }
-          // TODO 这个会触发组件注册，后续要废弃这个，通过 materials 插件来做
+          ctx.document.options.preNodeCreate = (node) => {
+            /**
+             * Define node.form
+             */
+            if (opts.nodeEngine && opts.nodeEngine.enable !== false) {
+              let cache: NodeFormProps<any> | undefined;
+              Object.defineProperty(node, 'form', {
+                get: () => {
+                  if (cache) return cache;
+                  cache = getNodeForm(node);
+                  return cache;
+                },
+              });
+            }
+
+            /**
+             * Define node.scope & node.privateScope
+             */
+            if (opts.variableEngine && opts.variableEngine.enable !== false) {
+              let cache: FlowNodeScope | undefined;
+              let privateCache: FlowNodeScope | undefined;
+
+              Object.defineProperty(node, 'scope', {
+                get: () => {
+                  if (cache) return cache;
+                  cache = getNodeScope(node);
+                  return cache;
+                },
+              });
+              Object.defineProperty(node, 'privateScope', {
+                get: () => {
+                  if (privateCache) return privateCache;
+                  privateCache = getNodePrivateScope(node);
+                  return privateCache;
+                },
+              });
+            }
+          };
           ctx.get<FlowRendererRegistry>(FlowRendererRegistry).init();
         },
         onReady(ctx) {

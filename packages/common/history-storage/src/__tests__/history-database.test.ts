@@ -4,7 +4,7 @@
  */
 
 import { describe, it, beforeEach } from 'vitest';
-import { cloneDeep, omit } from 'lodash';
+import { cloneDeep, omit } from 'lodash-es';
 
 import { HistoryOperationRecord, HistoryRecord } from '../types';
 import { HistoryDatabase } from '../history-database';
@@ -41,7 +41,7 @@ describe('history-database', () => {
     const [dbHistory] = await db.allHistoryByResourceURI(MOCK_RESOURCE_URI1);
     expect(MOCK_HISTORY1).toEqual(omit(dbHistory, ['id']));
     const dbOperations = await db.allOperationByResourceURI(MOCK_RESOURCE_URI1);
-    expect(operations).toEqual(dbOperations.map(o => omit(o, ['id'])));
+    expect(operations).toEqual(dbOperations.map((o) => omit(o, ['id'])));
 
     const operation3 = cloneDeep(MOCK_OPERATION3);
 
@@ -49,7 +49,7 @@ describe('history-database', () => {
 
     const dbOperations3 = await db.allOperationByResourceURI(MOCK_RESOURCE_URI1);
     expect([MOCK_OPERATION1, MOCK_OPERATION2, MOCK_OPERATION3]).toEqual(
-      dbOperations3.map(o => omit(o, ['id'])),
+      dbOperations3.map((o) => omit(o, ['id']))
     );
   });
 
@@ -77,7 +77,7 @@ describe('history-database', () => {
     await db.addOperationRecord(operation1);
     await db.addOperationRecord(operation2);
     const dbOperations = await db.allOperationByResourceURI(MOCK_RESOURCE_URI1);
-    expect([MOCK_OPERATION1, MOCK_OPERATION2]).toEqual(dbOperations.map(o => omit(o, ['id'])));
+    expect([MOCK_OPERATION1, MOCK_OPERATION2]).toEqual(dbOperations.map((o) => omit(o, ['id'])));
   });
 
   it('updateOperationRecord', async () => {

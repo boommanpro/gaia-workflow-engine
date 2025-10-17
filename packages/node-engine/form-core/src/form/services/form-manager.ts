@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { mapValues } from 'lodash';
+import { mapValues } from 'lodash-es';
 import { inject, injectable, multiInject, optional, postConstruct } from 'inversify';
 import { Emitter } from '@flowgram.ai/utils';
 import { injectPlaygroundContext, PlaygroundContext } from '@flowgram.ai/core';

@@ -16,5 +16,9 @@ export function getSuffixByLanguageId(languageId: string) {
   if (languageId === 'json') {
     return '.json';
   }
+  if (languageId === 'sql') {
+    return '.sql';
+  }
+
   return '';
 }

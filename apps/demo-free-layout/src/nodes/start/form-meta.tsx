@@ -12,7 +12,6 @@ import {
 } from '@flowgram.ai/free-layout-editor';
 import {
   DisplayOutputs,
-  IJsonSchema,
   JsonSchemaEditor,
   provideJsonSchemaOutputs,
   syncVariableTitle,

@@ -68,7 +68,8 @@ export interface NodeFormProps<TValues> {
 }
 
 /**
- * Only support FormModelV2
+ * Use `node.form` instead
+ * @deprecated
  * @param node
  */
 export function getNodeForm<TValues = FieldValue>(

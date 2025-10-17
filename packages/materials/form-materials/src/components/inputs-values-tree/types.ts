@@ -5,11 +5,12 @@
 
 import { IJsonSchema } from '@flowgram.ai/json-schema';
 
+import { IInputsValues } from '@/shared';
 import { ConstantInputStrategy } from '@/components/constant-input';
 
 export interface PropsType {
-  value?: any;
-  onChange: (value?: any) => void;
+  value?: IInputsValues;
+  onChange: (value?: IInputsValues) => void;
   readonly?: boolean;
   hasError?: boolean;
   schema?: IJsonSchema;

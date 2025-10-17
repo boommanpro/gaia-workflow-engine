@@ -3,4 +3,4 @@
  * SPDX-License-Identifier: MIT
  */
 
-export { createVariablePanelPlugin } from './variable-panel-plugin';
+export { createVariablePanelPlugin, GetGlobalVariableSchema } from './variable-panel-plugin';

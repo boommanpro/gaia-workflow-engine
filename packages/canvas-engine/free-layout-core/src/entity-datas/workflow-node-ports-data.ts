@@ -8,7 +8,7 @@ import { FlowNodeRenderData } from '@flowgram.ai/document';
 import { EntityData, SizeData } from '@flowgram.ai/core';
 
 import { type WorkflowPortType, getPortEntityId } from '../utils/statics';
-import { type LinePoint, type WorkflowNodeMeta } from '../typings';
+import { type LinePoint, LinePointLocation, type WorkflowNodeMeta } from '../typings';
 import { WorkflowPortEntity } from '../entities/workflow-port-entity';
 import { type WorkflowNodeEntity, type WorkflowPort, type WorkflowPorts } from '../entities';
 
@@ -96,6 +96,7 @@ export class WorkflowNodePortsData extends EntityData {
         ...Array.from(elements).map((element) => ({
           portID: element.getAttribute('data-port-id')!,
           type: element.getAttribute('data-port-type')! as WorkflowPortType,
+          location: element.getAttribute('data-port-location')! as LinePointLocation,
           targetElement: element,
         }))
       );

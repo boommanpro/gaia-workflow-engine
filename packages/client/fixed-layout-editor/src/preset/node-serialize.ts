@@ -18,7 +18,7 @@ export function fromNodeJSON(
   // 如果没有使用表单引擎，将 data 数据填入 extInfo
   if (!formData) {
     if (json.data) {
-      node.updateExtInfo(json.data);
+      node.updateExtInfo(json.data, true);
     }
   } else {
     const defaultFormMeta = opts.nodeEngine?.createDefaultFormMeta?.(node);

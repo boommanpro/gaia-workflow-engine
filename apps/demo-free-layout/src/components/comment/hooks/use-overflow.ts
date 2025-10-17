@@ -36,7 +36,7 @@ export const useOverflow = (params: { model: CommentEditorModel; height: number 
   // 监听 change 事件
   useEffect(() => {
     const changeDisposer = model.on((params) => {
-      if (params.type !== CommentEditorEvent.Change) {
+      if (params.type !== CommentEditorEvent.Change && params.type !== CommentEditorEvent.Init) {
         return;
       }
       updateOverflow();

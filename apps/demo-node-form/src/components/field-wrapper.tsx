@@ -11,7 +11,7 @@ interface FieldWrapperProps {
   required?: boolean;
   title?: string;
   children?: React.ReactNode;
-  error?: string;
+  error?: React.ReactNode;
   note?: string;
 }
 

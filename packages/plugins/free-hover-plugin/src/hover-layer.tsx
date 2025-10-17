@@ -193,23 +193,28 @@ export class HoverLayer extends Layer<HoverLayerOptions> {
   updateHoveredState(mousePos: IPoint, target?: HTMLElement): void {
     const { hoverService } = this;
     const nodeTransforms = this.nodeTransformsWithSort;
-    // // 判断连接点是否 hover
-    const portHovered = this.linesManager.getPortFromMousePos(mousePos);
+    const outputPortHovered = this.linesManager.getPortFromMousePos(mousePos, 'output');
+    const inputPortHovered = this.linesManager.getPortFromMousePos(mousePos, 'input');
+    // 在两个端口叠加情况，优先使用 outputPort
+    const portHovered = outputPortHovered || inputPortHovered;
 
     const lineDomNodes = this.playgroundNode.querySelectorAll(LINE_CLASS_NAME);
     const checkTargetFromLine = [...lineDomNodes].some((lineDom) =>
       lineDom.contains(target as HTMLElement)
     );
-    // 默认 只有 output 点位可以 hover
     if (portHovered) {
-      // 输出点可以直接选中
-      if (portHovered.portType === 'output') {
+      if (this.document.options.twoWayConnection) {
         hoverService.updateHoveredKey(portHovered.id);
-      } else if (checkTargetFromLine || target?.className?.includes?.(PORT_BG_CLASS_NAME)) {
-        // 输入点采用获取最接近的线条
-        const lineHovered = this.linesManager.getCloseInLineFromMousePos(mousePos);
-        if (lineHovered) {
-          this.updateHoveredKey(lineHovered.id);
+      } else {
+        // 默认 只有 output 点位可以 hover
+        if (portHovered.portType === 'output') {
+          hoverService.updateHoveredKey(portHovered.id);
+        } else if (checkTargetFromLine || target?.className?.includes?.(PORT_BG_CLASS_NAME)) {
+          // 输入点采用获取最接近的线条
+          const lineHovered = this.linesManager.getCloseInLineFromMousePos(mousePos);
+          if (lineHovered) {
+            this.updateHoveredKey(lineHovered.id);
+          }
         }
       }
       return;
@@ -297,22 +302,21 @@ export class HoverLayer extends Layer<HoverLayerOptions> {
   }
 
   private handleDragLine(e: MouseEvent): boolean | undefined {
-    const { hoveredNode } = this.hoverService;
+    const { someHovered } = this.hoverService;
     // 重置线条
-    if (hoveredNode && hoveredNode instanceof WorkflowLineEntity) {
-      this.dragService.resetLine(hoveredNode, e);
+    if (someHovered && someHovered instanceof WorkflowLineEntity) {
+      this.dragService.resetLine(someHovered, e);
       return true;
     }
     if (
-      hoveredNode &&
-      hoveredNode instanceof WorkflowPortEntity &&
-      hoveredNode.portType !== 'input' &&
-      !hoveredNode.disabled &&
+      someHovered &&
+      someHovered instanceof WorkflowPortEntity &&
+      !someHovered.disabled &&
       e.button !== 1
     ) {
       e.stopPropagation();
       e.preventDefault();
-      this.dragService.startDrawingLine(hoveredNode, e);
+      this.dragService.startDrawingLine(someHovered, e);
       return true;
     }
   }

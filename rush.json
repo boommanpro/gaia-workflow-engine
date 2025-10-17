@@ -15,7 +15,7 @@
      * path segment in the "$schema" field for all your Rush config files.  This will ensure
      * correct error-underlining and tab-completion for editors such as VS Code.
      */
-    "rushVersion": "5.140.1",
+    "rushVersion": "5.150.0",
     /**
      * The next field selects which package manager should be installed and determines its version.
      * Rush installs its own local copy of the package manager to ensure that your build process
@@ -24,7 +24,7 @@
      * Specify one of: "pnpmVersion", "npmVersion", or "yarnVersion".  See the Rush documentation
      * for details about these alternatives.
      */
-    "pnpmVersion": "8.15.8",
+    "pnpmVersion": "10.6.5",
     // "npmVersion": "6.14.15",
     // "yarnVersion": "1.9.4",
     /**
@@ -445,6 +445,14 @@
                 "cli"
             ]
         },
+        {
+            "packageName": "@flowgram.ai/cli",
+            "projectFolder": "apps/cli",
+            "versionPolicyName": "publishPolicy",
+            "tags": [
+                "cli"
+            ]
+        },
         // 官网
         {
             "packageName": "@flowgram.ai/docs",
@@ -852,6 +860,11 @@
             ]
         },
         {
+            "packageName": "@flowgram.ai/panel-manager-plugin",
+            "projectFolder": "packages/plugins/panel-manager-plugin",
+            "versionPolicyName": "publishPolicy"
+        },
+        {
             "packageName": "@flowgram.ai/form-antd-materials",
             "projectFolder": "packages/materials/form-antd-materials",
             "versionPolicyName": "publishPolicy",
@@ -863,6 +876,15 @@
         {
             "packageName": "@flowgram.ai/type-editor",
             "projectFolder": "packages/materials/type-editor",
+            "versionPolicyName": "publishPolicy",
+            "tags": [
+                "level-1",
+                "team-flow"
+            ]
+        },
+        {
+            "packageName": "@flowgram.ai/coze-editor",
+            "projectFolder": "packages/materials/coze-editor",
             "versionPolicyName": "publishPolicy",
             "tags": [
                 "level-1",
@@ -929,6 +951,15 @@
         {
             "packageName": "@flowgram.ai/demo-node-form",
             "projectFolder": "apps/demo-node-form",
+            "tags": [
+                "level-1",
+                "team-flow",
+                "demo"
+            ]
+        },
+        {
+            "packageName": "@flowgram.ai/demo-materials",
+            "projectFolder": "apps/demo-materials",
             "tags": [
                 "level-1",
                 "team-flow",

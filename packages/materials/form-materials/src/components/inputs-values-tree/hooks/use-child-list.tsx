@@ -5,7 +5,7 @@
 
 import { useMemo } from 'react';
 
-import { isPlainObject } from 'lodash';
+import { isPlainObject } from 'lodash-es';
 
 import { FlowValueUtils } from '@/shared';
 import { useObjectList } from '@/hooks';

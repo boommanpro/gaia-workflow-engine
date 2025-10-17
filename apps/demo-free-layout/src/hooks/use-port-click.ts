@@ -33,6 +33,7 @@ export const usePortClick = () => {
   const linesManager = useService(WorkflowLinesManager);
 
   const onPortClick = useCallback(async (e: React.MouseEvent, port: WorkflowPortEntity) => {
+    if (port.portType === 'input') return;
     const mousePos = playground.config.getPosFromMouseEvent(e);
     const containerNode = port.node.parent;
     // open node selection panel - 打开节点选择面板
@@ -41,6 +42,7 @@ export const usePortClick = () => {
       containerNode,
       panelProps: {
         enableScrollClose: true,
+        fromPort: port,
       },
     });
 
@@ -55,10 +57,16 @@ export const usePortClick = () => {
     // calculate position for the new node - 计算新节点的位置
     const nodePosition = WorkflowNodePanelUtils.adjustNodePosition({
       nodeType,
-      position: {
-        x: mousePos.x + 100,
-        y: mousePos.y,
-      },
+      position:
+        port.location === 'bottom'
+          ? {
+              x: mousePos.x,
+              y: mousePos.y + 100,
+            }
+          : {
+              x: mousePos.x + 100,
+              y: mousePos.y,
+            },
       fromPort: port,
       containerNode,
       document,

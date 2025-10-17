@@ -4,7 +4,7 @@
  */
 
 import { nanoid } from 'nanoid';
-import { get, groupBy, some } from 'lodash';
+import { get, groupBy, some } from 'lodash-es';
 import { Disposable, DisposableCollection, Emitter } from '@flowgram.ai/utils';
 import { ReactiveState } from '@flowgram.ai/reactive';
 

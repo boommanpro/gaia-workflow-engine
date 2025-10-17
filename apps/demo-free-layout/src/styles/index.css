@@ -19,11 +19,6 @@
   --g-workflow-line-color-error: red;
 }
 
-.gedit-selector-bounds-background {
-  cursor: move;
-  display: none !important;
-}
-
 .gedit-selector-bounds-foreground {
   cursor: move;
   position: absolute;

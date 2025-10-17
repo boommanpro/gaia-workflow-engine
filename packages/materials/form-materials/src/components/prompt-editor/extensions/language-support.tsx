@@ -5,8 +5,8 @@
 
 import { useLayoutEffect } from 'react';
 
-import { useInjector } from '@coze-editor/editor/react';
-import { languageSupport } from '@coze-editor/editor/preset-prompt';
+import { useInjector } from '@flowgram.ai/coze-editor/react';
+import { languageSupport } from '@flowgram.ai/coze-editor/preset-prompt';
 
 function LanguageSupport() {
   const injector = useInjector();

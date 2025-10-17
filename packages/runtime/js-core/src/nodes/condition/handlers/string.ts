@@ -4,7 +4,7 @@
  */
 
 import { isNil } from 'lodash-es';
-import { ConditionOperation } from '@flowgram.ai/runtime-interface';
+import { ConditionOperator } from '@flowgram.ai/runtime-interface';
 
 import { ConditionHandler } from '../type';
 
@@ -12,34 +12,34 @@ export const conditionStringHandler: ConditionHandler = (condition) => {
   const { operator } = condition;
   const leftValue = condition.leftValue as string;
   // Switch case share scope, so we need to use if else here
-  if (operator === ConditionOperation.EQ) {
+  if (operator === ConditionOperator.EQ) {
     const rightValue = condition.rightValue as string;
     return leftValue === rightValue;
   }
-  if (operator === ConditionOperation.NEQ) {
+  if (operator === ConditionOperator.NEQ) {
     const rightValue = condition.rightValue as string;
     return leftValue !== rightValue;
   }
-  if (operator === ConditionOperation.CONTAINS) {
+  if (operator === ConditionOperator.CONTAINS) {
     const rightValue = condition.rightValue as string;
     return leftValue.includes(rightValue);
   }
-  if (operator === ConditionOperation.NOT_CONTAINS) {
+  if (operator === ConditionOperator.NOT_CONTAINS) {
     const rightValue = condition.rightValue as string;
     return !leftValue.includes(rightValue);
   }
-  if (operator === ConditionOperation.IN) {
+  if (operator === ConditionOperator.IN) {
     const rightValue = condition.rightValue as string[];
     return rightValue.includes(leftValue);
   }
-  if (operator === ConditionOperation.NIN) {
+  if (operator === ConditionOperator.NIN) {
     const rightValue = condition.rightValue as string[];
     return !rightValue.includes(leftValue);
   }
-  if (operator === ConditionOperation.IS_EMPTY) {
+  if (operator === ConditionOperator.IS_EMPTY) {
     return isNil(leftValue);
   }
-  if (operator === ConditionOperation.IS_NOT_EMPTY) {
+  if (operator === ConditionOperator.IS_NOT_EMPTY) {
     return !isNil(leftValue);
   }
   return false;

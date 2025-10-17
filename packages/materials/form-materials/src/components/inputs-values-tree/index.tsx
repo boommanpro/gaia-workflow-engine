@@ -9,7 +9,7 @@ import { I18n } from '@flowgram.ai/editor';
 import { Button } from '@douyinfe/semi-ui';
 import { IconPlus } from '@douyinfe/semi-icons';
 
-import { FlowValueUtils } from '@/shared';
+import { FlowValueUtils, IFlowValue, IInputsValues } from '@/shared';
 import { useObjectList } from '@/hooks';
 
 import { PropsType } from './types';
@@ -19,9 +19,11 @@ import { InputValueRow } from './row';
 export function InputsValuesTree(props: PropsType) {
   const { value, onChange, readonly, hasError, constantProps } = props;
 
-  const { list, updateKey, updateValue, remove, add } = useObjectList({
+  const { list, updateKey, updateValue, remove, add } = useObjectList<
+    IInputsValues | IFlowValue | undefined
+  >({
     value,
-    onChange,
+    onChange: (v) => onChange?.(v as IInputsValues),
     sortIndexKey: (value) => (FlowValueUtils.isFlowValue(value) ? 'extra.index' : ''),
   });
 

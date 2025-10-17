@@ -5,17 +5,23 @@
 
 import React from 'react';
 
-import type { FlowNodeEntity } from '@flowgram.ai/fixed-layout-editor';
+import type { FlowNodeEntity, FlowNodeJSON, Xor } from '@flowgram.ai/fixed-layout-editor';
 
 import { UIDragNodeContainer, UIDragCounts } from './styles';
 
-export interface PropsType {
-  dragStart: FlowNodeEntity;
+export type PropsType = Xor<
+  {
+    dragStart: FlowNodeEntity;
+  },
+  {
+    dragJSON: FlowNodeJSON;
+  }
+> & {
   dragNodes: FlowNodeEntity[];
-}
+};
 
 export default function DragNode(props: PropsType): JSX.Element {
-  const { dragStart, dragNodes } = props;
+  const { dragStart, dragNodes, dragJSON } = props;
 
   const dragLength = (dragNodes || [])
     .map((_node) =>
@@ -27,7 +33,7 @@ export default function DragNode(props: PropsType): JSX.Element {
 
   return (
     <UIDragNodeContainer>
-      {dragStart?.id}
+      {dragStart?.id || dragJSON?.id}
       {dragLength > 1 && (
         <>
           <UIDragCounts>{dragLength}</UIDragCounts>

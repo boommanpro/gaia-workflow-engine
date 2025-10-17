@@ -23,6 +23,7 @@
     "dev": "cross-env MODE=app NODE_ENV=development rsbuild dev --open",
     "lint": "eslint ./src --cache",
     "lint:fix": "eslint ./src --fix",
+    "ts-check": "tsc --noEmit",
     "start": "cross-env NODE_ENV=development rsbuild dev --open",
     "test": "exit",
     "test:cov": "exit",
@@ -44,6 +45,7 @@
     "@types/react-dom": "^18",
     "@types/styled-components": "^5",
     "eslint": "^8.54.0",
+    "typescript": "^5.8.3",
     "cross-env": "~7.0.3"
   },
   "publishConfig": {

@@ -10,6 +10,7 @@ export const UIContainer = styled.div`
   align-items: center;
   border-radius: 4px;
   border: 1px solid var(--semi-color-border);
+  line-height: normal;
 
   overflow: hidden;
 

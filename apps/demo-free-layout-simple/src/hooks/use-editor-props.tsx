@@ -91,24 +91,10 @@ export const useEditorProps = () =>
          * Render Node
          */
         renderDefaultNode: (props: WorkflowNodeProps) => {
-          const { form, node } = useNodeRender();
+          const { form } = useNodeRender();
           return (
             <WorkflowNodeRenderer className="demo-free-node" node={props.node}>
               {form?.render()}
-              {node.flowNodeType === 'condition' && (
-                <div
-                  data-port-id="if"
-                  data-port-type="output"
-                  style={{ position: 'absolute', right: 0, top: '33%' }}
-                />
-              )}
-              {node.flowNodeType === 'condition' && (
-                <div
-                  data-port-id="else"
-                  data-port-type="output"
-                  style={{ position: 'absolute', right: 0, top: '66%' }}
-                />
-              )}
             </WorkflowNodeRenderer>
           );
         },
@@ -173,7 +159,6 @@ export const useEditorProps = () =>
             nodeBorderColor: 'rgba(6, 7, 9, 0.10)',
             overlayColor: 'rgba(255, 255, 255, 0)',
           },
-          inactiveDebounceTime: 1,
         }),
         /**
          * Snap plugin

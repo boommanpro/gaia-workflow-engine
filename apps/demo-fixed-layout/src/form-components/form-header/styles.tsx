@@ -16,8 +16,8 @@ export const Header = styled.div`
 
   background: linear-gradient(#f2f2ff 0%, rgb(251, 251, 251) 100%);
   overflow: hidden;
-
   padding: 8px;
+  cursor: move;
 `;
 
 export const Title = styled.div`

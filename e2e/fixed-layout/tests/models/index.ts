@@ -5,6 +5,8 @@
 
 import type { Page } from '@playwright/test';
 
+import type { DragPosition } from '../typings/index';
+
 type InsertEdgeOptions = {
   from: string;
   to: string;
@@ -31,6 +33,13 @@ class FixedLayoutModel {
 
   public async isConditionNodeExist() {
     return await this.page.locator('[data-node-id="$blockIcon$switch_0"]').count();
+  }
+
+  public async drag(from: DragPosition, to: DragPosition) {
+    await this.page.mouse.move(from.x, from.y);
+    await this.page.mouse.down();
+    await this.page.mouse.move(to.x, to.y);
+    await this.page.mouse.up();
   }
 
   public async insert(searchText: string, { from, to }: InsertEdgeOptions) {

@@ -21,9 +21,9 @@ export const getSubsequentNodes: IGetSubsequentNodes = (params) => {
   const brothers = node.parent?.blocks ?? [];
   const linkedBrothers = new Set();
   const linesMap = new Map<string, string[]>();
-  linesManager.getAllLines().forEach((line) => {
-    if (!linesMap.has(line.from.id)) {
-      linesMap.set(line.from.id, []);
+  linesManager.getAllAvailableLines().forEach((line) => {
+    if (!linesMap.has(line.from!.id)) {
+      linesMap.set(line.from!.id, []);
     }
     if (
       !line.to?.id ||
@@ -31,7 +31,7 @@ export const getSubsequentNodes: IGetSubsequentNodes = (params) => {
     ) {
       return;
     }
-    linesMap.get(line.from.id)?.push(line.to.id);
+    linesMap.get(line.from!.id)?.push(line.to.id);
   });
 
   const bfs = (nodeId: string) => {

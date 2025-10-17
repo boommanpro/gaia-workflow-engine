@@ -31,6 +31,10 @@ export interface PlaygroundTools {
   zoomin: (easing?: boolean) => void;
   zoomout: (easing?: boolean) => void;
   fitView: (easing?: boolean) => void;
+  /**
+   * Auto layout tool - 自动布局工具
+   * https://flowgram.ai/guide/plugin/free-auto-layout-plugin.html
+   */
   autoLayout: FreeLayoutPluginTools['autoLayout'];
   /**
    * 切换线条

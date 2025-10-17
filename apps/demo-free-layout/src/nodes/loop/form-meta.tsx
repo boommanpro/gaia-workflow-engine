@@ -27,7 +27,7 @@ interface LoopNodeJSON extends FlowNodeJSON {
 export const LoopFormRender = ({ form }: FormRenderProps<LoopNodeJSON>) => {
   const isSidebar = useIsSidebar();
   const { readonly } = useNodeRenderContext();
-  const formHeight = 85;
+  const formHeight = 115;
 
   const loopFor = (
     <Field<IFlowRefValue> name={`loopFor`}>
@@ -92,5 +92,5 @@ export const formMeta: FormMeta = {
   effect: {
     loopFor: provideBatchInputEffect,
   },
-  plugins: [createBatchOutputsFormPlugin({ outputKey: 'loopOutputs' })],
+  plugins: [createBatchOutputsFormPlugin({ outputKey: 'loopOutputs', inferTargetKey: 'outputs' })],
 };

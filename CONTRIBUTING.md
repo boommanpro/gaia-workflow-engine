@@ -5,8 +5,8 @@
 ### Prerequisites
 
 - Node.js 18+ (LTS/Hydrogen recommended)
-- pnpm 9.12.0
-- Rush 5.14.0
+- pnpm 10.6.5
+- Rush 5.150.0
 
 ### Installation
 
@@ -27,7 +27,7 @@ git clone git@github.com:bytedance/flowgram.ai.git
 3. **Install required global dependencies**
 
 ``` bash
-npm i -g pnpm@9.12.0 @microsoft/rush@5.140.1
+npm i -g pnpm@10.6.5 @microsoft/rush@5.150.0
 ```
 
 4. **Install project dependencies**

@@ -91,8 +91,16 @@ export class WorkflowHoverService {
 
   /**
    * 获取被 hover 的节点或线条
+   * @deprecated use 'someHovered' instead
    */
-  get hoveredNode(): WorkfloEntityHoverable | undefined {
+  get hoveredNode(): WorkflowEntityHoverable | undefined {
+    return this.entityManager.getEntityById(this.hoveredKey);
+  }
+
+  /**
+   * 获取被 hover 的节点或线条
+   */
+  get someHovered(): WorkflowEntityHoverable | undefined {
     return this.entityManager.getEntityById(this.hoveredKey);
   }
 }

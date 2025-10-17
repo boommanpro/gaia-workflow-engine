@@ -10,8 +10,6 @@ export type PipeEventName = string;
 export interface PipelineDimension {
   width: number;
   height: number;
-  clientX: number;
-  clientY: number;
 }
 
 export type PipelineEventHandler = (event: PipeSupportEvent) => boolean | undefined;

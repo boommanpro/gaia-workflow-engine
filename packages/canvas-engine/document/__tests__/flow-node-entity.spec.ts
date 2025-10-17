@@ -135,4 +135,30 @@ describe('flow-node-entity', () => {
     // transform 数据还在
     expect(node.getData(TransformData)).toBeDefined();
   });
+  it('getExtInfo and updateExtInfo', () => {
+    const node = document.getNode('start_0');
+    let changedTimes = 0;
+    node.onExtInfoChange((data) => {
+      changedTimes++;
+    });
+    expect(node.toJSON().data).toEqual(undefined);
+    expect(node.getExtInfo()).toEqual(undefined);
+    node.updateExtInfo({ title: 'start' });
+    expect(node.getExtInfo()).toEqual({ title: 'start' });
+    expect(changedTimes).toEqual(1);
+    node.updateExtInfo({ title: 'start' }); // same
+    expect(changedTimes).toEqual(1);
+    node.updateExtInfo({ content: 'content' });
+    expect(node.getExtInfo()).toEqual({ title: 'start', content: 'content' });
+    expect(changedTimes).toEqual(2);
+    expect(node.toJSON()).toEqual({
+      id: 'start_0',
+      type: 'start',
+      data: { title: 'start', content: 'content' }, // By default, extInfo will be present in data
+    });
+    node.updateExtInfo({ title: 'start2' }, true);
+    expect(node.getExtInfo()).toEqual({ title: 'start2' });
+    expect(changedTimes).toEqual(3);
+    expect(node.toJSON().data).toEqual({ title: 'start2' });
+  });
 });

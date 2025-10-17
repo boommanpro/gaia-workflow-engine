@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 
-import { useClientContext, getNodeForm, FlowNodeEntity } from '@flowgram.ai/fixed-layout-editor';
+import { useClientContext, FlowNodeEntity } from '@flowgram.ai/fixed-layout-editor';
 import { Button, Badge } from '@douyinfe/semi-ui';
 
 export function Save(props: { disabled: boolean }) {
@@ -13,7 +13,7 @@ export function Save(props: { disabled: boolean }) {
   const clientContext = useClientContext();
 
   const updateValidateData = useCallback(() => {
-    const allForms = clientContext.document.getAllNodes().map((node) => getNodeForm(node));
+    const allForms = clientContext.document.getAllNodes().map((node) => node.form);
     const count = allForms.filter((form) => form?.state.invalid).length;
     setErrorCount(count);
   }, [clientContext]);
@@ -22,7 +22,7 @@ export function Save(props: { disabled: boolean }) {
    * Validate all node and Save
    */
   const onSave = useCallback(async () => {
-    const allForms = clientContext.document.getAllNodes().map((node) => getNodeForm(node));
+    const allForms = clientContext.document.getAllNodes().map((node) => node.form);
     await Promise.all(allForms.map(async (form) => form?.validate()));
     console.log('>>>>> save data: ', clientContext.document.toJSON());
   }, [clientContext]);
@@ -32,7 +32,7 @@ export function Save(props: { disabled: boolean }) {
      * Listen single node validate
      */
     const listenSingleNodeValidate = (node: FlowNodeEntity) => {
-      const form = getNodeForm(node);
+      const form = node.form;
       if (form) {
         const formValidateDispose = form.onValidate(() => updateValidateData());
         node.onDispose(() => formValidateDispose.dispose());

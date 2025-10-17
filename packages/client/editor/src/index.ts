@@ -16,6 +16,15 @@ export * from '@flowgram.ai/shortcuts-plugin';
 export * from '@flowgram.ai/node-core-plugin';
 export * from '@flowgram.ai/i18n-plugin';
 export {
+  ReactiveState,
+  ReactiveBaseState,
+  Tracker,
+  useReactiveState,
+  useReadonlyReactiveState,
+  useObserve,
+  observe,
+} from '@flowgram.ai/reactive';
+export {
   type interfaces,
   injectable,
   postConstruct,

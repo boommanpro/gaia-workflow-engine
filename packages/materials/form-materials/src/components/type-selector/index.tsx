@@ -5,11 +5,10 @@
 
 import React, { useMemo } from 'react';
 
-import { IJsonSchema } from '@flowgram.ai/json-schema';
+import { IJsonSchema, useTypeManager, JsonSchemaTypeManager } from '@flowgram.ai/json-schema';
 import { Cascader, Icon, IconButton } from '@douyinfe/semi-ui';
 
 import { createInjectMaterial } from '@/shared/inject-material';
-import { useTypeManager } from '@/plugins';
 
 export interface TypeSelectorProps {
   value?: Partial<IJsonSchema>;
@@ -47,7 +46,7 @@ export function TypeSelector(props: TypeSelectorProps) {
 
   const selectValue = useMemo(() => getTypeSelectValue(value), [value]);
 
-  const typeManager = useTypeManager();
+  const typeManager = useTypeManager() as JsonSchemaTypeManager;
 
   const icon = typeManager.getDisplayIcon(value || {});
 

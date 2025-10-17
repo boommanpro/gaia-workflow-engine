@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { groupBy } from 'lodash';
+import { groupBy } from 'lodash-es';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { HistoryItem, HistoryOperation, HistoryStack } from '@flowgram.ai/history';
 

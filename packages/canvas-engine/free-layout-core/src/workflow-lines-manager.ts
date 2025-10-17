@@ -11,6 +11,7 @@ import { EntityManager, PlaygroundConfigEntity } from '@flowgram.ai/core';
 
 import { WorkflowDocumentOptions } from './workflow-document-option';
 import { type WorkflowDocument } from './workflow-document';
+import { WorkflowPortType } from './utils';
 import {
   LineColor,
   LineColors,
@@ -27,7 +28,7 @@ import {
 } from './typings';
 import { WorkflowHoverService, WorkflowSelectService } from './service';
 import { WorkflowNodeLinesData } from './entity-datas/workflow-node-lines-data';
-import { WorkflowLineRenderData, WorkflowNodePortsData } from './entity-datas';
+import { WorkflowLineRenderData } from './entity-datas';
 import {
   LINE_HOVER_DISTANCE,
   WorkflowLineEntity,
@@ -127,13 +128,17 @@ export class WorkflowLinesManager {
     return this.entityManager.getEntities(WorkflowLineEntity);
   }
 
-  hasLine(portInfo: WorkflowLinePortInfo): boolean {
+  getAllAvailableLines(): WorkflowLineEntity[] {
+    return this.getAllLines().filter((l) => !l.isDrawing && !l.isHidden);
+  }
+
+  hasLine(portInfo: Omit<WorkflowLinePortInfo, 'data'>): boolean {
     return !!this.entityManager.getEntityById<WorkflowLineEntity>(
       WorkflowLineEntity.portInfoToLineId(portInfo)
     );
   }
 
-  getLine(portInfo: WorkflowLinePortInfo): WorkflowLineEntity | undefined {
+  getLine(portInfo: Omit<WorkflowLinePortInfo, 'data'>): WorkflowLineEntity | undefined {
     return this.entityManager.getEntityById<WorkflowLineEntity>(
       WorkflowLineEntity.portInfoToLineId(portInfo)
     );
@@ -144,8 +149,8 @@ export class WorkflowLinesManager {
   }
 
   replaceLine(
-    oldPortInfo: WorkflowLinePortInfo,
-    newPortInfo: WorkflowLinePortInfo
+    oldPortInfo: Omit<WorkflowLinePortInfo, 'data'>,
+    newPortInfo: Omit<WorkflowLinePortInfo, 'data'>
   ): WorkflowLineEntity {
     const oldLine = this.getLine(oldPortInfo);
     if (oldLine) {
@@ -157,10 +162,11 @@ export class WorkflowLinesManager {
   createLine(
     options: {
       drawingTo?: LinePoint; // 无连接的线条
+      drawingFrom?: LinePoint;
       key?: string; // 自定义 key
     } & WorkflowLinePortInfo
   ): WorkflowLineEntity | undefined {
-    const { from, to, drawingTo, fromPort, toPort, data } = options;
+    const { from, to, drawingTo, fromPort, drawingFrom, toPort, data } = options;
     const available = Boolean(from && to);
     const key = options.key || WorkflowLineEntity.portInfoToLineId(options);
     let line = this.entityManager.getEntityById<WorkflowLineEntity>(key)!;
@@ -171,21 +177,23 @@ export class WorkflowLinesManager {
       return line;
     }
 
-    const fromNode = this.entityManager
-      .getEntityById<WorkflowNodeEntity>(from)
-      ?.getData<WorkflowNodeLinesData>(WorkflowNodeLinesData);
+    const fromNode = from
+      ? this.entityManager
+          .getEntityById<WorkflowNodeEntity>(from)!
+          .getData<WorkflowNodeLinesData>(WorkflowNodeLinesData)
+      : undefined;
     const toNode = to
       ? this.entityManager
           .getEntityById<WorkflowNodeEntity>(to)!
           .getData<WorkflowNodeLinesData>(WorkflowNodeLinesData)!
       : undefined;
 
-    if (!fromNode) {
+    if (!fromNode && !toNode) {
       // 非法情况
       return;
     }
 
-    this.isDrawing = Boolean(drawingTo);
+    this.isDrawing = Boolean(drawingTo || drawingFrom);
     line = this.entityManager.createEntity<WorkflowLineEntity>(WorkflowLineEntity, {
       id: key,
       document: this.document,
@@ -195,18 +203,17 @@ export class WorkflowLinesManager {
       toPort,
       to,
       drawingTo,
+      drawingFrom,
       data,
     });
 
     this.registerData(line);
 
-    fromNode.addLine(line);
+    fromNode?.addLine(line);
     toNode?.addLine(line);
     line.onDispose(() => {
-      if (drawingTo) {
-        this.isDrawing = false;
-      }
-      fromNode.removeLine(line);
+      this.isDrawing = false;
+      fromNode?.removeLine(line);
       toNode?.removeLine(line);
     });
     line.onDispose(() => {
@@ -274,7 +281,7 @@ export class WorkflowLinesManager {
     return this.toDispose.disposed;
   }
 
-  isErrorLine(fromPort: WorkflowPortEntity, toPort?: WorkflowPortEntity, defaultValue?: boolean) {
+  isErrorLine(fromPort?: WorkflowPortEntity, toPort?: WorkflowPortEntity, defaultValue?: boolean) {
     if (this.options.isErrorLine) {
       return this.options.isErrorLine(fromPort, toPort, this);
     }
@@ -364,6 +371,7 @@ export class WorkflowLinesManager {
       fromPort.node === toPort.node ||
       fromPort.portType !== 'output' ||
       toPort.portType !== 'input' ||
+      fromPort.disabled ||
       toPort.disabled
     ) {
       return false;
@@ -395,7 +403,7 @@ export class WorkflowLinesManager {
 
   canRemove(
     line: WorkflowLineEntity,
-    newLineInfo?: Required<WorkflowLinePortInfo>,
+    newLineInfo?: Required<Omit<WorkflowLinePortInfo, 'data'>>,
     silent?: boolean
   ): boolean {
     if (
@@ -408,15 +416,11 @@ export class WorkflowLinesManager {
     return true;
   }
 
-  canReset(
-    fromPort: WorkflowPortEntity,
-    oldToPort: WorkflowPortEntity,
-    newToPort: WorkflowPortEntity
-  ): boolean {
+  canReset(oldLine: WorkflowLineEntity, newLineInfo: Required<WorkflowLinePortInfo>): boolean {
     if (
       this.options &&
       this.options.canResetLine &&
-      !this.options.canResetLine(fromPort, oldToPort, newToPort, this)
+      !this.options.canResetLine(oldLine, newLineInfo, this)
     ) {
       return false;
     }
@@ -427,9 +431,16 @@ export class WorkflowLinesManager {
    * 根据鼠标位置找到 port
    * @param pos
    */
-  getPortFromMousePos(pos: IPoint): WorkflowPortEntity | undefined {
+  getPortFromMousePos(pos: IPoint, portType?: WorkflowPortType): WorkflowPortEntity | undefined {
     const allNodes = this.getSortedNodes().reverse();
-    const allPorts = allNodes.map((node) => node.getData(WorkflowNodePortsData).allPorts).flat();
+    const allPorts = allNodes
+      .map((node) => {
+        if (!portType) {
+          return node.ports.allPorts;
+        }
+        return portType === 'input' ? node.ports.inputPorts : node.ports.outputPorts;
+      })
+      .flat();
     const targetPort = allPorts.find((port) => port.isHovered(pos.x, pos.y));
     if (targetPort) {
       const containNodes = this.getContainNodesFromMousePos(pos);
