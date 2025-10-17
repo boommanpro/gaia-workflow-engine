@@ -17,8 +17,8 @@
     "README.zh_CN.md"
   ],
   "dependencies": {
-    "@douyinfe/semi-icons": "^2.72.3",
-    "@douyinfe/semi-ui": "^2.72.3",
+    "@douyinfe/semi-icons": "^2.80.0",
+    "@douyinfe/semi-ui": "^2.80.0",
     "@flowgram.ai/runtime-interface": "0.5.5",
     "@flowgram.ai/free-layout-editor": "0.5.5",
     "@flowgram.ai/free-snap-plugin": "0.5.5",
