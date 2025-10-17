@@ -3,8 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-import {useLayoutEffect, useState} from 'react';
-import {nanoid} from 'nanoid';
+import {Fragment, useLayoutEffect, useState} from 'react';
 import {Field, FieldArray, I18n, WorkflowNodePortsData} from '@flowgram.ai/free-layout-editor';
 import {ConditionRow, ConditionRowValueType} from '@flowgram.ai/form-materials';
 import {Button, Input, Radio} from '@douyinfe/semi-ui';
@@ -14,7 +13,7 @@ import {useNodeRenderContext} from '../../../hooks';
 import {Feedback, FormItem} from '../../../form-components';
 import {BranchContainer, BranchContent, BranchHeader, BranchPort, BranchTitle} from './styles';
 import {ConditionPort} from "../condition-inputs/styles";
-import { generateValidId } from '../../utils';
+import {generateValidId} from '../../utils';
 
 interface ConditionValue {
     key: string;
@@ -43,8 +42,8 @@ export function BranchInputs() {
             {({field: branchesField}) => (
                 <>
                     {branchesField.map((branchField, branchIndex) => (
-                        <>
-                            <Field<BranchValue> key={branchField.name} name={branchField.name}>
+                        <Fragment key={branchField.name}>
+                            <Field<BranchValue> name={branchField.name}>
                                 {({field: branch}) => (
                                     <BranchContainer>
                                         <BranchHeader>
@@ -168,9 +167,7 @@ export function BranchInputs() {
                                     </BranchContainer>
                                 )}
                             </Field>
-
-                        </>
-
+                        </Fragment>
                     ))}
           {!readonly && (
               <div>

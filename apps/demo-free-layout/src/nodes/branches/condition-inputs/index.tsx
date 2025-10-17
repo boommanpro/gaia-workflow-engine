@@ -3,19 +3,16 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { useLayoutEffect } from 'react';
+import {Fragment, useLayoutEffect} from 'react';
+import {Field, FieldArray, I18n, WorkflowNodePortsData} from '@flowgram.ai/free-layout-editor';
+import {ConditionRow, ConditionRowValueType} from '@flowgram.ai/form-materials';
+import {Button} from '@douyinfe/semi-ui';
+import {IconCrossCircleStroked, IconPlus} from '@douyinfe/semi-icons';
 
-import { nanoid } from 'nanoid';
-import { Field, FieldArray, I18n, WorkflowNodePortsData } from '@flowgram.ai/free-layout-editor';
-import { ConditionRow, ConditionRowValueType } from '@flowgram.ai/form-materials';
-import { Button } from '@douyinfe/semi-ui';
-import { IconPlus, IconCrossCircleStroked } from '@douyinfe/semi-icons';
-
-import { useNodeRenderContext } from '../../../hooks';
-import { FormItem } from '../../../form-components';
-import { Feedback } from '../../../form-components';
-import { ConditionPort } from './styles';
-import { generateValidId } from '../../utils';
+import {useNodeRenderContext} from '../../../hooks';
+import {Feedback, FormItem} from '../../../form-components';
+import {ConditionPort} from './styles';
+import {generateValidId} from '../../utils';
 
 interface ConditionValue {
   key: string;
@@ -36,32 +33,34 @@ export function ConditionInputs() {
       {({ field }) => (
         <>
           {field.map((child, index) => (
-            <Field<ConditionValue> key={child.name} name={child.name}>
-              {({ field: childField, fieldState: childState }) => (
-                <FormItem name="if" type="boolean" required={true} labelWidth={40}>
-                  <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <ConditionRow
-                      readonly={readonly}
-                      style={{ flexGrow: 1 }}
-                      value={childField.value.value}
-                      onChange={(v) => childField.onChange({ value: v, key: childField.value.key })}
-                    />
-
-                    {!readonly && (
-                      <Button
-                        theme="borderless"
-                        disabled={readonly}
-                        icon={<IconCrossCircleStroked />}
-                        onClick={() => field.delete(index)}
+            <Fragment key={child.name}>
+              <Field<ConditionValue> name={child.name}>
+                {({ field: childField, fieldState: childState }) => (
+                  <FormItem name="if" type="boolean" required={true} labelWidth={40}>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <ConditionRow
+                        readonly={readonly}
+                        style={{ flexGrow: 1 }}
+                        value={childField.value.value}
+                        onChange={(v) => childField.onChange({ value: v, key: childField.value.key })}
                       />
-                    )}
-                  </div>
 
-                  <Feedback errors={childState?.errors} invalid={childState?.invalid} />
-                  <ConditionPort data-port-id={childField.value.key} data-port-type="output" />
-                </FormItem>
-              )}
-            </Field>
+                      {!readonly && (
+                        <Button
+                          theme="borderless"
+                          disabled={readonly}
+                          icon={<IconCrossCircleStroked />}
+                          onClick={() => field.delete(index)}
+                        />
+                      )}
+                    </div>
+
+                    <Feedback errors={childState?.errors} invalid={childState?.invalid} />
+                    <ConditionPort data-port-id={childField.value.key} data-port-type="output" />
+                  </FormItem>
+                )}
+              </Field>
+            </Fragment>
           ))}
           {!readonly && (
             <div>

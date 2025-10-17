@@ -12,12 +12,7 @@ import {nodeRegistries} from './nodes';
 import {initialData} from './initial-data';
 import {useEditorProps} from './hooks';
 import {DemoTools} from './components/tools';
-import {SidebarProvider, SidebarRenderer} from './components/sidebar';
 import {setupAuthorization} from "./plugins/runtime-plugin";
-import { nodeRegistries } from './nodes';
-import { initialData } from './initial-data';
-import { useEditorProps } from './hooks';
-import { DemoTools } from './components/tools';
 
 let loadedWorkflowData = null;
 
