@@ -1,0 +1,5 @@
+"use strict";(self.webpackChunk_flowgram_ai_demo_free_layout=self.webpackChunk_flowgram_ai_demo_free_layout||[]).push([["6849"],{55886:function(e,t,n){n.r(t),n.d(t,{BaseCodeEditor:()=>c});var l=n(52676),i=n(75271),r=n(44189),u=n(84461),s=n(3854),o=n(78407),a=n(15019);let d=(0,u.Us)(o.ZP,[a.tk.theme({"&.cm-focused":{outline:"none"}})]),h=r.ZP.div`
+  ${({$mini:e})=>e&&(0,r.iv)`
+      height: 24px;
+    `}
+`;function c({value:e,onChange:t,languageId:n="python",theme:r="light",children:o,placeholder:a,activeLinePlaceholder:c,options:f,readonly:p,mini:_}){let g=(0,i.useRef)(null);return(0,i.useEffect)(()=>{g.current?.getValue()!==e&&g.current?.setValue(String(e||""))},[e]),(0,l.jsx)(h,{$mini:_,children:(0,l.jsx)(u.KU,{children:(0,l.jsxs)(d,{defaultValue:String(e||""),options:{uri:`file:///untitled${"python"===n?".py":"typescript"===n?".ts":"shell"===n?".sh":"json"===n?".json":"sql"===n?".sql":""}`,languageId:n,theme:r,placeholder:a,readOnly:p,editable:!p,..._?{lineNumbersGutter:!1,foldGutter:!1,minHeight:24}:{},...f||{}},didMount:e=>{g.current=e},onChange:e=>t?.(e.value),children:[c&&(0,l.jsx)(s.GH,{children:c}),o]})})})}}}]);
