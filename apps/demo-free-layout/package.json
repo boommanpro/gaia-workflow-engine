@@ -72,6 +72,7 @@
     "build:watch": "exit 0",
     "clean": "rimraf dist",
     "dev": "node_modules/.bin/cross-env NODE_ENV=development rsbuild dev --open",
+    "prod": "node_modules/.bin/cross-env NODE_ENV=production rsbuild dev --open",
     "lint": "node_modules/.bin/eslint ./src --cache",
     "lint:fix": "node_modules/.bin/eslint ./src --fix",
     "ts-check": "tsc --noEmit",
