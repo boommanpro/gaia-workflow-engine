@@ -49,3 +49,59 @@ CLI 运行成功后，相关物料会自动添加到当前项目下的 `src/form
 
 :::
 
+## 附：根据节点类型查找物料
+
+### 实现节点输入输出
+
+**出入参配置**
+- 节点入参：[InputsValues](./components/inputs-values), [InputsValuesTree](./components/inputs-values-tree)
+- 节点出参：[JsonSchemaEditor](./components/json-schema-editor)
+- 入参校验：[validateFlowValue](./validate/validate-flow-value)
+- 出参变量生成：[provideJsonSchemaOutputs](./effects/provide-json-schema-outputs)
+
+**出入参展示**
+- 入参展示：[DisplayInputsValues](./components/display-inputs-values)
+- 出参展示：[DisplayOutputs](./components/display-outputs)
+
+### 实现代码节点
+
+- 代码编辑器：[CodeEditor](./components/code-editor)
+
+### 实现大模型节点
+
+- 提示词编辑器：[PromptEditor](./components/prompt-editor)
+- 可选变量的提示词编辑器：[PromptEditorWithVariables](./components/prompt-editor-with-variables)
+
+### 实现条件分支节点
+
+- 单行条件分支配置：[ConditionRow](./components/condition-row)
+- 监听变量实现分支联动：[listenRefSchemaChange](./effects/listen-ref-schema-change), [listenRefValueChange](./effects/listen-ref-value-change)
+
+### 实现数据库节点
+
+- 单行数据库查询条件配置：[DBConditionRow](./components/db-condition-row)
+- SQL 编辑器：[SQLCodeEditor](./components/code-editor)
+- 可选变量的 SQL 编辑器：[SQLEditorWithVariables](./components/sql-editor-with-variables)
+
+
+#### 实现循环节点
+
+**循环输入**
+- 循环输入数组变量选择器：[BatchVariableSelector](./components/batch-variable-selector)
+- Item、Index 推导：[provideBatchInput](./effects/provide-batch-input)
+
+**循环输出**
+- 循环输出数组变量选择器：[BatchOutputs](./components/batch-outputs)
+- 输出变量作用域链调整 + 类型推导：[batchOutputsPlugin](./form-plugins/batch-outputs-plugin)
+
+
+### 实现 HTTP 节点
+
+- JSON 编辑器：[JsonCodeEditor](./components/code-editor)
+- 可选变量的 JSON 编辑器：[JsonEditorWithVariables](./components/json-editor-with-variables)
+
+### 实现变量赋值/声明节点
+
+- 单行变量赋值、声明：[AssignRow](./components/assign-row)
+- 变量赋值、声明配置列表：[AssignRows](./components/assign-rows)
+- 变量声明类型自动推导：[inferAssignPlugin](./form-plugins/infer-assign-plugin)

@@ -61,7 +61,7 @@ export class ListNode extends ASTNode<ListNodeJSON> {
    * Serialize the `ListNode` to `ListNodeJSON`.
    * @returns The JSON representation of `ListNode`.
    */
-  toJSON(): ASTNodeJSON {
+  toJSON() {
     return {
       kind: ASTKind.ListNode,
       list: this._list.map((item) => item.toJSON()),

@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
+import { distinctUntilChanged } from 'rxjs';
 import { shallowEqual } from 'fast-equals';
 
 import { checkRefCycle } from '../utils/expression';
@@ -35,6 +36,8 @@ export class KeyPathExpression<
   static kind: string = ASTKind.KeyPathExpression;
 
   protected _keyPath: string[] = [];
+
+  protected _rawPathJson: CustomPathJSON;
 
   /**
    * The key path of the variable.
@@ -98,6 +101,7 @@ export class KeyPathExpression<
 
     if (!shallowEqual(keyPath, this._keyPath)) {
       this._keyPath = keyPath;
+      this._rawPathJson = json;
 
       // After the keyPath is updated, the referenced variables need to be refreshed.
       this.refreshRefs();
@@ -112,8 +116,6 @@ export class KeyPathExpression<
   getReturnTypeJSONByRef(_ref: BaseVariableField | undefined): ASTNodeJSON | undefined {
     return _ref?.type?.toJSON();
   }
-
-  protected prevRefTypeHash: string | undefined;
 
   constructor(params: CreateASTParams, opts: any) {
     super(params, opts);
@@ -130,14 +132,17 @@ export class KeyPathExpression<
         }
       }),
       subsToDisposable(
-        this.refs$.subscribe((_type) => {
-          const [ref] = this._refs;
-
-          if (this.prevRefTypeHash !== ref?.type?.hash) {
-            this.prevRefTypeHash = ref?.type?.hash;
+        this.refs$
+          .pipe(
+            distinctUntilChanged(
+              (prev, next) => prev === next,
+              (_refs) => _refs?.[0]?.type?.hash
+            )
+          )
+          .subscribe((_type) => {
+            const [ref] = this._refs;
             this.updateChildNodeByKey('_returnType', this.getReturnTypeJSONByRef(ref));
-          }
-        })
+          })
       ),
     ]);
   }
@@ -146,10 +151,7 @@ export class KeyPathExpression<
    * Serialize the `KeyPathExpression` to `KeyPathExpressionJSON`.
    * @returns The JSON representation of `KeyPathExpression`.
    */
-  toJSON(): ASTNodeJSON {
-    return {
-      kind: ASTKind.KeyPathExpression,
-      keyPath: this._keyPath,
-    };
+  toJSON() {
+    return this._rawPathJson;
   }
 }

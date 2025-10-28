@@ -68,7 +68,7 @@ export class EnumerateExpression extends BaseExpression<EnumerateExpressionJSON>
    * Serialize the `EnumerateExpression` to `EnumerateExpressionJSON`.
    * @returns The JSON representation of `EnumerateExpression`.
    */
-  toJSON(): ASTNodeJSON {
+  toJSON() {
     return {
       kind: ASTKind.EnumerateExpression,
       enumerateFor: this.enumerateFor?.toJSON(),

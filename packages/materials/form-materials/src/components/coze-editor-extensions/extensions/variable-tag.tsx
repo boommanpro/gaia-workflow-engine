@@ -14,7 +14,7 @@ import {
   useCurrentScope,
 } from '@flowgram.ai/editor';
 import { useInjector } from '@flowgram.ai/coze-editor/react';
-import { Popover } from '@douyinfe/semi-ui';
+import { Popover, Tag } from '@douyinfe/semi-ui';
 import { IconIssueStroked } from '@douyinfe/semi-icons';
 import {
   Decoration,
@@ -27,7 +27,7 @@ import {
 
 import { IPolyfillRoot, polyfillCreateRoot } from '@/shared';
 
-import { UIPopoverContent, UIRootTitle, UITag, UIVarName } from '../styles';
+import '../styles.css';
 
 class VariableTagWidget extends WidgetType {
   keyPath?: string[];
@@ -56,9 +56,10 @@ class VariableTagWidget extends WidgetType {
   renderVariable(v?: BaseVariableField) {
     if (!v) {
       this.root.render(
-        <UITag prefixIcon={<IconIssueStroked />} color="amber">
-          Unknown
-        </UITag>
+        <Tag className="gedit-m-coze-editor-tag" color="amber">
+          <IconIssueStroked style={{ marginRight: '4px' }} />
+          <span>Unknown</span>
+        </Tag>
       );
       return;
     }
@@ -67,26 +68,30 @@ class VariableTagWidget extends WidgetType {
     const isRoot = v === rootField;
 
     const rootTitle = (
-      <UIRootTitle>
+      <span className="gedit-m-coze-editor-root-title">
         {rootField.meta?.title ? `${rootField.meta.title} ${isRoot ? '' : '-'} ` : ''}
-      </UIRootTitle>
+      </span>
     );
     const rootIcon = this.renderIcon(rootField?.meta.icon);
 
     this.root.render(
       <Popover
         content={
-          <UIPopoverContent>
+          <div className="gedit-m-coze-editor-popover-content">
             {rootIcon}
             {rootTitle}
-            <UIVarName>{v?.keyPath.slice(1).join('.')}</UIVarName>
-          </UIPopoverContent>
+            <span className="gedit-m-coze-editor-var-name">{v?.keyPath.slice(1).join('.')}</span>
+          </div>
         }
       >
-        <UITag prefixIcon={rootIcon}>
+        <Tag
+          className="gedit-m-coze-editor-tag"
+          style={{ display: 'inline-flex', alignItems: 'center' }}
+        >
+          {rootIcon}
           {rootTitle}
-          {!isRoot && <UIVarName>{v?.key}</UIVarName>}
-        </UITag>
+          {!isRoot && <span className="gedit-m-coze-editor-var-name">{v?.key}</span>}
+        </Tag>
       </Popover>
     );
   }
@@ -102,17 +107,25 @@ class VariableTagWidget extends WidgetType {
       })
     );
 
+    const refresh = () => {
+      this.renderVariable(this.scope.available.getByKeyPath(this.keyPath));
+    };
+
     this.toDispose.push(
-      this.scope.available.trackByKeyPath(
-        this.keyPath,
-        (v) => {
-          this.renderVariable(v);
-        },
-        { triggerOnInit: false }
-      )
+      this.scope.available.trackByKeyPath(this.keyPath, refresh, { triggerOnInit: false })
     );
 
-    this.renderVariable(this.scope.available.getByKeyPath(this.keyPath));
+    if (this.keyPath?.[0]) {
+      this.toDispose.push(
+        // listen to root title changed
+        this.scope.available.trackByKeyPath<{ title?: string }>([this.keyPath[0]], refresh, {
+          selector: (curr) => ({ ...curr?.meta }),
+          triggerOnInit: false,
+        })
+      );
+    }
+
+    refresh();
 
     return dom;
   }
@@ -133,7 +146,7 @@ class VariableTagWidget extends WidgetType {
 export function VariableTagInject() {
   const injector = useInjector();
 
-  const scope = useCurrentScope();
+  const scope = useCurrentScope({ strict: true });
 
   // 基于 {{var}} 的正则进行匹配，匹配后进行自定义渲染
   useLayoutEffect(() => {

@@ -17,7 +17,7 @@ export interface StringJSON {
   format?: string;
 }
 
-export class StringType extends BaseType {
+export class StringType extends BaseType<StringJSON> {
   public flags: ASTNodeFlags = ASTNodeFlags.BasicType;
 
   static kind: string = ASTKind.String;
@@ -41,5 +41,15 @@ export class StringType extends BaseType {
       this._format = json?.format;
       this.fireChange();
     }
+  }
+
+  /**
+   * Serialize the `StringType` to `StringJSON`.
+   * @returns The JSON representation of `StringType`.
+   */
+  toJSON() {
+    return {
+      format: this._format,
+    };
   }
 }

@@ -15,10 +15,7 @@ import { UnionJSON } from './union';
  *
  * All other types should extend this class.
  */
-export abstract class BaseType<JSON extends ASTNodeJSON = any, InjectOpts = any> extends ASTNode<
-  JSON,
-  InjectOpts
-> {
+export abstract class BaseType<JSON extends ASTNodeJSON = any> extends ASTNode<JSON> {
   public flags: number = ASTNodeFlags.BasicType;
 
   /**
@@ -48,15 +45,5 @@ export abstract class BaseType<JSON extends ASTNodeJSON = any, InjectOpts = any>
    */
   getByKeyPath(keyPath: string[] = []): BaseVariableField | undefined {
     throw new Error(`Get By Key Path is not implemented for Type: ${this.kind}`);
-  }
-
-  /**
-   * Serialize the node to a JSON object.
-   * @returns The JSON representation of the node.
-   */
-  toJSON(): ASTNodeJSON {
-    return {
-      kind: this.kind,
-    };
   }
 }

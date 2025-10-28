@@ -91,11 +91,9 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "@types/inquirer": "^9.0.9",
-    "@types/styled-components": "^5",
     "eslint": "^8.54.0",
     "react": "^18",
     "react-dom": "^18",
-    "styled-components": "^5",
     "typescript": "^5.8.3",
     "vitest": "^3.2.4",
     "@rslib/core": "~0.12.4",
@@ -105,8 +103,7 @@
   },
   "peerDependencies": {
     "react": ">=16.8",
-    "react-dom": ">=16.8",
-    "styled-components": ">=5"
+    "react-dom": ">=16.8"
   },
   "publishConfig": {
     "access": "public",

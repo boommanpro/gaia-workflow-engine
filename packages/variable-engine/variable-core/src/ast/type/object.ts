@@ -106,9 +106,8 @@ export class ObjectType extends BaseType<ObjectJSON> {
    * Serialize the `ObjectType` to `ObjectJSON`.
    * @returns The JSON representation of `ObjectType`.
    */
-  toJSON(): ASTNodeJSON {
+  toJSON() {
     return {
-      kind: ASTKind.Object,
       properties: this.properties.map((_property) => _property.toJSON()),
     };
   }

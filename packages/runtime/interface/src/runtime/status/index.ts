@@ -8,7 +8,7 @@ export enum WorkflowStatus {
   Processing = 'processing',
   Succeeded = 'succeeded',
   Failed = 'failed',
-  Canceled = 'canceled',
+  Cancelled = 'canceled',
 }
 
 export interface StatusData {

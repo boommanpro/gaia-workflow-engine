@@ -19,4 +19,8 @@ export class BooleanType extends BaseType {
   fromJSON(): void {
     // noop
   }
+
+  toJSON() {
+    return {};
+  }
 }

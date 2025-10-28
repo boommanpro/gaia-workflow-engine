@@ -19,12 +19,7 @@ import {
   Disposable,
   Point,
 } from '@flowgram.ai/utils';
-import {
-  FlowNodeTransformData,
-  FlowNodeType,
-  FlowOperationBaseService,
-  type FlowNodeEntity,
-} from '@flowgram.ai/document';
+import { FlowNodeTransformData, FlowNodeType, type FlowNodeEntity } from '@flowgram.ai/document';
 import { FlowNodeBaseType } from '@flowgram.ai/document';
 import {
   CommandService,
@@ -39,7 +34,12 @@ import { WorkflowLinesManager } from '../workflow-lines-manager';
 import { WorkflowDocumentOptions } from '../workflow-document-option';
 import { WorkflowDocument } from '../workflow-document';
 import { LineEventProps, NodesDragEvent, OnDragLineEnd } from '../typings/workflow-drag';
-import { LinePointLocation, type WorkflowNodeJSON, type WorkflowNodeMeta } from '../typings';
+import {
+  LinePointLocation,
+  WorkflowOperationBaseService,
+  type WorkflowNodeJSON,
+  type WorkflowNodeMeta,
+} from '../typings';
 import {
   type WorkflowLineEntity,
   type WorkflowLinePortInfo,
@@ -96,8 +96,8 @@ export class WorkflowDragService {
 
   @inject(WorkflowSelectService) protected selectService: WorkflowSelectService;
 
-  @inject(FlowOperationBaseService)
-  protected operationService: FlowOperationBaseService;
+  @inject(WorkflowOperationBaseService)
+  protected operationService: WorkflowOperationBaseService;
 
   @inject(WorkflowDocumentOptions)
   readonly options: WorkflowDocumentOptions;
@@ -593,20 +593,16 @@ export class WorkflowDragService {
       })
     );
     const containerTransform = container.getData(TransformData);
-    containerTransform.update({
-      position: {
-        x: containerTransform.position.x + bounds.x,
-        y: containerTransform.position.y + bounds.y,
-      },
+    this.operationService.updateNodePosition(container, {
+      x: containerTransform.position.x + bounds.x,
+      y: containerTransform.position.y + bounds.y,
     });
     this.document.layout.updateAffectedTransform(container);
     container.blocks.forEach((node) => {
       const transform = node.getData(TransformData);
-      transform.update({
-        position: {
-          x: transform.position.x - bounds.x,
-          y: transform.position.y - bounds.y,
-        },
+      this.operationService.updateNodePosition(node, {
+        x: transform.position.x - bounds.x,
+        y: transform.position.y - bounds.y,
       });
       this.document.layout.updateAffectedTransform(node);
     });

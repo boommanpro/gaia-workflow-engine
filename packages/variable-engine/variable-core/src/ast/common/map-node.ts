@@ -46,7 +46,7 @@ export class MapNode extends ASTNode<MapNodeJSON> {
    * Serialize the `MapNode` to `MapNodeJSON`.
    * @returns The JSON representation of `MapNode`.
    */
-  toJSON(): ASTNodeJSON {
+  toJSON() {
     return {
       kind: ASTKind.MapNode,
       map: Array.from(this.map.entries()),

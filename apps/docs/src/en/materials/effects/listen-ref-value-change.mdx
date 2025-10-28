@@ -1,6 +1,6 @@
 # listenRefValueChange
 
-Listen for changes in the value of the referenced variable and trigger a callback function when it changes.
+Listen for changes for the referenced **variable definition** and trigger a callback function when it changes.
 
 ## Case Demo
 

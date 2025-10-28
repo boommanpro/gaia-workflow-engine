@@ -5,21 +5,14 @@
 
 import React from 'react';
 
-import styled from 'styled-components';
-
 import { CodeEditor, type CodeEditorPropsType } from '@/components/code-editor';
-
-const UIMini = styled.div`
-  .ͼ1 .cm-content {
-  }
-`;
 
 /**
  * @deprecated use mini in CodeEditorPropsType instead
  */
 export function CodeEditorMini(props: CodeEditorPropsType) {
   return (
-    <UIMini>
+    <div className="gedit-m-code-editor-mini">
       <CodeEditor
         {...props}
         options={{
@@ -29,6 +22,6 @@ export function CodeEditorMini(props: CodeEditorPropsType) {
           ...(props.options || {}),
         }}
       />
-    </UIMini>
+    </div>
   );
 }

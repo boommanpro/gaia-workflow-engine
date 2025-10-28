@@ -13,7 +13,7 @@ import { FlowValueUtils, IFlowValue, IInputsValues } from '@/shared';
 import { useObjectList } from '@/hooks';
 
 import { PropsType } from './types';
-import { UITreeItems } from './styles';
+import './styles.css';
 import { InputValueRow } from './row';
 
 export function InputsValuesTree(props: PropsType) {
@@ -29,7 +29,7 @@ export function InputsValuesTree(props: PropsType) {
 
   return (
     <div>
-      <UITreeItems>
+      <div className="gedit-m-inputs-values-tree-tree-items">
         {list.map((item) => (
           <InputValueRow
             key={item.id}
@@ -43,7 +43,7 @@ export function InputsValuesTree(props: PropsType) {
             constantProps={constantProps}
           />
         ))}
-      </UITreeItems>
+      </div>
       <Button
         style={{ marginTop: 10, marginLeft: 16 }}
         disabled={readonly}

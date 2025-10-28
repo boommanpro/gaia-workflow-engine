@@ -3,17 +3,17 @@ pageType: home
 
 hero:
   name: FlowGram.AI
-  text: 插件化构建流程引擎
-  tagline: 高性能，可扩展，可定制
+  text: 工作流开发框架
+  tagline: 让搭建工作流平台更简单：画布、表单、变量、物料
   actions:
     - theme: brand
       text: 快速开始
-      link: /guide/introduction
+      link: /guide/getting-started/introduction
     - theme: alt
       text: GitHub
       link: https://github.com/bytedance/flowgram.ai
   image:
-    src: /logo.png
+    src: /transparent-logo.svg
     alt: Logo
 features:
   - title: 扣子

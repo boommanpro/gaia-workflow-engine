@@ -1,0 +1,11 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
+.gedit-m-code-editor-container {
+}
+
+.gedit-m-code-editor-container.mini {
+  height: 24px;
+}

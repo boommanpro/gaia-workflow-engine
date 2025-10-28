@@ -51,16 +51,16 @@ describe('Case Run Down: Python Expression In Blockwise', () => {
 
     static kind: string = 'BlockwisePythonExpression';
 
-    _uri: string;
+    _uri?: string;
 
-    _content: string;
+    _content?: string;
 
     // Blockwise 通过 schema 变更时输出的方式来进行类型推导
     getRefFields() {
       return [];
     }
 
-    returnType: BaseType<any, any> | undefined;
+    returnType: BaseType<any> | undefined;
 
     _prevType: any;
 
@@ -76,13 +76,20 @@ describe('Case Run Down: Python Expression In Blockwise', () => {
       }
     }
 
+    toJSON(): PyExpressionJSON {
+      return {
+        content: this._content!,
+        uri: this._uri!,
+      };
+    }
+
     constructor(params: CreateASTParams) {
       super(params);
 
       this.toDispose.push(
         // 监听后端触发批量校验
         this.service.onBatchInfer(() => {
-          const nextType = this.service.uriToType[this._uri];
+          const nextType = this.service.uriToType[this._uri!];
 
           if (!isEqual(nextType, this._prevType)) {
             this.updateChildNodeByKey('returnType', nextType);

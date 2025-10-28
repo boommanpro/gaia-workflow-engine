@@ -10,8 +10,6 @@ import { I18n } from '@flowgram.ai/editor';
 
 import { ConstantInput } from '@/components/constant-input';
 
-import { ConstantInputWrapper } from './styles';
-
 /**
  * Renders the corresponding default value input component based on different data types.
  * @param props - Component properties, including value, type, placeholder, onChange.
@@ -26,7 +24,7 @@ export function DefaultValue(props: {
   const { value, schema, onChange, placeholder } = props;
 
   return (
-    <ConstantInputWrapper>
+    <div className="gedit-m-json-schema-editor-constant-input-wrapper">
       <ConstantInput
         value={value}
         onChange={(_v) => onChange(_v)}
@@ -34,6 +32,6 @@ export function DefaultValue(props: {
         placeholder={placeholder ?? I18n.t('Default value if parameter is not provided')}
         enableMultiLineStr
       />
-    </ConstantInputWrapper>
+    </div>
   );
 }

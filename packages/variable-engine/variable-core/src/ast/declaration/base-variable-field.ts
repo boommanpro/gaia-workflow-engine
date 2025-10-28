@@ -15,13 +15,13 @@ import { ASTNode } from '../ast-node';
 /**
  * ASTNodeJSON representation of `BaseVariableField`
  */
-export type BaseVariableFieldJSON<VariableMeta = any> = {
+export interface BaseVariableFieldJSON<VariableMeta = any> extends ASTNodeJSON {
   /**
    * key of the variable field
    * - For `VariableDeclaration`, the key should be global unique.
    * - For `Property`, the key is the property name.
    */
-  key?: Identifier;
+  key: Identifier;
   /**
    * type of the variable field, similar to js code:
    * `const v: string`
@@ -38,7 +38,7 @@ export type BaseVariableFieldJSON<VariableMeta = any> = {
    * meta data of the variable field, you cans store information like `title`, `icon`, etc.
    */
   meta?: VariableMeta;
-};
+}
 
 /**
  * Variable Field abstract class, which is the base class for `VariableDeclaration` and `Property`
@@ -107,7 +107,7 @@ export abstract class BaseVariableField<VariableMeta = any> extends ASTNode<
    * Deserialize the `BaseVariableFieldJSON` to the `BaseVariableField`.
    * @param json ASTJSON representation of `BaseVariableField`
    */
-  fromJSON({ type, initializer, meta }: BaseVariableFieldJSON<VariableMeta>): void {
+  fromJSON({ type, initializer, meta }: Omit<BaseVariableFieldJSON<VariableMeta>, 'key'>): void {
     // 类型变化
     this.updateType(type);
 
@@ -173,9 +173,8 @@ export abstract class BaseVariableField<VariableMeta = any> extends ASTNode<
    * Serialize the variable field to JSON
    * @returns ASTNodeJSON representation of `BaseVariableField`
    */
-  toJSON(): BaseVariableFieldJSON<VariableMeta> & { kind: string } {
+  toJSON(): BaseVariableFieldJSON<VariableMeta> {
     return {
-      kind: this.kind,
       key: this.key,
       type: this.type?.toJSON(),
       initializer: this.initializer?.toJSON(),

@@ -13,6 +13,7 @@ import {
   tap,
 } from 'rxjs';
 import { nanoid } from 'nanoid';
+import { isNil, omitBy } from 'lodash-es';
 import { shallowEqual } from 'fast-equals';
 import { Disposable, DisposableCollection } from '@flowgram.ai/utils';
 
@@ -32,9 +33,9 @@ import {
 } from './types';
 import { ASTNodeFlags } from './flags';
 
-export interface ASTNodeRegistry<JSON extends ASTNodeJSON = any, InjectOpts = any> {
+export interface ASTNodeRegistry<JSON extends ASTNodeJSON = any> {
   kind: string;
-  new (params: CreateASTParams, injectOpts: InjectOpts): ASTNode<JSON>;
+  new (params: CreateASTParams, injectOpts: any): ASTNode<JSON>;
 }
 
 /**
@@ -50,16 +51,14 @@ export interface ASTNodeRegistry<JSON extends ASTNodeJSON = any, InjectOpts = an
  * - **Reactive**: Changes in an ASTNode's value trigger events, enabling reactive programming patterns.
  * - **Serializable**: ASTNodes can be converted to and from a JSON format (ASTNodeJSON) for storage or transmission.
  */
-export abstract class ASTNode<JSON extends ASTNodeJSON = any, InjectOpts = any>
-  implements Disposable
-{
+export abstract class ASTNode<JSON extends ASTNodeJSON = any> implements Disposable {
   /**
    * @deprecated
    * Get the injected options for the ASTNode.
    *
    * Please use `@injectToAst(XXXService) declare xxxService: XXXService` to achieve external dependency injection.
    */
-  public readonly opts?: InjectOpts;
+  public readonly opts?: any;
 
   /**
    * The unique identifier of the ASTNode, which is **immutable**.
@@ -145,7 +144,7 @@ export abstract class ASTNode<JSON extends ASTNodeJSON = any, InjectOpts = any>
    * @param createParams Necessary parameters for creating an ASTNode.
    * @param injectOptions Dependency injection for various modules.
    */
-  constructor({ key, parent, scope }: CreateASTParams, opts?: InjectOpts) {
+  constructor({ key, parent, scope }: CreateASTParams, opts?: any) {
     this.scope = scope;
     this.parent = parent;
     this.opts = opts;
@@ -155,6 +154,19 @@ export abstract class ASTNode<JSON extends ASTNodeJSON = any, InjectOpts = any>
 
     // All `fireChange` calls within the subsequent `fromJSON` will be merged into one.
     this.fromJSON = this.withBatchUpdate(this.fromJSON.bind(this));
+
+    // Add the kind field to the JSON output.
+    const rawToJSON = this.toJSON?.bind(this);
+    this.toJSON = () =>
+      omitBy(
+        {
+          // always include kind
+          kind: this.kind,
+          ...(rawToJSON?.() || {}),
+        },
+        // remove undefined fields
+        isNil
+      ) as JSON;
   }
 
   /**
@@ -184,14 +196,7 @@ export abstract class ASTNode<JSON extends ASTNodeJSON = any, InjectOpts = any>
    * Serializes the current ASTNode to ASTNodeJSON.
    * @returns
    */
-  toJSON(): ASTNodeJSON {
-    // Prompt the user to implement the toJSON method for the ASTNode themselves, instead of using the fallback implementation.
-    console.warn('[VariableEngine] Please Implement toJSON method for ' + this.kind);
-
-    return {
-      kind: this.kind,
-    };
-  }
+  abstract toJSON(): JSON;
 
   /**
    * Creates a child ASTNode.

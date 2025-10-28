@@ -36,7 +36,7 @@ export const NodeStatusRender: FC<NodeStatusRenderProps> = ({ report }) => {
   const isNodeProcessing = nodeStatus === WorkflowStatus.Processing;
   const isNodeFailed = nodeStatus === WorkflowStatus.Failed;
   const isNodeSucceed = nodeStatus === WorkflowStatus.Succeeded;
-  const isNodeCanceled = nodeStatus === WorkflowStatus.Canceled;
+  const isNodeCancelled = nodeStatus === WorkflowStatus.Cancelled;
 
   const tagColor = useMemo(() => {
     if (isNodeSucceed) {
@@ -69,8 +69,8 @@ export const NodeStatusRender: FC<NodeStatusRenderProps> = ({ report }) => {
         return 'Succeed';
       } else if (isNodeFailed) {
         return 'Failed';
-      } else if (isNodeCanceled) {
-        return 'Canceled';
+      } else if (isNodeCancelled) {
+        return 'Cancelled';
       }
     };
 

@@ -15,7 +15,7 @@ import { InjectDynamicValueInput } from '@/components/dynamic-value-input';
 import { BlurInput } from '@/components/blur-input';
 
 import { PropsType } from './types';
-import { UIRow, UIRows } from './styles';
+import './styles.css';
 
 export function InputsValues({
   value,
@@ -34,9 +34,9 @@ export function InputsValues({
 
   return (
     <div>
-      <UIRows style={style}>
+      <div className="gedit-m-inputs-values-rows" style={style}>
         {list.map((item) => (
-          <UIRow key={item.id}>
+          <div className="gedit-m-inputs-values-row" key={item.id}>
             <BlurInput
               style={{ width: 100, minWidth: 100, maxWidth: 100 }}
               disabled={readonly}
@@ -64,9 +64,9 @@ export function InputsValues({
               size="small"
               onClick={() => remove(item.id)}
             />
-          </UIRow>
+          </div>
         ))}
-      </UIRows>
+      </div>
       <Button
         disabled={readonly}
         icon={<IconPlus />}

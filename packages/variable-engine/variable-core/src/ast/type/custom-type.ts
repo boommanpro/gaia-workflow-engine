@@ -61,4 +61,10 @@ export class CustomType extends BaseType<CustomTypeJSON> {
 
     return targetTypeJSON?.kind === this.kind && targetTypeJSON?.typeName === this.typeName;
   }
+
+  toJSON() {
+    return {
+      typeName: this.typeName,
+    };
+  }
 }

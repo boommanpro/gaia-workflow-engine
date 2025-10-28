@@ -3,10 +3,23 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { lazySuspense } from '@/shared';
+import React from 'react';
 
-export const PromptEditorWithInputs = lazySuspense(() =>
-  import('./editor').then((module) => ({ default: module.PromptEditorWithInputs }))
-);
+import type { IInputsValues } from '@/shared/flow-value';
+import { PromptEditor, PromptEditorPropsType } from '@/components/prompt-editor';
+import { EditorInputsTree } from '@/components/coze-editor-extensions';
 
-export type { PromptEditorWithInputsProps } from './editor';
+export interface PromptEditorWithInputsProps extends PromptEditorPropsType {
+  inputsValues: IInputsValues;
+}
+
+export function PromptEditorWithInputs({
+  inputsValues,
+  ...restProps
+}: PromptEditorWithInputsProps) {
+  return (
+    <PromptEditor {...restProps}>
+      <EditorInputsTree inputsValues={inputsValues} />
+    </PromptEditor>
+  );
+}

@@ -30,6 +30,9 @@ type DataInjector = () => Record<string, any>;
  */
 @injectable()
 export class ASTRegisters {
+  /**
+   * @deprecated Please use `@injectToAst(XXXService) declare xxxService: XXXService` to achieve external dependency injection.
+   */
   protected injectors: Map<ASTKindType, DataInjector> = new Map();
 
   protected astMap: Map<ASTKindType, ASTNodeRegistry> = new Map();
@@ -110,9 +113,14 @@ export class ASTRegisters {
   /**
    * Registers an AST node.
    * @param ASTNode
-   * @param injector
    */
-  registerAST(ASTNode: ASTNodeRegistry, injector?: DataInjector) {
+  registerAST(
+    ASTNode: ASTNodeRegistry,
+    /**
+     * @deprecated Please use `@injectToAst(XXXService) declare xxxService: XXXService` to achieve external dependency injection.
+     */
+    injector?: DataInjector
+  ) {
     this.astMap.set(ASTNode.kind, ASTNode);
     if (injector) {
       this.injectors.set(ASTNode.kind, injector);

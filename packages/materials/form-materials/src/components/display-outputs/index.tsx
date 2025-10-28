@@ -10,7 +10,7 @@ import { useCurrentScope, useRefresh } from '@flowgram.ai/editor';
 
 import { DisplaySchemaTag } from '@/components/display-schema-tag';
 
-import { DisplayOutputsWrapper } from './styles';
+import './styles.css';
 
 interface PropsType {
   value?: IJsonSchema;
@@ -24,7 +24,7 @@ export function DisplayOutputs({ value, showIconInTree, displayFromScope }: Prop
   const refresh = useRefresh();
 
   useEffect(() => {
-    if (!displayFromScope) {
+    if (!displayFromScope || !scope) {
       return () => null;
     }
 
@@ -38,7 +38,7 @@ export function DisplayOutputs({ value, showIconInTree, displayFromScope }: Prop
   }, [displayFromScope]);
 
   const properties: IJsonSchema['properties'] = displayFromScope
-    ? scope.output.variables?.reduce((acm, curr) => {
+    ? (scope?.output.variables || []).reduce((acm, curr) => {
         acm = {
           ...acm,
           ...(JsonSchemaUtils.astToSchema(curr.type)?.properties || {}),
@@ -50,7 +50,7 @@ export function DisplayOutputs({ value, showIconInTree, displayFromScope }: Prop
   const childEntries = Object.entries(properties || {});
 
   return (
-    <DisplayOutputsWrapper>
+    <div className="gedit-m-display-outputs-wrapper">
       {childEntries.map(([key, schema]) => (
         <DisplaySchemaTag
           key={key}
@@ -60,6 +60,6 @@ export function DisplayOutputs({ value, showIconInTree, displayFromScope }: Prop
           warning={!schema}
         />
       ))}
-    </DisplayOutputsWrapper>
+    </div>
   );
 }

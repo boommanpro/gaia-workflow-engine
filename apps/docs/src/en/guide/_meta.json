@@ -1,6 +1,4 @@
 [
-  "introduction",
-  "contact-us",
   {
     "type": "dir",
     "name": "getting-started",
@@ -44,6 +42,8 @@
   {
     "type": "dir",
     "name": "runtime",
-    "label": "Runtime (WIP)"
-  }
+    "label": "Runtime"
+  },
+  "contributing",
+  "contact-us"
 ]

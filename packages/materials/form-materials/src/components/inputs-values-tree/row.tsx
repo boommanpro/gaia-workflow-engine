@@ -13,20 +13,11 @@ import { IFlowConstantValue } from '@/shared';
 import { ConstantInputStrategy } from '@/components/constant-input';
 
 import { PropsType } from './types';
-import {
-  IconAddChildren,
-  UIActions,
-  UICollapseTrigger,
-  UICollapsible,
-  UIRow,
-  UITreeItemLeft,
-  UITreeItemMain,
-  UITreeItemRight,
-  UITreeItems,
-} from './styles';
+import './styles.css';
 import { useChildList } from './hooks/use-child-list';
 import { InjectDynamicValueInput } from '../dynamic-value-input';
 import { BlurInput } from '../blur-input';
+import { IconAddChildren } from './icon';
 
 const AddObjectChildStrategy: ConstantInputStrategy = {
   hit: (schema) => schema.type === 'object',
@@ -88,16 +79,23 @@ export function InputValueRow(
 
   return (
     <>
-      <UITreeItemLeft $isLast={$isLast} $showLine={$level > 0} $showCollapse={hasChildren}>
+      <div
+        className={`gedit-m-inputs-values-tree-tree-item-left ${$level > 0 ? 'show-line' : ''} ${
+          $isLast ? 'is-last' : ''
+        } ${hasChildren ? 'show-collapse' : ''}`}
+      >
         {hasChildren && (
-          <UICollapseTrigger onClick={() => setCollapse((_collapse) => !_collapse)}>
+          <div
+            className="gedit-m-inputs-values-tree-collapse-trigger"
+            onClick={() => setCollapse((_collapse) => !_collapse)}
+          >
             {collapse ? <IconChevronDown size="small" /> : <IconChevronRight size="small" />}
-          </UICollapseTrigger>
+          </div>
         )}
-      </UITreeItemLeft>
-      <UITreeItemRight>
-        <UITreeItemMain>
-          <UIRow>
+      </div>
+      <div className="gedit-m-inputs-values-tree-tree-item-right">
+        <div className="gedit-m-inputs-values-tree-tree-item-main">
+          <div className="gedit-m-inputs-values-tree-row">
             <BlurInput
               style={{ width: 100, minWidth: 100, maxWidth: 100 }}
               disabled={readonly}
@@ -117,7 +115,7 @@ export function InputValueRow(
                 strategies,
               }}
             />
-            <UIActions>
+            <div className="gedit-m-inputs-values-tree-actions">
               {canAddField && (
                 <IconButton
                   disabled={readonly}
@@ -141,12 +139,12 @@ export function InputValueRow(
                 size="small"
                 onClick={() => onRemove?.()}
               />
-            </UIActions>
-          </UIRow>
-        </UITreeItemMain>
+            </div>
+          </div>
+        </div>
         {hasChildren && (
-          <UICollapsible $collapse={collapse}>
-            <UITreeItems $shrink={true}>
+          <div className={`gedit-m-inputs-values-tree-collapsible ${collapse ? 'collapse' : ''}`}>
+            <div className="gedit-m-inputs-values-tree-tree-items shrink">
               {list.map((_item, index) => (
                 <InputValueRow
                   readonly={readonly}
@@ -168,10 +166,10 @@ export function InputValueRow(
                   $isLast={index === list.length - 1}
                 />
               ))}
-            </UITreeItems>
-          </UICollapsible>
+            </div>
+          </div>
         )}
-      </UITreeItemRight>
+      </div>
     </>
   );
 }

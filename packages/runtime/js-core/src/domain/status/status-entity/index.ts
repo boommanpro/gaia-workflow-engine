@@ -26,7 +26,7 @@ export class WorkflowRuntimeStatus implements IStatus {
   }
 
   public get terminated(): boolean {
-    return [WorkflowStatus.Succeeded, WorkflowStatus.Failed, WorkflowStatus.Canceled].includes(
+    return [WorkflowStatus.Succeeded, WorkflowStatus.Failed, WorkflowStatus.Cancelled].includes(
       this.status
     );
   }
@@ -75,7 +75,7 @@ export class WorkflowRuntimeStatus implements IStatus {
     if (this.terminated) {
       return;
     }
-    this._status = WorkflowStatus.Canceled;
+    this._status = WorkflowStatus.Cancelled;
     this._endTime = Date.now();
   }
 

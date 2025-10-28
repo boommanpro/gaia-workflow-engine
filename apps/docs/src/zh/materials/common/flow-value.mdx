@@ -1,12 +1,12 @@
 import { SourceCode } from '@theme';
 
-# Flow Value
+# FlowValue
 
-Flow Value 是指在 Flowgram 官方物料库 中用于表示数据的一种特殊类型。它可以是常量、引用、表达式或模板，为流程中的数据传递和处理提供了灵活的方式。
+FlowValue 是指在 Flowgram 官方物料库 中用于表示数据的一种特殊类型。它可以是常量、引用、表达式或模板，为流程中的数据传递和处理提供了灵活的方式。
 
-## Flow Value 类型
+## FlowValue 类型
 
-Flow Value 支持以下四种类型：
+FlowValue 支持以下四种类型：
 
 ### 1. 常量 (Constant)
 固定值，在运行时不会改变。可以包含任意类型的数据，如字符串、数字、布尔值或对象。
@@ -59,7 +59,7 @@ JavaScript 表达式，在运行时会进行求值计算。
 
 ## FlowValueUtils 工具类
 
-FlowValueUtils 提供了丰富的工具函数来处理 Flow Value：
+FlowValueUtils 提供了丰富的工具函数来处理 FlowValue：
 
 ### 类型判断函数
 
@@ -68,17 +68,17 @@ FlowValueUtils 提供了丰富的工具函数来处理 Flow Value：
 - `isExpression(value)` - 判断是否为表达式类型
 - `isTemplate(value)` - 判断是否为模板类型
 - `isConstantOrRef(value)` - 判断是否为常量或引用类型
-- `isFlowValue(value)` - 判断是否为有效的 Flow Value 类型
+- `isFlowValue(value)` - 判断是否为有效的 FlowValue 类型
 
 ### 遍历和提取函数
 
-- `traverse(value, options)` - 遍历对象中的所有 Flow Value，支持按类型筛选
+- `traverse(value, options)` - 遍历对象中的所有 FlowValue，支持按类型筛选
 - `getTemplateKeyPaths(templateValue)` - 提取模板中所有的变量路径
 
 ### Schema 推断函数
 
 - `inferConstantJsonSchema(constantValue)` - 根据常量值推断 JSON Schema
-- `inferJsonSchema(values, scope)` - 根据 Flow Value 推断对应的 JSON Schema
+- `inferJsonSchema(values, scope)` - 根据 FlowValue 推断对应的 JSON Schema
 
 ## 使用示例
 
@@ -90,7 +90,7 @@ if (FlowValueUtils.isConstant(value)) {
   console.log('This is a constant value:', value.content);
 }
 
-// 遍历 Flow Values
+// 遍历 FlowValues
 for (const { value, path } of FlowValueUtils.traverse(data, {
   includeTypes: ['ref', 'template']
 })) {
@@ -108,9 +108,9 @@ console.log('Template variables:', templatePaths); // [['user', 'name'], ['count
   href="https://github.com/bytedance/flowgram.ai/tree/main/packages/materials/form-materials/src/shared/flow-value/types.ts"
 />
 
-Flow Value 的核心类型定义包括：
+FlowValue 的核心类型定义包括：
 
-- `IFlowValue` - Flow Value 的联合类型
+- `IFlowValue` - FlowValue 的联合类型
 - `IFlowConstantValue` - 常量类型接口
 - `IFlowRefValue` - 引用类型接口
 - `IFlowExpressionValue` - 表达式类型接口
@@ -135,7 +135,7 @@ npx @flowgram.ai/cli@latest materials shared/flow-value
 ```
 flow-value/
 ├── index.ts           # 主入口文件，导出所有类型和工具函数
-├── types.ts           # 类型定义文件，包含所有 Flow Value 接口定义
+├── types.ts           # 类型定义文件，包含所有 FlowValue 接口定义
 ├── schema.ts          # Zod 模式定义，用于运行时类型验证
 ├── utils.ts           # FlowValueUtils 工具类的完整实现
 └── README.md          # 模块说明文档
@@ -143,4 +143,4 @@ flow-value/
 
 ### 使用到的第三方 API
 
-- [Zod](https://v3.zod.dev/): 用于类型验证和数据解析，判断 Flow Value 的 Schema 是否符合预期。
+- [Zod](https://v3.zod.dev/): 用于类型验证和数据解析，判断 FlowValue 的 Schema 是否符合预期。

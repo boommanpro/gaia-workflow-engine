@@ -15,31 +15,23 @@ import { InjectDynamicValueInput } from '@/components/dynamic-value-input';
 import { IConditionRule, ConditionOpConfigs, useCondition } from '@/components/condition-context';
 
 import { ConditionRowValueType } from './types';
-import { UIContainer, UILeft, UIOperator, UIRight, UIValues } from './styles';
+import './styles.css';
 
 interface PropTypes {
   value?: ConditionRowValueType;
   onChange: (value?: ConditionRowValueType) => void;
   style?: React.CSSProperties;
   readonly?: boolean;
+  /**
+   * @deprecated use ConditionContext instead to pass ruleConfig to multiple
+   */
   ruleConfig?: {
     ops?: ConditionOpConfigs;
     rules?: Record<string, IConditionRule>;
   };
 }
 
-const defaultRuleConfig = {
-  ops: {},
-  rules: {},
-};
-
-export function ConditionRow({
-  style,
-  value,
-  onChange,
-  readonly,
-  ruleConfig = defaultRuleConfig,
-}: PropTypes) {
+export function ConditionRow({ style, value, onChange, readonly, ruleConfig }: PropTypes) {
   const { left, operator, right } = value || {};
 
   const available = useScopeAvailable();
@@ -57,6 +49,19 @@ export function ConditionRow({
   const { rule, opConfig, opOptionList, targetSchema } = useCondition({
     leftSchema,
     operator,
+    ruleConfig,
+    onClearOp() {
+      onChange({
+        ...value,
+        operator: undefined,
+      });
+    },
+    onClearRight() {
+      onChange({
+        ...value,
+        right: undefined,
+      });
+    },
   });
 
   const renderOpSelect = () => (
@@ -81,10 +86,10 @@ export function ConditionRow({
   );
 
   return (
-    <UIContainer style={style}>
-      <UIOperator>{renderOpSelect()}</UIOperator>
-      <UIValues>
-        <UILeft>
+    <div className="gedit-m-condition-row-container" style={style}>
+      <div className="gedit-m-condition-row-operator">{renderOpSelect()}</div>
+      <div className="gedit-m-condition-row-values">
+        <div className="gedit-m-condition-row-left">
           <InjectVariableSelector
             readonly={readonly}
             style={{ width: '100%' }}
@@ -99,8 +104,8 @@ export function ConditionRow({
               })
             }
           />
-        </UILeft>
-        <UIRight>
+        </div>
+        <div className="gedit-m-condition-row-right">
           {targetSchema ? (
             <InjectDynamicValueInput
               readonly={readonly || !rule}
@@ -116,9 +121,9 @@ export function ConditionRow({
               value={opConfig?.rightDisplay || I18n.t('Empty')}
             />
           )}
-        </UIRight>
-      </UIValues>
-    </UIContainer>
+        </div>
+      </div>
+    </div>
   );
 }
 

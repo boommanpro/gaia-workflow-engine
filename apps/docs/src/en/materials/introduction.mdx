@@ -48,3 +48,60 @@ After the CLI runs successfully, the relevant materials will be automatically ad
 3. Some materials depend on other official materials, and the source code of these dependent materials will be added to the project together when the CLI runs
 
 :::
+
+## Appendix: Finding Materials by Node Type
+
+### Implementing Node Input and Output
+
+**Parameter Configuration**
+- Node Input: [InputsValues](./components/inputs-values), [InputsValuesTree](./components/inputs-values-tree)
+- Node Output: [JsonSchemaEditor](./components/json-schema-editor)
+- Input Validation: [validateFlowValue](./validate/validate-flow-value)
+- Output Variable Generation: [provideJsonSchemaOutputs](./effects/provide-json-schema-outputs)
+
+**Parameter Display**
+- Input Display: [DisplayInputsValues](./components/display-inputs-values)
+- Output Display: [DisplayOutputs](./components/display-outputs)
+
+### Implementing Code Nodes
+
+- Code Editor: [CodeEditor](./components/code-editor)
+
+### Implementing LLM Nodes
+
+- Prompt Editor: [PromptEditor](./components/prompt-editor)
+- Prompt Editor with Variables: [PromptEditorWithVariables](./components/prompt-editor-with-variables)
+
+### Implementing Condition Branch Nodes
+
+- Single-line Condition Branch Configuration: [ConditionRow](./components/condition-row)
+- Variable Listening for Branch Linkage: [listenRefSchemaChange](./effects/listen-ref-schema-change), [listenRefValueChange](./effects/listen-ref-value-change)
+
+### Implementing Database Nodes
+
+- Single-line Database Query Condition Configuration: [DBConditionRow](./components/db-condition-row)
+- SQL Editor: [SQLCodeEditor](./components/code-editor)
+- SQL Editor with Variables: [SQLEditorWithVariables](./components/sql-editor-with-variables)
+
+
+#### Implementing Loop Nodes
+
+**Loop Input**
+- Loop Input Array Variable Selector: [BatchVariableSelector](./components/batch-variable-selector)
+- Item, Index Derivation: [provideBatchInput](./effects/provide-batch-input)
+
+**Loop Output**
+- Loop Output Array Variable Selector: [BatchOutputs](./components/batch-outputs)
+- Output Variable Scope Chain Adjustment + Type Derivation: [batchOutputsPlugin](./form-plugins/batch-outputs-plugin)
+
+
+### Implementing HTTP Nodes
+
+- JSON Editor: [JsonCodeEditor](./components/code-editor)
+- JSON Editor with Variables: [JsonEditorWithVariables](./components/json-editor-with-variables)
+
+### Implementing Variable Assignment/Declaration Nodes
+
+- Single-line Variable Assignment, Declaration: [AssignRow](./components/assign-row)
+- Variable Assignment, Declaration Configuration List: [AssignRows](./components/assign-rows)
+- Variable Declaration Type Automatic Derivation: [inferAssignPlugin](./form-plugins/infer-assign-plugin)

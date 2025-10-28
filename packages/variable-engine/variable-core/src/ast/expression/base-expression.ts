@@ -31,10 +31,7 @@ type ExpressionRefs = (BaseVariableField | undefined)[];
  *
  * All other expressions should extend this class.
  */
-export abstract class BaseExpression<
-  JSON extends ASTNodeJSON = any,
-  InjectOpts = any
-> extends ASTNode<JSON, InjectOpts> {
+export abstract class BaseExpression<JSON extends ASTNodeJSON = any> extends ASTNode<JSON> {
   public flags: ASTNodeFlags = ASTNodeFlags.Expression;
 
   /**
@@ -105,7 +102,7 @@ export abstract class BaseExpression<
     share()
   );
 
-  constructor(params: CreateASTParams, opts?: InjectOpts) {
+  constructor(params: CreateASTParams, opts?: any) {
     super(params, opts);
 
     this.toDispose.push(

@@ -3,10 +3,18 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { lazySuspense } from '@/shared';
+import React from 'react';
 
-export const PromptEditorWithVariables = lazySuspense(() =>
-  import('./editor').then((module) => ({ default: module.PromptEditorWithVariables }))
-);
+import { PromptEditor, PromptEditorPropsType } from '@/components/prompt-editor';
+import { EditorVariableTree, EditorVariableTagInject } from '@/components/coze-editor-extensions';
 
-export type { PromptEditorWithVariablesProps } from './editor';
+export interface PromptEditorWithVariablesProps extends PromptEditorPropsType {}
+
+export function PromptEditorWithVariables(props: PromptEditorWithVariablesProps) {
+  return (
+    <PromptEditor {...props}>
+      <EditorVariableTree />
+      <EditorVariableTagInject />
+    </PromptEditor>
+  );
+}

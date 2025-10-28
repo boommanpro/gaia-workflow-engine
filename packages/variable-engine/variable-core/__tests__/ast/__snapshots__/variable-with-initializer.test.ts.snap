@@ -11,7 +11,7 @@ exports[`test Variable With Initializer > init const test_key_path = source.a 1`
   },
   "key": "test_key_path",
   "kind": "VariableDeclaration",
-  "meta": undefined,
+  "order": 0,
   "type": {
     "kind": "String",
   },
@@ -82,7 +82,7 @@ exports[`test Variable With Initializer > subscribe variable changes by expressi
   },
   "key": "test_key_path",
   "kind": "VariableDeclaration",
-  "meta": undefined,
+  "order": 0,
   "type": {
     "kind": "Number",
   },

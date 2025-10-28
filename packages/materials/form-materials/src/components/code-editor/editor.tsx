@@ -5,7 +5,6 @@
 
 import React, { useEffect, useRef } from 'react';
 
-import styled, { css } from 'styled-components';
 import {
   ActiveLinePlaceholder,
   createRenderer,
@@ -17,6 +16,8 @@ import { EditorView } from '@codemirror/view';
 
 import { getSuffixByLanguageId } from './utils';
 
+import './styles.css';
+
 const OriginCodeEditor = createRenderer(preset, [
   EditorView.theme({
     '&.cm-focused': {
@@ -25,13 +26,7 @@ const OriginCodeEditor = createRenderer(preset, [
   }),
 ]);
 
-const UIContainer = styled.div<{ $mini?: boolean }>`
-  ${({ $mini }) =>
-    $mini &&
-    css`
-      height: 24px;
-    `}
-`;
+// CSS styles are in styles.css
 
 type Preset = typeof preset;
 type Options = Partial<InferValues<Preset[number]>>;
@@ -62,18 +57,28 @@ export function BaseCodeEditor({
 }: CodeEditorPropsType) {
   const editorRef = useRef<EditorAPI | null>(null);
 
+  const editorValue = String(value || '');
+
   useEffect(() => {
     // listen to value change
-    if (editorRef.current?.getValue() !== value) {
-      editorRef.current?.setValue(String(value || ''));
+    if (editorRef.current?.getValue() !== editorValue) {
+      // apply updates on readonly mode
+      const editorView = editorRef.current?.$view;
+      editorView?.dispatch({
+        changes: {
+          from: 0,
+          to: editorView?.state.doc.length,
+          insert: editorValue,
+        },
+      });
     }
-  }, [value]);
+  }, [editorValue]);
 
   return (
-    <UIContainer $mini={mini}>
+    <div className={`gedit-m-code-editor-container ${mini ? 'mini' : ''}`}>
       <EditorProvider>
         <OriginCodeEditor
-          defaultValue={String(value || '')}
+          defaultValue={editorValue}
           options={{
             uri: `file:///untitled${getSuffixByLanguageId(languageId)}`,
             languageId,
@@ -101,6 +106,6 @@ export function BaseCodeEditor({
           {children}
         </OriginCodeEditor>
       </EditorProvider>
-    </UIContainer>
+    </div>
   );
 }

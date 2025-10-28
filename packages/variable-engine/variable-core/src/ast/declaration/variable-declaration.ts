@@ -43,7 +43,7 @@ export class VariableDeclaration<VariableMeta = any> extends BaseVariableField<V
   /**
    * Deserialize the `VariableDeclarationJSON` to the `VariableDeclaration`.
    */
-  fromJSON({ order, ...rest }: VariableDeclarationJSON<VariableMeta>): void {
+  fromJSON({ order, ...rest }: Omit<VariableDeclarationJSON<VariableMeta>, 'key'>): void {
     // Update order.
     this.updateOrder(order);
 
@@ -63,5 +63,16 @@ export class VariableDeclaration<VariableMeta = any> extends BaseVariableField<V
       });
       this.fireChange();
     }
+  }
+
+  /**
+   * Serialize the `VariableDeclaration` to `VariableDeclarationJSON`.
+   * @returns The JSON representation of `VariableDeclaration`.
+   */
+  toJSON(): VariableDeclarationJSON<VariableMeta> {
+    return {
+      ...super.toJSON(),
+      order: this.order,
+    };
   }
 }

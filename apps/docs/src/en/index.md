@@ -3,17 +3,17 @@ pageType: home
 
 hero:
   name: FlowGram.AI
-  text: Build Flow Engine with Plugins
-  tagline: High Performance, Scalable, Customizable
+  text: Workflow development framework
+  tagline: Building workflow platforms easily - Canvas, Form, Variable, Materials
   actions:
     - theme: brand
       text: Quick Start
-      link: /guide/introduction
+      link: /guide/getting-started/introduction
     - theme: alt
       text: GitHub
       link: https://github.com/bytedance/flowgram.ai
   image:
-    src: /logo.png
+    src: /transparent-logo.svg
     alt: Logo
 features:
   - title: Coze

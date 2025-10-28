@@ -1,4 +1,4 @@
-# Node
+# Nodes
 
 Nodes are defined through [FlowNodeEntity](/api/core/flow-node-entity.html)
 
@@ -52,7 +52,70 @@ const nodeData: FlowNodeJSON = {
 
 ## Node Definition
 
-In free layout scenarios, node definition is used to declare node's initial position/size, ports, form rendering, etc. For details, see [Declare Node](/guide/getting-started/create-free-layout-simple.html#4-declare-nodes)
+In free layout scenarios, node definition is used to declare node's initial position/size, ports, form rendering, etc.
+
+```tsx pure title="node-registries.tsx"
+import { WorkflowNodeRegistry, ValidateTrigger } from '@flowgram.ai/free-layout-editor';
+
+/**
+ * You can customize your own node registry
+ */
+export const nodeRegistries: WorkflowNodeRegistry[] = [
+  {
+    type: 'start',
+    meta: {
+      isStart: true, // Mark as start node
+      deleteDisable: true, // Start node cannot be deleted
+      copyDisable: true, // Start node cannot be copied
+      defaultPorts: [{ type: 'output' }], // Define node input and output ports, start node only has output port
+      // useDynamicPort: true, // For dynamic ports, will look for DOM with data-port-id and data-port-type attributes as ports
+    },
+    /**
+     * Configure node form validation and rendering
+     * Note: validate uses data and rendering separation to ensure node validation even without rendering
+     */
+    formMeta: {
+      validateTrigger: ValidateTrigger.onChange,
+      validate: {
+        title: ({ value }) => (value ? undefined : 'Title is required'),
+      },
+      /**
+       * Render form
+       */
+      render: () => (
+       <>
+          <Field name="title">
+            {({ field }) => <div className="demo-free-node-title">{field.value}</div>}
+          </Field>
+          <Field name="content">
+            {({ field }) => <input onChange={field.onChange} value={field.value}/>}
+          </Field>
+        </>
+      )
+    },
+  },
+  {
+    type: 'end',
+    meta: {
+      deleteDisable: true,
+      copyDisable: true,
+      defaultPorts: [{ type: 'input' }],
+    },
+    formMeta: {
+      // ...
+    }
+  },
+  {
+    type: 'custom',
+    meta: {
+    },
+    formMeta: {
+      // ...
+    },
+    defaultPorts: [{ type: 'output' }, { type: 'input' }], // Normal nodes have two ports
+  },
+];
+```
 
 ## Get Current Rendering Node
 

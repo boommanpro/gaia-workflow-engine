@@ -138,5 +138,8 @@
   },
   "[svg]": {
     "editor.defaultFormatter": "jock.svg"
+  },
+  "[mdx]": {
+    "editor.defaultFormatter": "unifiedjs.vscode-mdx"
   }
 }

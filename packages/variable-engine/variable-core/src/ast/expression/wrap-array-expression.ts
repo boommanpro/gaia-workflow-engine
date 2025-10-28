@@ -75,7 +75,7 @@ export class WrapArrayExpression extends BaseExpression<WrapArrayExpressionJSON>
    * Serialize the `WrapArrayExpression` to `WrapArrayExpressionJSON`.
    * @returns The JSON representation of `WrapArrayExpression`.
    */
-  toJSON(): ASTNodeJSON {
+  toJSON() {
     return {
       kind: ASTKind.WrapArrayExpression,
       wrapFor: this.wrapFor?.toJSON(),

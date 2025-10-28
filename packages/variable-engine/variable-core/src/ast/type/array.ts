@@ -100,7 +100,7 @@ export class ArrayType extends BaseType<ArrayJSON> {
    * Serialize the `ArrayType` to `ArrayJSON`
    * @returns The JSON representation of `ArrayType`.
    */
-  toJSON(): ASTNodeJSON {
+  toJSON() {
     return {
       kind: ASTKind.Array,
       items: this.items?.toJSON(),

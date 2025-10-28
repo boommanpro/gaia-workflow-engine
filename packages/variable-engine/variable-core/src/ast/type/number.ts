@@ -19,4 +19,8 @@ export class NumberType extends BaseType {
   fromJSON(): void {
     // noop
   }
+
+  toJSON() {
+    return {};
+  }
 }

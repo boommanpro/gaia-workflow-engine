@@ -43,12 +43,22 @@ export const LoopNodeRegistry: FlowNodeRegistry = {
      * The subcanvas padding setting
      * 子画布 padding 设置
      */
-    padding: () => ({
-      top: 120,
-      bottom: 80,
-      left: 80,
-      right: 80,
-    }),
+    padding: (transform) => {
+      if (!transform.isContainer) {
+        return {
+          top: 0,
+          bottom: 0,
+          left: 0,
+          right: 0,
+        };
+      }
+      return {
+        top: 120,
+        bottom: 80,
+        left: 80,
+        right: 80,
+      };
+    },
     /**
      * Controls the node selection status within the subcanvas
      * 控制子画布内的节点选中状态

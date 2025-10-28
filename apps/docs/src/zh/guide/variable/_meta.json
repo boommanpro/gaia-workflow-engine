@@ -1,5 +1,7 @@
 [
   "basic",
+  "concept",
   "variable-output",
-  "variable-consume"
+  "variable-consume",
+  "custom-scope-chain"
 ]

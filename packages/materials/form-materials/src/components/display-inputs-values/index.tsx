@@ -12,7 +12,7 @@ import { IInputsValues } from '@/shared/flow-value';
 import { FlowValueUtils } from '@/shared';
 import { DisplayFlowValue } from '@/components/display-flow-value';
 
-import { DisplayInputsWrapper } from './styles';
+import './styles.css';
 import { DisplaySchemaTag } from '../display-schema-tag';
 
 interface PropsType {
@@ -24,7 +24,7 @@ export function DisplayInputsValues({ value, showIconInTree }: PropsType) {
   const childEntries = Object.entries(value || {});
 
   return (
-    <DisplayInputsWrapper>
+    <div className="gedit-m-display-inputs-wrapper">
       {childEntries.map(([key, value]) => {
         if (FlowValueUtils.isFlowValue(value)) {
           return (
@@ -45,7 +45,7 @@ export function DisplayInputsValues({ value, showIconInTree }: PropsType) {
 
         return null;
       })}
-    </DisplayInputsWrapper>
+    </div>
   );
 }
 

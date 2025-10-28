@@ -12,7 +12,10 @@ export function toggleLoopExpanded(
   node: WorkflowNodeEntity,
   expanded: boolean = node.transform.collapsed
 ) {
-  if (node.blocks.length === 0) {
+  if (node.transform.collapsed === !expanded) {
+    if (!node.getNodeMeta().isContainer && node.blocks.length !== 0) {
+      return;
+    }
     const bounds = node.bounds.clone();
     node.transform.size = {
       width: bounds.width,

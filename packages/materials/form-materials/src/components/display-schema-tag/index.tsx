@@ -6,12 +6,12 @@
 import React from 'react';
 
 import { IJsonSchema } from '@flowgram.ai/json-schema';
-import { Popover } from '@douyinfe/semi-ui';
+import { Popover, Tag } from '@douyinfe/semi-ui';
 
 import { useTypeManager } from '@/plugins';
 import { DisplaySchemaTree } from '@/components/display-schema-tree';
 
-import { PopoverContent, StyledTag, TitleSpan } from './styles';
+import './styles.css';
 
 interface PropsType {
   title?: JSX.Element | string;
@@ -28,18 +28,18 @@ export function DisplaySchemaTag({ value = {}, showIconInTree, title, warning }:
   return (
     <Popover
       content={
-        <PopoverContent>
+        <div className="gedit-m-display-schema-tag-popover-content">
           <DisplaySchemaTree value={value} typeManager={typeManager} showIcon={showIconInTree} />
-        </PopoverContent>
+        </div>
       }
     >
-      <StyledTag color={warning ? 'amber' : 'white'}>
+      <Tag color={warning ? 'amber' : 'white'} className="gedit-m-display-schema-tag-tag">
         {icon &&
           React.cloneElement(icon, {
             className: 'tag-icon',
           })}
-        {title && <TitleSpan>{title}</TitleSpan>}
-      </StyledTag>
+        {title && <span className="gedit-m-display-schema-tag-title">{title}</span>}
+      </Tag>
     </Popover>
   );
 }

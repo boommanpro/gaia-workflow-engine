@@ -21,25 +21,11 @@ import { InjectTypeSelector } from '@/components/type-selector';
 import { BlurInput } from '@/components/blur-input';
 
 import { ConfigType, PropertyValueType } from './types';
-import {
-  IconAddChildren,
-  UIActions,
-  UICollapseTrigger,
-  UICollapsible,
-  UIContainer,
-  UIExpandDetail,
-  UILabel,
-  UITreeItems,
-  UITreeItemLeft,
-  UITreeItemMain,
-  UITreeItemRight,
-  UIRequired,
-  UIType,
-} from './styles';
-import { UIName } from './styles';
-import { DefaultValueWrapper, UIRow } from './styles';
+import { IconAddChildren } from './icon';
 import { usePropertiesEdit } from './hooks';
 import { DefaultValue } from './default-value';
+
+import './styles.css';
 
 const DEFAULT = { type: 'object' };
 
@@ -57,8 +43,8 @@ export function JsonSchemaEditor(props: {
   );
 
   return (
-    <UIContainer className={props.className}>
-      <UITreeItems>
+    <div className="gedit-m-json-schema-editor-container">
+      <div className="gedit-m-json-schema-editor-tree-items">
         {propertyList.map((_property) => (
           <PropertyEdit
             readonly={readonly}
@@ -73,7 +59,7 @@ export function JsonSchemaEditor(props: {
             }}
           />
         ))}
-      </UITreeItems>
+      </div>
       <Button
         disabled={readonly}
         size="small"
@@ -83,7 +69,7 @@ export function JsonSchemaEditor(props: {
       >
         {config?.addButtonText ?? I18n.t('Add')}
       </Button>
-    </UIContainer>
+    </div>
   );
 }
 
@@ -119,17 +105,24 @@ function PropertyEdit(props: {
 
   return (
     <>
-      <UITreeItemLeft $isLast={$isLast} $showLine={$level > 0} $showCollapse={showCollapse}>
+      <div
+        className={`gedit-m-json-schema-editor-tree-item-left ${$level > 0 ? 'show-line' : ''} ${
+          $isLast ? 'is-last' : ''
+        } ${showCollapse ? 'show-collapse' : ''}`}
+      >
         {showCollapse && (
-          <UICollapseTrigger onClick={() => setCollapse((_collapse) => !_collapse)}>
+          <div
+            className="gedit-m-json-schema-editor-collapse-trigger"
+            onClick={() => setCollapse((_collapse) => !_collapse)}
+          >
             {collapse ? <IconChevronDown size="small" /> : <IconChevronRight size="small" />}
-          </UICollapseTrigger>
+          </div>
         )}
-      </UITreeItemLeft>
-      <UITreeItemRight>
-        <UITreeItemMain>
-          <UIRow>
-            <UIName>
+      </div>
+      <div className="gedit-m-json-schema-editor-tree-item-right">
+        <div className="gedit-m-json-schema-editor-tree-item-main">
+          <div className="gedit-m-json-schema-editor-row">
+            <div className="gedit-m-json-schema-editor-name">
               <BlurInput
                 disabled={readonly}
                 placeholder={config?.placeholder ?? I18n.t('Input Variable Name')}
@@ -137,8 +130,8 @@ function PropertyEdit(props: {
                 value={name}
                 onChange={(value) => onChange('name', value)}
               />
-            </UIName>
-            <UIType>
+            </div>
+            <div className="gedit-m-json-schema-editor-type">
               <InjectTypeSelector
                 value={typeSelectorValue}
                 readonly={readonly}
@@ -149,15 +142,15 @@ function PropertyEdit(props: {
                   });
                 }}
               />
-            </UIType>
-            <UIRequired>
+            </div>
+            <div className="gedit-m-json-schema-editor-required">
               <Checkbox
                 disabled={readonly}
                 checked={isPropertyRequired}
                 onChange={(e) => onChange('isPropertyRequired', e.target.checked)}
               />
-            </UIRequired>
-            <UIActions>
+            </div>
+            <div className="gedit-m-json-schema-editor-actions">
               <IconButton
                 disabled={readonly}
                 size="small"
@@ -186,11 +179,13 @@ function PropertyEdit(props: {
                 icon={<IconMinus size="small" />}
                 onClick={onRemove}
               />
-            </UIActions>
-          </UIRow>
+            </div>
+          </div>
           {expand && (
-            <UIExpandDetail>
-              <UILabel>{config?.descTitle ?? I18n.t('Description')}</UILabel>
+            <div className="gedit-m-json-schema-editor-expand-detail">
+              <div className="gedit-m-json-schema-editor-label">
+                {config?.descTitle ?? I18n.t('Description')}
+              </div>
               <BlurInput
                 disabled={readonly}
                 size="small"
@@ -202,25 +197,25 @@ function PropertyEdit(props: {
               />
               {$level === 0 && (
                 <>
-                  <UILabel style={{ marginTop: 10 }}>
+                  <div className="gedit-m-json-schema-editor-label" style={{ marginTop: 10 }}>
                     {config?.defaultValueTitle ?? I18n.t('Default Value')}
-                  </UILabel>
-                  <DefaultValueWrapper>
+                  </div>
+                  <div className="gedit-m-json-schema-editor-default-value-wrapper">
                     <DefaultValue
                       value={defaultValue}
                       schema={value}
                       placeholder={config?.defaultValuePlaceholder ?? I18n.t('Default Value')}
                       onChange={(value) => onChange('default', value)}
                     />
-                  </DefaultValueWrapper>
+                  </div>
                 </>
               )}
-            </UIExpandDetail>
+            </div>
           )}
-        </UITreeItemMain>
+        </div>
         {showCollapse && (
-          <UICollapsible $collapse={collapse}>
-            <UITreeItems $shrink={true}>
+          <div className={`gedit-m-json-schema-editor-collapsible ${collapse ? 'collapse' : ''}`}>
+            <div className="gedit-m-json-schema-editor-tree-items shrink">
               {propertyList.map((_property, index) => (
                 <PropertyEdit
                   readonly={readonly}
@@ -237,10 +232,10 @@ function PropertyEdit(props: {
                   $isLast={index === propertyList.length - 1}
                 />
               ))}
-            </UITreeItems>
-          </UICollapsible>
+            </div>
+          </div>
         )}
-      </UITreeItemRight>
+      </div>
     </>
   );
 }

@@ -9,10 +9,7 @@ import { BaseVariableField, BaseVariableFieldJSON } from './base-variable-field'
 /**
  * ASTNodeJSON representation of the `Property`.
  */
-export type PropertyJSON<VariableMeta = any> = BaseVariableFieldJSON<VariableMeta> & {
-  // Key is a required field.
-  key: string;
-};
+export type PropertyJSON<VariableMeta = any> = BaseVariableFieldJSON<VariableMeta>;
 
 /**
  * `Property` is a variable field that represents a property of a `ObjectType`.

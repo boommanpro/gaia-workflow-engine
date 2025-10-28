@@ -20,7 +20,7 @@ import { InjectVariableSelector } from '@/components/variable-selector';
 import { TypeSelector } from '@/components/type-selector';
 import { ConstantInput, ConstantInputStrategy } from '@/components/constant-input';
 
-import { UIContainer, UIMain, UITrigger, UIType } from './styles';
+import './styles.css';
 import { useIncludeSchema, useRefVariable, useSelectSchema } from './hooks';
 
 interface PropsType {
@@ -144,11 +144,11 @@ export function DynamicValueInput({
   );
 
   return (
-    <UIContainer style={style}>
-      <UIType>{renderTypeSelector()}</UIType>
-      <UIMain>{renderMain()}</UIMain>
-      <UITrigger>{renderTrigger()}</UITrigger>
-    </UIContainer>
+    <div className="gedit-m-dynamic-value-input-container" style={style}>
+      <div className="gedit-m-dynamic-value-input-type">{renderTypeSelector()}</div>
+      <div className="gedit-m-dynamic-value-input-main">{renderMain()}</div>
+      <div className="gedit-m-dynamic-value-input-trigger">{renderTrigger()}</div>
+    </div>
   );
 }
 

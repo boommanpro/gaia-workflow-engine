@@ -1,15 +1,21 @@
 import { SourceCode } from '@theme';
-import { BasicStory, FilterSchemaStory, CustomFilterStory } from 'components/form-materials/components/variable-selector';
+import { BasicStory, FilterSchemaStory, CustomFilterStory, CustomVariableTreeStory } from 'components/form-materials/components/variable-selector';
 
 # VariableSelector
 
 VariableSelector 是一个用于选择当前作用域变量的组件，它可以根据变量的类型进行过滤。
 
-<br />
-<div>
-  <img loading="lazy" src="/materials/variable-selector.png" alt="VariableSelector 组件" style={{ width: '50%' }} />
-</div>
 
+:::warning
+
+VariableSelector 的变量树中，**每一个叶子节点和非叶子节点，都是一个变量**。
+
+在官方物料库的设计中，每个节点都会输出 **一个 ObjectType 变量声明**，这个变量声明中：
+
+- 变量的**元信息包含节点的标题和节点的 Icon**，被 VariableSelector 解析展示
+- 变量的下钻字段会被 VariableSelector **递归展示在节点变量内**
+
+:::
 
 ## 案例演示
 
@@ -84,6 +90,32 @@ const formMeta = {
 }
 ```
 
+### 通过 useVariableTree 获取变量树
+
+<CustomVariableTreeStory />
+
+```tsx pure title="form-meta.tsx"
+import { useVariableTree } from '@flowgram.ai/form-materials';
+
+const formMeta = {
+  render: () => {
+    const treeData = useVariableTree({});
+
+    return (
+      <VariableSelectorProvider skipVariable={(variable) => variable?.key === 'str'}>
+        <FormHeader />
+        <Tree treeData={treeData} defaultExpandAll />
+      </VariableSelectorProvider>
+    );
+  },
+}
+```
+
+:::tip
+
+`useVariableTree` 也被用于 [`PromptEditorWithVariables`](./prompt-editor-with-variables)、[`SQLEditorWithVariables`](./sql-editor-with-variables)、[`JsonEditorWithVariables`](./json-editor-with-variables) 等组件中，用于获取当前作用域的变量树。
+
+:::
 
 
 ## API 参考
@@ -114,7 +146,17 @@ const formMeta = {
 | 属性名 | 类型 | 默认值 | 描述 |
 |--------|------|--------|------|
 | `skipVariable` | `(variable?: BaseVariableField) => boolean` | - | 自定义变量过滤函数 |
+| `includeSchema` | `IJsonSchema \| IJsonSchema[]` | - | 包含的变量类型过滤条件 |
+| `excludeSchema` | `IJsonSchema \| IJsonSchema[]` | - | 排除的变量类型过滤条件 |
 | `children` | `React.ReactNode` | - | 子组件 |
+
+### useVariableTree
+
+| 属性名 | 类型 | 默认值 | 描述 |
+|--------|------|--------|------|
+| `includeSchema` | `IJsonSchema \| IJsonSchema[]` | - | 包含的变量类型过滤条件 |
+| `excludeSchema` | `IJsonSchema \| IJsonSchema[]` | - | 排除的变量类型过滤条件 |
+| `skipVariable` | `(variable?: BaseVariableField) => boolean` | - | 自定义变量过滤函数 |
 
 ## 源码导读
 
@@ -135,8 +177,7 @@ variable-selector/
 ├── index.tsx           # 主组件实现，包含 VariableSelector 核心逻辑
 ├── context.tsx         # 提供 `VariableSelectorContext` 上下文，支持全局配置变量过滤逻辑
 ├── use-variable-tree.tsx # 自定义 Hook，处理变量树数据的转换和过滤
-├── styles.tsx          # 样式定义，使用 styled-components
-└── README.md          # 组件说明文档
+└── styles.css          # 样式文件
 ```
 
 

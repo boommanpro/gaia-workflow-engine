@@ -86,7 +86,7 @@ export class MapType extends BaseType<MapJSON> {
    * Serialize the node to a JSON object.
    * @returns The JSON representation of the node.
    */
-  toJSON(): ASTNodeJSON {
+  toJSON() {
     return {
       kind: ASTKind.Map,
       keyType: this.keyType?.toJSON(),

@@ -22,4 +22,8 @@ export class IntegerType extends BaseType {
   fromJSON(): void {
     // noop
   }
+
+  toJSON() {
+    return {};
+  }
 }

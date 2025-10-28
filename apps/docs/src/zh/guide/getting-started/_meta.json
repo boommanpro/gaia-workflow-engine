@@ -1,5 +1,6 @@
 [
-  "install",
-  "create-free-layout-simple",
-  "create-fixed-layout-simple"
+  "introduction",
+  "quick-start",
+  "free-layout",
+  "fixed-layout"
 ]

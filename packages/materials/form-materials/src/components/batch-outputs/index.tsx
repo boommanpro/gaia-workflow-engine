@@ -13,7 +13,7 @@ import { useObjectList } from '@/hooks';
 import { InjectVariableSelector } from '@/components/variable-selector';
 
 import { PropsType } from './types';
-import { UIRow, UIRows } from './styles';
+import './styles.css';
 
 export function BatchOutputs(props: PropsType) {
   const { readonly, style } = props;
@@ -22,9 +22,9 @@ export function BatchOutputs(props: PropsType) {
 
   return (
     <div>
-      <UIRows style={style}>
+      <div className="gedit-m-batch-outputs-rows" style={style}>
         {list.map((item) => (
-          <UIRow key={item.id}>
+          <div className="gedit-m-batch-outputs-row" key={item.id}>
             <Input
               style={{ width: 100 }}
               disabled={readonly}
@@ -44,9 +44,9 @@ export function BatchOutputs(props: PropsType) {
               size="small"
               onClick={() => remove(item.id)}
             />
-          </UIRow>
+          </div>
         ))}
-      </UIRows>
+      </div>
       <Button disabled={readonly} icon={<IconPlus />} size="small" onClick={() => add()}>
         {I18n.t('Add')}
       </Button>

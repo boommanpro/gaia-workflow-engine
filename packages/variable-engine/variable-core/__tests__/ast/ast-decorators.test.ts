@@ -33,6 +33,12 @@ describe('test ast decorators', () => {
       fromJSON(json: any): void {
         // do nothing
       }
+
+      toJSON() {
+        return {
+          testFlag: this.testFlag,
+        };
+      }
     }
 
     variableEngine.astRegisters.registerAST(PostConstructTest);
@@ -69,6 +75,13 @@ describe('test ast decorators', () => {
 
         fromJSON(json: any): void {
           // do nothing
+        }
+
+        toJSON() {
+          return {
+            testFlag1: this.testFlag1,
+            testFlag2: this.testFlag2,
+          };
         }
       }
       variableEngine.astRegisters.registerAST(PostConstructTest2);

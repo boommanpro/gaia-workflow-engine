@@ -1,0 +1,76 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
+.flowgram-logo-container {
+  position: absolute;
+  top: 50px;
+  width: calc(30vw - 64px);
+  height: 550px;
+  opacity: 0;
+
+  // Mobile responsive: move to top on small screens to prevent text overlap
+  @media (max-width: 768px) {
+    top: 0;
+    right: 0;
+    width: 100%;
+    height: 200px;
+    margin-bottom: 20px;
+  }
+
+  // Tablet responsive: adjust size and position
+  @media (min-width: 769px) and (max-width: 1024px) {
+    width: calc(45vw - 32px);
+    right: 16px;
+  }
+
+  // Ensure minimum width to prevent squashing
+  @media (min-width: 1025px) and (max-width: 1300px) {
+    width: calc(45vw - 32px);
+    right: 0;
+  }
+
+  // Ensure minimum width to prevent squashing
+  @media (min-width: 1301) {
+    width: calc(30vw - 64px);
+    right: 15vw;
+  }
+}
+
+.flowgram-logo-mask {
+  background-image: conic-gradient(from 180deg at 50% 50%, #4161a6, #5681bd, #4a9da3, #479590, #4161a6);
+  filter: blur(120px);
+  opacity: 0.4;
+  z-index: 0;
+  border-radius: 100%;
+  width: 80%;
+  height: 80%;
+  animation: flowgram-logo-spin 2s linear infinite;
+}
+
+@keyframes flowgram-logo-spin {
+  from {
+    transform: translateX(20%) translateY(20%) rotate(0deg) scale(0.8);
+  }
+
+  50% {
+    transform: translateX(20%) translateY(20%) rotate(180deg) scale(1);
+  }
+
+  to {
+    transform: translateX(20%) translateY(20%) rotate(360deg) scale(0.8);
+  }
+}
+
+.gedit-playground {
+  background: transparent !important;
+}
+
+.gedit-playground-scroll-right-block {
+  display: none;
+}
+
+.gedit-playground-scroll-bottom-block {
+  display: none;
+}

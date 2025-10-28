@@ -5,8 +5,7 @@
 
 import { FC } from 'react';
 
-import { JsonCodeEditor } from '@flowgram.ai/form-materials';
-
+import { JsonValueEditor } from '../json-value-editor';
 import { useFormMeta, useSyncDefault } from '../hooks';
 
 import styles from './index.module.less';
@@ -27,10 +26,7 @@ export const TestRunJsonInput: FC<TestRunJsonInputProps> = ({ values, setValues 
 
   return (
     <div className={styles['testrun-json-input']}>
-      <JsonCodeEditor
-        value={JSON.stringify(values, null, 2)}
-        onChange={(value) => setValues(JSON.parse(value))}
-      />
+      <JsonValueEditor value={values} onChange={setValues} />
     </div>
   );
 };
