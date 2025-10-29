@@ -7,7 +7,9 @@
 2. 分支节点
 3. 测试运行
 4. 配套的java后端
-5. 可以微前端或者web-components运行，进而支持跨前端语言
+5. 可以微前端或者web-components运行，进而支持跨前端语言 已实现 ruoyi-vue3-flowgram
+效果如下：
+<img src="https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/refs/heads/main/boommanpro-docs/yudao-vue3-flowgram.png" width="1000" height="500" />
 
 ### ② 为什么会基于flowgram.ai再次开源一个项目？
 
