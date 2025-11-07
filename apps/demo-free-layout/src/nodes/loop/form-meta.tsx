@@ -27,7 +27,7 @@ interface LoopNodeJSON extends FlowNodeJSON {
 export const LoopFormRender = ({ form }: FormRenderProps<LoopNodeJSON>) => {
   const isSidebar = useIsSidebar();
   const { readonly } = useNodeRenderContext();
-  const formHeight = 115;
+  const formHeight = 145;
 
   const loopFor = (
     <Field<IFlowRefValue> name={`loopFor`}>

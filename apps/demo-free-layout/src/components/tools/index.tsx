@@ -3,29 +3,29 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { useState, useEffect } from 'react';
+import {useEffect, useState} from 'react';
 
-import { useRefresh } from '@flowgram.ai/free-layout-editor';
-import { useClientContext } from '@flowgram.ai/free-layout-editor';
-import { Tooltip, IconButton, Divider } from '@douyinfe/semi-ui';
-import { IconUndo, IconRedo } from '@douyinfe/semi-icons';
+import {useClientContext, useRefresh} from '@flowgram.ai/free-layout-editor';
+import {Divider, IconButton, Tooltip} from '@douyinfe/semi-ui';
+import {IconRedo, IconUndo} from '@douyinfe/semi-icons';
 
-import { TestRunButton } from '../testrun/testrun-button';
-import { AddNode } from '../add-node';
-import { ZoomSelect } from './zoom-select';
-import { SwitchLine } from './switch-line';
-import { ToolContainer, ToolSection } from './styles';
-import { Save } from './save';
-import { Readonly } from './readonly';
-import { MinimapSwitch } from './minimap-switch';
-import { Minimap } from './minimap';
-import { Interactive } from './interactive';
-import { FitView } from './fit-view';
-import { Console } from './console';
-import { Comment } from './comment';
-import { AutoLayout } from './auto-layout';
+import {TestRunButton} from '../testrun/testrun-button';
+import {AddNode} from '../add-node';
+import {ZoomSelect} from './zoom-select';
+import {SwitchLine} from './switch-line';
+import {ToolContainer, ToolSection} from './styles';
+import {Save} from './save';
+import {Readonly} from './readonly';
+import {MinimapSwitch} from './minimap-switch';
+import {Minimap} from './minimap';
+import {Interactive} from './interactive';
+import {FitView} from './fit-view';
+import {Console} from './console';
+import {Comment} from './comment';
+import {AutoLayout} from './auto-layout';
 import {Import} from "./import";
-import { ProblemButton } from '../problem-panel';
+import {ReportInput} from './report-input';
+import {ProblemButton} from '../problem-panel';
 
 export const DemoTools = () => {
   const { history, playground } = useClientContext();
@@ -82,6 +82,7 @@ export const DemoTools = () => {
         <Divider layout="vertical" style={{ height: '16px' }} margin={3} />
         <Save disabled={playground.config.readonly} />
         <Import />
+        <ReportInput />
         <Console />
         <TestRunButton disabled={playground.config.readonly} />
       </ToolSection>

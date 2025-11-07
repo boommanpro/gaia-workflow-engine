@@ -3,26 +3,20 @@
  * SPDX-License-Identifier: MIT
  */
 
+import {IReport, NodeReport, WorkflowInputs, WorkflowOutputs, WorkflowStatus,} from '@flowgram.ai/runtime-interface';
 import {
-  IReport,
-  NodeReport,
-  WorkflowInputs,
-  WorkflowOutputs,
-  WorkflowStatus,
-} from '@flowgram.ai/runtime-interface';
-import {
-  injectable,
+  Emitter,
   inject,
-  WorkflowDocument,
+  injectable,
   Playground,
+  WorkflowDocument,
   WorkflowLineEntity,
   WorkflowNodeEntity,
-  Emitter,
 } from '@flowgram.ai/free-layout-editor';
 
-import { WorkflowRuntimeClient } from '../client';
-import { GetGlobalVariableSchema } from '../../variable-panel-plugin';
-import { WorkflowNodeType } from '../../../nodes';
+import {WorkflowRuntimeClient} from '../client';
+import {GetGlobalVariableSchema} from '../../variable-panel-plugin';
+import {WorkflowNodeType} from '../../../nodes';
 
 const SYNC_TASK_REPORT_INTERVAL = 500;
 
@@ -60,7 +54,9 @@ export class WorkflowRuntimeService {
     };
   }>();
 
-  private nodeRunningStatus: Map<string, NodeRunningStatus>;
+  private nodeRunningStatus: Map<string, NodeRunningStatus> = new Map();
+
+  private nodeReports: Map<string, NodeReport> = new Map();
 
   public onNodeReportChange = this.reportEmitter.event;
 
@@ -69,7 +65,28 @@ export class WorkflowRuntimeService {
   public onResultChanged = this.resultEmitter.event;
 
   public isFlowingLine(line: WorkflowLineEntity) {
-    return this.runningNodes.some((node) => node.lines.inputLines.includes(line));
+    // 检查是否是正在运行节点的输入边
+    const isInputLine = this.runningNodes.some((node) =>
+        node.lines.inputLines.includes(line)
+    );
+
+    if (isInputLine) {
+      console.log(this.runningNodes)
+      return this.runningNodes.some((node) => {
+        const nodeReport = this.nodeReports.get(node.id);
+        if (!nodeReport || !nodeReport.snapshots.length) {
+          return false;
+        }
+
+        const latestSnapshot = nodeReport.snapshots[nodeReport.snapshots.length - 1];
+        const executedBranch = latestSnapshot.branch;
+        // 如果没有分支信息，或者这条边对应的端口就是执行的分支，则闪烁
+        return node.lines.inputLines.includes(line) &&
+            (!executedBranch || line.info.fromPort === executedBranch);
+      });
+    }
+
+    return false;
   }
 
   public async taskRun(inputs: WorkflowInputs): Promise<string | undefined> {
@@ -145,6 +162,7 @@ export class WorkflowRuntimeService {
   private reset(): void {
     this.taskID = undefined;
     this.nodeRunningStatus = new Map();
+    this.nodeReports.clear();
     this.runningNodes = [];
     if (this.syncTaskReportIntervalID) {
       clearInterval(this.syncTaskReportIntervalID);
@@ -167,7 +185,7 @@ export class WorkflowRuntimeService {
     const { workflowStatus, inputs, outputs, messages } = report;
     if (workflowStatus.terminated) {
       clearInterval(this.syncTaskReportIntervalID);
-      if (Object.keys(outputs).length > 0) {
+      if (outputs && Object.keys(outputs).length > 0) {
         this.resultEmitter.fire({ result: { inputs, outputs } });
       } else {
         this.resultEmitter.fire({
@@ -197,6 +215,10 @@ export class WorkflowRuntimeService {
         if (!nodeReport) {
           return;
         }
+
+        // 更新 nodeReports Map
+        this.nodeReports.set(nodeID, nodeReport);
+
         if (nodeReport.status === WorkflowStatus.Processing) {
           this.runningNodes.push(node);
         }

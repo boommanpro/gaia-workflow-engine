@@ -39,11 +39,7 @@ export const ConditionNodeRegistry: FlowNodeRegistry = {
           {
             key: generateValidId('if', 5),
             value: {},
-          },
-          {
-            key: generateValidId('if', 5),
-            value: {},
-          },
+          }
         ],
       },
     };
