@@ -4,14 +4,14 @@
       <h1>工作流管理</h1>
       <button @click="createWorkflow" class="btn-primary">新建工作流</button>
     </div>
-    
+
     <!-- 示例工作流 -->
     <div class="section">
       <h2>示例工作流</h2>
       <div class="workflow-grid" v-if="exampleWorkflows.length > 0">
-        <div 
-          class="workflow-card example-card" 
-          v-for="workflow in exampleWorkflows" 
+        <div
+          class="workflow-card example-card"
+          v-for="workflow in exampleWorkflows"
           :key="workflow.id"
           @click="editWorkflow(workflow)"
         >
@@ -28,14 +28,14 @@
         <p>暂无示例工作流</p>
       </div>
     </div>
-    
+
     <!-- 自建工作流 -->
     <div class="section">
       <h2>自建工作流</h2>
       <div class="workflow-grid" v-if="customWorkflows.length > 0">
-        <div 
-          class="workflow-card" 
-          v-for="workflow in customWorkflows" 
+        <div
+          class="workflow-card"
+          v-for="workflow in customWorkflows"
           :key="workflow.id"
           @click="editWorkflow(workflow)"
         >
@@ -54,7 +54,7 @@
         <button @click="createDefaultWorkflow" class="btn-primary" style="margin-top: 20px;">创建默认工作流</button>
       </div>
     </div>
-    
+
     <!-- 描述弹窗 -->
     <div v-if="showDescriptionModal" class="modal-overlay" @click="closeDescriptionModal">
       <div class="modal-content" @click.stop>
@@ -74,7 +74,7 @@
         </div>
       </div>
     </div>
-    
+
     <!-- 编辑弹窗 -->
     <div v-if="showEditModalFlag" class="modal-overlay" @click="closeEditModal">
       <div class="modal-content" @click.stop>
@@ -130,7 +130,7 @@ const editingDescription = ref('')
 const loadWorkflows = async () => {
   // 加载自建工作流
   customWorkflows.value = workflowStore.getWorkflows()
-  
+
   // 加载示例工作流
   exampleWorkflows.value = await loadExampleWorkflows()
 }
@@ -139,16 +139,16 @@ const loadWorkflows = async () => {
 const loadExampleWorkflows = async () => {
   try {
     // 获取示例工作流索引
-    const indexResponse = await fetch('/workflows/index.json')
+    const indexResponse = await fetch('./workflows/index.json')
     const indexData = await indexResponse.json()
-    
+
     // 加载每个示例工作流的元数据
     const examples = []
     for (const exampleDir of indexData.examples) {
       try {
-        const metadataResponse = await fetch(`/workflows/${exampleDir}/metadata.json`)
+        const metadataResponse = await fetch(`./workflows/${exampleDir}/metadata.json`)
         const metadata = await metadataResponse.json()
-        
+
         examples.push({
           id: `example-${exampleDir}`,
           name: metadata.name,
@@ -161,7 +161,7 @@ const loadExampleWorkflows = async () => {
         console.error(`加载示例工作流 ${exampleDir} 失败:`, error)
       }
     }
-    
+
     return examples
   } catch (error) {
     console.error('加载示例工作流索引失败:', error)
@@ -190,17 +190,17 @@ const copyToCustom = async (exampleWorkflow) => {
     // 获取示例工作流的完整数据
     const workflowResponse = await fetch(`/workflows/${exampleWorkflow.exampleDir}/workflow.json`)
     const workflowData = await workflowResponse.json()
-    
+
     // 创建新的自建工作流
     const newWorkflow = workflowStore.addWorkflow({
       name: `${exampleWorkflow.name} (副本)`,
       description: exampleWorkflow.description,
       content: workflowData
     })
-    
+
     // 刷新列表
     loadWorkflows()
-    
+
     // 跳转到编辑页面
     router.push(`/editor/${newWorkflow.id}`)
   } catch (error) {
@@ -229,7 +229,7 @@ const showDescription = async (workflow) => {
   showDescriptionModal.value = true
   descriptionLoading.value = true
   workflowDescription.value = ''
-  
+
   try {
     if (workflow.isExample) {
       // 加载示例工作流的readme
@@ -267,9 +267,9 @@ const closeEditModal = () => {
 // 保存工作流
 const saveWorkflow = () => {
   if (editingWorkflow.value) {
-    workflowStore.updateWorkflow(editingWorkflow.value.id, { 
+    workflowStore.updateWorkflow(editingWorkflow.value.id, {
       name: editingName.value,
-      description: editingDescription.value 
+      description: editingDescription.value
     })
     closeEditModal()
     loadWorkflows()

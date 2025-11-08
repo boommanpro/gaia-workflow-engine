@@ -42,7 +42,7 @@ export default defineConfig({
     template: path.resolve(__dirname, './index.html'),
   },
   output: {
-    assetPrefix: './',
+    assetPrefix: process.env.ASSET_PREFIX || './',
     distPath: {
       root: 'workflow-editor',
     },
