@@ -29,7 +29,7 @@ jobs:
         working-directory: apps/demo-wujie-main-vue3
 
       - name: Build Vue3 Main Application
-        run: pnpm run build
+        run: pnpm run build:github
         working-directory: apps/demo-wujie-main-vue3
 
       # 构建 React 子应用
