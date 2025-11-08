@@ -38,7 +38,7 @@ const props = defineProps({
 const emit = defineEmits(['workflowCreated', 'workflowUpdated'])
 
 const name = ref('workflow-editor')
-const url = ref('http://localhost:3000')
+const url = ref(import.meta.env.VITE_CHILD_APP_URL || 'http://localhost:3000')
 const workflowStore = useWorkflowStore()
 const workflowData = ref(null)
 const dataLoaded = ref(false)
@@ -56,6 +56,7 @@ onMounted(() => {
   console.log('WorkflowEditorFrame mounted')
   console.log('Workflow ID:', props.workflowId)
   console.log('Example ID:', props.exampleId)
+  console.log('Workflow Editor URL:', url.value)
 
   // 加载数据
   loadData()

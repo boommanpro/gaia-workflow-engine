@@ -10,10 +10,34 @@ import './styles.css'
 import { setupApp } from 'wujie'
 import WujieVue from 'wujie-vue3'
 
+// 根据环境确定子应用URL
+const getChildAppUrl = () => {
+  // 检查是否存在环境变量
+  if (import.meta.env?.VITE_CHILD_APP_URL) {
+    return import.meta.env.VITE_CHILD_APP_URL
+  }
+  
+  // 根据 NODE_ENV 环境变量判断
+  const nodeEnv = process.env.NODE_ENV
+  
+  switch (nodeEnv) {
+    case 'development':
+      return 'http://localhost:3000'
+    case 'test':
+    case 'testing':
+      return '/child-app-test'  // GitHub Pages 上的测试子应用路径
+    case 'production':
+      return '/child-app'  // GitHub Pages 上的生产子应用路径
+    default:
+      // 默认返回开发环境地址
+      return 'http://localhost:3000'
+  }
+}
+
 // 配置wujie
 setupApp({
   name: 'freelayout-editor',
-  url: 'http://localhost:3000',
+  url: getChildAppUrl(),
   alive: true,
   props: {
     // 可以传递给子应用的属性

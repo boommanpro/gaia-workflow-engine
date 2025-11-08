@@ -80,6 +80,6 @@
     "test": "exit",
     "test:cov": "exit",
     "watch": "exit 0",
-    "build:gh-pages": "node_modules/.bin/cross-env NODE_ENV=production rsbuild build"
+    "build:gh-pages": "node_modules/.bin/cross-env NODE_ENV=github rsbuild build"
   }
 }
