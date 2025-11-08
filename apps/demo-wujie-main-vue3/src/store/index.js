@@ -47,7 +47,7 @@ export const useWorkflowStore = defineStore('workflow', {
         id: Date.now().toString(),
         name: workflow.name || '未命名工作流',
         description: workflow.description || '',
-        content: workflow.content || {},
+        content: workflow.content || { nodes: [], edges: [] },
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       }
@@ -62,9 +62,10 @@ export const useWorkflowStore = defineStore('workflow', {
       const data = initLocalData()
       const index = data.workflows.findIndex(workflow => workflow.id === id)
       if (index !== -1) {
+        // 保持原有的属性，只更新传入的属性
         data.workflows[index] = {
-          ...data.workflows[index],
-          ...updatedWorkflow,
+          ...data.workflows[index], // 保留原有的所有属性
+          ...updatedWorkflow,       // 覆盖传入的属性
           updatedAt: new Date().toISOString()
         }
         saveLocalData(data)

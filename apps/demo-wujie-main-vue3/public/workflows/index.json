@@ -1,0 +1,13 @@
+{
+  "examples": [
+    "llm-example",
+    "http-demo",
+    "demo2",
+    "demo3",
+    "demo4",
+    "demo5"
+  ],
+  "description": "示例工作流配置文件，定义了所有可用的示例工作流目录",
+  "version": "1.0.0"
+}
+
