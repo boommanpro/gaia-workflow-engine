@@ -15,14 +15,12 @@
           :key="workflow.id"
           @click="editWorkflow(workflow)"
         >
+          <div class="card-tag">示例</div>
           <h3>{{ workflow.name || '未命名工作流' }}</h3>
           <p>{{ workflow.description || '暂无描述' }}</p>
-          <div class="card-footer">
-            <span class="updated-at">更新于: {{ formatTime(workflow.updatedAt) }}</span>
-            <div class="actions">
-              <button @click.stop="showDescription(workflow)" class="btn-secondary">查看描述</button>
-              <button @click.stop="copyToCustom(workflow)" class="btn-secondary">复制到自建</button>
-            </div>
+          <div class="card-actions">
+            <button @click.stop="showDescription(workflow)" class="btn-secondary">查看描述</button>
+            <button @click.stop="copyToCustom(workflow)" class="btn-secondary">复制到自建</button>
           </div>
         </div>
       </div>
@@ -41,14 +39,13 @@
           :key="workflow.id"
           @click="editWorkflow(workflow)"
         >
+          <div class="card-tag custom-tag">自建</div>
           <h3>{{ workflow.name || '未命名工作流' }}</h3>
           <p>{{ workflow.description || '暂无描述' }}</p>
-          <div class="card-footer">
-            <span class="updated-at">更新于: {{ formatTime(workflow.updatedAt) }}</span>
-            <div class="actions">
-              <button @click.stop="showDescription(workflow)" class="btn-secondary">查看描述</button>
-              <button @click.stop="deleteWorkflow(workflow.id)" class="btn-danger">删除</button>
-            </div>
+          <div class="card-actions">
+            <button @click.stop="showDescription(workflow)" class="btn-secondary">查看描述</button>
+            <button @click.stop="showEditModal(workflow)" class="btn-secondary">编辑</button>
+            <button @click.stop="deleteWorkflow(workflow.id)" class="btn-danger">删除</button>
           </div>
         </div>
       </div>
@@ -68,12 +65,36 @@
         <div class="modal-body">
           <div v-if="descriptionLoading" class="loading">加载中...</div>
           <div v-else>
-            <div v-if="workflowDescription" v-html="workflowDescription"></div>
+            <div v-if="workflowDescription" v-html="renderMarkdown(workflowDescription)"></div>
             <div v-else>暂无描述信息</div>
           </div>
         </div>
         <div class="modal-footer">
           <button @click="closeDescriptionModal" class="btn-primary">关闭</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 编辑弹窗 -->
+    <div v-if="showEditModalFlag" class="modal-overlay" @click="closeEditModal">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h3>编辑工作流</h3>
+          <button class="close-button" @click="closeEditModal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>名称:</label>
+            <input v-model="editingName" class="form-control" />
+          </div>
+          <div class="form-group">
+            <label>描述:</label>
+            <textarea v-model="editingDescription" class="form-control description-editor-modal"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button @click="closeEditModal" class="btn-secondary">取消</button>
+          <button @click="saveWorkflow" class="btn-primary">保存</button>
         </div>
       </div>
     </div>
@@ -85,6 +106,8 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useWorkflowStore } from '../store'
 import { formatTime } from '../utils/date'
+import { ElMessage } from 'element-plus'
+import { marked } from 'marked'
 
 const router = useRouter()
 const workflowStore = useWorkflowStore()
@@ -96,6 +119,12 @@ const showDescriptionModal = ref(false)
 const selectedWorkflow = ref(null)
 const workflowDescription = ref('')
 const descriptionLoading = ref(false)
+
+// 编辑弹窗相关
+const showEditModalFlag = ref(false)
+const editingWorkflow = ref(null)
+const editingName = ref('')
+const editingDescription = ref('')
 
 // 获取工作流列表
 const loadWorkflows = async () => {
@@ -188,10 +217,10 @@ const createDefaultWorkflow = () => {
 
 // 删除工作流
 const deleteWorkflow = (id) => {
-  if (confirm('确定要删除这个工作流吗？')) {
-    workflowStore.deleteWorkflow(id)
-    loadWorkflows()
-  }
+  // 使用 Element UI 的成功提示替代 alert 弹窗
+  workflowStore.deleteWorkflow(id)
+  ElMessage.success('工作流删除成功')
+  loadWorkflows()
 }
 
 // 显示工作流描述
@@ -206,7 +235,7 @@ const showDescription = async (workflow) => {
       // 加载示例工作流的readme
       const response = await fetch(`/workflows/${workflow.exampleDir}/readme.md`)
       const text = await response.text()
-      workflowDescription.value = convertMarkdownToHtml(text)
+      workflowDescription.value = text
     } else {
       // 对于自建工作流，暂时显示描述字段
       workflowDescription.value = workflow.description || '暂无详细描述'
@@ -219,9 +248,39 @@ const showDescription = async (workflow) => {
   }
 }
 
-// 简单的Markdown转HTML函数（只处理基本的换行）
-const convertMarkdownToHtml = (markdown) => {
-  return markdown.replace(/\n/g, '<br>')
+// 显示编辑弹窗
+const showEditModal = (workflow) => {
+  editingWorkflow.value = workflow
+  editingName.value = workflow.name || ''
+  editingDescription.value = workflow.description || ''
+  showEditModalFlag.value = true
+}
+
+// 关闭编辑弹窗
+const closeEditModal = () => {
+  showEditModalFlag.value = false
+  editingWorkflow.value = null
+  editingName.value = ''
+  editingDescription.value = ''
+}
+
+// 保存工作流
+const saveWorkflow = () => {
+  if (editingWorkflow.value) {
+    workflowStore.updateWorkflow(editingWorkflow.value.id, { 
+      name: editingName.value,
+      description: editingDescription.value 
+    })
+    closeEditModal()
+    loadWorkflows()
+    ElMessage.success('工作流保存成功')
+  }
+}
+
+// Markdown 渲染函数
+const renderMarkdown = (markdown) => {
+  if (!markdown) return ''
+  return marked.parse(markdown)
 }
 
 // 关闭描述弹窗
@@ -246,9 +305,23 @@ onMounted(() => {
   color: #333;
 }
 
+.workflow-card {
+  position: relative;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  background-color: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: box-shadow 0.3s ease;
+}
+
+.workflow-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
 .example-card {
   border: 2px solid #409eff;
-  background-color: #f0f8ff;
 }
 
 .modal-overlay {
@@ -311,5 +384,116 @@ onMounted(() => {
 .loading {
   text-align: center;
   padding: 20px;
+}
+
+.card-tag {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: #409eff;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.custom-tag {
+  background-color: #67c23a;
+}
+
+.workflow-card h3 {
+  margin-top: 0;
+  margin-bottom: 8px;
+  color: #333;
+  font-size: 18px;
+}
+
+.workflow-card p {
+  color: #666;
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.description-container {
+  flex-grow: 1;
+  margin-bottom: 15px;
+}
+
+.description-editor {
+  width: 100%;
+  min-height: 80px;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #dcdfe6;
+  font-family: inherit;
+  font-size: 14px;
+  resize: vertical;
+}
+
+.description-editor-modal {
+  width: 100%;
+  min-height: 120px;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #dcdfe6;
+  font-family: inherit;
+  font-size: 14px;
+  resize: vertical;
+}
+
+.description-display {
+  min-height: 80px;
+  padding: 8px;
+}
+
+.card-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-primary, .btn-secondary, .btn-danger {
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.btn-primary {
+  background-color: #409eff;
+  color: white;
+  border: none;
+}
+
+.btn-secondary {
+  background-color: #f0f0f0;
+  color: #666;
+  border: 1px solid #ddd;
+}
+
+.btn-danger {
+  background-color: #f56c6c;
+  color: white;
+  border: none;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.form-control {
+  width: 100%;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #dcdfe6;
+  font-family: inherit;
+  font-size: 14px;
+  box-sizing: border-box;
 }
 </style>
