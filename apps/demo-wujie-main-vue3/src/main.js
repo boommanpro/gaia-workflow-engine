@@ -25,9 +25,9 @@ const getChildAppUrl = () => {
       return 'http://localhost:3000'
     case 'test':
     case 'testing':
-      return '/child-app-test'  // GitHub Pages 上的测试子应用路径
+      return './workflow-editor'  // GitHub Pages 上的测试子应用路径
     case 'production':
-      return '/child-app'  // GitHub Pages 上的生产子应用路径
+      return './workflow-editor'  // GitHub Pages 上的生产子应用路径
     default:
       // 默认返回开发环境地址
       return 'http://localhost:3000'
