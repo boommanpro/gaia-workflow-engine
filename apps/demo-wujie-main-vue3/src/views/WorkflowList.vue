@@ -188,7 +188,7 @@ const editWorkflow = (workflow) => {
 const copyToCustom = async (exampleWorkflow) => {
   try {
     // 获取示例工作流的完整数据
-    const workflowResponse = await fetch(`/workflows/${exampleWorkflow.exampleDir}/workflow.json`)
+    const workflowResponse = await fetch(`./workflows/${exampleWorkflow.exampleDir}/workflow.json`)
     const workflowData = await workflowResponse.json()
 
     // 创建新的自建工作流
@@ -202,7 +202,7 @@ const copyToCustom = async (exampleWorkflow) => {
     loadWorkflows()
 
     // 跳转到编辑页面
-    router.push(`/editor/${newWorkflow.id}`)
+    router.push(`./editor/${newWorkflow.id}`)
   } catch (error) {
     console.error('复制示例工作流失败:', error)
     alert('复制示例工作流失败')
@@ -233,7 +233,7 @@ const showDescription = async (workflow) => {
   try {
     if (workflow.isExample) {
       // 加载示例工作流的readme
-      const response = await fetch(`/workflows/${workflow.exampleDir}/readme.md`)
+      const response = await fetch(`./workflows/${workflow.exampleDir}/readme.md`)
       const text = await response.text()
       workflowDescription.value = text
     } else {

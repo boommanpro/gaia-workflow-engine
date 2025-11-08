@@ -95,7 +95,7 @@ const loadData = async () => {
     try {
       console.log('加载示例工作流数据:', props.exampleId)
       // 使用绝对路径访问public目录下的文件
-      const url = `/workflows/${props.exampleId}/workflow.json`
+      const url = `./workflows/${props.exampleId}/workflow.json`
       console.log('请求URL:', url)
       const response = await fetch(url)
       console.log('响应状态:', response.status)
