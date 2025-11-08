@@ -1,0 +1,232 @@
+"use strict";
+(self["webpackChunk_flowgram_ai_demo_free_layout"] = self["webpackChunk_flowgram_ai_demo_free_layout"] || []).push([["10"], {
+2702: (function (__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+__webpack_require__.r(__webpack_exports__);
+__webpack_require__.d(__webpack_exports__, {
+  ThemeColor: () => (ThemeColor),
+  ThemeIcon: () => (ThemeIcon)
+});
+/* ESM import */var _codicons_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(2665);
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+var ThemeColor;
+(function (ThemeColor) {
+    function isThemeColor(obj) {
+        return obj && typeof obj === 'object' && typeof obj.id === 'string';
+    }
+    ThemeColor.isThemeColor = isThemeColor;
+})(ThemeColor || (ThemeColor = {}));
+var ThemeIcon;
+(function (ThemeIcon) {
+    ThemeIcon.iconNameSegment = '[A-Za-z0-9]+';
+    ThemeIcon.iconNameExpression = '[A-Za-z0-9-]+';
+    ThemeIcon.iconModifierExpression = '~[A-Za-z]+';
+    ThemeIcon.iconNameCharacter = '[A-Za-z0-9~-]';
+    const ThemeIconIdRegex = new RegExp(`^(${ThemeIcon.iconNameExpression})(${ThemeIcon.iconModifierExpression})?$`);
+    function asClassNameArray(icon) {
+        const match = ThemeIconIdRegex.exec(icon.id);
+        if (!match) {
+            return asClassNameArray(_codicons_js__WEBPACK_IMPORTED_MODULE_0__.Codicon.error);
+        }
+        const [, id, modifier] = match;
+        const classNames = ['codicon', 'codicon-' + id];
+        if (modifier) {
+            classNames.push('codicon-modifier-' + modifier.substring(1));
+        }
+        return classNames;
+    }
+    ThemeIcon.asClassNameArray = asClassNameArray;
+    function asClassName(icon) {
+        return asClassNameArray(icon).join(' ');
+    }
+    ThemeIcon.asClassName = asClassName;
+    function asCSSSelector(icon) {
+        return '.' + asClassNameArray(icon).join('.');
+    }
+    ThemeIcon.asCSSSelector = asCSSSelector;
+    function isThemeIcon(obj) {
+        return obj && typeof obj === 'object' && typeof obj.id === 'string' && (typeof obj.color === 'undefined' || ThemeColor.isThemeColor(obj.color));
+    }
+    ThemeIcon.isThemeIcon = isThemeIcon;
+    const _regexFromString = new RegExp(`^\\$\\((${ThemeIcon.iconNameExpression}(?:${ThemeIcon.iconModifierExpression})?)\\)$`);
+    function fromString(str) {
+        const match = _regexFromString.exec(str);
+        if (!match) {
+            return undefined;
+        }
+        const [, name] = match;
+        return { id: name };
+    }
+    ThemeIcon.fromString = fromString;
+    function fromId(id) {
+        return { id };
+    }
+    ThemeIcon.fromId = fromId;
+    function modify(icon, modifier) {
+        let id = icon.id;
+        const tildeIndex = id.lastIndexOf('~');
+        if (tildeIndex !== -1) {
+            id = id.substring(0, tildeIndex);
+        }
+        if (modifier) {
+            id = `${id}~${modifier}`;
+        }
+        return { id };
+    }
+    ThemeIcon.modify = modify;
+    function getModifier(icon) {
+        const tildeIndex = icon.id.lastIndexOf('~');
+        if (tildeIndex !== -1) {
+            return icon.id.substring(tildeIndex + 1);
+        }
+        return undefined;
+    }
+    ThemeIcon.getModifier = getModifier;
+    function isEqual(ti1, ti2) {
+        return ti1.id === ti2.id && ti1.color?.id === ti2.color?.id;
+    }
+    ThemeIcon.isEqual = isEqual;
+})(ThemeIcon || (ThemeIcon = {}));
+
+
+}),
+3478: (function (__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+__webpack_require__.r(__webpack_exports__);
+__webpack_require__.d(__webpack_exports__, {
+  getIconClasses: () => (getIconClasses)
+});
+/* ESM import */var _base_common_network_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(2687);
+/* ESM import */var _base_common_resources_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(2847);
+/* ESM import */var _base_common_uri_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(2658);
+/* ESM import */var _languages_modesRegistry_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(2731);
+/* ESM import */var _platform_files_common_files_js__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(3479);
+/* ESM import */var _base_common_themables_js__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(2702);
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+
+
+
+
+
+const fileIconDirectoryRegex = /(?:\/|^)(?:([^\/]+)\/)?([^\/]+)$/;
+function getIconClasses(modelService, languageService, resource, fileKind, icon) {
+    if (_base_common_themables_js__WEBPACK_IMPORTED_MODULE_5__.ThemeIcon.isThemeIcon(icon)) {
+        return [`codicon-${icon.id}`, 'predefined-file-icon'];
+    }
+    if (_base_common_uri_js__WEBPACK_IMPORTED_MODULE_2__.URI.isUri(icon)) {
+        return [];
+    }
+    // we always set these base classes even if we do not have a path
+    const classes = fileKind === _platform_files_common_files_js__WEBPACK_IMPORTED_MODULE_4__.FileKind.ROOT_FOLDER ? ['rootfolder-icon'] : fileKind === _platform_files_common_files_js__WEBPACK_IMPORTED_MODULE_4__.FileKind.FOLDER ? ['folder-icon'] : ['file-icon'];
+    if (resource) {
+        // Get the path and name of the resource. For data-URIs, we need to parse specially
+        let name;
+        if (resource.scheme === _base_common_network_js__WEBPACK_IMPORTED_MODULE_0__.Schemas.data) {
+            const metadata = _base_common_resources_js__WEBPACK_IMPORTED_MODULE_1__.DataUri.parseMetaData(resource);
+            name = metadata.get(_base_common_resources_js__WEBPACK_IMPORTED_MODULE_1__.DataUri.META_DATA_LABEL);
+        }
+        else {
+            const match = resource.path.match(fileIconDirectoryRegex);
+            if (match) {
+                name = cssEscape(match[2].toLowerCase());
+                if (match[1]) {
+                    classes.push(`${cssEscape(match[1].toLowerCase())}-name-dir-icon`); // parent directory
+                }
+            }
+            else {
+                name = cssEscape(resource.authority.toLowerCase());
+            }
+        }
+        // Root Folders
+        if (fileKind === _platform_files_common_files_js__WEBPACK_IMPORTED_MODULE_4__.FileKind.ROOT_FOLDER) {
+            classes.push(`${name}-root-name-folder-icon`);
+        }
+        // Folders
+        else if (fileKind === _platform_files_common_files_js__WEBPACK_IMPORTED_MODULE_4__.FileKind.FOLDER) {
+            classes.push(`${name}-name-folder-icon`);
+        }
+        // Files
+        else {
+            // Name & Extension(s)
+            if (name) {
+                classes.push(`${name}-name-file-icon`);
+                classes.push(`name-file-icon`); // extra segment to increase file-name score
+                // Avoid doing an explosive combination of extensions for very long filenames
+                // (most file systems do not allow files > 255 length) with lots of `.` characters
+                // https://github.com/microsoft/vscode/issues/116199
+                if (name.length <= 255) {
+                    const dotSegments = name.split('.');
+                    for (let i = 1; i < dotSegments.length; i++) {
+                        classes.push(`${dotSegments.slice(i).join('.')}-ext-file-icon`); // add each combination of all found extensions if more than one
+                    }
+                }
+                classes.push(`ext-file-icon`); // extra segment to increase file-ext score
+            }
+            // Detected Mode
+            const detectedLanguageId = detectLanguageId(modelService, languageService, resource);
+            if (detectedLanguageId) {
+                classes.push(`${cssEscape(detectedLanguageId)}-lang-file-icon`);
+            }
+        }
+    }
+    return classes;
+}
+function detectLanguageId(modelService, languageService, resource) {
+    if (!resource) {
+        return null; // we need a resource at least
+    }
+    let languageId = null;
+    // Data URI: check for encoded metadata
+    if (resource.scheme === _base_common_network_js__WEBPACK_IMPORTED_MODULE_0__.Schemas.data) {
+        const metadata = _base_common_resources_js__WEBPACK_IMPORTED_MODULE_1__.DataUri.parseMetaData(resource);
+        const mime = metadata.get(_base_common_resources_js__WEBPACK_IMPORTED_MODULE_1__.DataUri.META_DATA_MIME);
+        if (mime) {
+            languageId = languageService.getLanguageIdByMimeType(mime);
+        }
+    }
+    // Any other URI: check for model if existing
+    else {
+        const model = modelService.getModel(resource);
+        if (model) {
+            languageId = model.getLanguageId();
+        }
+    }
+    // only take if the language id is specific (aka no just plain text)
+    if (languageId && languageId !== _languages_modesRegistry_js__WEBPACK_IMPORTED_MODULE_3__.PLAINTEXT_LANGUAGE_ID) {
+        return languageId;
+    }
+    // otherwise fallback to path based detection
+    return languageService.guessLanguageIdByFilepathOrFirstLine(resource);
+}
+function cssEscape(str) {
+    return str.replace(/[\s]/g, '/'); // HTML class names can not contain certain whitespace characters (https://dom.spec.whatwg.org/#interface-domtokenlist), use / instead, which doesn't exist in file names.
+}
+
+
+}),
+3479: (function (__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+__webpack_require__.r(__webpack_exports__);
+__webpack_require__.d(__webpack_exports__, {
+  FileKind: () => (FileKind)
+});
+//#endregion
+//#region Utilities
+var FileKind;
+(function (FileKind) {
+    FileKind[FileKind["FILE"] = 0] = "FILE";
+    FileKind[FileKind["FOLDER"] = 1] = "FOLDER";
+    FileKind[FileKind["ROOT_FOLDER"] = 2] = "ROOT_FOLDER";
+})(FileKind || (FileKind = {}));
+//#endregion
+
+
+}),
+
+}]);
+//# sourceMappingURL=10.js.map
