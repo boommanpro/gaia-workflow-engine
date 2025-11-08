@@ -6,7 +6,7 @@
       "meta": {
         "position": {
           "x": 180,
-          "y": 262.1
+          "y": 165.3
         }
       },
       "data": {
@@ -17,21 +17,11 @@
             "query": {
               "type": "string",
               "default": "Hello Flow."
-            },
-            "enable": {
-              "type": "boolean",
-              "default": true
-            },
-            "array_obj": {
-              "type": "array",
-              "items": {
-                "type": "integer"
-              },
-              "default": "[1,2,3]"
             }
           },
           "required": []
-        }
+        },
+        "description": "大模型输入字段"
       }
     },
     {
@@ -39,83 +29,14 @@
       "type": "end",
       "meta": {
         "position": {
-          "x": 2508,
-          "y": 262.1
+          "x": 1100,
+          "y": 165.3
         }
       },
       "data": {
         "title": "结束节点",
         "inputsValues": {
-          "success": {
-            "type": "constant",
-            "content": true,
-            "schema": {
-              "type": "boolean"
-            },
-            "extra": {
-              "index": 0
-            }
-          },
-          "query": {
-            "type": "ref",
-            "content": [
-              "start_0",
-              "query"
-            ],
-            "extra": {
-              "index": 1
-            }
-          },
-          "ai_loop_user": {
-            "type": "ref",
-            "content": [
-              "loop_TC60x",
-              "user"
-            ],
-            "extra": {
-              "index": 5
-            }
-          }
-        },
-        "inputs": {
-          "type": "object",
-          "properties": {
-            "success": {
-              "type": "boolean"
-            },
-            "query": {
-              "type": "string"
-            },
-            "ai_loop_user": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            }
-          }
-        }
-      }
-    },
-    {
-      "id": "loop_TC60x",
-      "type": "loop",
-      "meta": {
-        "position": {
-          "x": 540,
-          "y": 0
-        }
-      },
-      "data": {
-        "title": "Loop_1",
-        "loopFor": {
-          "type": "ref",
-          "content": [
-            "start_0",
-            "array_obj"
-          ]
-        },
-        "loopOutputs": {
-          "user": {
+          "result": {
             "type": "ref",
             "content": [
               "llm_aO_gu",
@@ -123,236 +44,115 @@
             ]
           }
         },
-        "outputs": {
+        "inputs": {
           "type": "object",
-          "required": [],
           "properties": {
-            "user": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
+            "result": {
+              "type": "string"
             }
           }
+        },
+        "description": "大模型结果字段"
+      }
+    },
+    {
+      "id": "llm_aO_gu",
+      "type": "llm",
+      "meta": {
+        "position": {
+          "x": 640,
+          "y": 0
         }
       },
-      "blocks": [
-        {
-          "id": "block_start_O0kbZ",
-          "type": "block-start",
-          "meta": {
-            "position": {
-              "x": 32,
-              "y": 190.60000000000002
+      "data": {
+        "title": "本地千问模型",
+        "inputsValues": {
+          "modelName": {
+            "type": "constant",
+            "content": "qwen/qwen3-4b-2507",
+            "schema": {
+              "type": "string"
             }
           },
-          "data": {}
-        },
-        {
-          "id": "block_end_CDMp3",
-          "type": "block-end",
-          "meta": {
-            "position": {
-              "x": 1576,
-              "y": 195.60000000000002
+          "apiKey": {
+            "type": "constant",
+            "content": "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          "apiHost": {
+            "type": "constant",
+            "content": "http://localhost:1234/v1",
+            "schema": {
+              "type": "string"
             }
           },
-          "data": {}
-        },
-        {
-          "id": "condition_E0X5H",
-          "type": "condition",
-          "meta": {
-            "position": {
-              "x": 1264,
-              "y": 187.72500000000002
-            }
+          "temperature": {
+            "type": "constant",
+            "content": 0.5
           },
-          "data": {
-            "title": "Condition",
-            "conditions": [
-              {
-                "value": {
-                  "left": {
-                    "type": "ref",
-                    "content": [
-                      "llm_aO_gu",
-                      "result"
-                    ]
-                  },
-                  "operator": "is_empty"
-                },
-                "key": "if_OqGme"
-              }
-            ]
+          "systemPrompt": {
+            "type": "template",
+            "content": "# Role\n你是一个ai {{start_0.query}}\n"
+          },
+          "prompt": {
+            "type": "template",
+            "content": "{{start_0.query}}"
           }
         },
-        {
-          "id": "llm_aO_gu",
-          "type": "llm",
-          "meta": {
-            "position": {
-              "x": 344,
-              "y": 2.842170943040401e-14
-            }
-          },
-          "data": {
-            "title": "LLM_1",
-            "inputsValues": {
-              "modelName": {
-                "type": "constant",
-                "content": "qwen/qwen3-4b-2507",
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "apiKey": {
-                "type": "constant",
-                "content": "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-              },
-              "apiHost": {
-                "type": "constant",
-                "content": "http://localhost:1234/v1",
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "temperature": {
-                "type": "constant",
-                "content": 0.5
-              },
-              "systemPrompt": {
-                "type": "template",
-                "content": "# Role\nYou are an AI assistant.\n"
-              },
-              "prompt": {
-                "type": "template",
-                "content": "请返回一个用户的json结构，仅返回json数据即可"
+        "inputs": {
+          "type": "object",
+          "required": [
+            "modelName",
+            "apiKey",
+            "apiHost",
+            "temperature",
+            "prompt"
+          ],
+          "properties": {
+            "modelName": {
+              "type": "string"
+            },
+            "apiKey": {
+              "type": "string"
+            },
+            "apiHost": {
+              "type": "string"
+            },
+            "temperature": {
+              "type": "number"
+            },
+            "systemPrompt": {
+              "type": "string",
+              "extra": {
+                "formComponent": "prompt-editor"
               }
             },
-            "inputs": {
-              "type": "object",
-              "required": [
-                "modelName",
-                "apiKey",
-                "apiHost",
-                "temperature",
-                "prompt"
-              ],
-              "properties": {
-                "modelName": {
-                  "type": "string"
-                },
-                "apiKey": {
-                  "type": "string"
-                },
-                "apiHost": {
-                  "type": "string"
-                },
-                "temperature": {
-                  "type": "number"
-                },
-                "systemPrompt": {
-                  "type": "string",
-                  "extra": {
-                    "formComponent": "prompt-editor"
-                  }
-                },
-                "prompt": {
-                  "type": "string",
-                  "extra": {
-                    "formComponent": "prompt-editor"
-                  }
-                }
-              }
-            },
-            "outputs": {
-              "type": "object",
-              "properties": {
-                "result": {
-                  "type": "string"
-                }
+            "prompt": {
+              "type": "string",
+              "extra": {
+                "formComponent": "prompt-editor"
               }
             }
           }
         },
-        {
-          "id": "condition_g0VFu",
-          "type": "branches",
-          "meta": {
-            "position": {
-              "x": 804,
-              "y": 16.850000000000023
+        "outputs": {
+          "type": "object",
+          "properties": {
+            "result": {
+              "type": "string"
             }
-          },
-          "data": {
-            "title": "Branches",
-            "branches": [
-              {
-                "id": "branch_xhjKi",
-                "title": "Branch 1",
-                "logic": "and",
-                "conditions": [
-                  {
-                    "value": {
-                      "type": "expression",
-                      "content": "",
-                      "left": {
-                        "type": "ref",
-                        "content": [
-                          "start_0",
-                          "query"
-                        ]
-                      }
-                    },
-                    "key": "if_xIs8xt"
-                  }
-                ]
-              }
-            ],
-            "description": "Connect multiple downstream branches. Only the corresponding branch will be executed if the set conditions are met."
           }
-        }
-      ],
-      "edges": [
-        {
-          "sourceNodeID": "block_start_O0kbZ",
-          "targetNodeID": "llm_aO_gu"
         },
-        {
-          "sourceNodeID": "condition_E0X5H",
-          "targetNodeID": "block_end_CDMp3",
-          "sourcePortID": "else"
-        },
-        {
-          "sourceNodeID": "condition_E0X5H",
-          "targetNodeID": "block_end_CDMp3",
-          "sourcePortID": "if_OqGme"
-        },
-        {
-          "sourceNodeID": "condition_g0VFu",
-          "targetNodeID": "block_end_CDMp3",
-          "sourcePortID": "else"
-        },
-        {
-          "sourceNodeID": "condition_g0VFu",
-          "targetNodeID": "condition_E0X5H",
-          "sourcePortID": "branch_xhjKi"
-        },
-        {
-          "sourceNodeID": "llm_aO_gu",
-          "targetNodeID": "condition_g0VFu"
-        }
-      ]
+        "description": "大模型"
+      }
     }
   ],
   "edges": [
     {
       "sourceNodeID": "start_0",
-      "targetNodeID": "loop_TC60x"
+      "targetNodeID": "llm_aO_gu"
     },
     {
-      "sourceNodeID": "loop_TC60x",
+      "sourceNodeID": "llm_aO_gu",
       "targetNodeID": "end_0"
     }
   ]

@@ -1,5 +1,5 @@
 {
-  "name": "demo2",
+  "name": "简单llm-demo",
   "description": "demo2",
   "tags": ["数据处理", "管道", "示例"],
   "isExample": true,
