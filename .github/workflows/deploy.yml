@@ -46,16 +46,12 @@ jobs:
         run: |
           # 创建部署目录
           mkdir -p deployment
+          mkdir -p deployment/workflow-editor
           # 复制主应用
           cp -r apps/demo-wujie-main-vue3/dist/* deployment/
-          # 创建子应用目录并复制子应用
-          mkdir -p deployment/workflow-editor
-          # 检查源目录是否存在，如果存在则复制
-          if [ -d "apps/demo-free-layout/dist" ]; then
-            cp -r apps/demo-free-layout/dist/* deployment/workflow-editor/
-          else
-            echo "Warning: apps/demo-free-layout/dist directory not found"
-          fi
+          # 复制子应用
+          cp -r apps/demo-free-layout/workflow-editor/* deployment/workflow-editor/
+
 
       # 部署应用
       - name: Deploy
