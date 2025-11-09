@@ -75,7 +75,7 @@ export class WorkflowRuntimeService {
       return this.runningNodes.some((node) => {
         const nodeReport = this.nodeReports.get(node.id);
         if (!nodeReport || !nodeReport.snapshots.length) {
-          return false;
+          return true;
         }
 
         const latestSnapshot = nodeReport.snapshots[nodeReport.snapshots.length - 1];
@@ -240,7 +240,7 @@ export class WorkflowRuntimeService {
         }
       });
   }
-  
+
   // 添加设置认证信息的方法
   public setAuthorization(auth: string | null) {
     // 这里可以添加更多处理逻辑，如果需要的话
