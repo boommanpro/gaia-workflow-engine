@@ -5,13 +5,13 @@
 
 import {IReport, NodeReport, WorkflowInputs, WorkflowOutputs, WorkflowStatus,} from '@flowgram.ai/runtime-interface';
 import {
-  Emitter,
-  inject,
-  injectable,
-  Playground,
-  WorkflowDocument,
-  WorkflowLineEntity,
-  WorkflowNodeEntity,
+    Emitter,
+    inject,
+    injectable,
+    Playground,
+    WorkflowDocument,
+    WorkflowLineEntity,
+    WorkflowNodeEntity,
 } from '@flowgram.ai/free-layout-editor';
 
 import {WorkflowRuntimeClient} from '../client';
@@ -21,229 +21,228 @@ import {WorkflowNodeType} from '../../../nodes';
 const SYNC_TASK_REPORT_INTERVAL = 500;
 
 interface NodeRunningStatus {
-  nodeID: string;
-  status: WorkflowStatus;
-  nodeResultLength: number;
+    nodeID: string;
+    status: WorkflowStatus;
+    nodeResultLength: number;
 }
 
 @injectable()
 export class WorkflowRuntimeService {
-  @inject(Playground) playground: Playground;
+    @inject(Playground) playground: Playground;
 
-  @inject(WorkflowDocument) document: WorkflowDocument;
+    @inject(WorkflowDocument) document: WorkflowDocument;
 
-  @inject(WorkflowRuntimeClient) runtimeClient: WorkflowRuntimeClient;
+    @inject(WorkflowRuntimeClient) runtimeClient: WorkflowRuntimeClient;
 
-  @inject(GetGlobalVariableSchema) getGlobalVariableSchema: GetGlobalVariableSchema;
+    @inject(GetGlobalVariableSchema) getGlobalVariableSchema: GetGlobalVariableSchema;
 
-  private runningNodes: WorkflowNodeEntity[] = [];
+    private runningNodes: WorkflowNodeEntity[] = [];
 
-  private taskID?: string;
+    private taskID?: string;
 
-  private syncTaskReportIntervalID?: ReturnType<typeof setInterval>;
+    private syncTaskReportIntervalID?: ReturnType<typeof setInterval>;
 
-  private reportEmitter = new Emitter<NodeReport>();
+    private reportEmitter = new Emitter<NodeReport>();
 
-  private resetEmitter = new Emitter<{}>();
+    private resetEmitter = new Emitter<{}>();
 
-  private resultEmitter = new Emitter<{
-    errors?: string[];
-    result?: {
-      inputs: WorkflowInputs;
-      outputs: WorkflowOutputs;
-    };
-  }>();
+    private resultEmitter = new Emitter<{
+        errors?: string[];
+        result?: {
+            inputs: WorkflowInputs;
+            outputs: WorkflowOutputs;
+        };
+    }>();
 
-  private nodeRunningStatus: Map<string, NodeRunningStatus> = new Map();
+    private nodeRunningStatus: Map<string, NodeRunningStatus> = new Map();
 
-  private nodeReports: Map<string, NodeReport> = new Map();
+    private nodeReports: Map<string, NodeReport> = new Map();
 
-  public onNodeReportChange = this.reportEmitter.event;
+    public onNodeReportChange = this.reportEmitter.event;
 
-  public onReset = this.resetEmitter.event;
+    public onReset = this.resetEmitter.event;
 
-  public onResultChanged = this.resultEmitter.event;
+    public onResultChanged = this.resultEmitter.event;
 
-  public isFlowingLine(line: WorkflowLineEntity) {
-    // 检查是否是正在运行节点的输入边
-    const isInputLine = this.runningNodes.some((node) =>
-        node.lines.inputLines.includes(line)
-    );
-
-    if (isInputLine) {
-      console.log(this.runningNodes)
-      return this.runningNodes.some((node) => {
-        const nodeReport = this.nodeReports.get(node.id);
-        if (!nodeReport || !nodeReport.snapshots.length) {
-          return true;
+    public isFlowingLine(line: WorkflowLineEntity) {
+        // 首先检查这条线是否是运行节点的输入线
+        const isInputLine = this.runningNodes.some((node) =>
+            node.lines.inputLines.includes(line)
+        );
+        if (!isInputLine) {
+            return false;
+        }
+        if (!line.fromPort.portID) {
+            return true;
+        }
+        // 获取这条线的开始节点
+        const fromNodeReport = this.nodeReports.get(line.from.id);
+        if (!fromNodeReport || !fromNodeReport.snapshots.length) {
+            return false;
         }
 
-        const latestSnapshot = nodeReport.snapshots[nodeReport.snapshots.length - 1];
+        // 检查开始节点最后一个snapshot中的branch是否为null或与fromPort相等
+        const latestSnapshot = fromNodeReport.snapshots[fromNodeReport.snapshots.length - 1];
         const executedBranch = latestSnapshot.branch;
-        // 如果没有分支信息，或者这条边对应的端口就是执行的分支，则闪烁
-        return node.lines.inputLines.includes(line) &&
-            (!executedBranch || line.info.fromPort === executedBranch);
-      });
+
+        return !executedBranch || line.info.fromPort === executedBranch;
     }
 
-    return false;
-  }
+    public async taskRun(inputs: WorkflowInputs): Promise<string | undefined> {
+        if (this.taskID) {
+            await this.taskCancel();
+        }
+        const isFormValid = await this.validateForm();
+        if (!isFormValid) {
+            this.resultEmitter.fire({
+                errors: ['Form validation failed'],
+            });
+            return;
+        }
+        const schema = {
+            ...this.document.toJSON(),
+            globalVariable: this.getGlobalVariableSchema(),
+        };
 
-  public async taskRun(inputs: WorkflowInputs): Promise<string | undefined> {
-    if (this.taskID) {
-      await this.taskCancel();
-    }
-    const isFormValid = await this.validateForm();
-    if (!isFormValid) {
-      this.resultEmitter.fire({
-        errors: ['Form validation failed'],
-      });
-      return;
-    }
-    const schema = {
-      ...this.document.toJSON(),
-      globalVariable: this.getGlobalVariableSchema(),
-    };
-
-    const validateResult = await this.runtimeClient.TaskValidate({
-      schema: JSON.stringify(schema),
-      inputs,
-    });
-    if (!validateResult?.valid) {
-      this.resultEmitter.fire({
-        errors: validateResult?.errors ?? ['Internal Server Error'],
-      });
-      return;
-    }
-    this.reset();
-    let taskID: string | undefined;
-    try {
-      const output = await this.runtimeClient.TaskRun({
-        schema: JSON.stringify(schema),
-        inputs,
-      });
-      taskID = output?.taskID;
-    } catch (e) {
-      this.resultEmitter.fire({
-        errors: [(e as Error)?.message],
-      });
-      return;
-    }
-    if (!taskID) {
-      this.resultEmitter.fire({
-        errors: ['Task run failed'],
-      });
-      return;
-    }
-    this.taskID = taskID;
-    this.syncTaskReportIntervalID = setInterval(() => {
-      this.syncTaskReport();
-    }, SYNC_TASK_REPORT_INTERVAL);
-    return this.taskID;
-  }
-
-  public async taskCancel(): Promise<void> {
-    if (!this.taskID) {
-      return;
-    }
-    await this.runtimeClient.TaskCancel({
-      taskID: this.taskID,
-    });
-  }
-
-  private async validateForm(): Promise<boolean> {
-    const allForms = this.document.getAllNodes().map((node) => node.form);
-    const formValidations = await Promise.all(allForms.map(async (form) => form?.validate()));
-    const validations = formValidations.filter((validation) => validation !== undefined);
-    const isValid = validations.every((validation) => validation);
-    return isValid;
-  }
-
-  private reset(): void {
-    this.taskID = undefined;
-    this.nodeRunningStatus = new Map();
-    this.nodeReports.clear();
-    this.runningNodes = [];
-    if (this.syncTaskReportIntervalID) {
-      clearInterval(this.syncTaskReportIntervalID);
-    }
-    this.resetEmitter.fire({});
-  }
-
-  private async syncTaskReport(): Promise<void> {
-    if (!this.taskID) {
-      return;
-    }
-    const report = await this.runtimeClient.TaskReport({
-      taskID: this.taskID,
-    });
-    if (!report) {
-      clearInterval(this.syncTaskReportIntervalID);
-      console.error('Sync task report failed');
-      return;
-    }
-    const { workflowStatus, inputs, outputs, messages } = report;
-    if (workflowStatus.terminated) {
-      clearInterval(this.syncTaskReportIntervalID);
-      if (outputs && Object.keys(outputs).length > 0) {
-        this.resultEmitter.fire({ result: { inputs, outputs } });
-      } else {
-        this.resultEmitter.fire({
-          errors: messages?.error?.map((message) =>
-            message.nodeID ? `${message.nodeID}: ${message.message}` : message.message
-          ),
+        const validateResult = await this.runtimeClient.TaskValidate({
+            schema: JSON.stringify(schema),
+            inputs,
         });
-      }
+        if (!validateResult?.valid) {
+            this.resultEmitter.fire({
+                errors: validateResult?.errors ?? ['Internal Server Error'],
+            });
+            return;
+        }
+        this.reset();
+        let taskID: string | undefined;
+        try {
+            const output = await this.runtimeClient.TaskRun({
+                schema: JSON.stringify(schema),
+                inputs,
+            });
+            taskID = output?.taskID;
+        } catch (e) {
+            this.resultEmitter.fire({
+                errors: [(e as Error)?.message],
+            });
+            return;
+        }
+        if (!taskID) {
+            this.resultEmitter.fire({
+                errors: ['Task run failed'],
+            });
+            return;
+        }
+        this.taskID = taskID;
+        this.syncTaskReportIntervalID = setInterval(() => {
+            this.syncTaskReport();
+        }, SYNC_TASK_REPORT_INTERVAL);
+        return this.taskID;
     }
-    this.updateReport(report);
-  }
 
-  private updateReport(report: IReport): void {
-    const { reports } = report;
-    this.runningNodes = [];
-    this.document
-      .getAllNodes()
-      .filter(
-        (node) =>
-          ![WorkflowNodeType.BlockStart, WorkflowNodeType.BlockEnd].includes(
-            node.flowNodeType as WorkflowNodeType
-          )
-      )
-      .forEach((node) => {
-        const nodeID = node.id;
-        const nodeReport = reports[nodeID];
-        if (!nodeReport) {
-          return;
+    public async taskCancel(): Promise<void> {
+        if (!this.taskID) {
+            return;
         }
+        await this.runtimeClient.TaskCancel({
+            taskID: this.taskID,
+        });
+    }
 
-        // 更新 nodeReports Map
-        this.nodeReports.set(nodeID, nodeReport);
+    private async validateForm(): Promise<boolean> {
+        const allForms = this.document.getAllNodes().map((node) => node.form);
+        const formValidations = await Promise.all(allForms.map(async (form) => form?.validate()));
+        const validations = formValidations.filter((validation) => validation !== undefined);
+        const isValid = validations.every((validation) => validation);
+        return isValid;
+    }
 
-        if (nodeReport.status === WorkflowStatus.Processing) {
-          this.runningNodes.push(node);
+    private reset(): void {
+        this.taskID = undefined;
+        this.nodeRunningStatus = new Map();
+        this.nodeReports.clear();
+        this.runningNodes = [];
+        if (this.syncTaskReportIntervalID) {
+            clearInterval(this.syncTaskReportIntervalID);
         }
-        const runningStatus = this.nodeRunningStatus.get(nodeID);
-        if (
-          !runningStatus ||
-          nodeReport.status !== runningStatus.status ||
-          nodeReport.snapshots.length !== runningStatus.nodeResultLength
-        ) {
-          this.nodeRunningStatus.set(nodeID, {
-            nodeID,
-            status: nodeReport.status,
-            nodeResultLength: nodeReport.snapshots.length,
-          });
-          this.reportEmitter.fire(nodeReport);
-          this.document.linesManager.forceUpdate();
-        } else if (nodeReport.status === WorkflowStatus.Processing) {
-          this.reportEmitter.fire(nodeReport);
-        }
-      });
-  }
+        this.resetEmitter.fire({});
+    }
 
-  // 添加设置认证信息的方法
-  public setAuthorization(auth: string | null) {
-    // 这里可以添加更多处理逻辑，如果需要的话
-    console.log('Setting authorization for runtime service:', auth);
-  }
+    private async syncTaskReport(): Promise<void> {
+        if (!this.taskID) {
+            return;
+        }
+        const report = await this.runtimeClient.TaskReport({
+            taskID: this.taskID,
+        });
+        if (!report) {
+            clearInterval(this.syncTaskReportIntervalID);
+            console.error('Sync task report failed');
+            return;
+        }
+        const {workflowStatus, inputs, outputs, messages} = report;
+        if (workflowStatus.terminated) {
+            clearInterval(this.syncTaskReportIntervalID);
+            if (outputs && Object.keys(outputs).length > 0) {
+                this.resultEmitter.fire({result: {inputs, outputs}});
+            } else {
+                this.resultEmitter.fire({
+                    errors: messages?.error?.map((message) =>
+                        message.nodeID ? `${message.nodeID}: ${message.message}` : message.message
+                    ),
+                });
+            }
+        }
+        this.updateReport(report);
+    }
+
+    private updateReport(report: IReport): void {
+        const {reports} = report;
+        this.runningNodes = [];
+        this.document
+            .getAllNodes()
+            .filter(
+                (node) =>
+                    ![WorkflowNodeType.BlockStart, WorkflowNodeType.BlockEnd].includes(
+                        node.flowNodeType as WorkflowNodeType
+                    )
+            )
+            .forEach((node) => {
+                const nodeID = node.id;
+                const nodeReport = reports[nodeID];
+                if (!nodeReport) {
+                    return;
+                }
+
+                // 更新 nodeReports Map
+                this.nodeReports.set(nodeID, nodeReport);
+
+                if (nodeReport.status === WorkflowStatus.Processing) {
+                    this.runningNodes.push(node);
+                }
+                const runningStatus = this.nodeRunningStatus.get(nodeID);
+                if (
+                    !runningStatus ||
+                    nodeReport.status !== runningStatus.status ||
+                    nodeReport.snapshots.length !== runningStatus.nodeResultLength
+                ) {
+                    this.nodeRunningStatus.set(nodeID, {
+                        nodeID,
+                        status: nodeReport.status,
+                        nodeResultLength: nodeReport.snapshots.length,
+                    });
+                    this.reportEmitter.fire(nodeReport);
+                    this.document.linesManager.forceUpdate();
+                } else if (nodeReport.status === WorkflowStatus.Processing) {
+                    this.reportEmitter.fire(nodeReport);
+                }
+            });
+    }
+
+    // 添加设置认证信息的方法
+    public setAuthorization(auth: string | null) {
+        // 这里可以添加更多处理逻辑，如果需要的话
+        console.log('Setting authorization for runtime service:', auth);
+    }
 }

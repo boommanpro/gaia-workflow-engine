@@ -104,7 +104,6 @@ export class WorkflowRuntimeServerClient implements IRuntimeClient {
         method,
         redirect: 'follow',
       };
-      console.log('request', url, requestOptions)
       // 添加认证头
       let authorization = getAuthorization();
       if (authorization) {

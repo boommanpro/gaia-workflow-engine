@@ -4,42 +4,39 @@
  */
 
 /* eslint-disable no-console */
-import { useMemo } from 'react';
+import {useMemo} from 'react';
 
-import { debounce } from 'lodash-es';
-import { createPanelManagerPlugin } from '@flowgram.ai/panel-manager-plugin';
-import { createMinimapPlugin } from '@flowgram.ai/minimap-plugin';
-import { createFreeStackPlugin } from '@flowgram.ai/free-stack-plugin';
-import { createFreeSnapPlugin } from '@flowgram.ai/free-snap-plugin';
-import { createFreeNodePanelPlugin } from '@flowgram.ai/free-node-panel-plugin';
-import { createFreeLinesPlugin } from '@flowgram.ai/free-lines-plugin';
+import {debounce} from 'lodash-es';
+import {createPanelManagerPlugin} from '@flowgram.ai/panel-manager-plugin';
+import {createMinimapPlugin} from '@flowgram.ai/minimap-plugin';
+import {createFreeStackPlugin} from '@flowgram.ai/free-stack-plugin';
+import {createFreeSnapPlugin} from '@flowgram.ai/free-snap-plugin';
+import {createFreeNodePanelPlugin} from '@flowgram.ai/free-node-panel-plugin';
+import {createFreeLinesPlugin} from '@flowgram.ai/free-lines-plugin';
 import {
     FlowNodeBaseType,
     FreeLayoutPluginContext,
     FreeLayoutProps,
     WorkflowNodeEntity,
 } from '@flowgram.ai/free-layout-editor';
-import { createFreeGroupPlugin } from '@flowgram.ai/free-group-plugin';
-import { createContainerNodePlugin } from '@flowgram.ai/free-container-plugin';
+import {createFreeGroupPlugin} from '@flowgram.ai/free-group-plugin';
+import {createContainerNodePlugin} from '@flowgram.ai/free-container-plugin';
 
-import { canContainNode, onDragLineEnd } from '../utils';
-import { FlowNodeRegistry, FlowDocumentJSON } from '../typings';
-import { shortcuts } from '../shortcuts';
-import { CustomService } from '../services';
-import { GetGlobalVariableSchema } from '../plugins/variable-panel-plugin';
-import { WorkflowRuntimeService } from '../plugins/runtime-plugin/runtime-service';
-import {
-    createRuntimePlugin,
-    createContextMenuPlugin,
-    createVariablePanelPlugin,
-} from '../plugins';
-import { defaultFormMeta } from '../nodes/default-form-meta';
-import { WorkflowNodeType } from '../nodes';
-import { testRunPanelFactory } from '../components/testrun/testrun-panel';
-import { nodeFormPanelFactory } from '../components/sidebar';
-import { SelectorBoxPopover } from '../components/selector-box-popover';
-import { problemPanelFactory } from '../components/problem-panel';
-import { BaseNode, CommentRender, GroupNodeRender, LineAddButton, NodePanel } from '../components';
+import {canContainNode, onDragLineEnd} from '../utils';
+import {FlowDocumentJSON, FlowNodeRegistry} from '../typings';
+import {shortcuts} from '../shortcuts';
+import {CustomService} from '../services';
+import {GetGlobalVariableSchema} from '../plugins/variable-panel-plugin';
+import {WorkflowRuntimeService} from '../plugins/runtime-plugin/runtime-service';
+import {createContextMenuPlugin, createRuntimePlugin, createVariablePanelPlugin,} from '../plugins';
+import {defaultFormMeta} from '../nodes/default-form-meta';
+import {WorkflowNodeType} from '../nodes';
+import {testRunPanelFactory} from '../components/testrun/testrun-panel';
+import {nodeFormPanelFactory} from '../components/sidebar';
+import {SelectorBoxPopover} from '../components/selector-box-popover';
+import {problemPanelFactory} from '../components/problem-panel';
+import {BaseNode, CommentRender, GroupNodeRender, LineAddButton, NodePanel} from '../components';
+import {AssigneeRender} from '../nodes/assignee';
 
 export function useEditorProps(
     initialData: FlowDocumentJSON,
@@ -199,6 +196,7 @@ export function useEditorProps(
                 renderDefaultNode: BaseNode,
                 renderNodes: {
                     [WorkflowNodeType.Comment]: CommentRender,
+                    [WorkflowNodeType.Assignee]: AssigneeRender,
                 },
             },
             /**

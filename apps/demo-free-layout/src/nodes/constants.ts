@@ -20,4 +20,6 @@ export enum WorkflowNodeType {
   Continue = 'continue',
   Break = 'break',
   StringFormat='string-format',
+  Workflow = 'workflow',
+  Assignee = 'assignee',
 }

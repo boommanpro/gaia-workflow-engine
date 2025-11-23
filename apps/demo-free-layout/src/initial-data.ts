@@ -5,15 +5,15 @@
 
 import {FlowDocumentJSON} from './typings';
 
-export const initialData: FlowDocumentJSON = {
+export const initialData: FlowDocumentJSON ={
     "nodes": [
         {
             "id": "start_0",
             "type": "start",
             "meta": {
                 "position": {
-                    "x": 180,
-                    "y": 335.7
+                    "x": 169.7185981072503,
+                    "y": 428.89977615151935
                 }
             },
             "data": {
@@ -46,8 +46,8 @@ export const initialData: FlowDocumentJSON = {
             "type": "end",
             "meta": {
                 "position": {
-                    "x": 3888,
-                    "y": 323.2
+                    "x": 3959.969813249248,
+                    "y": 416.3997761515193
                 }
             },
             "data": {
@@ -133,8 +133,8 @@ export const initialData: FlowDocumentJSON = {
             "type": "loop",
             "meta": {
                 "position": {
-                    "x": 540,
-                    "y": 0
+                    "x": 579.0693271924488,
+                    "y": 134.8242709148014
                 }
             },
             "data": {
@@ -188,7 +188,7 @@ export const initialData: FlowDocumentJSON = {
                     "meta": {
                         "position": {
                             "x": 32,
-                            "y": 199
+                            "y": 386.57394473203993
                         }
                     },
                     "data": {}
@@ -198,8 +198,8 @@ export const initialData: FlowDocumentJSON = {
                     "type": "block-end",
                     "meta": {
                         "position": {
-                            "x": 2036,
-                            "y": 204
+                            "x": 2011.3246354574007,
+                            "y": 531.4010104734359
                         }
                     },
                     "data": {}
@@ -209,8 +209,8 @@ export const initialData: FlowDocumentJSON = {
                     "type": "condition",
                     "meta": {
                         "position": {
-                            "x": 804,
-                            "y": 106.25
+                            "x": 779.3246354574007,
+                            "y": 433.6510104734359
                         }
                     },
                     "data": {
@@ -228,6 +228,28 @@ export const initialData: FlowDocumentJSON = {
                                     "operator": "is_empty"
                                 },
                                 "key": "if_OqGme"
+                            },
+                            {
+                                "value": {
+                                    "type": "expression",
+                                    "content": "",
+                                    "left": {
+                                        "type": "ref",
+                                        "content": [
+                                            "loop_TC60x_locals",
+                                            "index"
+                                        ]
+                                    },
+                                    "operator": "gte",
+                                    "right": {
+                                        "type": "constant",
+                                        "content": 0,
+                                        "schema": {
+                                            "type": "number"
+                                        }
+                                    }
+                                },
+                                "key": "if_brnoNs"
                             }
                         ]
                     }
@@ -237,8 +259,8 @@ export const initialData: FlowDocumentJSON = {
                     "type": "llm",
                     "meta": {
                         "position": {
-                            "x": 344,
-                            "y": 0
+                            "x": 300.81811205045125,
+                            "y": 148.50461753959107
                         }
                     },
                     "data": {
@@ -326,8 +348,8 @@ export const initialData: FlowDocumentJSON = {
                     "type": "llm",
                     "meta": {
                         "position": {
-                            "x": 1264,
-                            "y": 147.20000000000002
+                            "x": 1269.5046399368532,
+                            "y": 32.82303337554171
                         }
                     },
                     "data": {
@@ -411,12 +433,12 @@ export const initialData: FlowDocumentJSON = {
                     }
                 },
                 {
-                    "id": "condition_JiD_w",
+                    "id": "branches_JiD_w",
                     "type": "branches",
                     "meta": {
                         "position": {
-                            "x": 1724,
-                            "y": 164.05
+                            "x": 1814.4763366561974,
+                            "y": 0
                         }
                     },
                     "data": {
@@ -459,12 +481,12 @@ export const initialData: FlowDocumentJSON = {
                     "sourcePortID": "else"
                 },
                 {
-                    "sourceNodeID": "condition_JiD_w",
+                    "sourceNodeID": "branches_JiD_w",
                     "targetNodeID": "block_end_CDMp3",
                     "sourcePortID": "branch_T5S5n"
                 },
                 {
-                    "sourceNodeID": "condition_JiD_w",
+                    "sourceNodeID": "branches_JiD_w",
                     "targetNodeID": "block_end_CDMp3",
                     "sourcePortID": "else"
                 },
@@ -478,8 +500,13 @@ export const initialData: FlowDocumentJSON = {
                     "sourcePortID": "if_OqGme"
                 },
                 {
+                    "sourceNodeID": "condition_E0X5H",
+                    "targetNodeID": "llm_kMoRm",
+                    "sourcePortID": "if_brnoNs"
+                },
+                {
                     "sourceNodeID": "llm_kMoRm",
-                    "targetNodeID": "condition_JiD_w"
+                    "targetNodeID": "branches_JiD_w"
                 }
             ]
         },
@@ -488,8 +515,8 @@ export const initialData: FlowDocumentJSON = {
             "type": "code",
             "meta": {
                 "position": {
-                    "x": 2968,
-                    "y": 328.45
+                    "x": 2994.7316449211494,
+                    "y": 421.6497761515193
                 }
             },
             "data": {
@@ -537,8 +564,8 @@ export const initialData: FlowDocumentJSON = {
             "type": "string-format",
             "meta": {
                 "position": {
-                    "x": 3428,
-                    "y": 328.45
+                    "x": 3469.125607570999,
+                    "y": 421.6497761515193
                 }
             },
             "data": {
@@ -578,6 +605,29 @@ export const initialData: FlowDocumentJSON = {
                     }
                 }
             }
+        },
+        {
+            "id": "assignee_M3j85",
+            "type": "assignee",
+            "meta": {
+                "position": {
+                    "x": 1987.8056186134213,
+                    "y": -163.89919968547113
+                }
+            },
+            "data": {
+                "title": "负责人标记_1",
+                "assignees": [],
+                "data": {
+                    "assignees": [
+                        {
+                            "id": "1",
+                            "name": "zhangsan",
+                            "avatar": "https://avatars.githubusercontent.com/u/1?v=4"
+                        }
+                    ]
+                }
+            }
         }
     ],
     "edges": [
@@ -598,4 +648,4 @@ export const initialData: FlowDocumentJSON = {
             "targetNodeID": "string_format_j_zgL"
         }
     ]
-};
+}

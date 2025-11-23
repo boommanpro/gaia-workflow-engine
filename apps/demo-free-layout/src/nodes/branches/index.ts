@@ -31,7 +31,7 @@ export const BranchNodeRegistry: FlowNodeRegistry = {
   formMeta,
   onAdd() {
     return {
-      id: generateValidId('condition', 5),
+      id: generateValidId('branches', 5),
       type: 'branches',
       data: {
         title: 'Branches',

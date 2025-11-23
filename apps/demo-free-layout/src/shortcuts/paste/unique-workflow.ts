@@ -3,14 +3,22 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { customAlphabet } from 'nanoid';
-import type { WorkflowJSON, WorkflowNodeJSON } from '@flowgram.ai/free-layout-editor';
+import type {WorkflowJSON, WorkflowNodeJSON} from '@flowgram.ai/free-layout-editor';
 
-import { traverse, TraverseContext } from './traverse';
+import {traverse, TraverseContext} from './traverse';
+import {generateValidId} from "@/nodes/utils";
 
 namespace UniqueWorkflowUtils {
   /** generate unique id - 生成唯一ID */
-  const generateUniqueId = customAlphabet('1234567890', 6); // create a function to generate 6-digit number - 创建一个生成6位数字的函数
+
+  /** generate unique id with prefix - 生成带前缀的唯一ID */
+  const generateUniqueIdWithPrefix = (originalId: string): string => {
+    // 提取原始ID的前缀部分（第一个下划线之前的部分）
+    const prefixMatch = originalId.match(/^([^_]+)/);
+    const prefix = prefixMatch ? prefixMatch[1] : 'node';
+    // 生成随机数字后缀
+    return generateValidId(`${prefix}`);
+  };
 
   /** get all node ids from workflow json - 从工作流JSON中获取所有节点ID */
   export const getAllNodeIds = (json: WorkflowJSON): string[] => {
@@ -31,15 +39,15 @@ namespace UniqueWorkflowUtils {
     isUniqueId: (id: string) => boolean
   ): Map<string, string> => {
     const nodeReplaceMap = new Map<string, string>(); // create map for id replacement - 创建ID替换映射
-    nodeIds.forEach((id) => {
-      if (isUniqueId(id)) {
-        nodeReplaceMap.set(id, id); // keep original id if unique - 如果ID唯一则保持不变
+    nodeIds.forEach((originalId) => {
+      if (isUniqueId(originalId)) {
+        nodeReplaceMap.set(originalId, originalId); // keep original id if unique - 如果ID唯一则保持不变
       } else {
         let newId: string;
         do {
-          newId = generateUniqueId(); // generate new id until unique - 生成新ID直到唯一
+          newId = generateUniqueIdWithPrefix(originalId); // generate new id with prefix until unique - 生成带前缀的新ID直到唯一
         } while (!isUniqueId(newId));
-        nodeReplaceMap.set(id, newId);
+        nodeReplaceMap.set(originalId, newId);
       }
     });
     return nodeReplaceMap;
