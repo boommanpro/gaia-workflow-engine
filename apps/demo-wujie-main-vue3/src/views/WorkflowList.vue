@@ -2,7 +2,41 @@
   <div class="workflow-list">
     <div class="header">
       <h1>工作流管理</h1>
-      <button @click="createWorkflow" class="btn-primary">新建工作流</button>
+      <div class="header-buttons">
+        <button @click="createWorkflow" class="btn-primary">新建工作流</button>
+        <button @click="showCreateFromTemplateModal" class="btn-secondary">基于模板创建</button>
+      </div>
+    </div>
+
+    <!-- 基于模板创建工作流弹窗 -->
+    <div v-if="showTemplateSelectModal" class="modal-overlay" @click="closeTemplateSelectModal">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h3>选择模板</h3>
+          <button class="close-button" @click="closeTemplateSelectModal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div v-if="templatesLoading" class="loading">加载中...</div>
+          <div v-else>
+            <div
+              v-for="template in templates"
+              :key="template.id"
+              class="template-option"
+              @click="createFromTemplate(template)"
+            >
+              <h4>{{ template.templateName }}</h4>
+              <p class="template-code">{{ template.templateCode }}</p>
+              <p class="template-desc">{{ template.templateDesc || '暂无描述' }}</p>
+            </div>
+            <div v-if="templates.length === 0" class="empty-state">
+              暂无模板，请先创建模板
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button @click="closeTemplateSelectModal" class="btn-primary">关闭</button>
+        </div>
+      </div>
     </div>
 
     <!-- 示例工作流 -->
@@ -114,6 +148,11 @@ const workflowStore = useWorkflowStore()
 const exampleWorkflows = ref([])
 const customWorkflows = ref([])
 
+// 模板相关
+const showTemplateSelectModal = ref(false)
+const templates = ref([])
+const templatesLoading = ref(false)
+
 // 描述弹窗相关
 const showDescriptionModal = ref(false)
 const selectedWorkflow = ref(null)
@@ -133,6 +172,60 @@ const loadWorkflows = async () => {
 
   // 加载示例工作流
   exampleWorkflows.value = await loadExampleWorkflows()
+}
+
+// 显示模板选择弹窗
+const showCreateFromTemplateModal = async () => {
+  showTemplateSelectModal.value = true
+  templatesLoading.value = true
+
+  try {
+    const response = await fetch('/api/template/list')
+    if (response.ok) {
+      templates.value = await response.json()
+    } else {
+      ElMessage.error('获取模板列表失败')
+    }
+  } catch (error) {
+    console.error('获取模板列表异常:', error)
+    ElMessage.error('获取模板列表异常: ' + error.message)
+  } finally {
+    templatesLoading.value = false
+  }
+}
+
+// 关闭模板选择弹窗
+const closeTemplateSelectModal = () => {
+  showTemplateSelectModal.value = false
+}
+
+// 基于模板创建工作流
+const createFromTemplate = (template) => {
+  try {
+    // 解析模板数据
+    const templateData = JSON.parse(template.templateData)
+
+    // 创建新的工作流
+    const newWorkflow = workflowStore.addWorkflow({
+      name: `${template.templateName}工作流`,
+      description: template.templateDesc || '',
+      content: templateData
+    })
+
+    // 关闭弹窗
+    closeTemplateSelectModal()
+
+    // 刷新列表
+    loadWorkflows()
+
+    // 跳转到编辑页面
+    router.push(`/editor/${newWorkflow.id}`)
+
+    ElMessage.success('基于模板创建工作流成功')
+  } catch (error) {
+    console.error('基于模板创建工作流失败:', error)
+    ElMessage.error('基于模板创建工作流失败: ' + error.message)
+  }
 }
 
 // 加载示例工作流
@@ -296,6 +389,18 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.header-buttons {
+  display: flex;
+  gap: 10px;
+}
+
 .section {
   margin-bottom: 30px;
 }
@@ -495,5 +600,40 @@ onMounted(() => {
   font-family: inherit;
   font-size: 14px;
   box-sizing: border-box;
+}
+
+.template-option {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.template-option:hover {
+  background-color: #f5f5f5;
+  border-color: #409eff;
+}
+
+.template-option h4 {
+  margin: 0 0 8px 0;
+  color: #333;
+}
+
+.template-option .template-code {
+  font-family: monospace;
+  background-color: #f0f0f0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin: 0 0 8px 0;
+  color: #666;
+  font-size: 13px;
+}
+
+.template-option .template-desc {
+  margin: 0;
+  color: #666;
+  font-size: 14px;
 }
 </style>

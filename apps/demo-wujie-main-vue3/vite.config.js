@@ -9,7 +9,14 @@ export default defineConfig(({ mode }) => {
     plugins: [vue()],
     server: {
       port: 8080,
-      cors: true
+      cors: true,
+      proxy: {
+        '/api': {
+          target: 'http://localhost:48080',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api/, '/api')
+        }
+      }
     },
     base: isGithub ? '/flowgram-ai-rule-engine/' : './',
     build: {
