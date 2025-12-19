@@ -17,25 +17,36 @@ let currentRoot = null;
 const render = () => {
   currentRoot = ReactDOM.createRoot(document.getElementById('root')!);
   currentRoot.render(<App />);
+
+  // 应用渲染完成后发送准备就绪消息
+  if (window.$wujie) {
+    // 延迟一小段时间确保应用完全初始化
+    setTimeout(() => {
+      window.$wujie?.bus.$emit('message', {
+        type: 'appReady'
+      });
+      console.log('子应用已完全准备就绪');
+    }, 100);
+  }
 };
 
 // 处理保存工作流请求
 const handleSaveWorkflow = (data) => {
   console.log('React微应用收到保存请求:', data);
-  
+
   // 获取当前文档数据
   // 注意：这里需要通过某种方式获取当前的文档数据
   // 在实际应用中，你可能需要通过全局状态或回调函数来获取
-  
+
   // 发送确认消息回主应用
   if (window.$wujie) {
-    window.$wujie.bus.$emit('workflowSaved', { 
-      type: 'workflowSaved', 
-      payload: { 
-        success: true, 
+    window.$wujie.bus.$emit('workflowSaved', {
+      type: 'workflowSaved',
+      payload: {
+        success: true,
         timestamp: Date.now(),
         workflowId: data.payload?.workflowId
-      } 
+      }
     });
     console.log('已发送保存确认回主应用');
   }
@@ -46,16 +57,16 @@ const handleLoadWorkflow = (data) => {
   console.log('React微应用收到加载工作流请求:', data);
   // 这里可以将数据传递给应用的某个全局状态管理器
   // 例如通过window对象或自定义事件
-  
+
   // 发送确认消息回主应用
   if (window.$wujie) {
-    window.$wujie.bus.$emit('workflowLoaded', { 
-      type: 'workflowLoaded', 
-      payload: { 
-        success: true, 
+    window.$wujie.bus.$emit('workflowLoaded', {
+      type: 'workflowLoaded',
+      payload: {
+        success: true,
         timestamp: Date.now(),
         workflowId: data.payload?.id
-      } 
+      }
     });
     console.log('已发送加载确认回主应用');
   }
@@ -67,26 +78,26 @@ if (window.__POWERED_BY_WUJIE__) {
     const props = window.$wujie?.props;
     console.log("无界加载成功-----------");
     console.log("收到的props:", props);
-    
+
     // 监听来自主应用的消息
     window.$wujie?.bus.$on('saveWorkflow', handleSaveWorkflow);
     window.$wujie?.bus.$on('loadWorkflow', handleLoadWorkflow);
     console.log("已注册事件监听器");
-    
+
     render();
   };
-  
+
   window.__WUJIE_UNMOUNT = () => {
     // 清理事件监听器
     window.$wujie?.bus.$off('saveWorkflow', handleSaveWorkflow);
     window.$wujie?.bus.$off('loadWorkflow', handleLoadWorkflow);
-    
+
     // 卸载React应用
     if (currentRoot) {
       currentRoot.unmount();
     }
   };
-  
+
   // 发送生命周期事件给主应用
   window.$wujie?.bus.$emit('sub-app-mounted', { name: 'freelayout-editor' });
 } else {
@@ -101,6 +112,6 @@ if (window.__POWERED_BY_WUJIE__) {
       }
     });
   }
-  
+
   render();
 }

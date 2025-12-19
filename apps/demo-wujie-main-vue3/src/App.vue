@@ -1,14 +1,16 @@
 <template>
   <div id="app">
-    <nav class="navbar">
+    <nav class="navbar" v-if="!$route.meta.isFullScreen">
       <div class="nav-brand">工作流管理系统</div>
       <div class="nav-links">
-        <router-link to="/" class="nav-link" :class="{ active: $route.name === 'WorkflowList' }">工作流卡片</router-link>
-        <router-link to="/workflows" class="nav-link" :class="{ active: $route.name === 'WorkflowManagement' }">工作流管理</router-link>
+        <router-link to="/" class="nav-link" :class="{ active: $route.name === 'WorkflowManagement' }">工作流管理</router-link>
         <router-link to="/templates" class="nav-link" :class="{ active: $route.name === 'TemplateManagement' }">模板管理</router-link>
       </div>
     </nav>
-    <div class="main-content">
+    <div class="main-content" v-if="!$route.meta.isFullScreen">
+      <router-view />
+    </div>
+    <div class="full-screen-content" v-else>
       <router-view />
     </div>
   </div>
@@ -38,6 +40,13 @@ export default {
   flex: 1;
   overflow: auto;
   padding: 20px;
+}
+
+.full-screen-content {
+  flex: 1;
+  overflow: hidden;
+  padding: 0;
+  margin: 0;
 }
 
 .navbar {

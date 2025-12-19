@@ -13,6 +13,7 @@
     "preview:test": "vite preview --mode test"
   },
   "dependencies": {
+    "@element-plus/icons-vue": "^2.3.2",
     "axios": "^1.4.0",
     "element-plus": "^2.11.7",
     "marked": "^4.3.0",

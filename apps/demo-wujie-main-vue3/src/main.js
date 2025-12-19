@@ -3,6 +3,11 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
 
+// 引入Element Plus及其样式
+import ElementPlus from 'element-plus'
+import 'element-plus/dist/index.css'
+import { ElMessage, ElMessageBox } from 'element-plus'
+
 // 引入样式
 import './styles.css'
 
@@ -50,6 +55,15 @@ setupApp({
 
 const app = createApp(App)
 const pinia = createPinia()
+
+// 使用 Element Plus
+app.use(ElementPlus)
+// 全局挂载 ElMessage 和 ElMessageBox
+app.config.globalProperties.$message = ElMessage
+app.config.globalProperties.$msgbox = ElMessageBox
+app.config.globalProperties.$alert = ElMessageBox.alert
+app.config.globalProperties.$confirm = ElMessageBox.confirm
+app.config.globalProperties.$prompt = ElMessageBox.prompt
 
 // 使用 wujie
 app.use(WujieVue)

@@ -2,94 +2,94 @@
   <div class="template-management">
     <div class="header">
       <h1>模板管理</h1>
-      <button @click="showCreateModal" class="btn-primary">新建模板</button>
+      <el-button type="primary" @click="showCreateModal">新建模板</el-button>
     </div>
 
     <!-- 模板列表 -->
     <div class="section">
-      <h2>模板列表</h2>
-      <div class="template-grid" v-if="templates.length > 0">
-        <div
-          class="template-card"
+      <el-row :gutter="20">
+        <el-col
           v-for="template in templates"
           :key="template.id"
+          :xs="24"
+          :sm="12"
+          :md="8"
+          :lg="6"
           @click="editTemplate(template)"
+          style="cursor: pointer; margin-bottom: 20px;"
         >
-          <div class="card-header">
-            <h3>{{ template.templateName || '未命名模板' }}</h3>
-            <div class="card-tag">模板</div>
-          </div>
-          <p class="template-code">{{ template.templateCode }}</p>
-          <p class="template-desc">{{ template.templateDesc || '暂无描述' }}</p>
-          <div class="card-meta">
-            <span>创建时间: {{ formatDate(template.createdAt) }}</span>
-            <span>更新时间: {{ formatDate(template.updatedAt) }}</span>
-          </div>
-          <div class="card-actions">
-            <button @click.stop="editTemplate(template)" class="btn-secondary">编辑</button>
-            <button @click.stop="deleteTemplate(template.id)" class="btn-danger">删除</button>
-          </div>
-        </div>
-      </div>
-      <div class="empty-state" v-else>
-        <p>暂无模板，点击"新建模板"开始创建</p>
-      </div>
+          <el-card class="template-card" shadow="hover">
+            <div class="card-header">
+              <h3>{{ template.templateName || '未命名模板' }}</h3>
+              <el-icon class="delete-icon" @click.stop="deleteTemplate(template.id)">
+                <Delete />
+              </el-icon>
+            </div>
+            <p class="template-code">{{ template.templateCode }}</p>
+            <p class="template-desc">{{ template.templateDesc || '暂无描述' }}</p>
+            <div class="card-meta">
+              <div>创建时间: {{ formatDate(template.createdAt) }}</div>
+              <div>更新时间: {{ formatDate(template.updatedAt) }}</div>
+            </div>
+            <div class="card-actions">
+              <el-button @click.stop="editTemplate(template)">编辑</el-button>
+            </div>
+          </el-card>
+        </el-col>
+      </el-row>
+
+      <el-empty v-if="templates.length === 0" description="暂无模板，点击'新建模板'开始创建" />
     </div>
 
     <!-- 创建/编辑模板弹窗 -->
-    <div v-if="showTemplateModal" class="modal-overlay" @click="closeTemplateModal">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h3>{{ isEditing ? '编辑模板' : '新建模板' }}</h3>
-          <button class="close-button" @click="closeTemplateModal">&times;</button>
-        </div>
-        <div class="modal-body">
-          <div class="form-group">
-            <label>模板编码:</label>
-            <input 
-              v-model="templateForm.templateCode" 
-              class="form-control" 
-              :disabled="isEditing"
-              placeholder="请输入模板编码"
-            />
-          </div>
-          <div class="form-group">
-            <label>模板名称:</label>
-            <input 
-              v-model="templateForm.templateName" 
-              class="form-control" 
-              placeholder="请输入模板名称"
-            />
-          </div>
-          <div class="form-group">
-            <label>模板描述:</label>
-            <textarea 
-              v-model="templateForm.templateDesc" 
-              class="form-control description-editor"
-              placeholder="请输入模板描述"
-            ></textarea>
-          </div>
-          <div class="form-group">
-            <label>模板数据:</label>
-            <textarea 
-              v-model="templateForm.templateData" 
-              class="form-control template-data-editor"
-              placeholder='请输入JSON格式的模板数据，例如: {"nodes":[],"edges":[]}'
-            ></textarea>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button @click="closeTemplateModal" class="btn-secondary">取消</button>
-          <button @click="saveTemplate" class="btn-primary">保存</button>
-        </div>
-      </div>
-    </div>
+    <el-dialog v-model="showTemplateModal" :title="isEditing ? '编辑模板' : '新建模板'" width="600px">
+      <el-form :model="templateForm" label-width="100px">
+        <el-form-item label="模板编码:" prop="templateCode">
+          <el-input
+            v-model="templateForm.templateCode"
+            :disabled="isEditing"
+            placeholder="请输入模板编码"
+          />
+        </el-form-item>
+        <el-form-item label="模板名称:" prop="templateName">
+          <el-input
+            v-model="templateForm.templateName"
+            placeholder="请输入模板名称"
+          />
+        </el-form-item>
+        <el-form-item label="模板描述:" prop="templateDesc">
+          <el-input
+            v-model="templateForm.templateDesc"
+            type="textarea"
+            :rows="3"
+            placeholder="请输入模板描述"
+          />
+        </el-form-item>
+        <el-form-item label="模板数据:" prop="templateData">
+          <el-input
+            v-model="templateForm.templateData"
+            type="textarea"
+            :rows="5"
+            placeholder='请输入JSON格式的模板数据，例如: {"nodes":[],"edges":[]}'
+            resize="vertical"
+          />
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="closeTemplateModal">取消</el-button>
+          <el-button type="primary" @click="saveTemplate">保存</el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Delete } from '@element-plus/icons-vue'
 
 // 模板数据
 const templates = ref([])
@@ -230,7 +230,7 @@ const deleteTemplate = (id) => {
       const response = await fetch(`${API_BASE_URL}/template/delete/${id}`, {
         method: 'DELETE'
       })
-      
+
       if (response.ok) {
         ElMessage.success('删除模板成功')
         loadTemplates()
@@ -276,31 +276,6 @@ onMounted(() => {
   margin-bottom: 30px;
 }
 
-.section h2 {
-  margin-bottom: 15px;
-  color: #333;
-}
-
-.template-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 20px;
-}
-
-.template-card {
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 16px;
-  background-color: white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  cursor: pointer;
-  transition: box-shadow 0.3s ease;
-}
-
-.template-card:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-}
-
 .card-header {
   display: flex;
   justify-content: space-between;
@@ -340,146 +315,8 @@ onMounted(() => {
   margin-bottom: 16px;
 }
 
-.card-tag {
-  background-color: #409eff;
-  color: white;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-}
-
 .card-actions {
   display: flex;
   gap: 10px;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 40px 20px;
-  color: #999;
-}
-
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background: white;
-  border-radius: 4px;
-  width: 80%;
-  max-width: 600px;
-  max-height: 80vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.modal-header {
-  padding: 20px;
-  border-bottom: 1px solid #eee;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.modal-body {
-  padding: 20px;
-  overflow-y: auto;
-  flex: 1;
-}
-
-.modal-footer {
-  padding: 20px;
-  border-top: 1px solid #eee;
-  text-align: right;
-}
-
-.close-button {
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  padding: 0;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.form-group {
-  margin-bottom: 15px;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 5px;
-  font-weight: bold;
-}
-
-.form-control {
-  width: 100%;
-  padding: 8px;
-  border-radius: 4px;
-  border: 1px solid #dcdfe6;
-  font-family: inherit;
-  font-size: 14px;
-  box-sizing: border-box;
-}
-
-.description-editor {
-  width: 100%;
-  min-height: 80px;
-  padding: 8px;
-  border-radius: 4px;
-  border: 1px solid #dcdfe6;
-  font-family: inherit;
-  font-size: 14px;
-  resize: vertical;
-}
-
-.template-data-editor {
-  width: 100%;
-  min-height: 120px;
-  padding: 8px;
-  border-radius: 4px;
-  border: 1px solid #dcdfe6;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 14px;
-  resize: vertical;
-}
-
-.btn-primary, .btn-secondary, .btn-danger {
-  padding: 6px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.btn-primary {
-  background-color: #409eff;
-  color: white;
-  border: none;
-}
-
-.btn-secondary {
-  background-color: #f0f0f0;
-  color: #666;
-  border: 1px solid #ddd;
-}
-
-.btn-danger {
-  background-color: #f56c6c;
-  color: white;
-  border: none;
 }
 </style>

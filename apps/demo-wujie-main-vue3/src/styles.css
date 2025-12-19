@@ -94,12 +94,16 @@
 }
 
 .editor-header {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  padding: 12px 20px;
-  border-bottom: 1px solid #e0e0e0;
-  background: white;
-  z-index: 10;
+  z-index: 999;
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  backdrop-filter: blur(5px);
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
 .editor-header h2 {
@@ -115,7 +119,7 @@
   overflow: hidden;
   position: relative;
   width: 100%;
-  height: calc(100% - 57px); /* 减去header的高度 */
+  height: 100%; /* 修改为100%，因为header不再占用空间 */
 }
 
 .workflow-editor-frame {

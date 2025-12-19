@@ -1,28 +1,31 @@
 <template>
-  <div class="workflow-editor-frame">
-<!--    <div v-if="!subAppMounted" class="loading-container">-->
-<!--      <div class="loading-animation">-->
-<!--        <div class="spinner"></div>-->
-<!--        <div class="loading-text">工作流编辑器加载中...</div>-->
-<!--      </div>-->
-<!--    </div>-->
-    <WujieVue
-      width="100%"
-      height="100%"
+  <div class="workflow-editor-container">
+    <!-- 加载状态指示器 -->
+    <div v-if="showLoading" class="loading-overlay">
+      <div class="loading-spinner">
+        <div class="spinner"></div>
+        <p>正在加载工作流编辑器...</p>
+      </div>
+    </div>
+
+    <!-- 微前端容器 -->
+    <WujieWrapper
       :name="name"
       :url="url"
-      :sync="true"
-      :props="workflowProps"
+      :workflow-props="workflowProps"
       @message="handleMessage"
+      @ready="handleAppReady"
+      ref="wujieRef"
     />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
-import { useWorkflowStore } from '../store'
-import WujieVue from 'wujie-vue3'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { bus } from 'wujie'
+import WujieWrapper from './WujieWrapper.vue'
+import { useWorkflowData } from '../composables/useWorkflowData'
+import { useWorkflowCommunication } from '../composables/useWorkflowCommunication'
 
 const props = defineProps({
   workflowId: {
@@ -35,14 +38,46 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['workflowCreated', 'workflowUpdated'])
+const emit = defineEmits(['workflowCreated', 'workflowUpdated', 'showVersionModal'])
 
 const name = ref('workflow-editor')
 const url = ref(import.meta.env.VITE_CHILD_APP_URL || 'http://localhost:3000')
-const workflowStore = useWorkflowStore()
-const workflowData = ref(null)
-const dataLoaded = ref(false)
-const subAppMounted = ref(false)
+const wujieRef = ref(null)
+const appReady = ref(false)
+const showLoading = ref(true) // 控制是否显示加载状态
+
+// 使用组合式函数管理数据
+const {
+  workflowData,
+  dataLoaded,
+  loadData,
+  switchToVersion
+} = useWorkflowData(props)
+
+// 使用组合式函数管理通信
+const communication = useWorkflowCommunication(workflowData, combinedEmit)
+const {
+  subAppMounted,
+  handleSubAppMounted,
+  handleWorkflowLoaded,
+  handleWorkflowSaved,
+  handleSaveWorkflow,
+  handleGetWorkflow,
+  handleVersionConfirm,
+  handleVersionCancel,
+  sendWorkflowDataToMicroApp
+} = communication
+
+// 合并 emit 函数，同时触发自身事件和向上传递事件
+function combinedEmit(event, ...args) {
+  // 触发自身的事件
+  emit(event, ...args)
+  
+  // 特殊处理 showVersionModal 事件，向上传递给父组件
+  if (event === 'showVersionModal') {
+    emit('showVersionModal')
+  }
+}
 
 // 计算属性，传递给微应用的props
 const workflowProps = computed(() => {
@@ -52,14 +87,34 @@ const workflowProps = computed(() => {
   }
 })
 
+// 处理子应用完全准备好的状态
+const handleAppReady = () => {
+  console.log('子应用已完全准备好')
+  appReady.value = true
+}
+
+// 监听数据加载完成、子应用挂载和应用准备好的状态，在所有条件满足时发送数据
+watch([dataLoaded, subAppMounted, appReady], ([loaded, mounted, ready]) => {
+  console.log('状态变化:', { loaded, mounted, ready })
+  if (loaded && mounted && ready && workflowData.value) {
+    // 所有条件都满足时发送数据
+    sendWorkflowDataToMicroApp()
+
+    // 在发送数据后延时100ms再隐藏加载状态
+    setTimeout(() => {
+      showLoading.value = false
+    }, 300)
+  } else if (loaded && mounted && !ready) {
+    // 数据和子应用都已加载，但子应用还没完全准备好
+    console.log('数据和子应用已加载，等待子应用完全准备好...')
+  }
+})
+
 onMounted(() => {
   console.log('WorkflowEditorFrame mounted')
   console.log('Workflow ID:', props.workflowId)
   console.log('Example ID:', props.exampleId)
   console.log('Workflow Editor URL:', url.value)
-
-  // 加载数据
-  loadData()
 
   // 监听来自子应用的消息
   bus.$on('sub-app-mounted', handleSubAppMounted)
@@ -67,6 +122,9 @@ onMounted(() => {
   bus.$on('saveWorkflow', handleSaveWorkflow)
   bus.$on('getWorkflow', handleGetWorkflow)
   bus.$on('workflowLoaded', handleWorkflowLoaded)
+
+  // 加载数据
+  loadData()
 })
 
 onUnmounted(() => {
@@ -76,186 +134,6 @@ onUnmounted(() => {
   bus.$off('getWorkflow', handleGetWorkflow)
   bus.$off('workflowLoaded', handleWorkflowLoaded)
 })
-
-const loadData = async () => {
-  console.log('开始加载数据...')
-  // 如果有工作流ID，则加载工作流数据
-  if (props.workflowId && props.workflowId !== 'new') {
-    const workflow = workflowStore.getWorkflowById(props.workflowId)
-    if (workflow) {
-      workflowData.value = {
-        id: workflow.id,
-        name: workflow.name,
-        content: workflow.content
-      }
-      console.log('加载工作流数据:', workflowData.value)
-    }
-  } else if (props.exampleId) {
-    // 如果是示例工作流，则加载示例数据
-    try {
-      console.log('加载示例工作流数据:', props.exampleId)
-      // 使用绝对路径访问public目录下的文件
-      const url = `./workflows/${props.exampleId}/workflow.json`
-      console.log('请求URL:', url)
-      const response = await fetch(url)
-      console.log('响应状态:', response.status)
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-      const exampleData = await response.json()
-      workflowData.value = {
-        id: `example-${props.exampleId}`,
-        name: `示例工作流-${props.exampleId}`,
-        content: exampleData
-      }
-      console.log('加载示例工作流数据成功:', workflowData.value)
-    } catch (error) {
-      console.error('加载示例工作流失败:', error)
-    }
-  } else if (props.workflowId === 'new') {
-    // 新建空白工作流
-    workflowData.value = {
-      id: 'new',
-      name: '新建工作流',
-      content: {
-        "nodes": [
-          {
-            "id": "start_0",
-            "type": "start",
-            "meta": {
-              "position": {
-                "x": 180,
-                "y": 0
-              }
-            },
-            "data": {
-              "title": "开始节点",
-              "outputs": {
-                "type": "object",
-                "properties": {
-                  "query": {
-                    "type": "string",
-                    "default": "Hello Flow."
-                  },
-                  "enable": {
-                    "type": "boolean",
-                    "default": true
-                  },
-                  "array_obj": {
-                    "type": "array",
-                    "items": {
-                      "type": "integer"
-                    },
-                    "default": "[1,2,3]"
-                  }
-                },
-                "required": []
-              }
-            }
-          },
-          {
-            "id": "end_0",
-            "type": "end",
-            "meta": {
-              "position": {
-                "x": 640,
-                "y": 0
-              }
-            },
-            "data": {
-              "title": "结束节点",
-              "inputsValues": {
-                "success": {
-                  "type": "constant",
-                  "content": true,
-                  "schema": {
-                    "type": "boolean"
-                  },
-                  "extra": {
-                    "index": 0
-                  }
-                },
-                "query": {
-                  "type": "ref",
-                  "content": [
-                    "start_0",
-                    "query"
-                  ],
-                  "extra": {
-                    "index": 1
-                  }
-                }
-              },
-              "inputs": {
-                "type": "object",
-                "properties": {
-                  "success": {
-                    "type": "boolean"
-                  },
-                  "query": {
-                    "type": "string"
-                  }
-                }
-              }
-            }
-          }
-        ],
-        "edges": [
-          {
-            "sourceNodeID": "start_0",
-            "targetNodeID": "end_0"
-          }
-        ]
-      }
-    }
-    console.log('创建空白工作流数据:', workflowData.value)
-  } else {
-    // 默认空白工作流
-    workflowData.value = {
-      id: null,
-      name: '工作流编辑器',
-      content: {
-        nodes: [],
-        edges: []
-      }
-    }
-    console.log('创建默认空白工作流数据:', workflowData.value)
-  }
-
-  // 标记数据加载完成
-  dataLoaded.value = true
-
-  // 发送数据给微前端
-  sendWorkflowDataToMicroApp()
-}
-
-// 发送工作流数据给微前端应用
-const sendWorkflowDataToMicroApp = () => {
-  if (dataLoaded.value && workflowData.value && bus) {
-    console.log('发送工作流数据给子应用:', workflowData.value)
-    bus.$emit('loadWorkflow', {
-      type: 'loadWorkflow',
-      payload: workflowData.value
-    })
-    console.log('已发送工作流数据给子应用')
-  }
-}
-
-const handleSubAppMounted = (data) => {
-  console.log('子应用挂载完成:', data)
-  subAppMounted.value = true
-  // 发送工作流数据给子应用
-  sendWorkflowDataToMicroApp()
-}
-
-const handleWorkflowLoaded = (data) => {
-  console.log('子应用加载完成:', data)
-}
-
-const handleWorkflowSaved = (data) => {
-  console.log('子应用保存完成:', data)
-  // 可以在这里处理保存完成后的逻辑
-}
 
 // 处理来自微前端的消息
 const handleMessage = (data) => {
@@ -277,110 +155,51 @@ const handleMessage = (data) => {
   }
 }
 
-// 保存工作流
-const handleSaveWorkflow = (data) => {
-  console.log('处理保存工作流请求:', data)
-  if (props.workflowId && props.workflowId !== 'new') {
-    // 更新现有工作流
-    const updatedWorkflow = workflowStore.updateWorkflow(props.workflowId, {
-      name: data.name || '未命名工作流',
-      description: data.description || '',
-      content: data.content || data
-    })
-    console.log('工作流已更新:', updatedWorkflow)
-
-    // 通知子应用保存成功
-    if (bus) {
-      bus.$emit('workflowSaveSuccess', {
-        type: 'workflowSaveSuccess',
-        payload: { success: true, id: props.workflowId }
-      })
-    }
-
-    // 通知父组件工作流已更新
-    emit('workflowUpdated')
-  } else {
-    // 创建新工作流
-    const result = workflowStore.addWorkflow({
-      name: data.name || '未命名工作流',
-      description: data.description || '',
-      content: data.content || data
-    })
-
-    console.log('新工作流已创建:', result)
-    // 通知父组件ID已生成
-    emit('workflowCreated', result.id)
-
-    // 通知子应用保存成功
-    if (bus) {
-      bus.$emit('workflowSaveSuccess', {
-        type: 'workflowSaveSuccess',
-        payload: { success: true, id: result.id }
-      })
-    }
-  }
-}
-
-// 获取工作流数据
-const handleGetWorkflow = () => {
-  console.log('处理获取工作流请求')
-  return workflowData.value ? workflowData.value.content : null
-}
-
-// 监听工作流ID变化
-watch(() => props.workflowId, async (newId) => {
-  console.log('Workflow ID changed:', newId)
-  if (newId !== undefined) {
-    dataLoaded.value = false
-    subAppMounted.value = false
-    await loadData()
-  }
-})
-
-// 监听示例ID变化
-watch(() => props.exampleId, async (newExampleId) => {
-  console.log('Example ID changed:', newExampleId)
-  if (newExampleId !== undefined) {
-    dataLoaded.value = false
-    subAppMounted.value = false
-    await loadData()
-  }
+// 暴露给父组件的方法
+defineExpose({
+  handleVersionConfirm,
+  handleVersionCancel,
+  // 添加重新加载数据的方法
+  reloadData: loadData,
+  // 添加发送工作流数据到微前端的方法
+  sendWorkflowDataToMicroApp,
+  // 添加切换版本的方法
+  switchToVersion
 })
 </script>
 
 <style scoped>
-.workflow-editor-frame {
+.workflow-editor-container {
+  position: relative;
   width: 100%;
   height: 100%;
-  position: relative;
 }
 
-.loading-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100%;
+.loading-overlay {
   position: absolute;
   top: 0;
   left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(255, 255, 255, 0.8);
-  z-index: 100;
+  width: 100%;
+  height: 100%;
+  background-color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
 }
 
-.loading-animation {
+.loading-spinner {
   text-align: center;
 }
 
 .spinner {
   border: 4px solid rgba(0, 0, 0, 0.1);
-  width: 36px;
-  height: 36px;
+  border-left-color: #409eff;
   border-radius: 50%;
-  border-left-color: #09f;
+  width: 40px;
+  height: 40px;
   animation: spin 1s linear infinite;
-  margin: 0 auto;
+  margin: 0 auto 16px;
 }
 
 @keyframes spin {
@@ -389,9 +208,9 @@ watch(() => props.exampleId, async (newExampleId) => {
   }
 }
 
-.loading-text {
-  font-size: 16px;
+.loading-spinner p {
+  margin: 0;
+  font-size: 14px;
   color: #666;
-  margin-top: 10px;
 }
 </style>

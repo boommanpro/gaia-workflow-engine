@@ -17,7 +17,7 @@
 
 ### ③ 功能介绍
 
-vue3 微前端 link: https://boommanpro.github.io/flowgram-ai-rule-engine/
+vue3 微前端: demo-wujie-main-vue3，可以搭配后端启动
 
 flowgram 示例: https://boommanpro.github.io/flowgram-ai-rule-engine/workflow-editor/
 
