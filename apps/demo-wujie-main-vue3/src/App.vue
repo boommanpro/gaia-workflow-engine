@@ -3,7 +3,8 @@
     <nav class="navbar">
       <div class="nav-brand">工作流管理系统</div>
       <div class="nav-links">
-        <router-link to="/" class="nav-link" :class="{ active: $route.name === 'WorkflowList' }">工作流管理</router-link>
+        <router-link to="/" class="nav-link" :class="{ active: $route.name === 'WorkflowList' }">工作流卡片</router-link>
+        <router-link to="/workflows" class="nav-link" :class="{ active: $route.name === 'WorkflowManagement' }">工作流管理</router-link>
         <router-link to="/templates" class="nav-link" :class="{ active: $route.name === 'TemplateManagement' }">模板管理</router-link>
       </div>
     </nav>

@@ -2,6 +2,7 @@ import { createRouter, createWebHashHistory } from 'vue-router'
 import WorkflowList from '../views/WorkflowList.vue'
 import WorkflowEditor from '../views/WorkflowEditor.vue'
 import TemplateManagement from '../views/TemplateManagement.vue'
+import WorkflowManagement from '../views/WorkflowManagement.vue'
 
 const routes = [
   {
@@ -19,6 +20,11 @@ const routes = [
     path: '/templates',
     name: 'TemplateManagement',
     component: TemplateManagement
+  },
+  {
+    path: '/workflows',
+    name: 'WorkflowManagement',
+    component: WorkflowManagement
   }
 ]
 
