@@ -46,6 +46,8 @@ flowgram 示例: https://boommanpro.github.io/flowgram-ai-rule-engine/workflow-e
 服务端支持,项目地址：https://github.com/boommanpro/gaia-workflow
 
 ## 时间线
+2025.12.27 跟进官网升级到v1.0.6，开发vue3管理端demo，并且开发服务端，更新docs
+
 2025.10.17 跟进官网升级到v0.5.5，修复相关代码
 
 2025.9.6 前后端支持string-format组件，支持spel、thymeleaf语法，当前支持与vue3打通，管理端使用vue3，工作流核心使用flowgram.ai
