@@ -9,7 +9,12 @@
 4. 配套的java后端
 5. 可以微前端或者web-components运行，进而支持跨前端语言 已实现 ruoyi-vue3-flowgram
 效果如下：
+集成ruoyi-vue3微前端示例：
 <img src="https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/refs/heads/main/boommanpro-docs/yudao-vue3-flowgram.png" width="1000" height="500" />
+工作流调用效果示例：
+<img src="https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/refs/heads/main/boommanpro-docs/demo-free-layout.png" width="1000" height="500" />
+微前端demo示例：
+<img src="https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/refs/heads/main/boommanpro-docs/demo-wujie-main-vue3.png" width="1000" height="500" />
 
 ### ② 为什么会基于flowgram.ai再次开源一个项目？
 
