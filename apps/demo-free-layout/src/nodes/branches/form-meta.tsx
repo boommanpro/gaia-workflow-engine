@@ -3,12 +3,12 @@
  * SPDX-License-Identifier: MIT
  */
 
-import {FormMeta, FormRenderProps, ValidateTrigger} from '@flowgram.ai/free-layout-editor';
-import {autoRenameRefEffect} from '@flowgram.ai/form-materials';
+import { FormMeta, FormRenderProps, ValidateTrigger } from '@flowgram.ai/free-layout-editor';
+import { autoRenameRefEffect } from '@flowgram.ai/form-materials';
 
-import {FlowNodeJSON} from '../../typings';
-import {FormContent, FormHeader} from '../../form-components';
-import {BranchInputs} from './branch-inputs';
+import { FlowNodeJSON } from '../../typings';
+import { FormContent, FormHeader } from '../../form-components';
+import { BranchInputs } from './branch-inputs';
 
 export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => (
   <>

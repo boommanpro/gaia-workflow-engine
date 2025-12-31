@@ -5,7 +5,7 @@ import { Button, Tooltip } from '@douyinfe/semi-ui';
 import { IconFile } from '@douyinfe/semi-icons';
 
 import { NoteNodeRegistry } from '../../nodes/note';
-import {IconComment} from "../../assets/icon-comment.tsx";
+import { IconComment } from '../../assets/icon-comment.tsx';
 
 export const AddNote = () => {
   const playground = usePlayground();

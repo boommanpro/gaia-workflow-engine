@@ -3,10 +3,11 @@
  * SPDX-License-Identifier: MIT
  */
 
-import type {WorkflowJSON, WorkflowNodeJSON} from '@flowgram.ai/free-layout-editor';
+import type { WorkflowJSON, WorkflowNodeJSON } from '@flowgram.ai/free-layout-editor';
 
-import {traverse, TraverseContext} from './traverse';
-import {generateValidId} from "@/nodes/utils";
+import { generateValidId } from '@/nodes/utils';
+
+import { traverse, TraverseContext } from './traverse';
 
 namespace UniqueWorkflowUtils {
   /** generate unique id - 生成唯一ID */

@@ -11,4 +11,3 @@ export const iconAssignee = (
     <path d="M17 12c-2.76 0-5 1.52-5 3.38V17h10v-1.62C22 13.52 19.76 12 17 12z" fill="#52c41a" />
   </svg>
 );
-

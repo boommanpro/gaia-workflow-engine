@@ -3,13 +3,13 @@
  * SPDX-License-Identifier: MIT
  */
 
-import {nanoid} from 'nanoid';
+import { nanoid } from 'nanoid';
 
-import {FlowNodeRegistry} from '../../typings';
+import { FlowNodeRegistry } from '../../typings';
 import iconCondition from '../../assets/icon-condition.svg';
-import {formMeta} from './form-meta';
-import {WorkflowNodeType} from '../constants';
+import { formMeta } from './form-meta';
 import { generateValidId } from '../utils';
+import { WorkflowNodeType } from '../constants';
 
 export const BranchNodeRegistry: FlowNodeRegistry = {
   type: WorkflowNodeType.Branches,
@@ -44,9 +44,9 @@ export const BranchNodeRegistry: FlowNodeRegistry = {
               {
                 key: generateValidId('if', 6),
                 value: { type: 'expression', content: '' },
-              }
-            ]
-          }
+              },
+            ],
+          },
         ],
       },
     };

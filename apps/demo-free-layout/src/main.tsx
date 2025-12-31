@@ -23,7 +23,7 @@ const render = () => {
     // 延迟一小段时间确保应用完全初始化
     setTimeout(() => {
       window.$wujie?.bus.$emit('message', {
-        type: 'appReady'
+        type: 'appReady',
       });
       console.log('子应用已完全准备就绪');
     }, 100);
@@ -45,8 +45,8 @@ const handleSaveWorkflow = (data) => {
       payload: {
         success: true,
         timestamp: Date.now(),
-        workflowId: data.payload?.workflowId
-      }
+        workflowId: data.payload?.workflowId,
+      },
     });
     console.log('已发送保存确认回主应用');
   }
@@ -65,8 +65,8 @@ const handleLoadWorkflow = (data) => {
       payload: {
         success: true,
         timestamp: Date.now(),
-        workflowId: data.payload?.id
-      }
+        workflowId: data.payload?.id,
+      },
     });
     console.log('已发送加载确认回主应用');
   }
@@ -76,13 +76,13 @@ if (window.__POWERED_BY_WUJIE__) {
   // 监听主应用下发的props
   window.__WUJIE_MOUNT = () => {
     const props = window.$wujie?.props;
-    console.log("无界加载成功-----------");
-    console.log("收到的props:", props);
+    console.log('无界加载成功-----------');
+    console.log('收到的props:', props);
 
     // 监听来自主应用的消息
     window.$wujie?.bus.$on('saveWorkflow', handleSaveWorkflow);
     window.$wujie?.bus.$on('loadWorkflow', handleLoadWorkflow);
-    console.log("已注册事件监听器");
+    console.log('已注册事件监听器');
 
     render();
   };

@@ -3,7 +3,9 @@
  * SPDX-License-Identifier: MIT
  */
 
-import {FC} from 'react';
+import { FC } from 'react';
+
+import { usePanelManager } from '@flowgram.ai/panel-manager-plugin';
 import {
   Field,
   FieldRenderProps,
@@ -12,11 +14,11 @@ import {
   FormModelV2,
   useClientContext,
   useNodeRender,
-  WorkflowNodeEntity
+  WorkflowNodeEntity,
 } from '@flowgram.ai/free-layout-editor';
-import {usePanelManager} from '@flowgram.ai/panel-manager-plugin';
-import {iconAssignee} from '../../assets/icon-assignee';
-import {nodeFormPanelFactory} from '../../components/sidebar';
+
+import { nodeFormPanelFactory } from '../../components/sidebar';
+import { iconAssignee } from '../../assets/icon-assignee';
 
 export const AssigneeRender: FC<{
   node: WorkflowNodeEntity;
@@ -58,9 +60,9 @@ export const AssigneeRender: FC<{
     // 打开配置面板
     panelManager.open(nodeFormPanelFactory.key, 'right', {
       props: {
-            nodeId: node.id,
-        },
-      });
+        nodeId: node.id,
+      },
+    });
 
     // 切换显示模式
   };
@@ -113,9 +115,7 @@ export const AssigneeRender: FC<{
                   height: '60px',
                 }}
               >
-                <div style={{ transform: 'scale(1.8)' }}>
-                  {iconAssignee}
-                </div>
+                <div style={{ transform: 'scale(1.8)' }}>{iconAssignee}</div>
               </div>
             ) : (
               // 显示负责人详情模式
@@ -269,4 +269,3 @@ export const AssigneeRender: FC<{
     </div>
   );
 };
-

@@ -3,13 +3,13 @@
  * SPDX-License-Identifier: MIT
  */
 
-import {useEffect, useRef} from 'react';
+import { useEffect, useRef } from 'react';
 
-import {Field, FieldRenderProps} from '@flowgram.ai/free-layout-editor';
-import {Input, Typography} from '@douyinfe/semi-ui';
+import { Field, FieldRenderProps } from '@flowgram.ai/free-layout-editor';
+import { Input, Typography } from '@douyinfe/semi-ui';
 
-import {Title} from './styles';
-import {Feedback} from '../feedback';
+import { Title } from './styles';
+import { Feedback } from '../feedback';
 
 const { Text } = Typography;
 

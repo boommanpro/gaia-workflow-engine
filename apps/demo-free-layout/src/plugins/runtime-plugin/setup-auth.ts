@@ -11,7 +11,7 @@
 export function setupAuthorization(authorization: string | null): void {
   // 将认证信息存储到全局对象中，供插件系统使用
   (window as any).WORKFLOW_AUTHORIZATION = authorization;
-  
+
   // 如果有认证信息，记录日志
   if (authorization) {
     console.log('Authorization token received and set for workflow runtime');

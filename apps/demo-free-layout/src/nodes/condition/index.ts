@@ -8,8 +8,8 @@ import { nanoid } from 'nanoid';
 import { FlowNodeRegistry } from '../../typings';
 import iconCondition from '../../assets/icon-condition.svg';
 import { formMeta } from './form-meta';
-import { WorkflowNodeType } from '../constants';
 import { generateValidId } from '../utils';
+import { WorkflowNodeType } from '../constants';
 
 export const ConditionNodeRegistry: FlowNodeRegistry = {
   type: WorkflowNodeType.Condition,
@@ -39,7 +39,7 @@ export const ConditionNodeRegistry: FlowNodeRegistry = {
           {
             key: generateValidId('if', 5),
             value: {},
-          }
+          },
         ],
       },
     };

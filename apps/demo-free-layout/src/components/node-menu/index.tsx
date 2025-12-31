@@ -24,11 +24,10 @@ import { CopyShortcut } from '../../shortcuts/copy';
 
 interface NodeMenuProps {
   node: WorkflowNodeEntity;
-  updateTitleEdit?: (setEditing: boolean) => void;
   deleteNode: () => void;
 }
 
-export const NodeMenu: FC<NodeMenuProps> = ({ node, deleteNode, updateTitleEdit }) => {
+export const NodeMenu: FC<NodeMenuProps> = ({ node, deleteNode }) => {
   const [visible, setVisible] = useState(true);
   const clientContext = useClientContext();
   const registry = node.getNodeRegistry<FlowNodeRegistry>();
@@ -85,13 +84,6 @@ export const NodeMenu: FC<NodeMenuProps> = ({ node, deleteNode, updateTitleEdit 
     },
     [clientContext, node]
   );
-  const handleEditTitle = useCallback(
-    (e: React.MouseEvent) => {
-      updateTitleEdit?.(true);
-      e.stopPropagation(); // Disable clicking prevents the sidebar from opening
-    },
-    [updateTitleEdit]
-  );
 
   const handleAutoLayout = useCallback(
     (e: React.MouseEvent) => {
@@ -116,7 +108,6 @@ export const NodeMenu: FC<NodeMenuProps> = ({ node, deleteNode, updateTitleEdit 
       position="bottomRight"
       render={
         <Dropdown.Menu>
-          <Dropdown.Item onClick={handleEditTitle}>Edit Title</Dropdown.Item>
           {canMoveOut && <Dropdown.Item onClick={handleMoveOut}>Move out</Dropdown.Item>}
           <Dropdown.Item onClick={handleCopy} disabled={registry.meta!.copyDisable === true}>
             Create Copy

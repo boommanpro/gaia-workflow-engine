@@ -3,10 +3,11 @@
  * SPDX-License-Identifier: MIT
  */
 
-import React, {useEffect, useState} from 'react';
-import {Button, Card, Divider, Select, Space, Tag, Typography} from '@douyinfe/semi-ui';
-import {IconInfoCircle, IconPlayCircle} from '@douyinfe/semi-icons';
-import {FieldRenderProps} from '@flowgram.ai/free-layout-editor';
+import React, { useEffect, useState } from 'react';
+
+import { FieldRenderProps } from '@flowgram.ai/free-layout-editor';
+import { Button, Card, Divider, Select, Space, Tag, Typography } from '@douyinfe/semi-ui';
+import { IconInfoCircle, IconPlayCircle } from '@douyinfe/semi-icons';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -55,91 +56,91 @@ const MOCK_WORKFLOWS: WorkflowDefinition[] = [
     name: '简单的workflow',
     description: '简单的workflow',
     definition: {
-      "nodes": [
+      nodes: [
         {
-          "id": "start_0",
-          "type": "start",
-          "meta": {
-            "position": { "x": 180, "y": 0 }
+          id: 'start_0',
+          type: 'start',
+          meta: {
+            position: { x: 180, y: 0 },
           },
-          "data": {
-            "title": "开始节点",
-            "outputs": {
-              "type": "object",
-              "properties": {
-                "query": {
-                  "type": "string",
-                  "default": "Hello Flow."
+          data: {
+            title: '开始节点',
+            outputs: {
+              type: 'object',
+              properties: {
+                query: {
+                  type: 'string',
+                  default: 'Hello Flow.',
                 },
-                "enable": {
-                  "type": "boolean",
-                  "default": true
+                enable: {
+                  type: 'boolean',
+                  default: true,
                 },
-                "array_obj": {
-                  "type": "array",
-                  "items": { "type": "integer" },
-                  "default": "[1,2,3]"
-                }
+                array_obj: {
+                  type: 'array',
+                  items: { type: 'integer' },
+                  default: '[1,2,3]',
+                },
               },
-              "required": []
-            }
-          }
+              required: [],
+            },
+          },
         },
         {
-          "id": "end_0",
-          "type": "end",
-          "meta": {
-            "position": { "x": 640, "y": 0 }
+          id: 'end_0',
+          type: 'end',
+          meta: {
+            position: { x: 640, y: 0 },
           },
-          "data": {
-            "title": "结束节点",
-            "inputsValues": {
-              "success": {
-                "type": "constant",
-                "content": true,
-                "schema": { "type": "boolean" },
-                "extra": { "index": 0 }
+          data: {
+            title: '结束节点',
+            inputsValues: {
+              success: {
+                type: 'constant',
+                content: true,
+                schema: { type: 'boolean' },
+                extra: { index: 0 },
               },
-              "query": {
-                "type": "ref",
-                "content": ["start_0", "query"],
-                "extra": { "index": 1 }
-              }
+              query: {
+                type: 'ref',
+                content: ['start_0', 'query'],
+                extra: { index: 1 },
+              },
             },
-            "inputs": {
-              "type": "object",
-              "properties": {
-                "success": { "type": "boolean" },
-                "query": { "type": "string" }
-              }
-            }
-          }
-        }
+            inputs: {
+              type: 'object',
+              properties: {
+                success: { type: 'boolean' },
+                query: { type: 'string' },
+              },
+            },
+          },
+        },
       ],
-      "edges": [
+      edges: [
         {
-          "sourceNodeID": "start_0",
-          "targetNodeID": "end_0"
-        }
-      ]
+          sourceNodeID: 'start_0',
+          targetNodeID: 'end_0',
+        },
+      ],
     },
     // 从workflow定义中提取：workflow的输入参数是end节点的inputs
     inputs: {
-      "type": "object",
-      "properties": {
-        "success": { "type": "boolean" },
-        "query": { "type": "string" }
-      }
+      type: 'object',
+      properties: {
+        success: { type: 'boolean' },
+        query: { type: 'string' },
+      },
     },
     // 从workflow定义中提取：workflow的输出参数是start节点的outputs
     outputs: {
-      "type": "object",
-      "properties": {
-        "query": { "type": "string", "default": "Hello Flow." },
-        "enable": { "type": "boolean", "default": true },
-        "array_obj": { "type": "array", "items": { "type": "integer" }, "default": "[1,2,3]" }
-      }
-    }
+      type: 'object',
+      properties: {
+        query: { type: 'string', default: 'Hello Flow.' },
+        enable: { type: 'boolean', default: true },
+        array_obj: { type: 'array', items: { type: 'integer' }, default: '[1,2,3]' },
+      },
+    },
   },
   {
     id: 'data-processing-workflow',
@@ -147,20 +148,20 @@ const MOCK_WORKFLOWS: WorkflowDefinition[] = [
     description: '用于数据清洗和转换的工作流',
     definition: {},
     inputs: {
-      "type": "object",
-      "properties": {
-        "rawData": { "type": "array", "items": { "type": "object" } },
-        "filterCriteria": { "type": "object" }
-      }
+      type: 'object',
+      properties: {
+        rawData: { type: 'array', items: { type: 'object' } },
+        filterCriteria: { type: 'object' },
+      },
     },
     outputs: {
-      "type": "object",
-      "properties": {
-        "processedData": { "type": "array", "items": { "type": "object" } },
-        "statistics": { "type": "object" }
-      }
-    }
-  }
+      type: 'object',
+      properties: {
+        processedData: { type: 'array', items: { type: 'object' } },
+        statistics: { type: 'object' },
+      },
+    },
+  },
 ];
 
 export interface WorkflowSelectorProps {
@@ -175,31 +176,33 @@ export const WorkflowSelector: React.FC<WorkflowSelectorProps> = ({ value, onCha
 
   useEffect(() => {
     // 从API获取workflow列表
-    fetchWorkflowsFromAPI().then((apiWorkflows) => {
-      if (apiWorkflows.length === 0) {
-        // 如果API没有数据，使用模拟数据作为fallback
-        console.warn('API未返回工作流数据，使用模拟数据');
+    fetchWorkflowsFromAPI()
+      .then((apiWorkflows) => {
+        if (apiWorkflows.length === 0) {
+          // 如果API没有数据，使用模拟数据作为fallback
+          console.warn('API未返回工作流数据，使用模拟数据');
+          setWorkflows(MOCK_WORKFLOWS);
+        } else {
+          setWorkflows(apiWorkflows);
+        }
+        setLoading(false);
+      })
+      .catch((error) => {
+        console.error('获取工作流列表失败，使用模拟数据:', error);
         setWorkflows(MOCK_WORKFLOWS);
-      } else {
-        setWorkflows(apiWorkflows);
-      }
-      setLoading(false);
-    }).catch((error) => {
-      console.error('获取工作流列表失败，使用模拟数据:', error);
-      setWorkflows(MOCK_WORKFLOWS);
-      setLoading(false);
-    });
+        setLoading(false);
+      });
   }, []);
 
   useEffect(() => {
     if (value) {
-      const workflow = workflows.find(w => w.id === value);
+      const workflow = workflows.find((w) => w.id === value);
       setSelectedWorkflow(workflow || null);
     }
   }, [value, workflows]);
 
   const handleWorkflowChange = (workflowId: string) => {
-    const workflow = workflows.find(w => w.id === workflowId);
+    const workflow = workflows.find((w) => w.id === workflowId);
     if (workflow && onChange) {
       onChange(workflowId, workflow);
     }
@@ -253,13 +256,13 @@ export const WorkflowSelector: React.FC<WorkflowSelectorProps> = ({ value, onCha
           <Text strong>选择工作流:</Text>
           <Select
             style={{ width: '100%', marginTop: 8 }}
-            placeholder={workflows.length === 0 ? "暂无可用工作流" : "请选择要嵌入的工作流"}
+            placeholder={workflows.length === 0 ? '暂无可用工作流' : '请选择要嵌入的工作流'}
             value={value}
             onChange={handleWorkflowChange}
             allowClear
             loading={loading}
           >
-            {workflows.map(workflow => (
+            {workflows.map((workflow) => (
               <Option key={workflow.id} value={workflow.id}>
                 <Space>
                   <span>{workflow.name}</span>
@@ -279,7 +282,10 @@ export const WorkflowSelector: React.FC<WorkflowSelectorProps> = ({ value, onCha
                 <Title level={5} style={{ margin: 0 }}>
                   <IconInfoCircle /> {selectedWorkflow.name}
                 </Title>
-                <Text type="secondary" style={{ margin: '4px 0 8px 0', fontSize: 12, display: 'block' }}>
+                <Text
+                  type="secondary"
+                  style={{ margin: '4px 0 8px 0', fontSize: 12, display: 'block' }}
+                >
                   {selectedWorkflow.description}
                 </Text>
               </div>
@@ -319,22 +325,19 @@ export interface WorkflowSelectorFieldProps extends FieldRenderProps<string> {
 export const WorkflowSelectorField: React.FC<WorkflowSelectorFieldProps> = ({
   value,
   onChange,
-  onWorkflowChange
-}) => {
-  return (
-    <WorkflowSelector
-      value={value}
-      onChange={(workflowId, workflow) => {
-        // 调用外部的自定义回调
-        if (onWorkflowChange) {
-          onWorkflowChange(workflowId, workflow);
-        }
-        // 同时调用标准的字段变更回调
-        if (onChange) {
-          onChange(workflowId);
-        }
-      }}
-    />
-  );
-};
-
+  onWorkflowChange,
+}) => (
+  <WorkflowSelector
+    value={value}
+    onChange={(workflowId, workflow) => {
+      // 调用外部的自定义回调
+      if (onWorkflowChange) {
+        onWorkflowChange(workflowId, workflow);
+      }
+      // 同时调用标准的字段变更回调
+      if (onChange) {
+        onChange(workflowId);
+      }
+    }}
+  />
+);

@@ -1,4 +1,4 @@
-import {STYLES} from "./styles.tsx";
+import { STYLES } from './styles.tsx';
 
 interface DragHandleProps {
   onMouseDown: (e: React.MouseEvent) => void;

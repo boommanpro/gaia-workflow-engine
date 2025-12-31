@@ -3,9 +3,11 @@
  * SPDX-License-Identifier: MIT
  */
 
-import {useEffect, useRef, useState} from 'react';
-import {Input, Typography} from '@douyinfe/semi-ui';
-import {FormTitleDescription} from './styles';
+import { useEffect, useRef, useState } from 'react';
+
+import { Input, Typography } from '@douyinfe/semi-ui';
+
+import { FormTitleDescription } from './styles';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -16,7 +18,11 @@ interface DescriptionInputProps {
   onDescriptionChange: (description: string) => void;
 }
 
-export function DescriptionInput({ readonly, description, onDescriptionChange }: DescriptionInputProps): JSX.Element {
+export function DescriptionInput({
+  readonly,
+  description,
+  onDescriptionChange,
+}: DescriptionInputProps): JSX.Element {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(description);
   const ref = useRef<any>();
@@ -62,10 +68,11 @@ export function DescriptionInput({ readonly, description, onDescriptionChange }:
           onDoubleClick={() => !readonly && setEditing(true)}
           style={{ cursor: readonly ? 'default' : 'pointer' }}
         >
-          <Text ellipsis={{ showTooltip: { opts: { content: description } }, rows: 2 }}>{description}</Text>
+          <Text ellipsis={{ showTooltip: { opts: { content: description } }, rows: 2 }}>
+            {description}
+          </Text>
         </div>
       )}
     </FormTitleDescription>
   );
 }
-

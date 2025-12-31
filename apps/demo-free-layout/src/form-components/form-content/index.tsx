@@ -1,13 +1,13 @@
-import React, {useContext, useRef, useState} from 'react';
+import React, { useContext, useRef, useState } from 'react';
 
-import {Field, FieldRenderProps, FlowNodeRegistry} from '@flowgram.ai/free-layout-editor';
+import { Field, FieldRenderProps, FlowNodeRegistry } from '@flowgram.ai/free-layout-editor';
 import Text from '@douyinfe/semi-ui/lib/es/typography/text';
-import {TextArea} from '@douyinfe/semi-ui';
+import { TextArea } from '@douyinfe/semi-ui';
 
-import {useIsSidebar, useNodeRenderContext} from '../../hooks';
-import {NodeRenderContext} from '../../context';
-import {FormTitleDescription, FormWrapper} from './styles';
-import {Feedback} from '../feedback';
+import { useIsSidebar, useNodeRenderContext } from '../../hooks';
+import { NodeRenderContext } from '../../context';
+import { FormTitleDescription, FormWrapper } from './styles';
+import { Feedback } from '../feedback';
 
 /**
  * @param props
@@ -35,31 +35,29 @@ export function FormContent(props: { children?: React.ReactNode }) {
   };
 
   return (
-      <FormWrapper>
-        <>
-          <FormTitleDescription onDoubleClick={handleDoubleClick}>
-            <Field name="description">
-              {({ field: { value, onChange }, fieldState }: FieldRenderProps<string>) => (
-                  <div>
-                    {isEditing ? (
-                        <TextArea
-                            ref={inputRef}
-                            defaultValue={value || registry.info?.description || ''}
-                            onBlur={() => handleBlur(onChange, inputRef.current?.value || '')}
-                            onEnterPress={() => handleBlur(onChange, inputRef.current?.value || '')}
-                        />
-                    ) : (
-                        <Text>
-                          {value || registry.info?.description || ''}
-                        </Text>
-                    )}
-                    <Feedback errors={fieldState?.errors} />
-                  </div>
-              )}
-            </Field>
-          </FormTitleDescription>
-          {props.children}
-        </>
-      </FormWrapper>
+    <FormWrapper>
+      <>
+        <FormTitleDescription onDoubleClick={handleDoubleClick}>
+          <Field name="description">
+            {({ field: { value, onChange }, fieldState }: FieldRenderProps<string>) => (
+              <div>
+                {isEditing ? (
+                  <TextArea
+                    ref={inputRef}
+                    defaultValue={value || registry.info?.description || ''}
+                    onBlur={() => handleBlur(onChange, inputRef.current?.value || '')}
+                    onEnterPress={() => handleBlur(onChange, inputRef.current?.value || '')}
+                  />
+                ) : (
+                  <Text>{value || registry.info?.description || ''}</Text>
+                )}
+                <Feedback errors={fieldState?.errors} />
+              </div>
+            )}
+          </Field>
+        </FormTitleDescription>
+        {props.children}
+      </>
+    </FormWrapper>
   );
 }

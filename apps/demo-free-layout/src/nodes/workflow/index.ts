@@ -3,11 +3,11 @@
  * SPDX-License-Identifier: MIT
  */
 
-import {WorkflowNodeType} from '../constants';
-import {FlowNodeRegistry} from '../../typings';
+import { WorkflowNodeType } from '../constants';
+import { FlowNodeRegistry } from '../../typings';
 import iconWorkflow from '../../assets/icon-workflow.svg';
-import {formMeta} from './form-meta';
-import {generateValidId} from '../utils';
+import { formMeta } from './form-meta';
+import { generateValidId } from '../utils';
 
 let index = 0;
 
@@ -59,4 +59,3 @@ export const WorkflowNodeRegistry: FlowNodeRegistry = {
   },
   formMeta: formMeta,
 };
-

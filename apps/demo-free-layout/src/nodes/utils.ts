@@ -10,7 +10,7 @@ import { nanoid } from 'nanoid';
  * 1. 以字母或下划线开头
  * 2. 只能包含字母、数字和下划线
  * 3. 不能包含特殊字符如连字符(-)
- * 
+ *
  * @param prefix 前缀
  * @param length 随机部分长度
  * @returns 符合规范的ID
@@ -18,7 +18,7 @@ import { nanoid } from 'nanoid';
 export function generateValidId(prefix: string, length: number = 5): string {
   // 生成nanoid，然后替换掉特殊字符
   let randomPart = nanoid(length);
-  
+
   // 替换掉连字符(-)等特殊字符
   randomPart = randomPart.replace(/[^a-zA-Z0-9_]/g, (match) => {
     // 将特殊字符映射为字母
@@ -30,7 +30,7 @@ export function generateValidId(prefix: string, length: number = 5): string {
       '!': 'e',
       '@': 'a',
       '#': 'h',
-      '$': 'u',
+      $: 'u',
       '%': 'p',
       '^': 'c',
       '&': 'n',
@@ -54,15 +54,15 @@ export function generateValidId(prefix: string, length: number = 5): string {
       '"': 'q',
       "'": 'q',
       '`': 'b',
-      ' ': 's'
+      ' ': 's',
     };
     return charMap[match] || 'x';
   });
-  
+
   // 确保第一个字符不是数字
   if (/^[0-9]/.test(randomPart)) {
     randomPart = 'a' + randomPart.substring(1);
   }
-  
+
   return `${prefix}_${randomPart}`;
 }

@@ -5,10 +5,10 @@
 
 import { nanoid } from 'nanoid';
 
+import { generateValidId } from '../utils';
 import { WorkflowNodeType } from '../constants';
 import { FlowNodeRegistry } from '../../typings';
 import iconLLM from '../../assets/icon-llm.jpg';
-import { generateValidId } from '../utils';
 
 let index = 0;
 export const LLMNodeRegistry: FlowNodeRegistry = {

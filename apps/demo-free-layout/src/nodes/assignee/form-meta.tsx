@@ -4,6 +4,7 @@
  */
 
 import { useState, useCallback } from 'react';
+
 import {
   Field,
   FieldRenderProps,
@@ -37,7 +38,11 @@ export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => {
     }
   }, []);
 
-  const handleSelectAssignee = (assignee: Assignee, currentAssignees: Assignee[], onChange: (value: Assignee[]) => void) => {
+  const handleSelectAssignee = (
+    assignee: Assignee,
+    currentAssignees: Assignee[],
+    onChange: (value: Assignee[]) => void
+  ) => {
     const exists = currentAssignees.find((a: Assignee) => a.id === assignee.id);
     if (!exists) {
       onChange([...currentAssignees, assignee]);
@@ -46,7 +51,11 @@ export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => {
     setSearchResults([]);
   };
 
-  const handleRemoveAssignee = (assigneeId: string, currentAssignees: Assignee[], onChange: (value: Assignee[]) => void) => {
+  const handleRemoveAssignee = (
+    assigneeId: string,
+    currentAssignees: Assignee[],
+    onChange: (value: Assignee[]) => void
+  ) => {
     onChange(currentAssignees.filter((a: Assignee) => a.id !== assigneeId));
   };
 
@@ -81,38 +90,40 @@ export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => {
 
                   {/* 搜索结果 */}
                   {searchQuery && (
-                    <div style={{
-                      marginTop: '8px',
-                      border: '1px solid #d9d9d9',
-                      borderRadius: '6px',
-                      maxHeight: '150px',
-                      overflowY: 'auto',
-                      backgroundColor: '#fff',
-                    }}>
+                    <div
+                      style={{
+                        marginTop: '8px',
+                        border: '1px solid #d9d9d9',
+                        borderRadius: '6px',
+                        maxHeight: '150px',
+                        overflowY: 'auto',
+                        backgroundColor: '#fff',
+                      }}
+                    >
                       {loading ? (
                         <div style={{ padding: '8px', textAlign: 'center', color: '#666' }}>
                           搜索中...
                         </div>
                       ) : searchResults.length > 0 ? (
                         searchResults.map((assignee) => (
-                           <div
-                             key={assignee.id}
-                             onClick={() => handleSelectAssignee(assignee, value, onChange)}
-                             style={{
-                               padding: '8px 12px',
-                               display: 'flex',
-                               alignItems: 'center',
-                               gap: '8px',
-                               cursor: 'pointer',
-                               borderBottom: '1px solid #f0f0f0',
-                             }}
-                             onMouseEnter={(e) => {
-                               e.currentTarget.style.backgroundColor = '#f5f5f5';
-                             }}
-                             onMouseLeave={(e) => {
-                               e.currentTarget.style.backgroundColor = 'transparent';
-                             }}
-                           >
+                          <div
+                            key={assignee.id}
+                            onClick={() => handleSelectAssignee(assignee, value, onChange)}
+                            style={{
+                              padding: '8px 12px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              cursor: 'pointer',
+                              borderBottom: '1px solid #f0f0f0',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = '#f5f5f5';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = 'transparent';
+                            }}
+                          >
                             <img
                               src={assignee.avatar}
                               alt={assignee.name}
@@ -140,9 +151,7 @@ export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => {
                     已选择的负责人:
                   </h4>
                   {value.length === 0 ? (
-                    <div style={{ color: '#999', fontSize: '12px' }}>
-                      尚未选择任何负责人
-                    </div>
+                    <div style={{ color: '#999', fontSize: '12px' }}>尚未选择任何负责人</div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       {value.map((assignee) => (
@@ -249,4 +258,3 @@ export const formMeta: FormMeta<FlowNodeJSON> = {
   render: renderForm,
   validateTrigger: ValidateTrigger.onChange,
 };
-

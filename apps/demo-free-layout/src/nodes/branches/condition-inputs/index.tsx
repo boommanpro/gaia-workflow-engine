@@ -3,16 +3,17 @@
  * SPDX-License-Identifier: MIT
  */
 
-import {Fragment, useLayoutEffect} from 'react';
-import {Field, FieldArray, I18n, WorkflowNodePortsData} from '@flowgram.ai/free-layout-editor';
-import {ConditionRow, ConditionRowValueType} from '@flowgram.ai/form-materials';
-import {Button} from '@douyinfe/semi-ui';
-import {IconCrossCircleStroked, IconPlus} from '@douyinfe/semi-icons';
+import { Fragment, useLayoutEffect } from 'react';
 
-import {useNodeRenderContext} from '../../../hooks';
-import {Feedback, FormItem} from '../../../form-components';
-import {ConditionPort} from './styles';
-import {generateValidId} from '../../utils';
+import { Field, FieldArray, I18n, WorkflowNodePortsData } from '@flowgram.ai/free-layout-editor';
+import { ConditionRow, ConditionRowValueType } from '@flowgram.ai/form-materials';
+import { Button } from '@douyinfe/semi-ui';
+import { IconCrossCircleStroked, IconPlus } from '@douyinfe/semi-icons';
+
+import { generateValidId } from '../../utils';
+import { useNodeRenderContext } from '../../../hooks';
+import { Feedback, FormItem } from '../../../form-components';
+import { ConditionPort } from './styles';
 
 interface ConditionValue {
   key: string;
@@ -42,7 +43,9 @@ export function ConditionInputs() {
                         readonly={readonly}
                         style={{ flexGrow: 1 }}
                         value={childField.value.value}
-                        onChange={(v) => childField.onChange({ value: v, key: childField.value.key })}
+                        onChange={(v) =>
+                          childField.onChange({ value: v, key: childField.value.key })
+                        }
                       />
 
                       {!readonly && (

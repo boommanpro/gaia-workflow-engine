@@ -27,12 +27,10 @@ export function Save(props: { disabled: boolean }) {
     console.log('>>>>> save data: ', clientContext.document.toJSON());
     if (window.$wujie) {
       let content = clientContext.document.toJSON();
-      const payload = {success: true, content: content};
-      window.$wujie.bus.$emit('workflowSaved',payload);
+      const payload = { success: true, content: content };
+      window.$wujie.bus.$emit('workflowSaved', payload);
     }
   }, [clientContext]);
-
-
 
   /**
    * Listen single node validate

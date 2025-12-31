@@ -3,29 +3,29 @@
  * SPDX-License-Identifier: MIT
  */
 
-import {useEffect, useState} from 'react';
+import { useEffect, useState } from 'react';
 
-import {useClientContext, useRefresh} from '@flowgram.ai/free-layout-editor';
-import {Divider, IconButton, Tooltip} from '@douyinfe/semi-ui';
-import {IconRedo, IconUndo} from '@douyinfe/semi-icons';
+import { useClientContext, useRefresh } from '@flowgram.ai/free-layout-editor';
+import { Divider, IconButton, Tooltip } from '@douyinfe/semi-ui';
+import { IconRedo, IconUndo } from '@douyinfe/semi-icons';
 
-import {TestRunButton} from '../testrun/testrun-button';
-import {AddNode} from '../add-node';
-import {ZoomSelect} from './zoom-select';
-import {SwitchLine} from './switch-line';
-import {ToolContainer, ToolSection} from './styles';
-import {Save} from './save';
-import {Readonly} from './readonly';
-import {MinimapSwitch} from './minimap-switch';
-import {Minimap} from './minimap';
-import {Interactive} from './interactive';
-import {FitView} from './fit-view';
-import {Console} from './console';
-import {Comment} from './comment';
-import {AutoLayout} from './auto-layout';
-import {Import} from "./import";
-import {ReportInput} from './report-input';
-import {ProblemButton} from '../problem-panel';
+import { TestRunButton } from '../testrun/testrun-button';
+import { AddNode } from '../add-node';
+import { ZoomSelect } from './zoom-select';
+import { SwitchLine } from './switch-line';
+import { ToolContainer, ToolSection } from './styles';
+import { Save } from './save';
+import { ReportInput } from './report-input';
+import { Readonly } from './readonly';
+import { MinimapSwitch } from './minimap-switch';
+import { Minimap } from './minimap';
+import { Interactive } from './interactive';
+import { Import } from './import';
+import { FitView } from './fit-view';
+import { Console } from './console';
+import { Comment } from './comment';
+import { AutoLayout } from './auto-layout';
+import { ProblemButton } from '../problem-panel';
 
 export const DemoTools = () => {
   const { history, playground } = useClientContext();

@@ -11,11 +11,11 @@ import { ConditionRow, ConditionRowValueType } from '@flowgram.ai/form-materials
 import { Button } from '@douyinfe/semi-ui';
 import { IconPlus, IconCrossCircleStroked } from '@douyinfe/semi-icons';
 
+import { generateValidId } from '../../utils';
 import { useNodeRenderContext } from '../../../hooks';
 import { FormItem } from '../../../form-components';
 import { Feedback } from '../../../form-components';
 import { ConditionPort } from './styles';
-import { generateValidId } from '../../utils';
 
 interface ConditionValue {
   key: string;

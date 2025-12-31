@@ -36,14 +36,13 @@ export const mockAssignees: Assignee[] = [
 // 搜索负责人的函数
 export const searchAssignees = async (query: string): Promise<Assignee[]> => {
   // 模拟网络延迟
-  await new Promise(resolve => setTimeout(resolve, 300));
+  await new Promise((resolve) => setTimeout(resolve, 300));
 
   if (!query.trim()) {
     return mockAssignees;
   }
 
-  return mockAssignees.filter(assignee =>
+  return mockAssignees.filter((assignee) =>
     assignee.name.toLowerCase().includes(query.toLowerCase())
   );
 };
-

@@ -10,8 +10,8 @@ import {
   nanoid,
 } from '@flowgram.ai/free-layout-editor';
 
-import { FlowNodeRegistry } from '../../typings';
 import { generateValidId } from '../utils';
+import { FlowNodeRegistry } from '../../typings';
 
 let index = 0;
 export const GroupNodeRegistry: FlowNodeRegistry = {

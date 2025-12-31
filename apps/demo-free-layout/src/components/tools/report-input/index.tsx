@@ -3,14 +3,14 @@
  * SPDX-License-Identifier: MIT
  */
 
-import {useCallback, useState} from 'react';
+import { useCallback, useState } from 'react';
 
-import {useClientContext, useService} from '@flowgram.ai/free-layout-editor';
-import {Button, Toast, Tooltip} from '@douyinfe/semi-ui';
-import {IconFile} from '@douyinfe/semi-icons';
+import { useClientContext, useService } from '@flowgram.ai/free-layout-editor';
+import { Button, Toast, Tooltip } from '@douyinfe/semi-ui';
+import { IconFile } from '@douyinfe/semi-icons';
 
-import {WorkflowRuntimeService} from '../../../plugins/runtime-plugin/runtime-service';
-import {CodeEditorModal} from '../../code-editor-modal';
+import { CodeEditorModal } from '../../code-editor-modal';
+import { WorkflowRuntimeService } from '../../../plugins/runtime-plugin/runtime-service';
 
 export const ReportInput = () => {
   const ctx = useClientContext();
@@ -33,7 +33,7 @@ export const ReportInput = () => {
       status: rawData.workflowStatus?.status || 'succeeded',
       terminated: rawData.workflowStatus?.terminated ?? true,
       startTime: Date.now(),
-      timeCost: 0
+      timeCost: 0,
     };
 
     // 转换 reports
@@ -54,8 +54,8 @@ export const ReportInput = () => {
             outputs: snapshot.outputs || {},
             data: snapshot.data || {},
             branch: snapshot.branch || '',
-            error: snapshot.error || ''
-          }))
+            error: snapshot.error || '',
+          })),
         };
       });
     }
@@ -66,48 +66,46 @@ export const ReportInput = () => {
       outputs: rawData.outputs || {},
       workflowStatus,
       reports,
-      messages: rawData.messages || { error: [] }
+      messages: rawData.messages || { error: [] },
     };
 
     console.log('Converted IReport:', iReport);
     return iReport;
   }, []);
 
-  const handleReportSubmit = useCallback(async (data: string) => {
-    try {
-      const rawData = JSON.parse(data);
+  const handleReportSubmit = useCallback(
+    async (data: string) => {
+      try {
+        const rawData = JSON.parse(data);
 
-      // 验证基本数据格式
-      if (!rawData.reports || typeof rawData.reports !== 'object') {
-        Toast.error('Invalid report format: missing reports object');
-        return;
+        // 验证基本数据格式
+        if (!rawData.reports || typeof rawData.reports !== 'object') {
+          Toast.error('Invalid report format: missing reports object');
+          return;
+        }
+
+        console.log('Raw report data:', rawData);
+
+        // 转换为 IReport 格式
+        const iReport = convertToIReport(rawData);
+
+        // 调用 runtime service 的 updateReport 方法来更新节点状态
+        runtimeService.updateReport(iReport);
+
+        Toast.success('Report data loaded successfully');
+        setShowModal(false);
+      } catch (error) {
+        console.error('Failed to parse report data:', error);
+        Toast.error('Invalid JSON format');
       }
-
-      console.log('Raw report data:', rawData);
-
-      // 转换为 IReport 格式
-      const iReport = convertToIReport(rawData);
-
-      // 调用 runtime service 的 updateReport 方法来更新节点状态
-      runtimeService.updateReport(iReport);
-
-      Toast.success('Report data loaded successfully');
-      setShowModal(false);
-    } catch (error) {
-      console.error('Failed to parse report data:', error);
-      Toast.error('Invalid JSON format');
-    }
-  }, [runtimeService, convertToIReport]);
+    },
+    [runtimeService, convertToIReport]
+  );
 
   return (
     <>
       <Tooltip content={'Input Report Results'}>
-        <Button
-          type="tertiary"
-          icon={<IconFile />}
-          theme="borderless"
-          onClick={openModal}
-        />
+        <Button type="tertiary" icon={<IconFile />} theme="borderless" onClick={openModal} />
       </Tooltip>
       <CodeEditorModal
         value={reportData}
@@ -120,4 +118,3 @@ export const ReportInput = () => {
     </>
   );
 };
-

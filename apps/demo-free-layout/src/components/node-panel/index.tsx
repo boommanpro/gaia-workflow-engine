@@ -6,8 +6,8 @@
 import { useRef } from 'react';
 
 import { NodePanelRenderProps as NodePanelRenderPropsDefault } from '@flowgram.ai/free-node-panel-plugin';
+import { WorkflowPortEntity } from '@flowgram.ai/free-layout-editor';
 import { Popover } from '@douyinfe/semi-ui';
-import { WorkflowPortEntity } from '@flowgram.ai/free-layout-editor'
 
 import { NodePlaceholder } from './node-placeholder';
 import { NodeList } from './node-list';

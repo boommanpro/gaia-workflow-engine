@@ -18,12 +18,15 @@ export const useDraggable = ({
   const startY = useRef(0);
   const startHeight = useRef(0);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    isDragging.current = true;
-    startY.current = e.clientY;
-    startHeight.current = height;
-    e.preventDefault();
-  }, [height]);
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      isDragging.current = true;
+      startY.current = e.clientY;
+      startHeight.current = height;
+      e.preventDefault();
+    },
+    [height]
+  );
 
   const handleMouseMove = useCallback(
     (e: MouseEvent) => {

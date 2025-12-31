@@ -3,22 +3,27 @@
  * SPDX-License-Identifier: MIT
  */
 
-import {useEffect, useState} from 'react';
+import { useEffect, useState } from 'react';
 
-import {CommandService, useClientContext} from '@flowgram.ai/free-layout-editor';
-import {Button} from '@douyinfe/semi-ui';
-import {IconClose, IconExport, IconSmallTriangleDown, IconSmallTriangleLeft} from '@douyinfe/semi-icons';
-import {usePanelManager} from '@flowgram.ai/panel-manager-plugin';
+import { usePanelManager } from '@flowgram.ai/panel-manager-plugin';
+import { CommandService, useClientContext } from '@flowgram.ai/free-layout-editor';
+import { Button } from '@douyinfe/semi-ui';
+import {
+  IconClose,
+  IconExport,
+  IconSmallTriangleDown,
+  IconSmallTriangleLeft,
+} from '@douyinfe/semi-icons';
 
-import {toggleLoopExpanded} from '../../utils';
-import {FlowCommandId} from '../../shortcuts';
-import {useIsSidebar, useNodeRenderContext} from '../../hooks';
-import {NodeMenu} from '../../components/node-menu';
-import {getIcon} from './utils';
-import {TitleInput} from './title-input';
-import {Header, Operators} from './styles';
-import {useModal} from '../../hooks/use-code-editor-modal';
-import {nodeFormPanelFactory} from '../../components/sidebar';
+import { toggleLoopExpanded } from '../../utils';
+import { FlowCommandId } from '../../shortcuts';
+import { useModal } from '../../hooks/use-code-editor-modal';
+import { useIsSidebar, useNodeRenderContext } from '../../hooks';
+import { nodeFormPanelFactory } from '../../components/sidebar';
+import { NodeMenu } from '../../components/node-menu';
+import { getIcon } from './utils';
+import { TitleInput } from './title-input';
+import { Header, Operators } from './styles';
 
 export function FormHeader() {
   const { openModal, modal } = useModal('', 'json');

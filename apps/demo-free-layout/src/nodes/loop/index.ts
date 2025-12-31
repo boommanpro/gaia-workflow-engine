@@ -13,8 +13,8 @@ import {
 import { FlowNodeRegistry } from '../../typings';
 import iconLoop from '../../assets/icon-loop.jpg';
 import { formMeta } from './form-meta';
-import { WorkflowNodeType } from '../constants';
 import { generateValidId } from '../utils';
+import { WorkflowNodeType } from '../constants';
 
 let index = 0;
 export const LoopNodeRegistry: FlowNodeRegistry = {

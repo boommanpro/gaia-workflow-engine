@@ -25,9 +25,9 @@ import {
 import { injectable } from '@flowgram.ai/free-layout-editor';
 
 import { ServerConfig } from '../../type';
+import { getAuthorization } from '../../setup-auth';
 import type { ServerError } from './type';
 import { DEFAULT_SERVER_CONFIG } from './constant';
-import {getAuthorization} from "../../setup-auth";
 
 @injectable()
 export class WorkflowRuntimeServerClient implements IRuntimeClient {
@@ -109,7 +109,7 @@ export class WorkflowRuntimeServerClient implements IRuntimeClient {
       if (authorization) {
         requestOptions.headers = {
           'Content-Type': 'application/json',
-          'Authorization': authorization
+          Authorization: authorization,
         };
       } else {
         requestOptions.headers = {
@@ -164,7 +164,7 @@ export class WorkflowRuntimeServerClient implements IRuntimeClient {
       // 确保路径以/开头
       return path.startsWith('/') ? path : `/${path}`;
     }
-    
+
     const protocol = this.config.protocol ?? window.location.protocol;
     const host = this.config.port
       ? `${this.config.domain}:${this.config.port}`

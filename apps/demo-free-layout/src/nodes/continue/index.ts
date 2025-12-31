@@ -8,8 +8,8 @@ import { nanoid } from 'nanoid';
 import { FlowNodeRegistry } from '../../typings';
 import iconContinue from '../../assets/icon-continue.jpg';
 import { formMeta } from './form-meta';
-import { WorkflowNodeType } from '../constants';
 import { generateValidId } from '../utils';
+import { WorkflowNodeType } from '../constants';
 
 let index = 0;
 export const ContinueNodeRegistry: FlowNodeRegistry = {
