@@ -23,11 +23,12 @@ import { PasteShortcut } from '../../shortcuts/paste';
 import { CopyShortcut } from '../../shortcuts/copy';
 
 interface NodeMenuProps {
-  node: WorkflowNodeEntity;
-  deleteNode: () => void;
+    node: WorkflowNodeEntity;
+    updateTitleEdit?: (setEditing: boolean) => void;
+    deleteNode: () => void;
 }
 
-export const NodeMenu: FC<NodeMenuProps> = ({ node, deleteNode }) => {
+export const NodeMenu: FC<NodeMenuProps> = ({ node, deleteNode, updateTitleEdit }) => {
   const [visible, setVisible] = useState(true);
   const clientContext = useClientContext();
   const registry = node.getNodeRegistry<FlowNodeRegistry>();
