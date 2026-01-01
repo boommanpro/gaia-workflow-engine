@@ -3,19 +3,16 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { useLayoutEffect } from 'react';
+import {useLayoutEffect} from 'react';
+import {Field, FieldArray, I18n} from '@flowgram.ai/free-layout-editor';
+import {ConditionRow, ConditionRowValueType} from '@flowgram.ai/form-materials';
+import {Button} from '@douyinfe/semi-ui';
+import {IconCrossCircleStroked, IconPlus} from '@douyinfe/semi-icons';
 
-import { nanoid } from 'nanoid';
-import { Field, FieldArray, I18n } from '@flowgram.ai/free-layout-editor';
-import { ConditionRow, ConditionRowValueType } from '@flowgram.ai/form-materials';
-import { Button } from '@douyinfe/semi-ui';
-import { IconPlus, IconCrossCircleStroked } from '@douyinfe/semi-icons';
-
-import { generateValidId } from '../../utils';
-import { useNodeRenderContext } from '../../../hooks';
-import { FormItem } from '../../../form-components';
-import { Feedback } from '../../../form-components';
-import { ConditionPort } from './styles';
+import {generateValidId} from '../../utils';
+import {useIsSidebar, useNodeRenderContext} from '../../../hooks';
+import {Feedback, FormItem} from '../../../form-components';
+import {ConditionPort} from './styles';
 
 interface ConditionValue {
   key: string;
@@ -24,6 +21,7 @@ interface ConditionValue {
 
 export function ConditionInputs() {
   const { node, readonly } = useNodeRenderContext();
+  const isSidebar = useIsSidebar();
 
   useLayoutEffect(() => {
     window.requestAnimationFrame(() => {
@@ -66,7 +64,7 @@ export function ConditionInputs() {
           <FormItem name="else" type="boolean" required={true} labelWidth={100}>
             <ConditionPort data-port-id="else" data-port-type="output" />
           </FormItem>
-          {!readonly && (
+          {isSidebar && (
             <div>
               <Button
                 theme="borderless"

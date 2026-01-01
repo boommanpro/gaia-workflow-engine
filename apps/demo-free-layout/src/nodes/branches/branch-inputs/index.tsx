@@ -12,7 +12,7 @@ import { IconCrossCircleStroked, IconPlus } from '@douyinfe/semi-icons';
 
 import { ConditionPort } from '../condition-inputs/styles';
 import { generateValidId } from '../../utils';
-import { useNodeRenderContext } from '../../../hooks';
+import { useNodeRenderContext, useIsSidebar } from '../../../hooks';
 import { Feedback, FormItem } from '../../../form-components';
 import { BranchContainer, BranchContent, BranchHeader, BranchPort, BranchTitle } from './styles';
 
@@ -30,6 +30,7 @@ interface BranchValue {
 
 export function BranchInputs() {
   const { node, readonly } = useNodeRenderContext();
+  const isSidebar = useIsSidebar();
   const [editingBranchIndex, setEditingBranchIndex] = useState<number | null>(null);
 
   useLayoutEffect(() => {
@@ -77,7 +78,7 @@ export function BranchInputs() {
                       <FieldArray name={`${branchField.name}.conditions`}>
                         {({ field: conditionsField }) => (
                           <>
-                            {conditionsField.value.length > 1 && (
+                            {conditionsField.value?.length > 1 && (
                               <Radio.Group
                                 value={branch.value.logic}
                                 onChange={(e) => {
@@ -95,7 +96,7 @@ export function BranchInputs() {
                           </>
                         )}
                       </FieldArray>
-                      {!readonly && branchesField.value.length > 1 && (
+                      {!readonly && branchesField.value?.length > 1 && (
                         <Button
                           theme="borderless"
                           disabled={readonly}
@@ -138,7 +139,7 @@ export function BranchInputs() {
                                         }
                                       />
 
-                                      {!readonly && conditionsField.value.length > 1 && (
+                                      {!readonly && conditionsField.value?.length > 1 && (
                                         <Button
                                           theme="borderless"
                                           disabled={readonly}
@@ -156,7 +157,7 @@ export function BranchInputs() {
                                 )}
                               </Field>
                             ))}
-                            {!readonly && (
+                            {isSidebar && (
                               <div>
                                 <Button
                                   theme="borderless"
@@ -182,7 +183,7 @@ export function BranchInputs() {
               </Field>
             </Fragment>
           ))}
-          {!readonly && (
+          {isSidebar && (
             <div>
               <Button
                 theme="borderless"
@@ -190,7 +191,7 @@ export function BranchInputs() {
                 onClick={() =>
                   branchesField.append({
                     id: generateValidId('branch', 5),
-                    title: `Branch ${branchesField.value.length + 1}`,
+                    title: `Branch ${(branchesField.value?.length || 0) + 1}`,
                     logic: 'and',
                     conditions: [
                       {

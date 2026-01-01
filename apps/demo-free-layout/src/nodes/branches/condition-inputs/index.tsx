@@ -11,7 +11,7 @@ import { Button } from '@douyinfe/semi-ui';
 import { IconCrossCircleStroked, IconPlus } from '@douyinfe/semi-icons';
 
 import { generateValidId } from '../../utils';
-import { useNodeRenderContext } from '../../../hooks';
+import { useNodeRenderContext, useIsSidebar } from '../../../hooks';
 import { Feedback, FormItem } from '../../../form-components';
 import { ConditionPort } from './styles';
 
@@ -22,6 +22,7 @@ interface ConditionValue {
 
 export function ConditionInputs() {
   const { node, readonly } = useNodeRenderContext();
+  const isSidebar = useIsSidebar();
 
   useLayoutEffect(() => {
     window.requestAnimationFrame(() => {
@@ -65,7 +66,7 @@ export function ConditionInputs() {
               </Field>
             </Fragment>
           ))}
-          {!readonly && (
+          {isSidebar && (
             <div>
               <Button
                 theme="borderless"
