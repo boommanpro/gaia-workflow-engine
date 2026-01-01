@@ -17,6 +17,9 @@
       @ready="handleAppReady"
       ref="wujieRef"
     />
+    
+    <!-- AI助手组件 -->
+    <AIAssistant />
   </div>
 </template>
 
@@ -24,6 +27,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { bus } from 'wujie'
 import WujieWrapper from './WujieWrapper.vue'
+import AIAssistant from './AIAssistant.vue'
 import { useWorkflowData } from '../composables/useWorkflowData'
 import { useWorkflowCommunication } from '../composables/useWorkflowCommunication'
 
@@ -137,7 +141,7 @@ onUnmounted(() => {
 
 // 处理来自微前端的消息
 const handleMessage = (data) => {
-  console.log('收到来自微前端的消息:', data)
+  console.log('WorkflowEditorFrame received message:', data)
 
   // 处理保存请求
   if (data?.type === 'saveWorkflow') {

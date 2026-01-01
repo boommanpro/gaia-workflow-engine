@@ -76,6 +76,9 @@
       @confirm="handleVersionConfirm"
       @cancel="handleVersionCancel"
     />
+    
+    <!-- AI助手组件 -->
+    <AIAssistant />
   </div>
 </template>
 
@@ -87,6 +90,7 @@ import { Delete, ArrowDown } from '@element-plus/icons-vue'
 import { bus } from 'wujie'
 import WorkflowEditorFrame from '../components/WorkflowEditorFrame.vue'
 import VersionInputDialog from '../components/VersionInputDialog.vue'
+import AIAssistant from '../components/AIAssistant.vue'
 
 // 定义 props
 const props = defineProps({

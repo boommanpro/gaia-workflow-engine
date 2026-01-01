@@ -3,7 +3,14 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { EditorRenderer, FreeLayoutEditorProvider } from '@flowgram.ai/free-layout-editor';
+import { useEffect } from 'react';
+import { 
+  EditorRenderer, 
+  FreeLayoutEditorProvider, 
+  useClientContext,
+  useService,
+  WorkflowDocument
+} from '@flowgram.ai/free-layout-editor';
 
 import '@flowgram.ai/free-layout-editor/index.css';
 import './index.css';
@@ -13,6 +20,7 @@ import { nodeRegistries } from './nodes';
 import { initialData } from './initial-data';
 import { useEditorProps } from './hooks';
 import { DemoTools } from './components/tools';
+import { initWujieCommunication, setGlobalContext, setGlobalDocument } from './utils/wujie-communication';
 
 let loadedWorkflowData = null;
 
@@ -20,6 +28,34 @@ let loadedWorkflowData = null;
 window.setLoadedWorkflowData = (data) => {
   loadedWorkflowData = data;
   console.log('设置加载的工作流数据:', data);
+};
+
+// 内部组件：负责初始化微前端通信
+const WujieCommunicationInitializer = () => {
+  const ctx = useClientContext();
+  const documentService = useService(WorkflowDocument);
+  
+  console.log('WujieCommunicationInitializer - context:', ctx);
+  console.log('WujieCommunicationInitializer - document service:', documentService);
+
+  useEffect(() => {
+    console.log('Initializing Wujie communication in provider context:', ctx, documentService);
+    
+    // 设置全局上下文
+    if (ctx) {
+      setGlobalContext(ctx);
+    }
+    
+    // 设置全局文档服务
+    if (documentService) {
+      setGlobalDocument(documentService);
+    }
+    
+    // 初始化微前端通信
+    initWujieCommunication(ctx);
+  }, [ctx, documentService]);
+
+  return null; // 这个组件不渲染任何内容
 };
 
 export const Editor = () => {
@@ -43,6 +79,8 @@ export const Editor = () => {
           <EditorRenderer className="demo-editor" />
         </div>
         <DemoTools />
+        {/* 初始化微前端通信的组件 */}
+        <WujieCommunicationInitializer />
       </FreeLayoutEditorProvider>
     </div>
   );
