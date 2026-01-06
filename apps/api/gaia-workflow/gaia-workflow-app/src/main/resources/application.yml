@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    url: jdbc:sqlite:gaia_workflow.db
+    driver-class-name: org.sqlite.JDBC
+    username: 
+    password: 
+  sql:
+    init:
+      schema-locations: classpath:sql/schema.sql
+      mode: never
+      
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      logic-delete-field: isDeleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0

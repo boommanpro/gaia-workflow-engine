@@ -1,0 +1,331 @@
+{
+  "nodes": [
+    {
+      "id": "start_0",
+      "type": "start",
+      "meta": {
+        "position": {
+          "x": 180,
+          "y": 262.1
+        }
+      },
+      "data": {
+        "title": "开始节点",
+        "outputs": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "default": "Hello Flow."
+            },
+            "enable": {
+              "type": "boolean",
+              "default": true
+            },
+            "array_obj": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "int": {
+                    "type": "number"
+                  },
+                  "str": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "end_0",
+      "type": "end",
+      "meta": {
+        "position": {
+          "x": 2344,
+          "y": 262.1
+        }
+      },
+      "data": {
+        "title": "结束节点",
+        "inputsValues": {
+          "success": {
+            "type": "constant",
+            "content": true,
+            "schema": {
+              "type": "boolean"
+            },
+            "extra": {
+              "index": 0
+            }
+          },
+          "query": {
+            "type": "ref",
+            "content": [
+              "start_0",
+              "query"
+            ],
+            "extra": {
+              "index": 1
+            }
+          },
+          "ai_loop_user": {
+            "type": "ref",
+            "content": [
+              "loop_TC60x",
+              "user"
+            ],
+            "extra": {
+              "index": 5
+            }
+          }
+        },
+        "inputs": {
+          "type": "object",
+          "properties": {
+            "success": {
+              "type": "boolean"
+            },
+            "query": {
+              "type": "string"
+            },
+            "ai_loop_user": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "loop_TC60x",
+      "type": "loop",
+      "meta": {
+        "position": {
+          "x": 540,
+          "y": 0
+        }
+      },
+      "data": {
+        "title": "Loop_1",
+        "loopFor": {
+          "type": "ref",
+          "content": [
+            "start_0",
+            "array_obj"
+          ]
+        },
+        "loopOutputs": {
+          "user": {
+            "type": "ref",
+            "content": [
+              "216606",
+              "result"
+            ]
+          }
+        },
+        "outputs": {
+          "type": "object",
+          "required": [],
+          "properties": {
+            "user": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "blocks": [
+        {
+          "id": "block_start_O0kbZ",
+          "type": "block-start",
+          "meta": {
+            "position": {
+              "x": 32,
+              "y": 190.6
+            }
+          },
+          "data": {}
+        },
+        {
+          "id": "block_end_CDMp3",
+          "type": "block-end",
+          "meta": {
+            "position": {
+              "x": 1264,
+              "y": 280.35
+            }
+          },
+          "data": {}
+        },
+        {
+          "id": "216606",
+          "type": "llm",
+          "meta": {
+            "position": {
+              "x": 344,
+              "y": 0
+            }
+          },
+          "data": {
+            "title": "LLM_1",
+            "inputsValues": {
+              "modelName": {
+                "type": "constant",
+                "content": "qwen/qwen3-4b-2507",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "apiKey": {
+                "type": "constant",
+                "content": "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              },
+              "apiHost": {
+                "type": "constant",
+                "content": "http://localhost:1234/v1",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "temperature": {
+                "type": "constant",
+                "content": 0.5
+              },
+              "systemPrompt": {
+                "type": "template",
+                "content": "# Role\nYou are an AI assistant.\n"
+              },
+              "prompt": {
+                "type": "template",
+                "content": "请返回一个用户的json结构，仅返回json数据即可"
+              }
+            },
+            "inputs": {
+              "type": "object",
+              "required": [
+                "modelName",
+                "apiKey",
+                "apiHost",
+                "temperature",
+                "prompt"
+              ],
+              "properties": {
+                "modelName": {
+                  "type": "string"
+                },
+                "apiKey": {
+                  "type": "string"
+                },
+                "apiHost": {
+                  "type": "string"
+                },
+                "temperature": {
+                  "type": "number"
+                },
+                "systemPrompt": {
+                  "type": "string",
+                  "extra": {
+                    "formComponent": "prompt-editor"
+                  }
+                },
+                "prompt": {
+                  "type": "string",
+                  "extra": {
+                    "formComponent": "prompt-editor"
+                  }
+                }
+              }
+            },
+            "outputs": {
+              "type": "object",
+              "properties": {
+                "result": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        {
+          "id": "condition_E0X5H",
+          "type": "condition",
+          "meta": {
+            "position": {
+              "x": 804,
+              "y": 97.85
+            }
+          },
+          "data": {
+            "title": "Condition",
+            "conditions": [
+              {
+                "value": {
+                  "left": {
+                    "type": "ref",
+                    "content": [
+                      "216606",
+                      "result"
+                    ]
+                  },
+                  "operator": "is_empty"
+                },
+                "key": "if_OqGme"
+              }
+            ]
+          }
+        },
+        {
+          "id": "continue_aDxa6",
+          "type": "continue",
+          "meta": {
+            "position": {
+              "x": 1264,
+              "y": 85.35
+            }
+          },
+          "data": {
+            "title": "Continue_3"
+          }
+        }
+      ],
+      "edges": [
+        {
+          "sourceNodeID": "block_start_O0kbZ",
+          "targetNodeID": "216606"
+        },
+        {
+          "sourceNodeID": "condition_E0X5H",
+          "targetNodeID": "block_end_CDMp3",
+          "sourcePortID": "else"
+        },
+        {
+          "sourceNodeID": "216606",
+          "targetNodeID": "condition_E0X5H"
+        },
+        {
+          "sourceNodeID": "condition_E0X5H",
+          "targetNodeID": "continue_aDxa6",
+          "sourcePortID": "if_OqGme"
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "sourceNodeID": "start_0",
+      "targetNodeID": "loop_TC60x"
+    },
+    {
+      "sourceNodeID": "loop_TC60x",
+      "targetNodeID": "end_0"
+    }
+  ]
+}

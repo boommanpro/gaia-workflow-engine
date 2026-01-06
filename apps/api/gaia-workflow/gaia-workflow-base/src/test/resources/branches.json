@@ -1,0 +1,152 @@
+{
+  "id": "condition_lT8aG",
+  "type": "branches",
+  "meta": {
+    "position": {
+      "x": 640,
+      "y": 42.75
+    }
+  },
+  "data": {
+    "title": "Branches",
+    "branches": [
+      {
+        "id": "branch_IF1cn",
+        "title": "Branch 1",
+        "logic": "and",
+        "conditions": [
+          {
+            "value": {
+              "type": "expression",
+              "content": "",
+              "left": {
+                "type": "ref",
+                "content": [
+                  "start_0",
+                  "query"
+                ]
+              },
+              "operator": "is_empty"
+            },
+            "key": "if_xRHvw3"
+          },
+          {
+            "key": "if_beIlsv",
+            "value": {
+              "type": "expression",
+              "content": ""
+            }
+          }
+        ]
+      },
+      {
+        "id": "branch_nsF9D",
+        "title": "Branch 2",
+        "logic": "and",
+        "conditions": [
+          {
+            "value": {
+              "type": "expression",
+              "content": "",
+              "left": {
+                "type": "ref",
+                "content": [
+                  "start_0",
+                  "enable"
+                ]
+              },
+              "operator": "is_true"
+            },
+            "key": "if_Gu4oBY"
+          }
+        ]
+      },
+      {
+        "id": "branch_nc7lp",
+        "title": "Branch 3",
+        "logic": "and",
+        "conditions": [
+          {
+            "value": {
+              "type": "expression",
+              "content": "",
+              "left": {
+                "type": "ref",
+                "content": [
+                  "start_0",
+                  "array_obj"
+                ]
+              },
+              "operator": "eq",
+              "right": {
+                "type": "ref",
+                "content": [
+                  "start_0",
+                  "array_obj"
+                ]
+              }
+            },
+            "key": "if_jb3651"
+          }
+        ]
+      },
+      {
+        "id": "branch_KQwWL",
+        "title": "Branch 4",
+        "logic": "or",
+        "conditions": [
+          {
+            "value": {
+              "type": "expression",
+              "content": "",
+              "left": {
+                "type": "ref",
+                "content": [
+                  "start_0",
+                  "query"
+                ]
+              },
+              "operator": "eq",
+              "right": {
+                "type": "constant",
+                "content": "123",
+                "schema": {
+                  "type": "string",
+                  "extra": {
+                    "weak": true
+                  }
+                }
+              }
+            },
+            "key": "if_BbynTC"
+          },
+          {
+            "value": {
+              "type": "expression",
+              "content": "",
+              "left": {
+                "type": "ref",
+                "content": [
+                  "start_0",
+                  "enable"
+                ]
+              },
+              "operator": "eq",
+              "right": {
+                "type": "constant",
+                "content": true,
+                "schema": {
+                  "type": "boolean",
+                  "extra": {
+                    "weak": true
+                  }
+                }
+              }
+            },
+            "key": "if_SKNzm_"
+          }
+        ]
+      }
+    ]
+  }
+}

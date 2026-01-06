@@ -1,0 +1,95 @@
+{
+  "nodes": [
+    {
+      "id": "start_0",
+      "type": "start",
+      "meta": {
+        "position": {
+          "x": 180,
+          "y": 0
+        }
+      },
+      "data": {
+        "title": "Start",
+        "outputs": {
+          "type": "object",
+          "properties": {
+            "a": {
+              "type": "string",
+              "default": "1"
+            },
+            "b": {
+              "type": "string",
+              "default": "2"
+            },
+            "c": {
+              "type": "string",
+              "default": "3"
+            },
+            "d": {
+              "type": "string",
+              "default": "4"
+            }
+          }
+        },
+        "description": "start node"
+      }
+    },
+    {
+      "id": "end_0",
+      "type": "end",
+      "meta": {
+        "position": {
+          "x": 180,
+          "y": 209
+        }
+      },
+      "data": {
+        "title": "End",
+        "description": "end node",
+        "inputsValues": {
+          "result": {
+            "type": "constant",
+            "content": "123"
+          },
+          "hello": {
+            "type": "ref",
+            "content": [
+              "start_0",
+              "b"
+            ]
+          }
+        },
+        "inputs": {
+          "properties": {
+            "result": {
+              "type": "string"
+            },
+            "hello": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "note_48oopof_1748353844670",
+      "type": "note",
+      "meta": {
+        "position": {
+          "x": 180,
+          "y": 383
+        }
+      },
+      "data": {
+        "description": "注释"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "sourceNodeID": "start_0",
+      "targetNodeID": "end_0"
+    }
+  ]
+}

@@ -10,11 +10,11 @@
 5. 可以微前端或者web-components运行，进而支持跨前端语言 已实现 ruoyi-vue3-flowgram
 效果如下：
 集成ruoyi-vue3微前端示例：
-<img src="https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/refs/heads/main/boommanpro-docs/yudao-vue3-flowgram.png" width="1000" height="500" />
+<img src="https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/refs/heads/main/docs/imagesyudao-vue3-flowgram.png" width="1000" height="500" />
 工作流调用效果示例：
-<img src="https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/refs/heads/main/boommanpro-docs/demo-free-layout.png" width="1000" height="500" />
+<img src="https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/refs/heads/main/docs/imagesdemo-free-layout.png" width="1000" height="500" />
 微前端demo示例：
-<img src="https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/refs/heads/main/boommanpro-docs/demo-wujie-main-vue3.png" width="1000" height="500" />
+<img src="https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/refs/heads/main/docs/imagesdemo-wujie-main-vue3.png" width="1000" height="500" />
 
 ### ② 为什么会基于flowgram.ai再次开源一个项目？
 
@@ -22,7 +22,7 @@
 
 ### ③ 功能介绍
 
-vue3 微前端: demo-wujie-main-vue3，可以搭配后端启动
+vue3 微前端: workflow-manage，可以搭配后端 api/gaia-workflow启动
 
 flowgram 示例: https://boommanpro.github.io/flowgram-ai-rule-engine/workflow-editor/
 
@@ -46,6 +46,8 @@ flowgram 示例: https://boommanpro.github.io/flowgram-ai-rule-engine/workflow-e
 服务端支持,项目地址：https://github.com/boommanpro/gaia-workflow
 
 ## 时间线
+2026.1.6 前后端两个仓库合并
+
 2025.12.27 跟进官网升级到v1.0.6，开发vue3管理端demo，并且开发服务端，更新docs
 
 2025.10.17 跟进官网升级到v0.5.5，修复相关代码
@@ -57,7 +59,3 @@ flowgram 示例: https://boommanpro.github.io/flowgram-ai-rule-engine/workflow-e
 2025.8.20 更新分支到官网最新，重构代码分支
 
 2025.5.27 重构代码分支，该代码仅维护apps/demo-free-layout目录，其余和官方保持一致
-
-截图如下:
-
-![img.png](images/img.png)

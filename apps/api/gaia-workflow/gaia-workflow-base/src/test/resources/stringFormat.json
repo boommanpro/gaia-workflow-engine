@@ -1,0 +1,132 @@
+{
+  "nodes": [
+    {
+      "id": "start_0",
+      "type": "start",
+      "meta": {
+        "position": {
+          "x": 180,
+          "y": 178.5
+        }
+      },
+      "data": {
+        "title": "开始节点",
+        "outputs": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "default": "Hello Flow."
+            }
+          },
+          "required": []
+        }
+      }
+    },
+    {
+      "id": "end_0",
+      "type": "end",
+      "meta": {
+        "position": {
+          "x": 1560,
+          "y": 178.5
+        }
+      },
+      "data": {
+        "title": "结束节点",
+        "inputsValues": {
+          "output": {
+            "type": "ref",
+            "content": [
+              "string_format_VNzIS",
+              "formatStringResult"
+            ],
+            "extra": {
+              "index": 0
+            }
+          }
+        },
+        "inputs": {
+          "type": "object",
+          "properties": {
+            "output": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "159623",
+      "type": "comment",
+      "meta": {
+        "position": {
+          "x": 180,
+          "y": 400.5
+        }
+      },
+      "data": {
+        "size": {
+          "width": 240,
+          "height": 150
+        },
+        "note": "hi ~\n\nthis is a comment node\n\n- flowgram.ai"
+      }
+    },
+    {
+      "id": "string_format_VNzIS",
+      "type": "string-format",
+      "meta": {
+        "position": {
+          "x": 870,
+          "y": 44.5
+        }
+      },
+      "data": {
+        "title": "StringFormat_1",
+        "inputsValues": {
+          "name": {
+            "type": "ref",
+            "content": [
+              "start_0",
+              "query"
+            ],
+            "extra": {
+              "index": 0
+            }
+          }
+        },
+        "script": {
+          "language": "spel-standard",
+          "content": "${name}!"
+        },
+        "outputs": {
+          "type": "object",
+          "properties": {
+            "formatStringResult": {
+              "type": "string"
+            }
+          }
+        },
+        "inputs": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "sourceNodeID": "start_0",
+      "targetNodeID": "string_format_VNzIS"
+    },
+    {
+      "sourceNodeID": "string_format_VNzIS",
+      "targetNodeID": "end_0"
+    }
+  ]
+}
