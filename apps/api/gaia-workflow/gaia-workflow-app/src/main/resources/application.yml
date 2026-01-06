@@ -2,13 +2,13 @@ spring:
   datasource:
     url: jdbc:sqlite:gaia_workflow.db
     driver-class-name: org.sqlite.JDBC
-    username: 
-    password: 
+    username:
+    password:
   sql:
     init:
       schema-locations: classpath:sql/schema.sql
-      mode: never
-      
+      mode: always
+
 mybatis-plus:
   configuration:
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
