@@ -1,0 +1,166 @@
+|.gitignore
+# 忽略系统文件
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Icon?
+.directory
+*.nib
+*._*
+.DS_Store?
+._*
+
+# 日志文件
+*.log
+logs
+*.out
+
+# IDE 相关文件
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Eclipse
+.project
+.classpath
+.settings/
+
+# VS Code
+.vscode/
+
+# NetBeans
+nbproject/private/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+
+# 构建工具
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/
+bin/
+
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/
+!gradle.properties
+
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+yarn.lock
+package-lock.json
+
+# 编译输出
+*.class
+*.o
+*.pyc
+*.pyo
+*.exe
+*.dll
+*.so
+*.dylib
+
+# 环境变量
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# 数据库
+*.db
+*.db-journal
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# 编辑器备份文件
+*~
+*.bak
+*.swp
+*.tmp
+
+# Java 相关
+*.jar
+*.war
+*.ear
+hs_err_pid*
+
+# Spring Boot
+*.out
+
+# 前端相关
+# React
+build/
+dist/
+*.min.js
+*.min.css
+
+# Vue
+dist/
+dist-ssr/
+.nuxt/
+.vuepress/dist
+
+# 其他前端构建产物
+public/dist
+public/build
+
+# 测试相关
+coverage/
+.nyc_output/
+
+# 临时文件
+tmp/
+temp/
+
+# 证书和密钥
+*.pem
+*.key
+*.crt
+*.cert
+
+# 本地配置文件
+config/local.*
+!config/default.js
+
+# 上传目录
+uploads/
+upload/
+
+# 缓存目录
+.cache/
+*.cache
+
+# 文档生成
+docs/_book/
+.sass-cache/
+
+# 其他
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trash?
+ehthumbs.db
+Thumbs.db
