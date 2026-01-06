@@ -1,8 +1,8 @@
 <template>
   <div class="ai-assistant-container">
     <!-- 悬浮按钮 -->
-    <div 
-      class="ai-float-button" 
+    <div
+      class="ai-float-button"
       @click="toggleDialog"
       :class="{ 'active': isDialogOpen }"
     >
@@ -11,8 +11,8 @@
     </div>
 
     <!-- AI对话弹窗 -->
-    <div 
-      v-if="isDialogOpen" 
+    <div
+      v-if="isDialogOpen"
       class="ai-dialog"
       :class="{ 'minimized': isMinimized }"
     >
@@ -28,9 +28,9 @@
 
       <div v-if="!isMinimized" class="ai-dialog-body">
         <div class="ai-messages" ref="messagesContainer">
-          <div 
-            v-for="(msg, index) in messages" 
-            :key="index" 
+          <div
+            v-for="(msg, index) in messages"
+            :key="index"
             :class="['message', msg.sender]"
           >
             <div class="message-avatar">
@@ -41,9 +41,9 @@
               <div v-else-if="msg.type === 'component-suggestion'" class="component-suggestion">
                 <p>{{ msg.content }}</p>
                 <div class="suggested-components">
-                  <div 
-                    v-for="comp in msg.components" 
-                    :key="comp.id" 
+                  <div
+                    v-for="comp in msg.components"
+                    :key="comp.id"
                     class="suggested-component"
                     @click="addComponent(comp)"
                   >
@@ -194,18 +194,18 @@ const sendMessage = async () => {
 const handleAIResponse = (userMessage) => {
   // 简单的关键词匹配逻辑
   const lowerCaseMsg = userMessage.toLowerCase()
-  
+
   // 检查是否包含组件相关的关键词
   const matchedComponents = []
-  
+
   Object.keys(componentSuggestions).forEach(key => {
-    if (lowerCaseMsg.includes(key.toLowerCase()) || 
+    if (lowerCaseMsg.includes(key.toLowerCase()) ||
         lowerCaseMsg.includes(componentSuggestions[key].name.toLowerCase()) ||
         lowerCaseMsg.includes(componentSuggestions[key].description.toLowerCase())) {
       matchedComponents.push(componentSuggestions[key])
     }
   })
-  
+
   // 如果没有匹配到特定组件，提供所有组件选项
   if (matchedComponents.length === 0) {
     messages.value.push({
@@ -235,13 +235,13 @@ const addComponent = (component) => {
   if (bus) {
     console.log('Emitting addWorkflowComponent event via bus:', component);
     bus.$emit('addWorkflowComponent', component)
-    
+
     messages.value.push({
       sender: 'ai',
       type: 'text',
       content: `正在向工作流添加 "${component.name}" 组件...`
     })
-    
+
     nextTick(() => {
       scrollToBottom()
     })
@@ -282,7 +282,7 @@ const handleSubAppMessage = (event) => {
         content: payload.message || `添加组件时发生错误: ${payload.error}`
       })
     }
-    
+
     nextTick(() => {
       scrollToBottom()
     })
@@ -294,7 +294,7 @@ onMounted(() => {
   console.log('AIAssistant mounted, setting up message listeners');
   // 监听来自iframe子应用的消息
   window.addEventListener('message', handleSubAppMessage)
-  
+
   if (bus) {
     console.log('Bus is available, setting up bus listeners');
     bus.$on('aiAssistantRequest', (data) => {
@@ -310,7 +310,7 @@ onUnmounted(() => {
   console.log('AIAssistant unmounted, cleaning up message listeners');
   // 移除事件监听器
   window.removeEventListener('message', handleSubAppMessage)
-  
+
   if (bus) {
     bus.$off('aiAssistantRequest')
   }
@@ -320,7 +320,7 @@ onUnmounted(() => {
 <style scoped>
 .ai-assistant-container {
   position: fixed;
-  bottom: 20px;
+  bottom: 100px;
   right: 20px;
   z-index: 9999;
 }

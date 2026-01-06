@@ -17,9 +17,7 @@
       @ready="handleAppReady"
       ref="wujieRef"
     />
-    
-    <!-- AI助手组件 -->
-    <AIAssistant />
+
   </div>
 </template>
 
@@ -27,7 +25,6 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { bus } from 'wujie'
 import WujieWrapper from './WujieWrapper.vue'
-import AIAssistant from './AIAssistant.vue'
 import { useWorkflowData } from '../composables/useWorkflowData'
 import { useWorkflowCommunication } from '../composables/useWorkflowCommunication'
 
@@ -76,7 +73,7 @@ const {
 function combinedEmit(event, ...args) {
   // 触发自身的事件
   emit(event, ...args)
-  
+
   // 特殊处理 showVersionModal 事件，向上传递给父组件
   if (event === 'showVersionModal') {
     emit('showVersionModal')
