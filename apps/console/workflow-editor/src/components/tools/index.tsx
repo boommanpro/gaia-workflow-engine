@@ -14,15 +14,14 @@ import { AddNode } from '../add-node';
 import { ZoomSelect } from './zoom-select';
 import { SwitchLine } from './switch-line';
 import { ToolContainer, ToolSection } from './styles';
+import { SchemaEditor } from './schema-editor';
 import { Save } from './save';
 import { ReportResults } from './report-results';
 import { Readonly } from './readonly';
 import { MinimapSwitch } from './minimap-switch';
 import { Minimap } from './minimap';
 import { Interactive } from './interactive';
-import { Import } from './import';
 import { FitView } from './fit-view';
-import { Console } from './console';
 import { Comment } from './comment';
 import { AutoLayout } from './auto-layout';
 import { ProblemButton } from '../problem-panel';
@@ -81,9 +80,8 @@ export const DemoTools = () => {
         <AddNode disabled={playground.config.readonly} />
         <Divider layout="vertical" style={{ height: '16px' }} margin={3} />
         <Save disabled={playground.config.readonly} />
-        <Import />
         <ReportResults />
-        <Console />
+        <SchemaEditor />
         <TestRunButton disabled={playground.config.readonly} />
       </ToolSection>
     </ToolContainer>
