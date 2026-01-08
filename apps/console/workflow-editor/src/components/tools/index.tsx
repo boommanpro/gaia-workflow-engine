@@ -16,7 +16,7 @@ import { SwitchLine } from './switch-line';
 import { ToolContainer, ToolSection } from './styles';
 import { SchemaEditor } from './schema-editor';
 import { Save } from './save';
-import { ReportResults } from './report-results';
+import { ReportEditor } from './report-editor';
 import { Readonly } from './readonly';
 import { MinimapSwitch } from './minimap-switch';
 import { Minimap } from './minimap';
@@ -80,7 +80,7 @@ export const DemoTools = () => {
         <AddNode disabled={playground.config.readonly} />
         <Divider layout="vertical" style={{ height: '16px' }} margin={3} />
         <Save disabled={playground.config.readonly} />
-        <ReportResults />
+        <ReportEditor />
         <SchemaEditor />
         <TestRunButton disabled={playground.config.readonly} />
       </ToolSection>
