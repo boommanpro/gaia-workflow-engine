@@ -27,6 +27,7 @@ export const TestRunSidePanel: FC<TestRunSidePanelProps> = () => {
 
   const panelManager = usePanelManager();
   const [isRunning, setRunning] = useState(false);
+  const [hasStoredResult, setHasStoredResult] = useState(false);
   const [values, setValues] = useState<Record<string, unknown>>({});
   const [errors, setErrors] = useState<string[]>();
   const [result, setResult] = useState<
@@ -51,18 +52,32 @@ export const TestRunSidePanel: FC<TestRunSidePanelProps> = () => {
   const onTestRun = async () => {
     if (isRunning) {
       await runtimeService.taskCancel();
+      setRunning(false);
       return;
     }
+
+    if (hasStoredResult && !runtimeService.isTaskRunning()) {
+      setHasStoredResult(false);
+      setResult(undefined);
+      setErrors(undefined);
+    }
+
+    if (runtimeService.isTaskRunning()) {
+      setRunning(true);
+      return;
+    }
+
     setResult(undefined);
     setErrors(undefined);
-    const taskID = await runtimeService.taskRun(values);
+    setHasStoredResult(false);
+
+    const taskID = await runtimeService.taskRun(values, true);
     if (taskID) {
       setRunning(true);
     }
   };
 
   const onClose = async () => {
-    await runtimeService.taskCancel();
     setValues({});
     setRunning(false);
     panelManager.close(testRunPanelFactory.key);
@@ -110,14 +125,26 @@ export const TestRunSidePanel: FC<TestRunSidePanelProps> = () => {
         [styles.default]: !isRunning,
       })}
     >
-      {isRunning ? 'Cancel' : 'Test Run'}
+      {isRunning ? 'Cancel' : hasStoredResult ? 'Rerun' : 'Test Run'}
     </Button>
   );
+
+  useEffect(() => {
+    const lastResult = runtimeService.getLastResult();
+    if (lastResult) {
+      setResult(lastResult);
+      setHasStoredResult(true);
+    }
+    if (runtimeService.isTaskRunning()) {
+      setRunning(true);
+    }
+  }, [runtimeService]);
 
   useEffect(() => {
     const disposer = runtimeService.onResultChanged(({ result, errors }) => {
       setRunning(false);
       setResult(result);
+      setHasStoredResult(!!result);
       if (errors) {
         setErrors(errors);
       } else {
@@ -125,14 +152,7 @@ export const TestRunSidePanel: FC<TestRunSidePanelProps> = () => {
       }
     });
     return () => disposer.dispose();
-  }, []);
-
-  useEffect(
-    () => () => {
-      runtimeService.taskCancel();
-    },
-    [runtimeService]
-  );
+  }, [runtimeService]);
 
   return (
     <div className={styles['testrun-panel-container']}>

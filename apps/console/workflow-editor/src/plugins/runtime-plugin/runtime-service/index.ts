@@ -64,6 +64,10 @@ export class WorkflowRuntimeService {
 
   private nodeReports: Map<string, NodeReport> = new Map();
 
+  private lastResult?: { inputs: WorkflowInputs; outputs: WorkflowOutputs };
+
+  private lastError?: string[];
+
   public onNodeReportChange = this.reportEmitter.event;
 
   public onReset = this.resetEmitter.event;
@@ -92,8 +96,11 @@ export class WorkflowRuntimeService {
     return !executedBranch || line.info.fromPort === executedBranch;
   }
 
-  public async taskRun(inputs: WorkflowInputs): Promise<string | undefined> {
-    if (this.taskID) {
+  public async taskRun(
+    inputs: WorkflowInputs,
+    cancelExisting: boolean = false
+  ): Promise<string | undefined> {
+    if (cancelExisting && this.taskID) {
       await this.taskCancel();
     }
     const isFormValid = await this.validateForm();
@@ -188,14 +195,17 @@ export class WorkflowRuntimeService {
     const { workflowStatus, inputs, outputs, messages } = report;
     if (workflowStatus.terminated) {
       clearInterval(this.syncTaskReportIntervalID);
+      this.taskID = undefined;
       if (outputs && Object.keys(outputs).length > 0) {
-        this.resultEmitter.fire({ result: { inputs, outputs } });
+        const result = { inputs, outputs };
+        this.resultEmitter.fire({ result });
+        this.saveResult(result);
       } else {
-        this.resultEmitter.fire({
-          errors: messages?.error?.map((message) =>
-            message.nodeID ? `${message.nodeID}: ${message.message}` : message.message
-          ),
-        });
+        const errors = messages?.error?.map((message) =>
+          message.nodeID ? `${message.nodeID}: ${message.message}` : message.message
+        );
+        this.resultEmitter.fire({ errors });
+        this.saveError(errors || ['Unknown error']);
       }
     }
     this.updateReport(report);
@@ -248,5 +258,36 @@ export class WorkflowRuntimeService {
   public setAuthorization(auth: string | null) {
     // 这里可以添加更多处理逻辑，如果需要的话
     console.log('Setting authorization for runtime service:', auth);
+  }
+
+  public isTaskRunning(): boolean {
+    return !!this.taskID;
+  }
+
+  public getTaskID(): string | undefined {
+    return this.taskID;
+  }
+
+  public getLastResult(): { inputs: WorkflowInputs; outputs: WorkflowOutputs } | undefined {
+    return this.lastResult;
+  }
+
+  public getLastError(): string[] | undefined {
+    return this.lastError;
+  }
+
+  public saveResult(result: { inputs: WorkflowInputs; outputs: WorkflowOutputs }): void {
+    this.lastResult = result;
+    this.lastError = undefined;
+  }
+
+  public saveError(errors: string[]): void {
+    this.lastError = errors;
+    this.lastResult = undefined;
+  }
+
+  public clearResult(): void {
+    this.lastResult = undefined;
+    this.lastError = undefined;
   }
 }
