@@ -68,6 +68,8 @@ export class WorkflowRuntimeService {
 
   private lastError?: string[];
 
+  private lastReport?: IReport;
+
   public onNodeReportChange = this.reportEmitter.event;
 
   public onReset = this.resetEmitter.event;
@@ -174,6 +176,7 @@ export class WorkflowRuntimeService {
     this.nodeRunningStatus = new Map();
     this.nodeReports.clear();
     this.runningNodes = [];
+    this.lastReport = undefined;
     if (this.syncTaskReportIntervalID) {
       clearInterval(this.syncTaskReportIntervalID);
     }
@@ -199,7 +202,7 @@ export class WorkflowRuntimeService {
       if (outputs && Object.keys(outputs).length > 0) {
         const result = { inputs, outputs };
         this.resultEmitter.fire({ result });
-        this.saveResult(result);
+        this.saveResult(result, report);
       } else {
         const errors = messages?.error?.map((message) =>
           message.nodeID ? `${message.nodeID}: ${message.message}` : message.message
@@ -211,7 +214,7 @@ export class WorkflowRuntimeService {
     this.updateReport(report);
   }
 
-  private updateReport(report: IReport): void {
+  public updateReport(report: IReport): void {
     const { reports } = report;
     this.runningNodes = [];
     this.document
@@ -272,12 +275,20 @@ export class WorkflowRuntimeService {
     return this.lastResult;
   }
 
+  public getLastReport(): IReport | undefined {
+    return this.lastReport;
+  }
+
   public getLastError(): string[] | undefined {
     return this.lastError;
   }
 
-  public saveResult(result: { inputs: WorkflowInputs; outputs: WorkflowOutputs }): void {
+  public saveResult(
+    result: { inputs: WorkflowInputs; outputs: WorkflowOutputs },
+    report?: IReport
+  ): void {
     this.lastResult = result;
+    this.lastReport = report;
     this.lastError = undefined;
   }
 

@@ -15,7 +15,7 @@ import { ZoomSelect } from './zoom-select';
 import { SwitchLine } from './switch-line';
 import { ToolContainer, ToolSection } from './styles';
 import { Save } from './save';
-import { ReportInput } from './report-input';
+import { ReportResults } from './report-results';
 import { Readonly } from './readonly';
 import { MinimapSwitch } from './minimap-switch';
 import { Minimap } from './minimap';
@@ -82,7 +82,7 @@ export const DemoTools = () => {
         <Divider layout="vertical" style={{ height: '16px' }} margin={3} />
         <Save disabled={playground.config.readonly} />
         <Import />
-        <ReportInput />
+        <ReportResults />
         <Console />
         <TestRunButton disabled={playground.config.readonly} />
       </ToolSection>
