@@ -35,11 +35,11 @@ jobs:
       # 构建 React 子应用
       - name: Install React App Dependencies
         run: pnpm install --frozen-lockfile
-        working-directory: apps/console/workflow-canvas
+        working-directory: apps/console/workflow-editor
 
       - name: Build React Child Application
         run: pnpm run build:gh-pages
-        working-directory: apps/console/workflow-canvas
+        working-directory: apps/console/workflow-editor
 
       # 准备部署目录
       - name: Prepare deployment directory
@@ -50,7 +50,7 @@ jobs:
           # 复制主应用
           cp -r apps/console/workflow-manage/dist/* deployment/
           # 复制子应用
-          cp -r apps/console/workflow-canvas/workflow-editor/* deployment/workflow-editor/
+          cp -r apps/console/workflow-editor/workflow-editor/* deployment/workflow-editor/
 
 
       # 部署应用
@@ -68,4 +68,4 @@ jobs:
         run: |
           rm -rf deployment
           rm -rf apps/console/workflow-manage/dist
-          rm -rf apps/console/workflow-canvas/workflow-editor
+          rm -rf apps/console/workflow-editor/workflow-editor
