@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 
 import { useService } from '@flowgram.ai/free-layout-editor';
 import { Button, Toast, Tooltip } from '@douyinfe/semi-ui';
-import { IconTerminal, IconFile } from '@douyinfe/semi-icons';
+import { IconFile } from '@douyinfe/semi-icons';
 
 import { WorkflowRuntimeService } from '../../../plugins/runtime-plugin/runtime-service';
 import { CodeEditorModal } from '../../code-editor-modal';
@@ -13,9 +13,9 @@ export const ReportEditor = () => {
   const [reportData, setReportData] = useState('');
 
   const openModal = useCallback(() => {
-    const lastReport = runtimeService.getLastReport();
-    if (lastReport) {
-      setReportData(JSON.stringify(lastReport, null, 2));
+    const currentReport = runtimeService.getCurrentReport();
+    if (currentReport) {
+      setReportData(JSON.stringify(currentReport, null, 2));
     } else {
       setReportData('');
     }
@@ -74,6 +74,7 @@ export const ReportEditor = () => {
         }
 
         const iReport = convertToIReport(rawData);
+        runtimeService.reset();
         runtimeService.updateReport(iReport);
 
         Toast.success('Report data loaded successfully');

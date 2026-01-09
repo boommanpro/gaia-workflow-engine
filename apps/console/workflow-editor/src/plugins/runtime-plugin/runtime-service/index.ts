@@ -25,11 +25,23 @@ import { GetGlobalVariableSchema } from '../../variable-panel-plugin';
 import { WorkflowNodeType } from '../../../nodes';
 
 const SYNC_TASK_REPORT_INTERVAL = 500;
+const MAX_HISTORY_SIZE = 50;
 
 interface NodeRunningStatus {
   nodeID: string;
   status: WorkflowStatus;
   nodeResultLength: number;
+}
+
+export interface TestRunRecord {
+  id: string;
+  timestamp: number;
+  status: 'success' | 'error' | 'running';
+  schema: Record<string, unknown>;
+  inputs: WorkflowInputs;
+  outputs: WorkflowOutputs;
+  report?: IReport;
+  errors?: string[];
 }
 
 @injectable()
@@ -69,6 +81,53 @@ export class WorkflowRuntimeService {
   private lastError?: string[];
 
   private lastReport?: IReport;
+
+  private currentReport?: IReport;
+
+  private currentRunSchema?: Record<string, unknown>;
+
+  private testRunHistory: TestRunRecord[] = [];
+
+  private historyEmitter = new Emitter<TestRunRecord[]>();
+
+  public onHistoryChanged = this.historyEmitter.event;
+
+  public getHistory(): TestRunRecord[] {
+    return [...this.testRunHistory];
+  }
+
+  private saveToHistory(
+    status: 'success' | 'error',
+    schema: Record<string, unknown>,
+    inputs: WorkflowInputs,
+    outputs: WorkflowOutputs,
+    report?: IReport,
+    errors?: string[]
+  ): void {
+    const record: TestRunRecord = {
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: Date.now(),
+      status,
+      schema,
+      inputs,
+      outputs,
+      report,
+      errors,
+    };
+
+    this.testRunHistory.unshift(record);
+
+    if (this.testRunHistory.length > MAX_HISTORY_SIZE) {
+      this.testRunHistory = this.testRunHistory.slice(0, MAX_HISTORY_SIZE);
+    }
+
+    this.historyEmitter.fire([...this.testRunHistory]);
+  }
+
+  public clearHistory(): void {
+    this.testRunHistory = [];
+    this.historyEmitter.fire([]);
+  }
 
   public onNodeReportChange = this.reportEmitter.event;
 
@@ -116,6 +175,7 @@ export class WorkflowRuntimeService {
       ...this.document.toJSON(),
       globalVariable: this.getGlobalVariableSchema(),
     };
+    this.currentRunSchema = schema;
 
     const validateResult = await this.runtimeClient.TaskValidate({
       schema: JSON.stringify(schema),
@@ -171,7 +231,7 @@ export class WorkflowRuntimeService {
     return isValid;
   }
 
-  private reset(): void {
+  public reset(): void {
     this.taskID = undefined;
     this.nodeRunningStatus = new Map();
     this.nodeReports.clear();
@@ -215,8 +275,14 @@ export class WorkflowRuntimeService {
   }
 
   public updateReport(report: IReport): void {
+    this.lastReport = report;
+    this.currentReport = report;
     const { reports } = report;
     this.runningNodes = [];
+    this.nodeRunningStatus = new Map();
+    this.nodeReports.clear();
+    const processedNodeIds = new Set<string>();
+
     this.document
       .getAllNodes()
       .filter(
@@ -279,6 +345,10 @@ export class WorkflowRuntimeService {
     return this.lastReport;
   }
 
+  public getCurrentReport(): IReport | undefined {
+    return this.currentReport;
+  }
+
   public getLastError(): string[] | undefined {
     return this.lastError;
   }
@@ -290,11 +360,21 @@ export class WorkflowRuntimeService {
     this.lastResult = result;
     this.lastReport = report;
     this.lastError = undefined;
+
+    if (this.currentRunSchema) {
+      this.saveToHistory('success', this.currentRunSchema, result.inputs, result.outputs, report);
+      this.currentRunSchema = undefined;
+    }
   }
 
   public saveError(errors: string[]): void {
     this.lastError = errors;
     this.lastResult = undefined;
+
+    if (this.currentRunSchema) {
+      this.saveToHistory('error', this.currentRunSchema, {}, {}, undefined, errors);
+      this.currentRunSchema = undefined;
+    }
   }
 
   public clearResult(): void {
