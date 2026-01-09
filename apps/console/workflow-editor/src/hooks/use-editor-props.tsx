@@ -39,7 +39,7 @@ import { WorkflowNodeType } from '../nodes';
 import { testRunPanelFactory } from '../components/testrun/testrun-panel';
 import { nodeFormPanelFactory } from '../components/sidebar';
 import { SelectorBoxPopover } from '../components/selector-box-popover';
-import { problemPanelFactory } from '../components/problem-panel';
+import { runHistoryPanelFactory } from '../components/run-history';
 import { BaseNode, CommentRender, GroupNodeRender, LineAddButton, NodePanel } from '../components';
 
 export function useEditorProps(
@@ -388,7 +388,7 @@ export function useEditorProps(
         }),
         /** Float layout plugin */
         createPanelManagerPlugin({
-          factories: [nodeFormPanelFactory, testRunPanelFactory, problemPanelFactory],
+          factories: [nodeFormPanelFactory, testRunPanelFactory, runHistoryPanelFactory],
         }),
       ],
     }),
