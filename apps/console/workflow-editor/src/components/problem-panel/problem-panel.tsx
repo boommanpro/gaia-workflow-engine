@@ -86,18 +86,44 @@ export const ProblemPanel = () => {
   const handleRecordDoubleClick = useCallback(
     (record: TestRunRecord) => {
       const document = runtimeService.document;
+      let nodeCreateCount = 0;
+      const schemaNodes = (record.schema as Record<string, unknown>).nodes as
+        | Array<unknown>
+        | undefined;
+      const targetNodeCount = schemaNodes?.length || 0;
+
+      const updateReportData = () => {
+        runtimeService.clearResult();
+        if (record.report) {
+          runtimeService.reset();
+          runtimeService.updateReport(record.report);
+        }
+        setSelectedRecord({
+          record,
+          activeTab: record.status === 'error' ? 'errors' : 'inputs',
+        });
+      };
+
+      if (targetNodeCount === 0) {
+        updateReportData();
+        return;
+      }
+
+      const nodeCreateDisposer = document.onNodeCreate(() => {
+        nodeCreateCount++;
+        if (nodeCreateCount >= targetNodeCount) {
+          nodeCreateDisposer.dispose();
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              updateReportData();
+            });
+          });
+        }
+      });
+
       document.reload(record.schema as any).then(() => {
         document.fitView();
       });
-      runtimeService.clearResult();
-      setSelectedRecord({
-        record,
-        activeTab: record.status === 'error' ? 'errors' : 'inputs',
-      });
-      if (record.report) {
-        runtimeService.reset()
-        runtimeService.updateReport(record.report);
-      }
     },
     [runtimeService]
   );
@@ -286,14 +312,17 @@ export const problemPanelFactory: PanelFactory<void> = {
 };
 
 export const ProblemButton = () => {
-  const panelManager = usePanelManager();
+  const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <IconButton
-      type="tertiary"
-      theme="borderless"
-      icon={<IconUploadError />}
-      onClick={() => panelManager.open(PROBLEM_PANEL, 'bottom')}
-    />
+    <>
+      <IconButton
+        type="tertiary"
+        theme="borderless"
+        icon={<IconUploadError />}
+        onClick={() => setIsExpanded(!isExpanded)}
+      />
+      {isExpanded && <RunHistoryPanel onClose={() => setIsExpanded(false)} />}
+    </>
   );
 };
