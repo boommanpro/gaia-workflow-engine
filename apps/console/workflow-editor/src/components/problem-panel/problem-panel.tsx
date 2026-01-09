@@ -1,14 +1,13 @@
 /**
- * Copyright (c) 2025 Bytedance Ltd. and/or affiliates
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
  * SPDX-License-Identifier: MIT
  */
 
 import { useState, useEffect, useCallback } from 'react';
-
 import { PanelFactory, usePanelManager } from '@flowgram.ai/panel-manager-plugin';
 import { useService } from '@flowgram.ai/free-layout-editor';
-import { IconButton, Tag, Modal } from '@douyinfe/semi-ui';
-import { IconUploadError, IconClose, IconDelete, IconRefresh } from '@douyinfe/semi-icons';
+import { IconButton, Tag } from '@douyinfe/semi-ui';
+import { IconUploadError, IconClose } from '@douyinfe/semi-icons';
 
 import {
   WorkflowRuntimeService,
@@ -52,7 +51,6 @@ export const ProblemPanel = () => {
 
   const [history, setHistory] = useState<TestRunRecord[]>([]);
   const [selectedRecord, setSelectedRecord] = useState<SelectedRecordState | null>(null);
-  const [filterStatus, setFilterStatus] = useState<'all' | 'success' | 'error'>('all');
 
   useEffect(() => {
     const initialHistory = runtimeService.getHistory();
@@ -67,21 +65,16 @@ export const ProblemPanel = () => {
     };
   }, [runtimeService]);
 
-  const filteredHistory = history.filter((record) => {
-    if (filterStatus === 'all') return true;
-    return record.status === filterStatus;
-  });
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        panelManager.close(PROBLEM_PANEL);
+      }
+    };
 
-  const handleClearHistory = useCallback(() => {
-    Modal.confirm({
-      title: '确认清空',
-      content: '确定要清空所有历史记录吗？',
-      onOk: () => {
-        runtimeService.clearHistory();
-        setSelectedRecord(null);
-      },
-    });
-  }, [runtimeService]);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [panelManager]);
 
   const handleRecordDoubleClick = useCallback(
     (record: TestRunRecord) => {
@@ -133,7 +126,7 @@ export const ProblemPanel = () => {
   }, []);
 
   const renderTable = () => {
-    if (filteredHistory.length === 0) {
+    if (history.length === 0) {
       return (
         <div className={styles.emptyTableState}>
           <div className={styles.emptyText}>暂无运行记录</div>
@@ -151,7 +144,7 @@ export const ProblemPanel = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredHistory.map((record) => (
+            {history.map((record) => (
               <tr
                 key={record.id}
                 className={`${styles.tableRow} ${
@@ -249,49 +242,12 @@ export const ProblemPanel = () => {
     <div className={styles.container}>
       <div className={styles.header}>
         <span className={styles.title}>运行历史</span>
-        <div className={styles.headerActions}>
-          <IconButton
-            type="tertiary"
-            theme="borderless"
-            icon={<IconRefresh />}
-            onClick={() => setHistory(runtimeService.getHistory())}
-            title="刷新"
-          />
-          <IconButton
-            type="tertiary"
-            theme="borderless"
-            icon={<IconDelete />}
-            onClick={handleClearHistory}
-            title="清空历史"
-          />
-          <IconButton
-            type="tertiary"
-            theme="borderless"
-            icon={<IconClose />}
-            onClick={() => panelManager.close(PROBLEM_PANEL)}
-          />
-        </div>
-      </div>
-
-      <div className={styles.filterBar}>
-        <span
-          className={`${styles.filterItem} ${filterStatus === 'all' ? styles.active : ''}`}
-          onClick={() => setFilterStatus('all')}
-        >
-          全部
-        </span>
-        <span
-          className={`${styles.filterItem} ${filterStatus === 'success' ? styles.active : ''}`}
-          onClick={() => setFilterStatus('success')}
-        >
-          成功
-        </span>
-        <span
-          className={`${styles.filterItem} ${filterStatus === 'error' ? styles.active : ''}`}
-          onClick={() => setFilterStatus('error')}
-        >
-          失败
-        </span>
+        <IconButton
+          type="tertiary"
+          theme="borderless"
+          icon={<IconClose />}
+          onClick={() => panelManager.close(PROBLEM_PANEL)}
+        />
       </div>
 
       <div className={styles.content}>
@@ -312,17 +268,14 @@ export const problemPanelFactory: PanelFactory<void> = {
 };
 
 export const ProblemButton = () => {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const panelManager = usePanelManager();
 
   return (
-    <>
-      <IconButton
-        type="tertiary"
-        theme="borderless"
-        icon={<IconUploadError />}
-        onClick={() => setIsExpanded(!isExpanded)}
-      />
-      {isExpanded && <RunHistoryPanel onClose={() => setIsExpanded(false)} />}
-    </>
+    <IconButton
+      type="tertiary"
+      theme="borderless"
+      icon={<IconUploadError />}
+      onClick={() => panelManager.open(PROBLEM_PANEL, 'bottom')}
+    />
   );
 };
