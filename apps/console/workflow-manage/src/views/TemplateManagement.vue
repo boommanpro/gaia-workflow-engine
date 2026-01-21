@@ -90,6 +90,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Delete } from '@element-plus/icons-vue'
+import { API_BASE_URL } from '@/utils/apiConfig'
 
 // 模板数据
 const templates = ref([])
@@ -106,9 +107,6 @@ const templateForm = ref({
   templateDesc: '',
   templateData: '{"nodes":[],"edges":[]}'
 })
-
-// API基础地址（根据vite proxy配置）
-const API_BASE_URL = '/api'
 
 // 格式化日期
 const formatDate = (dateString) => {

@@ -8,6 +8,16 @@ spring:
     init:
       schema-locations: classpath:sql/schema.sql
       mode: always
+  mvc:
+    cors:
+      allowed-origins: "*"
+      allowed-methods: "*"
+      allowed-headers: "*"
+      allow-credentials: true
+      max-age: 3600
+
+server:
+  port: 48080
 
 mybatis-plus:
   configuration:

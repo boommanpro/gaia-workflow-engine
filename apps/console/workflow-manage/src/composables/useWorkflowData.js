@@ -1,5 +1,6 @@
 import {ref, watch} from 'vue'
 import {useWorkflowStore} from '../store'
+import { API_BASE_URL } from '@/utils/apiConfig'
 
 export function useWorkflowData(props) {
     const workflowData = ref(null)
@@ -38,7 +39,7 @@ export function useWorkflowData(props) {
         try {
             if (currentVersionId) {
                 // 如果有当前版本ID，则直接获取该版本
-                const response = await fetch(`/api/workflow-version/${currentVersionId}`)
+                const response = await fetch(`${API_BASE_URL}/workflow-version/${currentVersionId}`)
                 if (response.ok) {
                     return await response.json()
                 } else {
@@ -47,7 +48,7 @@ export function useWorkflowData(props) {
                 }
             } else {
                 // 如果没有当前版本ID，则获取标记为当前版本的版本
-                const response = await fetch(`/api/workflow-version/list/${workflowCode}`)
+                const response = await fetch(`${API_BASE_URL}/workflow-version/list/${workflowCode}`)
                 if (response.ok) {
                     const versions = await response.json()
                     // 返回标记为当前版本的版本
@@ -86,7 +87,7 @@ export function useWorkflowData(props) {
     const switchToVersion = async (versionId) => {
         try {
             // 获取指定版本数据
-            const versionData = await fetch(`/api/workflow-version/${versionId}`)
+            const versionData = await fetch(`${API_BASE_URL}/workflow-version/${versionId}`)
             if (versionData.ok) {
                 const version = await versionData.json()
                 

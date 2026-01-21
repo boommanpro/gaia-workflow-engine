@@ -51,8 +51,20 @@ public class LocalDateTimeHandler extends BaseTypeHandler<LocalDateTime> {
     @Nullable
     private LocalDateTime str2LocalDateTime(@Nullable String time) {
         if (time == null) return null;
-        // 添加对jacksonProperties的空值检查，并提供默认格式
-        return LocalDateTime.parse(time, DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSS"));
+        
+        // 尝试解析多种日期时间格式
+        try {
+            // 尝试解析 yyyy-MM-dd'T'HH:mm:ss.SSSSSS 格式
+            return LocalDateTime.parse(time, DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSS"));
+        } catch (Exception e) {
+            try {
+                // 尝试解析 yyyy-MM-dd'T'HH:mm:ss.SSS 格式
+                return LocalDateTime.parse(time, DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS"));
+            } catch (Exception ex) {
+                // 如果两种格式都失败，则尝试最通用的格式
+                return LocalDateTime.parse(time, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+            }
+        }
     }
 
     @NonNull

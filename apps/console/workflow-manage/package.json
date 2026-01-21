@@ -10,6 +10,8 @@
     "build:test": "vite build --mode test",
     "build:prod": "vite build --mode production",
     "build:github": "vite build --mode github",
+    "build:electron-curr": "vite build --mode electron",
+    "build:electron": "cd ../workflow-editor && npm run build:electron && cd ../workflow-manage && npm run build:electron-curr && mkdir -p dist/workflow-editor && cp -r ../workflow-editor/workflow-editor/* dist/workflow-editor/",
     "preview:test": "vite preview --mode test"
   },
   "dependencies": {
@@ -25,6 +27,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^4.2.0",
+    "fs-extra": "^11.2.0",
     "vite": "^4.3.0"
   }
 }

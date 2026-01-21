@@ -145,6 +145,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Delete } from '@element-plus/icons-vue'
+import { API_BASE_URL } from '@/utils/apiConfig'
 
 const router = useRouter()
 
@@ -170,9 +171,6 @@ const workflowForm = ref({
   currentVersionId: null,
   templateCode: ''
 })
-
-// API基础地址
-const API_BASE_URL = '/api'
 
 // 格式化日期
 const formatDate = (dateString) => {

@@ -91,6 +91,7 @@ import { bus } from 'wujie'
 import WorkflowEditorFrame from '../components/WorkflowEditorFrame.vue'
 import VersionInputDialog from '../components/VersionInputDialog.vue'
 import AIAssistant from '../components/AIAssistant.vue'
+import { API_BASE_URL } from '@/utils/apiConfig'
 
 // 定义 props
 const props = defineProps({
@@ -116,8 +117,6 @@ const versions = ref([])
 
 // 版本信息输入弹窗
 const showVersionInputDialog = ref(false)
-
-const API_BASE_URL = '/api'
 
 // 返回列表页
 const goBack = () => {

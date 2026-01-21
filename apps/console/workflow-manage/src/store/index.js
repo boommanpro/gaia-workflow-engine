@@ -1,7 +1,5 @@
 import { defineStore } from 'pinia'
-
-// API基础地址
-const API_BASE_URL = '/api'
+import { API_BASE_URL } from '@/utils/apiConfig'
 
 export const useWorkflowStore = defineStore('workflow', {
   state: () => ({

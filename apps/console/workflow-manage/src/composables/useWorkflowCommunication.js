@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import { bus } from 'wujie'
 import { useWorkflowStore } from '../store'
+import { API_BASE_URL } from '@/utils/apiConfig'
 
 export function useWorkflowCommunication(workflowData, emits) {
   const subAppMounted = ref(false)
@@ -114,7 +115,7 @@ export function useWorkflowCommunication(workflowData, emits) {
   // 创建工作流版本
   async function createWorkflowVersion(workflowId, workflowCode, versionData) {
     try {
-      const response = await fetch('/api/workflow-version/create', {
+      const response = await fetch(`${API_BASE_URL}/workflow-version/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -197,7 +198,7 @@ export function useWorkflowCommunication(workflowData, emits) {
   async function createWorkflow(workflow) {
     try {
       // 首先创建工作流
-      const workflowResponse = await fetch('/api/workflow/create', {
+      const workflowResponse = await fetch(`${API_BASE_URL}/workflow/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -215,7 +216,7 @@ export function useWorkflowCommunication(workflowData, emits) {
         const newWorkflow = await workflowResponse.json()
 
         // 然后创建工作流版本
-        const versionResponse = await fetch('/api/workflow-version/create', {
+        const versionResponse = await fetch(`${API_BASE_URL}/workflow-version/create`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -259,7 +260,7 @@ export function useWorkflowCommunication(workflowData, emits) {
       }
 
       // 更新工作流基本信息
-      const workflowResponse = await fetch('/api/workflow/update', {
+      const workflowResponse = await fetch(`${API_BASE_URL}/workflow/update`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -280,7 +281,7 @@ export function useWorkflowCommunication(workflowData, emits) {
       }
 
       // 创建新的工作流版本
-      const versionResponse = await fetch('/api/workflow-version/create', {
+      const versionResponse = await fetch(`${API_BASE_URL}/workflow-version/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

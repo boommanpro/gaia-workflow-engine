@@ -68,6 +68,7 @@
   "scripts": {
     "build": "node_modules/.bin/cross-env NODE_ENV=production rsbuild build",
     "build:prod": "node_modules/.bin/cross-env NODE_ENV=production ENV_FILE=.env.production rsbuild build",
+    "build:electron": "node_modules/.bin/cross-env NODE_ENV=production ENV_FILE=.env.electron rsbuild build",
     "build:fast": "exit 0",
     "build:watch": "exit 0",
     "clean": "rimraf dist",

@@ -1,0 +1,43 @@
+{
+  "productName": "FlowGram",
+  "appId": "com.flowgram.ai",
+  "copyright": "© 2025 FlowGram Technology Co., Ltd.",
+  "directories": {
+    "output": "out"
+  },
+  "asar": true,
+  "files": [
+    "**/*",
+    "!cmd/",
+    "!data/",
+    "!electron/",
+    "!frontend/",
+    "!logs/",
+    "!out/",
+    "!go/",
+    "!python/",
+    "!../workflow-editor/",
+    "!../workflow-manage/",
+    "!../api/"
+  ],
+  "extraResources": [
+    {
+      "from": "build/extraResources",
+      "to": "extraResources"
+    }
+  ],
+  "publish": [
+    {
+      "provider": "generic",
+      "url": ""
+    }
+  ],
+  "mac": {
+    "icon": "build/icons/icon.icns",
+    "artifactName": "${productName}-${os}-${version}-${arch}.${ext}",
+    "darkModeSupport": true,
+    "hardenedRuntime": false,
+    "gatekeeperAssess": false,
+    "sign": null
+  }
+}
