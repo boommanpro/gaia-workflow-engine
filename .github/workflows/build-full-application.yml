@@ -1,0 +1,253 @@
+name: Build Full Application (Backend + Frontend + Electron)
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    # 设置 JDK 21
+    - name: Setup JDK 21
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '21'
+
+    # 设置 Node.js 环境
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    # 安装 pnpm
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v3
+      with:
+        version: 9
+        run_install: false
+
+    # 获取 pnpm store 目录
+    - name: Get pnpm store directory
+      shell: bash
+      run: |
+        echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+    # 缓存 pnpm 依赖
+    - name: Cache pnpm modules
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.STORE_PATH }}
+        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-pnpm-store-
+
+    # 安装全局依赖
+    - name: Install dependencies
+      run: pnpm install --frozen-lockfile
+      working-directory: .
+
+    # 构建后端 Java API (Maven)
+    - name: Build Backend API
+      run: |
+        cd apps/api/gaia-workflow
+        mvn clean package -DskipTests
+      shell: bash
+
+    # 构建前端编辑器
+    - name: Build Frontend Editor
+      run: |
+        cd apps/console/workflow-editor
+        pnpm install --frozen-lockfile
+        pnpm run build:electron
+      shell: bash
+
+    # 运行后端测试
+    - name: Run Backend Tests
+      run: |
+        cd apps/api/gaia-workflow
+        mvn test
+      shell: bash
+
+    # 打包为工件以便后续步骤使用
+    - name: Upload Backend JAR
+      uses: actions/upload-artifact@v4
+      with:
+        name: backend-jar
+        path: apps/api/gaia-workflow/gaia-workflow-app/target/*.jar
+
+    - name: Upload Frontend Dist
+      uses: actions/upload-artifact@v4
+      with:
+        name: frontend-dist
+        path: apps/console/workflow-editor/dist/**
+
+  build-electron:
+    needs: build-and-test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    # 设置 Node.js 环境
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    # 安装 pnpm
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v3
+      with:
+        version: 9
+        run_install: false
+
+    # 获取 pnpm store 目录
+    - name: Get pnpm store directory
+      shell: bash
+      run: |
+        echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+    # 缓存 pnpm 依赖
+    - name: Cache pnpm modules
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.STORE_PATH }}
+        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-pnpm-store-
+
+    # 设置 JDK 21
+    - name: Setup JDK 21
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '21'
+
+    # 下载并准备嵌入式JDK
+    - name: Download Embedded JDK
+      run: |
+        mkdir -p apps/console/workflow-electron/build/extraResources
+        case $RUNNER_OS in
+          "Linux")
+            wget https://download.java.net/java/GA/jdk21.0.2/f2283984656d4a079e0d90d2c3974a34/13/GPL/openjdk-21.0.2_linux-x64_bin.tar.gz -O jdk21.tar.gz
+            tar -xzf jdk21.tar.gz
+            mv jdk-21.0.2 apps/console/workflow-electron/build/extraResources/jdk
+            ;;
+          "Windows")
+            wget https://download.java.net/java/GA/jdk21.0.2/f2283984656d4a079e0d90d2c3974a34/13/GPL/openjdk-21.0.2_windows-x64_bin.zip -O jdk21.zip
+            unzip jdk21.zip
+            mv jdk-21.0.2 apps/console/workflow-electron/build/extraResources/jdk
+            ;;
+          "macOS")
+            wget https://download.java.net/java/GA/jdk21.0.2/f2283984656d4a079e0d90d2c3974a34/13/GPL/openjdk-21.0.2_macos-x64_bin.tar.gz -O jdk21.tar.gz
+            tar -xzf jdk21.tar.gz
+            mv jdk-21.0.2.jdk apps/console/workflow-electron/build/extraResources/jdk
+            ;;
+        esac
+      shell: bash
+
+    # 下载之前构建的组件
+    - name: Download Backend JAR
+      uses: actions/download-artifact@v4
+      with:
+        name: backend-jar
+        path: apps/console/workflow-electron/build/extraResources/
+
+    - name: Download Frontend Dist
+      uses: actions/download-artifact@v4
+      with:
+        name: frontend-dist
+        path: apps/console/workflow-editor/dist/
+
+    # 安装全局依赖
+    - name: Install dependencies
+      run: pnpm install --frozen-lockfile
+      working-directory: .
+
+    # 安装 Electron 应用依赖
+    - name: Install Electron Dependencies
+      run: |
+        cd apps/console/workflow-electron
+        pnpm install --frozen-lockfile
+      shell: bash
+
+    # 在 Linux 上安装额外依赖
+    - name: Install Linux Dependencies
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libgtk-3-dev libnotify-dev libgnome-keyring-dev libgconf2-dev libpulse-dev libspeechd-dev build-essential libudev-dev
+      shell: bash
+
+    # 构建 Electron 应用 (整合后端JAR包和前端资源)
+    - name: Build Electron Application
+      run: |
+        cd apps/console/workflow-electron
+        npm run build-all
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    # 根据操作系统打包 Electron 应用
+    - name: Package Electron Application
+      run: |
+        cd apps/console/workflow-electron
+        if [ "$RUNNER_OS" == "Linux" ]; then
+          npm run build-l
+        elif [ "$RUNNER_OS" == "Windows" ]; then
+          npm run build-w
+        elif [ "$RUNNER_OS" == "macOS" ]; then
+          # 尝试构建 macOS x64 和 arm64 版本
+          npm run build-m
+          npm run build-m-arm64 || echo "ARM64 build failed, continuing..."
+        fi
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      continue-on-error: true
+
+    # 上传构建产物
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: electron-app-${{ runner.os }}
+        path: |
+          apps/console/workflow-electron/out/**
+        retention-days: 14
+
+  # 当创建标签时，准备发布
+  release:
+    needs: build-electron
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: releases
+    
+    - name: Prepare release assets
+      run: |
+        mkdir -p release_assets
+        find releases -name "*.exe" -o -name "*.dmg" -o -name "*.deb" -o -name "*.AppImage" -o -name "*.zip" -o -name "*.tar.gz" | xargs -I {} cp {} release_assets/
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: release_assets/**
+        draft: false
+        prerelease: false
+        body: "Release of FlowGram AI Desktop Application"
