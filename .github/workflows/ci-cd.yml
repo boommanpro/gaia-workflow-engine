@@ -13,7 +13,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-latest]
+        os: [macos-14]  # 只保留macOS的两个版本：macos-14 (Apple Silicon) 和 macos-latest (Intel)
+        include:
+          - os: macos-14
+            arch: arm64
 
     steps:
     - uses: actions/checkout@v4
@@ -65,45 +68,36 @@ jobs:
         mkdir -p apps/console/workflow-electron/build/extraResources
         
         case $RUNNER_OS in
-          "Linux")
-            # Download OpenJDK for Linux from Tsinghua mirror
-            curl -L https://mirrors.tuna.tsinghua.edu.cn/Adoptium/21/jdk/x64/linux/OpenJDK21U-jdk_x64_linux_hotspot_21.0.10_7.tar.gz -o jdk21.tar.gz
-            tar -xzf jdk21.tar.gz
-            # Extracted directory name might vary, so we'll rename it to jdk
-            mv jdk-* apps/console/workflow-electron/build/extraResources/jdk || mv hotspot-* apps/console/workflow-electron/build/extraResources/jdk
-            ;;
-          "Windows")
-            # Download OpenJDK for Windows from Tsinghua mirror
-            curl -L https://mirrors.tuna.tsinghua.edu.cn/Adoptium/21/jdk/x64/windows/OpenJDK21U-jdk_x64_windows_hotspot_21.0.9_10.zip -o jdk21.zip
-            7z x jdk21.zip
-            # Extracted directory name might vary, so we'll rename it to jdk
-            mv jdk-* apps/console/workflow-electron/build/extraResources/jdk || mv hotspot-* apps/console/workflow-electron/build/extraResources/jdk
-            ;;
           "macOS")
-            # Download OpenJDK for macOS from Tsinghua mirror
-            curl -L https://mirrors.tuna.tsinghua.edu.cn/Adoptium/21/jdk/x64/mac/OpenJDK21U-jdk_x64_mac_hotspot_21.0.9_10.tar.gz -o jdk21.tar.gz
+            # 检测架构并下载相应的JDK
+            if [[ $(uname -m) == "arm64" ]]; then
+              # 下载适用于macOS ARM64的OpenJDK（最新版本）
+              curl -L https://mirrors.tuna.tsinghua.edu.cn/Adoptium/21/jdk/aarch64/mac/OpenJDK21U-jdk_aarch64_mac_hotspot_21.0.10_12.tar.gz -o jdk21.tar.gz
+            else
+              # 下载适用于macOS x64的OpenJDK（最新版本）
+              curl -L https://mirrors.tuna.tsinghua.edu.cn/Adoptium/21/jdk/x64/mac/OpenJDK21U-jdk_x64_mac_hotspot_21.0.10_12.tar.gz -o jdk21.tar.gz
+            fi
             tar -xzf jdk21.tar.gz
-            # Extracted directory name might vary, so we'll rename it to jdk
+            # 提取的目录名可能有所不同，因此重命名为jdk
             mv jdk-* apps/console/workflow-electron/build/extraResources/jdk || mv hotspot-* apps/console/workflow-electron/build/extraResources/jdk
+            
+            # 对于macOS，处理JDK目录结构，移除Contents/Resources/extraResources/jdk/Contents/Home/层级
+            if [ -d "apps/console/workflow-electron/build/extraResources/jdk/Contents/Home" ]; then
+              echo "Adjusting macOS JDK directory structure..."
+              # 将Contents/Home/下的内容移动到jdk根目录
+              mv apps/console/workflow-electron/build/extraResources/jdk/Contents/Home/* apps/console/workflow-electron/build/extraResources/jdk/
+              # 删除多余的Contents目录
+              rm -rf apps/console/workflow-electron/build/extraResources/jdk/Contents
+            fi
             ;;
         esac
       shell: bash
-
-
 
     # 安装 Electron 应用依赖
     - name: Install Electron Dependencies
       run: |
         cd apps/console/workflow-electron
         pnpm install --frozen-lockfile
-      shell: bash
-
-    # 在 Linux 上安装额外依赖
-    - name: Install Linux Dependencies
-      if: runner.os == 'Linux'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libgtk-3-dev libnotify-dev libgnome-keyring-dev libgconf2-dev libpulse-dev libspeechd-dev build-essential libudev-dev
       shell: bash
 
     # 构建 Electron 应用 (整合后端JAR包和前端资源)
@@ -119,14 +113,17 @@ jobs:
     - name: Package Electron Application
       run: |
         cd apps/console/workflow-electron
-        if [ "$RUNNER_OS" == "Linux" ]; then
-          npm run build-l
-        elif [ "$RUNNER_OS" == "Windows" ]; then
-          npm run build-w
-        elif [ "$RUNNER_OS" == "macOS" ]; then
-          # 尝试构建 macOS x64 和 arm64 版本
-          npm run build-m
-          npm run build-m-arm64 || echo "ARM64 build failed, continuing..."
+        if [ "$RUNNER_OS" == "macOS" ]; then
+          # 检测架构并相应构建
+          if [[ $(uname -m) == "arm64" ]]; then
+            # 在 Apple Silicon 上构建 arm64 版本
+            echo "Building for macOS ARM64 architecture"
+            npm run build-m-arm64
+          else
+            # 在 Intel 上构建 x64 版本
+            echo "Building for macOS x64 architecture"
+            npm run build-m
+          fi
         fi
       shell: bash
       env:
@@ -137,7 +134,7 @@ jobs:
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: electron-app-${{ runner.os }}
+        name: electron-app-${{ runner.os }}-${{ matrix.arch }}
         path: |
           apps/console/workflow-electron/out/**
         retention-days: 14
@@ -159,7 +156,10 @@ jobs:
     - name: Prepare release assets
       run: |
         mkdir -p release_assets
-        find releases -name "*.exe" -o -name "*.dmg" -o -name "*.deb" -o -name "*.AppImage" -o -name "*.zip" -o -name "*.tar.gz" | xargs -I {} cp {} release_assets/
+        find releases -name "*.dmg" -o -name "*.pkg" | xargs -I {} cp {} release_assets/
+        # 列出所有找到的资产用于调试
+        echo "Release assets found:"
+        ls -la release_assets/
 
     - name: Create Release
       uses: softprops/action-gh-release@v2
