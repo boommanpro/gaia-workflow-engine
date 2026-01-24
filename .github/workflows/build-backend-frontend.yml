@@ -170,26 +170,32 @@ jobs:
         distribution: 'temurin'
         java-version: '21'
 
-    # 准备 extraResources 目录并嵌入JDK
+    # 准备 extraResources 目录并嵌入JDK（使用清华镜像）
     - name: Prepare extraResources and Embed JDK
       run: |
         mkdir -p apps/console/workflow-electron/build/extraResources
         
         case $RUNNER_OS in
           "Linux")
-            wget https://download.java.net/java/GA/jdk21.0.2/f2283984656d4a079e0d90d2c3974a34/13/GPL/openjdk-21.0.2_linux-x64_bin.tar.gz -O jdk21.tar.gz
+            # Download OpenJDK for Linux from Tsinghua mirror
+            curl -L https://mirrors.tuna.tsinghua.edu.cn/Adoptium/21/jdk/x64/linux/OpenJDK21U-jdk_x64_linux_hotspot_21.0.10_7.tar.gz -o jdk21.tar.gz
             tar -xzf jdk21.tar.gz
-            mv jdk-21.0.2 apps/console/workflow-electron/build/extraResources/jdk
+            # Extracted directory name might vary, so we'll rename it to jdk
+            mv jdk-* apps/console/workflow-electron/build/extraResources/jdk || mv hotspot-* apps/console/workflow-electron/build/extraResources/jdk
             ;;
           "Windows")
-            curl -L https://download.java.net/java/GA/jdk21.0.2/f2283984656d4a079e0d90d2c3974a34/13/GPL/openjdk-21.0.2_windows-x64_bin.zip -o jdk21.zip
-            unzip jdk21.zip
-            mv jdk-21.0.2 apps/console/workflow-electron/build/extraResources/jdk
+            # Download OpenJDK for Windows from Tsinghua mirror
+            curl -L https://mirrors.tuna.tsinghua.edu.cn/Adoptium/21/jdk/x64/windows/OpenJDK21U-jdk_x64_windows_hotspot_21.0.9_10.zip -o jdk21.zip
+            7z x jdk21.zip
+            # Extracted directory name might vary, so we'll rename it to jdk
+            mv jdk-* apps/console/workflow-electron/build/extraResources/jdk || mv hotspot-* apps/console/workflow-electron/build/extraResources/jdk
             ;;
           "macOS")
-            wget https://download.java.net/java/GA/jdk21.0.2/f2283984656d4a079e0d90d2c3974a34/13/GPL/openjdk-21.0.2_macos-x64_bin.tar.gz -O jdk21.tar.gz
+            # Download OpenJDK for macOS from Tsinghua mirror
+            curl -L https://mirrors.tuna.tsinghua.edu.cn/Adoptium/21/jdk/x64/mac/OpenJDK21U-jdk_x64_mac_hotspot_21.0.9_10.tar.gz -o jdk21.tar.gz
             tar -xzf jdk21.tar.gz
-            mv jdk-21.0.2.jdk apps/console/workflow-electron/build/extraResources/jdk
+            # Extracted directory name might vary, so we'll rename it to jdk
+            mv jdk-* apps/console/workflow-electron/build/extraResources/jdk || mv hotspot-* apps/console/workflow-electron/build/extraResources/jdk
             ;;
         esac
       shell: bash
