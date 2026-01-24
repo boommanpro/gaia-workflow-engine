@@ -149,22 +149,18 @@ jobs:
         pnpm install --frozen-lockfile
       shell: bash
 
-    # 构建 Electron 应用 (整合后端JAR包和前端资源)
-    - name: Build Electron Application
-      run: |
-        cd apps/console/workflow-electron
-        npm run build-all
-      shell: bash
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
     # 打包 Electron 应用 (仅macOS ARM64)
     - name: Package Electron Application for macOS ARM64
       run: |
         cd apps/console/workflow-electron
-        # 构建macOS ARM64版本
+        # 构建macOS ARM64版本 - 确保执行完整的构建流程
         echo "Building for macOS ARM64 architecture"
-        npm run build-m-arm64
+        ## re-sqlite处理
+        pnpm run re-sqlite
+        # 先执行完整的构建流程
+        pnpm run build
+        # 再单独构建macOS ARM64版本
+        pnpm run build-m-arm64
       shell: bash
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
