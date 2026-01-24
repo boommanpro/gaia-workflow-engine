@@ -68,7 +68,15 @@ jobs:
         
         # 专门处理macOS ARM64的JDK
         echo "Downloading JDK for macOS ARM64..."
-        curl -L -o jdk21.tar.gz https://mirrors.tuna.tsinghua.edu.cn/Adoptium/21/jdk/aarch64/mac/OpenJDK21U-jdk_aarch64_mac_hotspot_21.0.10_12.tar.gz
+        # 使用更可靠的下载方式，并检查HTTP状态码
+        http_status=$(curl -L -w "%{http_code}" -o jdk21.tar.gz -s \
+          https://mirrors.tuna.tsinghua.edu.cn/Adoptium/21/jdk/aarch64/mac/OpenJDK21U-jdk_aarch64_mac_hotspot_21.0.9_10.tar.gz)
+        
+        # 检查HTTP状态码
+        if [ "$http_status" != "200" ]; then
+          echo "Error: Download failed with HTTP status $http_status"
+          exit 1
+        fi
         
         # 检查下载是否成功
         if [ ! -f jdk21.tar.gz ]; then
@@ -77,9 +85,19 @@ jobs:
         fi
         
         # 输出文件大小用于调试
-        echo "Downloaded file size: $(du -h jdk21.tar.gz)"
+        file_size=$(stat -f%z jdk21.tar.gz 2>/dev/null || stat -c%s jdk21.tar.gz)
+        echo "Downloaded file size: $file_size bytes"
+        
+        # 如果文件太小，可能是错误页面
+        if [ "$file_size" -lt 100000 ]; then  # 小于100KB
+          echo "Error: Downloaded file is suspiciously small, likely an error page"
+          echo "First 500 bytes of downloaded file:"
+          head -c 500 jdk21.tar.gz
+          exit 1
+        fi
         
         # 解压JDK
+        echo "Extracting JDK..."
         tar -xzf jdk21.tar.gz
         
         # 检查解压是否成功
@@ -91,13 +109,21 @@ jobs:
         
         # 提取的目录名可能有所不同，因此重命名为jdk
         # 查找解压出来的目录
-        extracted_dir=$(find . -maxdepth 1 -name "jdk*" -type d | head -n 1)
+        extracted_dir=$(find . -maxdepth 1 -name "*jdk*" -type d | head -n 1)
         if [ -n "$extracted_dir" ]; then
+          echo "Moving $extracted_dir to apps/console/workflow-electron/build/extraResources/jdk"
           mv "$extracted_dir" apps/console/workflow-electron/build/extraResources/jdk
         else
           # 如果没有找到以jdk开头的目录，尝试查找任何新创建的目录
-          extracted_dir=$(find . -maxdepth 1 -type d -not -path "." | head -n 1)
-          mv "$extracted_dir" apps/console/workflow-electron/build/extraResources/jdk
+          extracted_dir=$(find . -maxdepth 1 -type d -not -path "." -not -path "./jdk21.tar.gz" | head -n 1)
+          if [ -n "$extracted_dir" ]; then
+            echo "Moving $extracted_dir to apps/console/workflow-electron/build/extraResources/jdk"
+            mv "$extracted_dir" apps/console/workflow-electron/build/extraResources/jdk
+          else
+            echo "Error: Could not find extracted JDK directory"
+            ls -la
+            exit 1
+          fi
         fi
         
         # 对于macOS，处理JDK目录结构，移除Contents/Home/层级
