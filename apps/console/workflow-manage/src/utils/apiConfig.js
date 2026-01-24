@@ -4,6 +4,12 @@
  */
 
 export const getApiBaseUrl = () => {
+  // 优先从 localStorage 获取用户设置的服务器地址
+  const storedApiBaseUrl = localStorage.getItem('apiBaseUrl');
+  if (storedApiBaseUrl) {
+    return storedApiBaseUrl;
+  }
+  
   // 如果有自定义环境变量则使用
   if (import.meta.env?.VITE_API_BASE_URL) {
     return import.meta.env.VITE_API_BASE_URL

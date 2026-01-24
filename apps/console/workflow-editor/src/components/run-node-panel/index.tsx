@@ -6,6 +6,7 @@ import { Button, Typography } from '@douyinfe/semi-ui';
 import { draggableContainerStyle } from '../sidebar/styles.tsx';
 import { Resizable } from '../draggable-y';
 import { PropertyItem, RunMixPropertiesEdit } from '../../form-components/run-properties-edit';
+import { getApiBaseUrl } from '../../utils/apiConfig'; // 导入API配置
 
 const RunNodeSidebar: React.FC = () => {
   const { selection, playground } = useClientContext();
@@ -56,7 +57,9 @@ const RunNodeSidebar: React.FC = () => {
   const sendRunRequest = async (runData: any) => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:8080/workflow/singleNodeExec', {
+      // 使用动态API基础URL
+      const apiUrl = `${getApiBaseUrl()}/workflow/singleNodeExec`;
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

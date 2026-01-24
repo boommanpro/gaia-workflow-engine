@@ -6,6 +6,12 @@
         <router-link to="/" class="nav-link" :class="{ active: $route.name === 'WorkflowManagement' }">工作流管理</router-link>
         <router-link to="/templates" class="nav-link" :class="{ active: $route.name === 'TemplateManagement' }">模板管理</router-link>
       </div>
+      <!-- API配置按钮 -->
+      <div class="nav-right">
+        <button class="api-config-btn" @click="showApiConfig = true">
+          <i class="el-icon-setting"></i> 服务器配置
+        </button>
+      </div>
     </nav>
     <div class="main-content" v-if="!$route.meta.isFullScreen">
       <router-view />
@@ -13,12 +19,43 @@
     <div class="full-screen-content" v-else>
       <router-view />
     </div>
+    <!-- API配置弹窗 -->
+    <ApiConfigModal v-model="showApiConfig" @saved="onApiConfigSaved" />
   </div>
 </template>
 
 <script>
+import ApiConfigModal from './components/ApiConfigModal.vue'
+
 export default {
-  name: 'App'
+  name: 'App',
+  components: {
+    ApiConfigModal
+  },
+  data() {
+    return {
+      showApiConfig: false
+    }
+  },
+  mounted() {
+    // 监听来自子应用的API配置请求
+    window.addEventListener('openApiConfigRequested', this.handleOpenApiConfigFromChild);
+  },
+  unmounted() {
+    // 移除事件监听器
+    window.removeEventListener('openApiConfigRequested', this.handleOpenApiConfigFromChild);
+  },
+  methods: {
+    onApiConfigSaved(apiBaseUrl) {
+      console.log('API配置已保存:', apiBaseUrl);
+      // 可以在这里执行一些额外的操作，如刷新页面或重新初始化应用
+    },
+    handleOpenApiConfigFromChild(event) {
+      console.log('收到子应用的API配置请求:', event.detail);
+      // 显示API配置弹窗
+      this.showApiConfig = true;
+    }
+  }
 }
 </script>
 
@@ -67,6 +104,28 @@ export default {
 .nav-links {
   display: flex;
   gap: 20px;
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+}
+
+.api-config-btn {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: background-color 0.3s;
+}
+
+.api-config-btn:hover {
+  background-color: rgba(255, 255, 255, 0.3);
 }
 
 .nav-link {

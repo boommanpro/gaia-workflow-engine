@@ -1,8 +1,8 @@
 import { Editor } from './editor';
-function App() {
+function App(props) {
   return (
     <div className={'main-app'}>
-      <Editor />
+      <Editor {...props} />
     </div>
   );
 }

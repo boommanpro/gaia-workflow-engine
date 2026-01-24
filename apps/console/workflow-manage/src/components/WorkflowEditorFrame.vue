@@ -74,17 +74,21 @@ function combinedEmit(event, ...args) {
   // 触发自身的事件
   emit(event, ...args)
 
-  // 特殊处理 showVersionModal 事件，向上传递给父组件
+  // 特殊处理 showVersionModal 事件，向上传递事件给父组件
   if (event === 'showVersionModal') {
     emit('showVersionModal')
   }
 }
 
-// 计算属性，传递给微应用的props
+// 计算属性，传递给微应用的props，包括API配置
 const workflowProps = computed(() => {
+  const apiBaseUrl = localStorage.getItem('apiBaseUrl') || 'http://127.0.0.1:48080'
   return {
     workflowId: props.workflowId,
-    workflowData: workflowData.value
+    workflowData: workflowData.value,
+    apiConfig: {
+      apiBaseUrl: apiBaseUrl
+    }
   }
 })
 
@@ -131,7 +135,7 @@ onMounted(() => {
 onUnmounted(() => {
   bus.$off('sub-app-mounted', handleSubAppMounted)
   bus.$off('workflowSaved', handleWorkflowSaved)
-  bus.$off('saveWorkflow', handleSaveWorkflow)
+  bus.$on('saveWorkflow', handleSaveWorkflow)
   bus.$off('getWorkflow', handleGetWorkflow)
   bus.$off('workflowLoaded', handleWorkflowLoaded)
 })

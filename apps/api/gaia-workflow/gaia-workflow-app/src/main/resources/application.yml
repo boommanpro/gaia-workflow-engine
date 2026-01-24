@@ -9,18 +9,11 @@ spring:
     init:
       schema-locations: classpath:sql/schema.sql
       mode: always
-  mvc:
-    cors:
-      allowed-origins: "*"
-      allowed-methods: "*"
-      allowed-headers: "*"
-      allow-credentials: true
-      max-age: 3600
   application:
     name: gaia-workflow-app
 
 server:
-  port: 48080
+  port: 48081
 
 mybatis-plus:
   configuration:

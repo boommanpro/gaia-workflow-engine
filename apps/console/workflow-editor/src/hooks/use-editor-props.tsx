@@ -41,6 +41,7 @@ import { nodeFormPanelFactory } from '../components/sidebar';
 import { SelectorBoxPopover } from '../components/selector-box-popover';
 import { runHistoryPanelFactory } from '../components/run-history';
 import { BaseNode, CommentRender, GroupNodeRender, LineAddButton, NodePanel } from '../components';
+import { getApiBaseUrl } from '../utils/apiConfig';
 
 export function useEditorProps(
   initialData: FlowDocumentJSON,
@@ -372,11 +373,24 @@ export function useEditorProps(
         createRuntimePlugin({
           // mode: 'browser',
           mode: 'server',
-          serverConfig: {
-            domain: process.env.REACT_APP_SERVER_DOMAIN,
-            port: process.env.REACT_APP_SERVER_PORT,
-            protocol: process.env.REACT_APP_SERVER_PROTOCOL,
-          },
+          serverConfig: (() => {
+            const apiBaseUrl = getApiBaseUrl();
+            try {
+              const url = new URL(apiBaseUrl);
+              return {
+                domain: url.hostname,
+                port: url.port ? parseInt(url.port) : (url.protocol === 'https:' ? 443 : 80),
+                protocol: url.protocol.replace(':', ''),
+              };
+            } catch (error) {
+              console.warn('Failed to parse API base URL for runtime plugin, using env defaults:', error);
+              return {
+                domain: process.env.REACT_APP_SERVER_DOMAIN,
+                port: process.env.REACT_APP_SERVER_PORT,
+                protocol: process.env.REACT_APP_SERVER_PROTOCOL,
+              };
+            }
+          })(),
         }),
 
         /**
@@ -392,6 +406,6 @@ export function useEditorProps(
         }),
       ],
     }),
-    []
+    [initialData]
   );
 }

@@ -1,32 +1,28 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 
-import { ScopeOutputData, useClientContext } from '@flowgram.ai/free-layout-editor';
+import { useClientContext } from '@flowgram.ai/free-layout-editor';
 import { Button, Typography } from '@douyinfe/semi-ui';
 
 import { draggableContainerStyle } from '../sidebar/styles.tsx';
 import { Resizable } from '../draggable-y';
-import { RunWorkflowMixPropertiesEdit } from '../../form-components/run-workflow-properties-edit';
-import { PropertyItem, RunMixPropertiesEdit } from '../../form-components/run-properties-edit';
+import { PropertyItem, RunWorkflowMixPropertiesEdit } from '../../form-components/run-workflow-properties-edit';
+import { getApiBaseUrl } from '../../utils/apiConfig'; // 导入API配置
 
 const RunWorkflowSidebar: React.FC = () => {
-  const { selection, playground } = useClientContext();
+  const { document } = useClientContext();
   const [inputs, setInputs] = useState<PropertyItem[]>([]);
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [nodesJSON, setNodesJSON] = useState<any[]>([]);
-  const ctx = useClientContext();
 
-  useEffect(() => {
-    const nodes = ctx.document.toJSON().nodes;
-    setNodesJSON(nodes);
-  }, [ctx.document]);
-
-  const startNode = nodesJSON.find((node) => node.type === 'start');
-  const data = startNode ? startNode.data.outputs : {};
+  const workflowJson = React.useMemo(() => {
+    if (!document) {
+      return null;
+    }
+    return document.toJSON();
+  }, [document]);
 
   function parseProperties(properties: any) {
     let res = [];
-    console.log('properties:', properties);
     Object.keys(properties || {}).map((key) => {
       res.push({
         name: key,
@@ -36,16 +32,25 @@ const RunWorkflowSidebar: React.FC = () => {
     return res;
   }
 
-  useEffect(() => {
-    if (startNode) {
-      setInputs(parseProperties(startNode.data.outputs.properties));
+  React.useEffect(() => {
+    if (
+      !workflowJson ||
+      !workflowJson.properties ||
+      typeof workflowJson.properties !== 'object' ||
+      Object.keys(workflowJson.properties).length === 0
+    ) {
+      setInputs([]);
+      return;
     }
-  }, [startNode]);
+    setInputs(parseProperties(workflowJson.properties));
+  }, [workflowJson]);
 
   const sendRunRequest = async (runData: any) => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:8080/workflow/exec', {
+      // 使用动态API基础URL
+      const apiUrl = `${getApiBaseUrl()}/workflow/exec`;
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -64,23 +69,31 @@ const RunWorkflowSidebar: React.FC = () => {
   };
 
   const handleRun = () => {
-    console.log(inputs);
     let runData = {
       params: inputs.reduce((acc, item) => {
-        if (item.name && item.input?.default !== undefined) {
-          acc[item.name] = item.input.default;
+        if (item.name && item.input?.default?.content !== undefined) {
+          acc[item.name] = item.input.default.content;
         }
         return acc;
       }, {} as Record<string, any>),
-      graph: JSON.stringify(ctx.document.toJSON()),
+      workflow: workflowJson,
     };
     console.log('runData:', runData);
     sendRunRequest(runData);
   };
 
+  if (
+    !workflowJson ||
+    !workflowJson.properties ||
+    typeof workflowJson.properties !== 'object' ||
+    Object.keys(workflowJson.properties).length === 0
+  ) {
+    return null;
+  }
+
   return (
     <div style={{ padding: '20px' }}>
-      <Typography.Title heading={5}>workflow运行</Typography.Title>
+      <Typography.Title heading={5}>试运行工作流</Typography.Title>
       <Typography.Title heading={6}>输入</Typography.Title>
       <RunWorkflowMixPropertiesEdit
         value={inputs}
@@ -95,7 +108,7 @@ const RunWorkflowSidebar: React.FC = () => {
         loading={loading}
         style={{ marginTop: '20px' }}
       >
-        运行
+        运行工作流
       </Button>
       {result && (
         <>

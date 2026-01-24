@@ -202,6 +202,22 @@ export const handleAddComponent = (componentData: any) => {
   handleAddComponentInternal(componentData);
 };
 
+// 处理打开API配置的消息
+export const handleOpenApiConfig = () => {
+  console.log('Handling open API config request');
+  
+  // 通过wujie bus发送打开API配置的请求到主应用
+  if (window.$wujie && typeof window.$wujie.bus !== 'undefined') {
+    console.log('Sending openApiConfig request via wujie bus');
+    window.$wujie.bus.$emit('openApiConfig', { 
+      type: 'openApiConfig',
+      message: '打开API配置界面'
+    });
+  } else {
+    console.error('Wujie bus not available to send openApiConfig request');
+  }
+};
+
 // 初始化微前端通信
 export const initWujieCommunication = (ctx?: FreeLayoutPluginContext) => {
   console.log('Initializing Wujie communication with context:', ctx);
@@ -217,6 +233,11 @@ export const initWujieCommunication = (ctx?: FreeLayoutPluginContext) => {
     window.$wujie.bus.$on('addWorkflowComponent', (payload) => {
       console.log('Received addWorkflowComponent via wujie bus:', payload);
       handleAddComponent(payload);
+    });
+    
+    // 监听主应用的响应消息
+    window.$wujie.bus.$on('apiConfigOpened', (payload) => {
+      console.log('Received apiConfigOpened response:', payload);
     });
   }
 

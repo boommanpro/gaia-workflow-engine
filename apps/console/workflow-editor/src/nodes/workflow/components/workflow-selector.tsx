@@ -8,6 +8,7 @@ import React, { useEffect, useState } from 'react';
 import { FieldRenderProps } from '@flowgram.ai/free-layout-editor';
 import { Button, Card, Divider, Select, Space, Tag, Typography } from '@douyinfe/semi-ui';
 import { IconInfoCircle, IconPlayCircle } from '@douyinfe/semi-icons';
+import { getApiBaseUrl } from '../../../utils/apiConfig'; // 导入API配置
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -29,7 +30,9 @@ interface WorkflowDefinition {
 // 从后端API获取workflow数据
 const fetchWorkflowsFromAPI = async (): Promise<WorkflowDefinition[]> => {
   try {
-    const response = await fetch('/api/workflows');
+    // 使用动态API基础URL
+    const apiUrl = `${getApiBaseUrl()}/workflows`;
+    const response = await fetch(apiUrl);
     if (!response.ok) {
       throw new Error('获取工作流列表失败');
     }

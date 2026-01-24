@@ -6,14 +6,14 @@
       :name="name"
       :url="url"
       :sync="true"
-      :props="workflowProps"
+      :props="workflowPropsWithApiConfig"
       @message="handleMessage"
     />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import WujieVue from 'wujie-vue3'
 import { bus } from 'wujie'
 
@@ -33,6 +33,20 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['message', 'ready'])
+
+// 从localStorage获取API配置并添加到props中
+const workflowPropsWithApiConfig = computed(() => {
+  const apiBaseUrl = localStorage.getItem('apiBaseUrl') || 'http://127.0.0.1:48080'
+  console.log('从localStorage获取API配置:', apiBaseUrl)
+  const newProps = {
+    ...props.workflowProps,
+    apiConfig: {
+      apiBaseUrl
+    }
+  }
+  console.log('传递给子应用的完整props:', newProps)
+  return newProps
+})
 
 const handleMessage = (data) => {
   console.log('WujieWrapper received message:', data);

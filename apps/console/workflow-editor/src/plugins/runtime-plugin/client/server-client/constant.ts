@@ -4,9 +4,27 @@
  */
 
 import { ServerConfig } from '../../type';
+import { getApiBaseUrl } from '../../../../utils/apiConfig';
 
-export const DEFAULT_SERVER_CONFIG: ServerConfig = {
-  domain: process.env.REACT_APP_SERVER_DOMAIN as string,
-  port: parseInt(process.env.REACT_APP_SERVER_PORT as string),
-  protocol: process.env.REACT_APP_SERVER_PROTOCOL,
+// 从API基础URL解析域名、协议和端口
+const parseApiBaseUrl = (): ServerConfig => {
+  const apiBaseUrl = getApiBaseUrl();
+  try {
+    const url = new URL(apiBaseUrl);
+    return {
+      domain: url.hostname,
+      port: url.port ? parseInt(url.port) : (url.protocol === 'https:' ? 443 : 80),
+      protocol: url.protocol.replace(':', ''),
+    };
+  } catch (error) {
+    console.warn('Failed to parse API base URL, using default config:', error);
+    // 如果解析失败，返回默认配置
+    return {
+      domain: process.env.REACT_APP_SERVER_DOMAIN as string,
+      port: parseInt(process.env.REACT_APP_SERVER_PORT as string),
+      protocol: process.env.REACT_APP_SERVER_PROTOCOL,
+    };
+  }
 };
+
+export const DEFAULT_SERVER_CONFIG: ServerConfig = parseApiBaseUrl();
