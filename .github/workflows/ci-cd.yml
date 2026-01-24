@@ -1,95 +1,15 @@
-name: Build Full Application (Backend + Frontend + Electron)
+name: CI/CD Pipeline
 
 on:
   push:
     branches: [ "main", "develop" ]
   pull_request:
     branches: [ "main" ]
+  release:
+    types: [created]
 
 jobs:
-  build-and-test:
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v4
-
-    # 设置 JDK 21
-    - name: Setup JDK 21
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '21'
-
-    # 设置 Node.js 环境
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-
-    # 安装 pnpm
-    - name: Setup pnpm
-      uses: pnpm/action-setup@v3
-      with:
-        version: 9
-        run_install: false
-
-    # 获取 pnpm store 目录
-    - name: Get pnpm store directory
-      shell: bash
-      run: |
-        echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-
-    # 缓存 pnpm 依赖
-    - name: Cache pnpm modules
-      uses: actions/cache@v4
-      with:
-        path: ${{ env.STORE_PATH }}
-        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-        restore-keys: |
-          ${{ runner.os }}-pnpm-store-
-
-    # 安装全局依赖
-    - name: Install dependencies
-      run: pnpm install --frozen-lockfile
-      working-directory: .
-
-    # 构建后端 Java API (Maven)
-    - name: Build Backend API
-      run: |
-        cd apps/api/gaia-workflow
-        mvn clean package -DskipTests
-      shell: bash
-
-    # 构建前端编辑器
-    - name: Build Frontend Editor
-      run: |
-        cd apps/console/workflow-editor
-        pnpm install --frozen-lockfile
-        pnpm run build:electron
-      shell: bash
-
-    # 运行后端测试
-    - name: Run Backend Tests
-      run: |
-        cd apps/api/gaia-workflow
-        mvn test
-      shell: bash
-
-    # 打包为工件以便后续步骤使用
-    - name: Upload Backend JAR
-      uses: actions/upload-artifact@v4
-      with:
-        name: backend-jar
-        path: apps/api/gaia-workflow/gaia-workflow-app/target/*.jar
-
-    - name: Upload Frontend Dist
-      uses: actions/upload-artifact@v4
-      with:
-        name: frontend-dist
-        path: apps/console/workflow-editor/dist/**
-
   build-electron:
-    needs: build-and-test
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -169,23 +89,7 @@ jobs:
         esac
       shell: bash
 
-    # 下载之前构建的组件
-    - name: Download Backend JAR
-      uses: actions/download-artifact@v4
-      with:
-        name: backend-jar
-        path: apps/console/workflow-electron/build/extraResources/
 
-    - name: Download Frontend Dist
-      uses: actions/download-artifact@v4
-      with:
-        name: frontend-dist
-        path: apps/console/workflow-editor/dist/
-
-    # 安装全局依赖
-    - name: Install dependencies
-      run: pnpm install --frozen-lockfile
-      working-directory: .
 
     # 安装 Electron 应用依赖
     - name: Install Electron Dependencies
@@ -243,20 +147,20 @@ jobs:
     needs: build-electron
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
-    
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Download all artifacts
       uses: actions/download-artifact@v4
       with:
         path: releases
-    
+
     - name: Prepare release assets
       run: |
         mkdir -p release_assets
         find releases -name "*.exe" -o -name "*.dmg" -o -name "*.deb" -o -name "*.AppImage" -o -name "*.zip" -o -name "*.tar.gz" | xargs -I {} cp {} release_assets/
-    
+
     - name: Create Release
       uses: softprops/action-gh-release@v2
       with:
