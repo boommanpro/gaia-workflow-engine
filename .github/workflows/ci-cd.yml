@@ -10,10 +10,9 @@ on:
 
 jobs:
   build-electron:
-    runs-on: ${{ matrix.os }}
+    runs-on: macos-14  # 专门针对macOS ARM64 (macos-14)
     strategy:
       matrix:
-        os: [macos-14]  # 只保留macOS的两个版本：macos-14 (Apple Silicon) 和 macos-latest (Intel)
         include:
           - os: macos-14
             arch: arm64
@@ -67,30 +66,54 @@ jobs:
       run: |
         mkdir -p apps/console/workflow-electron/build/extraResources
         
-        case $RUNNER_OS in
-          "macOS")
-            # 检测架构并下载相应的JDK
-            if [[ $(uname -m) == "arm64" ]]; then
-              # 下载适用于macOS ARM64的OpenJDK（最新版本）
-              curl -L https://mirrors.tuna.tsinghua.edu.cn/Adoptium/21/jdk/aarch64/mac/OpenJDK21U-jdk_aarch64_mac_hotspot_21.0.10_12.tar.gz -o jdk21.tar.gz
-            else
-              # 下载适用于macOS x64的OpenJDK（最新版本）
-              curl -L https://mirrors.tuna.tsinghua.edu.cn/Adoptium/21/jdk/x64/mac/OpenJDK21U-jdk_x64_mac_hotspot_21.0.10_12.tar.gz -o jdk21.tar.gz
-            fi
-            tar -xzf jdk21.tar.gz
-            # 提取的目录名可能有所不同，因此重命名为jdk
-            mv jdk-* apps/console/workflow-electron/build/extraResources/jdk || mv hotspot-* apps/console/workflow-electron/build/extraResources/jdk
-            
-            # 对于macOS，处理JDK目录结构，移除Contents/Resources/extraResources/jdk/Contents/Home/层级
-            if [ -d "apps/console/workflow-electron/build/extraResources/jdk/Contents/Home" ]; then
-              echo "Adjusting macOS JDK directory structure..."
-              # 将Contents/Home/下的内容移动到jdk根目录
-              mv apps/console/workflow-electron/build/extraResources/jdk/Contents/Home/* apps/console/workflow-electron/build/extraResources/jdk/
-              # 删除多余的Contents目录
-              rm -rf apps/console/workflow-electron/build/extraResources/jdk/Contents
-            fi
-            ;;
-        esac
+        # 专门处理macOS ARM64的JDK
+        echo "Downloading JDK for macOS ARM64..."
+        curl -L -o jdk21.tar.gz https://mirrors.tuna.tsinghua.edu.cn/Adoptium/21/jdk/aarch64/mac/OpenJDK21U-jdk_aarch64_mac_hotspot_21.0.10_12.tar.gz
+        
+        # 检查下载是否成功
+        if [ ! -f jdk21.tar.gz ]; then
+          echo "Error: JDK download failed"
+          exit 1
+        fi
+        
+        # 输出文件大小用于调试
+        echo "Downloaded file size: $(du -h jdk21.tar.gz)"
+        
+        # 解压JDK
+        tar -xzf jdk21.tar.gz
+        
+        # 检查解压是否成功
+        if [ $? -ne 0 ]; then
+          echo "Error: Failed to extract JDK archive"
+          ls -la
+          exit 1
+        fi
+        
+        # 提取的目录名可能有所不同，因此重命名为jdk
+        # 查找解压出来的目录
+        extracted_dir=$(find . -maxdepth 1 -name "jdk*" -type d | head -n 1)
+        if [ -n "$extracted_dir" ]; then
+          mv "$extracted_dir" apps/console/workflow-electron/build/extraResources/jdk
+        else
+          # 如果没有找到以jdk开头的目录，尝试查找任何新创建的目录
+          extracted_dir=$(find . -maxdepth 1 -type d -not -path "." | head -n 1)
+          mv "$extracted_dir" apps/console/workflow-electron/build/extraResources/jdk
+        fi
+        
+        # 对于macOS，处理JDK目录结构，移除Contents/Home/层级
+        if [ -d "apps/console/workflow-electron/build/extraResources/jdk/Contents/Home" ]; then
+          echo "Adjusting macOS JDK directory structure..."
+          # 创建临时目录来存放Home目录内容
+          temp_dir=$(mktemp -d)
+          # 将Contents/Home/下的内容复制到临时目录
+          cp -R apps/console/workflow-electron/build/extraResources/jdk/Contents/Home/* "$temp_dir"/
+          # 删除原来的Contents目录
+          rm -rf apps/console/workflow-electron/build/extraResources/jdk/Contents
+          # 将临时目录内容复制回jdk目录
+          cp -R "$temp_dir"/* apps/console/workflow-electron/build/extraResources/jdk/
+          # 清理临时目录
+          rm -rf "$temp_dir"
+        fi
       shell: bash
 
     # 安装 Electron 应用依赖
@@ -109,22 +132,13 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    # 根据操作系统打包 Electron 应用
-    - name: Package Electron Application
+    # 打包 Electron 应用 (仅macOS ARM64)
+    - name: Package Electron Application for macOS ARM64
       run: |
         cd apps/console/workflow-electron
-        if [ "$RUNNER_OS" == "macOS" ]; then
-          # 检测架构并相应构建
-          if [[ $(uname -m) == "arm64" ]]; then
-            # 在 Apple Silicon 上构建 arm64 版本
-            echo "Building for macOS ARM64 architecture"
-            npm run build-m-arm64
-          else
-            # 在 Intel 上构建 x64 版本
-            echo "Building for macOS x64 architecture"
-            npm run build-m
-          fi
-        fi
+        # 构建macOS ARM64版本
+        echo "Building for macOS ARM64 architecture"
+        npm run build-m-arm64
       shell: bash
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -134,7 +148,7 @@ jobs:
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: electron-app-${{ runner.os }}-${{ matrix.arch }}
+        name: electron-app-macos-arm64
         path: |
           apps/console/workflow-electron/out/**
         retention-days: 14
