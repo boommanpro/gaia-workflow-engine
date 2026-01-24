@@ -142,7 +142,19 @@ jobs:
         fi
       shell: bash
 
-    # 安装 Electron 应用依赖
+    # 为所有项目安装依赖
+    - name: Install workflow-editor Dependencies
+      run: |
+        cd apps/console/workflow-editor
+        pnpm install --frozen-lockfile
+      shell: bash
+
+    - name: Install workflow-manage Dependencies
+      run: |
+        cd apps/console/workflow-manage
+        pnpm install --frozen-lockfile
+      shell: bash
+
     - name: Install Electron Dependencies
       run: |
         cd apps/console/workflow-electron
