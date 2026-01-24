@@ -1,0 +1,217 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main" ]
+  release:
+    types: [created]
+
+jobs:
+  build-electron:
+    runs-on: macos-14  # 专门针对macOS ARM64 (macos-14)
+    strategy:
+      matrix:
+        include:
+          - os: macos-14
+            arch: arm64
+
+    steps:
+    - uses: actions/checkout@v4
+
+    # 设置 Node.js 环境
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18.20.7'
+
+    # 安装 pnpm
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v3
+      with:
+        version: "9.12.0"
+        run_install: false
+
+    # 获取 pnpm store 目录
+    - name: Get pnpm store directory
+      shell: bash
+      run: |
+        echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+    # 缓存 pnpm 依赖
+    - name: Cache pnpm modules
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.STORE_PATH }}
+        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-pnpm-store-
+
+    # 设置 JDK 21
+    - name: Setup JDK 21
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '21'
+
+    # 准备 extraResources 目录
+    - name: Prepare extraResources Directory
+      run: |
+        mkdir -p apps/console/workflow-electron/build/extraResources
+      shell: bash
+
+    # 下载并嵌入JDK到应用中（使用清华镜像）
+    - name: Download and Embed JDK
+      run: |
+        mkdir -p apps/console/workflow-electron/build/extraResources
+        
+        # 专门处理macOS ARM64的JDK
+        echo "Downloading JDK for macOS ARM64..."
+        # 使用更可靠的下载方式，并检查HTTP状态码
+        http_status=$(curl -L -w "%{http_code}" -o jdk21.tar.gz -s \
+          https://mirrors.tuna.tsinghua.edu.cn/Adoptium/21/jdk/aarch64/mac/OpenJDK21U-jdk_aarch64_mac_hotspot_21.0.9_10.tar.gz)
+        
+        # 检查HTTP状态码
+        if [ "$http_status" != "200" ]; then
+          echo "Error: Download failed with HTTP status $http_status"
+          exit 1
+        fi
+        
+        # 检查下载是否成功
+        if [ ! -f jdk21.tar.gz ]; then
+          echo "Error: JDK download failed"
+          exit 1
+        fi
+        
+        # 输出文件大小用于调试
+        file_size=$(stat -f%z jdk21.tar.gz 2>/dev/null || stat -c%s jdk21.tar.gz)
+        echo "Downloaded file size: $file_size bytes"
+        
+        # 如果文件太小，可能是错误页面
+        if [ "$file_size" -lt 100000 ]; then  # 小于100KB
+          echo "Error: Downloaded file is suspiciously small, likely an error page"
+          echo "First 500 bytes of downloaded file:"
+          head -c 500 jdk21.tar.gz
+          exit 1
+        fi
+        
+        # 解压JDK
+        echo "Extracting JDK..."
+        tar -xzf jdk21.tar.gz
+        
+        # 检查解压是否成功
+        if [ $? -ne 0 ]; then
+          echo "Error: Failed to extract JDK archive"
+          ls -la
+          exit 1
+        fi
+        
+        # 提取的目录名可能有所不同，因此重命名为jdk
+        # 查找解压出来的目录
+        extracted_dir=$(find . -maxdepth 1 -name "*jdk*" -type d | head -n 1)
+        if [ -n "$extracted_dir" ]; then
+          echo "Moving $extracted_dir to apps/console/workflow-electron/build/extraResources/jdk"
+          mv "$extracted_dir" apps/console/workflow-electron/build/extraResources/jdk
+        else
+          # 如果没有找到以jdk开头的目录，尝试查找任何新创建的目录
+          extracted_dir=$(find . -maxdepth 1 -type d -not -path "." -not -path "./jdk21.tar.gz" | head -n 1)
+          if [ -n "$extracted_dir" ]; then
+            echo "Moving $extracted_dir to apps/console/workflow-electron/build/extraResources/jdk"
+            mv "$extracted_dir" apps/console/workflow-electron/build/extraResources/jdk
+          else
+            echo "Error: Could not find extracted JDK directory"
+            ls -la
+            exit 1
+          fi
+        fi
+        
+        # 对于macOS，处理JDK目录结构，移除Contents/Home/层级
+        if [ -d "apps/console/workflow-electron/build/extraResources/jdk/Contents/Home" ]; then
+          echo "Adjusting macOS JDK directory structure..."
+          # 创建临时目录来存放Home目录内容
+          temp_dir=$(mktemp -d)
+          # 将Contents/Home/下的内容复制到临时目录
+          cp -R apps/console/workflow-electron/build/extraResources/jdk/Contents/Home/* "$temp_dir"/
+          # 删除原来的Contents目录
+          rm -rf apps/console/workflow-electron/build/extraResources/jdk/Contents
+          # 将临时目录内容复制回jdk目录
+          cp -R "$temp_dir"/* apps/console/workflow-electron/build/extraResources/jdk/
+          # 清理临时目录
+          rm -rf "$temp_dir"
+        fi
+      shell: bash
+
+    # 为所有项目安装依赖
+    - name: Install workflow-editor Dependencies
+      run: |
+        cd apps/console/workflow-editor
+        pnpm install --frozen-lockfile
+      shell: bash
+
+    - name: Install workflow-manage Dependencies
+      run: |
+        cd apps/console/workflow-manage
+        pnpm install --frozen-lockfile
+      shell: bash
+
+    - name: Install Electron Dependencies
+      run: |
+        cd apps/console/workflow-electron
+        pnpm install --frozen-lockfile
+      shell: bash
+
+    # 打包 Electron 应用 (仅macOS ARM64)
+    - name: Package Electron Application for macOS ARM64
+      run: |
+        cd apps/console/workflow-electron
+        # 构建macOS ARM64版本 - 确保执行完整的构建流程
+        echo "Building for macOS ARM64 architecture"
+        ## re-sqlite处理
+        pnpm run re-sqlite
+        # 先执行完整的构建流程
+        pnpm run build
+        # 再单独构建macOS ARM64版本
+        pnpm run build-m-arm64
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    # 上传构建产物
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: electron-app-macos-arm64
+        path: |
+          apps/console/workflow-electron/out/**
+        retention-days: 14
+
+  # 当创建标签时，准备发布
+  release:
+    needs: build-electron
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: releases
+
+    - name: Prepare release assets
+      run: |
+        mkdir -p release_assets
+        find releases -name "*.dmg" -o -name "*.pkg" | xargs -I {} cp {} release_assets/
+        # 列出所有找到的资产用于调试
+        echo "Release assets found:"
+        ls -la release_assets/
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: release_assets/**
+        draft: false
+        prerelease: false
+        body: "Release of FlowGram AI Desktop Application"
