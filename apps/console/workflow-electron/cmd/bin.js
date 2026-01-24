@@ -102,7 +102,7 @@ module.exports = {
     },
     jar_dist: {
       src: "../../api/gaia-workflow/gaia-workflow-app/target/gaia-workflow-app-0.0.1-SNAPSHOT.jar",
-      dest: "./build/extraResources/java-app.jar",
+      dest: "./build/extraResources/gaia-workflow-app.jar",
     },
     go_static: {
       src: "./frontend/dist",

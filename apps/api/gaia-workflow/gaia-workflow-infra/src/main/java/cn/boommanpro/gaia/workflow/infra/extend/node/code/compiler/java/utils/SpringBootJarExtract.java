@@ -54,7 +54,7 @@ public class SpringBootJarExtract implements ApplicationContextAware {
                 }
             }
         } else {
-            System.out.println("当前不是通过JAR包启动");
+            log.info("当前不是通过JAR包启动");
         }
 
     }

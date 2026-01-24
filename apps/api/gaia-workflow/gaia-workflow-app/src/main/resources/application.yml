@@ -1,3 +1,4 @@
+
 spring:
   datasource:
     url: jdbc:sqlite:gaia_workflow.db
@@ -15,6 +16,8 @@ spring:
       allowed-headers: "*"
       allow-credentials: true
       max-age: 3600
+  application:
+    name: gaia-workflow-app
 
 server:
   port: 48080

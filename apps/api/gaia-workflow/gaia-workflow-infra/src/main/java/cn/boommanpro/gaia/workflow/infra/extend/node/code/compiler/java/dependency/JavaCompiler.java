@@ -22,7 +22,7 @@ public class JavaCompiler extends AbstractCompiler {
     /**
      * 具体参数信息取决于当前jdk
      */
-    private static final List<String> OPTIONS = Lists.newArrayList("-g", "-source", "17", "-target", "17", "-encoding", "UTF-8");
+    private static final List<String> OPTIONS = Lists.newArrayList("-g", "-source", "21", "-target", "21", "-encoding", "UTF-8");
 
 
     @Override

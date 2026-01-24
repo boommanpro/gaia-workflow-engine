@@ -13,8 +13,8 @@ pnpm-lock.yaml
 yalc.lock
 go/tmp/
 go/public/dist/
-build/extraResources/java-app.jar
-build/extraResources/jre1.8.0_201/
+build/extraResources/gaia-workflow-app.jar
+build/extraResources/jdk/
 python/.venv/
 python/*.spec
 python/build/

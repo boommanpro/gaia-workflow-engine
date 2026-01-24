@@ -72,12 +72,12 @@ class CrossService {
    */
   async createJavaServer() {
     const serviceName = "java";
-    const jarPath = path.join(getExtraResourcesDir(), 'java-app.jar');
+    const jarPath = path.join(getExtraResourcesDir(), 'gaia-workflow-app.jar');
     const opt = {
       name: 'javaapp',
       cmd: path.join(getExtraResourcesDir(), 'jre1.8.0_201/bin/javaw.exe'),
       directory: getExtraResourcesDir(),
-      args: ['-jar', '-server', '-Xms512M', '-Xmx512M', '-Xss512k', '-Dspring.profiles.active=prod', `-Dserver.port=18080`, `-Dlogging.file.path=${getLogDir()}`, `${jarPath}`],
+      args: ['-jar', '-server', '-Xms512M', '-Xmx512M', '-Xss1M', '-Dspring.profiles.active=prod', `-Dserver.port=18080`, `-Dlogging.file.path=${getLogDir()}`, `${jarPath}`],
       appExit: false,
     }
     if (is.macOS()) {
@@ -128,7 +128,7 @@ class CrossService {
    */
   async createGaiaWorkflowServer() {
     const serviceName = "java";
-    const jarPath = path.join(getExtraResourcesDir(), 'java-app.jar');
+    const jarPath = path.join(getExtraResourcesDir(), 'gaia-workflow-app.jar');
     const logDir = getLogDir();
 
     logger.info('[gaia-workflow] jarPath:', jarPath);
@@ -137,9 +137,9 @@ class CrossService {
 
     const opt = {
       name: 'javaapp',
-      cmd: path.join(getExtraResourcesDir(), 'jre/bin/java'),
+      cmd: path.join(getExtraResourcesDir(), 'jdk/bin/java'),
       directory: getExtraResourcesDir(),
-      args: ['-jar', '-server', '-Xms512M', '-Xmx512M', '-Xss512k', '-Dspring.profiles.active=prod', `-Dserver.port=48080`, `-Dlogging.file.path=${getLogDir()}`, `${jarPath}`],
+      args: ['-jar', '-server', '-Xms512M', '-Xmx512M', '-Xss1M', '-Dspring.profiles.active=prod', `-Dserver.port=48080`, `-Dlogging.file.path=${getLogDir()}`, `${jarPath}`],
       appExit: false,
     }
     logger.info('[gaia-workflow] starting with args:', opt.args);
