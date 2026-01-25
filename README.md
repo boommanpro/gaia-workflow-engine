@@ -46,6 +46,8 @@ flowgram 示例: https://boommanpro.github.io/flowgram-ai-rule-engine/workflow-e
 服务端支持,项目地址：https://github.com/boommanpro/gaia-workflow
 
 ## 时间线
+2026.1.25 增加管理端，https://boommanpro.github.io/flowgram-ai-rule-engine/#/，右上角你可以配置自己的服务器地址，本地启动后访问即可
+
 2026.1.23 增加electron端，可以直接运行体验
 
 2026.1.6 前后端两个仓库合并

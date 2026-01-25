@@ -36,9 +36,9 @@
                 @confirm="deleteWorkflow(workflow.id)"
               >
                 <template #reference>
-                  <el-icon class="delete-icon">
-                    <Delete />
-                  </el-icon>
+                  <el-button class="delete-btn" type="danger" plain size="small">
+                    <el-icon><Delete /></el-icon>
+                  </el-button>
                 </template>
               </el-popconfirm>
             </div>
