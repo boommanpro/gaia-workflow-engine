@@ -1,15 +1,26 @@
 <template>
   <div class="workflow-editor">
     <div class="editor-header">
-      <button @click="goBack" class="btn-secondary">返回</button>
+      <el-button @click="goBack" size="large" class="back-btn">
+        <template #icon>
+          <el-icon><ArrowLeft /></el-icon>
+        </template>
+        返回
+      </el-button>
       <h2>{{ workflowId ? (workflowId === 'new' ? '新建工作流' : '编辑工作流') : (exampleId ? '示例工作流预览' : '新建工作流') }}</h2>
       <div class="spacer"></div>
       
       <!-- 版本下拉菜单 -->
       <el-dropdown v-if="workflowId && workflowId !== 'new'" @command="handleVersionCommand" class="version-dropdown">
-        <button class="btn-secondary">
-          版本管理 <el-icon><arrow-down /></el-icon>
-        </button>
+        <el-button size="large">
+          <template #icon>
+            <el-icon><Collection /></el-icon>
+          </template>
+          版本管理
+          <el-icon class="el-icon--right">
+            <arrow-down />
+          </el-icon>
+        </el-button>
         <template #dropdown>
           <el-dropdown-menu>
             <el-dropdown-item v-if="versions.length === 0" disabled>
@@ -28,7 +39,7 @@
                     <div class="version-meta">
                       <span class="version-creator">{{ version.createdBy }}</span>
                       <span class="version-time">{{ formatDate(version.createdAt) }}</span>
-                      <el-tag :type="version.isCurrent === 1 ? 'success' : 'info'" size="small">
+                      <el-tag :type="version.isCurrent === 1 ? 'success' : 'info'" size="small" effect="light">
                         {{ version.isCurrent === 1 ? '当前版本' : '历史版本' }}
                       </el-tag>
                     </div>
@@ -41,15 +52,24 @@
                       text 
                       @click.stop="setCurrentVersion(version.id)"
                     >设为当前</el-button>
-                    <el-button 
-                      v-if="version.isCurrent !== 1" 
-                      type="danger" 
-                      size="small" 
-                      text 
-                      @click.stop="deleteVersion(version.id)"
-                      :icon="Delete"
+                    <el-popconfirm
+                      title="确定要删除这个版本吗？此操作不可恢复"
+                      confirm-button-text="确定"
+                      cancel-button-text="取消"
+                      @confirm="deleteVersion(version.id)"
                     >
-                    </el-button>
+                      <template #reference>
+                        <el-button 
+                          v-if="version.isCurrent !== 1" 
+                          type="danger" 
+                          size="small" 
+                          text 
+                          :icon="Delete"
+                        >
+                          删除
+                        </el-button>
+                      </template>
+                    </el-popconfirm>
                   </div>
                 </div>
               </el-dropdown-item>
@@ -85,8 +105,8 @@
 <script setup>
 import { ref, onMounted, watch, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ElMessage, ElMessageBox, ElDropdown, ElDropdownItem, ElDropdownMenu, ElIcon, ElTag, ElButton } from 'element-plus'
-import { Delete, ArrowDown } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox, ElDropdown, ElDropdownItem, ElDropdownMenu, ElIcon, ElTag, ElButton, ElPopconfirm } from 'element-plus'
+import { Delete, ArrowDown, ArrowLeft, Collection } from '@element-plus/icons-vue'
 import { bus } from 'wujie'
 import WorkflowEditorFrame from '../components/WorkflowEditorFrame.vue'
 import VersionInputDialog from '../components/VersionInputDialog.vue'
@@ -171,31 +191,23 @@ const loadVersions = async () => {
 
 // 版本相关方法
 // 删除版本
-const deleteVersion = (id) => {
-  ElMessageBox.confirm('确定要删除这个版本吗？此操作不可恢复', '确认删除', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning'
-  }).then(async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/workflow-version/delete/${id}`, {
-        method: 'DELETE'
-      })
+const deleteVersion = async (id) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/workflow-version/delete/${id}`, {
+      method: 'DELETE'
+    })
 
-      if (response.ok) {
-        ElMessage.success('删除版本成功')
-        // 重新加载版本列表
-        await loadVersions()
-      } else {
-        ElMessage.error('删除版本失败')
-      }
-    } catch (error) {
-      console.error('删除版本异常:', error)
-      ElMessage.error('删除版本异常: ' + error.message)
+    if (response.ok) {
+      ElMessage.success('删除版本成功')
+      // 重新加载版本列表
+      await loadVersions()
+    } else {
+      ElMessage.error('删除版本失败')
     }
-  }).catch(() => {
-    // 用户取消删除
-  })
+  } catch (error) {
+    console.error('删除版本异常:', error)
+    ElMessage.error('删除版本异常: ' + error.message)
+  }
 }
 
 // 设置为当前版本
@@ -321,8 +333,6 @@ watch(
   (newId) => {
     workflowId.value = newId || (route.query.new ? 'new' : null)
     console.log('Workflow ID changed:', workflowId.value)
-    // 更新tempProps以确保useWorkflowData能够响应变化
-    tempProps.value.workflowId = workflowId.value
   }
 )
 
@@ -332,9 +342,6 @@ watch(
     exampleId.value = newQuery.exampleId || null
     workflowId.value = route.params.id || (newQuery.new ? 'new' : null)
     console.log('Query changed - Example ID:', exampleId.value, 'Workflow ID:', workflowId.value)
-    // 更新tempProps以确保useWorkflowData能够响应变化
-    tempProps.value.exampleId = exampleId.value
-    tempProps.value.workflowId = workflowId.value
   },
   { deep: true }
 )
@@ -348,41 +355,53 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* 现代化工作流编辑器页面样式 */
 .editor-header {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   z-index: 999;
   position: absolute;
-  top: 20px;
-  left: 20px;
-  backdrop-filter: blur(5px);
-  border: none;
-  border-radius: 8px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  padding: 10px 20px;
+  top: 24px;
+  left: 24px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  padding: 12px 20px;
+  gap: 16px;
 }
 
 .editor-header h2 {
-  margin: 0 20px;
+  margin: 0 16px;
   font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
 }
 
 .editor-header .spacer {
   flex: 1;
 }
 
-.btn-secondary {
-  padding: 8px 16px;
+.back-btn {
   border: none;
-  border-radius: 4px;
+  background: transparent;
+  color: #606266;
+  padding: 8px 12px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 14px;
-  background-color: #f5f5f5;
-  color: #666;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
-.btn-secondary:hover {
-  background-color: #e0e0e0;
+.back-btn:hover {
+  background-color: #f5f7fa;
+  color: #409EFF;
 }
 
 .editor-container {
@@ -516,6 +535,20 @@ onUnmounted(() => {
 }
 
 .current-version-item {
-  background-color: #f0f9ff !important;
+  background-color: rgba(64, 158, 255, 0.05) !important;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .editor-header {
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 12px;
+  }
+  
+  .editor-header h2 {
+    margin: 0;
+    flex-basis: 100%;
+  }
 }
 </style>

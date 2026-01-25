@@ -1,7 +1,13 @@
 <template>
   <div id="app">
     <nav class="navbar" v-if="!$route.meta.isFullScreen">
-      <div class="nav-brand">工作流管理系统</div>
+      <div class="nav-brand">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="workflow-icon">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H8a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V8a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        </svg>
+        <span>工作流管理系统</span>
+      </div>
       <div class="nav-links">
         <router-link to="/" class="nav-link" :class="{ active: $route.name === 'WorkflowManagement' }">工作流管理</router-link>
         <router-link to="/templates" class="nav-link" :class="{ active: $route.name === 'TemplateManagement' }">模板管理</router-link>
@@ -9,7 +15,11 @@
       <!-- API配置按钮 -->
       <div class="nav-right">
         <button class="api-config-btn" @click="showApiConfig = true">
-          <i class="el-icon-setting"></i> 服务器配置
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="setting-icon">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1m12 8.66l-3.5 2.003M3.5 13.661l-3.5-2.003m0 0 3.5-2.003 3.5 2.003M10.5 4.339l3.5-2.003 3.5 2.003" />
+          </svg>
+          服务器配置
         </button>
       </div>
     </nav>
@@ -90,20 +100,30 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 15px 20px;
-  background-color: #409eff;
-  color: white;
-  box-shadow: 0 2px 4px rgba(0,0,0,.1);
+  padding: 16px 32px;
+  background-color: #ffffff;
+  color: #333;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  border-bottom: 1px solid #f0f0f0;
+  backdrop-filter: blur(10px);
 }
 
 .nav-brand {
-  font-size: 1.5em;
-  font-weight: bold;
+  font-size: 1.4rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #1a1a1a;
+}
+
+.workflow-icon {
+  color: #409EFF;
 }
 
 .nav-links {
   display: flex;
-  gap: 20px;
+  gap: 8px;
 }
 
 .nav-right {
@@ -112,37 +132,55 @@ export default {
 }
 
 .api-config-btn {
-  background-color: rgba(255, 255, 255, 0.2);
-  color: white;
-  border: none;
+  background-color: #f8f9fa;
+  color: #495057;
+  border: 1px solid #dee2e6;
   padding: 8px 16px;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 5px;
-  transition: background-color 0.3s;
+  gap: 6px;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .api-config-btn:hover {
-  background-color: rgba(255, 255, 255, 0.3);
+  background-color: #e9ecef;
+  border-color: #adb5bd;
+  transform: translateY(-1px);
 }
 
 .nav-link {
-  color: rgba(255, 255, 255, 0.8);
+  color: #6c757d;
   text-decoration: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  transition: all 0.3s;
+  padding: 10px 16px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  font-weight: 500;
+  position: relative;
 }
 
 .nav-link:hover {
-  color: white;
-  background-color: rgba(255, 255, 255, 0.1);
+  color: #495057;
+  background-color: #f8f9fa;
 }
 
 .nav-link.active {
-  color: white;
-  background-color: rgba(255, 255, 255, 0.2);
+  color: #409EFF;
+  background-color: rgba(64, 158, 255, 0.1);
+}
+
+.nav-link.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 30%;
+  height: 3px;
+  background-color: #409EFF;
+  border-radius: 2px;
 }
 </style>

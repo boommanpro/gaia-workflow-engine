@@ -4,6 +4,7 @@ import cn.boommanpro.gaia.workflow.infra.manage.entity.GaiaWorkflowTemplate;
 import cn.boommanpro.gaia.workflow.infra.manage.service.GaiaWorkflowTemplateAppService;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -37,6 +38,8 @@ public class GaiaWorkflowTemplateController {
      */
     @PostMapping("/create")
     public boolean createTemplate(@RequestBody GaiaWorkflowTemplate template) {
+        template.setCreatedAt(LocalDateTime.now());
+        template.setUpdatedAt(LocalDateTime.now());
         return templateAppService.save(template);
     }
 
