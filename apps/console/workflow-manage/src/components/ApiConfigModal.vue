@@ -48,7 +48,7 @@ export default {
   setup(props, { emit }) {
     // 从 localStorage 获取当前 API 地址
     const storedApiBaseUrl = localStorage.getItem('apiBaseUrl') || ''
-    const defaultApiBaseUrl = 'http://127.0.0.1:48080'
+    const defaultApiBaseUrl = 'http://127.0.0.1:48080/api'
     
     const dialogVisible = ref(props.modelValue)
     const statusMessage = ref('未测试')
@@ -102,6 +102,10 @@ export default {
         await formRef.value.validate()
         localStorage.setItem('apiBaseUrl', form.apiBaseUrl)
         ElMessage.success('服务器地址已保存')
+        
+        // 触发全局事件，通知应用其他部分API地址已更改
+        window.dispatchEvent(new CustomEvent('apiBaseUrlChanged', { detail: form.apiBaseUrl }));
+        
         emit('saved', form.apiBaseUrl)
         handleClose()
       } catch (error) {

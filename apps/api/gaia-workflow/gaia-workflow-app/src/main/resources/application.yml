@@ -13,7 +13,7 @@ spring:
     name: gaia-workflow-app
 
 server:
-  port: 48081
+  port: 48080
 
 mybatis-plus:
   configuration:
