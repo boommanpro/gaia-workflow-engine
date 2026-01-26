@@ -103,11 +103,11 @@ export default {
         localStorage.setItem('apiBaseUrl', form.apiBaseUrl)
         ElMessage.success('服务器地址已保存')
         
-        // 触发全局事件，通知应用其他部分API地址已更改
-        window.dispatchEvent(new CustomEvent('apiBaseUrlChanged', { detail: form.apiBaseUrl }));
-        
         emit('saved', form.apiBaseUrl)
         handleClose()
+        
+        // 通过页面刷新来解决API地址变更
+        window.location.reload()
       } catch (error) {
         console.error('验证失败:', error)
       }

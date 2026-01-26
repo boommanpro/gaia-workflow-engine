@@ -32,9 +32,6 @@ export const updateApiBaseUrl = (newBaseUrl: string): void => {
   // 注意：由于JavaScript的限制，我们无法动态更新已经导出的常量API_BASE_URL
   // 所以应用程序应该始终使用getApiBaseUrl()函数来获取最新的URL
   console.log(`API基础URL已更新为: ${newBaseUrl}`);
-  
-  // 触发全局事件通知其他模块更新
-  window.dispatchEvent(new CustomEvent('apiBaseUrlChanged', { detail: newBaseUrl }));
 };
 
 // 获取完整的API端点URL

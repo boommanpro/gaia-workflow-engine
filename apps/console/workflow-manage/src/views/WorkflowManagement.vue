@@ -34,9 +34,10 @@
                 confirm-button-text="确定"
                 cancel-button-text="取消"
                 @confirm="deleteWorkflow(workflow.id)"
+                @click.stop
               >
                 <template #reference>
-                  <el-button class="delete-btn" type="danger" plain size="small">
+                  <el-button class="delete-btn" type="danger" plain size="small" @click.stop>
                     <el-icon><Delete /></el-icon>
                   </el-button>
                 </template>
