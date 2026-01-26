@@ -9,7 +9,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/health")
+@RequestMapping("api/health")
 public class HealthController {
 
     @GetMapping
@@ -18,7 +18,7 @@ public class HealthController {
         response.put("status", "UP");
         response.put("message", "Gaia Workflow Service is running");
         response.put("timestamp", System.currentTimeMillis());
-        
+
         return ResponseEntity.ok(response);
     }
 }
