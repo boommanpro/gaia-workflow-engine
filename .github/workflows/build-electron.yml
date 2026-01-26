@@ -3,6 +3,8 @@ name: CI/CD Pipeline
 on:
   push:
     branches: [ "main", "develop" ]
+    tags:
+      - "v*" # 识别推送 v 开头的 tag 时触发
   pull_request:
     branches: [ "main" ]
   release:
@@ -202,8 +204,14 @@ jobs:
 
     - name: Display structure of built app
       run: |
-        ls -R ./downloaded-artifacts/
-        find ./downloaded-artifacts -name "*.dmg" -o -name "*.pkg" -o -name "*.zip" -o -name "*.exe" -o -name "*.deb" -o -name "*.rpm"
+        echo "=== Downloaded artifacts directory structure ==="
+        ls -la ./downloaded-artifacts/
+        echo "\n=== Recursive directory listing ==="
+        find ./downloaded-artifacts/ -type d | sort
+        echo "\n=== File listing with sizes ==="
+        find ./downloaded-artifacts/ -type f -exec ls -lh {} \;
+        echo "\n=== Search for FlowGram related files ==="
+        find ./downloaded-artifacts/ -iname "*flowgram*" -o -iname "*flowgram*" -o -iname "*.app" -o -iname "*.dmg" -o -iname "*.pkg" -o -iname "*.zip"
 
     - name: Create Release
       uses: softprops/action-gh-release@v2
@@ -212,9 +220,10 @@ jobs:
           ./downloaded-artifacts/**/*.dmg
           ./downloaded-artifacts/**/*.pkg
           ./downloaded-artifacts/**/*.zip
-          ./downloaded-artifacts/**/*.exe
-          ./downloaded-artifacts/**/*.deb
-          ./downloaded-artifacts/**/*.rpm
+          ./downloaded-artifacts/**/*.app
+          ./downloaded-artifacts/**/FlowGram*
+          ./downloaded-artifacts/**/FlowGram.app/**/*
+          ./downloaded-artifacts/**/*FlowGram*
         draft: false
         prerelease: false
         name: ${{ github.event.release.name }}
