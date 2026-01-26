@@ -186,32 +186,38 @@ jobs:
           apps/console/workflow-electron/out/**
         retention-days: 14
 
-  # 当创建标签时，准备发布
+  # 当创建标签时，发布到 GitHub Releases
   release:
     needs: build-electron
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
-
+    runs-on: macos-14  # 在与构建相同的环境中运行，确保文件格式正确
+    if: github.event_name == 'release' && github.event.action == 'published'
     steps:
     - uses: actions/checkout@v4
 
-    - name: Download all artifacts
+    - name: Download built artifacts
       uses: actions/download-artifact@v4
       with:
-        path: releases
+        name: electron-app-macos-arm64
+        path: ./downloaded-artifacts
 
-    - name: Prepare release assets
+    - name: Display structure of built app
       run: |
-        mkdir -p release_assets
-        find releases -name "*.dmg" -o -name "*.pkg" | xargs -I {} cp {} release_assets/
-        # 列出所有找到的资产用于调试
-        echo "Release assets found:"
-        ls -la release_assets/
+        ls -R ./downloaded-artifacts/
+        find ./downloaded-artifacts -name "*.dmg" -o -name "*.pkg" -o -name "*.zip" -o -name "*.exe" -o -name "*.deb" -o -name "*.rpm"
 
     - name: Create Release
       uses: softprops/action-gh-release@v2
       with:
-        files: release_assets/**
+        files: |
+          ./downloaded-artifacts/**/*.dmg
+          ./downloaded-artifacts/**/*.pkg
+          ./downloaded-artifacts/**/*.zip
+          ./downloaded-artifacts/**/*.exe
+          ./downloaded-artifacts/**/*.deb
+          ./downloaded-artifacts/**/*.rpm
         draft: false
         prerelease: false
-        body: "Release of FlowGram AI Desktop Application"
+        name: ${{ github.event.release.name }}
+        tag_name: ${{ github.event.release.tag_name }}
+        body: ${{ github.event.release.body }}
+        token: ${{ secrets.GITHUB_TOKEN }}
