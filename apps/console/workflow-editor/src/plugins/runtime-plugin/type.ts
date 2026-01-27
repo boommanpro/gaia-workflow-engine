@@ -18,4 +18,5 @@ export interface ServerConfig {
   domain: string;
   port?: number;
   protocol?: string;
+  pathname?: string;
 }

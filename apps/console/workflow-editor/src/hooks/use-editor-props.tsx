@@ -381,6 +381,7 @@ export function useEditorProps(
                 domain: url.hostname,
                 port: url.port ? parseInt(url.port) : (url.protocol === 'https:' ? 443 : 80),
                 protocol: url.protocol.replace(':', ''),
+                  pathname: url.pathname,
               };
             } catch (error) {
               console.warn('Failed to parse API base URL for runtime plugin, using env defaults:', error);

@@ -145,7 +145,9 @@ export class WorkflowRuntimeServerClient implements IRuntimeClient {
 
   // Build URL with query parameters
   private url(path: string, queryParams?: Record<string, string>): string {
-    const baseURL = this.getURL(`/api${path}`);
+    // 如果配置中有pathname，则说明路径已包含API前缀，不需要再添加/api
+    const fullPath = this.config.pathname ? path : `/api${path}`;
+    const baseURL = this.getURL(fullPath);
     if (!queryParams) {
       return baseURL;
     }
@@ -169,6 +171,9 @@ export class WorkflowRuntimeServerClient implements IRuntimeClient {
     const host = this.config.port
       ? `${this.config.domain}:${this.config.port}`
       : this.config.domain;
-    return `${protocol}://${host}${path}`;
+    
+    // 添加路径名（如果有）
+    const basePath = this.config.pathname ? this.config.pathname : '';
+    return `${protocol}://${host}${basePath}${path}`;
   }
 }
