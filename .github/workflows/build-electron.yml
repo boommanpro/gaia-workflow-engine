@@ -201,11 +201,6 @@ jobs:
       with:
         name: electron-app-macos-arm64
         path: ./downloaded-artifacts
-    - name: Debug build output
-      run: |    
-        echo "=== Build output directory ==="
-        ls -la apps/console/workflow-electron/out/
-        find apps/console/workflow-electron/out/ -type f | head -20
     - name: Display structure of built app
       run: |
         echo "=== Downloaded artifacts directory structure ==="
