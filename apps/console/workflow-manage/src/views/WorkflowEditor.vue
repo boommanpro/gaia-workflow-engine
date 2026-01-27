@@ -57,6 +57,7 @@
                       confirm-button-text="确定"
                       cancel-button-text="取消"
                       @confirm="deleteVersion(version.id)"
+                      @click.stop
                     >
                       <template #reference>
                         <el-button 
@@ -65,6 +66,7 @@
                           size="small" 
                           text 
                           :icon="Delete"
+                          @click.stop
                         >
                           删除
                         </el-button>

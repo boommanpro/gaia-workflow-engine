@@ -2,6 +2,7 @@ import { ref } from 'vue'
 import { bus } from 'wujie'
 import { useWorkflowStore } from '../store'
 import { API_BASE_URL } from '@/utils/apiConfig'
+import { ElMessage } from 'element-plus'
 
 export function useWorkflowCommunication(workflowData, emits) {
   const subAppMounted = ref(false)
@@ -74,10 +75,8 @@ export function useWorkflowCommunication(workflowData, emits) {
 
         if (result) {
           console.log('工作流版本保存成功:', result);
-          // 可以在这里添加成功提示
         } else {
           console.error('工作流版本保存失败');
-          // 可以在这里添加失败提示
         }
       } else {
         console.warn('缺少工作流信息，无法保存版本');
@@ -133,9 +132,13 @@ export function useWorkflowCommunication(workflowData, emits) {
       if (response.ok) {
         const newVersion = await response.json();
         console.log('新版本已创建:', newVersion);
+        ElMessage.success(`工作流版本 ${newVersion.versionNumber} 创建成功！`);
         return newVersion;
       } else {
         console.error('创建工作流版本失败:', response.status);
+        const errorText = await response.text();
+        console.error('错误详情:', errorText);
+        ElMessage.error(`创建工作流版本失败: ${response.status}`);
         return null;
       }
     } catch (error) {
@@ -234,9 +237,11 @@ export function useWorkflowCommunication(workflowData, emits) {
         if (versionResponse.ok) {
           const newVersion = await versionResponse.json()
           console.log('新工作流及版本已创建:', newWorkflow, newVersion)
+          ElMessage.success(`工作流版本 ${newVersion.versionNumber} 创建成功！`);
           return newWorkflow
         } else {
           console.error('创建工作流版本失败')
+          ElMessage.error('创建工作流版本失败');
           return null
         }
       } else {
@@ -300,9 +305,11 @@ export function useWorkflowCommunication(workflowData, emits) {
         const updatedResult = await workflowResponse.json()
         const newVersion = await versionResponse.json()
         console.log('工作流及版本已更新:', updatedResult, newVersion)
+        ElMessage.success(`工作流版本 ${newVersion.versionNumber} 更新成功！`);
         return updatedResult
       } else {
         console.error('更新工作流版本失败')
+        ElMessage.error('更新工作流版本失败');
         return null
       }
     } catch (error) {
