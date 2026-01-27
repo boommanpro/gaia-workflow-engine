@@ -151,10 +151,6 @@ jobs:
         # 修复JDK文件权限，解决codesign权限问题
         echo "Fixing JDK file permissions..."
         chmod -R 755 apps/console/workflow-electron/build/extraResources/jdk
-        # 特别处理可能存在问题的JSA文件
-        if [ -f "apps/console/workflow-electron/build/extraResources/jdk/lib/server/classes.jsa" ]; then
-          chmod 644 apps/console/workflow-electron/build/extraResources/jdk/lib/server/classes.jsa
-        fi
       shell: bash
 
     # 为所有项目安装依赖
@@ -182,9 +178,6 @@ jobs:
         cd apps/console/workflow-electron
         # 构建macOS ARM64版本 - 确保执行完整的构建流程
         echo "Building for macOS ARM64 architecture"
-        # 显示JDK目录结构以供调试
-        echo "JDK directory structure:"
-        find build/extraResources/jdk -type f -name "*.jsa" | head -10
         ## re-sqlite处理
         pnpm run re-sqlite
         # 先执行完整的构建流程
