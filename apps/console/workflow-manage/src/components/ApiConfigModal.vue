@@ -115,7 +115,7 @@ export default {
     
     const handleReset = () => {
       form.apiBaseUrl = defaultApiBaseUrl
-      localStorage.removeItem('apiBaseUrl')
+      localStorage.setItem('apiBaseUrl', defaultApiBaseUrl)
       statusMessage.value = '已重置为默认值'
       statusTagType.value = 'warning'
     }
