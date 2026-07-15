@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/images/logo.png" alt="Gaia Logo" width="120" />
+
 # Gaia · Visual AI Workflow Editor
 
 **Build AI workflows, visually. Powered by [flowgram.ai](https://github.com/bytedance/flowgram.ai).**

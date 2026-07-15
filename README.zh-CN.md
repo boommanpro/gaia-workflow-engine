@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/images/logo.png" alt="Gaia Logo" width="120" />
+
 # Gaia · 可视化 AI 工作流编辑器
 
 **可视化构建 AI 工作流，基于 [flowgram.ai](https://github.com/bytedance/flowgram.ai) 驱动。**
