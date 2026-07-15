@@ -63,6 +63,8 @@ npm-debug.log
 yarn-error.log
 yarn.lock
 package-lock.json
+# 新 console 项目使用 npm，需要提交 package-lock.json
+!apps/console/package-lock.json
 
 # 编译输出
 *.class
