@@ -1,0 +1,51 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
+import { Field } from '@flowgram.ai/free-layout-editor';
+import { TypeScriptCodeEditor } from '@flowgram.ai/form-materials';
+import { Divider, Select } from '@douyinfe/semi-ui';
+
+import { useIsSidebar, useNodeRenderContext } from '../../../hooks';
+import { FormItem } from '../../../form-components';
+
+export function Code() {
+  const isSidebar = useIsSidebar();
+  const { readonly } = useNodeRenderContext();
+
+  if (!isSidebar) {
+    return null;
+  }
+  const languageOptions = [
+    { label: 'SpEL(Standard)', value: 'spel-standard' },
+    { label: 'SpEL(Vue)', value: 'spel-vue' },
+    { label: 'ThymeLeaf(Text)', value: 'thymeleaf-text' },
+  ];
+  return (
+    <>
+      <Divider />
+      <FormItem name="language" type="string">
+        <Field<string> name="script.language">
+          {({ field }) => (
+            <Select
+              optionList={languageOptions}
+              value={field.value}
+              onChange={(value) => field.onChange(value as string)}
+              disabled={readonly}
+            />
+          )}
+        </Field>
+      </FormItem>
+      <Field<string> name="script.content">
+        {({ field }) => (
+          <TypeScriptCodeEditor
+            value={field.value}
+            onChange={(value) => field.onChange(value)}
+            readonly={readonly}
+          />
+        )}
+      </Field>
+    </>
+  );
+}

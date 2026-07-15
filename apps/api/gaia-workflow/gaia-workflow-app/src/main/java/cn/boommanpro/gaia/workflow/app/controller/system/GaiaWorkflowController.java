@@ -60,7 +60,7 @@ public class GaiaWorkflowController {
 
     /**
      * 创建新工作流
-     * 在创建工作流时，根据模板创建初始版本并设置为启用状态
+     * 始终创建初始版本：有模板则用模板数据，无模板则用最小默认数据
      */
     @PostMapping("/create")
     public boolean createWorkflow(@RequestBody GaiaWorkflow workflow) {
@@ -69,7 +69,15 @@ public class GaiaWorkflowController {
         workflow.setUpdatedAt(LocalDateTime.now());
         boolean workflowSaved = workflowService.save(workflow);
 
-        if (workflowSaved && workflow.getTemplateCode() != null) {
+        if (!workflowSaved) {
+            return false;
+        }
+
+        // 确定初始版本数据来源
+        String versionDesc;
+        String workflowData;
+
+        if (workflow.getTemplateCode() != null) {
             // 根据模板编码查找模板
             GaiaWorkflowTemplate template = templateService.getOne(
                 new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<GaiaWorkflowTemplate>()
@@ -78,29 +86,44 @@ public class GaiaWorkflowController {
             );
 
             if (template != null) {
-                // 创建初始版本
-                GaiaWorkflowVersion version = new GaiaWorkflowVersion();
-                version.setWorkflowCode(workflow.getWorkflowCode());
-                version.setVersionNumber("v1.0");
-                version.setVersionDesc("基于模板 [" + template.getTemplateName() + "] 创建的初始版本");
-                version.setWorkflowData(template.getTemplateData());
-                version.setCreatedBy("system");
-                version.setIsCurrent(1); // 设置为当前版本
-                version.setCreatedAt(LocalDateTime.now());
-
-                // 保存版本
-                boolean versionSaved = versionService.save(version);
-
-                if (versionSaved) {
-                    // 更新工作流的当前版本ID
-                    workflow.setCurrentVersionId(version.getId());
-                    workflowService.updateById(workflow);
-                }
+                versionDesc = "基于模板 [" + template.getTemplateName() + "] 创建的初始版本";
+                workflowData = template.getTemplateData();
+            } else {
+                versionDesc = "初始版本";
+                workflowData = DEFAULT_WORKFLOW_DATA;
             }
+        } else {
+            versionDesc = "初始版本";
+            workflowData = DEFAULT_WORKFLOW_DATA;
         }
 
-        return workflowSaved;
+        // 创建初始版本
+        GaiaWorkflowVersion version = new GaiaWorkflowVersion();
+        version.setWorkflowCode(workflow.getWorkflowCode());
+        version.setVersionNumber("v1.0");
+        version.setVersionDesc(versionDesc);
+        version.setWorkflowData(workflowData);
+        version.setCreatedBy("system");
+        version.setIsCurrent(1);
+        version.setCreatedAt(LocalDateTime.now());
+
+        boolean versionSaved = versionService.save(version);
+
+        if (versionSaved) {
+            // 更新工作流的当前版本ID
+            workflow.setCurrentVersionId(version.getId());
+            workflowService.updateById(workflow);
+        }
+
+        return true;
     }
+
+    /**
+     * 新工作流的默认最小数据：仅包含一个 Start 节点
+     */
+    private static final String DEFAULT_WORKFLOW_DATA =
+        "{\"nodes\":[{\"id\":\"start_0\",\"type\":\"start\",\"meta\":{\"position\":{\"x\":200,\"y\":200}}," +
+        "\"data\":{\"title\":\"Start\",\"outputs\":{\"type\":\"object\",\"properties\":{}}}}],\"edges\":[]}";
 
     /**
      * 更新工作流

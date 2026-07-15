@@ -14,6 +14,8 @@ on:
     branches: [ "main" ]
   release:
     types: [created]
+  # 允许手动触发
+  workflow_dispatch:
 
 jobs:
   build-electron:
@@ -65,13 +67,13 @@ jobs:
     # 准备 extraResources 目录
     - name: Prepare extraResources Directory
       run: |
-        mkdir -p apps/console/workflow-electron/build/extraResources
+        mkdir -p apps/console-archive/workflow-electron/build/extraResources
       shell: bash
 
     # 下载并嵌入JDK到应用中（使用清华镜像）
     - name: Download and Embed JDK
       run: |
-        mkdir -p apps/console/workflow-electron/build/extraResources
+        mkdir -p apps/console-archive/workflow-electron/build/extraResources
         
         # 专门处理macOS ARM64的JDK
         echo "Downloading JDK for macOS ARM64..."
@@ -118,14 +120,14 @@ jobs:
         # 查找解压出来的目录
         extracted_dir=$(find . -maxdepth 1 -name "*jdk*" -type d | head -n 1)
         if [ -n "$extracted_dir" ]; then
-          echo "Moving $extracted_dir to apps/console/workflow-electron/build/extraResources/jdk"
-          mv "$extracted_dir" apps/console/workflow-electron/build/extraResources/jdk
+          echo "Moving $extracted_dir to apps/console-archive/workflow-electron/build/extraResources/jdk"
+          mv "$extracted_dir" apps/console-archive/workflow-electron/build/extraResources/jdk
         else
           # 如果没有找到以jdk开头的目录，尝试查找任何新创建的目录
           extracted_dir=$(find . -maxdepth 1 -type d -not -path "." -not -path "./jdk21.tar.gz" | head -n 1)
           if [ -n "$extracted_dir" ]; then
-            echo "Moving $extracted_dir to apps/console/workflow-electron/build/extraResources/jdk"
-            mv "$extracted_dir" apps/console/workflow-electron/build/extraResources/jdk
+            echo "Moving $extracted_dir to apps/console-archive/workflow-electron/build/extraResources/jdk"
+            mv "$extracted_dir" apps/console-archive/workflow-electron/build/extraResources/jdk
           else
             echo "Error: Could not find extracted JDK directory"
             ls -la
@@ -134,48 +136,48 @@ jobs:
         fi
         
         # 对于macOS，处理JDK目录结构，移除Contents/Home/层级
-        if [ -d "apps/console/workflow-electron/build/extraResources/jdk/Contents/Home" ]; then
+        if [ -d "apps/console-archive/workflow-electron/build/extraResources/jdk/Contents/Home" ]; then
           echo "Adjusting macOS JDK directory structure..."
           # 创建临时目录来存放Home目录内容
           temp_dir=$(mktemp -d)
           # 将Contents/Home/下的内容复制到临时目录
-          cp -R apps/console/workflow-electron/build/extraResources/jdk/Contents/Home/* "$temp_dir"/
+          cp -R apps/console-archive/workflow-electron/build/extraResources/jdk/Contents/Home/* "$temp_dir"/
           # 删除原来的Contents目录
-          rm -rf apps/console/workflow-electron/build/extraResources/jdk/Contents
+          rm -rf apps/console-archive/workflow-electron/build/extraResources/jdk/Contents
           # 将临时目录内容复制回jdk目录
-          cp -R "$temp_dir"/* apps/console/workflow-electron/build/extraResources/jdk/
+          cp -R "$temp_dir"/* apps/console-archive/workflow-electron/build/extraResources/jdk/
           # 清理临时目录
           rm -rf "$temp_dir"
         fi
         
         # 修复JDK文件权限，解决codesign权限问题
         echo "Fixing JDK file permissions..."
-        chmod -R 755 apps/console/workflow-electron/build/extraResources/jdk
+        chmod -R 755 apps/console-archive/workflow-electron/build/extraResources/jdk
       shell: bash
 
-    # 为所有项目安装依赖
+    # 为所有项目安装依赖（归档项目无 lock 文件，使用 pnpm install）
     - name: Install workflow-editor Dependencies
       run: |
-        cd apps/console/workflow-editor
-        pnpm install --frozen-lockfile
+        cd apps/console-archive/workflow-editor
+        pnpm install
       shell: bash
 
     - name: Install workflow-manage Dependencies
       run: |
-        cd apps/console/workflow-manage
-        pnpm install --frozen-lockfile
+        cd apps/console-archive/workflow-manage
+        pnpm install
       shell: bash
 
     - name: Install Electron Dependencies
       run: |
-        cd apps/console/workflow-electron
-        pnpm install --frozen-lockfile
+        cd apps/console-archive/workflow-electron
+        pnpm install
       shell: bash
 
     # 打包 Electron 应用 (仅macOS ARM64)
     - name: Package Electron Application for macOS ARM64
       run: |
-        cd apps/console/workflow-electron
+        cd apps/console-archive/workflow-electron
         # 构建macOS ARM64版本 - 确保执行完整的构建流程
         echo "Building for macOS ARM64 architecture"
         ## re-sqlite处理
@@ -194,7 +196,7 @@ jobs:
       with:
         name: electron-app-macos-arm64
         path: |
-          apps/console/workflow-electron/out/**
+          apps/console-archive/workflow-electron/out/**
         retention-days: 14
 
   # 当创建标签时，发布到 GitHub Releases

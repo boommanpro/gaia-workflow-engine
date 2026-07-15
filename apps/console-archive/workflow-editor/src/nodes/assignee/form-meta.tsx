@@ -1,0 +1,260 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ */
+
+import { useState, useCallback } from 'react';
+
+import {
+  Field,
+  FieldRenderProps,
+  FormRenderProps,
+  FormMeta,
+  ValidateTrigger,
+} from '@flowgram.ai/free-layout-editor';
+
+import { FlowNodeJSON } from '../../typings';
+import { useIsSidebar } from '../../hooks';
+import { FormHeader, FormContent } from '../../form-components';
+import { Assignee, searchAssignees } from './types';
+
+export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => {
+  const isSidebar = useIsSidebar();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Assignee[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const handleSearch = useCallback(async (query: string) => {
+    setSearchQuery(query);
+    setLoading(true);
+    try {
+      const results = await searchAssignees(query);
+      setSearchResults(results);
+    } catch (error) {
+      console.error('搜索失败:', error);
+      setSearchResults([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleSelectAssignee = (
+    assignee: Assignee,
+    currentAssignees: Assignee[],
+    onChange: (value: Assignee[]) => void
+  ) => {
+    const exists = currentAssignees.find((a: Assignee) => a.id === assignee.id);
+    if (!exists) {
+      onChange([...currentAssignees, assignee]);
+    }
+    setSearchQuery('');
+    setSearchResults([]);
+  };
+
+  const handleRemoveAssignee = (
+    assigneeId: string,
+    currentAssignees: Assignee[],
+    onChange: (value: Assignee[]) => void
+  ) => {
+    onChange(currentAssignees.filter((a: Assignee) => a.id !== assigneeId));
+  };
+
+  if (isSidebar) {
+    return (
+      <>
+        <FormHeader />
+        <FormContent>
+          <Field
+            name="data.assignees"
+            render={({ field: { value = [], onChange } }: FieldRenderProps<Assignee[]>) => (
+              <div style={{ padding: '16px' }}>
+                <h3 style={{ marginBottom: '16px', fontSize: '14px', fontWeight: 'bold' }}>
+                  负责人列表
+                </h3>
+
+                {/* 搜索输入框 */}
+                <div style={{ marginBottom: '16px' }}>
+                  <input
+                    type="text"
+                    placeholder="搜索负责人..."
+                    value={searchQuery}
+                    onChange={(e) => handleSearch(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #d9d9d9',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                    }}
+                  />
+
+                  {/* 搜索结果 */}
+                  {searchQuery && (
+                    <div
+                      style={{
+                        marginTop: '8px',
+                        border: '1px solid #d9d9d9',
+                        borderRadius: '6px',
+                        maxHeight: '150px',
+                        overflowY: 'auto',
+                        backgroundColor: '#fff',
+                      }}
+                    >
+                      {loading ? (
+                        <div style={{ padding: '8px', textAlign: 'center', color: '#666' }}>
+                          搜索中...
+                        </div>
+                      ) : searchResults.length > 0 ? (
+                        searchResults.map((assignee) => (
+                          <div
+                            key={assignee.id}
+                            onClick={() => handleSelectAssignee(assignee, value, onChange)}
+                            style={{
+                              padding: '8px 12px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              cursor: 'pointer',
+                              borderBottom: '1px solid #f0f0f0',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = '#f5f5f5';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = 'transparent';
+                            }}
+                          >
+                            <img
+                              src={assignee.avatar}
+                              alt={assignee.name}
+                              style={{
+                                width: '24px',
+                                height: '24px',
+                                borderRadius: '50%',
+                              }}
+                            />
+                            <span>{assignee.name}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <div style={{ padding: '8px', textAlign: 'center', color: '#666' }}>
+                          未找到结果
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* 已选择的负责人 */}
+                <div>
+                  <h4 style={{ marginBottom: '8px', fontSize: '12px', color: '#666' }}>
+                    已选择的负责人:
+                  </h4>
+                  {value.length === 0 ? (
+                    <div style={{ color: '#999', fontSize: '12px' }}>尚未选择任何负责人</div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {value.map((assignee) => (
+                        <div
+                          key={assignee.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '8px 12px',
+                            backgroundColor: '#f5f5f5',
+                            borderRadius: '6px',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <img
+                              src={assignee.avatar}
+                              alt={assignee.name}
+                              style={{
+                                width: '24px',
+                                height: '24px',
+                                borderRadius: '50%',
+                              }}
+                            />
+                            <span>{assignee.name}</span>
+                          </div>
+                          <button
+                            onClick={() => handleRemoveAssignee(assignee.id, value, onChange)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: '#ff4d4f',
+                              cursor: 'pointer',
+                              fontSize: '16px',
+                              padding: '0',
+                              lineHeight: '1',
+                            }}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          />
+        </FormContent>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <FormHeader />
+      <FormContent>
+        <div style={{ padding: '16px' }}>
+          <h3>负责人标记</h3>
+          <Field
+            name="data.assignees"
+            render={({ field: { value = [] } }: FieldRenderProps<Assignee[]>) => (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {value.length === 0 ? (
+                  <div style={{ color: '#999', textAlign: 'center', padding: '20px' }}>
+                    暂无负责人
+                  </div>
+                ) : (
+                  value.map((assignee) => (
+                    <div
+                      key={assignee.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '8px',
+                        backgroundColor: '#f5f5f5',
+                        borderRadius: '6px',
+                      }}
+                    >
+                      <img
+                        src={assignee.avatar}
+                        alt={assignee.name}
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '50%',
+                        }}
+                      />
+                      <span>{assignee.name}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          />
+        </div>
+      </FormContent>
+    </>
+  );
+};
+
+export const formMeta: FormMeta<FlowNodeJSON> = {
+  render: renderForm,
+  validateTrigger: ValidateTrigger.onChange,
+};

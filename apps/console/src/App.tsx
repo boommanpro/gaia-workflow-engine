@@ -1,0 +1,23 @@
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { Home } from './pages/Home';
+import { Editor } from './editor';
+import { AdminLayout } from './pages/admin/AdminLayout';
+import { WorkflowManagement } from './pages/admin/WorkflowManagement';
+import { TemplateManagement } from './pages/admin/TemplateManagement';
+
+function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/admin" element={<AdminLayout />}>
+        <Route index element={<Navigate to="/admin/workflows" replace />} />
+        <Route path="workflows" element={<WorkflowManagement />} />
+        <Route path="templates" element={<TemplateManagement />} />
+      </Route>
+      <Route path="/editor" element={<Editor />} />
+      <Route path="/editor/:workflowCode" element={<Editor />} />
+    </Routes>
+  );
+}
+
+export default App;

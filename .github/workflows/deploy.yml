@@ -3,12 +3,26 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [ "main" ]
+  # 允许手动触发
+  workflow_dispatch:
+
+# GitHub Pages 部署权限
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同一时间只允许一个部署运行
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - uses: actions/checkout@v4
@@ -16,56 +30,28 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 18
+          cache: 'npm'
+          cache-dependency-path: apps/console/package-lock.json
 
-      # 新增 pnpm 安装步骤
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
+      # 构建新的单体 React 前端应用（Gaia）
+      - name: Install Dependencies
+        run: npm ci
+        working-directory: apps/console
+
+      - name: Build for GitHub Pages
+        run: npm run build:gh-pages
+        working-directory: apps/console
+
+      # 上传构建产物作为 GitHub Pages artifact
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          version: 9.12.0  # 指定 pnpm 版本，建议与本地一致
+          path: apps/console/dist
 
-      # 构建 Vue3 主应用
-      - name: Install Vue3 App Dependencies
-        run: pnpm install --frozen-lockfile
-        working-directory: apps/console/workflow-manage
-
-      - name: Build Vue3 Main Application
-        run: pnpm run build:github
-        working-directory: apps/console/workflow-manage
-
-      # 构建 React 子应用
-      - name: Install React App Dependencies
-        run: pnpm install --frozen-lockfile
-        working-directory: apps/console/workflow-editor
-
-      - name: Build React Child Application
-        run: pnpm run build:gh-pages
-        working-directory: apps/console/workflow-editor
-
-      # 准备部署目录
-      - name: Prepare deployment directory
-        run: |
-          # 创建部署目录
-          mkdir -p deployment
-          mkdir -p deployment/workflow-editor
-          # 复制主应用
-          cp -r apps/console/workflow-manage/dist/* deployment/
-          # 复制子应用
-          cp -r apps/console/workflow-editor/workflow-editor/* deployment/workflow-editor/
-
-
-      # 部署应用
-      - name: Deploy
-        uses: JamesIves/github-pages-deploy-action@v4.3.4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          branch: gh-pages
-          folder: deployment
-          force: true
-          commit-message: website deploy
-
-      # 清理
-      - name: Cleanup
-        run: |
-          rm -rf deployment
-          rm -rf apps/console/workflow-manage/dist
-          rm -rf apps/console/workflow-editor/workflow-editor
+      # 部署到 GitHub Pages
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
