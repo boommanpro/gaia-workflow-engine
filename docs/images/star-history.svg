@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 360" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+  <rect width="800" height="360" fill="#ffffff"/>
+  <text x="56" y="22" font-size="14" font-weight="600" fill="#111">boommanpro/flowgram-ai-rule-engine</text>
+  <text x="776" y="22" font-size="12" fill="#888" text-anchor="end">★ 63 stars</text>
+  <rect x="56" y="36" width="720" height="276" fill="#fafafa" stroke="#eee"/>
+  <line x1="56" y1="312" x2="776" y2="312" stroke="#eee" stroke-dasharray="2,3"/>
+         <text x="48" y="316" font-size="11" fill="#999" text-anchor="end">0</text>
+  <line x1="56" y1="241.90476190476193" x2="776" y2="241.90476190476193" stroke="#eee" stroke-dasharray="2,3"/>
+         <text x="48" y="245.90476190476193" font-size="11" fill="#999" text-anchor="end">16</text>
+  <line x1="56" y1="171.80952380952382" x2="776" y2="171.80952380952382" stroke="#eee" stroke-dasharray="2,3"/>
+         <text x="48" y="175.80952380952382" font-size="11" fill="#999" text-anchor="end">32</text>
+  <line x1="56" y1="106.0952380952381" x2="776" y2="106.0952380952381" stroke="#eee" stroke-dasharray="2,3"/>
+         <text x="48" y="110.0952380952381" font-size="11" fill="#999" text-anchor="end">47</text>
+  <line x1="56" y1="36" x2="776" y2="36" stroke="#eee" stroke-dasharray="2,3"/>
+         <text x="48" y="40" font-size="11" fill="#999" text-anchor="end">63</text>
+  <line x1="56" y1="312" x2="56" y2="316" stroke="#ccc"/>
+         <text x="56" y="332" font-size="11" fill="#999" text-anchor="middle">2025-03</text>
+  <line x1="176" y1="312" x2="176" y2="316" stroke="#ccc"/>
+         <text x="176" y="332" font-size="11" fill="#999" text-anchor="middle">2025-06</text>
+  <line x1="296" y1="312" x2="296" y2="316" stroke="#ccc"/>
+         <text x="296" y="332" font-size="11" fill="#999" text-anchor="middle">2025-08</text>
+  <line x1="416" y1="312" x2="416" y2="316" stroke="#ccc"/>
+         <text x="416" y="332" font-size="11" fill="#999" text-anchor="middle">2025-11</text>
+  <line x1="536" y1="312" x2="536" y2="316" stroke="#ccc"/>
+         <text x="536" y="332" font-size="11" fill="#999" text-anchor="middle">2026-02</text>
+  <line x1="656" y1="312" x2="656" y2="316" stroke="#ccc"/>
+         <text x="656" y="332" font-size="11" fill="#999" text-anchor="middle">2026-04</text>
+  <line x1="776" y1="312" x2="776" y2="316" stroke="#ccc"/>
+         <text x="776" y="332" font-size="11" fill="#999" text-anchor="middle">2026-07</text>
+  <path d="M56.0,312.0 L56.0,307.6 L110.2,303.2 L110.5,298.9 L111.3,294.5 L138.2,290.1 L139.2,285.7 L143.8,281.3 L144.4,277.0 L147.1,272.6 L152.9,268.2 L153.1,263.8 L153.1,259.4 L154.9,255.0 L156.9,250.7 L161.9,246.3 L175.1,241.9 L183.6,237.5 L187.3,233.1 L194.2,228.8 L194.3,224.4 L194.5,220.0 L196.4,215.6 L197.2,211.2 L200.0,206.9 L209.1,202.5 L225.1,198.1 L228.4,193.7 L230.4,189.3 L235.7,185.0 L236.6,180.6 L240.2,176.2 L293.8,171.8 L299.0,167.4 L321.6,163.0 L341.8,158.7 L344.2,154.3 L344.7,149.9 L345.2,145.5 L394.8,141.1 L394.9,136.8 L394.9,132.4 L394.9,128.0 L395.0,123.6 L399.4,119.2 L411.7,114.9 L426.0,110.5 L435.2,106.1 L458.8,101.7 L465.9,97.3 L467.5,93.0 L479.5,88.6 L494.3,84.2 L495.7,79.8 L528.2,75.4 L534.3,71.0 L547.5,66.7 L550.9,62.3 L569.5,57.9 L605.7,53.5 L693.5,49.1 L715.6,44.8 L718.5,40.4 L739.3,36.0 L776.0,312.0 L56.0,312.0 Z" fill="#4d53e8" fill-opacity="0.08"/>
+  <path d="M56.0,312.0 L56.0,307.6 L110.2,303.2 L110.5,298.9 L111.3,294.5 L138.2,290.1 L139.2,285.7 L143.8,281.3 L144.4,277.0 L147.1,272.6 L152.9,268.2 L153.1,263.8 L153.1,259.4 L154.9,255.0 L156.9,250.7 L161.9,246.3 L175.1,241.9 L183.6,237.5 L187.3,233.1 L194.2,228.8 L194.3,224.4 L194.5,220.0 L196.4,215.6 L197.2,211.2 L200.0,206.9 L209.1,202.5 L225.1,198.1 L228.4,193.7 L230.4,189.3 L235.7,185.0 L236.6,180.6 L240.2,176.2 L293.8,171.8 L299.0,167.4 L321.6,163.0 L341.8,158.7 L344.2,154.3 L344.7,149.9 L345.2,145.5 L394.8,141.1 L394.9,136.8 L394.9,132.4 L394.9,128.0 L395.0,123.6 L399.4,119.2 L411.7,114.9 L426.0,110.5 L435.2,106.1 L458.8,101.7 L465.9,97.3 L467.5,93.0 L479.5,88.6 L494.3,84.2 L495.7,79.8 L528.2,75.4 L534.3,71.0 L547.5,66.7 L550.9,62.3 L569.5,57.9 L605.7,53.5 L693.5,49.1 L715.6,44.8 L718.5,40.4 L739.3,36.0" fill="none" stroke="#4d53e8" stroke-width="2" stroke-linejoin="round"/>
+  <circle cx="776" cy="36" r="3.5" fill="#4d53e8"/>
+</svg>
