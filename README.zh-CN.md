@@ -4,10 +4,10 @@
 
 **可视化构建 AI 工作流，基于 [flowgram.ai](https://github.com/bytedance/flowgram.ai) 驱动。**
 
-[![GitHub stars](https://img.shields.io/github/stars/boommanpro/flowgram-ai-rule-engine?style=social)](https://github.com/boommanpro/flowgram-ai-rule-engine)
+[![GitHub stars](https://img.shields.io/github/stars/boommanpro/gaia-workflow-engine?style=social)](https://github.com/boommanpro/gaia-workflow-engine)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![GitHub release](https://img.shields.io/github/v/release/boommanpro/flowgram-ai-rule-engine)](https://github.com/boommanpro/flowgram-ai-rule-engine/releases)
-[![Live Demo](https://img.shields.io/badge/demo-GitHub%20Pages-blue.svg)](https://boommanpro.github.io/flowgram-ai-rule-engine/)
+[![GitHub release](https://img.shields.io/github/v/release/boommanpro/gaia-workflow-engine)](https://github.com/boommanpro/gaia-workflow-engine/releases)
+[![Live Demo](https://img.shields.io/badge/demo-GitHub%20Pages-blue.svg)](https://boommanpro.github.io/gaia-workflow-engine/)
 
 **[English](./README.md)** · **[简体中文](./README.zh-CN.md)**
 
@@ -31,13 +31,13 @@
 
 | 页面 | 预览 |
 |------|------|
-| **首页** — 国际化产品介绍页 | ![首页](https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/main/docs/images/screenshot-home.png) |
-| **在线演示** — 可交互工作流画布（可拖拽、可新增节点、不可运行） | ![在线演示](https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/main/docs/images/screenshot-demo.png) |
-| **文档** — 快速开始、环境准备、部署方案 | ![文档](https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/main/docs/images/screenshot-docs.png) |
-| **编辑器** — 可视化工作流编辑器，含版本管理 | ![编辑器](https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/main/docs/images/screenshot-editor.png) |
-| **管理后台 · 工作流** — 工作流管理控制台 | ![管理工作流](https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/main/docs/images/screenshot-admin-workflows.png) |
-| **管理后台 · 模板** — 模板管理控制台 | ![管理模板](https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/main/docs/images/screenshot-admin-templates.png) |
-| **发布日志** — 版本历史时间线 | ![发布日志](https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/main/docs/images/screenshot-releases.png) |
+| **首页** — 国际化产品介绍页 | ![首页](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/images/screenshot-home.png) |
+| **在线演示** — 可交互工作流画布（可拖拽、可新增节点、不可运行） | ![在线演示](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/images/screenshot-demo.png) |
+| **文档** — 快速开始、环境准备、部署方案 | ![文档](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/images/screenshot-docs.png) |
+| **编辑器** — 可视化工作流编辑器，含版本管理 | ![编辑器](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/images/screenshot-editor.png) |
+| **管理后台 · 工作流** — 工作流管理控制台 | ![管理工作流](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/images/screenshot-admin-workflows.png) |
+| **管理后台 · 模板** — 模板管理控制台 | ![管理模板](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/images/screenshot-admin-templates.png) |
+| **发布日志** — 版本历史时间线 | ![发布日志](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/images/screenshot-releases.png) |
 
 ## 🚀 快速开始
 
@@ -53,8 +53,8 @@
 ### 前端运行
 
 ```bash
-git clone https://github.com/boommanpro/flowgram-ai-rule-engine.git
-cd flowgram-ai-rule-engine/apps/console
+git clone https://github.com/boommanpro/gaia-workflow-engine.git
+cd gaia-workflow-engine/apps/console
 npm install
 npm run dev
 ```
@@ -88,13 +88,13 @@ API 服务运行在 48080 端口。
 
 ## 📖 文档
 
-完整文档请访问[首页文档部分](https://boommanpro.github.io/flowgram-ai-rule-engine/#docs)。
+完整文档请访问[首页文档部分](https://boommanpro.github.io/gaia-workflow-engine/#docs)。
 
 flowgram.ai 框架文档：<https://flowgram.ai/guide/>
 
 ## 🗓 发布日志
 
-完整里程碑历史请查看[发布日志页面](https://boommanpro.github.io/flowgram-ai-rule-engine/#/releases)。
+完整里程碑历史请查看[发布日志页面](https://boommanpro.github.io/gaia-workflow-engine/#/releases)。
 
 ## 🤝 贡献
 
@@ -112,13 +112,13 @@ flowgram.ai 框架文档：<https://flowgram.ai/guide/>
 
 ## ⭐ Star 趋势
 
-[![Star History Chart](https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/main/docs/images/star-history.svg)](https://www.star-history.com/?repos=boommanpro%2Fflowgram-ai-rule-engine&type=date)
+[![Star History Chart](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/images/star-history.svg)](https://www.star-history.com/?repos=boommanpro%2Fgaia-workflow-engine&type=date)
 
 ---
 
 <div align="center">
 
-**[在线演示](https://boommanpro.github.io/flowgram-ai-rule-engine/)** · **[管理后台](https://boommanpro.github.io/flowgram-ai-rule-engine/#/admin/workflows)** · **[发布日志](https://boommanpro.github.io/flowgram-ai-rule-engine/#/releases)** · **[Issues](https://github.com/boommanpro/flowgram-ai-rule-engine/issues)** · **[Discussions](https://github.com/boommanpro/flowgram-ai-rule-engine/discussions)**
+**[在线演示](https://boommanpro.github.io/gaia-workflow-engine/)** · **[管理后台](https://boommanpro.github.io/gaia-workflow-engine/#/admin/workflows)** · **[发布日志](https://boommanpro.github.io/gaia-workflow-engine/#/releases)** · **[Issues](https://github.com/boommanpro/gaia-workflow-engine/issues)** · **[Discussions](https://github.com/boommanpro/gaia-workflow-engine/discussions)**
 
 <sub>由 ❤️ 和 ☕️ 驱动</sub>
 

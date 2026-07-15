@@ -4,10 +4,10 @@
 
 **Build AI workflows, visually. Powered by [flowgram.ai](https://github.com/bytedance/flowgram.ai).**
 
-[![GitHub stars](https://img.shields.io/github/stars/boommanpro/flowgram-ai-rule-engine?style=social)](https://github.com/boommanpro/flowgram-ai-rule-engine)
+[![GitHub stars](https://img.shields.io/github/stars/boommanpro/gaia-workflow-engine?style=social)](https://github.com/boommanpro/gaia-workflow-engine)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![GitHub release](https://img.shields.io/github/v/release/boommanpro/flowgram-ai-rule-engine)](https://github.com/boommanpro/flowgram-ai-rule-engine/releases)
-[![Live Demo](https://img.shields.io/badge/demo-GitHub%20Pages-blue.svg)](https://boommanpro.github.io/flowgram-ai-rule-engine/)
+[![GitHub release](https://img.shields.io/github/v/release/boommanpro/gaia-workflow-engine)](https://github.com/boommanpro/gaia-workflow-engine/releases)
+[![Live Demo](https://img.shields.io/badge/demo-GitHub%20Pages-blue.svg)](https://boommanpro.github.io/gaia-workflow-engine/)
 
 **[English](./README.md)** · **[简体中文](./README.zh-CN.md)**
 
@@ -31,13 +31,13 @@ A modern visual rule engine platform for orchestrating complex AI workflows. Des
 
 | Page | Preview |
 |------|---------|
-| **Home** — Internationalized product landing page | ![Home](https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/main/docs/images/screenshot-home.png) |
-| **Live Demo** — Interactive workflow canvas (draggable, add nodes, no run) | ![Live Demo](https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/main/docs/images/screenshot-demo.png) |
-| **Docs** — Quick start, prerequisites, deployment options | ![Docs](https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/main/docs/images/screenshot-docs.png) |
-| **Editor** — Visual workflow editor with version management | ![Editor](https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/main/docs/images/screenshot-editor.png) |
-| **Admin · Workflows** — Workflow management console | ![Admin Workflows](https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/main/docs/images/screenshot-admin-workflows.png) |
-| **Admin · Templates** — Template management console | ![Admin Templates](https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/main/docs/images/screenshot-admin-templates.png) |
-| **Release Log** — Version history timeline | ![Releases](https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/main/docs/images/screenshot-releases.png) |
+| **Home** — Internationalized product landing page | ![Home](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/images/screenshot-home.png) |
+| **Live Demo** — Interactive workflow canvas (draggable, add nodes, no run) | ![Live Demo](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/images/screenshot-demo.png) |
+| **Docs** — Quick start, prerequisites, deployment options | ![Docs](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/images/screenshot-docs.png) |
+| **Editor** — Visual workflow editor with version management | ![Editor](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/images/screenshot-editor.png) |
+| **Admin · Workflows** — Workflow management console | ![Admin Workflows](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/images/screenshot-admin-workflows.png) |
+| **Admin · Templates** — Template management console | ![Admin Templates](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/images/screenshot-admin-templates.png) |
+| **Release Log** — Version history timeline | ![Releases](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/images/screenshot-releases.png) |
 
 ## 🚀 Quick Start
 
@@ -53,8 +53,8 @@ A modern visual rule engine platform for orchestrating complex AI workflows. Des
 ### Frontend
 
 ```bash
-git clone https://github.com/boommanpro/flowgram-ai-rule-engine.git
-cd flowgram-ai-rule-engine/apps/console
+git clone https://github.com/boommanpro/gaia-workflow-engine.git
+cd gaia-workflow-engine/apps/console
 npm install
 npm run dev
 ```
@@ -88,13 +88,13 @@ API server runs on port 48080.
 
 ## 📖 Documentation
 
-Full documentation is available on the [homepage Docs section](https://boommanpro.github.io/flowgram-ai-rule-engine/#docs).
+Full documentation is available on the [homepage Docs section](https://boommanpro.github.io/gaia-workflow-engine/#docs).
 
 For flowgram.ai framework docs, visit https://flowgram.ai/guide/
 
 ## 🗓 Release Log
 
-See the [Release Log page](https://boommanpro.github.io/flowgram-ai-rule-engine/#/releases) for the full milestone history.
+See the [Release Log page](https://boommanpro.github.io/gaia-workflow-engine/#/releases) for the full milestone history.
 
 ## 🤝 Contributing
 
@@ -112,13 +112,13 @@ This project is licensed under the MIT License — see the [LICENSE](./LICENSE) 
 
 ## ⭐ Star History
 
-[![Star History Chart](https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/main/docs/images/star-history.svg)](https://www.star-history.com/?repos=boommanpro%2Fflowgram-ai-rule-engine&type=date)
+[![Star History Chart](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/images/star-history.svg)](https://www.star-history.com/?repos=boommanpro%2Fgaia-workflow-engine&type=date)
 
 ---
 
 <div align="center">
 
-**[Live Demo](https://boommanpro.github.io/flowgram-ai-rule-engine/)** · **[Admin Console](https://boommanpro.github.io/flowgram-ai-rule-engine/#/admin/workflows)** · **[Release Log](https://boommanpro.github.io/flowgram-ai-rule-engine/#/releases)** · **[Issues](https://github.com/boommanpro/flowgram-ai-rule-engine/issues)** · **[Discussions](https://github.com/boommanpro/flowgram-ai-rule-engine/discussions)**
+**[Live Demo](https://boommanpro.github.io/gaia-workflow-engine/)** · **[Admin Console](https://boommanpro.github.io/gaia-workflow-engine/#/admin/workflows)** · **[Release Log](https://boommanpro.github.io/gaia-workflow-engine/#/releases)** · **[Issues](https://github.com/boommanpro/gaia-workflow-engine/issues)** · **[Discussions](https://github.com/boommanpro/gaia-workflow-engine/discussions)**
 
 <sub>Built with ❤️ and ☕️</sub>
 

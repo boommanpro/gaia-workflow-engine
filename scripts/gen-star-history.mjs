@@ -7,7 +7,7 @@
 import https from 'node:https';
 
 const token = process.argv[2] || process.env.GH_TOKEN;
-const repo = process.argv[3] || 'boommanpro/flowgram-ai-rule-engine';
+const repo = process.argv[3] || 'boommanpro/gaia-workflow-engine';
 const [owner, name] = repo.split('/');
 
 if (!token) {
