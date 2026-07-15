@@ -167,8 +167,9 @@ export const Editor = () => {
 };
 
 /**
- * 只读工作流预览组件（用于首页嵌入）
- * 无边框、无标题、无 Read-only 标签，画布可拖拽平移/缩放
+ * 可交互工作流预览组件（用于首页嵌入）
+ * 可拖拽平移/缩放、可新增节点，但不可运行（隐藏 Test Run / Save）
+ * 无边框、无标题、无 Read-only 标签
  */
 export const WorkflowViewer = ({
   data,
@@ -177,7 +178,8 @@ export const WorkflowViewer = ({
   data: any;
   height?: number | string;
 }) => {
-  const editorProps = useEditorProps(data || initialData, nodeRegistries, true);
+  // readonly=false：允许拖拽节点与新增节点；通过 DemoTools 隐藏运行/保存按钮
+  const editorProps = useEditorProps(data || initialData, nodeRegistries, false);
 
   return (
     <FreeLayoutEditorProvider {...editorProps}>
@@ -188,6 +190,8 @@ export const WorkflowViewer = ({
         background: '#fff',
       }}>
         <EditorRenderer className="demo-editor" />
+        {/* 可新增节点等工具，但隐藏 Save 与 Test Run（不可运行） */}
+        <DemoTools hideSaveAndTestRun hideSave />
       </div>
     </FreeLayoutEditorProvider>
   );

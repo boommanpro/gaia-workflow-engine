@@ -1,179 +1,207 @@
-## flowgram-ai-rule-engine
+<div align="center">
 
-### ① 项目定位
+# Gaia · Visual AI Workflow Editor
 
-一个可视化的规则引擎前端画布程序，具备java服务端，支持常见工作流的能力，如：llm、code、string-format等。可以运行在spring boot，flink等服务上，降低产运研的使用成本。
+**Build AI workflows, visually. Powered by [flowgram.ai](https://github.com/bytedance/flowgram.ai).**
 
-### ② 为什么会基于flowgram.ai再次开源一个项目？
+[![GitHub stars](https://img.shields.io/github/stars/boommanpro/flowgram-ai-rule-engine?style=social)](https://github.com/boommanpro/flowgram-ai-rule-engine)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub release](https://img.shields.io/github/v/release/boommanpro/flowgram-ai-rule-engine)](https://github.com/boommanpro/flowgram-ai-rule-engine/releases)
+[![Live Demo](https://img.shields.io/badge/demo-GitHub%20Pages-blue.svg)](https://boommanpro.github.io/flowgram-ai-rule-engine/)
 
-官方的demo-free-layout更新较慢，提PR再使用较慢，并且不适用于我的场景，且不具备java服务端能力。
+[English](#english) · [中文](#中文)
 
-### ③ 功能介绍
+</div>
 
-vue3 微前端: workflow-manage，可以搭配后端 api/gaia-workflow启动
+---
 
-微前端管理端：https://boommanpro.github.io/flowgram-ai-rule-engine/
+# English
 
-flowgram 示例: https://boommanpro.github.io/flowgram-ai-rule-engine/workflow-editor/
+A modern visual rule engine platform for orchestrating complex AI workflows. Design, test, and deploy AI pipelines on an infinite canvas — no code required. Combines the power of [flowgram.ai](https://flowgram.ai) with a Java backend for production-ready workflow management.
 
-## 什么是 Flowgram AI Rule Engine?
+## ✨ Features
 
-Flowgram AI Rule Engine 是一个现代化的可视化规则引擎平台，专为复杂业务流程的自动化编排而设计。它结合了传统的规则引擎能力与现代AI技术，支持可视化拖拽式工作流设计，让业务人员和技术人员都能轻松构建、管理和执行复杂的业务逻辑。
+- **Visual Canvas** — Infinite, zoomable canvas with drag-and-drop nodes. Supports loops, branches, and conditional logic.
+- **AI Node Types** — Built-in LLM calls, code execution, HTTP requests, string formatting, and variable management.
+- **Real-time Preview** — Test individual nodes or entire workflows with live input/output inspection.
+- **Version Management** — Every save creates a version. Switch, track, and roll back with one click.
+- **Template System** — Create reusable workflow templates. Spin up new workflows in a single click.
+- **Extensible Plugins** — Minimap, auto-layout, snap lines, node panel, and more.
+- **Multi-condition Node** — Synced from official flowgram.ai for complex branching logic.
 
-我们的目标是为企业提供一个统一的、易于使用的规则引擎解决方案，帮助组织快速响应业务变化，提高运营效率。
+## 📸 Screenshots
 
-### 主要优势
+| Page | Preview |
+|------|---------|
+| **Home** — Internationalized product landing page | ![Home](https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/main/docs/images/screenshot-home.png) |
+| **Live Demo** — Interactive workflow canvas (draggable, add nodes, no run) | ![Live Demo](https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/main/docs/images/screenshot-demo.png) |
+| **Docs** — Quick start, prerequisites, deployment options | ![Docs](https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/main/docs/images/screenshot-docs.png) |
+| **Editor** — Visual workflow editor with version management | ![Editor](https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/main/docs/images/screenshot-editor.png) |
+| **Admin · Workflows** — Workflow management console | ![Admin Workflows](https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/main/docs/images/screenshot-admin-workflows.png) |
+| **Admin · Templates** — Template management console | ![Admin Templates](https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/main/docs/images/screenshot-admin-templates.png) |
+| **Release Log** — Version history timeline | ![Releases](https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/main/docs/images/screenshot-releases.png) |
 
-- **可视化编排**: 直观的图形化界面，拖拽式操作，无需编写复杂代码
-- **智能决策**: 集成AI能力，支持智能决策和预测分析
-- **灵活扩展**: 支持自定义节点和插件，满足个性化业务需求
-- **多端部署**: 支持Web端、桌面端和微前端等多种部署方式
-- **高性能执行**: 优化的执行引擎，确保高并发场景下的性能表现
+## 🚀 Quick Start
 
-## 核心特性
+### Prerequisites
 
-**1. 可视化工作流设计**:
-通过直观的画布界面，用户可以轻松拖拽和连接各种节点，构建复杂的工作流程。支持代码节点、分支节点、条件判断、数据处理等多种节点类型。
+| Requirement | Version |
+|-------------|---------|
+| Node.js     | >= 18   |
+| Java        | >= 17   |
+| Maven       | 3.x     |
+| Git         | any     |
 
-**2. 多样化节点类型**:
+### Frontend
 
-- 代码节点：支持JavaScript代码执行
-- 分支节点：实现业务逻辑分支
-- 注释节点：添加流程说明
-- 条件节点：实现复杂条件判断
-- 字符串格式化节点：数据格式转换
-- API节点：与外部系统集成
+```bash
+git clone https://github.com/boommanpro/flowgram-ai-rule-engine.git
+cd flowgram-ai-rule-engine/apps/console
+npm install
+npm run dev
+```
 
-**3. 测试与调试能力**:
-内置测试功能，支持单节点测试和完整流程测试，实时查看执行结果，快速定位问题。
+Visit http://localhost:3000
 
-**4. 微前端架构支持**:
-支持与Vue、React等主流前端框架集成，提供Web Components和微前端解决方案。
+### Backend
 
-**5. 完整的前后端解决方案**:
+```bash
+cd apps/api/gaia-workflow
+mvn spring-boot:run
+```
 
-- 前端：基于React/Vue3的可视化编辑器
-- 后端：Spring Boot驱动的Java服务
-- 桌面端：Electron封装的桌面应用
+API server runs on port 48080.
 
-**6. 数据流转与状态管理**:
-完善的上下文管理和数据流转机制，确保复杂业务流程的数据一致性。
+## 🛠 Tech Stack
 
-## 快速开始
+| Layer       | Technology                                      |
+|-------------|-------------------------------------------------|
+| Frontend    | React 18, TypeScript, flowgram.ai 1.0.12       |
+| Backend     | Spring Boot, MyBatis Plus, Java 17              |
+| Database    | SQLite                                          |
+| Build       | rsbuild (frontend), Maven (backend)             |
+
+## 📦 Deployment Options
+
+1. **Standalone** — Frontend and backend deployed separately for large distributed systems.
+2. **All-in-One** — Bundled as a single application for small to medium teams.
+3. **GitHub Pages** — Frontend deployed to GitHub Pages with configurable backend address.
+4. **Containerized** — Docker images with Kubernetes support for cloud deployment.
+
+## 📖 Documentation
+
+Full documentation is available on the [homepage Docs section](https://boommanpro.github.io/flowgram-ai-rule-engine/#docs).
+
+For flowgram.ai framework docs, visit https://flowgram.ai/guide/
+
+## 🗓 Release Log
+
+See the [Release Log page](https://boommanpro.github.io/flowgram-ai-rule-engine/#/releases) for the full milestone history.
+
+## 🤝 Contributing
+
+1. Fork this project
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+We follow [Conventional Commits](https://www.conventionalcommits.org/).
+
+## 📄 License
+
+This project is licensed under the MIT License — see the [LICENSE](./LICENSE) file for details.
+
+## ⭐ Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=boommanpro/flowgram-ai-rule-engine&type=Date)](https://star-history.com/#boommanpro/flowgram-ai-rule-engine&Date)
+
+---
+
+# 中文
+
+一个现代化的可视化规则引擎平台，用于编排复杂的 AI 工作流。在无限画布上设计、测试和部署 AI 流程——无需编写代码。结合 [flowgram.ai](https://flowgram.ai) 的能力与 Java 服务端，提供生产级工作流管理。
+
+## ✨ 功能特性
+
+- **可视化画布** — 无限缩放画布，支持拖拽节点。通过循环、分支和条件逻辑设计复杂的工作流。
+- **AI 节点类型** — 内置 LLM 调用、代码执行、HTTP 请求、字符串格式化和变量管理节点。
+- **实时预览** — 测试单个节点或整个工作流，实时查看输入输出和执行历史。
+- **版本管理** — 每次保存创建一个版本。在版本间切换、追踪变更、一键回滚。
+- **模板系统** — 创建可复用的工作流模板。一键从模板创建新工作流。
+- **可扩展插件** — 小地图、自动布局、吸附线、节点面板等。
+- **多条件节点** — 同步官方 flowgram.ai，支持复杂分支逻辑。
+
+## 📸 截图
+
+| 页面 | 预览 |
+|------|------|
+| **首页** — 国际化产品介绍页 | ![首页](https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/main/docs/images/screenshot-home.png) |
+| **在线演示** — 可交互工作流画布（可拖拽、可新增节点、不可运行） | ![在线演示](https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/main/docs/images/screenshot-demo.png) |
+| **文档** — 快速开始、环境准备、部署方案 | ![文档](https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/main/docs/images/screenshot-docs.png) |
+| **编辑器** — 可视化工作流编辑器，含版本管理 | ![编辑器](https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/main/docs/images/screenshot-editor.png) |
+| **管理后台 · 工作流** — 工作流管理控制台 | ![管理工作流](https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/main/docs/images/screenshot-admin-workflows.png) |
+| **管理后台 · 模板** — 模板管理控制台 | ![管理模板](https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/main/docs/images/screenshot-admin-templates.png) |
+| **发布日志** — 版本历史时间线 | ![发布日志](https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/main/docs/images/screenshot-releases.png) |
+
+## 🚀 快速开始
 
 ### 环境准备
 
-在开始之前，请确保您的环境中已安装以下软件：
-
-- Node.js >= 16.0.0
-- Java >= 17
-- Maven 3.x
-- Git
+| 要求       | 版本    |
+|------------|---------|
+| Node.js    | >= 18   |
+| Java       | >= 17   |
+| Maven      | 3.x     |
+| Git        | 任意    |
 
 ### 前端运行
 
 ```bash
-# 克隆项目
 git clone https://github.com/boommanpro/flowgram-ai-rule-engine.git
-cd flowgram-ai-rule-engine
-
-# 进入前端项目目录
-cd apps/console/workflow-editor
-
-# 安装依赖
-pnpm install
-
-# 启动开发服务器
-pnpm dev
+cd flowgram-ai-rule-engine/apps/console
+npm install
+npm run dev
 ```
 
-访问 [http://localhost:3000](http://localhost:3000) 查看应用。
+访问 http://localhost:3000
 
 ### 后端运行
 
 ```bash
-# 从项目根目录进入后端目录
 cd apps/api/gaia-workflow
-
-# 使用Maven打包并运行
 mvn spring-boot:run
 ```
 
-### Electron桌面版
+API 服务运行在 48080 端口。
 
-```bash
-# 进入Electron目录
-cd apps/console/workflow-electron
+## 🛠 技术栈
 
-# 安装依赖
-pnpm install
+| 层级     | 技术                                            |
+|----------|-------------------------------------------------|
+| 前端     | React 18, TypeScript, flowgram.ai 1.0.12        |
+| 后端     | Spring Boot, MyBatis Plus, Java 17              |
+| 数据库   | SQLite                                          |
+| 构建     | rsbuild (前端), Maven (后端)                     |
 
-# 启动桌面应用
-pnpm start
-```
+## 📦 部署方案
 
-## 部署方案
+1. **独立部署** — 前后端分离部署，适用于大型分布式系统。
+2. **一体化部署** — 打包为单一应用，适用于中小型企业。
+3. **GitHub Pages** — 前端部署到 GitHub Pages，后端地址可配置。
+4. **容器化部署** — 提供 Docker 镜像，支持 Kubernetes 部署。
 
-### 生产环境部署
+## 📖 文档
 
-我们提供多种部署方案：
+完整文档请访问[首页文档部分](https://boommanpro.github.io/flowgram-ai-rule-engine/#docs)。
 
-1. **独立部署**: 前后端分离部署，适用于大型分布式系统
-2. **一体化部署**: 打包为单一应用，适用于中小型企业
-3. **微前端集成**: 与现有微前端系统集成
-4. **容器化部署**: 提供Docker镜像，支持Kubernetes部署
+flowgram.ai 框架文档：https://flowgram.ai/guide/
 
-## 屏幕截图
+## 🗓 发布日志
 
-<div align="center">
+完整里程碑历史请查看[发布日志页面](https://boommanpro.github.io/flowgram-ai-rule-engine/#/releases)。
 
-链接：https://boommanpro.github.io/flowgram-ai-rule-engine/workflow-editor/
-
-![工作流编辑器](https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/main/docs/images/demo-free-layout.png)
-
-### 微前端集成示例
-
-
-![微前端集成](https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/main/docs/images/demo-wujie-main-vue3.png)
-
-### 管理端示例
-
-链接：https://boommanpro.github.io/flowgram-ai-rule-engine/#/
-
-![工作流编辑器](https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/main/docs/images/workflow-manage.png)
-
-
-### 与RuoYi Vue3集成示例
-
-![RuoYi集成](https://raw.githubusercontent.com/boommanpro/flowgram-ai-rule-engine/main/docs/images/yudao-vue3-flowgram.png)
-
-</div>
-
-## 技术栈
-
-### 前端技术
-
-- **React 18**: 现代化UI开发框架
-- **Flowgram AI**: 强大的可视化工作流引擎
-- **TypeScript**: 类型安全的编程语言
-- **Tailwind CSS**: 实用优先的CSS框架
-- **Monaco Editor**: 高性能代码编辑器
-
-### 后端技术
-
-- **Java 17**: 稳定的后端运行环境
-- **Spring Boot**: 快速开发框架
-- **MyBatis-Plus**: ORM框架
-- **Maven**: 项目构建工具
-
-### 桌面端技术
-
-- **Electron**: 跨平台桌面应用框架
-- **Node.js**: JavaScript运行时
-
-## 贡献
-
-我们欢迎社区贡献！如果您想参与项目开发，请遵循以下步骤：
+## 🤝 贡献
 
 1. Fork 本项目
 2. 创建功能分支 (`git checkout -b feature/AmazingFeature`)
@@ -181,48 +209,22 @@ pnpm start
 4. 推送到分支 (`git push origin feature/AmazingFeature`)
 5. 开启 Pull Request
 
-### 开发规范
+我们遵循 [Conventional Commits](https://www.conventionalcommits.org/) 规范。
 
-- 代码提交请遵循 [Conventional Commits](https://www.conventionalcommits.org/)
-- 所有新功能必须包含单元测试
-- 代码风格遵循项目现有规范
+## 📄 许可证
 
-## 社区与支持
+本项目采用 MIT 许可证 — 详见 [LICENSE](./LICENSE) 文件。
 
-- **问题反馈**: [GitHub Issues](https://github.com/boommanpro/flowgram-ai-rule-engine/issues)
-- **讨论交流**: [GitHub Discussions](https://github.com/boommanpro/flowgram-ai-rule-engine/discussions)
-- **文档中心**: [Docs](./docs/README.md)
-
-## 许可证
-
-本项目采用 MIT 许可证 - 详见 [LICENSE](./LICENSE) 文件。
-
-## 星图
+## ⭐ Star 趋势
 
 [![Star History Chart](https://api.star-history.com/svg?repos=boommanpro/flowgram-ai-rule-engine&type=Date)](https://star-history.com/#boommanpro/flowgram-ai-rule-engine&Date)
 
 ---
 
 <div align="center">
-  <sub>由 ❤️ 和 ☕️ 驱动的开源项目</sub>
+
+**[Live Demo](https://boommanpro.github.io/flowgram-ai-rule-engine/)** · **[Admin Console](https://boommanpro.github.io/flowgram-ai-rule-engine/#/admin/workflows)** · **[Release Log](https://boommanpro.github.io/flowgram-ai-rule-engine/#/releases)** · **[Issues](https://github.com/boommanpro/flowgram-ai-rule-engine/issues)** · **[Discussions](https://github.com/boommanpro/flowgram-ai-rule-engine/discussions)**
+
+<sub>Built with ❤️ and ☕️</sub>
+
 </div>
-
-## 时间线
-
-2026.1.25 增加管理端，https://boommanpro.github.io/flowgram-ai-rule-engine/#/，右上角你可以配置自己的服务器地址，本地启动后访问即可
-
-2026.1.23 增加electron端，可以直接运行体验
-
-2026.1.6 前后端两个仓库合并
-
-2025.12.27 跟进官网升级到v1.0.6，开发vue3管理端demo，并且开发服务端，更新docs
-
-2025.10.17 跟进官网升级到v0.5.5，修复相关代码
-
-2025.9.6 前后端支持string-format组件，支持spel、thymeleaf语法，当前支持与vue3打通，管理端使用vue3，工作流核心使用flowgram.ai
-
-2025.8.22 服务端支持,项目地址：https://github.com/boommanpro/gaia-workflow
-
-2025.8.20 更新分支到官网最新，重构代码分支
-
-2025.5.27 重构代码分支，该代码仅维护apps/demo-free-layout目录，其余和官方保持一致
