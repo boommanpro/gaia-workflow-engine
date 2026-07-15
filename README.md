@@ -112,7 +112,13 @@ This project is licensed under the MIT License — see the [LICENSE](./LICENSE) 
 
 ## ⭐ Star History
 
-[![Star History Chart](https://api.star-history.com/chart?repos=boommanpro/flowgram-ai-rule-engine&type=date&legend=top-left&sealed_token=OOUaoxyuTf-OH7GLHWNYKxS5MOM_t3BBLOnND5QOF2pGGj7vitLdrgs-bAxFOjvw5ZenAGDZdzX8DE1fbBU2)](https://www.star-history.com/?repos=boommanpro%2Fflowgram-ai-rule-engine&type=date&legend=top-left)
+<a href="https://www.star-history.com/?repos=boommanpro%2Fflowgram-ai-rule-engine&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=boommanpro/flowgram-ai-rule-engine&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=boommanpro/flowgram-ai-rule-engine&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=boommanpro/flowgram-ai-rule-engine&type=date&legend=top-left" />
+ </picture>
+</a>
 
 ---
 
