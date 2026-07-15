@@ -6,23 +6,12 @@ on:
   # 允许手动触发
   workflow_dispatch:
 
-# GitHub Pages 部署权限
 permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-# 同一时间只允许一个部署运行
-concurrency:
-  group: "pages"
-  cancel-in-progress: true
+  contents: write
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - uses: actions/checkout@v4
@@ -42,16 +31,12 @@ jobs:
         run: npm run build:gh-pages
         working-directory: apps/console
 
-      # 上传构建产物作为 GitHub Pages artifact
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: apps/console/dist
-
-      # 部署到 GitHub Pages
+      # 部署到 gh-pages 分支（仓库 Pages 已配置为从此分支部署）
       - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: gh-pages
+          folder: apps/console/dist
+          clean: true
+          clean-exclude: |
+            .git
