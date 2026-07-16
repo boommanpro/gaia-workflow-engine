@@ -41,7 +41,7 @@ export const Releases = () => {
     latest: lang === 'zh' ? '最新' : 'LATEST',
     footer: {
       desc: lang === 'zh' ? '盖亚 — 可视化 AI 工作流编辑器' : 'Gaia — Visual AI workflow editor',
-      copyright: lang === 'zh' ? '© 2026 盖亚 Gaia. 基于 flowgram.ai 构建.' : '© 2026 Gaia. Built with flowgram.ai.',
+      copyright: lang === 'zh' ? '© 2026 盖亚 Gaia.' : '© 2026 Gaia.',
     },
   };
 
@@ -72,7 +72,7 @@ export const Releases = () => {
         borderBottom: '1px solid #f0f0f2',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }} onClick={() => navigate('/')}>
-          <img src={`${import.meta.env.BASE_URL}logo.svg`} alt="Gaia" style={{ width: 36, height: 36 }} />
+          <img src={`${import.meta.env.BASE_URL}logo.svg`} alt="Gaia" style={{ width: 48, height: 48 }} />
           <div>
             <div style={{ fontSize: '18px', fontWeight: 700, lineHeight: 1 }}>Gaia</div>
             <div style={{ fontSize: '11px', color: '#999', lineHeight: '16px' }}>

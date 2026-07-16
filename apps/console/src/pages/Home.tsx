@@ -27,20 +27,12 @@ const translations = {
     },
     status: { online: 'Backend Online', offline: 'Backend Offline' },
     hero: {
-      badge: 'Powered by flowgram.ai',
       title: 'Build AI workflows, visually.',
-      subtitle:
-        'Gaia is a visual workflow editor for building AI applications. Design, test, and deploy complex AI pipelines on an infinite canvas — no code required.',
-      ctaPrimary: 'Explore Demo',
-      ctaSecondary: 'Admin Console',
-      statNodes: 'Node Types',
-      statTemplates: 'Templates',
-      statWorkflows: 'Workflows',
     },
     demo: {
       title: 'See it in action',
       subtitle:
-        'A live, read-only preview of a Gaia workflow. Pan, zoom, and inspect nodes — all powered by the flowgram.ai engine.',
+        'A live, read-only preview of a Gaia workflow. Pan, zoom, and inspect nodes.',
       badge: 'Read-only',
     },
     features: {
@@ -69,7 +61,7 @@ const translations = {
         },
         {
           title: 'Extensible Plugins',
-          desc: 'Powered by flowgram.ai plugin architecture: minimap, auto-layout, snap lines, node panel, and more.',
+          desc: 'Plugin architecture: minimap, auto-layout, snap lines, node panel, and more.',
         },
       ],
     },
@@ -94,7 +86,7 @@ const translations = {
     tech: {
       title: 'Built on a solid foundation',
       subtitle: 'Open-source technologies, battle-tested at scale',
-      items: ['flowgram.ai 1.0.12', 'React 18', 'TypeScript', 'Spring Boot', 'MyBatis Plus', 'SQLite'],
+      items: ['React 18', 'TypeScript', 'Spring Boot', 'MyBatis Plus', 'SQLite'],
     },
     docs: {
       title: 'Documentation',
@@ -122,7 +114,6 @@ const translations = {
         { title: 'GitHub Pages', desc: 'Frontend deployed to GitHub Pages with configurable backend address.' },
         { title: 'Containerized', desc: 'Docker images with Kubernetes support for cloud deployment.' },
       ],
-      repoLabel: 'Repository',
     },
     cta: {
       title: 'Ready to build your first AI workflow?',
@@ -131,7 +122,7 @@ const translations = {
     },
     footer: {
       desc: 'Gaia — Visual AI workflow editor',
-      copyright: '© 2026 Gaia. Built with flowgram.ai.',
+      copyright: '© 2026 Gaia.',
     },
   },
   zh: {
@@ -143,19 +134,11 @@ const translations = {
     },
     status: { online: '后端已连接', offline: '后端未连接' },
     hero: {
-      badge: '基于 flowgram.ai 驱动',
       title: '可视化构建 AI 工作流',
-      subtitle:
-        '盖亚是一个可视化工作流编辑器，用于构建 AI 应用。在无限画布上设计、测试和部署复杂的 AI 流程——无需编写代码。',
-      ctaPrimary: '查看演示',
-      ctaSecondary: '管理后台',
-      statNodes: '节点类型',
-      statTemplates: '模板',
-      statWorkflows: '工作流',
     },
     demo: {
       title: '实时预览',
-      subtitle: '盖亚工作流的只读实时预览。可平移、缩放、查看节点详情——全部由 flowgram.ai 引擎驱动。',
+      subtitle: '盖亚工作流的只读实时预览。可平移、缩放、查看节点详情。',
       badge: '只读模式',
     },
     features: {
@@ -184,7 +167,7 @@ const translations = {
         },
         {
           title: '可扩展插件',
-          desc: '基于 flowgram.ai 插件架构：小地图、自动布局、吸附线、节点面板等。',
+          desc: '插件架构：小地图、自动布局、吸附线、节点面板等。',
         },
       ],
     },
@@ -209,7 +192,7 @@ const translations = {
     tech: {
       title: '建立在坚实的技术之上',
       subtitle: '开源技术，大规模验证',
-      items: ['flowgram.ai 1.0.12', 'React 18', 'TypeScript', 'Spring Boot', 'MyBatis Plus', 'SQLite'],
+      items: ['React 18', 'TypeScript', 'Spring Boot', 'MyBatis Plus', 'SQLite'],
     },
     docs: {
       title: '文档',
@@ -237,7 +220,6 @@ const translations = {
         { title: 'GitHub Pages', desc: '前端部署到 GitHub Pages，后端地址可配置。' },
         { title: '容器化部署', desc: '提供 Docker 镜像，支持 Kubernetes 部署。' },
       ],
-      repoLabel: '仓库地址',
     },
     cta: {
       title: '准备好构建你的第一个 AI 工作流了吗？',
@@ -246,7 +228,7 @@ const translations = {
     },
     footer: {
       desc: '盖亚 — 可视化 AI 工作流编辑器',
-      copyright: '© 2026 盖亚 Gaia. 基于 flowgram.ai 构建.',
+      copyright: '© 2026 盖亚 Gaia.',
     },
   },
 };
@@ -332,8 +314,6 @@ export const Home = () => {
   const navigate = useNavigate();
   const [lang, setLang] = useState<Lang>('en');
   const [backendOnline, setBackendOnline] = useState(false);
-  const [workflowCount, setWorkflowCount] = useState(0);
-  const [templateCount, setTemplateCount] = useState(0);
   const [viewerData, setViewerData] = useState<any>(initialData);
   const [showServerConfig, setShowServerConfig] = useState(false);
   const [serverUrl, setServerUrl] = useState('');
@@ -357,17 +337,10 @@ export const Home = () => {
       setServerUrl(getApiBaseUrl());
     });
 
-    // 加载工作流列表用于统计 + 尝试加载第一个工作流的数据用于预览
+    // 尝试加载第一个工作流的版本数据用于预览
     (async () => {
       try {
-        const [workflows, templates] = await Promise.all([
-          workflowApi.listWorkflows(),
-          workflowApi.listTemplates(),
-        ]);
-        setWorkflowCount(workflows?.length || 0);
-        setTemplateCount(templates?.length || 0);
-
-        // 尝试加载第一个工作流的版本数据用于预览
+        const workflows = await workflowApi.listWorkflows();
         if (workflows && workflows.length > 0) {
           const wf = workflows[0];
           if (wf.currentVersionId) {
@@ -405,7 +378,7 @@ export const Home = () => {
         borderBottom: '1px solid #f0f0f2',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <img src={`${import.meta.env.BASE_URL}logo.svg`} alt="Gaia" style={{ width: 36, height: 36 }} />
+          <img src={`${import.meta.env.BASE_URL}logo.svg`} alt="Gaia" style={{ width: 48, height: 48 }} />
           <div>
             <div style={{ fontSize: '18px', fontWeight: 700, lineHeight: 1 }}>Gaia</div>
             <div style={{ fontSize: '11px', color: '#999', lineHeight: '16px' }}>
@@ -506,6 +479,27 @@ export const Home = () => {
           >
             {lang === 'en' ? '中文' : 'EN'}
           </button>
+          <a
+            href="https://github.com/boommanpro/gaia-workflow-engine"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="GitHub"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              color: '#555',
+              cursor: 'pointer',
+              padding: '6px',
+              borderRadius: '6px',
+              transition: 'background 0.15s, color 0.15s',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = '#f5f5f7'; e.currentTarget.style.color = '#1a1a1a'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#555'; }}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+            </svg>
+          </a>
           <button
             onClick={() => navigate('/admin/workflows')}
             style={{
@@ -526,121 +520,28 @@ export const Home = () => {
 
       {/* Hero */}
       <section style={{
-        padding: '80px 48px 60px',
-        textAlign: 'center',
-        maxWidth: '960px',
-        margin: '0 auto',
+        padding: '60px 32px 40px',
       }}>
-        <div style={{
-          display: 'inline-block',
-          padding: '6px 14px',
-          background: '#f0f0ff',
-          color: ACCENT,
-          borderRadius: '20px',
-          fontSize: '13px',
-          fontWeight: 500,
-          marginBottom: '24px',
-        }}>
-          {t.hero.badge}
-        </div>
-        <h1 style={{
-          fontSize: 'clamp(36px, 5vw, 56px)',
-          fontWeight: 800,
-          lineHeight: 1.1,
-          margin: '0 0 20px',
-          letterSpacing: '-0.02em',
-        }}>
-          {t.hero.title}
-        </h1>
-        <p style={{
-          fontSize: 'clamp(16px, 2vw, 20px)',
-          color: '#666',
-          lineHeight: 1.6,
-          maxWidth: '680px',
-          margin: '0 auto 36px',
-        }}>
-          {t.hero.subtitle}
-        </p>
-        <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
-          <button
-            onClick={() => document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' })}
-            style={{
-              padding: '14px 32px',
-              background: ACCENT,
-              color: '#fff',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '15px',
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
-            {t.hero.ctaPrimary}
-          </button>
-          <button
-            onClick={() => navigate('/admin/workflows')}
-            style={{
-              padding: '14px 32px',
-              background: '#fff',
-              color: ACCENT,
-              border: `1px solid ${ACCENT}`,
-              borderRadius: '8px',
-              fontSize: '15px',
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
-            {t.hero.ctaSecondary}
-          </button>
-        </div>
-
-        {/* Stats */}
-        <div style={{
-          display: 'flex',
-          gap: '48px',
-          justifyContent: 'center',
-          marginTop: '56px',
-          flexWrap: 'wrap',
-        }}>
-          {[
-            { value: '8+', label: t.hero.statNodes },
-            { value: templateCount, label: t.hero.statTemplates },
-            { value: workflowCount, label: t.hero.statWorkflows },
-          ].map((stat, i) => (
-            <div key={i} style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '32px', fontWeight: 800, color: ACCENT }}>{stat.value}</div>
-              <div style={{ fontSize: '13px', color: '#999', marginTop: '4px' }}>{stat.label}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Hero Diagram */}
-        <div style={{ marginTop: '48px', padding: '24px', background: '#fafafa', borderRadius: '16px' }}>
-          <HeroDiagram />
-        </div>
-      </section>
-
-      {/* Live Demo — Embedded Workflow Viewer */}
-      <section id="demo" style={{
-        padding: '60px 48px',
-        background: '#fafafa',
-      }}>
-        <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-            <h2 style={{ fontSize: 'clamp(28px, 3.5vw, 36px)', fontWeight: 700, margin: '0 0 12px' }}>
-              {t.demo.title}
-            </h2>
-            <p style={{ fontSize: '16px', color: '#666', maxWidth: '600px', margin: '0 auto' }}>
-              {t.demo.subtitle}
-            </p>
-          </div>
-          <div style={{
-            borderRadius: '16px',
-            overflow: 'hidden',
-            border: '1px solid #e8e8ea',
+        <div style={{ maxWidth: '960px', margin: '0 auto', textAlign: 'center' }}>
+          <h1 style={{
+            fontSize: 'clamp(36px, 5vw, 56px)',
+            fontWeight: 800,
+            lineHeight: 1.1,
+            margin: '0 0 20px',
+            letterSpacing: '-0.02em',
           }}>
-            <WorkflowViewer data={viewerData} height={520} />
-          </div>
+            {t.hero.title}
+          </h1>
+        </div>
+
+        {/* Large canvas — borderless, blends with background */}
+        <div id="demo" style={{
+          maxWidth: '1500px',
+          margin: '56px auto 0',
+          borderRadius: '12px',
+          overflow: 'hidden',
+        }}>
+          <WorkflowViewer data={viewerData} height={720} />
         </div>
       </section>
 
@@ -872,36 +773,6 @@ export const Home = () => {
                 </div>
               ))}
             </div>
-          </div>
-
-          {/* Repo Link */}
-          <div style={{ textAlign: 'center', marginTop: '32px' }}>
-            <a
-              href="https://github.com/boommanpro/gaia-workflow-engine"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '10px 24px',
-                border: `1px solid ${ACCENT}`,
-                color: ACCENT,
-                borderRadius: '8px',
-                fontSize: '14px',
-                fontWeight: 600,
-                textDecoration: 'none',
-                background: '#fff',
-                transition: 'background 0.15s',
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = '#f5f5ff'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = '#fff'; }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
-              </svg>
-              {t.docs.repoLabel}: github.com/boommanpro/gaia-workflow-engine
-            </a>
           </div>
         </div>
       </section>

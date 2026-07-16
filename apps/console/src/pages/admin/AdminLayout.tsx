@@ -2,8 +2,12 @@
  * AdminLayout — 管理后台布局
  * 左侧固定侧边栏 + 右侧主内容区（顶部 header bar + Outlet）
  */
+import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import type { CSSProperties } from 'react';
+import { Modal, Input, Button as SemiButton } from '@douyinfe/semi-ui';
+import { workflowApi } from '../../services/workflow-api';
+import { getApiBaseUrl, updateApiBaseUrl } from '../../utils/apiConfig';
 
 const ACCENT = '#4d53e8';
 
@@ -51,6 +55,18 @@ export const AdminLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const pageTitle = getPageTitle(location.pathname);
+  const [showServerConfig, setShowServerConfig] = useState(false);
+  const [serverUrl, setServerUrl] = useState('');
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    workflowApi.health().then(() => setChecking(false)).catch(() => {
+      // 后端未连接，自动弹窗让用户配置服务端地址
+      setChecking(false);
+      setServerUrl(getApiBaseUrl());
+      setShowServerConfig(true);
+    });
+  }, []);
 
   const navLinkStyle = ({ isActive }: { isActive: boolean }): CSSProperties => ({
     display: 'flex',
@@ -81,10 +97,14 @@ export const AdminLayout = () => {
           overflowY: 'auto',
         }}
       >
-        {/* Logo area */}
-        <div style={{ padding: '24px 20px 20px 20px', borderBottom: '1px solid #f0f0f0' }}>
+        {/* Logo area — click to go home */}
+        <div
+          style={{ padding: '24px 20px 20px 20px', borderBottom: '1px solid #f0f0f0', cursor: 'pointer' }}
+          onClick={() => navigate('/')}
+          title="返回首页"
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <img src={`${import.meta.env.BASE_URL}logo.svg`} alt="Gaia" style={{ width: 36, height: 36 }} />
+            <img src={`${import.meta.env.BASE_URL}logo.svg`} alt="Gaia" style={{ width: 48, height: 48 }} />
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <span style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.1, letterSpacing: '-0.01em' }}>Gaia</span>
               <span style={{ fontSize: 11.5, color: '#999', marginTop: 2 }}>盖亚 · 管理后台</span>
@@ -104,38 +124,6 @@ export const AdminLayout = () => {
           </NavLink>
         </nav>
 
-        {/* Bottom back-home */}
-        <div style={{ padding: '16px 12px', borderTop: '1px solid #f0f0f0' }}>
-          <button
-            onClick={() => navigate('/')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              width: '100%',
-              padding: '10px 16px',
-              borderRadius: 8,
-              border: 'none',
-              background: 'transparent',
-              color: '#666',
-              fontSize: 13,
-              fontWeight: 500,
-              cursor: 'pointer',
-              transition: 'background 0.18s ease, color 0.18s ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#f5f5f7';
-              e.currentTarget.style.color = '#1a1a1a';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'transparent';
-              e.currentTarget.style.color = '#666';
-            }}
-          >
-            <IconBackHome />
-            <span>返回首页</span>
-          </button>
-        </div>
       </aside>
 
       {/* ---------- Main ---------- */}
@@ -167,9 +155,60 @@ export const AdminLayout = () => {
             padding: 24,
           }}
         >
-          <Outlet />
+          {checking ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#999', fontSize: 15 }}>
+              正在连接后端服务...
+            </div>
+          ) : (
+            <Outlet />
+          )}
         </main>
       </div>
+
+      {/* 后端未连接时弹窗配置服务端地址 */}
+      <Modal
+        title="配置服务端地址"
+        visible={showServerConfig}
+        closable={false}
+        maskClosable={false}
+        footer={null}
+        width={480}
+      >
+        <div style={{ padding: '8px 0' }}>
+          <p style={{ fontSize: 14, color: '#666', marginBottom: 16, lineHeight: 1.6 }}>
+            无法连接到后端服务，请输入您的后端服务地址（例如：http://127.0.0.1:48080/api）。保存后将自动刷新页面。
+          </p>
+          <Input
+            value={serverUrl}
+            onChange={(v) => setServerUrl(v)}
+            placeholder="http://127.0.0.1:48080/api"
+            style={{ width: '100%', marginBottom: 16 }}
+          />
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <SemiButton
+              onClick={() => {
+                setShowServerConfig(false);
+                navigate('/');
+              }}
+              style={{ borderRadius: 6 }}
+            >
+              返回首页
+            </SemiButton>
+            <SemiButton
+              theme="solid"
+              style={{ background: ACCENT, borderRadius: 6 }}
+              onClick={() => {
+                if (serverUrl.trim()) {
+                  updateApiBaseUrl(serverUrl.trim());
+                  window.location.reload();
+                }
+              }}
+            >
+              保存并重连
+            </SemiButton>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

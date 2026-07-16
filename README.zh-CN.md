@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/images/logos/logo-3-lettermark.svg" width="120" height="120" alt="Gaia Logo" />
+<img src="docs/images/logos/logo-3-lettermark.svg" width="200" height="200" alt="Gaia Logo" />
 
 # Gaia · 可视化 AI 工作流编辑器
 

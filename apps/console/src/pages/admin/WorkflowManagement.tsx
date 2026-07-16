@@ -4,7 +4,7 @@
  */
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { workflowApi, type GaiaWorkflow, type GaiaWorkflowTemplate } from '../../services/workflow-api';
+import { workflowApi, type GaiaWorkflow } from '../../services/workflow-api';
 import type { CSSProperties } from 'react';
 
 const ACCENT = '#4d53e8';
@@ -13,14 +13,12 @@ interface WorkflowForm {
   workflowName: string;
   workflowCode: string;
   workflowDesc: string;
-  templateCode: string;
 }
 
 const EMPTY_FORM: WorkflowForm = {
   workflowName: '',
   workflowCode: '',
   workflowDesc: '',
-  templateCode: '',
 };
 
 /* ---------------- Helpers ---------------- */
@@ -38,7 +36,6 @@ const formatDateTime = (iso?: string): string => {
 export const WorkflowManagement = () => {
   const navigate = useNavigate();
   const [workflows, setWorkflows] = useState<GaiaWorkflow[]>([]);
-  const [templates, setTemplates] = useState<GaiaWorkflowTemplate[]>([]);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingWorkflow, setEditingWorkflow] = useState<GaiaWorkflow | null>(null);
@@ -49,12 +46,8 @@ export const WorkflowManagement = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [wfList, tplList] = await Promise.all([
-        workflowApi.listWorkflows(),
-        workflowApi.listTemplates(),
-      ]);
+      const wfList = await workflowApi.listWorkflows();
       setWorkflows(wfList || []);
-      setTemplates(tplList || []);
     } catch (err) {
       console.error('Failed to load data:', err);
     } finally {
@@ -87,7 +80,6 @@ export const WorkflowManagement = () => {
       workflowName: wf.workflowName || '',
       workflowCode: wf.workflowCode || '',
       workflowDesc: wf.workflowDesc || '',
-      templateCode: wf.templateCode || '',
     });
     setShowCreateModal(true);
   };
@@ -111,14 +103,12 @@ export const WorkflowManagement = () => {
           workflowCode: editingWorkflow.workflowCode,
           workflowName: workflowForm.workflowName.trim(),
           workflowDesc: workflowForm.workflowDesc.trim(),
-          templateCode: workflowForm.templateCode || undefined,
         });
       } else {
         await workflowApi.createWorkflow({
           workflowName: workflowForm.workflowName.trim(),
           workflowCode: workflowForm.workflowCode.trim(),
           workflowDesc: workflowForm.workflowDesc.trim(),
-          templateCode: workflowForm.templateCode || undefined,
         });
       }
       closeModal();
@@ -187,7 +177,7 @@ export const WorkflowManagement = () => {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
           <thead>
             <tr>
-              {['工作流名称', '编码', '描述', '来源模板', '创建时间', '操作'].map((h) => (
+              {['工作流名称', '编码', '描述', '创建时间', '操作'].map((h) => (
                 <th key={h} style={thStyle}>{h}</th>
               ))}
             </tr>
@@ -195,11 +185,11 @@ export const WorkflowManagement = () => {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} style={emptyTdStyle}>加载中…</td>
+                <td colSpan={5} style={emptyTdStyle}>加载中…</td>
               </tr>
             ) : filteredWorkflows.length === 0 ? (
               <tr>
-                <td colSpan={6} style={emptyTdStyle}>暂无数据</td>
+                <td colSpan={5} style={emptyTdStyle}>暂无数据</td>
               </tr>
             ) : (
               filteredWorkflows.map((wf) => (
@@ -207,7 +197,6 @@ export const WorkflowManagement = () => {
                   <td style={tdStyle}>{wf.workflowName}</td>
                   <td style={{ ...tdStyle, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 13, color: '#666' }}>{wf.workflowCode}</td>
                   <td style={{ ...tdStyle, color: '#666', maxWidth: 220 }}>{wf.workflowDesc || '—'}</td>
-                  <td style={tdStyle}>{wf.templateCode || '—'}</td>
                   <td style={{ ...tdStyle, color: '#666', whiteSpace: 'nowrap' }}>{formatDateTime(wf.createdAt)}</td>
                   <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
                     <button onClick={() => openEditModal(wf)} style={actionBtnBlueStyle}>编辑</button>
@@ -261,22 +250,6 @@ export const WorkflowManagement = () => {
                 placeholder="请输入工作流描述"
                 rows={3}
               />
-            </div>
-
-            <div style={{ marginBottom: 24 }}>
-              <label style={fieldLabelStyle}>来源模板</label>
-              <select
-                value={workflowForm.templateCode}
-                onChange={(e) => setWorkflowForm({ ...workflowForm, templateCode: e.target.value })}
-                style={inputStyle}
-              >
-                <option value="">不使用模板</option>
-                {templates.map((tpl) => (
-                  <option key={tpl.templateCode} value={tpl.templateCode}>
-                    {tpl.templateName} ({tpl.templateCode})
-                  </option>
-                ))}
-              </select>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>

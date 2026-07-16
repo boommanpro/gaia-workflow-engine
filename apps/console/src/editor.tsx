@@ -20,7 +20,7 @@ import { nodeRegistries } from './nodes';
 import { initialData } from './initial-data';
 import { useEditorProps } from './hooks';
 import { DemoTools } from './components/tools';
-import { workflowApi, GaiaWorkflowVersion } from './services/workflow-api';
+import { workflowApi, GaiaWorkflowVersion, GaiaWorkflowTemplate } from './services/workflow-api';
 
 const ACCENT = '#4d53e8';
 
@@ -460,6 +460,161 @@ const EditorHeader = ({
           {saving ? 'Saving...' : saved ? '✓ Saved' : 'Save'}
         </button>
       </div>
+    </div>
+  );
+};
+
+/**
+ * 模板编辑器 — 可视化编辑工作流模板数据
+ * 加载模板 → 编辑 → 保存更新模板数据
+ */
+export const TemplateEditor = () => {
+  const { templateCode } = useParams<{ templateCode: string }>();
+  const navigate = useNavigate();
+  const [templateData, setTemplateData] = useState<any>(initialData);
+  const [templateInfo, setTemplateInfo] = useState<GaiaWorkflowTemplate | null>(null);
+  const [loading, setLoading] = useState(!!templateCode);
+
+  useEffect(() => {
+    if (!templateCode) return;
+    setLoading(true);
+    workflowApi.listTemplates().then((list) => {
+      const tpl = list?.find((t) => t.templateCode === templateCode);
+      if (!tpl) {
+        setLoading(false);
+        return;
+      }
+      setTemplateInfo(tpl);
+      if (tpl.templateData) {
+        try {
+          const parsed = typeof tpl.templateData === 'string'
+            ? JSON.parse(tpl.templateData)
+            : tpl.templateData;
+          setTemplateData(parsed);
+        } catch {
+          setTemplateData(initialData);
+        }
+      }
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, [templateCode]);
+
+  const editorProps = useEditorProps(templateData, nodeRegistries);
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+        <div style={{ fontSize: '18px', color: '#666' }}>Loading template...</div>
+      </div>
+    );
+  }
+
+  return (
+    <FreeLayoutEditorProvider {...editorProps}>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+        <TemplateEditorHeader
+          templateInfo={templateInfo}
+          onBack={() => navigate('/admin/templates')}
+        />
+        <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+          <div className="demo-container" style={{ width: '100%', height: '100%' }}>
+            <EditorRenderer className="demo-editor" />
+          </div>
+          <DemoTools hideSaveAndTestRun hideSave />
+        </div>
+      </div>
+    </FreeLayoutEditorProvider>
+  );
+};
+
+const TemplateEditorHeader = ({
+  templateInfo,
+  onBack,
+}: {
+  templateInfo: GaiaWorkflowTemplate | null;
+  onBack: () => void;
+}) => {
+  const ctx = useClientContext();
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const handleSave = async () => {
+    if (!ctx?.document || !templateInfo) return;
+    setSaving(true);
+    try {
+      const jsonData = ctx.document.toJSON();
+      const dataStr = JSON.stringify(jsonData);
+      await workflowApi.updateTemplate({
+        id: templateInfo.id,
+        templateCode: templateInfo.templateCode,
+        templateName: templateInfo.templateName,
+        templateDesc: templateInfo.templateDesc,
+        templateData: dataStr,
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (error) {
+      console.error('Save failed:', error);
+      alert('Save failed: ' + (error as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: '0 24px',
+      height: '52px',
+      background: 'rgba(255,255,255,0.85)',
+      backdropFilter: 'blur(12px)',
+      borderBottom: '1px solid #e8e8ea',
+      flexShrink: 0,
+      zIndex: 10,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <button
+          onClick={onBack}
+          style={{
+            background: 'transparent',
+            border: '1px solid #e0e0e6',
+            color: '#333',
+            padding: '5px 14px',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontSize: '13px',
+            fontWeight: 500,
+            transition: 'background 0.15s',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = '#f5f5f7'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+        >
+          ← Back
+        </button>
+        <span style={{ fontSize: '15px', fontWeight: 600, color: '#1a1a1a' }}>
+          {templateInfo?.templateName || 'Template'}
+        </span>
+      </div>
+
+      <button
+        onClick={handleSave}
+        disabled={saving}
+        style={{
+          background: saving ? '#c5c5e8' : ACCENT,
+          border: 'none',
+          color: '#fff',
+          padding: '7px 22px',
+          borderRadius: '6px',
+          cursor: saving ? 'not-allowed' : 'pointer',
+          fontSize: '13px',
+          fontWeight: 600,
+          transition: 'background 0.15s',
+        }}
+      >
+        {saving ? 'Saving...' : saved ? '✓ Saved' : 'Save'}
+      </button>
     </div>
   );
 };
