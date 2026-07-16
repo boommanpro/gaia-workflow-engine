@@ -405,18 +405,7 @@ export const Home = () => {
         borderBottom: '1px solid #f0f0f2',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{
-            width: '36px',
-            height: '36px',
-            borderRadius: '8px',
-            background: `linear-gradient(135deg, ${ACCENT}, #7b7ff5)`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#fff',
-            fontSize: '18px',
-            fontWeight: 800,
-          }}>G</div>
+          <img src={`${import.meta.env.BASE_URL}logo.svg`} alt="Gaia" style={{ width: 36, height: 36 }} />
           <div>
             <div style={{ fontSize: '18px', fontWeight: 700, lineHeight: 1 }}>Gaia</div>
             <div style={{ fontSize: '11px', color: '#999', lineHeight: '16px' }}>

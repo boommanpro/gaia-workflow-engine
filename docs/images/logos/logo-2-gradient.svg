@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#818cf8"/>
+      <stop offset="50%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#4d53e8"/>
+    </linearGradient>
+    <filter id="shadow2">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#4d53e8" flood-opacity="0.2"/>
+    </filter>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="#ffffff"/>
+  <!-- 圆角方形背景 -->
+  <rect x="40" y="40" width="176" height="176" rx="32" fill="url(#g2)" filter="url(#shadow2)"/>
+  <!-- 流动曲线 -->
+  <path d="M70 128 Q100 80, 128 128 T186 128" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" opacity="0.95"/>
+  <path d="M70 160 Q100 112, 128 160 T186 160" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.6"/>
+  <path d="M70 96 Q100 48, 128 96 T186 96" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.6"/>
+  <!-- 节点 -->
+  <circle cx="70" cy="128" r="7" fill="#ffffff"/>
+  <circle cx="128" cy="128" r="9" fill="#ffffff"/>
+  <circle cx="186" cy="128" r="7" fill="#ffffff"/>
+  <circle cx="128" cy="96" r="5" fill="#ffffff" opacity="0.8"/>
+  <circle cx="128" cy="160" r="5" fill="#ffffff" opacity="0.8"/>
+</svg>

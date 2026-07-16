@@ -84,22 +84,7 @@ export const AdminLayout = () => {
         {/* Logo area */}
         <div style={{ padding: '24px 20px 20px 20px', borderBottom: '1px solid #f0f0f0' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: '50%',
-                background: ACCENT,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#fff',
-                fontWeight: 800,
-                fontSize: 18,
-              }}
-            >
-              G
-            </div>
+            <img src={`${import.meta.env.BASE_URL}logo.svg`} alt="Gaia" style={{ width: 36, height: 36 }} />
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <span style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.1, letterSpacing: '-0.01em' }}>Gaia</span>
               <span style={{ fontSize: 11.5, color: '#999', marginTop: 2 }}>盖亚 · 管理后台</span>
