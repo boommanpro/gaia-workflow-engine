@@ -8,6 +8,7 @@ import type { CSSProperties } from 'react';
 import { Modal, Input, Button as SemiButton } from '@douyinfe/semi-ui';
 import { workflowApi } from '../../services/workflow-api';
 import { getApiBaseUrl, updateApiBaseUrl } from '../../utils/apiConfig';
+import { publicPath } from '../../utils/public-path';
 
 const ACCENT = '#4d53e8';
 
@@ -104,7 +105,7 @@ export const AdminLayout = () => {
           title="返回首页"
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <img src={`${import.meta.env.BASE_URL}logo.svg`} alt="Gaia" style={{ width: 48, height: 48 }} />
+            <img src={publicPath('logo.svg')} alt="Gaia" style={{ width: 48, height: 48 }} />
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <span style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.1, letterSpacing: '-0.01em' }}>Gaia</span>
               <span style={{ fontSize: 11.5, color: '#999', marginTop: 2 }}>盖亚 · 管理后台</span>

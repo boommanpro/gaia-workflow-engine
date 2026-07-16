@@ -41,6 +41,10 @@ export default defineConfig({
   html: {
     title: 'Gaia — AI Workflow Editor',
     template: path.resolve(__dirname, './index.html'),
+    templateParameters: {
+      // 供 index.html 模板拼接 public 资源路径（favicon 等）
+      assetPrefix: process.env.ASSET_PREFIX || './',
+    },
   },
   output: {
     assetPrefix: process.env.ASSET_PREFIX || './',

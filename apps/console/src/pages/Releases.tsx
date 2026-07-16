@@ -6,6 +6,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getApiBaseUrl } from '../utils/apiConfig';
+import { publicPath } from '../utils/public-path';
 
 type Lang = 'en' | 'zh';
 
@@ -72,7 +73,7 @@ export const Releases = () => {
         borderBottom: '1px solid #f0f0f2',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }} onClick={() => navigate('/')}>
-          <img src={`${import.meta.env.BASE_URL}logo.svg`} alt="Gaia" style={{ width: 48, height: 48 }} />
+          <img src={publicPath('logo.svg')} alt="Gaia" style={{ width: 48, height: 48 }} />
           <div>
             <div style={{ fontSize: '18px', fontWeight: 700, lineHeight: 1 }}>Gaia</div>
             <div style={{ fontSize: '11px', color: '#999', lineHeight: '16px' }}>
