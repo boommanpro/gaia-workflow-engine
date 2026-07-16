@@ -58,11 +58,28 @@ export default defineConfig({
     },
   },
   tools: {
-    rspack: {
+    rspack: (config) => {
+      // GitHub Pages SPA fallback: 构建完成后复制 dist/index.html 为 dist/404.html
+      // 当直接访问 /admin/workflows 等深链时，GitHub Pages 返回 404.html，
+      // 其内容与构建后的 index.html 完全相同（含注入的 JS/CSS），从而让 React Router 接管路由
+      const fs = require('fs');
+      class CopyIndexTo404Plugin {
+        apply(compiler: any) {
+          compiler.hooks.afterEmit.tap('CopyIndexTo404Plugin', () => {
+            const src = path.resolve(__dirname, './dist/index.html');
+            const dest = path.resolve(__dirname, './dist/404.html');
+            if (fs.existsSync(src)) {
+              fs.copyFileSync(src, dest);
+            }
+          });
+        }
+      }
+      config.plugins = config.plugins || [];
+      config.plugins.push(new CopyIndexTo404Plugin());
       /**
        * ignore warnings from @coze-editor/editor/language-typescript
        */
-      ignoreWarnings: [/Critical dependency: the request of a dependency is an expression/],
+      config.ignoreWarnings = [/Critical dependency: the request of a dependency is an expression/];
     },
   },
 });
