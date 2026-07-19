@@ -11,15 +11,17 @@ import { IconMinus } from '@douyinfe/semi-icons';
 import iconVariable from '../../../assets/icon-variable.png';
 import { GlobalVariableEditor } from './global-variable-editor';
 import { FullVariableList } from './full-variable-list';
+import { useLanguage, t } from '../../../i18n';
 
 import styles from './index.module.less';
 
 export function VariablePanel() {
   const [isOpen, setOpen] = useState<boolean>(false);
+  useLanguage();
 
   return (
     <div className={styles['panel-wrapper']}>
-      <Tooltip content="Toggle Variable Panel">
+      <Tooltip content={t('tool.toggleVariablePanel')}>
         <Button
           className={`${styles['variable-panel-button']} ${isOpen ? styles.close : ''}`}
           theme={isOpen ? 'borderless' : 'light'}
@@ -31,10 +33,10 @@ export function VariablePanel() {
       <Collapsible isOpen={isOpen}>
         <div className={styles['panel-container']}>
           <Tabs>
-            <Tabs.TabPane itemKey="variables" tab="Variable List">
+            <Tabs.TabPane itemKey="variables" tab={t('tool.variableList')}>
               <FullVariableList />
             </Tabs.TabPane>
-            <Tabs.TabPane itemKey="global" tab="Global Editor">
+            <Tabs.TabPane itemKey="global" tab={t('tool.globalEditor')}>
               <GlobalVariableEditor />
             </Tabs.TabPane>
           </Tabs>

@@ -1,11 +1,9 @@
-import React, { useRef, useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 
-import * as monaco from 'monaco-editor';
 import Label from '@douyinfe/semi-ui/lib/es/form/label';
-import { Button, Modal } from '@douyinfe/semi-ui';
+import { Button } from '@douyinfe/semi-ui';
 import { IconCode } from '@douyinfe/semi-icons';
 
-import { MonacoEditor } from '../monaco-editor';
 import { CodeEditorModal } from '../code-editor-modal';
 
 export const CodeEditorField = ({

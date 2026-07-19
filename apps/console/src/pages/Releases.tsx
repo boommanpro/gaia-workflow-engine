@@ -5,7 +5,6 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getApiBaseUrl } from '../utils/apiConfig';
 import { publicPath } from '../utils/public-path';
 
 type Lang = 'en' | 'zh';

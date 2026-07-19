@@ -141,11 +141,11 @@ export class WorkflowRuntimeService {
     if (!isInputLine) {
       return false;
     }
-    if (!line.fromPort.portID) {
+    if (!line.fromPort?.portID) {
       return true;
     }
     // 获取这条线的开始节点
-    const fromNodeReport = this.nodeReports.get(line.from.id);
+    const fromNodeReport = this.nodeReports.get(line.from?.id || '');
     if (!fromNodeReport || !fromNodeReport.snapshots.length) {
       return false;
     }
@@ -281,7 +281,6 @@ export class WorkflowRuntimeService {
     this.runningNodes = [];
     this.nodeRunningStatus = new Map();
     this.nodeReports.clear();
-    const processedNodeIds = new Set<string>();
 
     this.document
       .getAllNodes()

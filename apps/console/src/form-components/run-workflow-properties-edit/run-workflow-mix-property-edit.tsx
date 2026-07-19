@@ -1,15 +1,15 @@
 import React, { useLayoutEffect, useState } from 'react';
 
-import { Button, Input } from '@douyinfe/semi-ui';
-import { IconCrossCircleStroked } from '@douyinfe/semi-icons';
+import { Input } from '@douyinfe/semi-ui';
 
 import { TypeSelector } from '../type-selector';
 import { LeftColumn, Row } from './styles';
-import { FxNewExpression } from '../fx-new-expression';
 
-interface PropertyItem {
+export interface PropertyItem {
   type: string;
   value?: any;
+  default?: any;
+  [key: string]: any;
 }
 
 export interface PropertyEditProps {

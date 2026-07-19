@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { workflowApi, type GaiaWorkflow } from '../../services/workflow-api';
 import type { CSSProperties } from 'react';
+import { useLanguage, t } from '../../i18n';
 
 const ACCENT = '#4d53e8';
 
@@ -35,6 +36,7 @@ const formatDateTime = (iso?: string): string => {
 
 export const WorkflowManagement = () => {
   const navigate = useNavigate();
+  useLanguage();
   const [workflows, setWorkflows] = useState<GaiaWorkflow[]>([]);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -92,7 +94,7 @@ export const WorkflowManagement = () => {
 
   const handleSubmit = async () => {
     if (!workflowForm.workflowName.trim() || !workflowForm.workflowCode.trim()) {
-      alert('工作流名称与编码为必填项');
+      alert(t('admin.validate.nameAndCode'));
       return;
     }
     setSubmitting(true);
@@ -115,7 +117,7 @@ export const WorkflowManagement = () => {
       await loadData();
     } catch (err) {
       console.error('Submit failed:', err);
-      alert('保存失败：' + (err as Error).message);
+      alert(t('admin.saveFailed') + (err as Error).message);
     } finally {
       setSubmitting(false);
     }
@@ -123,13 +125,13 @@ export const WorkflowManagement = () => {
 
   const handleDelete = async (wf: GaiaWorkflow) => {
     if (wf.id == null) return;
-    if (!confirm(`确定要删除工作流「${wf.workflowName}」吗？`)) return;
+    if (!confirm(t('admin.deleteWorkflow.confirm', { name: wf.workflowName }))) return;
     try {
       await workflowApi.deleteWorkflow(wf.id);
       await loadData();
     } catch (err) {
       console.error('Delete failed:', err);
-      alert('删除失败：' + (err as Error).message);
+      alert(t('admin.deleteFailed') + (err as Error).message);
     }
   };
 
@@ -143,7 +145,7 @@ export const WorkflowManagement = () => {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 16 }}>
         <input
           type="text"
-          placeholder="搜索工作流名称或编码"
+          placeholder={t('admin.search.workflows')}
           value={searchKeyword}
           onChange={(e) => setSearchKeyword(e.target.value)}
           style={searchInputStyle}
@@ -168,7 +170,7 @@ export const WorkflowManagement = () => {
           onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
           onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
         >
-          + 新建工作流
+          {t('admin.createWorkflow')}
         </button>
       </div>
 
@@ -177,7 +179,13 @@ export const WorkflowManagement = () => {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
           <thead>
             <tr>
-              {['工作流名称', '编码', '描述', '创建时间', '操作'].map((h) => (
+              {[
+                t('admin.workflow.name'),
+                t('admin.workflow.code'),
+                t('admin.workflow.desc'),
+                t('admin.workflow.createdAt'),
+                t('admin.workflow.actions'),
+              ].map((h) => (
                 <th key={h} style={thStyle}>{h}</th>
               ))}
             </tr>
@@ -185,11 +193,11 @@ export const WorkflowManagement = () => {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={5} style={emptyTdStyle}>加载中…</td>
+                <td colSpan={5} style={emptyTdStyle}>{t('Loading')}</td>
               </tr>
             ) : filteredWorkflows.length === 0 ? (
               <tr>
-                <td colSpan={5} style={emptyTdStyle}>暂无数据</td>
+                <td colSpan={5} style={emptyTdStyle}>{t('admin.noData')}</td>
               </tr>
             ) : (
               filteredWorkflows.map((wf) => (
@@ -199,9 +207,9 @@ export const WorkflowManagement = () => {
                   <td style={{ ...tdStyle, color: '#666', maxWidth: 220 }}>{wf.workflowDesc || '—'}</td>
                   <td style={{ ...tdStyle, color: '#666', whiteSpace: 'nowrap' }}>{formatDateTime(wf.createdAt)}</td>
                   <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
-                    <button onClick={() => openEditModal(wf)} style={actionBtnBlueStyle}>编辑</button>
-                    <button onClick={() => handleOpenEditor(wf)} style={actionBtnPurpleStyle}>打开编辑器</button>
-                    <button onClick={() => handleDelete(wf)} style={actionBtnRedStyle}>删除</button>
+                    <button onClick={() => openEditModal(wf)} style={actionBtnBlueStyle}>{t('Edit')}</button>
+                    <button onClick={() => handleOpenEditor(wf)} style={actionBtnPurpleStyle}>{t('admin.openEditor')}</button>
+                    <button onClick={() => handleDelete(wf)} style={actionBtnRedStyle}>{t('Delete')}</button>
                   </td>
                 </tr>
               ))
@@ -215,51 +223,51 @@ export const WorkflowManagement = () => {
         <div onClick={closeModal} style={modalOverlayStyle}>
           <div onClick={(e) => e.stopPropagation()} style={modalCardStyle}>
             <h2 style={{ margin: '0 0 22px 0', fontSize: 18, fontWeight: 700, letterSpacing: '-0.01em' }}>
-              {editingWorkflow ? '编辑工作流' : '新建工作流'}
+              {editingWorkflow ? t('admin.modal.editWorkflow') : t('admin.modal.createWorkflow')}
             </h2>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={fieldLabelStyle}>工作流名称 <span style={{ color: '#ef4444' }}>*</span></label>
+              <label style={fieldLabelStyle}>{t('admin.modal.workflowName')} <span style={{ color: '#ef4444' }}>*</span></label>
               <input
                 type="text"
                 value={workflowForm.workflowName}
                 onChange={(e) => setWorkflowForm({ ...workflowForm, workflowName: e.target.value })}
                 style={inputStyle}
-                placeholder="请输入工作流名称"
+                placeholder={t('admin.modal.placeholder.name')}
               />
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={fieldLabelStyle}>工作流编码 <span style={{ color: '#ef4444' }}>*</span></label>
+              <label style={fieldLabelStyle}>{t('admin.modal.workflowCode')} <span style={{ color: '#ef4444' }}>*</span></label>
               <input
                 type="text"
                 value={workflowForm.workflowCode}
                 onChange={(e) => setWorkflowForm({ ...workflowForm, workflowCode: e.target.value })}
                 style={editingWorkflow ? { ...inputStyle, background: '#f5f5f7', color: '#999', cursor: 'not-allowed' } : inputStyle}
-                placeholder="请输入工作流编码"
+                placeholder={t('admin.modal.placeholder.code')}
                 disabled={!!editingWorkflow}
               />
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={fieldLabelStyle}>工作流描述</label>
+              <label style={fieldLabelStyle}>{t('admin.modal.workflowDesc')}</label>
               <textarea
                 value={workflowForm.workflowDesc}
                 onChange={(e) => setWorkflowForm({ ...workflowForm, workflowDesc: e.target.value })}
                 style={{ ...inputStyle, resize: 'vertical', minHeight: 72 }}
-                placeholder="请输入工作流描述"
+                placeholder={t('admin.modal.placeholder.desc')}
                 rows={3}
               />
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
-              <button onClick={closeModal} style={cancelBtnStyle}>取消</button>
+              <button onClick={closeModal} style={cancelBtnStyle}>{t('Cancel')}</button>
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
                 style={{ ...submitBtnStyle, opacity: submitting ? 0.6 : 1, cursor: submitting ? 'not-allowed' : 'pointer' }}
               >
-                {submitting ? '提交中…' : '提交'}
+                {submitting ? t('Submitting') : t('Submit')}
               </button>
             </div>
           </div>

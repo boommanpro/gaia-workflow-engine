@@ -17,12 +17,14 @@ import { FlowNodeJSON } from '../../typings';
 import { useIsSidebar } from '../../hooks';
 import { FormHeader, FormContent } from '../../form-components';
 import { Assignee, searchAssignees } from './types';
+import { useLanguage, t } from '../../i18n';
 
 export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => {
   const isSidebar = useIsSidebar();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Assignee[]>([]);
   const [loading, setLoading] = useState(false);
+  useLanguage();
 
   const handleSearch = useCallback(async (query: string) => {
     setSearchQuery(query);
@@ -69,14 +71,14 @@ export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => {
             render={({ field: { value = [], onChange } }: FieldRenderProps<Assignee[]>) => (
               <div style={{ padding: '16px' }}>
                 <h3 style={{ marginBottom: '16px', fontSize: '14px', fontWeight: 'bold' }}>
-                  负责人列表
+                  {t('assignee.listTitle')}
                 </h3>
 
                 {/* 搜索输入框 */}
                 <div style={{ marginBottom: '16px' }}>
                   <input
                     type="text"
-                    placeholder="搜索负责人..."
+                    placeholder={t('assignee.searchPlaceholder')}
                     value={searchQuery}
                     onChange={(e) => handleSearch(e.target.value)}
                     style={{
@@ -102,7 +104,7 @@ export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => {
                     >
                       {loading ? (
                         <div style={{ padding: '8px', textAlign: 'center', color: '#666' }}>
-                          搜索中...
+                          {t('assignee.searching')}
                         </div>
                       ) : searchResults.length > 0 ? (
                         searchResults.map((assignee) => (
@@ -138,7 +140,7 @@ export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => {
                         ))
                       ) : (
                         <div style={{ padding: '8px', textAlign: 'center', color: '#666' }}>
-                          未找到结果
+                          {t('assignee.noResults')}
                         </div>
                       )}
                     </div>
@@ -148,10 +150,10 @@ export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => {
                 {/* 已选择的负责人 */}
                 <div>
                   <h4 style={{ marginBottom: '8px', fontSize: '12px', color: '#666' }}>
-                    已选择的负责人:
+                    {t('assignee.selectedTitle')}
                   </h4>
                   {value.length === 0 ? (
-                    <div style={{ color: '#999', fontSize: '12px' }}>尚未选择任何负责人</div>
+                    <div style={{ color: '#999', fontSize: '12px' }}>{t('assignee.empty')}</div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       {value.map((assignee) => (
@@ -210,14 +212,14 @@ export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => {
       <FormHeader />
       <FormContent>
         <div style={{ padding: '16px' }}>
-          <h3>负责人标记</h3>
+          <h3>{t('assignee.markTitle')}</h3>
           <Field
             name="data.assignees"
             render={({ field: { value = [] } }: FieldRenderProps<Assignee[]>) => (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {value.length === 0 ? (
                   <div style={{ color: '#999', textAlign: 'center', padding: '20px' }}>
-                    暂无负责人
+                    {t('assignee.none')}
                   </div>
                 ) : (
                   value.map((assignee) => (

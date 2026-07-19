@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 
 import { useDraggable } from './useDraggable';
-import { STYLES } from './styles';
 import { DragHandle } from './DragHandle';
 
 interface ResizableProps {

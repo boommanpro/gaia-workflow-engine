@@ -3,16 +3,16 @@ import React, { useState } from 'react';
 import { useClientContext } from '@flowgram.ai/free-layout-editor';
 import { Button, Typography } from '@douyinfe/semi-ui';
 
-import { draggableContainerStyle } from '../sidebar/styles.tsx';
-import { Resizable } from '../draggable-y';
 import { PropertyItem, RunWorkflowMixPropertiesEdit } from '../../form-components/run-workflow-properties-edit';
 import { getApiBaseUrl } from '../../utils/apiConfig'; // 导入API配置
+import { useLanguage, t } from '../../i18n';
 
 const RunWorkflowSidebar: React.FC = () => {
   const { document } = useClientContext();
   const [inputs, setInputs] = useState<PropertyItem[]>([]);
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  useLanguage();
 
   const workflowJson = React.useMemo(() => {
     if (!document) {
@@ -22,7 +22,7 @@ const RunWorkflowSidebar: React.FC = () => {
   }, [document]);
 
   function parseProperties(properties: any) {
-    let res = [];
+    let res: any[] = [];
     Object.keys(properties || {}).map((key) => {
       res.push({
         name: key,
@@ -33,16 +33,17 @@ const RunWorkflowSidebar: React.FC = () => {
   }
 
   React.useEffect(() => {
+    const workflowJsonAny = workflowJson as any;
     if (
-      !workflowJson ||
-      !workflowJson.properties ||
-      typeof workflowJson.properties !== 'object' ||
-      Object.keys(workflowJson.properties).length === 0
+      !workflowJsonAny ||
+      !workflowJsonAny.properties ||
+      typeof workflowJsonAny.properties !== 'object' ||
+      Object.keys(workflowJsonAny.properties).length === 0
     ) {
       setInputs([]);
       return;
     }
-    setInputs(parseProperties(workflowJson.properties));
+    setInputs(parseProperties(workflowJsonAny.properties));
   }, [workflowJson]);
 
   const sendRunRequest = async (runData: any) => {
@@ -62,7 +63,7 @@ const RunWorkflowSidebar: React.FC = () => {
       setResult(data);
     } catch (error) {
       console.error('运行出错:', error);
-      setResult({ error: '请求失败' });
+      setResult({ error: t('runPanel.requestFailed') });
     } finally {
       setLoading(false);
     }
@@ -84,17 +85,17 @@ const RunWorkflowSidebar: React.FC = () => {
 
   if (
     !workflowJson ||
-    !workflowJson.properties ||
-    typeof workflowJson.properties !== 'object' ||
-    Object.keys(workflowJson.properties).length === 0
+    !(workflowJson as any).properties ||
+    typeof (workflowJson as any).properties !== 'object' ||
+    Object.keys((workflowJson as any).properties).length === 0
   ) {
     return null;
   }
 
   return (
     <div style={{ padding: '20px' }}>
-      <Typography.Title heading={5}>试运行工作流</Typography.Title>
-      <Typography.Title heading={6}>输入</Typography.Title>
+      <Typography.Title heading={5}>{t('runPanel.tryRunWorkflow')}</Typography.Title>
+      <Typography.Title heading={6}>{t('runPanel.inputs')}</Typography.Title>
       <RunWorkflowMixPropertiesEdit
         value={inputs}
         onChange={(value) => {
@@ -108,12 +109,12 @@ const RunWorkflowSidebar: React.FC = () => {
         loading={loading}
         style={{ marginTop: '20px' }}
       >
-        运行工作流
+        {t('runPanel.runWorkflow')}
       </Button>
       {result && (
         <>
           <Typography.Title heading={6} style={{ marginTop: '20px' }}>
-            输出结果
+            {t('runPanel.outputResult')}
           </Typography.Title>
           <div
             style={{

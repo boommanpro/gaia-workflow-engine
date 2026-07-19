@@ -11,228 +11,44 @@ import { initialData } from '../initial-data';
 import { workflowApi } from '../services/workflow-api';
 import { getApiBaseUrl, updateApiBaseUrl } from '../utils/apiConfig';
 import { publicPath } from '../utils/public-path';
-
-type Lang = 'en' | 'zh';
+import { useLanguage, t } from '../i18n';
+import { LanguageToggle } from '../components/language-toggle';
 
 const ACCENT = '#4d53e8';
 const FONT_STACK =
   "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif";
 
-const translations = {
-  en: {
-    nav: {
-      admin: 'Admin Console',
-      demo: 'Live Demo',
-      docs: 'Docs',
-      releases: 'Release Log',
-    },
-    status: { online: 'Backend Online', offline: 'Backend Offline' },
-    hero: {
-      title: 'Build AI workflows, visually.',
-    },
-    demo: {
-      title: 'See it in action',
-      subtitle:
-        'A live, read-only preview of a Gaia workflow. Pan, zoom, and inspect nodes.',
-      badge: 'Read-only',
-    },
-    features: {
-      title: 'Everything you need to build AI workflows',
-      subtitle: 'A complete toolkit for visual AI pipeline development',
-      items: [
-        {
-          title: 'Visual Canvas',
-          desc: 'An infinite, zoomable canvas with drag-and-drop nodes. Design complex workflows with loops, branches, and conditional logic.',
-        },
-        {
-          title: 'AI Node Types',
-          desc: 'Built-in support for LLM calls, code execution, HTTP requests, string formatting, and variable management.',
-        },
-        {
-          title: 'Real-time Preview',
-          desc: 'Test individual nodes or the entire workflow with live input/output inspection and execution history.',
-        },
-        {
-          title: 'Version Management',
-          desc: 'Every save creates a version. Switch between versions, track changes, and roll back with one click.',
-        },
-        {
-          title: 'Template System',
-          desc: 'Create reusable workflow templates. Spin up new workflows from templates with a single click.',
-        },
-        {
-          title: 'Extensible Plugins',
-          desc: 'Plugin architecture: minimap, auto-layout, snap lines, node panel, and more.',
-        },
-      ],
-    },
-    steps: {
-      title: 'From idea to deployment in three steps',
-      subtitle: 'A streamlined workflow for building AI applications',
-      items: [
-        {
-          title: 'Create',
-          desc: 'Start from scratch or pick a template. Name your workflow and you are ready to design.',
-        },
-        {
-          title: 'Design',
-          desc: 'Drag nodes onto the canvas, connect them, configure inputs. Test as you go with real-time preview.',
-        },
-        {
-          title: 'Deploy',
-          desc: 'Save your workflow with version tracking. Revisit, iterate, and roll back anytime.',
-        },
-      ],
-    },
-    tech: {
-      title: 'Built on a solid foundation',
-      subtitle: 'Open-source technologies, battle-tested at scale',
-      items: ['React 18', 'TypeScript', 'Spring Boot', 'MyBatis Plus', 'SQLite'],
-    },
-    docs: {
-      title: 'Documentation',
-      subtitle: 'Everything you need to get started',
-      prereqTitle: 'Prerequisites',
-      prereqItems: ['Node.js >= 18', 'Java >= 17', 'Maven 3.x', 'Git'],
-      frontendTitle: 'Frontend',
-      frontendSteps: [
-        'git clone https://github.com/boommanpro/gaia-workflow-engine.git',
-        'cd gaia-workflow-engine/apps/console',
-        'npm install',
-        'npm run dev',
-      ],
-      frontendNote: 'Visit http://localhost:3000',
-      backendTitle: 'Backend',
-      backendSteps: [
-        'cd apps/api/gaia-workflow',
-        'mvn spring-boot:run',
-      ],
-      backendNote: 'API server runs on port 48080',
-      deployTitle: 'Deployment Options',
-      deployItems: [
-        { title: 'Standalone', desc: 'Frontend and backend deployed separately for large distributed systems.' },
-        { title: 'All-in-One', desc: 'Bundled as a single application for small to medium teams.' },
-        { title: 'GitHub Pages', desc: 'Frontend deployed to GitHub Pages with configurable backend address.' },
-        { title: 'Containerized', desc: 'Docker images with Kubernetes support for cloud deployment.' },
-      ],
-    },
-    cta: {
-      title: 'Ready to build your first AI workflow?',
-      subtitle: 'Open the admin console to create, edit, and manage your workflows.',
-      button: 'Open Admin Console',
-    },
-    footer: {
-      desc: 'Gaia — Visual AI workflow editor',
-      copyright: '© 2026 Gaia.',
-    },
-  },
-  zh: {
-    nav: {
-      admin: '管理后台',
-      demo: '在线演示',
-      docs: '文档',
-      releases: '发布日志',
-    },
-    status: { online: '后端已连接', offline: '后端未连接' },
-    hero: {
-      title: '可视化构建 AI 工作流',
-    },
-    demo: {
-      title: '实时预览',
-      subtitle: '盖亚工作流的只读实时预览。可平移、缩放、查看节点详情。',
-      badge: '只读模式',
-    },
-    features: {
-      title: '构建 AI 工作流所需的一切',
-      subtitle: '可视化 AI 流程开发的完整工具链',
-      items: [
-        {
-          title: '可视化画布',
-          desc: '无限缩放画布，支持拖拽节点。通过循环、分支和条件逻辑设计复杂的工作流。',
-        },
-        {
-          title: 'AI 节点类型',
-          desc: '内置 LLM 调用、代码执行、HTTP 请求、字符串格式化和变量管理节点。',
-        },
-        {
-          title: '实时预览',
-          desc: '测试单个节点或整个工作流，实时查看输入输出和执行历史。',
-        },
-        {
-          title: '版本管理',
-          desc: '每次保存创建一个版本。在版本间切换、追踪变更、一键回滚。',
-        },
-        {
-          title: '模板系统',
-          desc: '创建可复用的工作流模板。一键从模板创建新工作流。',
-        },
-        {
-          title: '可扩展插件',
-          desc: '插件架构：小地图、自动布局、吸附线、节点面板等。',
-        },
-      ],
-    },
-    steps: {
-      title: '三步从创意到部署',
-      subtitle: '构建 AI 应用的精简流程',
-      items: [
-        {
-          title: '创建',
-          desc: '从零开始或选择模板。命名工作流，即可开始设计。',
-        },
-        {
-          title: '设计',
-          desc: '拖拽节点到画布，连接节点，配置输入。随时实时预览测试。',
-        },
-        {
-          title: '部署',
-          desc: '保存工作流并启用版本追踪。随时回访、迭代和回滚。',
-        },
-      ],
-    },
-    tech: {
-      title: '建立在坚实的技术之上',
-      subtitle: '开源技术，大规模验证',
-      items: ['React 18', 'TypeScript', 'Spring Boot', 'MyBatis Plus', 'SQLite'],
-    },
-    docs: {
-      title: '文档',
-      subtitle: '开始使用所需的一切',
-      prereqTitle: '环境准备',
-      prereqItems: ['Node.js >= 18', 'Java >= 17', 'Maven 3.x', 'Git'],
-      frontendTitle: '前端',
-      frontendSteps: [
-        'git clone https://github.com/boommanpro/gaia-workflow-engine.git',
-        'cd gaia-workflow-engine/apps/console',
-        'npm install',
-        'npm run dev',
-      ],
-      frontendNote: '访问 http://localhost:3000',
-      backendTitle: '后端',
-      backendSteps: [
-        'cd apps/api/gaia-workflow',
-        'mvn spring-boot:run',
-      ],
-      backendNote: 'API 服务运行在 48080 端口',
-      deployTitle: '部署方案',
-      deployItems: [
-        { title: '独立部署', desc: '前后端分离部署，适用于大型分布式系统。' },
-        { title: '一体化部署', desc: '打包为单一应用，适用于中小型企业。' },
-        { title: 'GitHub Pages', desc: '前端部署到 GitHub Pages，后端地址可配置。' },
-        { title: '容器化部署', desc: '提供 Docker 镜像，支持 Kubernetes 部署。' },
-      ],
-    },
-    cta: {
-      title: '准备好构建你的第一个 AI 工作流了吗？',
-      subtitle: '打开管理后台来创建、编辑和管理你的工作流。',
-      button: '打开管理后台',
-    },
-    footer: {
-      desc: '盖亚 — 可视化 AI 工作流编辑器',
-      copyright: '© 2026 盖亚 Gaia.',
-    },
-  },
-};
+const FEATURE_KEYS = [
+  { titleKey: 'feature.canvas.title', descKey: 'feature.canvas.desc' },
+  { titleKey: 'feature.nodes.title', descKey: 'feature.nodes.desc' },
+  { titleKey: 'feature.preview.title', descKey: 'feature.preview.desc' },
+  { titleKey: 'feature.version.title', descKey: 'feature.version.desc' },
+  { titleKey: 'feature.template.title', descKey: 'feature.template.desc' },
+  { titleKey: 'feature.plugin.title', descKey: 'feature.plugin.desc' },
+];
+
+const STEP_KEYS = [
+  { titleKey: 'step.create.title', descKey: 'step.create.desc' },
+  { titleKey: 'step.design.title', descKey: 'step.design.desc' },
+  { titleKey: 'step.deploy.title', descKey: 'step.deploy.desc' },
+];
+
+const TECH_ITEMS = ['React 18', 'TypeScript', 'Spring Boot', 'MyBatis Plus', 'SQLite'];
+const PREREQ_ITEMS = ['Node.js >= 18', 'Java >= 17', 'Maven 3.x', 'Git'];
+const FRONTEND_STEPS = [
+  'git clone https://github.com/boommanpro/gaia-workflow-engine.git',
+  'cd gaia-workflow-engine/apps/console',
+  'npm install',
+  'npm run dev',
+];
+const BACKEND_STEPS = ['cd apps/api/gaia-workflow', 'mvn spring-boot:run'];
+
+const DEPLOY_KEYS = [
+  { titleKey: 'deploy.standalone.title', descKey: 'deploy.standalone.desc' },
+  { titleKey: 'deploy.allinone.title', descKey: 'deploy.allinone.desc' },
+  { titleKey: 'deploy.ghpages.title', descKey: 'deploy.ghpages.desc' },
+  { titleKey: 'deploy.container.title', descKey: 'deploy.container.desc' },
+];
 
 const IconCanvas = () => (
   <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
@@ -289,37 +105,13 @@ const IconPlugin = () => (
 
 const featureIcons = [IconCanvas, IconNodes, IconPreview, IconVersion, IconTemplate, IconPlugin];
 
-const HeroDiagram = () => (
-  <svg viewBox="0 0 400 300" fill="none" style={{ width: '100%', height: 'auto' }}>
-    <rect x="20" y="120" width="80" height="50" rx="8" fill="#f0f0ff" stroke={ACCENT} strokeWidth="2" />
-    <text x="60" y="150" textAnchor="middle" fill={ACCENT} fontSize="12" fontFamily={FONT_STACK}>Start</text>
-    <rect x="160" y="60" width="80" height="50" rx="8" fill="#f0f0ff" stroke={ACCENT} strokeWidth="2" />
-    <text x="200" y="90" textAnchor="middle" fill={ACCENT} fontSize="12" fontFamily={FONT_STACK}>LLM</text>
-    <rect x="160" y="180" width="80" height="50" rx="8" fill="#f0f0ff" stroke={ACCENT} strokeWidth="2" />
-    <text x="200" y="210" textAnchor="middle" fill={ACCENT} fontSize="12" fontFamily={FONT_STACK}>Code</text>
-    <rect x="300" y="120" width="80" height="50" rx="8" fill={ACCENT} />
-    <text x="340" y="150" textAnchor="middle" fill="#fff" fontSize="12" fontFamily={FONT_STACK}>End</text>
-    <path d="M100 145 L160 85" stroke={ACCENT} strokeWidth="2" markerEnd="url(#arrow)" />
-    <path d="M100 145 L160 205" stroke={ACCENT} strokeWidth="2" markerEnd="url(#arrow)" />
-    <path d="M240 85 L300 140" stroke={ACCENT} strokeWidth="2" markerEnd="url(#arrow)" />
-    <path d="M240 205 L300 150" stroke={ACCENT} strokeWidth="2" markerEnd="url(#arrow)" />
-    <defs>
-      <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
-        <path d="M0 0 L8 3 L0 6 Z" fill={ACCENT} />
-      </marker>
-    </defs>
-  </svg>
-);
-
 export const Home = () => {
   const navigate = useNavigate();
-  const [lang, setLang] = useState<Lang>('en');
+  const lang = useLanguage();
   const [backendOnline, setBackendOnline] = useState(false);
   const [viewerData, setViewerData] = useState<any>(initialData);
   const [showServerConfig, setShowServerConfig] = useState(false);
   const [serverUrl, setServerUrl] = useState('');
-
-  const t = translations[lang];
 
   useEffect(() => {
     const link = document.createElement('link');
@@ -383,7 +175,7 @@ export const Home = () => {
           <div>
             <div style={{ fontSize: '18px', fontWeight: 700, lineHeight: 1 }}>Gaia</div>
             <div style={{ fontSize: '11px', color: '#999', lineHeight: '16px' }}>
-              {lang === 'zh' ? '盖亚' : 'AI Workflow Editor'}
+              {lang === 'zh' ? t('home.subtitle') : t('home.subtitleAlt')}
             </div>
           </div>
         </div>
@@ -401,7 +193,7 @@ export const Home = () => {
               fontWeight: 500,
             }}
           >
-            {t.nav.demo}
+            {t('nav.demo')}
           </button>
           <button
             onClick={() => document.getElementById('docs')?.scrollIntoView({ behavior: 'smooth' })}
@@ -415,7 +207,7 @@ export const Home = () => {
               fontWeight: 500,
             }}
           >
-            {t.nav.docs}
+            {t('nav.docs')}
           </button>
           <button
             onClick={() => navigate('/releases')}
@@ -429,7 +221,7 @@ export const Home = () => {
               fontWeight: 500,
             }}
           >
-            {t.nav.releases}
+            {t('nav.releases')}
           </button>
           <div
             style={{
@@ -458,7 +250,7 @@ export const Home = () => {
               background: backendOnline ? '#22c55e' : '#f59e0b',
             }} />
             <span style={{ color: backendOnline ? '#666' : '#d97706' }}>
-              {backendOnline ? t.status.online : t.status.offline}
+              {backendOnline ? t('status.online') : t('status.offline')}
             </span>
             {!backendOnline && (
               <span style={{ fontSize: '11px', color: '#999', textDecoration: 'underline' }}>
@@ -466,20 +258,7 @@ export const Home = () => {
               </span>
             )}
           </div>
-          <button
-            onClick={() => setLang(lang === 'en' ? 'zh' : 'en')}
-            style={{
-              padding: '6px 14px',
-              border: '1px solid #e0e0e6',
-              borderRadius: '6px',
-              background: '#fff',
-              cursor: 'pointer',
-              fontSize: '13px',
-              color: '#333',
-            }}
-          >
-            {lang === 'en' ? '中文' : 'EN'}
-          </button>
+          <LanguageToggle />
           <a
             href="https://github.com/boommanpro/gaia-workflow-engine"
             target="_blank"
@@ -514,7 +293,7 @@ export const Home = () => {
               cursor: 'pointer',
             }}
           >
-            {t.nav.admin}
+            {t('nav.admin')}
           </button>
         </div>
       </nav>
@@ -531,7 +310,7 @@ export const Home = () => {
             margin: '0 0 20px',
             letterSpacing: '-0.02em',
           }}>
-            {t.hero.title}
+            {t('hero.title')}
           </h1>
         </div>
 
@@ -551,16 +330,16 @@ export const Home = () => {
         <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '48px' }}>
             <h2 style={{ fontSize: 'clamp(28px, 3.5vw, 36px)', fontWeight: 700, margin: '0 0 12px' }}>
-              {t.features.title}
+              {t('features.title')}
             </h2>
-            <p style={{ fontSize: '16px', color: '#666' }}>{t.features.subtitle}</p>
+            <p style={{ fontSize: '16px', color: '#666' }}>{t('features.subtitle')}</p>
           </div>
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
             gap: '24px',
           }}>
-            {t.features.items.map((item, i) => {
+            {FEATURE_KEYS.map((item, i) => {
               const Icon = featureIcons[i];
               return (
                 <div key={i} style={{
@@ -582,8 +361,8 @@ export const Home = () => {
                   }}>
                     <Icon />
                   </div>
-                  <h3 style={{ fontSize: '17px', fontWeight: 600, margin: '0 0 8px' }}>{item.title}</h3>
-                  <p style={{ fontSize: '14px', color: '#666', lineHeight: 1.6, margin: 0 }}>{item.desc}</p>
+                  <h3 style={{ fontSize: '17px', fontWeight: 600, margin: '0 0 8px' }}>{t(item.titleKey)}</h3>
+                  <p style={{ fontSize: '14px', color: '#666', lineHeight: 1.6, margin: 0 }}>{t(item.descKey)}</p>
                 </div>
               );
             })}
@@ -596,16 +375,16 @@ export const Home = () => {
         <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '48px' }}>
             <h2 style={{ fontSize: 'clamp(28px, 3.5vw, 36px)', fontWeight: 700, margin: '0 0 12px' }}>
-              {t.steps.title}
+              {t('steps.title')}
             </h2>
-            <p style={{ fontSize: '16px', color: '#666' }}>{t.steps.subtitle}</p>
+            <p style={{ fontSize: '16px', color: '#666' }}>{t('steps.subtitle')}</p>
           </div>
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
             gap: '32px',
           }}>
-            {t.steps.items.map((step, i) => (
+            {STEP_KEYS.map((step, i) => (
               <div key={i} style={{ textAlign: 'center' }}>
                 <div style={{
                   width: '56px',
@@ -622,8 +401,8 @@ export const Home = () => {
                 }}>
                   {i + 1}
                 </div>
-                <h3 style={{ fontSize: '18px', fontWeight: 600, margin: '0 0 8px' }}>{step.title}</h3>
-                <p style={{ fontSize: '14px', color: '#666', lineHeight: 1.6 }}>{step.desc}</p>
+                <h3 style={{ fontSize: '18px', fontWeight: 600, margin: '0 0 8px' }}>{t(step.titleKey)}</h3>
+                <p style={{ fontSize: '14px', color: '#666', lineHeight: 1.6 }}>{t(step.descKey)}</p>
               </div>
             ))}
           </div>
@@ -634,16 +413,16 @@ export const Home = () => {
       <section style={{ padding: '60px 48px' }}>
         <div style={{ maxWidth: '800px', margin: '0 auto', textAlign: 'center' }}>
           <h2 style={{ fontSize: 'clamp(24px, 3vw, 32px)', fontWeight: 700, margin: '0 0 8px' }}>
-            {t.tech.title}
+            {t('tech.title')}
           </h2>
-          <p style={{ fontSize: '15px', color: '#666', marginBottom: '32px' }}>{t.tech.subtitle}</p>
+          <p style={{ fontSize: '15px', color: '#666', marginBottom: '32px' }}>{t('tech.subtitle')}</p>
           <div style={{
             display: 'flex',
             gap: '12px',
             justifyContent: 'center',
             flexWrap: 'wrap',
           }}>
-            {t.tech.items.map((item, i) => (
+            {TECH_ITEMS.map((item, i) => (
               <span key={i} style={{
                 padding: '8px 18px',
                 background: '#f5f5f7',
@@ -664,9 +443,9 @@ export const Home = () => {
         <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '48px' }}>
             <h2 style={{ fontSize: 'clamp(28px, 3.5vw, 36px)', fontWeight: 700, margin: '0 0 12px' }}>
-              {t.docs.title}
+              {t('docs.title')}
             </h2>
-            <p style={{ fontSize: '16px', color: '#666' }}>{t.docs.subtitle}</p>
+            <p style={{ fontSize: '16px', color: '#666' }}>{t('docs.subtitle')}</p>
           </div>
 
           {/* Prerequisites */}
@@ -677,9 +456,9 @@ export const Home = () => {
             padding: '28px',
             marginBottom: '24px',
           }}>
-            <h3 style={{ fontSize: '17px', fontWeight: 600, margin: '0 0 16px' }}>{t.docs.prereqTitle}</h3>
+            <h3 style={{ fontSize: '17px', fontWeight: 600, margin: '0 0 16px' }}>{t('docs.prereqTitle')}</h3>
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-              {t.docs.prereqItems.map((item, i) => (
+              {PREREQ_ITEMS.map((item, i) => (
                 <span key={i} style={{
                   padding: '6px 14px',
                   background: '#f5f5f7',
@@ -703,7 +482,7 @@ export const Home = () => {
               borderRadius: '12px',
               padding: '28px',
             }}>
-              <h3 style={{ fontSize: '17px', fontWeight: 600, margin: '0 0 16px' }}>{t.docs.frontendTitle}</h3>
+              <h3 style={{ fontSize: '17px', fontWeight: 600, margin: '0 0 16px' }}>{t('docs.frontendTitle')}</h3>
               <pre style={{
                 background: '#1a1a2e',
                 color: '#e0e0e0',
@@ -714,9 +493,9 @@ export const Home = () => {
                 overflow: 'auto',
                 margin: '0 0 12px',
               }}>
-                <code>{t.docs.frontendSteps.join('\n')}</code>
+                <code>{FRONTEND_STEPS.join('\n')}</code>
               </pre>
-              <p style={{ fontSize: '13px', color: '#999', margin: 0 }}>{t.docs.frontendNote}</p>
+              <p style={{ fontSize: '13px', color: '#999', margin: 0 }}>{t('docs.frontendNote')}</p>
             </div>
 
             {/* Backend */}
@@ -726,7 +505,7 @@ export const Home = () => {
               borderRadius: '12px',
               padding: '28px',
             }}>
-              <h3 style={{ fontSize: '17px', fontWeight: 600, margin: '0 0 16px' }}>{t.docs.backendTitle}</h3>
+              <h3 style={{ fontSize: '17px', fontWeight: 600, margin: '0 0 16px' }}>{t('docs.backendTitle')}</h3>
               <pre style={{
                 background: '#1a1a2e',
                 color: '#e0e0e0',
@@ -737,9 +516,9 @@ export const Home = () => {
                 overflow: 'auto',
                 margin: '0 0 12px',
               }}>
-                <code>{t.docs.backendSteps.join('\n')}</code>
+                <code>{BACKEND_STEPS.join('\n')}</code>
               </pre>
-              <p style={{ fontSize: '13px', color: '#999', margin: 0 }}>{t.docs.backendNote}</p>
+              <p style={{ fontSize: '13px', color: '#999', margin: 0 }}>{t('docs.backendNote')}</p>
             </div>
           </div>
 
@@ -750,13 +529,13 @@ export const Home = () => {
             borderRadius: '12px',
             padding: '28px',
           }}>
-            <h3 style={{ fontSize: '17px', fontWeight: 600, margin: '0 0 20px' }}>{t.docs.deployTitle}</h3>
+            <h3 style={{ fontSize: '17px', fontWeight: 600, margin: '0 0 20px' }}>{t('docs.deployTitle')}</h3>
             <div style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
               gap: '20px',
             }}>
-              {t.docs.deployItems.map((item, i) => (
+              {DEPLOY_KEYS.map((item, i) => (
                 <div key={i}>
                   <div style={{
                     display: 'inline-block',
@@ -768,9 +547,9 @@ export const Home = () => {
                     fontWeight: 600,
                     marginBottom: '8px',
                   }}>
-                    {item.title}
+                    {t(item.titleKey)}
                   </div>
-                  <p style={{ fontSize: '13px', color: '#666', lineHeight: 1.6, margin: 0 }}>{item.desc}</p>
+                  <p style={{ fontSize: '13px', color: '#666', lineHeight: 1.6, margin: 0 }}>{t(item.descKey)}</p>
                 </div>
               ))}
             </div>
@@ -790,9 +569,9 @@ export const Home = () => {
           color: '#fff',
         }}>
           <h2 style={{ fontSize: 'clamp(24px, 3vw, 32px)', fontWeight: 700, margin: '0 0 12px' }}>
-            {t.cta.title}
+            {t('cta.title')}
           </h2>
-          <p style={{ fontSize: '16px', opacity: 0.9, marginBottom: '28px' }}>{t.cta.subtitle}</p>
+          <p style={{ fontSize: '16px', opacity: 0.9, marginBottom: '28px' }}>{t('cta.subtitle')}</p>
           <button
             onClick={() => navigate('/admin/workflows')}
             style={{
@@ -806,7 +585,7 @@ export const Home = () => {
               cursor: 'pointer',
             }}
           >
-            {t.cta.button}
+            {t('cta.button')}
           </button>
         </div>
       </section>
@@ -817,13 +596,13 @@ export const Home = () => {
         borderTop: '1px solid #f0f0f2',
         textAlign: 'center',
       }}>
-        <div style={{ fontSize: '14px', color: '#999', marginBottom: '4px' }}>{t.footer.desc}</div>
-        <div style={{ fontSize: '13px', color: '#bbb' }}>{t.footer.copyright}</div>
+        <div style={{ fontSize: '14px', color: '#999', marginBottom: '4px' }}>{t('footer.desc')}</div>
+        <div style={{ fontSize: '13px', color: '#bbb' }}>{t('footer.copyright')}</div>
       </footer>
 
       {/* Server Config Modal */}
       <Modal
-        title={lang === 'zh' ? '配置服务端地址' : 'Configure Server Address'}
+        title={t('serverConfig.title')}
         visible={showServerConfig}
         onCancel={() => setShowServerConfig(false)}
         footer={null}
@@ -831,9 +610,7 @@ export const Home = () => {
       >
         <div style={{ padding: '8px 0' }}>
           <p style={{ fontSize: '14px', color: '#666', marginBottom: '16px', lineHeight: 1.6 }}>
-            {lang === 'zh'
-              ? '无法连接到后端服务。请输入您的后端服务地址（例如：http://127.0.0.1:48080/api）。保存后将自动刷新页面。'
-              : 'Cannot connect to the backend service. Please enter your backend server address (e.g., http://127.0.0.1:48080/api). The page will reload after saving.'}
+            {t('serverConfig.desc')}
           </p>
           <Input
             value={serverUrl}
@@ -846,7 +623,7 @@ export const Home = () => {
               onClick={() => setShowServerConfig(false)}
               style={{ borderRadius: '6px' }}
             >
-              {lang === 'zh' ? '取消' : 'Cancel'}
+              {t('Cancel')}
             </SemiButton>
             <SemiButton
               theme="solid"
@@ -858,7 +635,7 @@ export const Home = () => {
                 }
               }}
             >
-              {lang === 'zh' ? '保存并重连' : 'Save & Reconnect'}
+              {t('serverConfig.saveReconnect')}
             </SemiButton>
           </div>
         </div>

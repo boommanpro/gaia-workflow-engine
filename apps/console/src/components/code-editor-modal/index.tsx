@@ -1,9 +1,10 @@
-import React, { useCallback, useRef } from 'react';
+import { useCallback, useRef } from 'react';
 
 import * as monaco from 'monaco-editor';
 import { Modal } from '@douyinfe/semi-ui';
 
 import { MonacoEditor } from '../monaco-editor';
+import { useLanguage, t } from '../../i18n';
 
 export const CodeEditorModal = ({
   value,
@@ -25,6 +26,7 @@ export const CodeEditorModal = ({
   options?: monaco.editor.IStandaloneEditorConstructionOptions; // 新增：支持外部传递 options
 }) => {
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  useLanguage();
 
   const handleCurrentOk = useCallback(() => {
     const editorValue = editorRef.current?.getValue();
@@ -59,7 +61,7 @@ export const CodeEditorModal = ({
 
   return (
     <Modal
-      title="代码编辑器"
+      title={t('codeEditor.title')}
       visible={visible}
       onOk={handleCurrentOk}
       onCancel={handleCurrentCancel}

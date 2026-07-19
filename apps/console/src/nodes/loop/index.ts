@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { nanoid } from 'nanoid';
 import {
   WorkflowNodeEntity,
   PositionSchema,

@@ -6,9 +6,11 @@ import { IconFile } from '@douyinfe/semi-icons';
 
 import { WorkflowRuntimeService } from '../../../plugins/runtime-plugin/runtime-service';
 import { CodeEditorModal } from '../../code-editor-modal';
+import { useLanguage, t } from '../../../i18n';
 
 export const ReportEditor = () => {
   const runtimeService = useService(WorkflowRuntimeService);
+  useLanguage();
   const [showModal, setShowModal] = useState(false);
   const [reportData, setReportData] = useState('');
 
@@ -89,7 +91,7 @@ export const ReportEditor = () => {
 
   return (
     <>
-      <Tooltip content={'Report Editor'}>
+      <Tooltip content={t('tool.reportEditor')}>
         <Button type="tertiary" icon={<IconFile />} theme="borderless" onClick={openModal} />
       </Tooltip>
       <CodeEditorModal

@@ -85,7 +85,7 @@ export function ConditionInputs() {
                                         })
                                       }
                                     />
-                                    {!readonly && condField.length > 1 && (
+                                    {!readonly && (condField.value?.length || 0) > 1 && (
                                       <Button
                                         theme="borderless"
                                         disabled={readonly}

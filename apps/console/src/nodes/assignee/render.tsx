@@ -12,7 +12,6 @@ import {
   FlowNodeFormData,
   Form,
   FormModelV2,
-  useClientContext,
   useNodeRender,
   WorkflowNodeEntity,
 } from '@flowgram.ai/free-layout-editor';
@@ -26,7 +25,6 @@ export const AssigneeRender: FC<{
   const { node } = props;
   const { selected: focused, nodeRef, selectNode, startDrag, onFocus, onBlur } = useNodeRender();
   const panelManager = usePanelManager();
-  const ctx = useClientContext();
 
   // 状态：控制显示模式
 
@@ -35,9 +33,6 @@ export const AssigneeRender: FC<{
     console.warn('AssigneeRender: 节点不存在');
     return null;
   }
-
-  const nodeData = node.data || {};
-  const assignees = Array.isArray(nodeData.assignees) ? nodeData.assignees : [];
 
   // 获取节点的尺寸信息
   const nodeMeta = node.getNodeMeta();

@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { nanoid } from 'nanoid';
-
 import { generateValidId } from '../utils';
 import { WorkflowNodeType } from '../constants';
 import { FlowNodeRegistry } from '../../typings';

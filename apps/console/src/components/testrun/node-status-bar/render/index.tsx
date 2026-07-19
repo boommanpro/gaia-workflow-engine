@@ -14,6 +14,7 @@ import { NodeStatusHeader } from '../header';
 import { NodeStatusGroup } from '../group';
 import { IconWarningFill } from '../../../../assets/icon-warning';
 import { IconSuccessFill } from '../../../../assets/icon-success';
+import { useLanguage, t } from '../../../../i18n';
 
 import styles from './index.module.less';
 
@@ -27,6 +28,7 @@ const displayCount = 6;
 export const NodeStatusRender: FC<NodeStatusRenderProps> = ({ report }) => {
   const { status: nodeStatus } = report;
   const [currentSnapshotIndex, setCurrentSnapshotIndex] = useState(0);
+  useLanguage();
 
   const snapshots = report.snapshots || [];
   const currentSnapshot = snapshots[currentSnapshotIndex] || snapshots[0];
@@ -62,15 +64,15 @@ export const NodeStatusRender: FC<NodeStatusRenderProps> = ({ report }) => {
   const renderDesc = () => {
     const getDesc = () => {
       if (isNodeProcessing) {
-        return 'Running';
+        return t('nodeStatus.running');
       } else if (isNodePending) {
-        return 'Run terminated';
+        return t('nodeStatus.runTerminated');
       } else if (isNodeSucceed) {
-        return 'Succeed';
+        return t('nodeStatus.succeed');
       } else if (isNodeFailed) {
-        return 'Failed';
+        return t('nodeStatus.failed');
       } else if (isNodeCancelled) {
-        return 'Cancelled';
+        return t('nodeStatus.cancelled');
       }
     };
 
@@ -89,7 +91,7 @@ export const NodeStatusRender: FC<NodeStatusRenderProps> = ({ report }) => {
       return null;
     }
 
-    const count = <p className={styles.count}>Total: {snapshots.length}</p>;
+    const count = <p className={styles.count}>{t('nodeStatus.total', { count: snapshots.length })}</p>;
 
     if (snapshots.length <= displayCount) {
       return (
@@ -142,7 +144,7 @@ export const NodeStatusRender: FC<NodeStatusRenderProps> = ({ report }) => {
               [styles.inactive]: currentSnapshotIndex < displayCount,
             })}
             size="small"
-            placeholder="Select"
+            placeholder={t('nodeStatus.select')}
           >
             {snapshots.slice(displayCount).map((_, index) => {
               const actualIndex = index + displayCount;
@@ -177,10 +179,10 @@ export const NodeStatusRender: FC<NodeStatusRenderProps> = ({ report }) => {
           <div className={styles.error}>{currentSnapshot.error}</div>
         )}
         {renderSnapshotNavigation()}
-        <NodeStatusGroup title="Inputs" data={currentSnapshot?.inputs} />
-        <NodeStatusGroup title="Outputs" data={currentSnapshot?.outputs} />
-        <NodeStatusGroup title="Branch" data={currentSnapshot?.branch} optional />
-        <NodeStatusGroup title="Data" data={currentSnapshot?.data} optional />
+        <NodeStatusGroup title={t('nodeStatus.inputs')} data={currentSnapshot?.inputs} />
+        <NodeStatusGroup title={t('nodeStatus.outputs')} data={currentSnapshot?.outputs} />
+        <NodeStatusGroup title={t('nodeStatus.branch')} data={currentSnapshot?.branch} optional />
+        <NodeStatusGroup title={t('nodeStatus.data')} data={currentSnapshot?.data} optional />
       </div>
     </NodeStatusHeader>
   );

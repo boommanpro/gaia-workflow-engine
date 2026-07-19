@@ -42,6 +42,7 @@ import { SelectorBoxPopover } from '../components/selector-box-popover';
 import { runHistoryPanelFactory } from '../components/run-history';
 import { BaseNode, CommentRender, GroupNodeRender, LineAddButton, NodePanel } from '../components';
 import { getApiBaseUrl } from '../utils/apiConfig';
+import { getCurrentLocale } from '../i18n';
 
 export function useEditorProps(
   initialData: FlowDocumentJSON,
@@ -273,7 +274,8 @@ export function useEditorProps(
         console.log('---- Playground Dispose ----');
       },
       i18n: {
-        locale: navigator.language,
+        // 默认中文（与全局 i18n 模块保持一致）
+        locale: getCurrentLocale(),
         languages: {
           'zh-CN': {
             'Never Remind': '不再提示',

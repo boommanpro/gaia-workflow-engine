@@ -2,9 +2,7 @@ import { useCallback } from 'react';
 
 import { useClientContext, usePlayground } from '@flowgram.ai/free-layout-editor';
 import { Button, Tooltip } from '@douyinfe/semi-ui';
-import { IconFile } from '@douyinfe/semi-icons';
 
-import { NoteNodeRegistry } from '../../nodes/note';
 import { IconComment } from '../../assets/icon-comment.tsx';
 
 export const AddNote = () => {
@@ -18,10 +16,14 @@ export const AddNote = () => {
       {
         id: randomId,
         data: {
-          ...NoteNodeRegistry.data,
+          title: 'Note',
+          content: '',
         },
         meta: {
-          ...NoteNodeRegistry.meta,
+          size: {
+            width: 240,
+            height: 150,
+          },
         },
       }
     );

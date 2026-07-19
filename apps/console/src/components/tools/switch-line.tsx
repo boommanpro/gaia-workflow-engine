@@ -9,15 +9,17 @@ import { useService, WorkflowLinesManager } from '@flowgram.ai/free-layout-edito
 import { IconButton, Tooltip } from '@douyinfe/semi-ui';
 
 import { IconSwitchLine } from '../../assets/icon-switch-line';
+import { useLanguage, t } from '../../i18n';
 
 export const SwitchLine = () => {
   const linesManager = useService(WorkflowLinesManager);
+  useLanguage();
   const switchLine = useCallback(() => {
     linesManager.switchLineType();
   }, [linesManager]);
 
   return (
-    <Tooltip content={'Switch Line'}>
+    <Tooltip content={t('tool.switchLine')}>
       <IconButton type="tertiary" theme="borderless" onClick={switchLine} icon={IconSwitchLine} />
     </Tooltip>
   );

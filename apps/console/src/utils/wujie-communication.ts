@@ -3,11 +3,9 @@
  * 用于处理主应用和子应用之间的消息传递
  */
 
-import { 
+import {
   FreeLayoutPluginContext,
   WorkflowNodeJSON,
-  WorkflowDocument,
-  useService
 } from '@flowgram.ai/free-layout-editor';
 import { nodeRegistries } from '../nodes';
 import { WorkflowNodeType } from '../nodes/constants';
@@ -135,9 +133,20 @@ const handleAddComponentInternal = (componentData: any) => {
     console.log('Found node registry for type:', nodeType, nodeRegistry);
     
     // 获取默认节点配置
-    const defaultNodeConfig = nodeRegistry.onAdd();
+    const defaultNodeConfig = nodeRegistry.onAdd?.({} as any);
+    if (!defaultNodeConfig) {
+      console.error('Failed to get default node config');
+      if (window.$wujie && typeof window.$wujie.bus !== 'undefined') {
+        window.$wujie.bus.$emit('componentAdded', {
+          success: false,
+          error: 'Failed to get default node config',
+          message: '添加组件失败: 无法获取节点默认配置'
+        });
+      }
+      return;
+    }
     console.log('Default node config:', defaultNodeConfig);
-    
+
     // 合并来自AI助手的数据
     const nodeJSON: WorkflowNodeJSON = {
       ...defaultNodeConfig.data,

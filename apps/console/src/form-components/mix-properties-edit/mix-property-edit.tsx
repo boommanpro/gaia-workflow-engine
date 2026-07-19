@@ -8,11 +8,6 @@ import { LeftColumn, Row } from './styles';
 import { FxNewExpression } from '../fx-new-expression';
 import { JsonSchema } from '../../typings';
 
-interface PropertyItem {
-  type: string;
-  value?: any;
-}
-
 export interface PropertyEditProps {
   propertyKey: string;
   value: JsonSchema;

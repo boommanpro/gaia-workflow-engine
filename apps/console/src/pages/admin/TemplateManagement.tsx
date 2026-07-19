@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { workflowApi, type GaiaWorkflowTemplate } from '../../services/workflow-api';
 import { WorkflowViewer } from '../../editor';
 import type { CSSProperties } from 'react';
+import { useLanguage, t } from '../../i18n';
 
 const ACCENT = '#4d53e8';
 
@@ -63,7 +64,7 @@ const WorkflowThumbnail = ({ data, onClick }: { data?: string; onClick: () => vo
           justifyContent: 'center', color: '#999', fontSize: 11, cursor: 'pointer',
         }}
       >
-        空模板
+        {t('admin.emptyTemplate')}
       </div>
     );
   }
@@ -120,6 +121,7 @@ const WorkflowThumbnail = ({ data, onClick }: { data?: string; onClick: () => vo
 
 export const TemplateManagement = () => {
   const navigate = useNavigate();
+  useLanguage();
   const [templates, setTemplates] = useState<GaiaWorkflowTemplate[]>([]);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -178,7 +180,7 @@ export const TemplateManagement = () => {
 
   const handleSubmit = async () => {
     if (!templateForm.templateName.trim() || !templateForm.templateCode.trim()) {
-      alert('模板名称与编码为必填项');
+      alert(t('admin.validate.nameAndCode'));
       return;
     }
     setSubmitting(true);
@@ -203,7 +205,7 @@ export const TemplateManagement = () => {
       await loadData();
     } catch (err) {
       console.error('Submit failed:', err);
-      alert('保存失败：' + (err as Error).message);
+      alert(t('admin.saveFailed') + (err as Error).message);
     } finally {
       setSubmitting(false);
     }
@@ -211,13 +213,13 @@ export const TemplateManagement = () => {
 
   const handleDelete = async (tpl: GaiaWorkflowTemplate) => {
     if (tpl.id == null) return;
-    if (!confirm(`确定要删除模板「${tpl.templateName}」吗？`)) return;
+    if (!confirm(t('admin.deleteTemplate.confirm', { name: tpl.templateName }))) return;
     try {
       await workflowApi.deleteTemplate(tpl.id);
       await loadData();
     } catch (err) {
       console.error('Delete failed:', err);
-      alert('删除失败：' + (err as Error).message);
+      alert(t('admin.deleteFailed') + (err as Error).message);
     }
   };
 
@@ -231,7 +233,7 @@ export const TemplateManagement = () => {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 16 }}>
         <input
           type="text"
-          placeholder="搜索模板名称或编码"
+          placeholder={t('admin.search.templates')}
           value={searchKeyword}
           onChange={(e) => setSearchKeyword(e.target.value)}
           style={searchInputStyle}
@@ -256,7 +258,7 @@ export const TemplateManagement = () => {
           onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
           onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
         >
-          + 新建模板
+          {t('admin.createTemplate')}
         </button>
       </div>
 
@@ -265,7 +267,14 @@ export const TemplateManagement = () => {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
           <thead>
             <tr>
-              {['模板名称', '编码', '描述', '预览', '创建时间', '操作'].map((h) => (
+              {[
+                t('admin.template.name'),
+                t('admin.template.code'),
+                t('admin.template.desc'),
+                t('admin.template.preview'),
+                t('admin.template.createdAt'),
+                t('admin.template.actions'),
+              ].map((h) => (
                 <th key={h} style={thStyle}>{h}</th>
               ))}
             </tr>
@@ -273,11 +282,11 @@ export const TemplateManagement = () => {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} style={emptyTdStyle}>加载中…</td>
+                <td colSpan={6} style={emptyTdStyle}>{t('Loading')}</td>
               </tr>
             ) : filteredTemplates.length === 0 ? (
               <tr>
-                <td colSpan={6} style={emptyTdStyle}>暂无数据</td>
+                <td colSpan={6} style={emptyTdStyle}>{t('admin.noData')}</td>
               </tr>
             ) : (
               filteredTemplates.map((tpl) => (
@@ -290,9 +299,9 @@ export const TemplateManagement = () => {
                   </td>
                   <td style={{ ...tdStyle, color: '#666', whiteSpace: 'nowrap' }}>{formatDateTime(tpl.createdAt)}</td>
                   <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
-                    <button onClick={() => openEditModal(tpl)} style={actionBtnBlueStyle}>编辑</button>
-                    <button onClick={() => handleOpenEditor(tpl)} style={actionBtnPurpleStyle}>打开编辑器</button>
-                    <button onClick={() => handleDelete(tpl)} style={actionBtnRedStyle}>删除</button>
+                    <button onClick={() => openEditModal(tpl)} style={actionBtnBlueStyle}>{t('Edit')}</button>
+                    <button onClick={() => handleOpenEditor(tpl)} style={actionBtnPurpleStyle}>{t('admin.openEditor')}</button>
+                    <button onClick={() => handleDelete(tpl)} style={actionBtnRedStyle}>{t('Delete')}</button>
                   </td>
                 </tr>
               ))
@@ -306,51 +315,51 @@ export const TemplateManagement = () => {
         <div onClick={closeModal} style={modalOverlayStyle}>
           <div onClick={(e) => e.stopPropagation()} style={modalCardStyle}>
             <h2 style={{ margin: '0 0 22px 0', fontSize: 18, fontWeight: 700, letterSpacing: '-0.01em' }}>
-              {editingTemplate ? '编辑模板' : '新建模板'}
+              {editingTemplate ? t('admin.modal.editTemplate') : t('admin.modal.createTemplate')}
             </h2>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={fieldLabelStyle}>模板名称 <span style={{ color: '#ef4444' }}>*</span></label>
+              <label style={fieldLabelStyle}>{t('admin.modal.templateName')} <span style={{ color: '#ef4444' }}>*</span></label>
               <input
                 type="text"
                 value={templateForm.templateName}
                 onChange={(e) => setTemplateForm({ ...templateForm, templateName: e.target.value })}
                 style={inputStyle}
-                placeholder="请输入模板名称"
+                placeholder={t('admin.modal.placeholder.name')}
               />
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={fieldLabelStyle}>模板编码 <span style={{ color: '#ef4444' }}>*</span></label>
+              <label style={fieldLabelStyle}>{t('admin.modal.templateCode')} <span style={{ color: '#ef4444' }}>*</span></label>
               <input
                 type="text"
                 value={templateForm.templateCode}
                 onChange={(e) => setTemplateForm({ ...templateForm, templateCode: e.target.value })}
                 style={editingTemplate ? { ...inputStyle, background: '#f5f5f7', color: '#999', cursor: 'not-allowed' } : inputStyle}
-                placeholder="请输入模板编码"
+                placeholder={t('admin.modal.placeholder.code')}
                 disabled={!!editingTemplate}
               />
             </div>
 
             <div style={{ marginBottom: 24 }}>
-              <label style={fieldLabelStyle}>模板描述</label>
+              <label style={fieldLabelStyle}>{t('admin.modal.templateDesc')}</label>
               <textarea
                 value={templateForm.templateDesc}
                 onChange={(e) => setTemplateForm({ ...templateForm, templateDesc: e.target.value })}
                 style={{ ...inputStyle, resize: 'vertical', minHeight: 60 }}
-                placeholder="请输入模板描述"
+                placeholder={t('admin.modal.placeholder.desc')}
                 rows={3}
               />
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
-              <button onClick={closeModal} style={cancelBtnStyle}>取消</button>
+              <button onClick={closeModal} style={cancelBtnStyle}>{t('Cancel')}</button>
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
                 style={{ ...submitBtnStyle, opacity: submitting ? 0.6 : 1, cursor: submitting ? 'not-allowed' : 'pointer' }}
               >
-                {submitting ? '提交中…' : '提交'}
+                {submitting ? t('Submitting') : t('Submit')}
               </button>
             </div>
           </div>
@@ -400,7 +409,7 @@ export const TemplateManagement = () => {
                   cursor: 'pointer',
                 }}
               >
-                关闭
+                {t('Close')}
               </button>
             </div>
             <div style={{ flex: 1, overflow: 'hidden' }}>

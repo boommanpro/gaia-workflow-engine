@@ -5,10 +5,10 @@
 
 import React, { useEffect, useState } from 'react';
 
-import { FieldRenderProps } from '@flowgram.ai/free-layout-editor';
 import { Button, Card, Divider, Empty, Space, Tag, Typography } from '@douyinfe/semi-ui';
 import { IconInfoCircle, IconPlayCircle } from '@douyinfe/semi-icons';
 import { getApiBaseUrl } from '../../../utils/apiConfig'; // 导入API配置
+import { useLanguage, t } from '../../../i18n';
 
 const { Title, Text } = Typography;
 
@@ -17,8 +17,8 @@ interface WorkflowDefinition {
   name: string;
   description: string;
   definition: any;
-  inputs?: string;
-  outputs?: string;
+  inputs?: any;
+  outputs?: any;
   tags?: string;
   isExample?: boolean;
   createdAt?: string;
@@ -51,7 +51,9 @@ const fetchWorkflowsFromAPI = async (): Promise<WorkflowDefinition[]> => {
   }
 };
 
-export interface WorkflowListSelectorProps extends FieldRenderProps<string> {
+export interface WorkflowListSelectorProps {
+  value?: string;
+  onChange?: (workflowId: string) => void;
   onWorkflowChange?: (workflowId: string, workflow: WorkflowDefinition) => void;
 }
 
@@ -63,6 +65,7 @@ export const WorkflowListSelector: React.FC<WorkflowListSelectorProps> = ({
   const [workflows, setWorkflows] = useState<WorkflowDefinition[]>([]);
   const [selectedWorkflow, setSelectedWorkflow] = useState<WorkflowDefinition | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  useLanguage();
 
   useEffect(() => {
     // 从API获取workflow列表
@@ -99,7 +102,7 @@ export const WorkflowListSelector: React.FC<WorkflowListSelectorProps> = ({
 
   const renderParameterSchema = (schema: any, title: string) => {
     if (!schema || !schema.properties) {
-      return <Text type="secondary">无{title}</Text>;
+      return <Text type="secondary">{t('workflow.empty', { title })}</Text>;
     }
 
     const properties = Object.entries(schema.properties);
@@ -120,11 +123,11 @@ export const WorkflowListSelector: React.FC<WorkflowListSelectorProps> = ({
   if (loading) {
     return (
       <div>
-        <Space direction="vertical" style={{ width: '100%' }}>
+        <Space vertical style={{ width: '100%' }}>
           <div>
-            <Text strong>选择工作流:</Text>
+            <Text strong>{t('workflow.selectWorkflow')}</Text>
             <div style={{ textAlign: 'center', padding: '20px 0' }}>
-              <Text>正在加载工作流列表...</Text>
+              <Text>{t('workflow.loadingList')}</Text>
             </div>
           </div>
         </Space>
@@ -135,13 +138,12 @@ export const WorkflowListSelector: React.FC<WorkflowListSelectorProps> = ({
   if (workflows.length === 0) {
     return (
       <div>
-        <Space direction="vertical" style={{ width: '100%' }}>
+        <Space vertical style={{ width: '100%' }}>
           <div>
-            <Text strong>选择工作流:</Text>
+            <Text strong>{t('workflow.selectWorkflow')}</Text>
             <Empty
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              title="暂无可用工作流"
-              description="当前没有可用的workflow，请先创建或导入workflow"
+              title={t('workflow.noAvailable')}
+              description=""
               style={{ padding: '20px 0' }}
             />
           </div>
@@ -152,15 +154,14 @@ export const WorkflowListSelector: React.FC<WorkflowListSelectorProps> = ({
 
   return (
     <div>
-      <Space direction="vertical" style={{ width: '100%' }}>
+      <Space vertical style={{ width: '100%' }}>
         <div>
-          <Text strong>选择工作流:</Text>
+          <Text strong>{t('workflow.selectWorkflow')}</Text>
           <div style={{ marginTop: 8, maxHeight: '400px', overflowY: 'auto' }}>
-            <Space direction="vertical" style={{ width: '100%' }}>
+            <Space vertical style={{ width: '100%' }}>
               {workflows.map((workflow) => (
                 <Card
                   key={workflow.id}
-                  size="small"
                   style={{
                     width: '100%',
                     cursor: 'pointer',
@@ -172,9 +173,9 @@ export const WorkflowListSelector: React.FC<WorkflowListSelectorProps> = ({
                     backgroundColor: selectedWorkflow?.id === workflow.id ? '#f0f5ff' : '#ffffff',
                   }}
                   bodyStyle={{ padding: '12px' }}
-                  onClick={() => handleWorkflowSelect(workflow)}
+                  {...{ onClick: () => handleWorkflowSelect(workflow) } as any}
                 >
-                  <Space direction="vertical" style={{ width: '100%' }}>
+                  <Space vertical style={{ width: '100%' }}>
                     <div
                       style={{
                         display: 'flex',
@@ -182,9 +183,9 @@ export const WorkflowListSelector: React.FC<WorkflowListSelectorProps> = ({
                         alignItems: 'center',
                       }}
                     >
-                      <Title level={5} style={{ margin: 0 }}>
+                      <Title heading={5} style={{ margin: 0 }}>
                         {workflow.isExample && (
-                          <Tag size="small" color="blue" style={{ marginRight: 8 }}>
+                          <Tag color="blue" style={{ marginRight: 8 }}>
                             示例
                           </Tag>
                         )}
@@ -203,10 +204,10 @@ export const WorkflowListSelector: React.FC<WorkflowListSelectorProps> = ({
 
                     <Divider style={{ margin: '8px 0' }} />
 
-                    {renderParameterSchema(workflow.inputs, '输入参数')}
+                    {renderParameterSchema(workflow.inputs, t('workflow.inputParams'))}
 
                     <div style={{ marginTop: 8 }}>
-                      {renderParameterSchema(workflow.outputs, '输出参数')}
+                      {renderParameterSchema(workflow.outputs, t('workflow.outputParams'))}
                     </div>
 
                     <div
@@ -220,14 +221,14 @@ export const WorkflowListSelector: React.FC<WorkflowListSelectorProps> = ({
                       <Space>
                         {workflow.tags &&
                           workflow.tags.split(',').map((tag, index) => (
-                            <Tag key={index} size="small" color="green">
+                            <Tag key={index} color="green">
                               {tag.trim()}
                             </Tag>
                           ))}
                       </Space>
 
                       <Button
-                        type="link"
+                        theme="borderless"
                         size="small"
                         icon={<IconPlayCircle />}
                         onClick={(e) => {
@@ -247,12 +248,11 @@ export const WorkflowListSelector: React.FC<WorkflowListSelectorProps> = ({
 
         {selectedWorkflow && (
           <Card
-            size="small"
             style={{ backgroundColor: '#f0f5ff', border: '2px solid #1890ff' }}
             bodyStyle={{ padding: '12px' }}
           >
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <Title level={5} style={{ margin: 0 }}>
+            <Space vertical style={{ width: '100%' }}>
+              <Title heading={5} style={{ margin: 0 }}>
                 <IconInfoCircle /> 已选择: {selectedWorkflow.name}
               </Title>
               <Text type="secondary" style={{ margin: '4px 0 8px 0', fontSize: 12 }}>
@@ -278,7 +278,9 @@ export const WorkflowListSelector: React.FC<WorkflowListSelectorProps> = ({
 };
 
 // 作为Field组件使用的包装器
-export interface WorkflowListSelectorFieldProps extends FieldRenderProps<string> {
+export interface WorkflowListSelectorFieldProps {
+  value?: string;
+  onChange?: (workflowId: string) => void;
   onWorkflowChange?: (workflowId: string, workflow: WorkflowDefinition) => void;
 }
 
@@ -289,15 +291,12 @@ export const WorkflowListSelectorField: React.FC<WorkflowListSelectorFieldProps>
 }) => (
   <WorkflowListSelector
     value={value}
-    onChange={(workflowId, workflow) => {
-      // 调用外部的自定义回调
-      if (onWorkflowChange) {
-        onWorkflowChange(workflowId, workflow);
-      }
+    onChange={(workflowId: string) => {
       // 同时调用标准的字段变更回调
       if (onChange) {
         onChange(workflowId);
       }
     }}
+    onWorkflowChange={onWorkflowChange}
   />
 );

@@ -7,7 +7,6 @@ import {
   WorkflowNodeEntity,
   PositionSchema,
   FlowNodeTransformData,
-  nanoid,
 } from '@flowgram.ai/free-layout-editor';
 
 import { generateValidId } from '../utils';

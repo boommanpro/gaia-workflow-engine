@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import { Button } from '@douyinfe/semi-ui';
 import { IconPlus } from '@douyinfe/semi-icons';
 
-import { PropertyEdit } from '../properties-edit/property-edit.tsx';
 import { JsonSchema } from '../../typings';
 import { useNodeRenderContext } from '../../hooks';
 import { MixPropertyEdit } from './mix-property-edit.tsx';
@@ -64,12 +63,6 @@ export const MixPropertiesEdit: React.FC<PropertiesEditProps> = (props) => {
         value: propertyValue,
       });
     }
-  };
-
-  // 删除属性的处理函数
-  const handleDelete = (propertyKey: string) => {
-    const updatedValue = value.filter((item) => item.name !== propertyKey);
-    props.onChange(updatedValue);
   };
 
   return (

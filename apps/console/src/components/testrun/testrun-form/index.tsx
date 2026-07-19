@@ -13,6 +13,7 @@ import { JsonValueEditor } from '../json-value-editor';
 import { useFormMeta } from '../hooks/use-form-meta';
 import { useFields } from '../hooks/use-fields';
 import { useSyncDefault } from '../hooks';
+import { useLanguage, t } from '../../../i18n';
 
 import styles from './index.module.less';
 
@@ -23,6 +24,7 @@ interface TestRunFormProps {
 
 export const TestRunForm: FC<TestRunFormProps> = ({ values, setValues }) => {
   const formMeta = useFormMeta();
+  useLanguage();
 
   const fields = useFields({
     formMeta,
@@ -51,7 +53,7 @@ export const TestRunForm: FC<TestRunFormProps> = ({ values, setValues }) => {
               precision={0}
               value={field.value}
               onChange={(value) => field.onChange(value)}
-              placeholder="Please input integer"
+              placeholder={t('testRun.placeholder.integer')}
             />
           </div>
         );
@@ -61,7 +63,7 @@ export const TestRunForm: FC<TestRunFormProps> = ({ values, setValues }) => {
             <InputNumber
               value={field.value}
               onChange={(value) => field.onChange(value)}
-              placeholder="Please input number"
+              placeholder={t('testRun.placeholder.number')}
             />
           </div>
         );
@@ -83,7 +85,7 @@ export const TestRunForm: FC<TestRunFormProps> = ({ values, setValues }) => {
             <Input
               value={field.value}
               onChange={(value) => field.onChange(value)}
-              placeholder="Please input text"
+              placeholder={t('testRun.placeholder.text')}
             />
           </div>
         );
@@ -95,8 +97,8 @@ export const TestRunForm: FC<TestRunFormProps> = ({ values, setValues }) => {
     return (
       <div className={styles.formContainer}>
         <div className={styles.emptyState}>
-          <div className={styles.emptyText}>Empty</div>
-          <div className={styles.emptyText}>No inputs found in start node</div>
+          <div className={styles.emptyText}>{t('testRun.empty')}</div>
+          <div className={styles.emptyText}>{t('testRun.noInputs')}</div>
         </div>
       </div>
     );

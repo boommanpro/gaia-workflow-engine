@@ -78,7 +78,7 @@ export function BranchInputs() {
                       <FieldArray name={`${branchField.name}.conditions`}>
                         {({ field: conditionsField }) => (
                           <>
-                            {conditionsField.value?.length > 1 && (
+                            {(conditionsField.value?.length || 0) > 1 && (
                               <Radio.Group
                                 value={branch.value.logic}
                                 onChange={(e) => {
@@ -96,7 +96,7 @@ export function BranchInputs() {
                           </>
                         )}
                       </FieldArray>
-                      {!readonly && branchesField.value?.length > 1 && (
+                      {!readonly && (branchesField.value?.length || 0) > 1 && (
                         <Button
                           theme="borderless"
                           disabled={readonly}
@@ -139,7 +139,7 @@ export function BranchInputs() {
                                         }
                                       />
 
-                                      {!readonly && conditionsField.value?.length > 1 && (
+                                      {!readonly && (conditionsField.value?.length || 0) > 1 && (
                                         <Button
                                           theme="borderless"
                                           disabled={readonly}

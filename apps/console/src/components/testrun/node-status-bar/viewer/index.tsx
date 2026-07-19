@@ -8,6 +8,8 @@ import React, { useState } from 'react';
 import classnames from 'classnames';
 import { Toast } from '@douyinfe/semi-ui';
 
+import { useLanguage, t } from '../../../../i18n';
+
 import styles from './index.module.less';
 
 interface DataStructureViewerProps {
@@ -24,10 +26,11 @@ interface TreeNodeProps {
 
 const TreeNode: React.FC<TreeNodeProps> = ({ label, value, level, isLast = false }) => {
   const [isExpanded, setIsExpanded] = useState(true);
+  useLanguage();
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
-    Toast.success('Copied');
+    Toast.success(t('testRun.copied'));
   };
 
   const isExpandable = (val: any) =>

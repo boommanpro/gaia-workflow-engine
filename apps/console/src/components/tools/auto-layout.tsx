@@ -9,10 +9,12 @@ import { usePlayground, usePlaygroundTools } from '@flowgram.ai/free-layout-edit
 import { IconButton, Tooltip } from '@douyinfe/semi-ui';
 
 import { IconAutoLayout } from '../../assets/icon-auto-layout';
+import { useLanguage, t } from '../../i18n';
 
 export const AutoLayout = () => {
   const tools = usePlaygroundTools();
   const playground = usePlayground();
+  useLanguage();
   const autoLayout = useCallback(async () => {
     await tools.autoLayout({
       enableAnimation: true,
@@ -27,7 +29,7 @@ export const AutoLayout = () => {
   }, [tools]);
 
   return (
-    <Tooltip content={'Auto Layout'}>
+    <Tooltip content={t('tool.autoLayout')}>
       <IconButton
         disabled={playground.config.readonly}
         type="tertiary"

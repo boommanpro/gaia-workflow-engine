@@ -9,6 +9,8 @@ import { Modal, Input, Button as SemiButton } from '@douyinfe/semi-ui';
 import { workflowApi } from '../../services/workflow-api';
 import { getApiBaseUrl, updateApiBaseUrl } from '../../utils/apiConfig';
 import { publicPath } from '../../utils/public-path';
+import { useLanguage, t } from '../../i18n';
+import { LanguageToggle } from '../../components/language-toggle';
 
 const ACCENT = '#4d53e8';
 
@@ -38,16 +40,17 @@ const IconBackHome = () => (
 
 /* ---------------- Page title map ---------------- */
 
-const PAGE_TITLES: Record<string, string> = {
-  '/admin/workflows': '工作流管理',
-  '/admin/templates': '模板管理',
+const PAGE_TITLE_KEYS: Record<string, string> = {
+  '/admin/workflows': 'admin.workflows',
+  '/admin/templates': 'admin.templates',
 };
 
 const getPageTitle = (pathname: string): string => {
-  if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname];
-  if (pathname.startsWith('/admin/workflows')) return '工作流管理';
-  if (pathname.startsWith('/admin/templates')) return '模板管理';
-  return '管理后台';
+  const key = PAGE_TITLE_KEYS[pathname];
+  if (key) return t(key);
+  if (pathname.startsWith('/admin/workflows')) return t('admin.workflows');
+  if (pathname.startsWith('/admin/templates')) return t('admin.templates');
+  return t('admin.title.default');
 };
 
 /* ---------------- Layout component ---------------- */
@@ -55,6 +58,8 @@ const getPageTitle = (pathname: string): string => {
 export const AdminLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  // 订阅语言切换，语言变化时触发重渲染
+  useLanguage();
   const pageTitle = getPageTitle(location.pathname);
   const [showServerConfig, setShowServerConfig] = useState(false);
   const [serverUrl, setServerUrl] = useState('');
@@ -102,13 +107,13 @@ export const AdminLayout = () => {
         <div
           style={{ padding: '24px 20px 20px 20px', borderBottom: '1px solid #f0f0f0', cursor: 'pointer' }}
           onClick={() => navigate('/')}
-          title="返回首页"
+          title={t('admin.returnHome')}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <img src={publicPath('logo.svg')} alt="Gaia" style={{ width: 48, height: 48 }} />
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <span style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.1, letterSpacing: '-0.01em' }}>Gaia</span>
-              <span style={{ fontSize: 11.5, color: '#999', marginTop: 2 }}>盖亚 · 管理后台</span>
+              <span style={{ fontSize: 11.5, color: '#999', marginTop: 2 }}>{t('admin.layout.title')}</span>
             </div>
           </div>
         </div>
@@ -117,14 +122,38 @@ export const AdminLayout = () => {
         <nav style={{ flex: 1, padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: 4 }}>
           <NavLink to="/admin/workflows" style={navLinkStyle}>
             <IconWorkflow />
-            <span>工作流管理</span>
+            <span>{t('admin.workflows')}</span>
           </NavLink>
           <NavLink to="/admin/templates" style={navLinkStyle}>
             <IconTemplate />
-            <span>模板管理</span>
+            <span>{t('admin.templates')}</span>
           </NavLink>
         </nav>
 
+        {/* Sidebar footer: language toggle + return home */}
+        <div style={{ padding: '12px 16px', borderTop: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <button
+            type="button"
+            onClick={() => navigate('/')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '6px 10px',
+              background: 'transparent',
+              border: '1px solid #e8e8ea',
+              borderRadius: 6,
+              fontSize: 13,
+              color: '#555',
+              cursor: 'pointer',
+            }}
+            title={t('admin.returnHome')}
+          >
+            <IconBackHome />
+            <span>{t('admin.returnHome')}</span>
+          </button>
+          <LanguageToggle />
+        </div>
       </aside>
 
       {/* ---------- Main ---------- */}
@@ -158,7 +187,7 @@ export const AdminLayout = () => {
         >
           {checking ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#999', fontSize: 15 }}>
-              正在连接后端服务...
+              {t('admin.connecting')}
             </div>
           ) : (
             <Outlet />
@@ -168,7 +197,7 @@ export const AdminLayout = () => {
 
       {/* 后端未连接时弹窗配置服务端地址 */}
       <Modal
-        title="配置服务端地址"
+        title={t('serverConfig.title')}
         visible={showServerConfig}
         closable={false}
         maskClosable={false}
@@ -177,7 +206,7 @@ export const AdminLayout = () => {
       >
         <div style={{ padding: '8px 0' }}>
           <p style={{ fontSize: 14, color: '#666', marginBottom: 16, lineHeight: 1.6 }}>
-            无法连接到后端服务，请输入您的后端服务地址（例如：http://127.0.0.1:48080/api）。保存后将自动刷新页面。
+            {t('serverConfig.desc')}
           </p>
           <Input
             value={serverUrl}
@@ -193,7 +222,7 @@ export const AdminLayout = () => {
               }}
               style={{ borderRadius: 6 }}
             >
-              返回首页
+              {t('serverConfig.returnHome')}
             </SemiButton>
             <SemiButton
               theme="solid"
@@ -205,7 +234,7 @@ export const AdminLayout = () => {
                 }
               }}
             >
-              保存并重连
+              {t('serverConfig.saveReconnect')}
             </SemiButton>
           </div>
         </div>

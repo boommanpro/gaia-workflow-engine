@@ -5,10 +5,10 @@
 
 import React, { useEffect, useState } from 'react';
 
-import { FieldRenderProps } from '@flowgram.ai/free-layout-editor';
 import { Button, Card, Divider, Select, Space, Tag, Typography } from '@douyinfe/semi-ui';
 import { IconInfoCircle, IconPlayCircle } from '@douyinfe/semi-icons';
 import { getApiBaseUrl } from '../../../utils/apiConfig'; // 导入API配置
+import { useLanguage, t } from '../../../i18n';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -18,8 +18,8 @@ interface WorkflowDefinition {
   name: string;
   description: string;
   definition: any;
-  inputs?: string;
-  outputs?: string;
+  inputs?: any;
+  outputs?: any;
   tags?: string;
   isExample?: boolean;
   createdAt?: string;
@@ -176,6 +176,7 @@ export const WorkflowSelector: React.FC<WorkflowSelectorProps> = ({ value, onCha
   const [workflows, setWorkflows] = useState<WorkflowDefinition[]>([]);
   const [selectedWorkflow, setSelectedWorkflow] = useState<WorkflowDefinition | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  useLanguage();
 
   useEffect(() => {
     // 从API获取workflow列表
@@ -214,7 +215,7 @@ export const WorkflowSelector: React.FC<WorkflowSelectorProps> = ({ value, onCha
 
   const renderParameterSchema = (schema: any, title: string) => {
     if (!schema || !schema.properties) {
-      return <Text type="secondary">无{title}</Text>;
+      return <Text type="secondary">{t('workflow.empty', { title })}</Text>;
     }
 
     const properties = Object.entries(schema.properties);
@@ -232,15 +233,17 @@ export const WorkflowSelector: React.FC<WorkflowSelectorProps> = ({ value, onCha
     );
   };
 
+  const AnySelect = Select as any;
+
   if (loading) {
     return (
       <div>
-        <Space direction="vertical" style={{ width: '100%' }}>
+        <Space vertical style={{ width: '100%' }}>
           <div>
-            <Text strong>选择工作流:</Text>
-            <Select
+            <Text strong>{t('workflow.selectWorkflow')}</Text>
+            <AnySelect
               style={{ width: '100%', marginTop: 8 }}
-              placeholder="正在加载工作流列表..."
+              placeholder={t('workflow.loadingList')}
               loading={true}
               value={value}
               onChange={handleWorkflowChange}
@@ -254,12 +257,12 @@ export const WorkflowSelector: React.FC<WorkflowSelectorProps> = ({ value, onCha
 
   return (
     <div>
-      <Space direction="vertical" style={{ width: '100%' }}>
+      <Space vertical style={{ width: '100%' }}>
         <div>
-          <Text strong>选择工作流:</Text>
-          <Select
+          <Text strong>{t('workflow.selectWorkflow')}</Text>
+          <AnySelect
             style={{ width: '100%', marginTop: 8 }}
-            placeholder={workflows.length === 0 ? '暂无可用工作流' : '请选择要嵌入的工作流'}
+            placeholder={workflows.length === 0 ? t('workflow.noAvailable') : t('workflow.selectToEmbed')}
             value={value}
             onChange={handleWorkflowChange}
             allowClear
@@ -275,14 +278,14 @@ export const WorkflowSelector: React.FC<WorkflowSelectorProps> = ({ value, onCha
                 </Space>
               </Option>
             ))}
-          </Select>
+          </AnySelect>
         </div>
 
         {selectedWorkflow && (
-          <Card size="small" style={{ backgroundColor: '#fafafa' }}>
-            <Space direction="vertical" style={{ width: '100%' }}>
+          <Card style={{ backgroundColor: '#fafafa' }}>
+            <Space vertical style={{ width: '100%' }}>
               <div>
-                <Title level={5} style={{ margin: 0 }}>
+                <Title heading={5} style={{ margin: 0 }}>
                   <IconInfoCircle /> {selectedWorkflow.name}
                 </Title>
                 <Text
@@ -295,14 +298,14 @@ export const WorkflowSelector: React.FC<WorkflowSelectorProps> = ({ value, onCha
 
               <Divider style={{ margin: '8px 0' }} />
 
-              {renderParameterSchema(selectedWorkflow.inputs, '输入参数')}
+              {renderParameterSchema(selectedWorkflow.inputs, t('workflow.inputParams'))}
 
               <div style={{ marginTop: 8 }}>
-                {renderParameterSchema(selectedWorkflow.outputs, '输出参数')}
+                {renderParameterSchema(selectedWorkflow.outputs, t('workflow.outputParams'))}
               </div>
 
               <Button
-                type="link"
+                theme="borderless"
                 size="small"
                 icon={<IconPlayCircle />}
                 onClick={() => {
@@ -321,7 +324,9 @@ export const WorkflowSelector: React.FC<WorkflowSelectorProps> = ({ value, onCha
 };
 
 // 作为Field组件使用的包装器
-export interface WorkflowSelectorFieldProps extends FieldRenderProps<string> {
+export interface WorkflowSelectorFieldProps {
+  value?: string;
+  onChange?: (workflowId: string) => void;
   onWorkflowChange?: (workflowId: string, workflow: WorkflowDefinition) => void;
 }
 
@@ -332,7 +337,7 @@ export const WorkflowSelectorField: React.FC<WorkflowSelectorFieldProps> = ({
 }) => (
   <WorkflowSelector
     value={value}
-    onChange={(workflowId, workflow) => {
+    onChange={(workflowId: string, workflow: WorkflowDefinition) => {
       // 调用外部的自定义回调
       if (onWorkflowChange) {
         onWorkflowChange(workflowId, workflow);

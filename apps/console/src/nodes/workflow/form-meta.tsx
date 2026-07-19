@@ -25,11 +25,13 @@ import { useIsSidebar } from '../../hooks';
 import { FormInputs } from '../../form-components/form-inputs';
 import { FormContent, FormHeader } from '../../form-components';
 import { WorkflowListSelectorField } from './components/workflow-list-selector';
+import { useLanguage, t } from '../../i18n';
 
 const { Text } = Typography;
 
 export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => {
   const isSidebar = useIsSidebar();
+  useLanguage();
 
   if (isSidebar) {
     return (
@@ -78,8 +80,8 @@ export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => {
   }
 
   // 添加一个字段来显示选择的workflow信息
-  const selectedWorkflowId = form.getValue('workflowId');
-  const availableWorkflows = form.getValue('availableWorkflows') || [];
+  const selectedWorkflowId = form.getValueIn('workflowId');
+  const availableWorkflows = form.getValueIn('availableWorkflows') || [];
   const selectedWorkflow = availableWorkflows.find((w: any) => w.id === selectedWorkflowId);
 
   return (
@@ -98,25 +100,25 @@ export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => {
                 borderRadius: '6px',
               }}
             >
-              <Space direction="vertical" style={{ width: '100%' }}>
+              <Space vertical style={{ width: '100%' }}>
                 <div
                   style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                 >
-                  <Text strong>已选择工作流</Text>
+                  <Text strong>{t('workflow.selected')}</Text>
                   <Button
-                    type="link"
+                    theme="borderless"
                     size="small"
                     icon={<IconPlayCircle />}
                     onClick={() => {
                       console.log('查看workflow详情:', selectedWorkflow.id);
                     }}
                   >
-                    查看详情
+                    {t('workflow.viewDetails')}
                   </Button>
                 </div>
                 <Text>ID: </Text>
                 <Text code>{selectedWorkflow.id}</Text>
-                <Text>名称: </Text>
+                <Text>{t('workflow.name')}</Text>
                 <Text>{selectedWorkflow.name}</Text>
                 <Text type="secondary" style={{ fontSize: 12 }}>
                   {selectedWorkflow.description}
@@ -147,7 +149,7 @@ export const formMeta: FormMeta<FlowNodeJSON> = {
   validateTrigger: ValidateTrigger.onChange,
   validate: {
     title: ({ value }: { value: string }) => (value ? undefined : 'Title is required'),
-    workflowId: ({ value }: { value: string }) => (value ? undefined : '请选择一个工作流'),
+    workflowId: ({ value }: { value: string }) => (value ? undefined : t('workflow.validate.required')),
   },
   effect: {
     title: syncVariableTitle,

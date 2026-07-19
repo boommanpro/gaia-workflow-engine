@@ -12,6 +12,7 @@ import {
 import { Tooltip, Popover } from '@douyinfe/semi-ui';
 
 import { MousePadSelector } from './mouse-pad-selector';
+import { useLanguage, t } from '../../i18n';
 
 export const CACHE_KEY = 'workflow_prefer_interactive_type';
 export const IS_MAC_OS = /(Macintosh|MacIntel|MacPPC|Mac68K|iPad)/.test(navigator.userAgent);
@@ -35,6 +36,7 @@ export enum InteractiveType {
 
 export const Interactive = () => {
   const tools = usePlaygroundTools();
+  useLanguage();
   const [visible, setVisible] = useState(false);
 
   const [interactiveType, setInteractiveType] = useState<InteractiveType>(
@@ -44,7 +46,7 @@ export const Interactive = () => {
   const [showInteractivePanel, setShowInteractivePanel] = useState(false);
 
   const mousePadTooltip =
-    interactiveType === InteractiveType.Mouse ? 'Mouse-Friendly' : 'Touchpad-Friendly';
+    interactiveType === InteractiveType.Mouse ? t('tool.mouseFriendly') : t('tool.touchpadFriendly');
 
   useEffect(() => {
     // read from localStorage

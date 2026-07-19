@@ -1,7 +1,17 @@
 import React from 'react';
 
-import { VariableTypeIcons } from '@flowgram.ai/form-materials';
 import { Tag, Dropdown } from '@douyinfe/semi-ui';
+
+// VariableTypeIcons is not exported from @flowgram.ai/form-materials in this version
+// Using a simple placeholder map
+const VariableTypeIcons: Record<string, string> = {
+  object: '{}',
+  boolean: 'B',
+  array: '[]',
+  string: 'S',
+  integer: 'I',
+  number: 'N',
+};
 
 export interface TypeSelectorProps {
   value?: string;

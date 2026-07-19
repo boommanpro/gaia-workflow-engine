@@ -5,11 +5,13 @@ import { Button, Tooltip } from '@douyinfe/semi-ui';
 import { IconTerminal } from '@douyinfe/semi-icons';
 
 import { CodeEditorModal } from '../code-editor-modal';
+import { useLanguage, t } from '../../i18n';
 
 export const SchemaEditor = () => {
   const ctx = useClientContext();
   const [showData, setShowData] = useState('');
   const playground = usePlayground();
+  useLanguage();
   const [showModal, setShowModal] = useState(false);
   const consoleJSON = useCallback(async () => {
     const jsonData = JSON.stringify(ctx.document.toJSON(), null, 2);
@@ -28,7 +30,7 @@ export const SchemaEditor = () => {
   );
 
   useEffect(() => {
-    const handleLoadWorkflow = (data) => {
+    const handleLoadWorkflow = (data: any) => {
       console.log('Editor组件收到加载工作流事件:', data);
       if (data.payload) {
         if (ctx && data.payload.content) {
@@ -60,7 +62,7 @@ export const SchemaEditor = () => {
 
   return (
     <>
-      <Tooltip content={'Schema Editor'}>
+      <Tooltip content={t('tool.schemaEditor')}>
         <Button
           disabled={playground.config.readonly}
           type="tertiary"

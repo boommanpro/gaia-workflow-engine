@@ -3,22 +3,22 @@ import React, { useState } from 'react';
 import { useClientContext } from '@flowgram.ai/free-layout-editor';
 import { Button, Typography } from '@douyinfe/semi-ui';
 
-import { draggableContainerStyle } from '../sidebar/styles.tsx';
-import { Resizable } from '../draggable-y';
 import { PropertyItem, RunMixPropertiesEdit } from '../../form-components/run-properties-edit';
 import { getApiBaseUrl } from '../../utils/apiConfig'; // 导入API配置
+import { useLanguage, t } from '../../i18n';
 
 const RunNodeSidebar: React.FC = () => {
-  const { selection, playground } = useClientContext();
+  const { selection } = useClientContext();
   const [inputs, setInputs] = useState<PropertyItem[]>([]);
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  useLanguage();
 
   const data = React.useMemo(() => {
     if (!selection || selection.selection.length !== 1) {
       return null;
     }
-    const node = selection.selection[0];
+    const node = selection.selection[0] as any;
     if (node._metaCache?.hiddenSidebar) {
       return null;
     }
@@ -26,7 +26,7 @@ const RunNodeSidebar: React.FC = () => {
   }, [selection.selection]);
 
   function parseProperties(properties: any) {
-    let res = [];
+    let res: any[] = [];
     Object.keys(properties || {}).map((key) => {
       res.push({
         name: key,
@@ -37,7 +37,7 @@ const RunNodeSidebar: React.FC = () => {
   }
 
   React.useEffect(() => {
-    const node = selection.selection[0];
+    const node = selection.selection[0] as any;
     console.log('data changed:', data);
     if (!node || node._metaCache?.runDisable) {
       return;
@@ -71,7 +71,7 @@ const RunNodeSidebar: React.FC = () => {
       setResult(data);
     } catch (error) {
       console.error('运行出错:', error);
-      setResult({ error: '请求失败' });
+      setResult({ error: t('runPanel.requestFailed') });
     } finally {
       setLoading(false);
     }
@@ -102,8 +102,8 @@ const RunNodeSidebar: React.FC = () => {
 
   return (
     <div style={{ padding: '20px' }}>
-      <Typography.Title heading={5}>试运行</Typography.Title>
-      <Typography.Title heading={6}>输入</Typography.Title>
+      <Typography.Title heading={5}>{t('runPanel.tryRunNode')}</Typography.Title>
+      <Typography.Title heading={6}>{t('runPanel.inputs')}</Typography.Title>
       <RunMixPropertiesEdit
         value={inputs}
         onChange={(value) => {
@@ -117,12 +117,12 @@ const RunNodeSidebar: React.FC = () => {
         loading={loading}
         style={{ marginTop: '20px' }}
       >
-        运行
+        {t('runPanel.run')}
       </Button>
       {result && (
         <>
           <Typography.Title heading={6} style={{ marginTop: '20px' }}>
-            输出结果
+            {t('runPanel.outputResult')}
           </Typography.Title>
           <div
             style={{

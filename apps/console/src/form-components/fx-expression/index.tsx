@@ -26,14 +26,14 @@ function InputWrap({
   hasError,
   style,
 }: {
-  value: string;
-  onChange: (v: string) => void;
+  value: any;
+  onChange: (v: any) => void;
   readonly?: boolean;
   hasError?: boolean;
   style?: React.CSSProperties;
 }) {
   if (readonly) {
-    return <ValueDisplay value={value} hasError={hasError} />;
+    return <ValueDisplay value={value as string} hasError={hasError} />;
   }
   return (
     <Input
@@ -56,29 +56,29 @@ export interface FxExpressionProps {
 
 export function FxExpression(props: FxExpressionProps) {
   const { value, onChange, readonly, literal, icon } = props;
-  if (literal) return <InputWrap value={value as string} onChange={onChange} readonly={readonly} />;
-  const isExpression = typeof value === 'object' && value.type === 'expression';
+  if (literal) return <InputWrap value={value as any} onChange={onChange as any} readonly={readonly} />;
+  const isExpression = typeof value === 'object' && value?.type === 'expression';
   const toggleExpression = () => {
     if (isExpression) {
-      onChange((value as FlowRefValueSchema).content as string);
+      onChange({ content: (value as FlowRefValueSchema).content as any, type: 'literal' } as any);
     } else {
-      onChange({ content: value as string, type: 'expression' });
+      onChange({ content: value as any, type: 'expression' });
     }
   };
   return (
     <div style={{ display: 'flex', maxWidth: 300 }}>
       {isExpression ? (
         <VariableSelector
-          value={value.content}
+          value={(value as FlowRefValueSchema)?.content as any}
           hasError={props.hasError}
           style={{ flexGrow: 1 }}
-          onChange={(v) => onChange({ type: 'expression', content: v })}
+          onChange={(v: any) => onChange({ type: 'expression', content: v } as any)}
           readonly={readonly}
         />
       ) : (
         <InputWrap
-          value={value as string}
-          onChange={onChange}
+          value={value as any}
+          onChange={onChange as any}
           hasError={props.hasError}
           readonly={readonly}
           style={{ flexGrow: 1, outline: props.hasError ? '1px solid red' : undefined }}

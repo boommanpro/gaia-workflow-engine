@@ -7,10 +7,13 @@ import { usePlaygroundTools } from '@flowgram.ai/free-layout-editor';
 import { IconButton, Tooltip } from '@douyinfe/semi-ui';
 import { IconExpand } from '@douyinfe/semi-icons';
 
+import { useLanguage, t } from '../../i18n';
+
 export const FitView = () => {
   const tools = usePlaygroundTools();
+  useLanguage();
   return (
-    <Tooltip content="FitView">
+    <Tooltip content={t('tool.fitView')}>
       <IconButton
         icon={<IconExpand />}
         type="tertiary"

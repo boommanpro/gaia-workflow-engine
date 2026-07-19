@@ -17,12 +17,14 @@ import { IconButton, Tooltip } from '@douyinfe/semi-ui';
 
 import { WorkflowNodeType } from '../../nodes';
 import { IconComment } from '../../assets/icon-comment';
+import { useLanguage, t } from '../../i18n';
 
 export const Comment = () => {
   const playground = usePlayground();
   const document = useService(WorkflowDocument);
   const selectService = useService(WorkflowSelectService);
   const dragService = useService(WorkflowDragService);
+  useLanguage();
 
   const [tooltipVisible, setTooltipVisible] = useState(false);
 
@@ -61,7 +63,7 @@ export const Comment = () => {
       trigger="custom"
       visible={tooltipVisible}
       onVisibleChange={setTooltipVisible}
-      content="Comment"
+      content={t('tool.comment')}
     >
       <IconButton
         disabled={playground.config.readonly}

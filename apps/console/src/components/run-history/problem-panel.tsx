@@ -13,6 +13,7 @@ import {
   WorkflowRuntimeService,
   TestRunRecord,
 } from '../../plugins/runtime-plugin/runtime-service';
+import { useLanguage, t, getCurrentLocale } from '../../i18n';
 
 import styles from './index.module.less';
 
@@ -20,7 +21,7 @@ export const PROBLEM_PANEL = 'problem-panel';
 
 const formatTime = (timestamp: number): string => {
   const date = new Date(timestamp);
-  return date.toLocaleString('zh-CN', {
+  return date.toLocaleString(getCurrentLocale(), {
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
@@ -48,6 +49,7 @@ interface SelectedRecordState {
 export const ProblemPanel = () => {
   const panelManager = usePanelManager();
   const runtimeService = useService(WorkflowRuntimeService);
+  useLanguage();
 
   const [history, setHistory] = useState<TestRunRecord[]>([]);
   const [selectedRecord, setSelectedRecord] = useState<SelectedRecordState | null>(null);
@@ -129,7 +131,7 @@ export const ProblemPanel = () => {
     if (history.length === 0) {
       return (
         <div className={styles.emptyTableState}>
-          <div className={styles.emptyText}>暂无运行记录</div>
+          <div className={styles.emptyText}>{t('runHistory.noRecords')}</div>
         </div>
       );
     }
@@ -139,8 +141,8 @@ export const ProblemPanel = () => {
         <table className={styles.table}>
           <thead>
             <tr>
-              <th>时间</th>
-              <th>状态</th>
+              <th>{t('runHistory.time')}</th>
+              <th>{t('runHistory.status')}</th>
             </tr>
           </thead>
           <tbody>
@@ -161,7 +163,7 @@ export const ProblemPanel = () => {
                 <td>{formatTime(record.timestamp)}</td>
                 <td>
                   <Tag color={record.status === 'success' ? 'green' : 'red'}>
-                    {record.status === 'success' ? '成功' : '失败'}
+                    {record.status === 'success' ? t('runHistory.success') : t('runHistory.failure')}
                   </Tag>
                 </td>
               </tr>
@@ -176,7 +178,7 @@ export const ProblemPanel = () => {
     if (!selectedRecord) {
       return (
         <div className={styles.emptyState}>
-          <div className={styles.emptyText}>选择一个记录查看详情</div>
+          <div className={styles.emptyText}>{t('runHistory.selectRecord')}</div>
         </div>
       );
     }
@@ -186,9 +188,9 @@ export const ProblemPanel = () => {
     return (
       <div className={styles.detail}>
         <div className={styles.detailHeader}>
-          <span className={styles.detailTitle}>运行详情</span>
+          <span className={styles.detailTitle}>{t('runHistory.detail')}</span>
           <Tag color={record.status === 'success' ? 'green' : 'red'}>
-            {record.status === 'success' ? '成功' : '失败'}
+            {record.status === 'success' ? t('runHistory.success') : t('runHistory.failure')}
           </Tag>
         </div>
 
@@ -198,21 +200,21 @@ export const ProblemPanel = () => {
               className={`${styles.tab} ${activeTab === 'errors' ? styles.active : ''}`}
               onClick={() => handleTabChange('errors')}
             >
-              错误信息
+              {t('runHistory.errorInfo')}
             </span>
           )}
           <span
             className={`${styles.tab} ${activeTab === 'inputs' ? styles.active : ''}`}
             onClick={() => handleTabChange('inputs')}
           >
-            入参
+            {t('runHistory.inputs')}
           </span>
           {record.status === 'success' && (
             <span
               className={`${styles.tab} ${activeTab === 'outputs' ? styles.active : ''}`}
               onClick={() => handleTabChange('outputs')}
             >
-              返回值
+              {t('runHistory.outputs')}
             </span>
           )}
         </div>
@@ -241,7 +243,7 @@ export const ProblemPanel = () => {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <span className={styles.title}>运行历史</span>
+        <span className={styles.title}>{t('runHistory.title')}</span>
         <IconButton
           type="tertiary"
           theme="borderless"
@@ -252,7 +254,7 @@ export const ProblemPanel = () => {
 
       <div className={styles.content}>
         <div className={styles.historySection}>
-          <div className={styles.sectionTitle}>历史记录（双击切换）</div>
+          <div className={styles.sectionTitle}>{t('runHistory.recordsHint')}</div>
           {renderTable()}
         </div>
         <div className={styles.detailSection}>{renderDetail()}</div>

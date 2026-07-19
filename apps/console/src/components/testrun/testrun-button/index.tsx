@@ -11,6 +11,7 @@ import { Button, Badge } from '@douyinfe/semi-ui';
 import { IconPlay } from '@douyinfe/semi-icons';
 
 import { testRunPanelFactory } from '../testrun-panel/test-run-panel';
+import { useLanguage, t } from '../../../i18n';
 
 import styles from './index.module.less';
 
@@ -18,6 +19,7 @@ export function TestRunButton(props: { disabled: boolean }) {
   const [errorCount, setErrorCount] = useState(0);
   const clientContext = useClientContext();
   const panelManager = usePanelManager();
+  useLanguage();
   const updateValidateData = useCallback(() => {
     const allForms = clientContext.document.getAllNodes().map((node) => node.form);
     const count = allForms.filter((form) => form?.state.invalid).length;
@@ -60,7 +62,7 @@ export function TestRunButton(props: { disabled: boolean }) {
         icon={<IconPlay size="small" />}
         className={styles.testrunSuccessButton}
       >
-        Test Run
+        {t('tool.testRun')}
       </Button>
     ) : (
       <Badge count={errorCount} position="rightTop" type="danger">
@@ -71,7 +73,7 @@ export function TestRunButton(props: { disabled: boolean }) {
           icon={<IconPlay size="small" />}
           className={styles.testrunErrorButton}
         >
-            Test Run
+          {t('tool.testRun')}
         </Button>
       </Badge>
     );

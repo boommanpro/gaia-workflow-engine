@@ -8,9 +8,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { useClientContext, FlowNodeEntity } from '@flowgram.ai/free-layout-editor';
 import { Button, Badge } from '@douyinfe/semi-ui';
 
+import { useLanguage, t } from '../../i18n';
+
 export function Save(props: { disabled: boolean }) {
   const [errorCount, setErrorCount] = useState(0);
   const clientContext = useClientContext();
+  useLanguage();
 
   const updateValidateData = useCallback(() => {
     const allForms = clientContext.document.getAllNodes().map((node) => node.form);
@@ -57,7 +60,7 @@ export function Save(props: { disabled: boolean }) {
         onClick={onSave}
         style={{ backgroundColor: 'rgba(171,181,255,0.3)', borderRadius: '8px' }}
       >
-        Save
+        {t('Save')}
       </Button>
     );
   }
@@ -69,7 +72,7 @@ export function Save(props: { disabled: boolean }) {
         onClick={onSave}
         style={{ backgroundColor: 'rgba(255, 179, 171, 0.3)', borderRadius: '8px' }}
       >
-          Save
+        {t('Save')}
       </Button>
     </Badge>
   );

@@ -7,9 +7,11 @@ import { Button } from '@douyinfe/semi-ui';
 import { IconPlus } from '@douyinfe/semi-icons';
 
 import { useAddNode } from './use-add-node';
+import { useLanguage, t } from '../../i18n';
 
 export const AddNode = (props: { disabled: boolean }) => {
   const addNode = useAddNode();
+  useLanguage();
   return (
     <Button
       data-testid="demo.free-layout.add-node"
@@ -22,7 +24,7 @@ export const AddNode = (props: { disabled: boolean }) => {
         addNode(rect);
       }}
     >
-      Add Node
+      {t('tool.addNode')}
     </Button>
   );
 };

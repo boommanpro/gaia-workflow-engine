@@ -17,6 +17,7 @@ import { TestRunForm } from '../testrun-form';
 import { NodeStatusGroup } from '../node-status-bar/group';
 import { WorkflowRuntimeService } from '../../../plugins/runtime-plugin/runtime-service';
 import { IconCancel } from '../../../assets/icon-cancel';
+import { useLanguage, t } from '../../../i18n';
 
 import styles from './index.module.less';
 
@@ -26,6 +27,7 @@ export const TestRunSidePanel: FC<TestRunSidePanelProps> = () => {
   const runtimeService = useService(WorkflowRuntimeService);
 
   const panelManager = usePanelManager();
+  useLanguage();
   const [isRunning, setRunning] = useState(false);
   const [hasStoredResult, setHasStoredResult] = useState(false);
   const [values, setValues] = useState<Record<string, unknown>>({});
@@ -86,15 +88,15 @@ export const TestRunSidePanel: FC<TestRunSidePanelProps> = () => {
   const renderRunning = (
     <div className={styles['testrun-panel-running']}>
       <IconSpin spin size="large" />
-      <div className={styles.text}>Running...</div>
+      <div className={styles.text}>{t('testRun.running')}</div>
     </div>
   );
 
   const renderForm = (
     <div className={styles['testrun-panel-form']}>
       <div className={styles['testrun-panel-input']}>
-        <div className={styles.title}>Input Form</div>
-        <div>JSON Mode</div>
+        <div className={styles.title}>{t('testRun.inputForm')}</div>
+        <div>{t('testRun.jsonMode')}</div>
         <Switch
           checked={inputJSONMode}
           onChange={(checked: boolean) => setInputJSONMode(checked)}
@@ -111,8 +113,8 @@ export const TestRunSidePanel: FC<TestRunSidePanelProps> = () => {
           {e}
         </div>
       ))}
-      <NodeStatusGroup title="Inputs Result" data={result?.inputs} optional disableCollapse />
-      <NodeStatusGroup title="Outputs Result" data={result?.outputs} optional disableCollapse />
+      <NodeStatusGroup title={t('testRun.inputsResult')} data={result?.inputs} optional disableCollapse />
+      <NodeStatusGroup title={t('testRun.outputsResult')} data={result?.outputs} optional disableCollapse />
     </div>
   );
 
@@ -125,7 +127,7 @@ export const TestRunSidePanel: FC<TestRunSidePanelProps> = () => {
         [styles.default]: !isRunning,
       })}
     >
-      {isRunning ? 'Cancel' : hasStoredResult ? 'Rerun' : 'Test Run'}
+      {isRunning ? t('testRun.cancel') : hasStoredResult ? t('testRun.rerun') : t('tool.testRun')}
     </Button>
   );
 
@@ -157,7 +159,7 @@ export const TestRunSidePanel: FC<TestRunSidePanelProps> = () => {
   return (
     <div className={styles['testrun-panel-container']}>
       <div className={styles['testrun-panel-header']}>
-        <div className={styles['testrun-panel-title']}>Test Run</div>
+        <div className={styles['testrun-panel-title']}>{t('testRun.title')}</div>
         <Button
           className={styles['testrun-panel-title']}
           type="tertiary"

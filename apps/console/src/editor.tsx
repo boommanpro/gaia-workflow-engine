@@ -21,6 +21,8 @@ import { initialData } from './initial-data';
 import { useEditorProps } from './hooks';
 import { DemoTools } from './components/tools';
 import { workflowApi, GaiaWorkflowVersion, GaiaWorkflowTemplate } from './services/workflow-api';
+import { useLanguage, t } from './i18n';
+import { LanguageToggle } from './components/language-toggle';
 
 const ACCENT = '#4d53e8';
 
@@ -46,6 +48,7 @@ const emptyWorkflowData = {
 export const Editor = () => {
   const { workflowCode } = useParams<{ workflowCode: string }>();
   const navigate = useNavigate();
+  useLanguage();
   const [workflowData, setWorkflowData] = useState<any>(
     workflowCode ? emptyWorkflowData : initialData
   );
@@ -138,7 +141,7 @@ export const Editor = () => {
   if (loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
-        <div style={{ fontSize: '18px', color: '#666' }}>Loading workflow...</div>
+        <div style={{ fontSize: '18px', color: '#666' }}>{t('editor.loadingWorkflow')}</div>
       </div>
     );
   }
@@ -148,7 +151,7 @@ export const Editor = () => {
       <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
         <EditorHeader
           workflowCode={workflowCode}
-          workflowName={workflowInfo ? workflowInfo.workflowName : 'New Workflow'}
+          workflowName={workflowInfo ? workflowInfo.workflowName : t('editor.newWorkflow')}
           onBack={() => navigate('/admin/workflows')}
           versions={versions}
           currentVersionId={currentVersionId}
@@ -217,6 +220,7 @@ const EditorHeader = ({
   onVersionsChanged: () => void;
 }) => {
   const ctx = useClientContext();
+  useLanguage();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showVersionDropdown, setShowVersionDropdown] = useState(false);
@@ -259,7 +263,7 @@ const EditorHeader = ({
       setTimeout(() => setSaved(false), 2000);
     } catch (error) {
       console.error('Save failed:', error);
-      alert('Save failed: ' + (error as Error).message);
+      alert(t('editor.saveFailed') + (error as Error).message);
     } finally {
       setSaving(false);
     }
@@ -274,7 +278,7 @@ const EditorHeader = ({
       const versionCount = versions.length + 1;
       const newVersionNumber = `v1.${versionCount}`;
 
-      const created = await workflowApi.createVersion({
+      await workflowApi.createVersion({
         workflowCode,
         versionNumber: newVersionNumber,
         versionDesc: `Version ${newVersionNumber}`,
@@ -287,7 +291,6 @@ const EditorHeader = ({
       if (newVersions && newVersions.length > 0) {
         const newest = newVersions[0];
         await workflowApi.setCurrentVersion(newest.id!);
-        setCurrentVersionId(newest.id);
       }
 
       onVersionsChanged();
@@ -295,7 +298,7 @@ const EditorHeader = ({
       setTimeout(() => setSaved(false), 2000);
     } catch (error) {
       console.error('Save as new version failed:', error);
-      alert('Save as new version failed: ' + (error as Error).message);
+      alert(t('editor.saveAsVersionFailed') + (error as Error).message);
     } finally {
       setSaving(false);
     }
@@ -337,7 +340,7 @@ const EditorHeader = ({
           onMouseEnter={(e) => { e.currentTarget.style.background = '#f5f5f7'; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
         >
-          ← Back
+          {t('editor.back')}
         </button>
         <span style={{ fontSize: '15px', fontWeight: 600, color: '#1a1a1a' }}>{workflowName}</span>
       </div>
@@ -382,7 +385,7 @@ const EditorHeader = ({
                   onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                 >
                   <IconPlus size="small" />
-                  Save as New Version
+                  {t('editor.saveAsNewVersion')}
                 </button>
 
                 {versions.length > 0 && (
@@ -421,7 +424,7 @@ const EditorHeader = ({
                           padding: '1px 6px',
                           borderRadius: '4px',
                           fontWeight: 600,
-                        }}>CURRENT</span>
+                        }}>{t('editor.current')}</span>
                       )}
                     </div>
                     <span style={{ fontSize: '11px', color: '#999' }}>{formatDate(v.createdAt)}</span>
@@ -435,11 +438,13 @@ const EditorHeader = ({
               icon={<IconHistory />}
               style={{ fontSize: '13px', color: '#555', height: '32px' }}
             >
-              {currentVersion ? currentVersion.versionNumber : 'Version'}
+              {currentVersion ? currentVersion.versionNumber : t('editor.version')}
               <IconChevronDown size="small" style={{ marginLeft: '4px' }} />
             </SemiButton>
           </Dropdown>
         )}
+
+        <LanguageToggle />
 
         {/* Save button */}
         <button
@@ -457,7 +462,7 @@ const EditorHeader = ({
             transition: 'background 0.15s',
           }}
         >
-          {saving ? 'Saving...' : saved ? '✓ Saved' : 'Save'}
+          {saving ? t('Saving') : saved ? `✓ ${t('Saved')}` : t('Save')}
         </button>
       </div>
     </div>
@@ -471,6 +476,7 @@ const EditorHeader = ({
 export const TemplateEditor = () => {
   const { templateCode } = useParams<{ templateCode: string }>();
   const navigate = useNavigate();
+  useLanguage();
   const [templateData, setTemplateData] = useState<any>(initialData);
   const [templateInfo, setTemplateInfo] = useState<GaiaWorkflowTemplate | null>(null);
   const [loading, setLoading] = useState(!!templateCode);
@@ -504,7 +510,7 @@ export const TemplateEditor = () => {
   if (loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
-        <div style={{ fontSize: '18px', color: '#666' }}>Loading template...</div>
+        <div style={{ fontSize: '18px', color: '#666' }}>{t('editor.loadingTemplate')}</div>
       </div>
     );
   }
@@ -535,6 +541,7 @@ const TemplateEditorHeader = ({
   onBack: () => void;
 }) => {
   const ctx = useClientContext();
+  useLanguage();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -555,7 +562,7 @@ const TemplateEditorHeader = ({
       setTimeout(() => setSaved(false), 2000);
     } catch (error) {
       console.error('Save failed:', error);
-      alert('Save failed: ' + (error as Error).message);
+      alert(t('editor.saveFailed') + (error as Error).message);
     } finally {
       setSaving(false);
     }
@@ -591,30 +598,33 @@ const TemplateEditorHeader = ({
           onMouseEnter={(e) => { e.currentTarget.style.background = '#f5f5f7'; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
         >
-          ← Back
+          {t('editor.back')}
         </button>
         <span style={{ fontSize: '15px', fontWeight: 600, color: '#1a1a1a' }}>
-          {templateInfo?.templateName || 'Template'}
+          {templateInfo?.templateName || t('editor.template')}
         </span>
       </div>
 
-      <button
-        onClick={handleSave}
-        disabled={saving}
-        style={{
-          background: saving ? '#c5c5e8' : ACCENT,
-          border: 'none',
-          color: '#fff',
-          padding: '7px 22px',
-          borderRadius: '6px',
-          cursor: saving ? 'not-allowed' : 'pointer',
-          fontSize: '13px',
-          fontWeight: 600,
-          transition: 'background 0.15s',
-        }}
-      >
-        {saving ? 'Saving...' : saved ? '✓ Saved' : 'Save'}
-      </button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <LanguageToggle />
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          style={{
+            background: saving ? '#c5c5e8' : ACCENT,
+            border: 'none',
+            color: '#fff',
+            padding: '7px 22px',
+            borderRadius: '6px',
+            cursor: saving ? 'not-allowed' : 'pointer',
+            fontSize: '13px',
+            fontWeight: 600,
+            transition: 'background 0.15s',
+          }}
+        >
+          {saving ? t('Saving') : saved ? `✓ ${t('Saved')}` : t('Save')}
+        </button>
+      </div>
     </div>
   );
 };

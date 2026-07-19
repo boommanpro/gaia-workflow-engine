@@ -22,16 +22,6 @@ export function Code() {
     { label: 'Groovy', value: 'groovy' },
   ];
 
-  const getLanguageId = (language: string) => {
-    switch (language) {
-      case 'java':
-        return 'java';
-      case 'groovy':
-        return 'groovy';
-      default:
-        return 'javascript';
-    }
-  };
   return (
     <>
       <Divider />

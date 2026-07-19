@@ -5,12 +5,11 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-import { Input, Typography } from '@douyinfe/semi-ui';
+import { TextArea, Typography } from '@douyinfe/semi-ui';
 
 import { FormTitleDescription } from './styles';
 
 const { Text } = Typography;
-const { TextArea } = Input;
 
 interface DescriptionInputProps {
   readonly: boolean;
@@ -52,7 +51,7 @@ export function DescriptionInput({
         <TextArea
           ref={ref}
           value={value}
-          onChange={setValue}
+          onChange={(v: string) => setValue(v)}
           onBlur={handleSave}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && e.ctrlKey) {

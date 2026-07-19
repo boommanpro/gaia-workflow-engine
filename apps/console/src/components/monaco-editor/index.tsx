@@ -1,7 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 
 import * as monaco from 'monaco-editor';
-import { debounce } from 'lodash-es';
 
 // @ts-ignore
 self.MonacoEnvironment = {

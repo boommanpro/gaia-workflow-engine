@@ -25,6 +25,7 @@ import { FitView } from './fit-view';
 import { Comment } from './comment';
 import { AutoLayout } from './auto-layout';
 import { RunHistoryButton } from '../run-history';
+import { useLanguage, t } from '../../i18n';
 
 export const DemoTools = ({
   hideSaveAndTestRun = false,
@@ -34,6 +35,7 @@ export const DemoTools = ({
   hideSave?: boolean;
 } = {}) => {
   const { history, playground } = useClientContext();
+  useLanguage();
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
   const [minimapVisible, setMinimapVisible] = useState(true);
@@ -63,7 +65,7 @@ export const DemoTools = ({
         <Minimap visible={minimapVisible} />
         <Readonly />
         <Comment />
-        <Tooltip content="Undo">
+        <Tooltip content={t('tool.undo')}>
           <IconButton
             type="tertiary"
             theme="borderless"
@@ -72,7 +74,7 @@ export const DemoTools = ({
             onClick={() => history.undo()}
           />
         </Tooltip>
-        <Tooltip content="Redo">
+        <Tooltip content={t('tool.redo')}>
           <IconButton
             type="tertiary"
             theme="borderless"

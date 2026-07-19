@@ -16,6 +16,7 @@ import {
 import { canContainNode } from '../../utils';
 import { FlowNodeRegistry } from '../../typings';
 import { nodeRegistries } from '../../nodes';
+import { getNodeLabel } from '../../nodes/i18n';
 
 const NodeWrap = styled.div`
   width: 100%;
@@ -107,7 +108,7 @@ export const NodeList: FC<NodeListProps> = (props) => {
             icon={
               <img style={{ width: 10, height: 10, borderRadius: 4 }} src={registry.info?.icon} />
             }
-            label={registry.type as string}
+            label={getNodeLabel(registry.type as string)}
             onClick={(e) => handleClick(e, registry)}
           />
         ))}
