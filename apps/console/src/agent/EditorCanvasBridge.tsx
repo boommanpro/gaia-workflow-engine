@@ -19,6 +19,7 @@ import { usePanelManager } from '@flowgram.ai/panel-manager-plugin';
 import { setCanvasContext, type CanvasContext } from './tools';
 import { agentRunBridge } from './agent-run-bridge';
 import { useAgent } from './AgentContext';
+import { canvasSelectionStore, canvasSync } from '../document';
 
 /**
  * 深度合并节点 data：数组整体替换，对象递归合并，其余直接覆盖
@@ -42,9 +43,13 @@ function deepMergeNodeData(target: any, source: any): any {
 }
 
 /**
- * 无需渲染任何 UI，仅作为画布上下文注入桥
+ * 无需渲染任何 UI，仅作为画布上下文注入桥。
+ *
+ * `sync` 控制是否把画布接入全局 DSL store（双向同步）。
+ * 真正的编辑器要接；模板编辑这类「独立画布」不接 —— 否则改个模板会把
+ * 工作区里的产物顶掉。
  */
-export const EditorCanvasBridge: React.FC = () => {
+export const EditorCanvasBridge: React.FC<{ sync?: boolean }> = ({ sync = true }) => {
   const ctx = useClientContext();
   const tools = usePlaygroundTools();
   const linesManager = useService(WorkflowLinesManager);
@@ -231,6 +236,103 @@ export const EditorCanvasBridge: React.FC = () => {
 
     setCanvasContext(canvasContext);
 
+    // ---- 画布 ↔ store 双向同步 ----
+    // 之前这条线根本没接：AI 在专家模式改的 DSL 到不了画布，画布上手动改的也回不到 store。
+    // 接上之后，「画布是 headless DSL 的一个视图」这句话才真正成立。
+    if (sync) canvasSync.attach({
+      toJSON: () => ctx.document.toJSON() as any,
+
+      createNode: (node) => {
+        // 必须带上原始 id，否则增量补丁下一轮就对不上了
+        ctx.document.createWorkflowNodeByType(
+          node.type,
+          node.meta?.position,
+          { id: node.id, data: node.data || {} } as any,
+          node.parentId
+        );
+      },
+
+      updateNode: (id, data) => {
+        canvasContext.updateNodeData(id, data);
+      },
+
+      deleteNode: (id) => {
+        const target = ctx.document.getNode(id);
+        if (target && ctx.document.canRemove(target)) target.dispose();
+      },
+
+      addEdge: (edge) => {
+        canvasContext.addLine(edge);
+      },
+
+      removeEdge: (edge) => {
+        canvasContext.removeLine(edge.sourceNodeID, edge.targetNodeID);
+      },
+
+      replaceAll: (dsl) => {
+        ctx.document.clear();
+        ctx.document.fromJSON({ nodes: dsl.nodes, edges: dsl.edges } as any);
+      },
+
+      autoLayout: () => canvasContext.autoLayout(),
+
+      fitView: () => {
+        void tools.fitView();
+      },
+
+      selectNode: (id) => {
+        const entity = ctx.document.getNode(id);
+        if (entity) ctx.selection.selection = [entity];
+      },
+
+      highlightNodes: (ids) => {
+        const entities = ids
+          .map((id) => ctx.document.getNode(id))
+          .filter((n): n is WorkflowNodeEntity => !!n);
+        if (entities.length > 0) ctx.selection.selection = entities;
+      },
+    });
+
+    // ---- 选中节点 → 外部可订阅状态（供 Copilot 做上下文引用） ----
+    const pushSelection = () => {
+      const selection = ctx.selection.selection || [];
+      for (const entity of selection) {
+        if (entity && typeof entity === 'object' && 'flowNodeType' in entity) {
+          const node = entity as WorkflowNodeEntity;
+          // 标题存在节点的 data 里（form 引擎维护），getJSONData 拿不到时就回落到文档快照，
+          // 否则引用条会显示成 start_1 这种 id，比不显示还糟。
+          let title = '';
+          try {
+            const json = (node as any).getJSONData?.() || {};
+            title = json.data?.title || json.title || '';
+          } catch {
+            /* 忽略 */
+          }
+          if (!title) {
+            try {
+              const found = ctx.document
+                .toJSON()
+                .nodes.find((n: any) => String(n.id) === String(node.id));
+              title = found?.data?.title || '';
+            } catch {
+              /* 忽略 */
+            }
+          }
+          canvasSelectionStore.select({
+            nodeId: node.id,
+            nodeTitle: title || node.id,
+            nodeType: String(node.flowNodeType || ''),
+          });
+          return;
+        }
+      }
+      canvasSelectionStore.clear();
+    };
+    pushSelection();
+    const selectionDisposer = ctx.selection.onSelectionChanged(() => {
+      pushSelection();
+    });
+
     // 进入画布时主动读取画布当前配置，注入到 Agent 对话中
     try {
       const doc = ctx.document.toJSON();
@@ -250,9 +352,12 @@ export const EditorCanvasBridge: React.FC = () => {
     }
 
     return () => {
+      selectionDisposer?.dispose?.();
+      canvasSelectionStore.clear();
+      canvasSync.detach();
       setCanvasContext(null);
     };
-  }, [ctx, tools, linesManager, panelManager, injectCanvasInfo]);
+  }, [ctx, tools, linesManager, panelManager, injectCanvasInfo, sync]);
 
   // Register as the agentRunBridge listener (canvas side).
   // Handles run requests sent before this listener was mounted via pending replay.

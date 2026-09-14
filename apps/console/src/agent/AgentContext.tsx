@@ -17,6 +17,7 @@ import { agentApi } from './api';
 import { streamChat, streamToolResult, streamCompact, streamSubagent, type ToolResultItem } from './sse-client';
 import { getCanvasContext } from './tools';
 import { getApiBaseUrl } from '../utils/apiConfig';
+import { workflowDocumentStore } from '../document';
 import type {
   AgentSession,
   AgentMessage,
@@ -70,7 +71,7 @@ interface AgentContextValue {
   setToolExecutor: (executor: ToolExecutor) => void;
   resolveConfirm: (approved: boolean) => void;
 
-  createSession: (title?: string) => Promise<void>;
+  createSession: (title?: string) => Promise<string>;
   switchSession: (sessionKey: string) => Promise<void>;
   renameSession: (sessionKey: string, title: string) => Promise<void>;
   deleteSession: (sessionKey: string) => Promise<void>;
@@ -483,6 +484,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     setCurrentSessionKey(session.sessionKey);
     setMessages([]);
     setDockOpen(true);
+    return session.sessionKey;
   }, []);
 
   const switchSession = useCallback(async (sessionKey: string) => {
@@ -951,6 +953,9 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
 
       // 创建 assistant 占位
       let currentAssistantId = nanoid();
+      // 把当前生成轮挂到 store，AI 工具（applyWorkflow 等）写画布快照时
+      // 没有消息上下文，靠它把快照卡正确归位到这条助手消息下
+      workflowDocumentStore.setActiveMessageId(currentAssistantId);
       const assistantMsg: DisplayMessage = {
         id: currentAssistantId,
         role: 'assistant',
@@ -1142,6 +1147,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
           }
           // 创建新 assistant 占位
           currentAssistantId = nanoid();
+          workflowDocumentStore.setActiveMessageId(currentAssistantId);
           setMessages((prev) => [
             ...prev,
             {
@@ -1182,6 +1188,8 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         processingRef.current = false;
         setStreaming(false);
         abortControllerRef.current = null;
+        // 一轮结束，清掉 activeMessageId，避免影响后续非生成轮的快照归因
+        workflowDocumentStore.setActiveMessageId(null);
         // 刷新会话列表（后端可能自动生成了标题）
         agentApi.listSessions().then((list) => {
           setSessions(list || []);

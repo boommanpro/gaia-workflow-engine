@@ -1,0 +1,228 @@
+package cn.boommanpro.gaia.workflow.app.service;
+
+import cn.boommanpro.gaia.workflow.infra.manage.entity.GaiaWorkflow;
+import cn.boommanpro.gaia.workflow.infra.manage.entity.GaiaWorkflowVersion;
+import cn.boommanpro.gaia.workflow.infra.manage.service.GaiaWorkflowService;
+import cn.boommanpro.gaia.workflow.infra.manage.service.GaiaWorkflowVersionService;
+import cn.hutool.json.JSONUtil;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+/**
+ * 工作流 DSL 落版服务。
+ *
+ * <p>把「一份完整 DSL → 一个生效版本」这件事收成单一领域能力，
+ * 供 REST 接口 {@code /api/workflow-version/apply/{code}} 和 Agent 后端工具
+ * {@code applyWorkflow} 共同使用，避免两处各写一遍。</p>
+ *
+ * <p>它是「AI 产出 → 工作流落地」链路上唯一应当被依赖的服务。</p>
+ */
+@Slf4j
+@Service
+public class WorkflowDslApplyService {
+
+    private static final Pattern VERSION_PATTERN = Pattern.compile("^v(\\d+)\\.(\\d+)$");
+
+    private final GaiaWorkflowVersionService versionService;
+    private final GaiaWorkflowService workflowService;
+
+    public WorkflowDslApplyService(GaiaWorkflowVersionService versionService,
+                                   GaiaWorkflowService workflowService) {
+        this.versionService = versionService;
+        this.workflowService = workflowService;
+    }
+
+    /**
+     * 把整份 DSL 落为一个新版本并设为生效版本。
+     *
+     * @param workflowCode   工作流编码
+     * @param rawDsl         DSL 对象或 JSON 字符串
+     * @param options        可选项：名称、描述、是否允许新建
+     */
+    public ApplyResult apply(String workflowCode, Object rawDsl, ApplyOptions options) {
+        ApplyResult result = new ApplyResult();
+        result.setWorkflowCode(workflowCode);
+
+        ApplyOptions opts = options != null ? options : new ApplyOptions();
+        String workflowData = normalizeToJson(rawDsl);
+        if (workflowData == null) {
+            result.setSuccess(false);
+            result.setError("dsl must not be empty");
+            return result;
+        }
+
+        // 落库前统一规范化：连线别名、缺失坐标、嵌套结构、start/end 完整性
+        // —— 下游（画布、执行引擎）只认规范结构，这一步不能省。
+        WorkflowDslCanonicalizer.Result canonical = WorkflowDslCanonicalizer.canonicalize(workflowData);
+        if (canonical.getJson() == null) {
+            result.setSuccess(false);
+            result.setError("dsl 结构无法识别：未解析出任何合法节点");
+            return result;
+        }
+        workflowData = canonical.getJson();
+        result.setRepairs(canonical.getRepairs());
+
+        try {
+            GaiaWorkflow workflow = workflowService.getOne(
+                new QueryWrapper<GaiaWorkflow>().eq("workflow_code", workflowCode).last("LIMIT 1"));
+
+            if (workflow == null) {
+                if (!opts.isCreateIfMissing()) {
+                    result.setSuccess(false);
+                    result.setError("workflow not found: " + workflowCode);
+                    return result;
+                }
+                workflow = new GaiaWorkflow();
+                workflow.setWorkflowCode(workflowCode);
+                workflow.setWorkflowName(
+                    opts.getWorkflowName() != null && !opts.getWorkflowName().isEmpty()
+                        ? opts.getWorkflowName() : workflowCode);
+                workflow.setWorkflowDesc(opts.getWorkflowDesc());
+                workflow.setCreatedAt(LocalDateTime.now());
+                workflow.setUpdatedAt(LocalDateTime.now());
+                workflowService.save(workflow);
+                result.setWorkflowCreated(true);
+            } else if (opts.getWorkflowName() != null && !opts.getWorkflowName().isEmpty()) {
+                // 已存在且传了名字 → 顺带改名，让 AI 的修正能体现在标题上
+                workflowService.update(new UpdateWrapper<GaiaWorkflow>()
+                    .eq("workflow_code", workflowCode)
+                    .set("workflow_name", opts.getWorkflowName())
+                    .set("updated_at", LocalDateTime.now()));
+            }
+
+            List<GaiaWorkflowVersion> versions = versionService.list(
+                new QueryWrapper<GaiaWorkflowVersion>()
+                    .eq("workflow_code", workflowCode)
+                    .orderByDesc("created_at"));
+
+            GaiaWorkflowVersion version = new GaiaWorkflowVersion();
+            version.setWorkflowCode(workflowCode);
+            version.setVersionNumber(nextVersionNumber(versions));
+            version.setVersionDesc(
+                opts.getVersionDesc() != null && !opts.getVersionDesc().isEmpty()
+                    ? opts.getVersionDesc() : "AI generated");
+            version.setWorkflowData(workflowData);
+            version.setCreatedBy("agent");
+            version.setCreatedAt(LocalDateTime.now());
+            version.setIsCurrent(1);
+            versionService.save(version);
+
+            // 切换生效版本
+            versionService.update(new UpdateWrapper<GaiaWorkflowVersion>()
+                .eq("workflow_code", workflowCode)
+                .ne("id", version.getId())
+                .set("is_current", 0));
+            workflowService.update(new UpdateWrapper<GaiaWorkflow>()
+                .eq("workflow_code", workflowCode)
+                .set("current_version_id", version.getId())
+                .set("updated_at", LocalDateTime.now()));
+
+            result.setSuccess(true);
+            result.setVersionId(version.getId());
+            result.setVersionNumber(version.getVersionNumber());
+            result.setNodeCount(countNodes(workflowData));
+            return result;        } catch (Exception e) {
+            log.error("[dsl-apply] failed, workflowCode={}", workflowCode, e);
+            result.setSuccess(false);
+            result.setError(e.getMessage());
+            return result;
+        }
+    }
+
+    /** 解析版本号：v1.0 → v1.1；没有历史版本则 v1.0 */
+    String nextVersionNumber(List<GaiaWorkflowVersion> versions) {
+        if (versions == null || versions.isEmpty()) {
+            return "v1.0";
+        }
+        int maxMajor = 1;
+        int maxMinor = 0;
+        for (GaiaWorkflowVersion v : versions) {
+            if (v.getVersionNumber() == null) {
+                continue;
+            }
+            Matcher m = VERSION_PATTERN.matcher(v.getVersionNumber().trim());
+            if (!m.matches()) {
+                continue;
+            }
+            int major = Integer.parseInt(m.group(1));
+            int minor = Integer.parseInt(m.group(2));
+            if (major > maxMajor || (major == maxMajor && minor > maxMinor)) {
+                maxMajor = major;
+                maxMinor = minor;
+            }
+        }
+        return "v" + maxMajor + "." + (maxMinor + 1);
+    }
+
+    private String normalizeToJson(Object rawDsl) {
+        if (rawDsl == null) {
+            return null;
+        }
+        if (rawDsl instanceof String) {
+            String text = ((String) rawDsl).trim();
+            return text.isEmpty() ? null : text;
+        }
+        return JSONUtil.toJsonStr(rawDsl);
+    }
+
+    private int countNodes(String workflowData) {
+        try {
+            cn.hutool.json.JSONArray nodes = JSONUtil.parseObj(workflowData).getJSONArray("nodes");
+            return nodes == null ? 0 : nodes.size();
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    /** 转成给模型/接口回执用的 Map */
+    public static Map<String, Object> toMap(ApplyResult result) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("success", result.isSuccess());
+        map.put("workflowCode", result.getWorkflowCode());
+        map.put("versionId", result.getVersionId());
+        map.put("versionNumber", result.getVersionNumber());
+        map.put("nodeCount", result.getNodeCount());
+        map.put("workflowCreated", result.isWorkflowCreated());
+        if (!result.getRepairs().isEmpty()) {
+            // 让模型知道系统替它修补了什么，下一轮就能自己改对
+            map.put("repairs", result.getRepairs());
+        }
+        if (result.getError() != null) {
+            map.put("error", result.getError());
+        }
+        return map;
+    }
+
+    /** 落版选项 */
+    @Data
+    public static class ApplyOptions {
+        private String workflowName;
+        private String workflowDesc;
+        private String versionDesc;
+        private boolean createIfMissing = true;
+    }
+
+    /** 落版结果 */
+    @Data
+    public static class ApplyResult {
+        private boolean success;
+        private String workflowCode;
+        private Long versionId;
+        private String versionNumber;
+        private int nodeCount;
+        private boolean workflowCreated;
+        /** 规范化过程中做的修补说明（回传给模型，便于它下一轮自己写规范） */
+        private List<String> repairs = new java.util.ArrayList<>();
+        private String error;
+    }
+}

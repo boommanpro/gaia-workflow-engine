@@ -75,6 +75,24 @@ public class GaiaWorkflowLog {
     private Long executionDuration;
 
     /**
+     * 调用渠道：execute-原生执行端点 / api-对外发布 API 调用
+     */
+    @TableField("invoke_channel")
+    private String invokeChannel;
+
+    /**
+     * 调用路径（对外 API 时为 /api/v1/wf/{code}）
+     */
+    @TableField("api_path")
+    private String apiPath;
+
+    /**
+     * API Key 前缀（脱敏，用于看板区分调用方）
+     */
+    @TableField("api_key_prefix")
+    private String apiKeyPrefix;
+
+    /**
      * 创建时间
      */
     @TableField(value = "created_at", fill = FieldFill.INSERT)

@@ -6,6 +6,11 @@
 import type { ToolExecutor } from '../AgentContext';
 import { workflowApi } from '../../services/workflow-api';
 import { createNodeByType } from '../node-templates';
+import {
+  WorkflowDocument,
+  normalizeWorkflowDsl,
+  workflowDocumentStore,
+} from '../../document';
 
 /** 画布上下文（由 editor 页面注入） */
 export interface CanvasContext {
@@ -374,6 +379,94 @@ export function createToolExecutor(navigate: NavigateFn): ToolExecutor {
             };
           }
 
+          /**
+           * 复合工具：一次成型（AI 主视角的主产出口）
+           *
+           * 以前的流程是 createPlan + N 次 addNode/connect，一次生成 = 几十次 LLM 往返。
+           * 这里让 AI 直接把整份 DSL 交过来：归一化 → 写进 headless 文档 → 可选落版。
+           */
+          case 'applyWorkflow': {
+            // 注意：这里必须把「整个对象」交给规范化器，不能只取 args.nodes ——
+            // 模型常把 nodes / edges 平铺在顶层，只取 nodes 会把 edges 整段丢掉，
+            // 于是出现「nodeCount=7 但 edgeCount=0」这种自相矛盾的结果。
+            const raw = args.dsl ?? args.workflowData ?? args.workflow ?? args;
+            const { dsl, repairs } = normalizeWorkflowDsl(raw, {
+              title: args.workflowName,
+            });
+
+            if (!dsl.nodes.length) {
+              return {
+                result: JSON.stringify({
+                  success: false,
+                  error: 'no valid nodes parsed from the provided DSL',
+                  repairs,
+                }),
+                rejected: false,
+              };
+            }
+
+            // 产物先落到单一事实源，画布/面板会自动跟随
+            workflowDocumentStore.replace(WorkflowDocument.fromJSON(dsl), {
+              kind: 'replace',
+              source: 'ai',
+            });
+
+            // 落版：让用户「聊完就能用」。
+            // 工具契约承诺 workflowCode 留空即新建（系统自动生成编号），实现里必须兑现，
+            // 否则模型拿不到编号 → 反复重试 → 最后只能向用户抛选项菜单问「怎么办」。
+            const shouldPersist = args.saveAsVersion !== false;
+            // 同一会话内二次 applyWorkflow（精修）沿用上次编号，避免每次生成都新建一份
+            const sessionCode = workflowDocumentStore.getSnapshot().meta.workflowCode;
+            const targetCode = args.workflowCode || sessionCode || deriveWorkflowCode(args.workflowName);
+
+            let persisted: {
+              success: boolean;
+              workflowCode?: string;
+              versionNumber?: string;
+              workflowCreated?: boolean;
+              error?: string;
+            } | null = null;
+
+            if (shouldPersist) {
+              try {
+                const response = await workflowApi.applyDsl(targetCode, dsl, {
+                  workflowName: args.workflowName || targetCode,
+                  workflowDesc: args.workflowDesc,
+                  versionDesc: args.versionDesc || 'AI 一次成型',
+                  createIfMissing: args.createIfMissing !== false,
+                });
+                persisted = {
+                  success: true,
+                  workflowCode: response?.workflowCode || targetCode,
+                  versionNumber: response?.versionNumber,
+                  workflowCreated: response?.workflowCreated,
+                };
+                workflowDocumentStore.markSaved({ workflowCode: persisted.workflowCode });
+                workflowDocumentStore.setMeta({
+                  workflowCode: persisted.workflowCode,
+                  workflowName: args.workflowName || persisted.workflowCode,
+                });
+              } catch (e) {
+                persisted = { success: false, error: (e as Error).message };
+              }
+            }
+
+            return {
+              result: JSON.stringify({
+                success: true,
+                nodeCount: dsl.nodes.length,
+                edgeCount: dsl.edges.length,
+                repairs,
+                persisted,
+                // 明确告知模型下一步怎么做，别让它再去 query 一遍工作流列表
+                hint: persisted?.success
+                  ? `已落版，workflowCode=${persisted.workflowCode}。向用户说明时直接引用该编号即可，无需再查询工作流列表。`
+                  : '本次仅在 AI 工作台预览，未落版（saveAsVersion=false 或落版失败）。',
+              }),
+              rejected: false,
+            };
+          }
+
           // ===== Plan 类 =====
           case 'createPlan':
             // createPlan 由 AgentContext 特殊处理（生成 todo list，不自动执行）
@@ -468,6 +561,20 @@ function executeCanvasAction(action: string, args: Record<string, any>): { resul
 }
 
 /** 在指定节点后方找位置 */
+/**
+ * 当模型没给 workflowCode 时，替它生成一个可读且唯一的编号。
+ * 中文名会被 slug 过滤掉，此时退化为时间戳编号，保证不会因编码问题失败。
+ */
+function deriveWorkflowCode(workflowName?: string): string {
+  const slug = String(workflowName || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 24);
+  const stamp = Date.now().toString(36);
+  return slug ? `${slug}-${stamp}` : `wf-ai-${stamp}`;
+}
+
 function findPositionAfter(ctx: CanvasContext, nodeId: string): { x: number; y: number } {
   const doc = ctx.toJSON();
   const node = doc.nodes?.find((n: any) => n.id === nodeId);

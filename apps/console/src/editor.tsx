@@ -3,15 +3,15 @@
  * Based on flowgram.ai free-layout editor
  */
 
-import { useEffect, useState, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   EditorRenderer,
   FreeLayoutEditorProvider,
   useClientContext,
 } from '@flowgram.ai/free-layout-editor';
-import { Dropdown, Button as SemiButton, Toast } from '@douyinfe/semi-ui';
-import { IconChevronDown, IconHistory, IconTick } from '@douyinfe/semi-icons';
+import { Button as SemiButton, Modal, Input } from '@douyinfe/semi-ui';
+import { IconChevronDown, IconHistory } from '@douyinfe/semi-icons';
 
 import '@flowgram.ai/free-layout-editor/index.css';
 import './index.css';
@@ -20,10 +20,16 @@ import { nodeRegistries } from './nodes';
 import { initialData } from './initial-data';
 import { useEditorProps } from './hooks';
 import { DemoTools } from './components/tools';
-import { workflowApi, GaiaWorkflowVersion, GaiaWorkflowTemplate } from './services/workflow-api';
+import { workflowApi, GaiaWorkflowVersion, GaiaWorkflowTemplate, GaiaApiMeta } from './services/workflow-api';
+import { getApiBaseUrl } from './utils/apiConfig';
 import { useLanguage, t } from './i18n';
 import { LanguageToggle } from './components/language-toggle';
 import { EditorCanvasBridge } from './agent';
+import { WorkflowDocument, workflowDocumentStore, useWorkflowDocumentState } from './document';
+import { WorkspaceToolExecutor } from './ai-workspace/WorkspaceToolExecutor';
+import { useWorkflowArtifactSync } from './ai-workspace/artifact/useWorkflowArtifactSync';
+import { CopilotSidebar } from './ai-workspace/components/CopilotSidebar';
+import { CanvasHistoryPopover } from './ai-workspace/components/CanvasHistoryPopover';
 
 const ACCENT = '#4d53e8';
 
@@ -61,19 +67,76 @@ const emptyWorkflowData = {
   ],
 };
 
+/**
+ * AI 工作区产物「精修」的临时编码：
+ * 未落版的产物通过 sessionStorage 交接给编辑器，代码本身不是真实工作流编码。
+ */
+const DRAFT_CODE = '__draft__';
+
+/** 读取 AI 工作区交接过来的草稿 DSL（刷新页面时的兜底，正常走 store） */
+function readDraftDsl(): any {
+  try {
+    const raw = sessionStorage.getItem('gaia.artifactDraft');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed?.nodes?.length ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 从 headless store 里「承接」产物。
+ *
+ * store 是模块级单例，从通用模式用同标签页跳过来时它还握着刚生成/刚精修的那份 DSL，
+ * 所以这里能直接命中 —— 这就是「从主页面跳转到工作流，数据整体承接」的实现点。
+ * 带 workflowCode 时必须匹配，避免把 A 工作流的图渲染到 B 上。
+ */
+function readCarriedDsl(workflowCode?: string): any | null {
+  try {
+    const { doc, meta } = workflowDocumentStore.getSnapshot();
+    if (doc.isEmpty) return null;
+    if (
+      workflowCode &&
+      workflowCode !== DRAFT_CODE &&
+      meta.workflowCode &&
+      meta.workflowCode !== workflowCode
+    ) {
+      return null;
+    }
+    return doc.toJSON();
+  } catch {
+    return null;
+  }
+}
+
+/** 首屏数据：内存承接优先，其次草稿，最后给个空壳 */
+function resolveInitialData(workflowCode?: string): any {
+  const carried = readCarriedDsl(workflowCode);
+  if (carried) return carried;
+  if (workflowCode === DRAFT_CODE) return readDraftDsl() ?? initialData;
+  return workflowCode ? emptyWorkflowData : initialData;
+}
+
 // Editor component that loads workflow data from backend when workflowCode is provided
 export const Editor = () => {
   const { workflowCode } = useParams<{ workflowCode: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   useLanguage();
-  const [workflowData, setWorkflowData] = useState<any>(
-    workflowCode ? emptyWorkflowData : initialData
+  // 专家模式同样要接住「AI 在对话里产出的工作流」——不接的话，侧边栏说改了、画布却没动。
+  useWorkflowArtifactSync();
+  const [workflowData, setWorkflowData] = useState<any>(() => resolveInitialData(workflowCode));
+  // 内存里已有承接数据就不必再 loading，避免画布闪一下
+  const [loading, setLoading] = useState(
+    () => !!workflowCode && workflowCode !== DRAFT_CODE && !readCarriedDsl(workflowCode)
   );
-  const [loading, setLoading] = useState(!!workflowCode);
   const [workflowInfo, setWorkflowInfo] = useState<any>(null);
   const [versions, setVersions] = useState<GaiaWorkflowVersion[]>([]);
   const [currentVersionId, setCurrentVersionId] = useState<number | undefined>();
   const [remountKey, setRemountKey] = useState(0);
+  // 记录已经处理过的 code，避免同一路由下重复拉取
+  const handledCodeRef = useRef<string | undefined>(undefined);
 
   const loadVersions = useCallback(async (code: string) => {
     try {
@@ -86,8 +149,61 @@ export const Editor = () => {
     } catch { /* ignore */ }
   }, []);
 
+  /** 把一份 DSL 写回 headless store，让 AI 侧边栏 / 产物面板共享同一份事实源 */
+  const adoptIntoStore = useCallback((raw: any, code?: string, name?: string) => {
+    try {
+      const doc = WorkflowDocument.fromJSON(raw);
+      if (doc.isEmpty) return;
+      const prevCode = workflowDocumentStore.getSnapshot().meta.workflowCode;
+      const nextCode = code && code !== DRAFT_CODE ? code : undefined;
+      // 换了一份工作流 → 上一份的版本历史不该跟过来，否则时间线会串成两件事
+      if (nextCode && prevCode && prevCode !== nextCode) {
+        workflowDocumentStore.clear();
+      }
+      workflowDocumentStore.replace(doc, { kind: 'replace', source: 'system', reason: 'import' });
+      workflowDocumentStore.markSaved({
+        ...(nextCode ? { workflowCode: nextCode } : {}),
+        ...(name ? { workflowName: name } : {}),
+      });
+      if (name) workflowDocumentStore.setMeta({ workflowName: name });
+    } catch { /* 忽略无法序列化的数据 */ }
+  }, []);
+
   useEffect(() => {
-    if (!workflowCode) return;
+    // 同一 code 只处理一次；路由参数变化时重新走一遍
+    const firstRun = handledCodeRef.current === undefined;
+    if (handledCodeRef.current === workflowCode) return;
+    handledCodeRef.current = workflowCode;
+
+    // —— 1) 内存承接：AI 刚产出 / 刚精修过的产物还在 store 里，直接用 ——
+    const carried = readCarriedDsl(workflowCode);
+    if (carried) {
+      setWorkflowData(carried);
+      setLoading(false);
+      const meta = workflowDocumentStore.getSnapshot().meta;
+      if (meta.workflowCode && meta.workflowCode !== DRAFT_CODE) {
+        setWorkflowInfo((prev: any) => prev || { workflowCode: meta.workflowCode, workflowName: meta.workflowName });
+        void loadVersions(meta.workflowCode);
+      }
+      if (!firstRun) setRemountKey((k) => k + 1);
+      return;
+    }
+
+    // —— 2) 草稿模式：store 没有就看交接过来的草稿 ——
+    if (workflowCode === DRAFT_CODE) {
+      setWorkflowData(readDraftDsl() ?? initialData);
+      setLoading(false);
+      if (!firstRun) setRemountKey((k) => k + 1);
+      return;
+    }
+
+    // —— 3) 都没有：回后端加载，并把结果写回 store ——
+    if (!workflowCode) {
+      setWorkflowData(initialData);
+      setLoading(false);
+      if (!firstRun) setRemountKey((k) => k + 1);
+      return;
+    }
 
     setLoading(true);
     workflowApi.getWorkflowByCode(workflowCode).then(async (workflow) => {
@@ -117,25 +233,28 @@ export const Editor = () => {
         } catch { /* ignore */ }
       }
 
+      let nextData: any = emptyWorkflowData;
       if (versionData && versionData.workflowData) {
         try {
-          const parsed = typeof versionData.workflowData === 'string'
+          nextData = typeof versionData.workflowData === 'string'
             ? JSON.parse(versionData.workflowData)
             : versionData.workflowData;
-          setWorkflowData(parsed);
           setCurrentVersionId(versionData.id);
         } catch {
-          setWorkflowData(emptyWorkflowData);
+          nextData = emptyWorkflowData;
         }
-      } else {
-        setWorkflowData(emptyWorkflowData);
       }
+
+      setWorkflowData(nextData);
+      // 承接的最后一环：回写 store，AI 侧边栏从此刻起就活在这份数据上
+      adoptIntoStore(nextData, workflowCode, workflow.workflowName);
       setLoading(false);
+      if (!firstRun) setRemountKey((k) => k + 1);
 
       // Load version list
       loadVersions(workflowCode);
     }).catch(() => setLoading(false));
-  }, [workflowCode, loadVersions]);
+  }, [workflowCode, loadVersions, adoptIntoStore]);
 
   const handleSwitchVersion = useCallback(async (versionId: number) => {
     try {
@@ -146,14 +265,16 @@ export const Editor = () => {
           : version.workflowData;
         setWorkflowData(parsed);
         setCurrentVersionId(versionId);
+        adoptIntoStore(parsed, workflowCode, workflowInfo?.workflowName);
         setRemountKey(k => k + 1); // Force remount to reload editor
       }
     } catch (error) {
       console.error('Failed to switch version:', error);
     }
-  }, []);
+  }, [workflowCode, workflowInfo, adoptIntoStore]);
 
   const editorProps = useEditorProps(workflowData, nodeRegistries);
+  const { snapshots } = useWorkflowDocumentState();
 
   if (loading) {
     return (
@@ -163,44 +284,72 @@ export const Editor = () => {
     );
   }
 
+  // 草稿模式若已被 AI 落版，就用真实编码去操作版本，避免进了专家模式却存不下来
+  const storeCode = workflowDocumentStore.getSnapshot().meta.workflowCode;
+  const effectiveCode =
+    workflowCode === DRAFT_CODE ? storeCode || undefined : workflowCode;
+
+  // 返回目标：从 AI 工作区跳过来的回工作区，否则回工作流库
+  const backTo = (location.state as any)?.from === '/admin/workflows' ? '/admin/workflows' : '/';
+
   return (
-    <FreeLayoutEditorProvider {...editorProps} key={remountKey}>
-      <EditorCanvasBridge />
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-        <EditorHeader
-          workflowCode={workflowCode}
-          workflowName={workflowInfo ? workflowInfo.workflowName : t('editor.newWorkflow')}
-          onBack={() => navigate('/admin/workflows')}
-          versions={versions}
-          currentVersionId={currentVersionId}
-          onSwitchVersion={handleSwitchVersion}
-          onVersionsChanged={() => workflowCode && loadVersions(workflowCode)}
-        />
-        <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-          <div className="demo-container" style={{ width: '100%', height: '100%' }}>
-            <EditorRenderer className="demo-editor" />
+    <div style={{ display: 'flex', height: '100vh', width: '100%', overflow: 'hidden' }}>
+      {/* 左：画布工作台（专家模式主位） */}
+      <div
+        style={{
+          flex: 1,
+          minWidth: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          position: 'relative',
+        }}
+      >
+        <FreeLayoutEditorProvider {...editorProps} key={remountKey}>
+          <EditorCanvasBridge />
+          {/* 专家模式同样不渲染 AgentDock，需要自己挂工具执行器 */}
+          <WorkspaceToolExecutor />
+          <EditorHeader
+            workflowCode={effectiveCode}
+            workflowName={workflowInfo ? workflowInfo.workflowName : t('editor.newWorkflow')}
+            onBack={() => navigate(backTo)}
+            versions={versions}
+            currentVersionId={currentVersionId}
+            onSwitchVersion={handleSwitchVersion}
+            onVersionsChanged={() => effectiveCode && loadVersions(effectiveCode)}
+            hasHistory={snapshots.length > 0 || versions.length > 0}
+          />
+          <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+            <div className="demo-container" style={{ width: '100%', height: '100%' }}>
+              <EditorRenderer className="demo-editor" />
+            </div>
+            <DemoTools hideSave />
           </div>
-          <DemoTools hideSave />
-        </div>
+        </FreeLayoutEditorProvider>
       </div>
-    </FreeLayoutEditorProvider>
+
+      {/* 右：AI 协作者。同一个会话、同一份 DSL，只是换了个形态 */}
+      <CopilotSidebar workflowName={workflowInfo?.workflowName} workflowCode={effectiveCode} />
+    </div>
   );
 };
 
 /**
- * 可交互工作流预览组件（用于首页嵌入）
- * 可拖拽平移/缩放、可新增节点，但不可运行（隐藏 Test Run / Save）
- * 无边框、无标题、无 Read-only 标签
+ * 工作流画布预览组件。
+ *
+ * @param minimal 极简模式：只读 + 不渲染工具栏。用于列表卡片里的缩略预览，
+ *                避免卡片里出现缩放/撤销等「编辑器才有意义」的控件。
  */
 export const WorkflowViewer = ({
   data,
   height = 480,
+  minimal = false,
 }: {
   data: any;
   height?: number | string;
+  minimal?: boolean;
 }) => {
-  // readonly=false：允许拖拽节点与新增节点；通过 DemoTools 隐藏运行/保存按钮
-  const editorProps = useEditorProps(data || initialData, nodeRegistries, false);
+  // readonly：minimal 时禁止拖拽/新增节点；否则允许拖拽与新增（首页嵌入场景）
+  const editorProps = useEditorProps(data || initialData, nodeRegistries, minimal);
 
   return (
     <FreeLayoutEditorProvider {...editorProps}>
@@ -212,7 +361,7 @@ export const WorkflowViewer = ({
       }}>
         <EditorRenderer className="demo-editor" />
         {/* 可新增节点等工具，但隐藏 Save 与 Test Run（不可运行） */}
-        <DemoTools hideSaveAndTestRun hideSave hideRunHistory hideReportEditor />
+        {!minimal && <DemoTools hideSaveAndTestRun hideSave hideRunHistory hideReportEditor />}
       </div>
     </FreeLayoutEditorProvider>
   );
@@ -228,6 +377,7 @@ const EditorHeader = ({
   currentVersionId,
   onSwitchVersion,
   onVersionsChanged,
+  hasHistory,
 }: {
   workflowCode?: string;
   workflowName: string;
@@ -236,12 +386,18 @@ const EditorHeader = ({
   currentVersionId?: number;
   onSwitchVersion: (versionId: number) => void;
   onVersionsChanged: () => void;
+  /** 有会话内快照或落版版本时，头部才出现历史入口 */
+  hasHistory: boolean;
 }) => {
   const ctx = useClientContext();
   useLanguage();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [showVersionDropdown, setShowVersionDropdown] = useState(false);
+  const [publishOpen, setPublishOpen] = useState(false);
+  const [apiName, setApiName] = useState('');
+  const [apiDesc, setApiDesc] = useState('');
+  const [publishing, setPublishing] = useState(false);
+  const [publishedMeta, setPublishedMeta] = useState<GaiaApiMeta | null>(null);
 
   const currentVersion = versions.find(v => v.id === currentVersionId);
 
@@ -286,26 +442,20 @@ const EditorHeader = ({
     }
   };
 
-  // 设为生效版本
-  const handleSetCurrent = async (versionId: number) => {
-    setSaving(true);
+  const handlePublish = async () => {
+    if (!workflowCode) return;
+    setPublishing(true);
     try {
-      await workflowApi.setCurrentVersion(versionId);
-      onVersionsChanged();
-      setShowVersionDropdown(false);
-      Toast.success(t('editor.versionSetCurrent'));
-    } catch (error) {
-      Toast.error(t('editor.versionSetCurrentFailed') + (error as Error).message);
+      const meta = await workflowApi.publishApi(workflowCode, apiName, apiDesc);
+      setPublishedMeta(meta);
+    } catch (e) {
+      alert(t('apiDocs.publish') + ' ' + (e as Error).message);
     } finally {
-      setSaving(false);
+      setPublishing(false);
     }
   };
 
-  const formatDate = (dateStr?: string) => {
-    if (!dateStr) return '';
-    const d = new Date(dateStr);
-    return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
-  };
+  // 设为生效版本 / 切换查看版本都收进了历史面板，头部不再自己实现一遍
 
   return (
     <div style={{
@@ -340,99 +490,30 @@ const EditorHeader = ({
           {t('editor.back')}
         </button>
         <span style={{ fontSize: '15px', fontWeight: 600, color: '#1a1a1a' }}>{workflowName}</span>
+        {/* 形态标识：这里是「专家模式」，与首页的通用模式区分开 */}
+        <span
+          style={{
+            fontSize: '10px',
+            fontWeight: 600,
+            color: ACCENT,
+            background: '#f0f0ff',
+            borderRadius: '4px',
+            padding: '2px 6px',
+          }}
+        >
+          {t('workspace.modeExpert')}
+        </span>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        {/* Version dropdown */}
-        {workflowCode && versions.length > 0 && (
-          <Dropdown
-            visible={showVersionDropdown}
-            onVisibleChange={setShowVersionDropdown}
-            position="bottomRight"
-            render={
-              <div style={{
-                background: '#fff',
-                border: '1px solid #e8e8ea',
-                borderRadius: '8px',
-                boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
-                padding: '6px',
-                minWidth: '280px',
-                maxHeight: '400px',
-                overflowY: 'auto',
-              }}>
-                {/* Version list */}
-                {versions.map((v) => {
-                  const isViewing = v.id === currentVersionId;
-                  const isEffective = v.isCurrent === 1;
-                  return (
-                    <div
-                      key={v.id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '8px 12px',
-                        background: isViewing ? '#f0f0ff' : 'transparent',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        marginBottom: '2px',
-                      }}
-                      onClick={() => { onSwitchVersion(v.id!); setShowVersionDropdown(false); }}
-                      onMouseEnter={(e) => { if (!isViewing) e.currentTarget.style.background = '#f5f5f7'; }}
-                      onMouseLeave={(e) => { if (!isViewing) e.currentTarget.style.background = 'transparent'; }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
-                        <span style={{ fontWeight: 600, fontSize: '13px' }}>{v.versionNumber}</span>
-                        {isEffective && (
-                          <span style={{
-                            fontSize: '10px',
-                            color: '#fff',
-                            background: ACCENT,
-                            padding: '1px 6px',
-                            borderRadius: '4px',
-                            fontWeight: 600,
-                          }}>{t('editor.effective')}</span>
-                        )}
-                        {isViewing && !isEffective && (
-                          <span style={{
-                            fontSize: '10px',
-                            color: '#999',
-                            background: '#f5f5f5',
-                            padding: '1px 6px',
-                            borderRadius: '4px',
-                          }}>{t('editor.viewing')}</span>
-                        )}
-                        <span style={{ fontSize: '11px', color: '#aaa' }}>{formatDate(v.createdAt)}</span>
-                      </div>
-                      {!isEffective && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleSetCurrent(v.id!); }}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            padding: '3px 10px',
-                            border: '1px solid #4d53e8',
-                            background: 'transparent',
-                            color: '#4d53e8',
-                            fontSize: '11px',
-                            fontWeight: 500,
-                            cursor: 'pointer',
-                            borderRadius: '4px',
-                            whiteSpace: 'nowrap',
-                          }}
-                          onMouseEnter={(e) => { e.currentTarget.style.background = '#4d53e8'; e.currentTarget.style.color = '#fff'; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#4d53e8'; }}
-                        >
-                          <IconTick size="small" />
-                          {t('editor.setEffective')}
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            }
+        {/* 版本 / 历史：整页唯一入口。会话内快照与落版版本放在同一处，
+            不然「撤销 AI 这一轮」和「切到 v1.1」两个动作会散在两个控件里。 */}
+        {hasHistory && (
+          <CanvasHistoryPopover
+            workflowCode={workflowCode}
+            onViewVersion={onSwitchVersion}
+            onVersionsChanged={onVersionsChanged}
+            {...(currentVersionId !== undefined ? { viewingVersionId: currentVersionId } : {})}
           >
             <SemiButton
               theme="borderless"
@@ -440,7 +521,7 @@ const EditorHeader = ({
               style={{ fontSize: '13px', color: '#555', height: '32px' }}
             >
               {(() => {
-                const effective = versions.find(v => v.isCurrent === 1);
+                const effective = versions.find((v) => v.isCurrent === 1);
                 if (!effective) return currentVersion ? currentVersion.versionNumber : t('editor.version');
                 if (currentVersion && currentVersion.id !== effective.id) {
                   return `${effective.versionNumber} / ${currentVersion.versionNumber}`;
@@ -449,10 +530,34 @@ const EditorHeader = ({
               })()}
               <IconChevronDown size="small" style={{ marginLeft: '4px' }} />
             </SemiButton>
-          </Dropdown>
+          </CanvasHistoryPopover>
         )}
 
         <LanguageToggle />
+
+        {/* 发布为 API */}
+        {workflowCode && (
+          <button
+            onClick={() => {
+              setApiName(workflowName || workflowCode);
+              setApiDesc('');
+              setPublishedMeta(null);
+              setPublishOpen(true);
+            }}
+            style={{
+              background: 'transparent',
+              border: `1px solid ${ACCENT}`,
+              color: ACCENT,
+              padding: '7px 16px',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '13px',
+              fontWeight: 600,
+            }}
+          >
+            {t('apiDocs.publish')}
+          </button>
+        )}
 
         {/* Save button */}
         <button
@@ -473,6 +578,56 @@ const EditorHeader = ({
           {saving ? t('Saving') : saved ? `✓ ${t('Saved')}` : t('Save')}
         </button>
       </div>
+
+      {/* 发布为 API 弹窗 */}
+      <Modal
+        title={t('apiDocs.publish')}
+        visible={publishOpen}
+        onCancel={() => setPublishOpen(false)}
+        footer={
+          publishedMeta ? (
+            <SemiButton theme="solid" style={{ background: ACCENT }} onClick={() => setPublishOpen(false)}>
+              {t('Saved')}
+            </SemiButton>
+          ) : (
+            <SemiButton theme="solid" style={{ background: ACCENT }} loading={publishing} onClick={handlePublish}>
+              {t('apiDocs.publish')}
+            </SemiButton>
+          )
+        }
+      >
+        {publishedMeta ? (
+          <div style={{ fontSize: 13, color: '#444', lineHeight: 1.8 }}>
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ color: '#888', marginBottom: 4 }}>{t('apiDocs.endpoint')}</div>
+              <code style={{ display: 'block', background: '#f6f6fb', borderRadius: 8, padding: '8px 10px', color: ACCENT, wordBreak: 'break-all' }}>
+                POST {getApiBaseUrl().replace(/\/+$/, '')}/v1/wf/{publishedMeta.workflowCode}
+              </code>
+            </div>
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ color: '#888', marginBottom: 4 }}>{t('apiDocs.apiKey')}</div>
+              <code style={{ display: 'block', background: '#fffaf0', borderRadius: 8, padding: '8px 10px', color: '#b76e00', wordBreak: 'break-all' }}>
+                {publishedMeta.apiKey}
+              </code>
+              <div style={{ marginTop: 4, fontSize: 12, color: '#b76e00' }}>{t('apiDocs.showKey')}</div>
+            </div>
+            <a href={`/docs/${publishedMeta.workflowCode}`} style={{ color: ACCENT, fontSize: 13 }}>
+              → {t('apiDocs.title')}
+            </a>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>{t('apiDocs.apiName')}</div>
+              <Input value={apiName} onChange={(v) => setApiName(v)} placeholder={workflowName} />
+            </div>
+            <div>
+              <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>{t('apiDocs.apiDesc')}</div>
+              <Input value={apiDesc} onChange={(v) => setApiDesc(v)} placeholder={t('apiDocs.apiDescPlaceholder')} />
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };
@@ -524,8 +679,8 @@ export const TemplateEditor = () => {
   }
 
   return (
-    <FreeLayoutEditorProvider {...editorProps}>
-      <EditorCanvasBridge />
+      <FreeLayoutEditorProvider {...editorProps}>
+        <EditorCanvasBridge sync={false} />
       <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
         <TemplateEditorHeader
           templateInfo={templateInfo}

@@ -125,6 +125,9 @@ public class GaiaWorkflowExecuteController {
             log.setOutputParams(outputs != null ? JSONUtil.toJsonStr(outputs) : null);
             log.setErrorMessage(errorMessage);
             log.setExecutionDuration(executionDuration);
+            // 标记来源通道，便于调用看板区分「对外 API 调用」与其它执行来源
+            log.setInvokeChannel("api");
+            log.setApiPath("/api/execute/" + workflowCode);
 
             workflowLogService.save(log);
         } catch (Exception e) {

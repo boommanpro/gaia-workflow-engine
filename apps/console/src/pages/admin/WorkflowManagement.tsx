@@ -158,7 +158,8 @@ export const WorkflowManagement = () => {
   };
 
   const handleOpenEditor = (wf: GaiaWorkflow) => {
-    navigate(`/editor/${wf.workflowCode}`);
+    // 带上来源，编辑器「返回」才知道该回到工作流库还是 AI 工作区
+    navigate(`/editor/${wf.workflowCode}`, { state: { from: '/admin/workflows' } });
   };
 
   return (

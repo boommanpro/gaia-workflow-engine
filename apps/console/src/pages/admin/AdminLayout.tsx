@@ -51,6 +51,13 @@ const IconBackHome = () => (
   </svg>
 );
 
+const IconIntro = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2 4.5h7a3 3 0 0 1 3 3V21a2.5 2.5 0 0 0-2.5-2.5H2V4.5z" />
+    <path d="M22 4.5h-7a3 3 0 0 0-3 3V21a2.5 2.5 0 0 1 2.5-2.5H22V4.5z" />
+  </svg>
+);
+
 /* ---------------- Page title map ---------------- */
 
 const PAGE_TITLE_KEYS: Record<string, string> = {
@@ -154,6 +161,12 @@ export const AdminLayout = () => {
           <NavLink to="/admin/sessions" style={navLinkStyle}>
             <IconSession />
             <span>{t('admin.sessions')}</span>
+          </NavLink>
+
+          {/* 预览页（原产品介绍改造而来）：展示工作流/对话预览 */}
+          <NavLink to="/preview" style={navLinkStyle}>
+            <IconIntro />
+            <span>{t('nav.preview')}</span>
           </NavLink>
         </nav>
 

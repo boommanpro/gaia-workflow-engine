@@ -5,7 +5,7 @@
  */
 import React, { useMemo, useCallback } from 'react';
 
-const ACCENT = '#4d53e8';
+import { t } from '../i18n';
 
 /** 选项块解析结果 */
 export interface ParsedContent {
@@ -203,59 +203,54 @@ export interface MarkdownProps {
   onOptionClick?: (option: string) => void;
   /** 是否禁用选项点击（如流式输出中） */
   optionsDisabled?: boolean;
+  /**
+   * 该轮选项是否已作废（对话已经往后走了）。
+   * 作废后不再渲染一排可点按钮，只用一行灰字交代「这里曾有 N 个选项」，
+   * 避免多轮澄清后对话里堆出一墙孤立按钮。
+   */
+  optionsRetired?: boolean;
 }
 
-export const Markdown: React.FC<MarkdownProps> = ({ content, onOptionClick, optionsDisabled }) => {
+export const Markdown: React.FC<MarkdownProps> = ({
+  content,
+  onOptionClick,
+  optionsDisabled,
+  optionsRetired,
+}) => {
   const { text, options } = useMemo(() => parseOptions(content), [content]);
   const html = useMemo(() => markdownToHtml(text), [text]);
 
   const handleOption = useCallback(
     (opt: string) => {
-      if (!optionsDisabled && onOptionClick) onOptionClick(opt);
+      if (!optionsDisabled && !optionsRetired && onOptionClick) onOptionClick(opt);
     },
-    [optionsDisabled, onOptionClick]
+    [optionsDisabled, optionsRetired, onOptionClick]
   );
 
   return (
     <div className="md-body">
       {html && <div className="md-html" dangerouslySetInnerHTML={{ __html: html }} />}
-      {options.length > 0 && (
-        <div className="md-options" style={{ marginTop: html ? '8px' : 0 }}>
+      {options.length > 0 && optionsRetired && (
+        <div
+          style={{
+            marginTop: html ? '6px' : 0,
+            fontSize: '11px',
+            color: '#b0b0ba',
+            fontStyle: 'italic',
+          }}
+        >
+          {t('agent.optionsRetired', { count: options.length })}
+        </div>
+      )}
+      {options.length > 0 && !optionsRetired && (
+        <div className="md-options" style={{ marginTop: html ? '10px' : 0 }}>
           {options.map((opt, idx) => (
             <button
               key={idx}
               type="button"
+              className="chat-opt"
               disabled={optionsDisabled}
               onClick={() => handleOption(opt)}
-              style={{
-                display: 'block',
-                width: '100%',
-                textAlign: 'left',
-                padding: '7px 12px',
-                marginBottom: '6px',
-                borderRadius: '8px',
-                border: '1px solid #d8d8e8',
-                background: '#fff',
-                color: '#333',
-                fontSize: '12.5px',
-                cursor: optionsDisabled ? 'default' : 'pointer',
-                opacity: optionsDisabled ? 0.6 : 1,
-                transition: 'all 0.15s',
-              }}
-              onMouseEnter={(e) => {
-                if (!optionsDisabled) {
-                  e.currentTarget.style.borderColor = ACCENT;
-                  e.currentTarget.style.color = ACCENT;
-                  e.currentTarget.style.background = '#f4f4ff';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!optionsDisabled) {
-                  e.currentTarget.style.borderColor = '#d8d8e8';
-                  e.currentTarget.style.color = '#333';
-                  e.currentTarget.style.background = '#fff';
-                }
-              }}
             >
               {opt}
             </button>

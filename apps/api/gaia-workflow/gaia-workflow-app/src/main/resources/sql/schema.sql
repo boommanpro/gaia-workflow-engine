@@ -45,7 +45,28 @@ CREATE TABLE IF NOT EXISTS gaia_workflow_log (
     output_params TEXT,
     error_message TEXT,
     execution_duration BIGINT,
+    invoke_channel VARCHAR(32),
+    api_path VARCHAR(128),
+    api_key_prefix VARCHAR(32),
     created_at TEXT
+);
+
+-- 工作流「发布为 API」主表（对话创建 API 模式）
+CREATE TABLE IF NOT EXISTS gaia_workflow_api (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    workflow_code VARCHAR(64) NOT NULL UNIQUE,
+    api_name VARCHAR(128),
+    api_desc TEXT,
+    version_number VARCHAR(32),
+    api_path VARCHAR(128),
+    api_key VARCHAR(128),
+    status TINYINT DEFAULT 0,
+    request_schema TEXT,
+    response_schema TEXT,
+    error_codes TEXT,
+    created_at TEXT,
+    updated_at TEXT,
+    is_deleted TINYINT DEFAULT 0
 );
 
 -- Agent 对话会话表（多会话管理）

@@ -206,6 +206,12 @@ public class AgentToolRegistry {
                 }
             }
 
+            // 2.5 增量补齐：硬编码 schema 里新增、但 DB 还没有的工具自动建种。
+            // 否则升级后新增的工具（如 applyWorkflow）在已存在的库上永远不会生效。
+            if (allowSeed) {
+                seedMissingTools();
+            }
+
             // 3. 加载启用的工具定义
             List<AgentToolDefinition> enabled = toolDefinitionService.list(
                 new QueryWrapper<AgentToolDefinition>()
@@ -259,6 +265,48 @@ public class AgentToolRegistry {
             toolDefinitionService.save(def);
         }
         log.info("Auto-seeded {} tool definitions into agent_tool_definition table", hardcoded.size());
+    }
+
+    /**
+     * 增量补齐工具定义：只补 DB 中缺失的工具，不动用户已修改过的既有定义。
+     */
+    private void seedMissingTools() {
+        JSONArray hardcoded = buildToolsSchema();
+        Map<String, String> policies = buildDefaultPolicies();
+
+        int maxOrder = 0;
+        for (AgentToolDefinition existing : toolDefinitionService.list()) {
+            maxOrder = Math.max(maxOrder, existing.getSortOrder() == null ? 0 : existing.getSortOrder());
+        }
+
+        int added = 0;
+        for (Object item : hardcoded) {
+            JSONObject tool = (JSONObject) item;
+            JSONObject function = tool.getJSONObject("function");
+            String name = function.getStr("name");
+            if (name == null) continue;
+            long exists = toolDefinitionService.count(
+                new QueryWrapper<AgentToolDefinition>().eq("tool_name", name));
+            if (exists > 0) continue;
+
+            AgentToolDefinition def = new AgentToolDefinition();
+            def.setToolName(name);
+            def.setToolGroup(toolGroupOf(name));
+            def.setDescription(function.getStr("description"));
+            JSONObject params = function.getJSONObject("parameters");
+            def.setParameters(params != null ? params.toString() : new JSONObject().toString());
+            def.setDefaultPolicy(policies.getOrDefault(name, "confirm"));
+            def.setEnabled(1);
+            def.setSortOrder(++maxOrder);
+            String now = LocalDateTime.now().toString();
+            def.setCreatedAt(now);
+            def.setUpdatedAt(now);
+            toolDefinitionService.save(def);
+            added++;
+        }
+        if (added > 0) {
+            log.info("Seeded {} missing tool definition(s) into agent_tool_definition table", added);
+        }
     }
 
     /**
@@ -430,6 +478,8 @@ public class AgentToolRegistry {
                 return "write";
             case "canvas":
                 return "canvas";
+            case "applyWorkflow":
+                return "write";
             case "createPlan":
             case "executeStep":
                 return "plan";
@@ -460,6 +510,7 @@ public class AgentToolRegistry {
         policies.put("query", "always");
         policies.put("manage", "always");
         policies.put("canvas", "always");
+        policies.put("applyWorkflow", "always");
         policies.put("createPlan", "always");
         policies.put("executeStep", "always");
         return policies;
@@ -515,7 +566,42 @@ public class AgentToolRegistry {
             }
         )));
 
-        // ===== 5. 执行计划 =====
+        // ===== 5. 整份工作流一次成型（「AI 主视角 → 工作流产物」的核心动作） =====
+        tools.add(func("applyWorkflow",
+            "一次性写入完整工作流 DSL 并落为一个生效版本。生成或重写工作流时【优先使用此工具】，" +
+            "不要用 canvas.addNode 逐节点拼装 —— 那需要 N 次往返且容易断链。" +
+            "系统会自动做归一化：补全缺失的 id、缺失坐标时自动分层布局、" +
+            "扁平字段（如 {url: \"...\"}）转 flowgram 嵌套结构、去重连线、" +
+            "缺少 start/end 时自动补齐并接入主链。产出后请把校验结果如实告诉用户。",
+            obj(
+                new String[]{"nodes"},
+                new JSONObject[]{
+                    str("workflowCode", "工作流编码。留空或省略表示新建，系统会自动生成", null),
+                    str("workflowName", "工作流名称（新建时使用）", null),
+                    str("workflowDesc", "工作流描述", null),
+                    str("versionDesc", "版本描述，例如「按需求生成初版」", null),
+                    arrProp("nodes",
+                        "节点数组。每项 {id?, type, title?, data?}；type 取值同 canvas 工具的节点类型枚举。" +
+                        "给 id 时用语义化命名（如 llm_summarize），连线直接引用这个 id 即可。",
+                        obj(new String[]{"type"}, new JSONObject[]{
+                            str("type", "节点类型", null),
+                            str("id", "节点ID，省略则自动生成；后续连线需要用 id 引用", null),
+                            str("title", "节点标题", null),
+                            objProp("data", NODE_DATA_SCHEMA_HINT)
+                        })),
+                    arrProp("edges",
+                        "连线数组。每项 {from, to}（也可用 {sourceNodeID, targetNodeID}）。" +
+                        "必须覆盖完整执行链路，不要留下孤立节点。",
+                        obj(new String[]{"from", "to"}, new JSONObject[]{
+                            str("from", "源节点ID", null),
+                            str("to", "目标节点ID", null),
+                            str("fromPort", "源端口（条件/分支节点多出口时使用）", null)
+                        })),
+                    boolProp("saveAsVersion", "是否立即落为生效版本，默认 true；false 表示只在工作台上预览", true)
+                }
+            )));
+
+        // ===== 6. 执行计划 =====
         tools.add(func("createPlan", "创建多步骤执行计划，用于复杂任务（如创建完整 workflow）", obj(
             new String[]{"steps"}, new JSONObject[]{
                 arrProp("steps", "执行步骤数组",
@@ -527,7 +613,7 @@ public class AgentToolRegistry {
             }
         )));
 
-        // ===== 6. 执行单步 =====
+        // ===== 7. 执行单步 =====
         tools.add(func("executeStep", "执行 plan 中的单个步骤。createPlan 生成计划后，逐个调用此工具执行步骤，根据结果决定继续下一步或调整重试。", obj(
             new String[]{"stepIndex"}, new JSONObject[]{
                 num("stepIndex", "要执行的步骤索引（从0开始，对应 createPlan 返回的 steps 数组索引）", 0)
@@ -593,6 +679,13 @@ public class AgentToolRegistry {
 
     private JSONObject objProp(String name, String desc) {
         return new JSONObject().set("__name", name).set("type", "object").set("description", desc);
+    }
+
+    private JSONObject boolProp(String name, String desc, boolean defaultValue) {
+        JSONObject p = new JSONObject().set("__name", name).set("type", "boolean");
+        if (desc != null) p.set("description", desc);
+        p.set("default", defaultValue);
+        return p;
     }
 
     private JSONObject arrProp(String name, String desc, JSONObject items) {

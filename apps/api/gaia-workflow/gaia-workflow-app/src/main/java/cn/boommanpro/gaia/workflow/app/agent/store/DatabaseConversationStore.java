@@ -1,0 +1,114 @@
+package cn.boommanpro.gaia.workflow.app.agent.store;
+
+import cn.boommanpro.gaia.workflow.app.agent.core.ConversationStore;
+import cn.boommanpro.gaia.workflow.app.agent.llm.LlmMessage;
+import cn.boommanpro.gaia.workflow.app.agent.llm.LlmToolCall;
+import cn.boommanpro.gaia.workflow.app.config.AgentProperties;
+import cn.boommanpro.gaia.workflow.infra.manage.entity.AgentMessage;
+import cn.boommanpro.gaia.workflow.infra.manage.service.AgentMessageService;
+import cn.hutool.json.JSONArray;
+import cn.hutool.json.JSONObject;
+import cn.hutool.json.JSONUtil;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * 基于 agent_message 表的会话存取实现。
+ */
+@Slf4j
+@Component
+public class DatabaseConversationStore implements ConversationStore {
+
+    private final AgentMessageService messageService;
+    private final AgentProperties properties;
+
+    public DatabaseConversationStore(AgentMessageService messageService, AgentProperties properties) {
+        this.messageService = messageService;
+        this.properties = properties;
+    }
+
+    @Override
+    public List<LlmMessage> loadHistory(String sessionKey, int maxMessages) {
+        List<LlmMessage> result = new ArrayList<>();
+        if (sessionKey == null || sessionKey.isEmpty()) {
+            return result;
+        }
+        int limit = maxMessages > 0 ? maxMessages : properties.getHistory().getMaxMessages();
+
+        List<AgentMessage> all = messageService.list(
+            new QueryWrapper<AgentMessage>()
+                .eq("session_key", sessionKey)
+                .orderByAsc("created_at", "id"));
+
+        // 只保留最近 N 条；整体截取比 SQL limit 更可靠地保留尾部语境
+        List<AgentMessage> window = all.size() > limit
+            ? all.subList(all.size() - limit, all.size())
+            : all;
+
+        for (AgentMessage entity : window) {
+            result.add(toLlmMessage(entity));
+        }
+        return result;
+    }
+
+    private LlmMessage toLlmMessage(AgentMessage entity) {
+        LlmMessage message = new LlmMessage();
+        message.setRole(entity.getRole());
+        message.setContent(entity.getContent());
+        message.setToolCallId(entity.getToolCallId());
+
+        if (entity.getToolCalls() != null && !entity.getToolCalls().isEmpty()
+            && JSONUtil.isJsonArray(entity.getToolCalls())) {
+            List<LlmToolCall> calls = new ArrayList<>();
+            JSONArray array = JSONUtil.parseArray(entity.getToolCalls());
+            for (int i = 0; i < array.size(); i++) {
+                JSONObject raw = array.getJSONObject(i);
+                JSONObject function = raw.getJSONObject("function");
+                calls.add(LlmToolCall.builder()
+                    .id(raw.getStr("id"))
+                    .name(function != null ? function.getStr("name") : null)
+                    .arguments(function != null ? function.getStr("arguments") : "{}")
+                    .build());
+            }
+            message.setToolCalls(calls);
+        }
+
+        if (entity.getImages() != null && !entity.getImages().isEmpty()
+            && JSONUtil.isJsonArray(entity.getImages())) {
+            JSONArray images = JSONUtil.parseArray(entity.getImages());
+            List<String> imageList = new ArrayList<>();
+            for (int i = 0; i < images.size(); i++) {
+                imageList.add(images.getStr(i));
+            }
+            message.setImages(imageList);
+        }
+        return message;
+    }
+
+    @Override
+    public void saveMessage(String sessionKey, String role, String content,
+                            String toolCallsJson, String toolCallId) {
+        if (sessionKey == null || sessionKey.isEmpty()) {
+            return;
+        }
+        AgentMessage message = new AgentMessage();
+        message.setSessionKey(sessionKey);
+        message.setRole(role);
+        message.setContent(content);
+        message.setToolCalls(toolCallsJson);
+        message.setToolCallId(toolCallId);
+        message.setCreatedAt(LocalDateTime.now());
+        messageService.save(message);
+    }
+
+    @Override
+    public String newSessionKey() {
+        return UUID.randomUUID().toString().replace("-", "");
+    }
+}

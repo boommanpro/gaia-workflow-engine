@@ -26,7 +26,6 @@ import { canContainNode, onDragLineEnd } from '../utils';
 import { FlowDocumentJSON, FlowNodeRegistry } from '../typings';
 import { shortcuts } from '../shortcuts';
 import { CustomService } from '../services';
-import { GetGlobalVariableSchema } from '../plugins/variable-panel-plugin';
 import { WorkflowRuntimeService } from '../plugins/runtime-plugin/runtime-service';
 import {
   createContextMenuPlugin,
@@ -44,6 +43,23 @@ import { singleNodeTestPanelFactory } from '../components/run-node-panel';
 import { BaseNode, CommentRender, GroupNodeRender, LineAddButton, NodePanel } from '../components';
 import { getApiBaseUrl } from '../utils/apiConfig';
 import { getCurrentLocale } from '../i18n';
+import { canvasSync, type CanvasChangeType } from '../document';
+
+/**
+ * 画布变更类型的累积缓冲。
+ * onContentChange 一次拖拽会连发很多条，600ms 内折叠成一次回流；
+ * 但类型要累积 —— 只保留最后一条的话，「删了节点又拖了一下」会被误判成纯拖拽。
+ */
+const canvasChangeTypes = new Set<CanvasChangeType>();
+let lastCanvasContext: FreeLayoutPluginContext | undefined;
+
+const flushCanvasChange = debounce(() => {
+  const ctx = lastCanvasContext;
+  const types = [...canvasChangeTypes];
+  canvasChangeTypes.clear();
+  if (!ctx || ctx.document.disposed) return;
+  canvasSync.onCanvasChange(types);
+}, 600);
 
 export function useEditorProps(
   initialData: FlowDocumentJSON,
@@ -231,15 +247,16 @@ export function useEditorProps(
       },
       /**
        * Content change
+       *
+       * 画布内容变化回流到 headless DSL store —— 这条线是「单一事实源」成立的前提。
+       * 未 attach 的画布（首页预览、模板编辑器）会在这里被 canvasSync 内部直接忽略。
        */
-      onContentChange: debounce((ctx: FreeLayoutPluginContext, event) => {
-        if (ctx.document.disposed) return;
-
-        console.log('Auto Save: ', event, {
-          ...ctx.document.toJSON(),
-          globalVariable: ctx.get<GetGlobalVariableSchema>(GetGlobalVariableSchema)(),
-        });
-      }, 1000),
+      onContentChange: (ctx: FreeLayoutPluginContext, event) => {
+        lastCanvasContext = ctx;
+        const type = (event as { type?: CanvasChangeType } | undefined)?.type;
+        if (typeof type === 'string') canvasChangeTypes.add(type);
+        flushCanvasChange();
+      },
       /**
        * Running line
        */
@@ -266,7 +283,17 @@ export function useEditorProps(
       onAllLayersRendered(ctx) {
         // ctx.tools.autoLayout(); // init auto layout
         ctx.tools.fitView(false);
-        console.log('--- Playground rendered ---');
+        if (readonly) {
+          // 只读=列表卡片里的缩略预览：卡片首帧尺寸往往还没稳定（图片/字体回流），
+          // 立即 fit 会算错比例，导致节点跑到可视区外。延迟再适配一次。
+          setTimeout(() => {
+            try {
+              ctx.tools.fitView(false);
+            } catch {
+              /* 编辑器可能已卸载 */
+            }
+          }, 180);
+        }
       },
       /**
        * Playground dispose

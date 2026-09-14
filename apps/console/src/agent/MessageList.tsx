@@ -352,9 +352,14 @@ export const MessageItem: React.FC<{
   message: DisplayMessage;
   streaming: boolean;
   onOptionClick: (option: string) => void;
+  /**
+   * 该条消息的选项是否已作废（对话已经往后走了）。
+   * 只有最近一条 assistant 消息的选项还应该可点。
+   */
+  optionsRetired?: boolean;
   /** 可选：覆盖调试跳转行为（当在 AgentContext 外复用时需要传入） */
   onDebugJump?: (debugEntryId: string) => void;
-}> = ({ message, streaming, onOptionClick, onDebugJump }) => {
+}> = ({ message, streaming, onOptionClick, optionsRetired, onDebugJump }) => {
   const agent = useAgent() as { openDebugEntry?: (id: string) => void } | undefined;
   const openDebugEntry = (id: string) => {
     if (onDebugJump) {
@@ -416,6 +421,7 @@ export const MessageItem: React.FC<{
             content={message.content}
             onOptionClick={onOptionClick}
             optionsDisabled={streaming}
+            optionsRetired={optionsRetired}
           />
         )}
         {/* Task 1d: render user-attached images inline below text */}
@@ -502,6 +508,18 @@ export const MessageList: React.FC = () => {
   useLanguage();
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * 最近一条「有正文」的 assistant 消息。
+   * 只有它的 ::options 还代表用户当下可做的选择；更早的都已经是历史包袱。
+   */
+  const lastAssistantId = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
+      if (m.role === 'assistant' && m.content) return m.id;
+    }
+    return null;
+  }, [messages]);
 
   // 选项点击 → 直接发送
   const handleOptionClick = useCallback(
@@ -638,6 +656,7 @@ export const MessageList: React.FC = () => {
                   message={m}
                   streaming={streaming}
                   onOptionClick={handleOptionClick}
+                  optionsRetired={!!lastAssistantId && m.id !== lastAssistantId}
                 />
               </React.Fragment>
             );

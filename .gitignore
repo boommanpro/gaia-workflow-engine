@@ -171,3 +171,6 @@ extracted/
 .Trash?
 ehthumbs.db
 Thumbs.db
+
+# 本地 SQLite 备份（可能含运行数据与 API Key，禁止入库）
+*.db.bak*
