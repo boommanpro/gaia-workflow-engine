@@ -90,7 +90,7 @@ const MiniTopology: React.FC<{ snapshot: CanvasSnapshot; compact?: boolean }> = 
       style={{
         borderRadius: 8,
         border: `1px solid ${CHAT.lineSoft}`,
-        background: '#fcfcfe',
+        background: 'var(--g-bg-sunken)',
         flexShrink: 0,
         display: 'block',
       }}
@@ -104,7 +104,7 @@ const MiniTopology: React.FC<{ snapshot: CanvasSnapshot; compact?: boolean }> = 
           y1={edge.y1}
           x2={edge.x2}
           y2={edge.y2}
-          stroke={CHAT.line}
+          style={{ stroke: CHAT.line }}
           strokeWidth={0.8}
         />
       ))}
@@ -229,9 +229,9 @@ export const CanvasSnapshotCard: React.FC<CanvasSnapshotCardProps> = ({
         className="chat-fade"
         style={{
           margin: compact ? '4px 0' : '6px 0',
-          border: `1px solid #f6d9d9`,
+          border: `1px solid var(--g-danger-soft)`,
           borderRadius: 12,
-          background: '#fffafa',
+          background: 'var(--g-danger-soft)',
           padding: compact ? '8px 10px' : '10px 12px',
         }}
       >
@@ -339,7 +339,7 @@ export const CanvasSnapshotCard: React.FC<CanvasSnapshotCardProps> = ({
                 flexShrink: 0,
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#fff';
+                e.currentTarget.style.background = 'var(--g-bg-raised)';
                 e.currentTarget.style.color = CHAT.accent;
               }}
               onMouseLeave={(e) => {

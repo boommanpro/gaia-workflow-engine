@@ -32,7 +32,7 @@ const DockIconButton: React.FC<{
         height: '30px',
         border: 'none',
         background: 'transparent',
-        color: '#555',
+        color: 'var(--g-text-sub)',
         cursor: 'pointer',
         borderRadius: '6px',
         display: 'flex',
@@ -365,12 +365,12 @@ export const AgentDockPanel: React.FC = () => {
                   flex: 1,
                   fontSize: '14px',
                   fontWeight: 600,
-                  color: '#1a1a1a',
+                  color: 'var(--g-text)',
                   border: `1px solid ${ACCENT}`,
                   borderRadius: '4px',
                   padding: '3px 8px',
                   outline: 'none',
-                  background: '#fff',
+                  background: 'var(--g-bg-raised)',
                   fontFamily: 'inherit',
                 }}
               />
@@ -381,7 +381,7 @@ export const AgentDockPanel: React.FC = () => {
                 style={{
                   fontSize: '14px',
                   fontWeight: 600,
-                  color: '#1a1a1a',
+                  color: 'var(--g-text)',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
@@ -424,7 +424,7 @@ export const AgentDockPanel: React.FC = () => {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#999',
+                  color: 'var(--g-text-muted)',
                   fontSize: '13px',
                 }}
               >
@@ -444,7 +444,7 @@ export const AgentDockPanel: React.FC = () => {
                 gap: '8px',
                 padding: '4px 12px',
                 fontSize: '11px',
-                color: '#999',
+                color: 'var(--g-text-muted)',
                 flexShrink: 0,
                 borderTop: '1px solid #eee',
               }}
@@ -482,9 +482,9 @@ export const AgentDockPanel: React.FC = () => {
                   fontSize: '11px',
                   border: '1px solid #e0e0e6',
                   borderRadius: '4px',
-                  background: '#fff',
+                  background: 'var(--g-bg-raised)',
                   cursor: 'pointer',
-                  color: '#555',
+                  color: 'var(--g-text-sub)',
                 }}
               >
                 压缩上下文
@@ -499,7 +499,7 @@ export const AgentDockPanel: React.FC = () => {
                 flexShrink: 0,
                 borderTop: '1px solid #eee',
                 borderBottom: planCollapsed ? '1px solid #eee' : 'none',
-                background: '#fafafa',
+                background: 'var(--g-bg-sunken)',
               }}
             >
               <div
@@ -642,7 +642,7 @@ export const AgentDockPanel: React.FC = () => {
                   flexShrink: 0,
                   border: '1px solid #e0e0e6',
                   borderRadius: '8px',
-                  background: '#fff',
+                  background: 'var(--g-bg-raised)',
                   cursor:
                     !currentSessionKey || selectedImages.length >= 4
                       ? 'not-allowed'
@@ -650,7 +650,7 @@ export const AgentDockPanel: React.FC = () => {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#555',
+                  color: 'var(--g-text-sub)',
                 }}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -684,8 +684,8 @@ export const AgentDockPanel: React.FC = () => {
                   maxHeight: '300px',
                   height: textareaHeight,
                   outline: 'none',
-                  background: '#fff',
-                  color: '#1a1a1a',
+                  background: 'var(--g-bg-raised)',
+                  color: 'var(--g-text)',
                   fontFamily: 'inherit',
                 }}
               />

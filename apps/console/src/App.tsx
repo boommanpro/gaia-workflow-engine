@@ -1,9 +1,8 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 
 import { Releases } from './pages/Releases';
 import { LandingPage } from './pages/LandingPage';
 import { Home } from './pages/Home';
-import { ApiDocsPage } from './pages/ApiDocsPage';
 import { Editor, TemplateEditor } from './editor';
 import { AdminLayout } from './pages/admin/AdminLayout';
 import { WorkflowManagement } from './pages/admin/WorkflowManagement';
@@ -14,21 +13,32 @@ import { AgentProvider } from './agent';
 import { AiWorkspace } from './ai-workspace';
 import ScrollPage from './components/ScrollPage';
 
+/** 旧地址 /c/:sessionKey → 新地址 /chat/:sessionKey */
+const LegacyChatRedirect = () => {
+  const { sessionKey } = useParams<{ sessionKey: string }>();
+  return <Navigate to={sessionKey ? `/chat/${sessionKey}` : '/chat'} replace />;
+};
+
+/** 旧地址 /admin/* → 新地址 /manage/*（保留子路径） */
+const LegacyAdminRedirect = () => {
+  const { pathname } = useLocation();
+  return <Navigate to={pathname.replace(/^\/admin/, '/manage')} replace />;
+};
+
 /**
- * 路由表 —— 每个形态都有自己的地址，可以收藏、可以分享、可以前进后退。
+ * 路由表 —— 三层模式各有自己的地址空间：
  *
- *   /                    产品首页（DeepSeek 风对话入口，发起对话→创建 API）
- *   /c/:sessionKey       通用模式 · AI 工作区（对话核心，产物即工作流）
- *   /preview             预览页（原产品介绍页：内嵌可交互画布演示 + 项目说明）
- *   /docs                对外 API 调用文档（列表 / 详情）
- *   /editor/:workflowCode 专家模式 · 画布主位
- *   /admin/*             管理后台
+ *   /chat,  /chat/:sessionKey    Chat   · 纯对话
+ *   /work,  /work/c/:sessionKey  Work   · 工作空间（文件夹分组的对话）
+ *   /manage/*                    Manage · 管理端（工作流 / 模板 / Agent 配置 / 会话审查）
+ *
+ *   /                    产品首页（对话即 API 入口）
  *   /releases            版本记录
+ *   /editor/:workflowCode 专家模式 · 画布主位
  *
- * 注意：API 文档路由用 /docs 而不是 /api-docs。
+ * 注意：任何新增的前端路由都不要以 /api 开头。
  * 开发服务器把 /api 前缀代理到了后端（rsbuild.config.ts 的 proxy），
- * /api-docs 会被代理吞掉直接命中后端，页面报 Whitelabel 404。
- * 任何新增的前端路由都不要以 /api 开头。
+ * 以 /api 开头的前端路由会被代理吞掉直接命中后端，页面报 Whitelabel 404。
  */
 function App() {
   return (
@@ -38,18 +48,25 @@ function App() {
           {/* 产品首页（对话创建 API 入口） */}
           <Route path="/" element={<LandingPage />} />
 
-          {/* 通用模式 · 对话核心 */}
-          <Route path="/c/:sessionKey" element={<AiWorkspace />} />
+          {/* Chat · 纯对话 */}
+          <Route path="/chat" element={<AiWorkspace />} />
+          <Route path="/chat/:sessionKey" element={<AiWorkspace />} />
+
+          {/* Work · 工作空间（文件夹分组的对话） */}
+          <Route path="/work" element={<AiWorkspace />} />
+          <Route path="/work/c/:sessionKey" element={<AiWorkspace />} />
+
+          {/* 旧地址重定向 */}
+          <Route path="/c/:sessionKey" element={<LegacyChatRedirect />} />
+          <Route path="/admin/*" element={<LegacyAdminRedirect />} />
 
           {/* 内容页 */}
           <Route path="/preview" element={<ScrollPage><Home /></ScrollPage>} />
-          <Route path="/docs" element={<ScrollPage><ApiDocsPage /></ScrollPage>} />
-          <Route path="/docs/:workflowCode" element={<ScrollPage><ApiDocsPage /></ScrollPage>} />
           <Route path="/releases" element={<ScrollPage><Releases /></ScrollPage>} />
 
-          {/* 管理后台 */}
-          <Route path="/admin" element={<AdminLayout />}>
-            <Route index element={<Navigate to="/admin/workflows" replace />} />
+          {/* Manage · 管理端 */}
+          <Route path="/manage" element={<AdminLayout />}>
+            <Route index element={<Navigate to="/manage/workflows" replace />} />
             <Route path="workflows" element={<WorkflowManagement />} />
             <Route path="templates" element={<TemplateManagement />} />
             <Route path="agent-config" element={<AgentConfigManagement />} />

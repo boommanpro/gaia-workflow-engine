@@ -16,7 +16,7 @@ function statusMeta(status: PlanStep['status']): {
 } {
   switch (status) {
     case 'pending':
-      return { color: '#999', bg: '#f0f0f0', label: '等待' };
+      return { color: 'var(--g-text-muted)', bg: 'var(--g-line)', label: '等待' };
     case 'running':
       return { color: ACCENT, bg: '#f0f0ff', label: '进行中' };
     case 'testing':
@@ -28,7 +28,7 @@ function statusMeta(status: PlanStep['status']): {
     case 'error':
       return { color: '#e5404e', bg: '#fdecee', label: '出错' };
     default:
-      return { color: '#999', bg: '#f0f0f0', label: status };
+      return { color: 'var(--g-text-muted)', bg: 'var(--g-line)', label: status };
   }
 }
 
@@ -150,7 +150,7 @@ export const PlanCard: React.FC<PlanCardProps> = ({ steps }) => {
         style={{
           maxWidth: '95%',
           width: '100%',
-          background: '#fff',
+          background: 'var(--g-bg-raised)',
           border: '1px solid #e8e8ea',
           borderRadius: '8px',
           padding: '10px 12px',
@@ -230,7 +230,7 @@ export const PlanCard: React.FC<PlanCardProps> = ({ steps }) => {
                     <span
                       style={{
                         fontSize: '13px',
-                        color: '#1a1a1a',
+                        color: 'var(--g-text)',
                         fontWeight: 500,
                       }}
                     >
@@ -266,7 +266,7 @@ export const PlanCard: React.FC<PlanCardProps> = ({ steps }) => {
                       style={{
                         marginTop: '4px',
                         fontSize: '11px',
-                        color: '#888',
+                        color: 'var(--g-text-muted)',
                         wordBreak: 'break-all',
                         maxHeight: '40px',
                         overflow: 'hidden',

@@ -10,9 +10,11 @@
  *
  * 布局：flex column + 内容区 flex:1，内容不足一屏时 footer 贴底。
  */
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAgent } from '../agent';
+import { agentApi } from '../agent/api';
+import type { AgentSession } from '../agent/types';
 import { useLanguage, t } from '../i18n';
 import { setInitialPrompt } from '../agent/initialPrompt';
 import ContentTopNav from '../components/ContentTopNav';
@@ -46,6 +48,53 @@ export const LandingPage: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   // IME 合成期间按回车不应发送（中文候选词未确认）
   const isComposingRef = useRef(false);
+
+  // ---------- 历史对话面板 ----------
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historySessions, setHistorySessions] = useState<AgentSession[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const historyBoxRef = useRef<HTMLDivElement | null>(null);
+
+  /** 点击外部关闭历史面板 */
+  useEffect(() => {
+    if (!historyOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (historyBoxRef.current && !historyBoxRef.current.contains(e.target as Node)) {
+        setHistoryOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [historyOpen]);
+
+  const toggleHistory = useCallback(async () => {
+    if (historyOpen) {
+      setHistoryOpen(false);
+      return;
+    }
+    setHistoryOpen(true);
+    setHistoryLoading(true);
+    try {
+      const list = await agentApi.listSessions();
+      // 按最近更新排序
+      const sorted = [...(list || [])].sort(
+        (a, b) => new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime()
+      );
+      setHistorySessions(sorted);
+    } catch {
+      setHistorySessions([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [historyOpen]);
+
+  const formatTime = (iso?: string): string => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
 
   /** 读取单个 File 为 base64 data URL */
   const readFileAsDataURL = (file: File): Promise<string> =>
@@ -214,6 +263,55 @@ export const LandingPage: React.FC = () => {
                       <path d="M21 15l-5-5L5 21" />
                     </svg>
                   </button>
+
+                  {/* 历史对话：查看 / 跳转历史会话 */}
+                  <div className="relative" ref={historyBoxRef}>
+                    <button
+                      onClick={() => void toggleHistory()}
+                      className="flex h-9 items-center gap-1.5 rounded-full border px-3 text-[13px] transition-colors hover:border-[#c9c9ff] hover:text-[#4d53e8]"
+                      style={{ borderColor: historyOpen ? ACCENT : '#ececf2', color: historyOpen ? ACCENT : '#666' }}
+                      title={t('landing.history')}
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M12 7v5l3 2" />
+                      </svg>
+                      {t('landing.history')}
+                    </button>
+
+                    {historyOpen && (
+                      <div
+                        className="absolute left-0 top-[calc(100%+8px)] z-30 w-[340px] overflow-hidden rounded-2xl border bg-white shadow-[0_16px_44px_rgba(0,0,0,0.14)]"
+                        style={{ borderColor: '#eee' }}
+                      >
+                        <div className="border-b px-4 py-3 text-[13px] font-semibold" style={{ borderColor: '#f0f0f2', color: '#333' }}>
+                          {t('landing.history')}
+                        </div>
+                        <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+                          {historyLoading ? (
+                            <div className="px-4 py-8 text-center text-[13px] text-[#999]">{t('Loading')}</div>
+                          ) : historySessions.length === 0 ? (
+                            <div className="px-4 py-8 text-center text-[13px] text-[#999]">{t('landing.historyEmpty')}</div>
+                          ) : (
+                            historySessions.map((s) => (
+                              <button
+                                key={s.sessionKey}
+                                onClick={() => {
+                                  setHistoryOpen(false);
+                                  navigate(`/c/${s.sessionKey}`);
+                                }}
+                                className="block w-full px-4 py-2.5 text-left transition-colors hover:bg-[#f7f7fb]"
+                              >
+                                <div className="truncate text-[13.5px] text-[#1a1a1a]">{s.title || s.sessionKey}</div>
+                                <div className="mt-0.5 text-[11.5px] text-[#aaa]">{formatTime(s.updatedAt || s.createdAt)}</div>
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   <span className="text-[12px] text-[#aaa]">
                     {images.length > 0 ? `${images.length}/${MAX_IMAGES}` : t('landing.examples')} · Enter ↵
                   </span>

@@ -48,7 +48,7 @@ export const SubagentCard: React.FC<{ message: DisplayMessage }> = ({ message })
           background: '#f0f5ff',
           borderBottom: '1px solid #e8e8ea',
           fontWeight: 600,
-          color: '#1a1a1a',
+          color: 'var(--g-text)',
           display: 'flex',
           alignItems: 'center',
           gap: '6px',
@@ -102,14 +102,14 @@ export const SubagentCard: React.FC<{ message: DisplayMessage }> = ({ message })
               </div>
               {/* Content */}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 500, color: '#333' }}>
+                <div style={{ fontWeight: 500, color: 'var(--g-text-body)' }}>
                   {getActionLabel(step.action)}
                 </div>
                 {step.result && (
                   <div
                     style={{
                       fontSize: '11px',
-                      color: '#999',
+                      color: 'var(--g-text-muted)',
                       marginTop: '2px',
                       wordBreak: 'break-all',
                       maxHeight: '40px',
@@ -138,7 +138,7 @@ export const SubagentCard: React.FC<{ message: DisplayMessage }> = ({ message })
         >
           <strong>{result.success ? '调试成功' : '调试失败'}</strong>
           {result.content && (
-            <div style={{ marginTop: '4px', color: '#555', wordBreak: 'break-all' }}>
+            <div style={{ marginTop: '4px', color: 'var(--g-text-sub)', wordBreak: 'break-all' }}>
               {result.content}
             </div>
           )}

@@ -39,7 +39,7 @@ class CanvasBoundary extends Component<{ children: ReactNode }, { failed: boolea
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#999',
+            color: 'var(--g-text-muted)',
             fontSize: '12px',
             textAlign: 'center',
             padding: '16px',
@@ -59,7 +59,7 @@ const CanvasInner: React.FC<ReadonlyCanvasProps> = ({ dsl }) => {
 
   return (
     <FreeLayoutEditorProvider {...editorProps}>
-      <div style={{ width: '100%', height: '100%', background: '#fbfbfd' }}>
+      <div style={{ width: '100%', height: '100%', background: 'var(--g-bg-sunken)' }}>
         <EditorRenderer />
       </div>
     </FreeLayoutEditorProvider>

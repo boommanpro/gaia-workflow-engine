@@ -5,6 +5,40 @@
 
 import { FlowDocumentJSON } from './typings';
 
+/**
+ * 空工作流的默认数据：包含 Start → End 节点链路
+ * 确保工作流始终有合法的起止节点（主编辑器与模板编辑器共用）
+ */
+export const emptyWorkflowData: FlowDocumentJSON = {
+  nodes: [
+    {
+      id: 'start_0',
+      type: 'start',
+      meta: { position: { x: 200, y: 200 } },
+      data: {
+        title: 'Start',
+        outputs: { type: 'object', properties: {} },
+      },
+    },
+    {
+      id: 'end_0',
+      type: 'end',
+      meta: { position: { x: 500, y: 200 } },
+      data: {
+        title: 'End',
+        inputsValues: {},
+        inputs: { type: 'object', properties: {} },
+      },
+    },
+  ],
+  edges: [
+    {
+      sourceNodeID: 'start_0',
+      targetNodeID: 'end_0',
+    },
+  ],
+};
+
 export const initialData: FlowDocumentJSON = {
   nodes: [
     {

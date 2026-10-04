@@ -129,7 +129,7 @@ export const PermissionSettings: React.FC<PermissionSettingsProps> = ({ onClose 
         style={{
           width: '400px',
           height: '100%',
-          background: '#fff',
+          background: 'var(--g-bg-raised)',
           borderLeft: '1px solid #e8e8ea',
           display: 'flex',
           flexDirection: 'column',
@@ -148,7 +148,7 @@ export const PermissionSettings: React.FC<PermissionSettingsProps> = ({ onClose 
             flexShrink: 0,
           }}
         >
-          <span style={{ fontSize: '14px', fontWeight: 600, color: '#1a1a1a' }}>{t('agent.perm.title')}</span>
+          <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--g-text)' }}>{t('agent.perm.title')}</span>
           <button
             onClick={handleClose}
             title={t('agent.perm.close')}
@@ -157,7 +157,7 @@ export const PermissionSettings: React.FC<PermissionSettingsProps> = ({ onClose 
               height: '30px',
               border: 'none',
               background: 'transparent',
-              color: '#555',
+              color: 'var(--g-text-sub)',
               cursor: 'pointer',
               borderRadius: '6px',
               display: 'flex',
@@ -180,7 +180,7 @@ export const PermissionSettings: React.FC<PermissionSettingsProps> = ({ onClose 
           style={{
             padding: '12px 16px',
             borderBottom: '1px solid #f0f0f0',
-            background: '#fafafa',
+            background: 'var(--g-bg-sunken)',
             flexShrink: 0,
           }}
         >
@@ -191,7 +191,7 @@ export const PermissionSettings: React.FC<PermissionSettingsProps> = ({ onClose 
               alignItems: 'center',
               gap: '8px',
               fontSize: '12px',
-              color: '#333',
+              color: 'var(--g-text-body)',
               cursor: 'pointer',
               marginBottom: '10px',
               fontWeight: 500,
@@ -208,7 +208,7 @@ export const PermissionSettings: React.FC<PermissionSettingsProps> = ({ onClose 
 
           {/* 一键批量操作 */}
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <span style={{ fontSize: '11px', color: '#999', flexShrink: 0 }}>{t('agent.perm.quickAction')}：</span>
+            <span style={{ fontSize: '11px', color: 'var(--g-text-muted)', flexShrink: 0 }}>{t('agent.perm.quickAction')}：</span>
             <button
               onClick={() => handleBatchSet('always')}
               disabled={batchLoading}
@@ -304,7 +304,7 @@ export const PermissionSettings: React.FC<PermissionSettingsProps> = ({ onClose 
                         <span
                           style={{
                             fontSize: '12px',
-                            color: '#333',
+                            color: 'var(--g-text-body)',
                             fontWeight: 500,
                             fontFamily:
                               "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",

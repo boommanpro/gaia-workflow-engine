@@ -6,11 +6,15 @@ import cn.boommanpro.gaia.workflow.infra.manage.entity.GaiaWorkflowVersion;
 import cn.boommanpro.gaia.workflow.infra.manage.service.GaiaWorkflowService;
 import cn.boommanpro.gaia.workflow.infra.manage.service.GaiaWorkflowTemplateService;
 import cn.boommanpro.gaia.workflow.infra.manage.service.GaiaWorkflowVersionService;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/workflow")
@@ -63,14 +67,32 @@ public class GaiaWorkflowController {
      * 始终创建初始版本：有模板则用模板数据，无模板则用最小默认数据
      */
     @PostMapping("/create")
-    public boolean createWorkflow(@RequestBody GaiaWorkflow workflow) {
+    public ResponseEntity<?> createWorkflow(@RequestBody GaiaWorkflow workflow) {
+        // 编码必填
+        if (workflow.getWorkflowCode() == null || workflow.getWorkflowCode().trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "工作流编码不能为空"));
+        }
+        workflow.setWorkflowCode(workflow.getWorkflowCode().trim());
+
+        // 编码唯一校验：workflow_code 在库中全局唯一，先查再写，避免落库时唯一索引冲突抛 500
+        GaiaWorkflow existed = workflowService.getOne(
+            new QueryWrapper<GaiaWorkflow>()
+                .eq("workflow_code", workflow.getWorkflowCode())
+                .last("LIMIT 1")
+        );
+        if (existed != null) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("message", "工作流编码已存在: " + workflow.getWorkflowCode()));
+        }
+
         // 保存工作流
         workflow.setCreatedAt(LocalDateTime.now());
         workflow.setUpdatedAt(LocalDateTime.now());
         boolean workflowSaved = workflowService.save(workflow);
 
         if (!workflowSaved) {
-            return false;
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("message", "创建工作流失败"));
         }
 
         // 确定初始版本数据来源
@@ -115,7 +137,7 @@ public class GaiaWorkflowController {
             workflowService.updateById(workflow);
         }
 
-        return true;
+        return ResponseEntity.ok(true);
     }
 
     /**

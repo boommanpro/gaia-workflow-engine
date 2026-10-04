@@ -82,7 +82,7 @@ function policyLabel(policy: string): { text: string; color: string; bg: string 
     case 'forbid':
       return { text: t('agent.policyForbid'), color: '#e5404e', bg: '#fdecee' };
     default:
-      return { text: policy, color: '#666', bg: '#f0f0f0' };
+      return { text: policy, color: 'var(--g-text-sub)', bg: 'var(--g-line)' };
   }
 }
 
@@ -92,7 +92,7 @@ export const ToolCallCard: React.FC<{ toolCall: ToolCallEvent }> = ({ toolCall }
   return (
     <div
       style={{
-        background: '#fff',
+        background: 'var(--g-bg-raised)',
         border: '1px solid #e8e8ea',
         borderLeft: `3px solid ${ACCENT}`,
         borderRadius: '8px',
@@ -102,7 +102,7 @@ export const ToolCallCard: React.FC<{ toolCall: ToolCallEvent }> = ({ toolCall }
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-        <span style={{ color: '#999', fontSize: '11px' }}>{t('agent.toolCall')}</span>
+        <span style={{ color: 'var(--g-text-muted)', fontSize: '11px' }}>{t('agent.toolCall')}</span>
         <span style={{ color: ACCENT, fontWeight: 600 }}>{toolCall.action}</span>
         <span
           style={{
@@ -119,7 +119,7 @@ export const ToolCallCard: React.FC<{ toolCall: ToolCallEvent }> = ({ toolCall }
       </div>
       <div
         style={{
-          color: '#666',
+          color: 'var(--g-text-sub)',
           fontSize: '11px',
           wordBreak: 'break-all',
           fontFamily:
@@ -156,7 +156,7 @@ export const ToolResultCard: React.FC<{ content: string }> = ({ content }) => {
         borderRadius: '6px',
         padding: '6px 8px',
         fontSize: '11px',
-        color: '#888',
+        color: 'var(--g-text-muted)',
         maxWidth: '100%',
         border: '1px solid #eee',
       }}
@@ -167,7 +167,7 @@ export const ToolResultCard: React.FC<{ content: string }> = ({ content }) => {
       >
         <span style={{ color: '#aaa' }}>{expanded ? '▾' : '▸'} {t('agent.toolResult')}</span>
         {!expanded && (
-          <span style={{ color: '#999', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <span style={{ color: 'var(--g-text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {preview}
           </span>
         )}
@@ -180,7 +180,7 @@ export const ToolResultCard: React.FC<{ content: string }> = ({ content }) => {
             wordBreak: 'break-all',
             fontFamily:
               "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace",
-            color: '#555',
+            color: 'var(--g-text-sub)',
             lineHeight: '1.4',
           }}
         >
@@ -244,7 +244,7 @@ export const GroupedToolCard: React.FC<{ messages: DisplayMessage[] }> = ({ mess
                 style={{
                   padding: '6px 10px',
                   fontSize: '11px',
-                  color: '#999',
+                  color: 'var(--g-text-muted)',
                   borderBottom: '1px solid #eee',
                   display: 'flex',
                   alignItems: 'center',
@@ -302,7 +302,7 @@ export const GroupedToolCard: React.FC<{ messages: DisplayMessage[] }> = ({ mess
                     </div>
                     <div
                       style={{
-                        color: '#666',
+                        color: 'var(--g-text-sub)',
                         fontSize: '11px',
                         wordBreak: 'break-all',
                         fontFamily:
@@ -314,7 +314,7 @@ export const GroupedToolCard: React.FC<{ messages: DisplayMessage[] }> = ({ mess
                     {tc.result && (
                       <div
                         style={{
-                          color: '#888',
+                          color: 'var(--g-text-muted)',
                           fontSize: '11px',
                           marginTop: '2px',
                           wordBreak: 'break-all',
@@ -408,7 +408,7 @@ export const MessageItem: React.FC<{
           padding: isUser ? '8px 12px' : '8px 12px',
           borderRadius: isUser ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
           background: isUser ? ACCENT : '#f0f0f5',
-          color: isUser ? '#fff' : '#1a1a1a',
+          color: isUser ? '#fff' : 'var(--g-text)',
           fontSize: '13px',
           lineHeight: '1.55',
           wordBreak: 'break-word',
@@ -450,7 +450,7 @@ export const MessageItem: React.FC<{
               title={t('agent.debugJumpTip') || '查看本条回复的调试详情'}
               style={{
                 fontSize: '10px',
-                color: '#888',
+                color: 'var(--g-text-muted)',
                 background: 'transparent',
                 border: 'none',
                 cursor: 'pointer',
@@ -569,7 +569,7 @@ export const MessageList: React.FC = () => {
             <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
           </svg>
         </div>
-        <div style={{ fontSize: '14px', color: '#666', fontWeight: 500 }}>
+        <div style={{ fontSize: '14px', color: 'var(--g-text-sub)', fontWeight: 500 }}>
           {t('agent.welcomeTitle')}
         </div>
         <div style={{ fontSize: '12px', color: '#aaa' }}>
@@ -682,7 +682,7 @@ export const MessageList: React.FC = () => {
             border: '1px solid #e8e8ea',
             borderRadius: '8px',
             fontSize: '12px',
-            color: '#888',
+            color: 'var(--g-text-muted)',
           }}>
             <span style={{
               display: 'inline-block',

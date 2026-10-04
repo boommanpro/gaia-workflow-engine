@@ -198,22 +198,6 @@ export const Home = () => {
           >
             {t('nav.releases')}
           </button>
-          {/* 新增的两块能力：对外 API 文档与调用数据看板（窄屏收进抽屉式布局，避免导航溢出） */}
-          <button
-            onClick={() => navigate('/docs')}
-            className="hidden lg:block"
-            style={{
-              padding: '6px 0',
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: '14px',
-              color: '#555',
-              fontWeight: 500,
-            }}
-          >
-            {t('nav.apiDocs')}
-          </button>
           <div
             style={{
               display: 'flex',

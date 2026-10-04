@@ -6,5 +6,4 @@ export { ArtifactPanel } from './artifact/ArtifactPanel';
 export { HeadlessCanvasBridge } from './HeadlessCanvasBridge';
 export { Composer } from './components/Composer';
 export { CopilotSidebar } from './components/CopilotSidebar';
-export { SessionRail } from './components/SessionRail';
 export { findLatestWorkflow, findWorkflowInMessage } from './artifact/extract';

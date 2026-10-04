@@ -22,13 +22,13 @@ import {
 } from '../../agent/MessageList';
 import { DebugPanel, DebugEntry, parseDebugData } from '../../agent/DebugPanel';
 
-const ACCENT = '#4d53e8';
+const ACCENT = 'var(--g-accent)';
 
 /** 质量评分颜色 */
 function ratingColor(rating?: string | null): string {
-  if (rating === 'good') return '#1f9d55';
-  if (rating === 'bad') return '#e5404e';
-  return '#999';
+  if (rating === 'good') return 'var(--g-success)';
+  if (rating === 'bad') return 'var(--g-danger)';
+  return 'var(--g-text-muted)';
 }
 function ratingLabel(rating?: string | null): string {
   if (rating === 'good') return t('sessionReview.rating.good');
@@ -39,10 +39,10 @@ function ratingLabel(rating?: string | null): string {
 /** 状态颜色 */
 function statusColor(status?: string): string {
   switch (status) {
-    case 'fixed': return '#1f9d55';
-    case 'analyzing': return '#b7791f';
-    case 'ignored': return '#999';
-    default: return '#4d53e8';
+    case 'fixed': return 'var(--g-success)';
+    case 'analyzing': return 'var(--g-warn)';
+    case 'ignored': return 'var(--g-text-muted)';
+    default: return 'var(--g-accent)';
   }
 }
 function statusLabel(status?: string): string {
@@ -328,7 +328,7 @@ export const SessionReview: React.FC = () => {
           style={{
             width: 340,
             flexShrink: 0,
-            background: '#fff',
+            background: 'var(--g-bg-raised)',
             border: '1px solid #e8e8ea',
             borderRadius: 10,
             display: 'flex',
@@ -365,7 +365,7 @@ export const SessionReview: React.FC = () => {
                 style={{
                   padding: 24,
                   textAlign: 'center',
-                  color: '#bbb',
+                  color: 'var(--g-text-faint)',
                   fontSize: 13,
                 }}
               >
@@ -386,12 +386,12 @@ export const SessionReview: React.FC = () => {
                       borderRadius: 8,
                       marginBottom: 4,
                       cursor: isEditing ? 'default' : 'pointer',
-                      background: isSel ? '#f0f0ff' : 'transparent',
+                      background: isSel ? 'var(--g-accent-soft)' : 'transparent',
                       border: isSel ? `1px solid ${ACCENT}33` : '1px solid transparent',
                       transition: 'background 0.15s',
                     }}
                     onMouseEnter={(e) => {
-                      if (!isSel) e.currentTarget.style.background = '#f7f7fa';
+                      if (!isSel) e.currentTarget.style.background = 'var(--g-bg-sunken)';
                     }}
                     onMouseLeave={(e) => {
                       if (!isSel) e.currentTarget.style.background = 'transparent';
@@ -422,7 +422,7 @@ export const SessionReview: React.FC = () => {
                         style={{
                           fontSize: 13,
                           fontWeight: 500,
-                          color: isSel ? ACCENT : '#1a1a1a',
+                          color: isSel ? ACCENT : 'var(--g-text)',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
@@ -464,7 +464,7 @@ export const SessionReview: React.FC = () => {
                         {statusLabel(s.reviewStatus)}
                       </Tag>
                       {s.createdAt && (
-                        <span style={{ fontSize: 11, color: '#bbb' }}>
+                        <span style={{ fontSize: 11, color: 'var(--g-text-faint)' }}>
                           {new Date(s.createdAt).toLocaleString()}
                         </span>
                       )}
@@ -480,7 +480,7 @@ export const SessionReview: React.FC = () => {
         <div
           style={{
             flex: 1,
-            background: '#fff',
+            background: 'var(--g-bg-raised)',
             border: '1px solid #e8e8ea',
             borderRadius: 10,
             overflow: 'hidden',
@@ -496,7 +496,7 @@ export const SessionReview: React.FC = () => {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#bbb',
+                color: 'var(--g-text-faint)',
                 fontSize: 14,
               }}
             >
@@ -529,12 +529,12 @@ export const SessionReview: React.FC = () => {
                     style={{
                       fontSize: 14,
                       fontWeight: 600,
-                      color: '#1a1a1a',
+                      color: 'var(--g-text)',
                       border: `1px solid ${ACCENT}`,
                       borderRadius: 4,
                       padding: '3px 8px',
                       outline: 'none',
-                      background: '#fff',
+                      background: 'var(--g-bg-raised)',
                       fontFamily: 'inherit',
                       minWidth: 200,
                       flex: 1,
@@ -547,7 +547,7 @@ export const SessionReview: React.FC = () => {
                     style={{
                       fontSize: 14,
                       fontWeight: 600,
-                      color: '#1a1a1a',
+                      color: 'var(--g-text)',
                       cursor: 'text',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
@@ -618,13 +618,13 @@ export const SessionReview: React.FC = () => {
                     overflowY: 'auto',
                     padding: '16px 24px',
                     borderRight: '1px solid #f0f0f0',
-                    background: '#fff',
+                    background: 'var(--g-bg-raised)',
                   }}
                 >
                   <div
                     style={{
                       fontSize: 12,
-                      color: '#999',
+                      color: 'var(--g-text-muted)',
                       fontWeight: 600,
                       marginBottom: 8,
                     }}
@@ -632,11 +632,11 @@ export const SessionReview: React.FC = () => {
                     {t('sessionReview.messages')} · {displayMessages.length} 条
                   </div>
                   {loadingDetail ? (
-                    <div style={{ padding: 16, textAlign: 'center', color: '#bbb', fontSize: 13 }}>
+                    <div style={{ padding: 16, textAlign: 'center', color: 'var(--g-text-faint)', fontSize: 13 }}>
                       Loading…
                     </div>
                   ) : displayMessages.length === 0 ? (
-                    <div style={{ padding: 16, textAlign: 'center', color: '#bbb', fontSize: 13 }}>
+                    <div style={{ padding: 16, textAlign: 'center', color: 'var(--g-text-faint)', fontSize: 13 }}>
                       {t('sessionReview.noMessage')}
                     </div>
                   ) : (
@@ -651,7 +651,7 @@ export const SessionReview: React.FC = () => {
                       <div
                         style={{
                           fontSize: 12,
-                          color: '#999',
+                          color: 'var(--g-text-muted)',
                           fontWeight: 600,
                           margin: '16px 0 8px',
                         }}
@@ -688,13 +688,13 @@ export const SessionReview: React.FC = () => {
                     gap: 14,
                   }}
                 >
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a' }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--g-text)' }}>
                     {t('sessionReview.review')}
                   </div>
 
                   {/* 质量评分 */}
                   <div>
-                    <div style={{ fontSize: 12, fontWeight: 500, color: '#555', marginBottom: 6 }}>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--g-text-sub)', marginBottom: 6 }}>
                       {t('sessionReview.markRating')}
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
@@ -704,7 +704,7 @@ export const SessionReview: React.FC = () => {
                         onClick={() => setReviewRating('good')}
                         style={
                           reviewRating === 'good'
-                            ? { background: '#1f9d55' }
+                            ? { background: 'var(--g-success)' }
                             : undefined
                         }
                       >
@@ -716,7 +716,7 @@ export const SessionReview: React.FC = () => {
                         onClick={() => setReviewRating('bad')}
                         style={
                           reviewRating === 'bad'
-                            ? { background: '#e5404e' }
+                            ? { background: 'var(--g-danger)' }
                             : undefined
                         }
                       >
@@ -734,7 +734,7 @@ export const SessionReview: React.FC = () => {
 
                   {/* 状态 */}
                   <div>
-                    <div style={{ fontSize: 12, fontWeight: 500, color: '#555', marginBottom: 6 }}>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--g-text-sub)', marginBottom: 6 }}>
                       {t('sessionReview.statusLabel')}
                     </div>
                     <select
@@ -758,7 +758,7 @@ export const SessionReview: React.FC = () => {
 
                   {/* 问题描述 */}
                   <div>
-                    <div style={{ fontSize: 12, fontWeight: 500, color: '#555', marginBottom: 6 }}>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--g-text-sub)', marginBottom: 6 }}>
                       {t('sessionReview.issueLabel')}
                     </div>
                     <TextArea
@@ -772,7 +772,7 @@ export const SessionReview: React.FC = () => {
 
                   {/* 修复建议 */}
                   <div>
-                    <div style={{ fontSize: 12, fontWeight: 500, color: '#555', marginBottom: 6 }}>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--g-text-sub)', marginBottom: 6 }}>
                       {t('sessionReview.fixNoteLabel')}
                     </div>
                     <TextArea

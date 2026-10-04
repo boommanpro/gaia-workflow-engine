@@ -1,16 +1,18 @@
 /**
  * TemplateManagement — 模板管理页面
- * 表格展示模板列表，支持搜索、新建、编辑元数据、删除
+ * 表格展示模板列表，支持新建、编辑元数据、删除
  * 点击"打开编辑器"进入可视化编辑
  */
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 import { Modal, Toast } from '@douyinfe/semi-ui';
 import { workflowApi, type GaiaWorkflowTemplate } from '../../services/workflow-api';
+import { emptyWorkflowData } from '../../initial-data';
 import type { CSSProperties } from 'react';
 import { useLanguage, t } from '../../i18n';
+import type { AdminOutletContext } from './AdminLayout';
 
-const ACCENT = '#4d53e8';
+const ACCENT = 'var(--g-accent)';
 
 interface TemplateForm {
   templateName: string;
@@ -40,7 +42,6 @@ export const TemplateManagement = () => {
   const navigate = useNavigate();
   useLanguage();
   const [templates, setTemplates] = useState<GaiaWorkflowTemplate[]>([]);
-  const [searchKeyword, setSearchKeyword] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<GaiaWorkflowTemplate | null>(null);
   const [templateForm, setTemplateForm] = useState<TemplateForm>(EMPTY_FORM);
@@ -62,15 +63,6 @@ export const TemplateManagement = () => {
   useEffect(() => {
     loadData();
   }, []);
-
-  const filteredTemplates = templates.filter((tpl) => {
-    const kw = searchKeyword.trim().toLowerCase();
-    if (!kw) return true;
-    return (
-      (tpl.templateName || '').toLowerCase().includes(kw) ||
-      (tpl.templateCode || '').toLowerCase().includes(kw)
-    );
-  });
 
   const openCreateModal = () => {
     setEditingTemplate(null);
@@ -114,7 +106,7 @@ export const TemplateManagement = () => {
           templateName: templateForm.templateName.trim(),
           templateCode: templateForm.templateCode.trim(),
           templateDesc: templateForm.templateDesc.trim(),
-          templateData: JSON.stringify({ nodes: [], edges: [] }),
+          templateData: JSON.stringify(emptyWorkflowData),
         });
       }
       closeModal();
@@ -150,41 +142,18 @@ export const TemplateManagement = () => {
     navigate(`/template-editor/${tpl.templateCode}`);
   };
 
-  return (
-    <div style={{ color: '#1a1a1a' }}>
-      {/* ---------- Toolbar ---------- */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 16 }}>
-        <input
-          type="text"
-          placeholder={t('admin.search.templates')}
-          value={searchKeyword}
-          onChange={(e) => setSearchKeyword(e.target.value)}
-          style={searchInputStyle}
-        />
-        <button
-          onClick={openCreateModal}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '9px 18px',
-            borderRadius: 8,
-            border: 'none',
-            background: ACCENT,
-            color: '#fff',
-            fontSize: 14,
-            fontWeight: 600,
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-            transition: 'opacity 0.18s ease',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
-          onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
-        >
-          {t('admin.createTemplate')}
-        </button>
-      </div>
+  // 将「新建」按钮注册到顶栏标题右侧
+  const { setHeaderAction } = useOutletContext<AdminOutletContext>();
+  const createHandlerRef = useRef(openCreateModal);
+  createHandlerRef.current = openCreateModal;
+  const createLabel = t('admin.createTemplate');
+  useEffect(() => {
+    setHeaderAction({ label: createLabel, onClick: () => createHandlerRef.current() });
+    return () => setHeaderAction(null);
+  }, [setHeaderAction, createLabel]);
 
+  return (
+    <div style={{ color: 'var(--g-text)' }}>
       {/* ---------- Table card ---------- */}
       <div style={tableCardStyle}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
@@ -206,17 +175,17 @@ export const TemplateManagement = () => {
               <tr>
                 <td colSpan={5} style={emptyTdStyle}>{t('Loading')}</td>
               </tr>
-            ) : filteredTemplates.length === 0 ? (
+            ) : templates.length === 0 ? (
               <tr>
                 <td colSpan={5} style={emptyTdStyle}>{t('admin.noData')}</td>
               </tr>
             ) : (
-              filteredTemplates.map((tpl) => (
-                <tr key={tpl.id ?? tpl.templateCode} style={{ borderTop: '1px solid #f0f0f0' }}>
+              templates.map((tpl) => (
+                <tr key={tpl.id ?? tpl.templateCode} style={{ borderTop: '1px solid var(--g-line-soft)' }}>
                   <td style={tdStyle}>{tpl.templateName}</td>
-                  <td style={{ ...tdStyle, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 13, color: '#666' }}>{tpl.templateCode}</td>
-                  <td style={{ ...tdStyle, color: '#666', maxWidth: 180 }}>{tpl.templateDesc || '—'}</td>
-                  <td style={{ ...tdStyle, color: '#666', whiteSpace: 'nowrap' }}>{formatDateTime(tpl.createdAt)}</td>
+                  <td style={{ ...tdStyle, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 13, color: 'var(--g-text-sub)' }}>{tpl.templateCode}</td>
+                  <td style={{ ...tdStyle, color: 'var(--g-text-sub)', maxWidth: 180 }}>{tpl.templateDesc || '—'}</td>
+                  <td style={{ ...tdStyle, color: 'var(--g-text-sub)', whiteSpace: 'nowrap' }}>{formatDateTime(tpl.createdAt)}</td>
                   <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
                     <button onClick={() => openEditModal(tpl)} style={actionBtnBlueStyle}>{t('Edit')}</button>
                     <button onClick={() => handleOpenEditor(tpl)} style={actionBtnPurpleStyle}>{t('admin.openEditor')}</button>
@@ -238,7 +207,7 @@ export const TemplateManagement = () => {
             </h2>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={fieldLabelStyle}>{t('admin.modal.templateName')} <span style={{ color: '#ef4444' }}>*</span></label>
+              <label style={fieldLabelStyle}>{t('admin.modal.templateName')} <span style={{ color: 'var(--g-danger)' }}>*</span></label>
               <input
                 type="text"
                 value={templateForm.templateName}
@@ -249,12 +218,12 @@ export const TemplateManagement = () => {
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={fieldLabelStyle}>{t('admin.modal.templateCode')} <span style={{ color: '#ef4444' }}>*</span></label>
+              <label style={fieldLabelStyle}>{t('admin.modal.templateCode')} <span style={{ color: 'var(--g-danger)' }}>*</span></label>
               <input
                 type="text"
                 value={templateForm.templateCode}
                 onChange={(e) => setTemplateForm({ ...templateForm, templateCode: e.target.value })}
-                style={editingTemplate ? { ...inputStyle, background: '#f5f5f7', color: '#999', cursor: 'not-allowed' } : inputStyle}
+                style={editingTemplate ? { ...inputStyle, background: 'var(--g-bg-sunken)', color: 'var(--g-text-muted)', cursor: 'not-allowed' } : inputStyle}
                 placeholder={t('admin.modal.placeholder.code')}
                 disabled={!!editingTemplate}
               />
@@ -292,21 +261,8 @@ export default TemplateManagement;
 
 /* ---------------- Styles ---------------- */
 
-const searchInputStyle: CSSProperties = {
-  flex: 1,
-  maxWidth: 360,
-  padding: '9px 14px',
-  background: '#ffffff',
-  border: '1px solid #e8e8ea',
-  borderRadius: 8,
-  fontSize: 14,
-  outline: 'none',
-  boxSizing: 'border-box',
-  transition: 'border-color 0.18s ease',
-};
-
 const tableCardStyle: CSSProperties = {
-  background: '#ffffff',
+  background: 'var(--g-bg-raised)',
   borderRadius: 12,
   boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)',
   overflow: 'hidden',
@@ -317,8 +273,8 @@ const thStyle: CSSProperties = {
   padding: '12px 16px',
   fontSize: 13,
   fontWeight: 600,
-  color: '#666',
-  background: '#fafafa',
+  color: 'var(--g-text-sub)',
+  background: 'var(--g-bg-sunken)',
   whiteSpace: 'nowrap',
 };
 
@@ -331,7 +287,7 @@ const tdStyle: CSSProperties = {
 const emptyTdStyle: CSSProperties = {
   padding: '48px 16px',
   textAlign: 'center',
-  color: '#999',
+  color: 'var(--g-text-muted)',
   fontSize: 14,
 };
 
@@ -345,14 +301,14 @@ const actionBtnBase: CSSProperties = {
   marginRight: 4,
 };
 
-const actionBtnBlueStyle: CSSProperties = { ...actionBtnBase, color: '#2563eb' };
+const actionBtnBlueStyle: CSSProperties = { ...actionBtnBase, color: 'var(--g-link)' };
 const actionBtnPurpleStyle: CSSProperties = { ...actionBtnBase, color: ACCENT };
-const actionBtnRedStyle: CSSProperties = { ...actionBtnBase, color: '#ef4444', marginRight: 0 };
+const actionBtnRedStyle: CSSProperties = { ...actionBtnBase, color: 'var(--g-danger)', marginRight: 0 };
 
 const modalOverlayStyle: CSSProperties = {
   position: 'fixed',
   inset: 0,
-  background: 'rgba(20,20,20,0.4)',
+  background: 'var(--g-overlay)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -361,7 +317,7 @@ const modalOverlayStyle: CSSProperties = {
 };
 
 const modalCardStyle: CSSProperties = {
-  background: '#ffffff',
+  background: 'var(--g-bg-raised)',
   borderRadius: 12,
   padding: 28,
   width: 480,
@@ -375,17 +331,17 @@ const fieldLabelStyle: CSSProperties = {
   marginBottom: 7,
   fontSize: 13,
   fontWeight: 600,
-  color: '#1a1a1a',
+  color: 'var(--g-text)',
 };
 
 const inputStyle: CSSProperties = {
   width: '100%',
   padding: '9px 12px',
-  background: '#fafafa',
-  border: '1px solid #e8e8ea',
+  background: 'var(--g-bg-sunken)',
+  border: '1px solid var(--g-line)',
   borderRadius: 8,
   fontSize: 14,
-  color: '#1a1a1a',
+  color: 'var(--g-text)',
   outline: 'none',
   boxSizing: 'border-box',
   fontFamily: 'inherit',
@@ -394,9 +350,9 @@ const inputStyle: CSSProperties = {
 const cancelBtnStyle: CSSProperties = {
   padding: '9px 20px',
   borderRadius: 8,
-  border: '1px solid #e8e8ea',
-  background: '#ffffff',
-  color: '#1a1a1a',
+  border: '1px solid var(--g-line)',
+  background: 'var(--g-bg-raised)',
+  color: 'var(--g-text)',
   fontSize: 14,
   fontWeight: 500,
   cursor: 'pointer',
@@ -407,7 +363,7 @@ const submitBtnStyle: CSSProperties = {
   borderRadius: 8,
   border: 'none',
   background: ACCENT,
-  color: '#ffffff',
+  color: 'var(--g-accent-fg)',
   fontSize: 14,
   fontWeight: 600,
   cursor: 'pointer',

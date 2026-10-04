@@ -16,9 +16,23 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     },
   });
   if (!response.ok) {
-    throw new Error(`API Error: ${response.status} ${response.statusText}`);
+    throw new Error(await extractError(response));
   }
   return response.json();
+}
+
+/** 优先提取后端错误信息（{ message | error | msg }），拿不到再退回 HTTP 状态描述 */
+async function extractError(response: Response): Promise<string> {
+  const fallback = `API Error: ${response.status} ${response.statusText}`;
+  try {
+    const text = await response.text();
+    if (!text) return fallback;
+    const body = JSON.parse(text);
+    const message = body?.message ?? body?.error ?? body?.msg;
+    return typeof message === 'string' && message.trim() ? message : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 export interface GaiaWorkflow {

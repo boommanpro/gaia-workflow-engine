@@ -17,7 +17,7 @@ import '@flowgram.ai/free-layout-editor/index.css';
 import './index.css';
 import './styles/index.css';
 import { nodeRegistries } from './nodes';
-import { initialData } from './initial-data';
+import { initialData, emptyWorkflowData } from './initial-data';
 import { useEditorProps } from './hooks';
 import { DemoTools } from './components/tools';
 import { workflowApi, GaiaWorkflowVersion, GaiaWorkflowTemplate, GaiaApiMeta } from './services/workflow-api';
@@ -32,40 +32,6 @@ import { CopilotSidebar } from './ai-workspace/components/CopilotSidebar';
 import { CanvasHistoryPopover } from './ai-workspace/components/CanvasHistoryPopover';
 
 const ACCENT = '#4d53e8';
-
-/**
- * 空工作流的默认数据：包含 Start → End 节点链路
- * Defense 3: 默认提供 Start/End 唯一节点，确保工作流始终有合法的起止节点
- */
-const emptyWorkflowData = {
-  nodes: [
-    {
-      id: 'start_0',
-      type: 'start',
-      meta: { position: { x: 200, y: 200 } },
-      data: {
-        title: 'Start',
-        outputs: { type: 'object', properties: {} },
-      },
-    },
-    {
-      id: 'end_0',
-      type: 'end',
-      meta: { position: { x: 500, y: 200 } },
-      data: {
-        title: 'End',
-        inputsValues: {},
-        inputs: { type: 'object', properties: {} },
-      },
-    },
-  ],
-  edges: [
-    {
-      sourceNodeID: 'start_0',
-      targetNodeID: 'end_0',
-    },
-  ],
-};
 
 /**
  * AI 工作区产物「精修」的临时编码：
@@ -611,9 +577,6 @@ const EditorHeader = ({
               </code>
               <div style={{ marginTop: 4, fontSize: 12, color: '#b76e00' }}>{t('apiDocs.showKey')}</div>
             </div>
-            <a href={`/docs/${publishedMeta.workflowCode}`} style={{ color: ACCENT, fontSize: 13 }}>
-              → {t('apiDocs.title')}
-            </a>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -659,9 +622,10 @@ export const TemplateEditor = () => {
           const parsed = typeof tpl.templateData === 'string'
             ? JSON.parse(tpl.templateData)
             : tpl.templateData;
-          setTemplateData(parsed);
+          // 空模板（无节点）兜底为 Start → End，避免画布空白
+          setTemplateData(parsed?.nodes?.length ? parsed : emptyWorkflowData);
         } catch {
-          setTemplateData(initialData);
+          setTemplateData(emptyWorkflowData);
         }
       }
       setLoading(false);

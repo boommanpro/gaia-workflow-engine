@@ -139,8 +139,8 @@ export const ToolSteps: React.FC<ToolStepsProps> = ({ messages, compact }) => {
     <div className="chat-fade" style={{ padding: compact ? '2px 0' : '4px 0' }}>
       <div
         style={{
-          border: `1px solid ${failed ? '#f6d9d9' : CHAT.line}`,
-          background: failed ? '#fffafa' : CHAT.bgSunken,
+          border: `1px solid ${failed ? 'var(--g-danger-soft)' : CHAT.line}`,
+          background: failed ? 'var(--g-danger-soft)' : CHAT.bgSunken,
           borderRadius: 12,
           overflow: 'hidden',
         }}
@@ -197,7 +197,7 @@ export const ToolSteps: React.FC<ToolStepsProps> = ({ messages, compact }) => {
         </button>
 
         {open && (
-          <div style={{ borderTop: `1px solid ${failed ? '#f6d9d9' : CHAT.line}` }}>
+          <div style={{ borderTop: `1px solid ${failed ? 'var(--g-danger-soft)' : CHAT.line}` }}>
             {calls.map((call, index) => (
               <div key={index} style={index === 0 ? { borderTop: 'none' } : undefined}>
                 <StepRow call={call} compact={compact} />
@@ -209,7 +209,7 @@ export const ToolSteps: React.FC<ToolStepsProps> = ({ messages, compact }) => {
                 style={{
                   padding: '8px 12px',
                   borderTop: `1px solid ${CHAT.lineSoft}`,
-                  background: index % 2 === 1 ? '#fbfbfd' : 'transparent',
+                  background: index % 2 === 1 ? 'var(--g-line-soft)' : 'transparent',
                 }}
               >
                 <Mono>{resultPreview(m.content)}</Mono>

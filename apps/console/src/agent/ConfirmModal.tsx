@@ -55,17 +55,17 @@ export const ConfirmModal: React.FC<{
       <div
         style={{
           width: '320px',
-          background: '#fff',
+          background: 'var(--g-bg-raised)',
           borderRadius: '10px',
           boxShadow: '0 8px 28px rgba(0,0,0,0.18)',
           padding: '18px 18px 16px',
         }}
       >
-        <div style={{ fontSize: '15px', fontWeight: 600, color: '#1a1a1a', marginBottom: '10px' }}>
+        <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--g-text)', marginBottom: '10px' }}>
           {t('agent.confirmTitle')}
         </div>
         <div style={{ marginBottom: '6px' }}>
-          <span style={{ color: '#999', fontSize: '12px' }}>{t('agent.actions')}</span>
+          <span style={{ color: 'var(--g-text-muted)', fontSize: '12px' }}>{t('agent.actions')}</span>
           <span
             style={{
               marginLeft: '8px',
@@ -83,7 +83,7 @@ export const ConfirmModal: React.FC<{
             borderRadius: '6px',
             padding: '8px 10px',
             fontSize: '12px',
-            color: '#555',
+            color: 'var(--g-text-sub)',
             marginBottom: '16px',
             wordBreak: 'break-all',
             maxHeight: '120px',
@@ -99,8 +99,8 @@ export const ConfirmModal: React.FC<{
               padding: '6px 16px',
               borderRadius: '6px',
               border: '1px solid #e0e0e6',
-              background: '#fff',
-              color: '#555',
+              background: 'var(--g-bg-raised)',
+              color: 'var(--g-text-sub)',
               fontSize: '13px',
               cursor: 'pointer',
             }}

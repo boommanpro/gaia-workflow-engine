@@ -14,7 +14,7 @@ import { useHealthCheck } from '../hooks/useHealthCheck';
 import { getApiBaseUrl, updateApiBaseUrl } from '../utils/apiConfig';
 import { t } from '../i18n';
 
-const ACCENT = '#4d53e8';
+const ACCENT = 'var(--g-accent)';
 const DEFAULT_BASE_URL = 'http://127.0.0.1:48080/api';
 
 export const ConnectionStatus: React.FC = () => {
@@ -46,7 +46,7 @@ export const ConnectionStatus: React.FC = () => {
   if (status === 'online') return null;
 
   const offline = status === 'offline';
-  const iconColor = offline ? '#f53f3f' : '#999';
+  const iconColor = offline ? 'var(--g-danger)' : 'var(--g-text-muted)';
   const label = offline ? t('status.offline') : t('status.checking');
 
   return (
@@ -67,7 +67,7 @@ export const ConnectionStatus: React.FC = () => {
           padding: 0,
         }}
         onMouseEnter={(e) => {
-          if (offline) e.currentTarget.style.background = '#f5f5f7';
+          if (offline) e.currentTarget.style.background = 'var(--g-bg-sunken)';
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.background = 'transparent';
@@ -100,7 +100,7 @@ export const ConnectionStatus: React.FC = () => {
           </div>
         }
       >
-        <p style={{ margin: '0 0 12px', color: '#666', fontSize: 13, lineHeight: 1.6 }}>
+        <p style={{ margin: '0 0 12px', color: 'var(--g-text-sub)', fontSize: 13, lineHeight: 1.6 }}>
           {t('serverConfig.desc')}
         </p>
         <Input

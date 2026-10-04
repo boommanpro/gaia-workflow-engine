@@ -45,8 +45,8 @@ const Avatar: React.FC = () => (
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      color: '#fff',
-      background: `linear-gradient(135deg, ${CHAT.accent} 0%, #7b7ff0 100%)`,
+      color: 'var(--g-bg-raised)',
+      background: `linear-gradient(135deg, ${CHAT.accent} 0%, var(--g-accent-hover) 100%)`,
       boxShadow: '0 2px 6px rgba(77,83,232,0.24)',
     }}
   >
@@ -419,7 +419,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
             height: 32,
             borderRadius: '50%',
             border: `1px solid ${CHAT.line}`,
-            background: '#fff',
+            background: 'var(--g-bg-raised)',
             color: CHAT.textSub,
             boxShadow: '0 3px 10px rgba(20,20,40,0.1)',
             cursor: 'pointer',

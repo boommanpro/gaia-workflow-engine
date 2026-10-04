@@ -158,7 +158,7 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
         width: '100%',
         display: 'flex',
         flexDirection: 'column',
-        background: '#fff',
+        background: 'var(--g-bg-raised)',
         borderLeft: `1px solid ${CHAT.line}`,
       }}
     >
@@ -350,7 +350,7 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
                           fontSize: 12,
                           background: issue.level === 'error' ? CHAT.dangerSoft : CHAT.warnSoft,
                           color: issue.level === 'error' ? CHAT.danger : CHAT.warn,
-                          border: `1px solid ${issue.level === 'error' ? '#f6d9d9' : '#f6e6cc'}`,
+                          border: `1px solid ${issue.level === 'error' ? 'var(--g-danger-soft)' : 'var(--g-warn-soft)'}`,
                           display: 'flex',
                           gap: 6,
                           alignItems: 'flex-start',

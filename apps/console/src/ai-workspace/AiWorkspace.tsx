@@ -1,21 +1,22 @@
 /**
- * AI 工作区 —— 以对话为核心主视角、工作流为最终产物（「通用模式」）。
+ * AI 工作区 —— 以对话为核心主视角、工作流为最终产物。
  *
- * 布局：【会话】｜【对话（居中窄栏）】｜【产物】
- * 交互基调对齐成熟的对话式产品：欢迎态给可直接点的例子，对话居中成一条窄栏，
- * 输入卡片吸附在底部，过程性信息（工具调用）默认折叠，用户只看结论。
+ * 同时承载两种模式（由路由前缀推导）：
+ *   Chat  /chat,  /chat/:sessionKey              左栏=全部会话
+ *   Work  /work,  /work/c/:sessionKey            左栏=文件夹分组的对话
  *
- * URL 即状态：/            → 工作区（会自动归一化到当前会话）
- *              /c/:sessionKey → 某一段具体对话（可收藏、可分享、可前进后退）
+ * 外壳交给统一的 AppShell：【左栏：模式列表】｜【中区：对话】｜【右栏：产物 / 工具】。
+ * URL 即状态：会话 key 永远落在地址栏，可收藏、可分享、可前进后退。
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { takeInitialPrompt, peekInitialPrompt } from '../agent/initialPrompt';
-import { Tag } from '@douyinfe/semi-ui';
-import { IconArrowLeft, IconHistory } from '@douyinfe/semi-icons';
+import { Button, Tag } from '@douyinfe/semi-ui';
+import { IconHistory, IconPlus, IconSetting } from '@douyinfe/semi-icons';
 
 import { useAgent } from '../agent/AgentContext';
 import { AgentConfirmLayer } from '../agent/ConfirmModal';
+import { SessionList } from '../agent/SessionList';
 import { useLanguage, t } from '../i18n';
 import { useWorkflowDocumentState } from '../document';
 import {
@@ -25,19 +26,27 @@ import {
   ChatStyles,
   ChatWelcome,
 } from '../chat';
+import { AppShell, WorkRail, type SectionMode } from '../components/app-shell';
 import { ArtifactPanel } from './artifact/ArtifactPanel';
 import { useWorkflowArtifactSync } from './artifact/useWorkflowArtifactSync';
 import { HeadlessCanvasBridge } from './HeadlessCanvasBridge';
 import { WorkspaceToolExecutor } from './WorkspaceToolExecutor';
-import { SessionRail } from './components/SessionRail';
 import { CanvasHistoryPopover } from './components/CanvasHistoryPopover';
+import { AgentSettingsPanel } from './components/AgentSettingsPanel';
+import { WorkToolsPanel } from './components/WorkToolsPanel';
 
-const ARTIFACT_WIDTH = 420;
+/** 右栏 Inspector 当前展示的视图 */
+type InspectorView = 'artifact' | 'agent' | 'tools';
 
 export const AiWorkspace: React.FC = () => {
   useLanguage();
   const navigate = useNavigate();
+  const location = useLocation();
   const { sessionKey: routeSessionKey } = useParams<{ sessionKey?: string }>();
+
+  const mode: SectionMode = location.pathname.startsWith('/work') ? 'work' : 'chat';
+  /** 会话 URL 前缀：Chat 与 Work 各自一套地址空间 */
+  const sessionBase = mode === 'work' ? '/work/c' : '/chat';
 
   const {
     messages,
@@ -54,17 +63,23 @@ export const AiWorkspace: React.FC = () => {
   const { doc, meta, snapshots, cursor } = useWorkflowDocumentState();
   const hasArtifact = !doc.isEmpty;
 
-  const [artifactOpen, setArtifactOpen] = useState(hasArtifact);
+  const [inspectorView, setInspectorView] = useState<InspectorView | null>(hasArtifact ? 'artifact' : null);
   const userToggledRef = useRef(false);
   /** 刚点了「新对话」：等新会话 key 落地后把 URL 跟上去 */
   const pendingNewRef = useRef(false);
 
+  // 切换模式（Chat ↔ Work）时重算右栏默认视图，避免上一模式的状态串味
   useEffect(() => {
-    if (hasArtifact && !userToggledRef.current) setArtifactOpen(true);
+    setInspectorView(hasArtifact ? 'artifact' : null);
+    userToggledRef.current = false;
+  }, [mode]);
+
+  useEffect(() => {
+    if (hasArtifact && !userToggledRef.current) setInspectorView('artifact');
   }, [hasArtifact]);
 
   // ---------- 会话与 URL 双向对齐 ----------
-  // URL → 状态：直接打开 /c/xxx 时切到那一段
+  // URL → 状态：直接打开 /chat/xxx 或 /work/c/xxx 时切到那一段
   useEffect(() => {
     if (!routeSessionKey) return;
     if (routeSessionKey === currentSessionKey) return;
@@ -77,14 +92,14 @@ export const AiWorkspace: React.FC = () => {
   useEffect(() => {
     if (!pendingNewRef.current || !currentSessionKey) return;
     pendingNewRef.current = false;
-    navigate(`/c/${currentSessionKey}`, { replace: true });
-  }, [currentSessionKey, navigate]);
+    navigate(`${sessionBase}/${currentSessionKey}`, { replace: true });
+  }, [currentSessionKey, navigate, sessionBase]);
 
-  // 停在 / 上时归一到当前会话，让「当前对话」永远有地址
+  // 停在 /chat 或 /work 上时归一到当前会话，让「当前对话」永远有地址
   useEffect(() => {
     if (routeSessionKey || !currentSessionKey) return;
-    navigate(`/c/${currentSessionKey}`, { replace: true });
-  }, [routeSessionKey, currentSessionKey, navigate]);
+    navigate(`${sessionBase}/${currentSessionKey}`, { replace: true });
+  }, [routeSessionKey, currentSessionKey, navigate, sessionBase]);
 
   // 首页对话入口带过来的「首条消息」：等 URL 落到目标会话后消费一次并自动发送。
   // 依赖只挂 routeSessionKey，避免 sendMessage/messages 变化导致 effect 重跑把定时器清掉；
@@ -126,22 +141,34 @@ export const AiWorkspace: React.FC = () => {
   );
 
   const showWelcome = messages.length === 0 && !streaming;
-  const collapseArtifact = () => {
+  const closeInspector = () => {
     userToggledRef.current = true;
-    setArtifactOpen(false);
+    setInspectorView(null);
+  };
+  const toggleInspector = (view: InspectorView) => {
+    setInspectorView((prev) => {
+      const next = prev === view ? null : view;
+      // 视图切到产物外的任意状态都视为用户手动操作，避免被自动展开逻辑抢回
+      userToggledRef.current = next !== 'artifact';
+      return next;
+    });
+  };
+  // 顶栏右侧 PanelRight（⌘.）：展开时默认落到产物；已展开则整体收起
+  const toggleInspectorFromShell = () => {
+    setInspectorView((prev) => {
+      if (prev) {
+        userToggledRef.current = true;
+        return null;
+      }
+      userToggledRef.current = false;
+      return 'artifact';
+    });
   };
 
+  const brandSubtitle = mode === 'work' ? t('shell.modeWork') : t('shell.modeChat');
+
   return (
-    <div
-      style={{
-        display: 'flex',
-        height: '100%',
-        width: '100%',
-        overflow: 'hidden',
-        background: CHAT.bgApp,
-        position: 'relative',
-      }}
-    >
+    <>
       <ChatStyles />
       {/* AI 的画布类工具在 headless DSL 上执行，不依赖真实画布 */}
       <HeadlessCanvasBridge />
@@ -149,43 +176,57 @@ export const AiWorkspace: React.FC = () => {
       <WorkspaceToolExecutor />
       <AgentConfirmLayer position="fixed" />
 
-      <SessionRail onSelectSession={(key) => navigate(`/c/${key}`)} onNewSession={handleNewSession} />
-
-      {/* 对话：主位 */}
-      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', background: CHAT.bg }}>
-        {/* 顶部条：当前会话 + 次要动作 */}
-        <header
-          style={{
-            height: 52,
-            flexShrink: 0,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            padding: '0 16px 0 18px',
-            borderBottom: `1px solid ${CHAT.lineSoft}`,
-          }}
-        >
-          <span
-            style={{
-              fontSize: 14,
-              fontWeight: 600,
-              color: CHAT.text,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              minWidth: 0,
-            }}
-            title={currentSession?.title}
+      <AppShell
+        mode={mode}
+        railTop={
+          <Button
+            block
+            theme="solid"
+            type="primary"
+            icon={<IconPlus />}
+            onClick={handleNewSession}
+            style={{ borderRadius: 10, background: CHAT.accent, borderColor: CHAT.accent }}
           >
-            {currentSession?.title || t('workspace.brand')}
-          </span>
-          <Tag size="small" color="white" shape="circle" style={{ flexShrink: 0, border: `1px solid ${CHAT.line}`, color: CHAT.textMuted }}>
-            {t('workspace.modeGeneral')}
-          </Tag>
-
-          {/* 右侧只留一个「画布历史」—— 打开工作流、新建对话、落版都不在这里重复出现。
-              历史入口放在这条常驻头部上，是为了让产物面板收起时也够得着。 */}
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            {t('workspace.newConversation')}
+          </Button>
+        }
+        railMiddle={
+          mode === 'work' ? (
+            <WorkRail onSelect={(key) => navigate(`${sessionBase}/${key}`)} />
+          ) : (
+            <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+              <SessionList hideChrome onSelect={(key) => navigate(`${sessionBase}/${key}`)} />
+            </div>
+          )
+        }
+        title={
+          <>
+            <span
+              style={{
+                fontSize: 14,
+                fontWeight: 600,
+                color: CHAT.text,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                minWidth: 0,
+              }}
+              title={currentSession?.title}
+            >
+              {currentSession?.title || t('workspace.brand')}
+            </span>
+            <Tag
+              size="small"
+              color="white"
+              shape="circle"
+              style={{ flexShrink: 0, border: `1px solid ${CHAT.line}`, color: CHAT.textMuted }}
+            >
+              {brandSubtitle}
+            </Tag>
+          </>
+        }
+        actions={
+          <>
             {snapshots.length > 0 && (
               <CanvasHistoryPopover workflowCode={meta.workflowCode}>
                 <button
@@ -196,7 +237,7 @@ export const AiWorkspace: React.FC = () => {
                     alignItems: 'center',
                     gap: 5,
                     border: `1px solid ${CHAT.line}`,
-                    background: '#fff',
+                    background: 'var(--g-bg-raised)',
                     borderRadius: 8,
                     padding: '3px 9px',
                     fontSize: 12,
@@ -210,9 +251,87 @@ export const AiWorkspace: React.FC = () => {
                 </button>
               </CanvasHistoryPopover>
             )}
-          </div>
-        </header>
-
+            <button
+              type="button"
+              onClick={() => toggleInspector('artifact')}
+              title={inspectorView === 'artifact' ? t('workspace.collapseArtifact') : t('workspace.expandArtifact')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                border: `1px solid ${inspectorView === 'artifact' ? CHAT.accentBorder : CHAT.line}`,
+                background: inspectorView === 'artifact' ? CHAT.accentSoft : 'var(--g-bg-raised)',
+                borderRadius: 8,
+                padding: '3px 9px',
+                fontSize: 12,
+                color: inspectorView === 'artifact' ? CHAT.accent : CHAT.textSub,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              {t('workspace.artifact')}
+              {hasArtifact && (
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: CHAT.accent, flexShrink: 0 }} />
+              )}
+            </button>
+            {mode === 'work' ? (
+              <button
+                type="button"
+                onClick={() => toggleInspector('tools')}
+                title={t('shell.tools')}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  border: `1px solid ${inspectorView === 'tools' ? CHAT.accentBorder : CHAT.line}`,
+                  background: inspectorView === 'tools' ? CHAT.accentSoft : 'var(--g-bg-raised)',
+                  borderRadius: 8,
+                  padding: '3px 9px',
+                  fontSize: 12,
+                  color: inspectorView === 'tools' ? CHAT.accent : CHAT.textSub,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                {t('shell.tools')}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => toggleInspector('agent')}
+                title={t('shell.agentSettings')}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  border: `1px solid ${inspectorView === 'agent' ? CHAT.accentBorder : CHAT.line}`,
+                  background: inspectorView === 'agent' ? CHAT.accentSoft : 'var(--g-bg-raised)',
+                  borderRadius: 8,
+                  padding: '3px 9px',
+                  fontSize: 12,
+                  color: inspectorView === 'agent' ? CHAT.accent : CHAT.textSub,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                <IconSetting size="small" />
+                {t('shell.agentSettings')}
+              </button>
+            )}
+          </>
+        }
+        inspector={
+          inspectorView === 'artifact' ? (
+            <ArtifactPanel onCollapse={closeInspector} />
+          ) : inspectorView === 'agent' ? (
+            <AgentSettingsPanel onClose={closeInspector} />
+          ) : inspectorView === 'tools' ? (
+            <WorkToolsPanel onClose={closeInspector} />
+          ) : undefined
+        }
+        inspectorOpen={inspectorView !== null}
+        onToggleInspector={toggleInspectorFromShell}
+      >
         {/* 消息区 */}
         <div style={{ flex: 1, minHeight: 0 }}>
           {showWelcome ? (
@@ -229,7 +348,7 @@ export const AiWorkspace: React.FC = () => {
             <ChatMessageList
               onSnapshotView={() => {
                 userToggledRef.current = false;
-                setArtifactOpen(true);
+                setInspectorView('artifact');
               }}
             />
           )}
@@ -240,54 +359,8 @@ export const AiWorkspace: React.FC = () => {
           placeholder={t('workspace.inputPlaceholder')}
           hint={t('workspace.inputHint')}
         />
-      </div>
-
-      {/* 产物区 */}
-      {artifactOpen ? (
-        <div style={{ width: ARTIFACT_WIDTH, flexShrink: 0, display: 'flex' }}>
-          <ArtifactPanel onCollapse={collapseArtifact} />
-        </div>
-      ) : (
-        <button
-          onClick={() => {
-            userToggledRef.current = false;
-            setArtifactOpen(true);
-          }}
-          title={hasArtifact ? t('workspace.expandArtifact') : t('workspace.artifactEmpty')}
-          style={{
-            width: 38,
-            flexShrink: 0,
-            border: 'none',
-            borderLeft: `1px solid ${CHAT.line}`,
-            background: hasArtifact ? '#fff' : '#fafafc',
-            cursor: 'pointer',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            color: hasArtifact ? CHAT.accent : CHAT.textFaint,
-          }}
-        >
-          <IconArrowLeft />
-          <span
-            style={{
-              writingMode: 'vertical-rl',
-              fontSize: 11,
-              letterSpacing: 1,
-              color: hasArtifact ? CHAT.textSub : CHAT.textFaint,
-            }}
-          >
-            {t('workspace.artifact')}
-          </span>
-          {hasArtifact && (
-            <span
-              style={{ width: 6, height: 6, borderRadius: '50%', background: CHAT.accent, flexShrink: 0 }}
-            />
-          )}
-        </button>
-      )}
-    </div>
+      </AppShell>
+    </>
   );
 };
 

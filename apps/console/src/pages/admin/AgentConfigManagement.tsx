@@ -26,7 +26,7 @@ import { getApiBaseUrl } from '../../utils/apiConfig';
 import type { PermissionPolicy } from '../../agent/types';
 import { t, useLanguage } from '../../i18n';
 
-const ACCENT = '#4d53e8';
+const ACCENT = 'var(--g-accent)';
 
 /* ---------------- Helpers ---------------- */
 
@@ -2418,25 +2418,27 @@ export const AgentConfigManagement: React.FC = () => {
   }, []);
 
   return (
-    <div style={{ background: '#fff', borderRadius: 8, padding: 20, minHeight: 'calc(100vh - 120px)' }}>
-      {/* 顶部工具栏：导出 / 导入 */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 12 }}>
-        <Button loading={exporting} onClick={() => void handleExport()}>
-          {t('agent.config.export')}
-        </Button>
-        <Button theme="solid" style={{ background: ACCENT }} loading={importing} onClick={handleImportClick}>
-          {t('agent.config.import')}
-        </Button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="application/json,.json"
-          style={{ display: 'none' }}
-          onChange={(e) => void handleFileChange(e)}
-        />
-      </div>
-
-      <Tabs type="line">
+    <div style={{ background: 'var(--g-bg-raised)', borderRadius: 8, padding: 20, minHeight: 'calc(100vh - 120px)' }}>
+      <Tabs
+        type="line"
+        tabBarExtraContent={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 8 }}>
+            <Button loading={exporting} onClick={() => void handleExport()}>
+              {t('agent.config.export')}
+            </Button>
+            <Button theme="solid" style={{ background: ACCENT }} loading={importing} onClick={handleImportClick}>
+              {t('agent.config.import')}
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/json,.json"
+              style={{ display: 'none' }}
+              onChange={(e) => void handleFileChange(e)}
+            />
+          </div>
+        }
+      >
         <TabPane tab={t('agent.config.tabModel')} itemKey="model">
           <ModelConfigTab />
         </TabPane>

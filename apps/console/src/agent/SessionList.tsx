@@ -70,7 +70,7 @@ const RowAction: React.FC<{ title: string; danger?: boolean; onClick: () => void
         padding: 0,
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.background = '#fff';
+        e.currentTarget.style.background = 'var(--g-bg-raised)';
         e.currentTarget.style.color = danger ? CHAT.danger : CHAT.textSub;
       }}
       onMouseLeave={(e) => {
@@ -219,7 +219,7 @@ export const SessionList: React.FC<SessionListProps> = ({ onClose, onSelect, onC
                       padding: '3px 7px',
                       fontSize: 13,
                       outline: 'none',
-                      background: '#fff',
+                      background: 'var(--g-bg-raised)',
                       color: CHAT.text,
                       fontFamily: 'inherit',
                     }}

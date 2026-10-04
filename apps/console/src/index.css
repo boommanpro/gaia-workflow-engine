@@ -2,10 +2,170 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ------------------------------------------------------------------
+ * 主题 token（Codex 风格：黑白中性色阶）
+ *   · :root 为 light，[data-theme="dark"] 覆盖为 dark
+ *   · 所有自定义组件通过 var(--g-*) 取色，切换主题无需重渲染
+ * ------------------------------------------------------------------ */
+:root {
+  color-scheme: light;
+
+  --g-bg: #ffffff;
+  --g-bg-app: #ffffff;
+  --g-bg-sunken: #f9f9f9;
+  --g-bg-raised: #ffffff;
+  --g-bg-hover: #f4f4f4;
+
+  --g-line: #ececec;
+  --g-line-soft: #f2f2f2;
+
+  --g-text: #0d0d0d;
+  --g-text-body: #303030;
+  --g-text-sub: #5d5d5d;
+  --g-text-muted: #8f8f8f;
+  --g-text-faint: #b8b8b8;
+
+  --g-accent: #0d0d0d;
+  --g-accent-hover: #262626;
+  --g-accent-fg: #ffffff;
+  --g-accent-soft: #f0f0f0;
+  --g-accent-border: #e3e3e3;
+
+  --g-user-bubble: #f4f4f4;
+  --g-user-bubble-text: #0d0d0d;
+
+  --g-success: #1a7f37;
+  --g-success-soft: #e8f5ec;
+  --g-danger: #d1242f;
+  --g-danger-soft: #fdeced;
+  --g-warn: #9a6700;
+  --g-warn-soft: #fdf6e3;
+  --g-link: #2563eb;
+
+  --g-overlay: rgba(0, 0, 0, 0.32);
+
+  /* 画布/图表等需要中性面板色 */
+  --g-panel-shadow: 0 8px 24px rgba(15, 15, 20, 0.12);
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --g-bg: #212121;
+  --g-bg-app: #171717;
+  --g-bg-sunken: #171717;
+  --g-bg-raised: #2f2f2f;
+  --g-bg-hover: #2a2a2a;
+
+  --g-line: #333333;
+  --g-line-soft: #2a2a2a;
+
+  --g-text: #f5f5f5;
+  --g-text-body: #d9d9d9;
+  --g-text-sub: #b4b4b4;
+  --g-text-muted: #8f8f8f;
+  --g-text-faint: #6b6b6b;
+
+  --g-accent: #ffffff;
+  --g-accent-hover: #e5e5e5;
+  --g-accent-fg: #0d0d0d;
+  --g-accent-soft: #2a2a2a;
+  --g-accent-border: #3a3a3a;
+
+  --g-user-bubble: #2f2f2f;
+  --g-user-bubble-text: #ececec;
+
+  --g-success: #3fb950;
+  --g-success-soft: #17291c;
+  --g-danger: #f85149;
+  --g-danger-soft: #2d1a1b;
+  --g-warn: #d29922;
+  --g-warn-soft: #2a2416;
+  --g-link: #6ea8fe;
+
+  --g-overlay: rgba(0, 0, 0, 0.6);
+
+  --g-panel-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+/* Semi Design 主色对齐 Codex 黑白强调色（用更高特异性覆盖 Semi 的 body 变量） */
+html body {
+  --semi-color-primary: #0d0d0d;
+  --semi-color-primary-hover: #262626;
+  --semi-color-primary-active: #000000;
+  --semi-color-primary-light-default: #f0f0f0;
+  --semi-color-primary-light-hover: #ebebeb;
+  --semi-color-primary-light-active: #e3e3e3;
+
+  /* 中性色阶：Semi 默认为蓝灰(grey-9/#1C1F23)，统一替换为 Codex 纯中性灰 */
+  --semi-color-text-0: #0d0d0d;
+  --semi-color-text-1: #303030;
+  --semi-color-text-2: #5d5d5d;
+  --semi-color-text-3: #8f8f8f;
+  --semi-color-border: #ececec;
+  --semi-color-fill-0: rgba(13, 13, 13, 0.04);
+  --semi-color-fill-1: rgba(13, 13, 13, 0.07);
+  --semi-color-fill-2: rgba(13, 13, 13, 0.1);
+  --semi-color-bg-0: #ffffff;
+  --semi-color-bg-1: #ffffff;
+  --semi-color-bg-2: #ffffff;
+  --semi-color-bg-3: #ffffff;
+  --semi-color-bg-4: #ffffff;
+  --semi-color-nav-bg: #ffffff;
+  --semi-color-disabled-text: rgba(13, 13, 13, 0.35);
+  --semi-color-disabled-bg: #f4f4f4;
+  --semi-color-disabled-border: #ececec;
+  --semi-color-disabled-fill: rgba(13, 13, 13, 0.04);
+  --semi-color-link: #2563eb;
+  --semi-color-link-hover: #1d4ed8;
+  --semi-color-link-active: #1e40af;
+}
+html body[theme-mode='dark'] {
+  --semi-color-primary: #ffffff;
+  --semi-color-primary-hover: #e5e5e5;
+  --semi-color-primary-active: #d9d9d9;
+  --semi-color-primary-light-default: #2a2a2a;
+  --semi-color-primary-light-hover: #333333;
+  --semi-color-primary-light-active: #3a3a3a;
+
+  --semi-color-white: #f5f5f5;
+  --semi-color-text-0: #f5f5f5;
+  --semi-color-text-1: #d9d9d9;
+  --semi-color-text-2: #b4b4b4;
+  --semi-color-text-3: #8f8f8f;
+  --semi-color-border: #333333;
+  --semi-color-fill-0: rgba(255, 255, 255, 0.06);
+  --semi-color-fill-1: rgba(255, 255, 255, 0.1);
+  --semi-color-fill-2: rgba(255, 255, 255, 0.14);
+  --semi-color-bg-0: #171717;
+  --semi-color-bg-1: #1c1c1c;
+  --semi-color-bg-2: #212121;
+  --semi-color-bg-3: #2f2f2f;
+  --semi-color-bg-4: #333333;
+  --semi-color-nav-bg: #1c1c1c;
+  --semi-color-disabled-text: rgba(255, 255, 255, 0.35);
+  --semi-color-disabled-bg: #2a2a2a;
+  --semi-color-disabled-border: #333333;
+  --semi-color-disabled-fill: rgba(255, 255, 255, 0.06);
+  --semi-color-link: #6ea8fe;
+  --semi-color-link-hover: #93c5fd;
+  --semi-color-link-active: #a5b4fc;
+}
+/* solid 主按钮在暗色下为浅底，文字改用深色 */
+[data-theme='dark'] .semi-button-primary.semi-button-solid {
+  color: var(--g-accent-fg);
+}
+
 html, body {
   height: 100%;
   margin: 0;
   padding: 0;
+  background: var(--g-bg-app);
+  color: var(--g-text);
+}
+
+body {
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 #root {

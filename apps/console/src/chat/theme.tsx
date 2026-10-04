@@ -5,41 +5,100 @@
  *   · 对话是一个「居中的窄栏」，不是铺满整屏的一堆气泡
  *   · AI 的正文不套气泡，直接是排版好的文字；只有用户消息有气泡
  *   · 过程性信息（工具调用 / 思考）默认折叠，用户只在出问题时才展开
+ *
+ * 配色：token 全部指向 index.css 中的 CSS 变量（--g-*），
+ * 从而同一份代码在 light / dark 两种主题下自动切换（Codex 黑白配色）。
  */
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
 export const CHAT = {
-  accent: '#4d53e8',
-  accentHover: '#3f45d6',
-  accentSoft: '#f0f0ff',
-  accentBorder: '#dcdcff',
+  accent: 'var(--g-accent)',
+  accentHover: 'var(--g-accent-hover)',
+  accentSoft: 'var(--g-accent-soft)',
+  accentBorder: 'var(--g-accent-border)',
+  /** 强调色上的前景色（light 下为白，dark 下为近黑） */
+  accentFg: 'var(--g-accent-fg)',
 
-  text: '#1a1a1a',
-  textBody: '#33333d',
-  textSub: '#5b5b66',
-  textMuted: '#9a9aa4',
-  textFaint: '#b8b8c2',
+  text: 'var(--g-text)',
+  textBody: 'var(--g-text-body)',
+  textSub: 'var(--g-text-sub)',
+  textMuted: 'var(--g-text-muted)',
+  textFaint: 'var(--g-text-faint)',
 
-  line: '#e8e8ee',
-  lineSoft: '#f1f1f5',
-  bg: '#ffffff',
-  bgApp: '#f7f7fa',
-  bgSunken: '#f5f5f8',
-  hover: '#f4f4f7',
+  line: 'var(--g-line)',
+  lineSoft: 'var(--g-line-soft)',
+  bg: 'var(--g-bg)',
+  bgApp: 'var(--g-bg-app)',
+  bgSunken: 'var(--g-bg-sunken)',
+  bgRaised: 'var(--g-bg-raised)',
+  hover: 'var(--g-bg-hover)',
 
-  userBubble: '#eef0ff',
-  userBubbleText: '#23253a',
+  userBubble: 'var(--g-user-bubble)',
+  userBubbleText: 'var(--g-user-bubble-text)',
 
-  success: '#1f9d55',
-  successSoft: '#e8f7ef',
-  danger: '#e5404e',
-  dangerSoft: '#fdecee',
-  warn: '#b7791f',
-  warnSoft: '#fdf4e4',
+  success: 'var(--g-success)',
+  successSoft: 'var(--g-success-soft)',
+  danger: 'var(--g-danger)',
+  dangerSoft: 'var(--g-danger-soft)',
+  warn: 'var(--g-warn)',
+  warnSoft: 'var(--g-warn-soft)',
+
+  overlay: 'var(--g-overlay)',
+  panelShadow: 'var(--g-panel-shadow)',
 
   radius: 14,
   radiusSm: 8,
 } as const;
+
+/* ------------------------------------------------------------------
+ * 主题模式运行时（light / dark）
+ * ------------------------------------------------------------------ */
+export type ThemeMode = 'light' | 'dark';
+
+const THEME_STORAGE_KEY = 'gaia.themeMode';
+const THEME_EVENT = 'gaia-theme-change';
+
+export const getThemeMode = (): ThemeMode => {
+  try {
+    const v = localStorage.getItem(THEME_STORAGE_KEY);
+    if (v === 'dark' || v === 'light') return v;
+  } catch {
+    /* ignore */
+  }
+  return 'light';
+};
+
+/** 把主题写到 <html data-theme> 与 <body theme-mode>（后者供 Semi 组件跟随） */
+export const applyThemeMode = (mode: ThemeMode): void => {
+  const root = document.documentElement;
+  root.dataset.theme = mode;
+  document.body.setAttribute('theme-mode', mode);
+};
+
+export const setThemeMode = (mode: ThemeMode): void => {
+  applyThemeMode(mode);
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, mode);
+  } catch {
+    /* ignore */
+  }
+  window.dispatchEvent(new Event(THEME_EVENT));
+};
+
+/** 在应用挂载前调用，避免首屏闪烁 */
+export const initThemeMode = (): void => {
+  applyThemeMode(getThemeMode());
+};
+
+export const useThemeMode = (): ThemeMode => {
+  const [mode, setMode] = useState<ThemeMode>(getThemeMode);
+  useEffect(() => {
+    const onChange = () => setMode(getThemeMode());
+    window.addEventListener(THEME_EVENT, onChange);
+    return () => window.removeEventListener(THEME_EVENT, onChange);
+  }, []);
+  return mode;
+};
 
 /** 对话列最大宽度：窄栏阅读体验，宽屏下不会拉成一整行 */
 export const CHAT_COLUMN_WIDTH = 780;
@@ -57,7 +116,7 @@ export const ChatStyles: React.FC = () => (
       background: transparent; border-radius: 8px; border: 2px solid transparent;
       background-clip: content-box;
     }
-    .chat-scroll:hover::-webkit-scrollbar-thumb { background: #d8d8e0; background-clip: content-box; }
+    .chat-scroll:hover::-webkit-scrollbar-thumb { background: var(--g-text-faint); background-clip: content-box; }
     .chat-scroll::-webkit-scrollbar-track { background: transparent; }
 
     @keyframes chat-spin { to { transform: rotate(360deg); } }
@@ -93,10 +152,10 @@ export const ChatStyles: React.FC = () => (
     .md-body .md-inline-code {
       background: ${CHAT.bgSunken}; padding: 1.5px 5px; border-radius: 4px;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      font-size: 12.5px; color: #b3383f; border: 1px solid ${CHAT.lineSoft};
+      font-size: 12.5px; color: ${CHAT.danger}; border: 1px solid ${CHAT.lineSoft};
     }
     .md-body .md-code-block {
-      background: #f8f8fb; color: #2c2c36; border: 1px solid ${CHAT.line};
+      background: ${CHAT.bgSunken}; color: ${CHAT.textBody}; border: 1px solid ${CHAT.line};
       border-radius: 10px; padding: 12px 14px; margin: 10px 0; overflow-x: auto;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       font-size: 12.5px; line-height: 1.6;
@@ -110,7 +169,7 @@ export const ChatStyles: React.FC = () => (
     .md-body .md-table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 13px; }
     .md-body .md-table th { background: ${CHAT.bgSunken}; font-weight: 600; text-align: left; color: ${CHAT.text}; }
     .md-body .md-table th, .md-body .md-table td { border: 1px solid ${CHAT.line}; padding: 7px 10px; }
-    .md-body .md-table tbody tr:nth-child(even) { background: #fbfbfd; }
+    .md-body .md-table tbody tr:nth-child(even) { background: ${CHAT.lineSoft}; }
     .md-body .md-link { color: ${CHAT.accent}; text-decoration: none; }
     .md-body .md-link:hover { text-decoration: underline; }
     .md-body strong { font-weight: 600; color: ${CHAT.text}; }

@@ -168,7 +168,7 @@ export const DebugPanel: React.FC<{
           right: `${rightOffset}px`,
           width: '520px',
           height: '100vh',
-          background: '#fff',
+          background: 'var(--g-bg-raised)',
           borderRight: '1px solid #e8e8ea',
           zIndex: 9998,
           display: 'flex',
@@ -189,7 +189,7 @@ export const DebugPanel: React.FC<{
           }}
         >
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: '14px', fontWeight: 600, color: '#1a1a1a' }}>
+            <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--g-text)' }}>
               {t('agent.debugTitle')} ({debugEntries.length})
             </span>
             {currentSessionKey && (
@@ -207,9 +207,9 @@ export const DebugPanel: React.FC<{
                   fontSize: '11px',
                   border: '1px solid #e0e0e6',
                   borderRadius: '4px',
-                  background: '#fff',
+                  background: 'var(--g-bg-raised)',
                   cursor: 'pointer',
-                  color: '#555',
+                  color: 'var(--g-text-sub)',
                 }}
               >
                 {t('agent.debugClear')}
@@ -224,7 +224,7 @@ export const DebugPanel: React.FC<{
                   height: '30px',
                   border: 'none',
                   background: 'transparent',
-                  color: '#555',
+                  color: 'var(--g-text-sub)',
                   cursor: 'pointer',
                   borderRadius: '6px',
                   display: 'flex',
@@ -243,7 +243,7 @@ export const DebugPanel: React.FC<{
         {/* Content */}
         <div ref={listRef} style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
           {reversed.length === 0 ? (
-            <div style={{ textAlign: 'center', color: '#999', fontSize: '12px', marginTop: '40px' }}>
+            <div style={{ textAlign: 'center', color: 'var(--g-text-muted)', fontSize: '12px', marginTop: '40px' }}>
               {t('agent.debugEmpty')}
             </div>
           ) : (
@@ -275,10 +275,10 @@ export const DebugPanel: React.FC<{
                     }}
                   >
                     <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1, marginRight: '8px' }}>
-                      <span style={{ color: '#1a1a1a', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <span style={{ color: 'var(--g-text)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {getEntryPrefix(entry)}
                       </span>
-                      <span style={{ color: '#999', fontSize: '11px' }}>
+                      <span style={{ color: 'var(--g-text-muted)', fontSize: '11px' }}>
                         {new Date(entry.timestamp).toLocaleString()}
                         {entry.response ? ` · ${entry.response.durationMs}ms` : ' · pending'}
                         {entry.response?.toolCallsCount > 0 && ` · ${entry.response.toolCallsCount} tool calls`}
@@ -374,7 +374,7 @@ export const DebugPanel: React.FC<{
                       {/* Context detail */}
                       {ctx && (
                         <div style={{ marginBottom: '8px' }}>
-                          <div style={{ fontWeight: 600, marginBottom: '4px', color: '#1a1a1a' }}>
+                          <div style={{ fontWeight: 600, marginBottom: '4px', color: 'var(--g-text)' }}>
                             {t('agent.debugContext')}
                           </div>
                           <pre
@@ -386,7 +386,7 @@ export const DebugPanel: React.FC<{
                               maxHeight: '150px',
                               fontSize: '10px',
                               margin: 0,
-                              color: '#333',
+                              color: 'var(--g-text-body)',
                             }}
                           >
 {JSON.stringify(ctx, null, 2)}
@@ -397,7 +397,7 @@ export const DebugPanel: React.FC<{
                       {/* Compact request preview */}
                       {entry.request && (
                         <div style={{ marginBottom: '8px' }}>
-                          <div style={{ fontWeight: 600, marginBottom: '4px', color: '#1a1a1a' }}>
+                          <div style={{ fontWeight: 600, marginBottom: '4px', color: 'var(--g-text)' }}>
                             {t('agent.debugRequest')} ({entry.request.model}, temp={entry.request.temperature}, maxTokens={entry.request.maxTokens || 'N/A'}, {t('agent.debugTools')}: {entry.request.toolsCount ?? 'N/A'})
                           </div>
                           <pre
@@ -458,7 +458,7 @@ export const DebugPanel: React.FC<{
                       {/* Compact response preview */}
                       {entry.response && (
                         <div>
-                          <div style={{ fontWeight: 600, marginBottom: '4px', color: '#1a1a1a' }}>
+                          <div style={{ fontWeight: 600, marginBottom: '4px', color: 'var(--g-text)' }}>
                             {t('agent.debugResponse')} ({entry.response.durationMs}ms, {entry.response.toolCallsCount ?? 0} tool calls)
                           </div>
                           <pre
@@ -491,9 +491,9 @@ export const DebugPanel: React.FC<{
                                 }}>
                                   <div style={{ fontWeight: 500, color: '#d46b08' }}>
                                     {idx + 1}. {tc.function?.name || 'unknown'}
-                                    <span style={{ color: '#999', fontWeight: 400, marginLeft: '6px' }}>{tc.id}</span>
+                                    <span style={{ color: 'var(--g-text-muted)', fontWeight: 400, marginLeft: '6px' }}>{tc.id}</span>
                                   </div>
-                                  <pre style={{ margin: '2px 0 0', whiteSpace: 'pre-wrap', wordBreak: 'break-all', color: '#666' }}>
+                                  <pre style={{ margin: '2px 0 0', whiteSpace: 'pre-wrap', wordBreak: 'break-all', color: 'var(--g-text-sub)' }}>
                                     {tc.function?.arguments || '{}'}
                                   </pre>
                                 </div>
@@ -517,9 +517,9 @@ export const DebugPanel: React.FC<{
                                 }}>
                                   <div style={{ fontWeight: 500, color: r.rejected ? '#cf1322' : '#389e0d' }}>
                                     {idx + 1}. {r.rejected ? 'rejected' : 'ok'}
-                                    <span style={{ color: '#999', fontWeight: 400, marginLeft: '6px' }}>{r.toolCallId}</span>
+                                    <span style={{ color: 'var(--g-text-muted)', fontWeight: 400, marginLeft: '6px' }}>{r.toolCallId}</span>
                                   </div>
-                                  <pre style={{ margin: '2px 0 0', whiteSpace: 'pre-wrap', wordBreak: 'break-all', color: '#666' }}>
+                                  <pre style={{ margin: '2px 0 0', whiteSpace: 'pre-wrap', wordBreak: 'break-all', color: 'var(--g-text-sub)' }}>
                                     {r.result?.substring(0, 300)}
                                   </pre>
                                 </div>
@@ -639,7 +639,7 @@ const RawDetailOverlay: React.FC<{ entry: DebugEntry; onClose: () => void }> = (
           width: '90vw',
           maxWidth: '1200px',
           height: '88vh',
-          background: '#fff',
+          background: 'var(--g-bg-raised)',
           borderRadius: '8px',
           display: 'flex',
           flexDirection: 'column',
@@ -657,14 +657,14 @@ const RawDetailOverlay: React.FC<{ entry: DebugEntry; onClose: () => void }> = (
             justifyContent: 'space-between',
             borderBottom: '1px solid #e8e8ea',
             flexShrink: 0,
-            background: '#fafafa',
+            background: 'var(--g-bg-sunken)',
           }}
         >
           <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-            <span style={{ fontSize: '15px', fontWeight: 600, color: '#1a1a1a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--g-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {t('agent.debugRawTitle')} — {getEntryPrefix(entry)}
             </span>
-            <span style={{ fontSize: '11px', color: '#999' }}>
+            <span style={{ fontSize: '11px', color: 'var(--g-text-muted)' }}>
               {new Date(entry.timestamp).toLocaleString()}
               {entry.response ? ` · ${entry.response.durationMs}ms` : ' · pending'}
               {entry.response?.toolCallsCount > 0 && ` · ${entry.response.toolCallsCount} tool calls`}
@@ -679,7 +679,7 @@ const RawDetailOverlay: React.FC<{ entry: DebugEntry; onClose: () => void }> = (
                 border: '1px solid #e0e0e6',
                 borderRadius: '4px',
                 background: wrap ? '#f0f5ff' : '#fff',
-                color: wrap ? ACCENT : '#555',
+                color: wrap ? ACCENT : 'var(--g-text-sub)',
                 cursor: 'pointer',
               }}
             >
@@ -693,7 +693,7 @@ const RawDetailOverlay: React.FC<{ entry: DebugEntry; onClose: () => void }> = (
                 height: '32px',
                 border: 'none',
                 background: 'transparent',
-                color: '#555',
+                color: 'var(--g-text-sub)',
                 cursor: 'pointer',
                 borderRadius: '6px',
                 display: 'flex',
@@ -787,7 +787,7 @@ const TabBtn: React.FC<{ active: boolean; onClick: () => void; disabled?: boolea
       padding: '10px 16px',
       fontSize: '13px',
       fontWeight: active ? 600 : 400,
-      color: active ? ACCENT : disabled ? '#bbb' : '#555',
+      color: active ? ACCENT : disabled ? '#bbb' : 'var(--g-text-sub)',
       background: active ? '#fff' : 'transparent',
       border: 'none',
       borderBottom: active ? `2px solid ${ACCENT}` : '2px solid transparent',
@@ -830,20 +830,20 @@ const RawSection: React.FC<{
           alignItems: 'center',
           justifyContent: 'space-between',
           flexShrink: 0,
-          background: '#fafafa',
+          background: 'var(--g-bg-sunken)',
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
-          <span style={{ fontSize: '13px', fontWeight: 600, color: '#1a1a1a' }}>{title}</span>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--g-text)' }}>{title}</span>
           {(messagesCount > 0 || toolsCount > 0) && (
-            <span style={{ fontSize: '11px', color: '#999' }}>
+            <span style={{ fontSize: '11px', color: 'var(--g-text-muted)' }}>
               {messagesCount > 0 && `${messagesCount} messages · `}
               {toolsCount > 0 && `${toolsCount} tools · `}
               {currentText.length.toLocaleString()} chars
             </span>
           )}
           {messagesCount === 0 && toolsCount === 0 && currentText && (
-            <span style={{ fontSize: '11px', color: '#999' }}>{currentText.length.toLocaleString()} chars</span>
+            <span style={{ fontSize: '11px', color: 'var(--g-text-muted)' }}>{currentText.length.toLocaleString()} chars</span>
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -857,7 +857,7 @@ const RawSection: React.FC<{
                   border: '1px solid #e0e0e6',
                   borderRadius: '4px',
                   background: view === 'payload' ? '#4d53e8' : '#fff',
-                  color: view === 'payload' ? '#fff' : '#555',
+                  color: view === 'payload' ? '#fff' : 'var(--g-text-sub)',
                   cursor: 'pointer',
                 }}
               >
@@ -871,7 +871,7 @@ const RawSection: React.FC<{
                   border: '1px solid #e0e0e6',
                   borderRadius: '4px',
                   background: view === 'raw' ? '#4d53e8' : '#fff',
-                  color: view === 'raw' ? '#fff' : '#555',
+                  color: view === 'raw' ? '#fff' : 'var(--g-text-sub)',
                   cursor: 'pointer',
                 }}
               >
@@ -887,8 +887,8 @@ const RawSection: React.FC<{
               fontSize: '11px',
               border: '1px solid #e0e0e6',
               borderRadius: '4px',
-              background: '#fff',
-              color: '#555',
+              background: 'var(--g-bg-raised)',
+              color: 'var(--g-text-sub)',
               cursor: 'pointer',
               display: 'inline-flex',
               alignItems: 'center',
@@ -908,7 +908,7 @@ const RawSection: React.FC<{
             padding: '16px',
             fontSize: '12px',
             lineHeight: 1.6,
-            color: '#e0e0e0',
+            color: 'var(--g-line)',
             fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
             whiteSpace: wrap ? 'pre-wrap' : 'pre',
             wordBreak: wrap ? 'break-all' : 'normal',
@@ -922,7 +922,7 @@ const RawSection: React.FC<{
       {/* Response content raw view (plain text) */}
       {responseContent !== undefined && responseContent && (
         <div style={{ flexShrink: 0, maxHeight: '30%', overflow: 'auto', borderTop: '2px solid #333', background: '#252526' }}>
-          <div style={{ padding: '6px 12px', fontSize: '11px', color: '#999', borderBottom: '1px solid #333', position: 'sticky', top: 0, background: '#252526' }}>
+          <div style={{ padding: '6px 12px', fontSize: '11px', color: 'var(--g-text-muted)', borderBottom: '1px solid #333', position: 'sticky', top: 0, background: '#252526' }}>
             Response Content (raw text, no truncation)
           </div>
           <pre
@@ -931,7 +931,7 @@ const RawSection: React.FC<{
               padding: '12px',
               fontSize: '12px',
               lineHeight: 1.6,
-              color: '#e0e0e0',
+              color: 'var(--g-line)',
               fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
               whiteSpace: wrap ? 'pre-wrap' : 'pre',
               wordBreak: wrap ? 'break-all' : 'normal',
@@ -948,7 +948,7 @@ const RawSection: React.FC<{
 /** 上下文加载标签 */
 const ContextBadge: React.FC<{ label: string; value: string; color: string }> = ({ label, value, color }) => (
   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-    <span style={{ color: '#999' }}>{label}:</span>
+    <span style={{ color: 'var(--g-text-muted)' }}>{label}:</span>
     <span style={{ color, fontWeight: 500 }}>{value}</span>
   </span>
 );
@@ -965,10 +965,10 @@ const ContextContentBlock: React.FC<{ label: string; content: string; color: str
       >
         <span>{open ? '▾' : '▸'}</span>
         <span style={{ fontWeight: 600 }}>{label}</span>
-        {!open && <span style={{ color: '#999', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{preview}</span>}
+        {!open && <span style={{ color: 'var(--g-text-muted)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{preview}</span>}
       </div>
       {open && (
-        <pre style={{ margin: 0, padding: '6px', background: '#fafafa', fontSize: '10px', lineHeight: 1.4, whiteSpace: 'pre-wrap', wordBreak: 'break-all', color: '#555', maxHeight: '200px', overflowY: 'auto' }}>
+        <pre style={{ margin: 0, padding: '6px', background: 'var(--g-bg-sunken)', fontSize: '10px', lineHeight: 1.4, whiteSpace: 'pre-wrap', wordBreak: 'break-all', color: 'var(--g-text-sub)', maxHeight: '200px', overflowY: 'auto' }}>
 {content}
         </pre>
       )}

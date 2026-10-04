@@ -583,7 +583,7 @@ export const CopilotSidebar: React.FC<CopilotSidebarProps> = ({ workflowName, wo
                       onClick={() => quickAction(kind)}
                       style={{
                         border: `1px solid ${CHAT.line}`,
-                        background: '#fff',
+                        background: 'var(--g-bg-raised)',
                         color: CHAT.textSub,
                         fontSize: 11.5,
                         borderRadius: 999,

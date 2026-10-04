@@ -4,6 +4,10 @@ import { BrowserRouter } from 'react-router-dom';
 
 import './index.css';
 import App from './App';
+import { initThemeMode } from './chat/theme';
+
+// 首屏渲染前应用主题，避免闪白
+initThemeMode();
 
 const rootElement = document.getElementById('root');
 if (rootElement) {
