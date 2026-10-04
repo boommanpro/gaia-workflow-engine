@@ -162,6 +162,10 @@ export const WorkflowManagement = () => {
     navigate(`/editor/${wf.workflowCode}`, { state: { from: '/admin/workflows' } });
   };
 
+  const handleOpenApiDocs = (wf: GaiaWorkflow) => {
+    navigate(`/docs/${wf.workflowCode}`);
+  };
+
   return (
     <div style={{ color: '#1a1a1a' }}>
       {/* ---------- Toolbar ---------- */}
@@ -232,6 +236,7 @@ export const WorkflowManagement = () => {
                   <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
                     <button onClick={() => openEditModal(wf)} style={actionBtnBlueStyle}>{t('Edit')}</button>
                     <button onClick={() => handleOpenEditor(wf)} style={actionBtnPurpleStyle}>{t('admin.openEditor')}</button>
+                    <button onClick={() => handleOpenApiDocs(wf)} style={actionBtnPurpleStyle}>{t('admin.apiDocs')}</button>
                     <button onClick={() => handleDelete(wf)} style={actionBtnRedStyle}>{t('Delete')}</button>
                   </td>
                 </tr>

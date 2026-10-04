@@ -100,7 +100,7 @@ export const AiWorkspace: React.FC = () => {
     const timer = setTimeout(() => {
       const prompt = takeInitialPrompt(routeSessionKey);
       if (!prompt) return;
-      void sendMessageRef.current(prompt);
+      void sendMessageRef.current(prompt.text, prompt.images);
     }, 260);
     return () => clearTimeout(timer);
   }, [routeSessionKey]);

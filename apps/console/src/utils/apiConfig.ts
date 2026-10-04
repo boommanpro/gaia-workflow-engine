@@ -11,8 +11,9 @@ export const getApiBaseUrl = (): string => {
     return storedApiBaseUrl;
   }
 
-  // 2. 开发环境（rsbuild dev server port 3000）使用相对路径，由代理转发
-  if (typeof window !== 'undefined' && window.location.port === '3000') {
+  // 2. 开发环境使用相对路径，由 rsbuild dev server 的 proxy 转发到后端
+  //    （不依赖端口号，避免 dev server 端口被占用改用其他端口时判断失效）
+  if (process.env.NODE_ENV === 'development') {
     return '/api';
   }
 

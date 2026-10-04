@@ -6,8 +6,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal, Input, Button as SemiButton } from '@douyinfe/semi-ui';
-import { WorkflowViewer } from '../editor';
-import { initialData } from '../initial-data';
+import { WorkflowDemoCanvas } from '../components/WorkflowDemoCanvas';
 import { workflowApi } from '../services/workflow-api';
 import { getApiBaseUrl, updateApiBaseUrl } from '../utils/apiConfig';
 import { publicPath } from '../utils/public-path';
@@ -109,7 +108,6 @@ export const Home = () => {
   const navigate = useNavigate();
   const lang = useLanguage();
   const [backendOnline, setBackendOnline] = useState(false);
-  const [viewerData, setViewerData] = useState<any>(initialData);
   const [showServerConfig, setShowServerConfig] = useState(false);
   const [serverUrl, setServerUrl] = useState('');
 
@@ -129,29 +127,6 @@ export const Home = () => {
       setBackendOnline(false);
       setServerUrl(getApiBaseUrl());
     });
-
-    // 尝试加载第一个工作流的版本数据用于预览
-    (async () => {
-      try {
-        const workflows = await workflowApi.listWorkflows();
-        if (workflows && workflows.length > 0) {
-          const wf = workflows[0];
-          if (wf.currentVersionId) {
-            try {
-              const version = await workflowApi.getVersionById(wf.currentVersionId);
-              if (version?.workflowData) {
-                const parsed = typeof version.workflowData === 'string'
-                  ? JSON.parse(version.workflowData)
-                  : version.workflowData;
-                if (parsed?.nodes?.length > 0) {
-                  setViewerData(parsed);
-                }
-              }
-            } catch { /* keep initialData */ }
-          }
-        }
-      } catch { /* ignore */ }
-    })();
   }, []);
 
   return (
@@ -238,21 +213,6 @@ export const Home = () => {
             }}
           >
             {t('nav.apiDocs')}
-          </button>
-          <button
-            onClick={() => navigate('/dashboard')}
-            className="hidden lg:block"
-            style={{
-              padding: '6px 0',
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: '14px',
-              color: '#555',
-              fontWeight: 500,
-            }}
-          >
-            {t('nav.dashboard')}
           </button>
           <div
             style={{
@@ -353,7 +313,7 @@ export const Home = () => {
           borderRadius: '12px',
           overflow: 'hidden',
         }}>
-          <WorkflowViewer data={viewerData} height={720} />
+          <WorkflowDemoCanvas height={720} />
         </div>
       </section>
 

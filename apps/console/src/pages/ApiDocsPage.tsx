@@ -77,7 +77,7 @@ const ApiDocsList: React.FC<{ navigate: (p: string) => void }> = ({ navigate }) 
         <p className="mt-3 max-w-[560px] text-[15px] text-[#666]">{t('apiDocs.subtitle')}</p>
 
         {loading ? (
-          <div className="py-20 text-center text-sm text-[#999]">{t('dashboard.listEmpty')}…</div>
+          <div className="py-20 text-center text-sm text-[#999]">{t('Loading')}</div>
         ) : apis.length === 0 ? (
           <div className="mt-8 rounded-2xl border border-dashed border-[#e3e3ea] py-20 text-center">
             <p className="text-[15px] text-[#666]">{t('apiDocs.listEmpty')}</p>
@@ -161,7 +161,7 @@ const ApiDocDetail: React.FC<{
     return (
       <ScrollPage>
         <ContentTopNav active="/docs" />
-        <div className="py-20 text-center text-sm text-[#999]">{t('dashboard.listEmpty')}…</div>
+        <div className="py-20 text-center text-sm text-[#999]">{t('Loading')}</div>
       </ScrollPage>
     );
   }

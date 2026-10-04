@@ -4,7 +4,6 @@ import { Releases } from './pages/Releases';
 import { LandingPage } from './pages/LandingPage';
 import { Home } from './pages/Home';
 import { ApiDocsPage } from './pages/ApiDocsPage';
-import { DashboardPage } from './pages/DashboardPage';
 import { Editor, TemplateEditor } from './editor';
 import { AdminLayout } from './pages/admin/AdminLayout';
 import { WorkflowManagement } from './pages/admin/WorkflowManagement';
@@ -22,7 +21,6 @@ import ScrollPage from './components/ScrollPage';
  *   /c/:sessionKey       通用模式 · AI 工作区（对话核心，产物即工作流）
  *   /preview             预览页（原产品介绍页：内嵌可交互画布演示 + 项目说明）
  *   /docs                对外 API 调用文档（列表 / 详情）
- *   /dashboard           调用数据看板（总览 / 单 API）
  *   /editor/:workflowCode 专家模式 · 画布主位
  *   /admin/*             管理后台
  *   /releases            版本记录
@@ -47,8 +45,6 @@ function App() {
           <Route path="/preview" element={<ScrollPage><Home /></ScrollPage>} />
           <Route path="/docs" element={<ScrollPage><ApiDocsPage /></ScrollPage>} />
           <Route path="/docs/:workflowCode" element={<ScrollPage><ApiDocsPage /></ScrollPage>} />
-          <Route path="/dashboard" element={<ScrollPage><DashboardPage /></ScrollPage>} />
-          <Route path="/dashboard/:workflowCode" element={<ScrollPage><DashboardPage /></ScrollPage>} />
           <Route path="/releases" element={<ScrollPage><Releases /></ScrollPage>} />
 
           {/* 管理后台 */}
