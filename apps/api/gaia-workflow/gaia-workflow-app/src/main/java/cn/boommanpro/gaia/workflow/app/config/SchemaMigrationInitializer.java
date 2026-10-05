@@ -24,7 +24,12 @@ public class SchemaMigrationInitializer implements CommandLineRunner {
         new String[]{"agent_message", "images", "TEXT"},
         new String[]{"agent_message", "parent_message_id", "VARCHAR(64)"},
         new String[]{"agent_knowledge_chunk", "language", "VARCHAR(10) DEFAULT 'zh'"},
-        new String[]{"agent_session", "debug_data", "TEXT"}
+        new String[]{"agent_session", "debug_data", "TEXT"},
+        // 工作空间（Codex 风格三区）：旧库补充列
+        new String[]{"agent_session", "scope", "VARCHAR(16) DEFAULT 'chat'"},
+        new String[]{"agent_session", "folder_id", "BIGINT"},
+        new String[]{"agent_session", "pinned", "TINYINT DEFAULT 0"},
+        new String[]{"agent_session", "archived", "TINYINT DEFAULT 0"}
     );
 
     private final DataSource dataSource;
@@ -49,6 +54,12 @@ public class SchemaMigrationInitializer implements CommandLineRunner {
                         log.warn("Schema migration failed for {}.{}: {}", table, column, e.getMessage());
                     }
                 }
+            }
+            // 索引放在补列之后创建：旧库原先没有 folder_id，schema.sql 里直接建会失败
+            try (Statement stmt = conn.createStatement()) {
+                stmt.execute("CREATE INDEX IF NOT EXISTS idx_agent_session_folder ON agent_session(folder_id)");
+            } catch (Exception e) {
+                log.warn("Schema migration failed to create index idx_agent_session_folder: {}", e.getMessage());
             }
         } catch (Exception e) {
             log.warn("Schema migration initializer failed: {}", e.getMessage());

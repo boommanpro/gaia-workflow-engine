@@ -78,11 +78,26 @@ CREATE TABLE IF NOT EXISTS agent_session (
     updated_at TEXT,
     is_deleted TINYINT DEFAULT 0,
     debug_data TEXT,
+    -- 工作空间（Codex 风格三区）
+    scope VARCHAR(16) DEFAULT 'chat',    -- chat（对话）/ work（工作空间），两套逻辑隔离
+    folder_id BIGINT,               -- 所属工作文件夹（agent_work_folder.id），null=未归入文件夹
+    pinned TINYINT DEFAULT 0,       -- 置顶 0/1
+    archived TINYINT DEFAULT 0,     -- 归档 0/1
     -- 人工审查标记（用于会话质量分析和 event loop）
     review_rating VARCHAR(16),      -- good / bad / null
     review_issue TEXT,              -- 问题描述（哪里不好）
     review_status VARCHAR(32) DEFAULT 'pending', -- pending / analyzing / fixed / ignored
     review_fix_note TEXT            -- 修复建议（给 coding agent 的指令）
+);
+
+-- 工作空间文件夹表（Work 模式：按文件夹分组的对话）
+CREATE TABLE IF NOT EXISTS agent_work_folder (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name VARCHAR(64) NOT NULL,
+    sort_order INTEGER DEFAULT 0,
+    created_at TEXT,
+    updated_at TEXT,
+    is_deleted TINYINT DEFAULT 0
 );
 
 -- Agent 对话消息表（持久化历史对话）

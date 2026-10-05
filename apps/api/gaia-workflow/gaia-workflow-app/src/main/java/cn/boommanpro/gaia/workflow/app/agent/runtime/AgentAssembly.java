@@ -92,9 +92,11 @@ public class AgentAssembly {
         if (toolExecutors != null) {
             toolExecutors.forEach(toolExecutorRegistry::register);
         }
-        // 显式声明「只能在浏览器里跑」的工具，自治模式下会被自动过滤
-        toolExecutorRegistry.register(new FrontendUiToolExecutor("canvas", "画布节点操作（需要浏览器画布）"));
-        toolExecutorRegistry.register(new FrontendUiToolExecutor("navigate", "页面跳转（需要浏览器）"));
+        // 兜底：仅当没有后端实现时才注册「只能在前端跑」的占位器。
+        // 这样新增的后端执行器（CanvasToolExecutor / NavigateToolExecutor）优先生效，
+        // 占位器只在缺实现时兜底，避免把后端能力误降级成前端专属。
+        registerFrontendPlaceholderIfAbsent("canvas", "画布节点操作（需要浏览器画布）");
+        registerFrontendPlaceholderIfAbsent("navigate", "页面跳转（需要浏览器）");
 
         // 3. 上下文提供者
         if (contextProviders != null) {
@@ -105,6 +107,7 @@ public class AgentAssembly {
         seedAgentPrompts();
         registerAgent(defaultAssistantDefinition());
         registerAgent(workflowArchitectDefinition());
+        registerAgent(workspaceBackendDefinition());
 
         log.info("[agent-assembly] ready: {} agents, {} tools, {} context providers, {} llm providers",
             agentRegistry.size(), toolExecutorRegistry.size(),
@@ -121,6 +124,13 @@ public class AgentAssembly {
     /** 注册一个工具执行器（覆盖同名实现） */
     public void registerToolExecutor(ToolExecutor executor) {
         toolExecutorRegistry.register(executor);
+    }
+
+    /** 工具缺后端实现时，注册「只能在前端跑」的占位器 */
+    private void registerFrontendPlaceholderIfAbsent(String name, String description) {
+        if (!toolExecutorRegistry.get(name).isPresent()) {
+            toolExecutorRegistry.register(new FrontendUiToolExecutor(name, description));
+        }
     }
 
     /** 注册一个上下文提供者 */
@@ -218,6 +228,34 @@ public class AgentAssembly {
             .executionMode(ToolExecutionMode.BACKEND)
             .maxTurns(6)
             .sortOrder(20)
+            .build();
+    }
+
+    /**
+     * 工作区助手（后端自治）：AI 工作区对话的默认 Agent。
+     * 工具全部在后端执行（画布操作落在服务端草稿文档上），
+     * 因此关掉窗口对话照常跑完，多窗口共享同一份会话与产物。
+     */
+    private AgentDefinition workspaceBackendDefinition() {
+        Set<String> tools = new LinkedHashSet<>();
+        tools.add("query");
+        tools.add("manage");
+        tools.add("applyWorkflow");
+        tools.add("canvas");
+        tools.add("navigate");
+        tools.add("createPlan");
+        tools.add("executeStep");
+
+        return AgentDefinition.builder()
+            .id("workspace-backend")
+            .name("工作区助手（后端自治）")
+            .description("前端仅展示、后端自治的通用助手：对话循环与工具执行都在服务端")
+            .source("builtin")
+            .llmProviderId(OpenAiCompatibleLlmProvider.PROVIDER_ID)
+            .toolNames(tools)
+            .executionMode(ToolExecutionMode.BACKEND)
+            .maxTurns(10)
+            .sortOrder(5)
             .build();
     }
 }

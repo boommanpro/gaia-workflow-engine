@@ -9,6 +9,7 @@ import cn.boommanpro.gaia.workflow.app.agent.core.AgentRunResult;
 import cn.boommanpro.gaia.workflow.app.agent.core.AgentRunResult.PendingToolCall;
 import cn.boommanpro.gaia.workflow.app.agent.core.ConversationStore;
 import cn.boommanpro.gaia.workflow.app.agent.core.ToolExecutionMode;
+import cn.boommanpro.gaia.workflow.app.agent.core.ToolPolicyService;
 import cn.boommanpro.gaia.workflow.app.agent.event.AgentEvent;
 import cn.boommanpro.gaia.workflow.app.agent.event.AgentEventSink;
 import cn.boommanpro.gaia.workflow.app.agent.llm.LlmChatRequest;
@@ -60,6 +61,7 @@ public class AgentRuntime {
     private final AgentToolRegistry toolSchemaRegistry;
     private final ConversationStore conversationStore;
     private final SystemPromptResolver promptResolver;
+    private final ToolPolicyService toolPolicyService;
 
     public AgentRuntime(AgentRegistry agentRegistry,
                         LlmProviderRegistry llmProviderRegistry,
@@ -67,7 +69,8 @@ public class AgentRuntime {
                         ContextProviderRegistry contextProviderRegistry,
                         AgentToolRegistry toolSchemaRegistry,
                         ConversationStore conversationStore,
-                        SystemPromptResolver promptResolver) {
+                        SystemPromptResolver promptResolver,
+                        ToolPolicyService toolPolicyService) {
         this.agentRegistry = agentRegistry;
         this.llmProviderRegistry = llmProviderRegistry;
         this.toolExecutorRegistry = toolExecutorRegistry;
@@ -75,6 +78,7 @@ public class AgentRuntime {
         this.toolSchemaRegistry = toolSchemaRegistry;
         this.conversationStore = conversationStore;
         this.promptResolver = promptResolver;
+        this.toolPolicyService = toolPolicyService;
     }
 
     /**
@@ -105,6 +109,8 @@ public class AgentRuntime {
         }
 
         AgentRunContext context = new AgentRunContext(request, definition, mode);
+        // 把输出端注入上下文：工具可用 context.emit(...) 广播自定义事件（document / plan / ui_action）
+        context.setSink(safeSink);
         String sessionKey = request.getSessionKey();
 
         Optional<LlmProvider> provider = llmProviderRegistry.resolve(definition.getLlmProviderId());
@@ -149,12 +155,15 @@ public class AgentRuntime {
                 return AgentRunResult.failure(message);
             }
 
-            // assistant 消息入库
-            String toolCallsJson = response.hasToolCalls() ? toToolCallsJson(response.getToolCalls()) : null;
+            // assistant 消息入库；若回复包含 ::options（请求用户选择），不保留 tool_calls
+            boolean hasOptions = response.getContent() != null && response.getContent().contains("::options");
+            String toolCallsJson = (response.hasToolCalls() && !hasOptions)
+                ? toToolCallsJson(response.getToolCalls()) : null;
             conversationStore.saveMessage(sessionKey, "assistant", response.getContent(), toolCallsJson, null);
             conversation.add(toAssistantMessage(response));
 
-            if (!response.hasToolCalls()) {
+            // ::options（等用户选择）或没有工具调用 → 本轮结束，等用户下一步
+            if (!response.hasToolCalls() || hasOptions) {
                 finalContent = response.getContent();
                 completed = true;
                 break;
@@ -222,6 +231,30 @@ public class AgentRuntime {
             .set("name", call.getName())
             .set("args", args)
             .set("executedBy", "backend")));
+
+        // 策略门禁：forbid → 拒绝；confirm → 按配置决策（auto-approve / auto-reject / require）
+        String policy = toolPolicyService.resolvePolicy(context.getSessionKey(), call.getName());
+        if ("forbid".equals(policy)) {
+            ToolResult rejected = ToolResult.rejected("该操作已被权限策略禁止");
+            sink.emit(AgentEvent.of("tool_result", new JSONObject()
+                .set("toolCallId", call.getId())
+                .set("name", call.getName())
+                .set("rejected", true)
+                .set("payload", rejected.getPayload())));
+            return rejected;
+        }
+        if ("confirm".equals(policy)) {
+            boolean approved = toolPolicyService.decideConfirm(context, call, sink);
+            if (!approved) {
+                ToolResult rejected = ToolResult.rejected("用户未确认该操作");
+                sink.emit(AgentEvent.of("tool_result", new JSONObject()
+                    .set("toolCallId", call.getId())
+                    .set("name", call.getName())
+                    .set("rejected", true)
+                    .set("payload", rejected.getPayload())));
+                return rejected;
+            }
+        }
 
         Optional<ToolExecutor> executor = toolExecutorRegistry.get(call.getName());
         if (!executor.isPresent()) {

@@ -17,7 +17,6 @@ import {
   IconDownload,
   IconTickCircle,
   IconAlertTriangle,
-  IconShrink,
 } from '@douyinfe/semi-icons';
 
 import { useWorkflowDocumentState, workflowDocumentStore, validateDsl } from '../../document';
@@ -25,6 +24,7 @@ import type { DslNode, WorkflowDsl } from '../../document';
 import { t } from '../../i18n';
 import { workflowApi } from '../../services/workflow-api';
 import { CHAT } from '../../chat/theme';
+import { IconPanelRight } from '../../components/app-shell/icons';
 import { ReadonlyCanvas } from './ReadonlyCanvas';
 
 const NODE_LABELS: Record<string, string> = {
@@ -211,7 +211,7 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
                   size="small"
                   theme="borderless"
                   type="tertiary"
-                  icon={<IconShrink size="small" />}
+                  icon={<IconPanelRight size={16} />}
                   onClick={onCollapse}
                   aria-label={t('workspace.collapseArtifact')}
                 />

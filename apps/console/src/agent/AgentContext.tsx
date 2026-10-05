@@ -1,6 +1,11 @@
 /**
  * Agent 全局状态 Context
  * 管理：会话列表、当前会话、消息流、权限配置、对话编排
+ *
+ * 对话编排已改为「纯后端自治」：
+ *   sendMessage 只负责把消息 POST 给后端触发一次异步 run，
+ *   后端在服务端跑完整循环（含工具执行），过程事件经 SSE 推给本 Context 渲染。
+ * 因此前端只是数据的订阅者与展示者 —— 多窗口共享同一会话，关窗执行继续。
  */
 import React, {
   createContext,
@@ -10,14 +15,14 @@ import React, {
   useCallback,
   useRef,
 } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { nanoid } from 'nanoid';
 
 import { agentApi } from './api';
-import { streamChat, streamToolResult, streamCompact, streamSubagent, type ToolResultItem } from './sse-client';
+import { subscribeSessionEvents } from './sse-client';
+import { getCurrentLocale } from '../i18n';
 import { getCanvasContext } from './tools';
-import { getApiBaseUrl } from '../utils/apiConfig';
-import { workflowDocumentStore } from '../document';
+import { WorkflowDocument, workflowDocumentStore } from '../document';
 import type {
   AgentSession,
   AgentMessage,
@@ -25,11 +30,12 @@ import type {
   PermissionPolicy,
   ToolCallEvent,
   PageContext,
-  PlanStep,
   ActivePlan,
+  WorkFolder,
+  SseHandlers,
 } from './types';
 
-/** 工具执行器接口（由 AgentDock 注入） */
+/** 工具执行器接口（由 AgentDock 注入；后端自治模式下不再被对话循环使用） */
 export interface ToolExecutor {
   execute(action: string, args: Record<string, any>): Promise<{ result: string; rejected: boolean }>;
 }
@@ -45,6 +51,19 @@ interface AgentContextValue {
   streaming: boolean;
   queueLength: number;
   pendingConfirm: ToolCallEvent | null;
+
+  // 工作空间（文件夹分组的对话）
+  folders: WorkFolder[];
+  refreshFolders: () => Promise<void>;
+  createFolder: (name: string) => Promise<WorkFolder | void>;
+  renameFolder: (id: number, name: string) => Promise<void>;
+  deleteFolder: (id: number) => Promise<void>;
+  /** 会话移入/移出文件夹 */
+  moveSessionToFolder: (sessionKey: string, folderId: number | null) => Promise<void>;
+  /** 置顶 / 取消置顶 */
+  pinSession: (sessionKey: string, pinned: boolean) => Promise<void>;
+  /** 归档 / 取消归档 */
+  archiveSession: (sessionKey: string, archived: boolean) => Promise<void>;
 
   // Token usage tracking (Task 2)
   tokenUsage: { estimated: number; limit: number };
@@ -71,7 +90,7 @@ interface AgentContextValue {
   setToolExecutor: (executor: ToolExecutor) => void;
   resolveConfirm: (approved: boolean) => void;
 
-  createSession: (title?: string) => Promise<string>;
+  createSession: (title?: string, opts?: { scope?: 'chat' | 'work'; folderId?: number | null }) => Promise<string>;
   switchSession: (sessionKey: string) => Promise<void>;
   renameSession: (sessionKey: string, title: string) => Promise<void>;
   deleteSession: (sessionKey: string) => Promise<void>;
@@ -83,7 +102,7 @@ interface AgentContextValue {
   // Subagent debug flow
   debugNode: (nodeId: string, instruction: string) => Promise<void>;
 
-  /** 当前活跃的执行计划（createPlan 生成，输入框上方展示） */
+  /** 当前活跃的执行计划（后端自治模式下由后端持有，此处恒为 null，仅供兼容） */
   activePlan: ActivePlan | null;
 
   /** 画布加载完成时注入画布摘要（进入编辑器时自动读取画布配置） */
@@ -112,10 +131,18 @@ export function convertMessages(msgs: AgentMessage[]): DisplayMessage[] {
   for (const msg of msgs) {
     const ts = msg.createdAt ? new Date(msg.createdAt).getTime() : Date.now();
     if (msg.role === 'user') {
+      let images: string[] | undefined;
+      if (msg.images) {
+        try {
+          const parsed = JSON.parse(msg.images);
+          if (Array.isArray(parsed)) images = parsed;
+        } catch { /* ignore */ }
+      }
       result.push({
         id: `msg-${msg.id}`,
         role: 'user',
         content: msg.content || '',
+        images,
         timestamp: ts,
       });
     } else if (msg.role === 'assistant') {
@@ -140,7 +167,7 @@ export function convertMessages(msgs: AgentMessage[]): DisplayMessage[] {
             const actionName = tc.function?.name || 'unknown';
 
             // createPlan: 从 args.steps 重建 planSteps，使刷新后 PlanCard 仍能展示
-            let planSteps: PlanStep[] | undefined;
+            let planSteps: DisplayMessage['planSteps'];
             const argsMap = args as Record<string, any>;
             if (actionName === 'createPlan' && Array.isArray(argsMap.steps)) {
               planSteps = argsMap.steps.map((s: any, idx: number) => ({
@@ -185,6 +212,71 @@ export function convertMessages(msgs: AgentMessage[]): DisplayMessage[] {
   return result;
 }
 
+/** 把一个后端 tool_call 事件 upsert 成工具卡片消息 */
+function upsertToolCard(prev: DisplayMessage[], event: ToolCallEvent): DisplayMessage[] {
+  const id = `toolcall-${event.id}`;
+  const existingIdx = prev.findIndex((m) => m.id === id);
+  if (existingIdx >= 0) {
+    const updated = [...prev];
+    updated[existingIdx] = { ...updated[existingIdx], toolCall: { ...updated[existingIdx].toolCall, ...event } };
+    return updated;
+  }
+  return [...prev, { id, role: 'tool', content: '', toolCall: event, timestamp: Date.now() }];
+}
+
+/** 用运行快照里的工具调用批量 upsert（订阅建立 / 重连时） */
+function upsertLiveToolCalls(
+  prev: DisplayMessage[],
+  calls: Array<{ id: string; name: string; args: any; status?: string; result?: string }>
+): DisplayMessage[] {
+  let next = prev;
+  for (const call of calls) {
+    if (!call?.id) continue;
+    next = upsertToolCard(next, {
+      id: call.id,
+      action: call.name,
+      args: call.args ?? {},
+      policy: 'always',
+      result: call.result ? call.result.substring(0, 200) : undefined,
+    });
+  }
+  return next;
+}
+
+/** 用后端 plan 事件 upsert PlanCard 消息 */
+function upsertPlanCard(prev: DisplayMessage[], plan: { id: string; steps: any[] }): DisplayMessage[] {
+  const planSteps = (plan.steps || []).map((s: any, idx: number) => ({
+    id: `plan-${plan.id}-${idx}`,
+    intent: s.intent || s.description || `Step ${idx + 1}`,
+    action: s.action || 'unknown',
+    args: s.args || {},
+    status: (s.status as any) || 'pending',
+    result: s.result,
+  }));
+  const id = 'plan-live';
+  const existingIdx = prev.findIndex((m) => m.id === id);
+  if (existingIdx >= 0) {
+    const updated = [...prev];
+    updated[existingIdx] = { ...updated[existingIdx], planSteps };
+    return updated;
+  }
+  return [...prev, { id, role: 'tool', content: '', planSteps, timestamp: Date.now() }];
+}
+
+/** 后端 navigate ui_action 参数 → 路由路径 */
+function navigatePathFor(target: string, args: any): string | null {
+  switch (target) {
+    case 'home': return '/';
+    case 'admin': return args?.tab === 'templates' ? '/admin/templates' : '/admin/workflows';
+    case 'releases': return '/releases';
+    case 'editor': return args?.workflowCode ? `/editor/${args.workflowCode}` : '/editor';
+    case 'templateEditor': return `/template-editor/${args?.templateCode}`;
+    default: return null;
+  }
+}
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
 export function AgentProvider({ children }: { children: React.ReactNode }) {
   const [dockOpen, setDockOpen] = useState(false);
   const [sessions, setSessions] = useState<AgentSession[]>([]);
@@ -194,16 +286,18 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   const [streaming, setStreaming] = useState(false);
   const [queueLength, setQueueLength] = useState(0);
   const [pendingConfirm, setPendingConfirm] = useState<ToolCallEvent | null>(null);
+  // 工作空间文件夹
+  const [folders, setFolders] = useState<WorkFolder[]>([]);
 
-  // Token usage tracking — limit 从模型配置的 contextWindow 获取
+  const location = useLocation();
+  const navigate = useNavigate();
+  const navigateRef = useRef(navigate);
+  navigateRef.current = navigate;
+
+  // Token usage tracking
   const [tokenUsage, setTokenUsage] = useState<{ estimated: number; limit: number }>({ estimated: 0, limit: 32768 });
-  // 系统提示词 token 估算（从 context_loaded 事件获取）
-  const systemPromptTokensRef = useRef<number>(0);
-  // 缓存 context_loaded 数据：后端发送顺序为 context_loaded → debug_request，
-  // 但 entry 由 debug_request 创建，若 context_loaded 先到则缓存待 debug_request 创建 entry 时回填
-  const pendingContextRef = useRef<any | null>(null);
 
-  // Debug entries (Task 3)
+  // Debug entries
   const [debugEntries, setDebugEntries] = useState<Array<{
     id: string;
     timestamp: number;
@@ -212,7 +306,6 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     context?: any;
     toolResults?: any;
   }>>([]);
-  // 调试面板开关 + 聚焦条目（点击消息跳转用）
   const [debugPanelOpen, setDebugPanelOpen] = useState(false);
   const [focusDebugEntryId, setFocusDebugEntryId] = useState<string | null>(null);
   const openDebugEntry = (entryId: string) => {
@@ -220,41 +313,88 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     setDebugPanelOpen(true);
   };
 
-  // 活跃的执行计划（todo 机制：createPlan 生成，executeStep 逐个执行）
+  // 兼容占位：后端自治模式下工具/计划/确认都在后端，前端不再执行
   const [activePlan, setActivePlan] = useState<ActivePlan | null>(null);
-  // activePlan 的同步 ref：executeStep 在同一轮 while 循环中紧跟 executePlan 调用，
-  // 此时 setActivePlan 尚未 flush，闭包里的 activePlan 仍是旧值，必须用 ref 同步读取。
-  const activePlanRef = useRef<ActivePlan | null>(null);
-  // messages 的同步 ref：同上，fallback 路径从 messages 查找 planSteps 时也需要最新值
-  const messagesRef = useRef<DisplayMessage[]>([]);
-  messagesRef.current = messages;
-  // plan 步骤对应的展示消息 ID（用于更新 PlanCard）
-  const planMsgIdRef = useRef<string | null>(null);
-
-  const location = useLocation();
+  void setActivePlan;
   const toolExecutorRef = useRef<ToolExecutor | null>(null);
-  const confirmResolverRef = useRef<((v: boolean) => void) | null>(null);
-  const currentSessionKeyRef = useRef<string | null>(null);
-  const messageQueueRef = useRef<Array<{ text: string; images?: string[] }>>([]);
-  const processingRef = useRef<boolean>(false);
-  const abortControllerRef = useRef<AbortController | null>(null);
 
-  // 保持 ref 同步
+  // refs
+  const currentSessionKeyRef = useRef<string | null>(null);
+  const draftMetaRef = useRef<Map<string, { scope: 'chat' | 'work'; folderId: number | null }>>(new Map());
+  const messageQueueRef = useRef<Array<{ sessionKey: string; text: string; images?: string[] }>>([]);
+  const processingRef = useRef<boolean>(false);
+  /** 当前正在流式渲染的助手占位消息 id */
+  const liveAssistantIdRef = useRef<string | null>(null);
+
   useEffect(() => {
     currentSessionKeyRef.current = currentSessionKey;
   }, [currentSessionKey]);
+
+  // 刷新文件夹列表
+  const refreshFolders = useCallback(async () => {
+    try {
+      const list = await agentApi.listFolders();
+      setFolders(list || []);
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    void refreshFolders();
+  }, [refreshFolders]);
+
+  /** 置顶 / 取消置顶 */
+  const pinSession = useCallback(async (sessionKey: string, pinned: boolean) => {
+    await agentApi.updateSessionFlags(sessionKey, { pinned });
+    setSessions((prev) =>
+      prev.map((s) => (s.sessionKey === sessionKey ? { ...s, pinned: pinned ? 1 : 0 } : s))
+    );
+  }, []);
+
+  /** 归档 / 取消归档 */
+  const archiveSession = useCallback(async (sessionKey: string, archived: boolean) => {
+    await agentApi.updateSessionFlags(sessionKey, { archived });
+    setSessions((prev) =>
+      prev.map((s) => (s.sessionKey === sessionKey ? { ...s, archived: archived ? 1 : 0 } : s))
+    );
+  }, []);
+
+  /** 会话移入/移出文件夹 */
+  const moveSessionToFolder = useCallback(async (sessionKey: string, folderId: number | null) => {
+    await agentApi.setSessionFolder(sessionKey, folderId);
+    setSessions((prev) =>
+      prev.map((s) => (s.sessionKey === sessionKey ? { ...s, folderId } : s))
+    );
+    void refreshFolders();
+  }, [refreshFolders]);
+
+  const createFolder = useCallback(async (name: string) => {
+    const folder = await agentApi.createFolder(name);
+    void refreshFolders();
+    return folder;
+  }, [refreshFolders]);
+
+  const renameFolder = useCallback(async (id: number, name: string) => {
+    await agentApi.renameFolder(id, name);
+    void refreshFolders();
+  }, [refreshFolders]);
+
+  const deleteFolder = useCallback(async (id: number) => {
+    await agentApi.deleteFolder(id);
+    setSessions((prev) =>
+      prev.map((s) => (s.folderId === id ? { ...s, folderId: null } : s))
+    );
+    void refreshFolders();
+  }, [refreshFolders]);
 
   // 初始化：加载会话列表 + 默认权限 + 模型配置
   useEffect(() => {
     agentApi.listSessions().then((list) => {
       setSessions(list || []);
-      // 自动选中第一个会话（或创建新会话）
       if (list && list.length > 0) {
         setCurrentSessionKey(list[0].sessionKey);
       }
     }).catch(() => {});
     agentApi.getPermissionDefaults().then(setPermissions).catch(() => {});
-    // 加载模型配置，用 contextWindow 更新 tokenUsage.limit
     agentApi.listConfigs('llm_config').then((configs) => {
       if (configs && configs.length > 0) {
         try {
@@ -271,24 +411,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!currentSessionKey) return;
     agentApi.getMessages(currentSessionKey).then((msgs) => {
-      const converted = convertMessages(msgs || []);
-      setMessages(converted);
-      // 从历史消息中恢复 activePlan（最后一条含 planSteps 的消息）
-      const lastPlanMsg = [...converted].reverse().find((m) => m.planSteps && m.planSteps.length > 0);
-      if (lastPlanMsg && lastPlanMsg.planSteps) {
-        const restored = {
-          id: lastPlanMsg.id,
-          steps: lastPlanMsg.planSteps,
-          createdNodeIds: [],
-        };
-        activePlanRef.current = restored;
-        setActivePlan(restored);
-        planMsgIdRef.current = lastPlanMsg.id;
-      } else {
-        activePlanRef.current = null;
-        setActivePlan(null);
-        planMsgIdRef.current = null;
-      }
+      setMessages(convertMessages(msgs || []));
     }).catch(() => {});
     agentApi.getPermissions(currentSessionKey).then(setPermissions).catch(() => {});
   }, [currentSessionKey]);
@@ -297,35 +420,25 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!currentSessionKey) {
       setDebugEntries([]);
-      backendTokenEstimatedRef.current = null;
       return;
     }
-    // 重置后端 token 估算，等待新会话的 context_loaded 事件
-    backendTokenEstimatedRef.current = null;
-    // 先从 localStorage 快速加载（同步）
     try {
       const stored = localStorage.getItem(`agent-debug-${currentSessionKey}`);
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          setDebugEntries(parsed);
-        } else {
-          setDebugEntries([]);
-        }
+        setDebugEntries(Array.isArray(parsed) ? parsed : []);
       } else {
         setDebugEntries([]);
       }
     } catch {
       setDebugEntries([]);
     }
-    // 再从后端 DB 加载（异步，DB 有数据时覆盖 localStorage）
     agentApi.getDebugData(currentSessionKey).then((data) => {
       if (data && data.trim()) {
         try {
           const parsed = JSON.parse(data);
           if (Array.isArray(parsed) && parsed.length > 0) {
             setDebugEntries(parsed);
-            // 同步到 localStorage
             localStorage.setItem(`agent-debug-${currentSessionKey}`, data);
           }
         } catch { /* ignore */ }
@@ -333,72 +446,17 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     }).catch(() => {});
   }, [currentSessionKey]);
 
-  // debugEntries 加载后，为历史 assistant 消息按时间戳就近匹配重建 debugEntryId 关联（刷新恢复跳转）
-  // 依赖 messages：会话切换时 messages 异步加载完成后才触发匹配，避免 prev 为空导致漏匹配
-  useEffect(() => {
-    if (debugEntries.length === 0) return;
-    setMessages((prev) => {
-      let changed = false;
-      // 收集所有有内容、未关联 debugEntryId 的 assistant 消息
-      const needMatch = prev.filter(
-        (m) => m.role === 'assistant' && m.content && !m.debugEntryId
-      );
-      if (needMatch.length === 0) return prev;
-      // 收集所有未被占用的 debug entries（按时间排序）
-      const occupiedIds = new Set(
-        prev.filter((m) => m.debugEntryId).map((m) => m.debugEntryId!)
-      );
-      const available = debugEntries
-        .filter((e) => !occupiedIds.has(e.id))
-        .sort((a, b) => a.timestamp - b.timestamp);
-      if (available.length === 0) return prev;
-      // 时间戳就近匹配：为每个待匹配消息找时间戳最接近的 entry
-      const usedEntryIds = new Set<string>();
-      const matchMap = new Map<string, string>();
-      for (const msg of needMatch) {
-        let bestEntry: typeof available[0] | undefined;
-        let bestDiff = Infinity;
-        for (const entry of available) {
-          if (usedEntryIds.has(entry.id)) continue;
-          const diff = Math.abs(msg.timestamp - entry.timestamp);
-          if (diff < bestDiff) {
-            bestDiff = diff;
-            bestEntry = entry;
-          }
-        }
-        if (bestEntry) {
-          usedEntryIds.add(bestEntry.id);
-          matchMap.set(msg.id, bestEntry.id);
-        }
-      }
-      if (matchMap.size === 0) return prev;
-      const updated = prev.map((m) => {
-        const eid = matchMap.get(m.id);
-        if (eid) {
-          changed = true;
-          return { ...m, debugEntryId: eid };
-        }
-        return m;
-      });
-      return changed ? updated : prev;
-    });
-  }, [debugEntries, messages]);
-
   // 调试信息变更时持久化到 localStorage + 后端 DB（debounced）
-  const debugEntriesRef = useRef<typeof debugEntries>([]);
-  debugEntriesRef.current = debugEntries;
   const debugSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!currentSessionKey || debugEntries.length === 0) return;
     const key = `agent-debug-${currentSessionKey}`;
     const json = JSON.stringify(debugEntries.slice(-50));
-    // 同步保存到 localStorage
     try {
       localStorage.setItem(key, json);
     } catch {
       // ignore quota errors
     }
-    // debounced 保存到后端 DB（避免频繁请求）
     if (debugSaveTimerRef.current) {
       clearTimeout(debugSaveTimerRef.current);
     }
@@ -412,45 +470,27 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     };
   }, [debugEntries]);
 
-  // 估算 token 使用量（仅作 fallback，后端 context_loaded 事件的 estimatedTokens 优先）
-  // 后端使用中英文区分的精确估算（中文1.5token/字，英文0.25token/字符），
-  // 前端仅在未收到后端数据时用粗略估算
-  const backendTokenEstimatedRef = useRef<number | null>(null);
-  useEffect(() => {
-    // 如果后端已提供 estimatedTokens，不覆盖
-    if (backendTokenEstimatedRef.current != null) {
-      const estimated = backendTokenEstimatedRef.current;
-      setTokenUsage((prev) => ({ estimated, limit: prev.limit }));
-      return;
-    }
-    // fallback: 粗略估算（中英混合，按 ~2.5 字符/token）
-    const messageTokens = Math.ceil(JSON.stringify(messages).length / 2.5);
-    const estimated = messageTokens + systemPromptTokensRef.current;
-    setTokenUsage((prev) => ({ estimated, limit: prev.limit }));
-  }, [messages]);
-
   const setToolExecutor = useCallback((executor: ToolExecutor) => {
     toolExecutorRef.current = executor;
   }, []);
 
   const resolveConfirm = useCallback((approved: boolean) => {
-    if (confirmResolverRef.current) {
-      confirmResolverRef.current(approved);
-      confirmResolverRef.current = null;
-    }
+    const sessionKey = currentSessionKeyRef.current;
+    const pending = pendingConfirm;
     setPendingConfirm(null);
-  }, []);
+    // 把裁决结果回传后端，唤醒 require 模式挂起的工具调用
+    if (!sessionKey || !pending) return;
+    agentApi.confirmTool(sessionKey, pending.id, approved).catch(() => {});
+  }, [pendingConfirm]);
 
   const getPageContextJson = useCallback((): string => {
     const ctx: PageContext = { route: location.pathname };
 
-    // 提取工作流编码（编辑器路由 /editor/:code）
     const editorMatch = location.pathname.match(/^\/editor\/(.+)$/);
     if (editorMatch) {
       ctx.workflowCode = decodeURIComponent(editorMatch[1]);
     }
 
-    // 注入画布摘要（未保存的画布数据也能获取，让 AI 感知当前画布状态）
     const canvas = getCanvasContext();
     if (canvas) {
       try {
@@ -478,16 +518,23 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     return JSON.stringify(ctx);
   }, [location.pathname]);
 
-  const createSession = useCallback(async (title?: string) => {
-    const session = await agentApi.createSession(title);
-    setSessions((prev) => [session, ...prev]);
-    setCurrentSessionKey(session.sessionKey);
+  const createSession = useCallback(async (title?: string, opts?: { scope?: 'chat' | 'work'; folderId?: number | null }) => {
+    // 新建对话只生成本地草稿 key，不请求后端；首条消息发送时（drainQueue）才真正创建会话
+    const key = `draft-${nanoid(8)}`;
+    draftMetaRef.current.set(key, {
+      scope: opts?.scope || 'chat',
+      folderId: opts?.folderId ?? null,
+    });
+    setCurrentSessionKey(key);
     setMessages([]);
     setDockOpen(true);
-    return session.sessionKey;
+    return key;
   }, []);
 
   const switchSession = useCallback(async (sessionKey: string) => {
+    if (currentSessionKeyRef.current && currentSessionKeyRef.current !== sessionKey) {
+      draftMetaRef.current.delete(currentSessionKeyRef.current);
+    }
     setCurrentSessionKey(sessionKey);
     setDockOpen(true);
   }, []);
@@ -519,428 +566,91 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     await agentApi.updateGlobalPermission(action, policy);
   }, []);
 
-  /** 显示确认弹窗 */
-  const showConfirm = useCallback((event: ToolCallEvent): Promise<boolean> => {
-    setPendingConfirm(event);
-    return new Promise<boolean>((resolve) => {
-      confirmResolverRef.current = resolve;
-    });
+  /** 从后端 DB 重新加载消息（一轮结束 / 出错 / 会话切换后收敛 live 态） */
+  const reloadMessages = useCallback((sessionKey: string) => {
+    agentApi.getMessages(sessionKey).then((msgs) => {
+      // 仅在仍处于该会话时应用，避免跨会话串数据
+      if (currentSessionKeyRef.current === sessionKey) {
+        setMessages(convertMessages(msgs || []));
+      }
+    }).catch(() => {});
+    agentApi.listSessions().then((list) => {
+      if (currentSessionKeyRef.current === sessionKey) {
+        setSessions(list || []);
+      }
+    }).catch(() => {});
   }, []);
 
-  /** 更新 plan 步骤状态（同步 activePlan 和 message 中的 planSteps） */
-  const updatePlanStepStatus = useCallback(
-    (stepIndex: number, status: PlanStep['status'], result?: string) => {
-      // 同步更新 ref（executeStep 在同一轮循环中后续调用可立即读到最新状态）
-      const prev = activePlanRef.current;
-      if (prev) {
-        const updated = [...prev.steps];
-        if (updated[stepIndex]) {
-          updated[stepIndex] = { ...updated[stepIndex], status, result };
-        }
-        const next = { ...prev, steps: updated };
-        activePlanRef.current = next;
-        setActivePlan(next);
+  /** 串行消费消息队列：每条消息触发一次后端自治 run */
+  const drainQueue = useCallback(async () => {
+    if (processingRef.current) return;
+    const item = messageQueueRef.current.shift();
+    if (!item) return;
+    processingRef.current = true;
+    setQueueLength(messageQueueRef.current.length);
+    setStreaming(true);
+    try {
+      const res = await agentApi.startRun(
+        item.sessionKey,
+        item.text,
+        getPageContextJson(),
+        item.images,
+        getCurrentLocale()
+      );
+      if (!res?.accepted) {
+        setStreaming(false);
+        setMessages((prev) => [
+          ...prev,
+          { id: nanoid(), role: 'assistant', content: `[错误] ${res?.error || '运行未受理'}`, timestamp: Date.now() },
+        ]);
+        processingRef.current = false;
+        setQueueLength(messageQueueRef.current.length);
+        void drainQueue();
+        return;
       }
-      const msgId = planMsgIdRef.current;
-      if (msgId) {
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === msgId && m.planSteps
-              ? {
-                  ...m,
-                  planSteps: m.planSteps.map((ps, idx) =>
-                    idx === stepIndex ? { ...ps, status, result } : ps
-                  ),
-                }
-              : m
-          )
-        );
-      }
-    },
-    []
-  );
-
-  /** 真实调用后端单节点测试 API（不打开面板，直接 HTTP 请求并等待结果） */
-  const runNodeReal = useCallback(
-    async (nodeId: string, inputs?: Record<string, any>): Promise<any> => {
-      const ctx = getCanvasContext();
-      if (!ctx) {
-        return { error: 'not in editor page' };
-      }
-      try {
-        const node = ctx.getNodeById(nodeId);
-        if (!node) {
-          return { error: `node ${nodeId} not found on canvas` };
-        }
-        const nodeJson = (node as any).toJSON ? (node as any).toJSON() : node;
-        const response = await fetch(`${getApiBaseUrl()}/task/runNode`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            node: JSON.stringify(nodeJson),
-            inputs: inputs || {},
-          }),
-        });
-        const data = await response.json();
-        return data;
-      } catch (e) {
-        return { error: (e as Error).message };
-      }
-    },
-    []
-  );
-
-  /** createPlan：生成计划（todo list），不自动执行，提示 AI 调用 executeStep 逐个执行 */
-  const executePlan = useCallback(
-    async (event: ToolCallEvent): Promise<ToolResultItem> => {
-      let rawSteps = Array.isArray(event.args.steps) ? event.args.steps : [];
-      // 容错：后端可能因 JSON 解析失败把 arguments 原样存到 args.raw
-      if (rawSteps.length === 0 && event.args?.raw) {
-        try {
-          const parsed = JSON.parse(event.args.raw as string);
-          if (Array.isArray(parsed?.steps)) {
-            rawSteps = parsed.steps;
-          }
-        } catch { /* ignore */ }
-      }
-      if (rawSteps.length === 0) {
-        return {
-          toolCallId: event.id,
-          result: JSON.stringify({ success: false, error: 'steps is empty', receivedArgs: event.args }),
-          rejected: false,
-        };
-      }
-
-      const planId = nanoid(8);
-      const planSteps: PlanStep[] = rawSteps.map((s: any, idx: number) => ({
-        id: `plan-${planId}-step-${idx}`,
-        intent: s.intent || s.description || `Step ${idx + 1}`,
-        action: s.action || 'unknown',
-        args: s.args || {},
-        status: 'pending' as const,
-      }));
-
-      // 存入 activePlan 状态（todo 机制：AI 逐个 executeStep 执行）
-      // 同步设置 ref：同一轮 while 循环中 executeStep 紧接着被调用，
-      // 此时 setActivePlan 尚未 flush，必须用 ref 同步传递。
-      const newPlan = { id: planId, steps: planSteps, createdNodeIds: [] };
-      activePlanRef.current = newPlan;
-      setActivePlan(newPlan);
-
-      // 渲染 PlanCard 消息（todo list 风格）
-      const planMsgId = nanoid();
-      planMsgIdRef.current = planMsgId;
+      // 成功受理后：streaming / 渲染由 SSE 事件驱动；done/error 事件会调用 drainQueue 继续
+    } catch (e) {
+      setStreaming(false);
       setMessages((prev) => [
         ...prev,
-        {
-          id: planMsgId,
-          role: 'tool' as const,
-          content: '',
-          planSteps,
-          timestamp: Date.now(),
-        },
+        { id: nanoid(), role: 'assistant', content: `[错误] ${(e as Error).message}`, timestamp: Date.now() },
       ]);
-
-      // 返回给 LLM：计划已创建，提示调用 executeStep
-      return {
-        toolCallId: event.id,
-        result: JSON.stringify({
-          success: true,
-          planId,
-          stepsCount: planSteps.length,
-          nextStepIndex: 0,
-          message: `Plan created with ${planSteps.length} steps. Call executeStep(stepIndex=0) to execute the first step. After each step, check the result and continue with executeStep(stepIndex=N+1) or adjust and retry.`,
-        }),
-        rejected: false,
-      };
-    },
-    []
-  );
-
-  /** executeStep：执行 plan 中的单个步骤，返回结果供 AI 决策下一步 */
-  const executeStep = useCallback(
-    async (event: ToolCallEvent): Promise<ToolResultItem> => {
-      const stepIndex =
-        typeof event.args.stepIndex === 'number'
-          ? event.args.stepIndex
-          : parseInt(event.args.stepIndex, 10);
-      // 从 ref 读取最新 activePlan（避免闭包过期导致 "no active plan"）
-      let currentPlan = activePlanRef.current;
-      // activePlan 丢失时（会话切换/刷新），从 messages 中的 planSteps 恢复
-      if (!currentPlan) {
-        const planMsg = messagesRef.current.find((m) => m.planSteps && m.planSteps.length > 0);
-        if (planMsg && planMsg.planSteps) {
-          currentPlan = {
-            id: planMsg.id,
-            steps: planMsg.planSteps,
-            createdNodeIds: [],
-          };
-          activePlanRef.current = currentPlan;
-          setActivePlan(currentPlan);
-          planMsgIdRef.current = planMsg.id;
-        }
-      }
-      if (!currentPlan) {
-        return { toolCallId: event.id, result: JSON.stringify({ error: 'no active plan, call createPlan first' }), rejected: false };
-      }
-      if (isNaN(stepIndex) || stepIndex < 0 || stepIndex >= currentPlan.steps.length) {
-        return {
-          toolCallId: event.id,
-          result: JSON.stringify({ error: `invalid stepIndex ${event.args.stepIndex}` }),
-          rejected: false,
-        };
-      }
-
-      const step = currentPlan.steps[stepIndex];
-      const executor = toolExecutorRef.current;
-      if (!executor) {
-        return { toolCallId: event.id, result: JSON.stringify({ error: 'tool executor not registered' }), rejected: false };
-      }
-
-      updatePlanStepStatus(stepIndex, 'running');
-
-      try {
-        // 解析 canvas 步骤中的占位 nodeId（$0/$1 引用 + 非标准 ID 替换）
-        // 适用于 connect/runNode/updateNode/deleteNode/addNode(afterNodeId) 等所有引用节点的子动作
-        // 同时递归解析 data 内的 ref 引用（如 end 节点的 inputsValues.result.content: ["$0", "result"]）
-        const currentCreatedNodeIds = currentPlan.createdNodeIds;
-        const resolveNodeId = (id: string): string => {
-          if (!id || typeof id !== 'string') return id;
-          if (id === 'start_0' || id === 'end_0' || id === 'start' || id === 'end') return id;
-          if (currentCreatedNodeIds.includes(id)) return id;
-          const match = id.match(/^\$(\d+)$/);
-          if (match) {
-            const idx = parseInt(match[1], 10);
-            return currentCreatedNodeIds[idx] || currentCreatedNodeIds[currentCreatedNodeIds.length - 1] || id;
-          }
-          // 非标准 ID（非 hex/uuid 形式）替换为最近创建的 nodeId
-          return currentCreatedNodeIds[currentCreatedNodeIds.length - 1] || id;
-        };
-
-        // 递归解析 data 中 ref content 数组里的占位 nodeId
-        // 例：{type:"ref", content:["$0","result"]} → {type:"ref", content:["实际nodeId","result"]}
-        const resolveRefValue = (val: any): any => {
-          if (val == null) return val;
-          if (typeof val === 'string') return resolveNodeId(val);
-          if (Array.isArray(val)) {
-            // ref content: [nodeId, fieldName] — 只解析第一个元素（nodeId）
-            if (val.length === 2 && typeof val[0] === 'string' && typeof val[1] === 'string') {
-              return [resolveNodeId(val[0]), val[1]];
-            }
-            return val.map(resolveRefValue);
-          }
-          if (typeof val === 'object') {
-            const out: Record<string, any> = {};
-            for (const k of Object.keys(val)) {
-              out[k] = resolveRefValue(val[k]);
-            }
-            return out;
-          }
-          return val;
-        };
-
-        const resolvedArgs = { ...step.args };
-        if (step.action === 'canvas') {
-          // 顶层 nodeId/from/to/afterNodeId
-          if (resolvedArgs.nodeId) resolvedArgs.nodeId = resolveNodeId(resolvedArgs.nodeId);
-          if (resolvedArgs.from) resolvedArgs.from = resolveNodeId(resolvedArgs.from);
-          if (resolvedArgs.to) resolvedArgs.to = resolveNodeId(resolvedArgs.to);
-          if (resolvedArgs.afterNodeId) resolvedArgs.afterNodeId = resolveNodeId(resolvedArgs.afterNodeId);
-          // data 内的 ref 引用（end/loop/condition/llm 节点的 inputsValues/prompt 等可能用 $0 引用）
-          if (resolvedArgs.data) {
-            resolvedArgs.data = resolveRefValue(resolvedArgs.data);
-          }
-        }
-
-        // runNode 步骤：真实调用后端测试 API，等待结果回流
-        if (step.action === 'canvas' && resolvedArgs.action === 'runNode') {
-          updatePlanStepStatus(stepIndex, 'testing');
-          const testResult = await runNodeReal(resolvedArgs.nodeId, resolvedArgs.inputs);
-          const success = !testResult?.error;
-          updatePlanStepStatus(
-            stepIndex,
-            success ? 'done' : 'testFailed',
-            JSON.stringify(testResult).slice(0, 200)
-          );
-          const isLastStep = stepIndex >= currentPlan.steps.length - 1;
-          return {
-            toolCallId: event.id,
-            result: JSON.stringify({
-              success,
-              stepIndex,
-              testResult,
-              nextStepIndex: success ? (isLastStep ? null : stepIndex + 1) : null,
-              message: success
-                ? `Step ${stepIndex} test passed.${isLastStep ? ' All steps completed.' : ` Call executeStep(stepIndex=${stepIndex + 1}) to continue.`}`
-                : `Step ${stepIndex} test FAILED. Adjust node config with canvas(action=updateNode) then re-executeStep(stepIndex=${stepIndex}).`,
-            }),
-            rejected: false,
-          };
-        }
-
-        // 普通步骤：执行工具
-        const { result, rejected } = await executor.execute(step.action, resolvedArgs || {});
-        const parsed = (() => {
-          try {
-            return JSON.parse(result);
-          } catch {
-            return { raw: result };
-          }
-        })();
-
-        // addNode：提取返回的 nodeId 供后续 connect 使用
-        let newNodeId: string | undefined;
-        if (step.action === 'canvas' && step.args?.action === 'addNode') {
-          newNodeId = parsed?.nodeId || parsed?.id;
-          if (newNodeId && typeof newNodeId === 'string') {
-            const idToAdd: string = newNodeId;
-            // 同步更新 ref + state（后续 connect 步骤需读到最新 createdNodeIds）
-            const prevPlan = activePlanRef.current;
-            if (prevPlan) {
-              const nextPlan = { ...prevPlan, createdNodeIds: [...prevPlan.createdNodeIds, idToAdd] };
-              activePlanRef.current = nextPlan;
-              setActivePlan(nextPlan);
-            }
-          }
-        }
-
-        updatePlanStepStatus(
-          stepIndex,
-          'done',
-          typeof parsed === 'object' && parsed !== null
-            ? JSON.stringify(parsed).slice(0, 200)
-            : String(result).slice(0, 200)
-        );
-
-        const isLastStep = stepIndex >= currentPlan.steps.length - 1;
-        return {
-          toolCallId: event.id,
-          result: JSON.stringify({
-            success: true,
-            stepIndex,
-            result: parsed,
-            nodeId: newNodeId,
-            rejected,
-            nextStepIndex: isLastStep ? null : stepIndex + 1,
-            message: isLastStep
-              ? 'All plan steps completed.'
-              : `Step ${stepIndex} done. Call executeStep(stepIndex=${stepIndex + 1}) to continue.`,
-          }),
-          rejected: false,
-        };
-      } catch (e) {
-        const errMsg = (e as Error).message;
-        updatePlanStepStatus(stepIndex, 'error', errMsg.slice(0, 200));
-        return {
-          toolCallId: event.id,
-          result: JSON.stringify({
-            success: false,
-            stepIndex,
-            error: errMsg,
-            message: `Step ${stepIndex} failed: ${errMsg}. Adjust and re-executeStep(stepIndex=${stepIndex}).`,
-          }),
-          rejected: false,
-        };
-      }
-    },
-    [runNodeReal, updatePlanStepStatus]
-  );
-
-  /** 执行单个 tool_call */
-  const executeOneTool = useCallback(
-    async (event: ToolCallEvent): Promise<ToolResultItem> => {
-      // createPlan 特殊处理：生成计划（todo list），不自动执行
-      if (event.action === 'createPlan') {
-        return executePlan(event);
-      }
-      // executeStep 特殊处理：执行 plan 中的单个步骤（todo 机制）
-      if (event.action === 'executeStep') {
-        return executeStep(event);
-      }
-      // forbid → 自动拒绝
-      if (event.policy === 'forbid') {
-        return { toolCallId: event.id, result: '', rejected: true };
-      }
-      // confirm → 弹确认
-      if (event.policy === 'confirm') {
-        const approved = await showConfirm(event);
-        if (!approved) {
-          return { toolCallId: event.id, result: '', rejected: true };
-        }
-      }
-      // 执行
-      if (!toolExecutorRef.current) {
-        return {
-          toolCallId: event.id,
-          result: JSON.stringify({ error: 'tool executor not registered' }),
-          rejected: false,
-        };
-      }
-      try {
-        const { result, rejected } = await toolExecutorRef.current.execute(event.action, event.args);
-        return { toolCallId: event.id, result, rejected };
-      } catch (e) {
-        return {
-          toolCallId: event.id,
-          result: JSON.stringify({ error: (e as Error).message }),
-          rejected: false,
-        };
-      }
-    },
-    [showConfirm, executePlan, executeStep]
-  );
-
-  /** 将调试条目直接持久化到指定会话的 localStorage（不更新当前视图） */
-  const persistDebugEntryToSession = useCallback((sessionKey: string, entry: any) => {
-    try {
-      const key = `agent-debug-${sessionKey}`;
-      const stored = localStorage.getItem(key);
-      const arr = stored ? JSON.parse(stored) : [];
-      if (Array.isArray(arr)) {
-        arr.push(entry);
-        localStorage.setItem(key, JSON.stringify(arr.slice(-50)));
-      }
-    } catch { /* ignore */ }
-  }, []);
-
-  /** 更新指定会话 localStorage 中的某条调试记录（不更新当前视图） */
-  const updateDebugEntryInSession = useCallback(
-    (sessionKey: string, match: (e: any) => boolean, apply: (e: any) => any) => {
-      try {
-        const key = `agent-debug-${sessionKey}`;
-        const stored = localStorage.getItem(key);
-        if (!stored) return;
-        const arr = JSON.parse(stored);
-        if (!Array.isArray(arr)) return;
-        for (let i = arr.length - 1; i >= 0; i--) {
-          if (match(arr[i])) {
-            arr[i] = apply(arr[i]);
-            break;
-          }
-        }
-        localStorage.setItem(key, JSON.stringify(arr));
-      } catch { /* ignore */ }
-    },
-    []
-  );
-
-  /** 处理消息队列（串行） */
-  const processQueue = useCallback(
-    async () => {
-      if (processingRef.current) return;
-      const sessionKey = currentSessionKeyRef.current;
-      if (!sessionKey) return;
-      const nextItem = messageQueueRef.current.shift();
-      if (!nextItem) return;
-      const { text, images } = nextItem;
+      processingRef.current = false;
       setQueueLength(messageQueueRef.current.length);
+      void drainQueue();
+    }
+  }, [getPageContextJson]);
 
-      processingRef.current = true;
-      setStreaming(true);
-      abortControllerRef.current = new AbortController();
-      const signal = abortControllerRef.current.signal;
+  /** 发送消息：入队，串行触发后端自治运行 */
+  const sendMessage = useCallback(
+    async (text: string, images?: string[]) => {
+      let sessionKey = currentSessionKeyRef.current;
+      if (!sessionKey) return;
 
-      // 添加 user 消息
+      // 草稿会话：发送前先创建正式会话（scope/folderId 来自草稿元信息），失败则不发送
+      const draft = draftMetaRef.current.get(sessionKey);
+      if (draft) {
+        draftMetaRef.current.delete(sessionKey);
+        try {
+          const real = await agentApi.createSession(text.slice(0, 30), {
+            scope: draft.scope,
+            folderId: draft.folderId,
+          });
+          sessionKey = real.sessionKey;
+          currentSessionKeyRef.current = sessionKey;
+          setCurrentSessionKey(sessionKey);
+          setSessions((prev) => [real, ...prev]);
+          if (draft.scope === 'work') void refreshFolders();
+        } catch (e) {
+          setMessages((prev) => [
+            ...prev,
+            { id: nanoid(), role: 'assistant', content: `[错误] ${(e as Error).message}`, timestamp: Date.now() },
+          ]);
+          return;
+        }
+      }
+
+      // 乐观渲染用户消息
       const userMsg: DisplayMessage = {
         id: nanoid(),
         role: 'user',
@@ -950,297 +660,237 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       if (images && images.length > 0) {
         userMsg.images = images;
       }
+      setMessages((prev) => [...prev, userMsg]);
 
-      // 创建 assistant 占位
-      let currentAssistantId = nanoid();
-      // 把当前生成轮挂到 store，AI 工具（applyWorkflow 等）写画布快照时
-      // 没有消息上下文，靠它把快照卡正确归位到这条助手消息下
-      workflowDocumentStore.setActiveMessageId(currentAssistantId);
-      const assistantMsg: DisplayMessage = {
-        id: currentAssistantId,
-        role: 'assistant',
-        content: '',
-        timestamp: Date.now(),
-      };
+      messageQueueRef.current.push({ sessionKey, text, images });
+      setQueueLength(messageQueueRef.current.length);
+      void drainQueue();
+    },
+    [drainQueue, refreshFolders]
+  );
 
-      setMessages((prev) => [...prev, userMsg, assistantMsg]);
+  /** 停止当前运行：通知后端停止 + 清空队列（后端线程自然结束） */
+  const stopStreaming = useCallback(() => {
+    const sessionKey = currentSessionKeyRef.current;
+    if (sessionKey && !sessionKey.startsWith('draft-')) {
+      void agentApi.stopRun(sessionKey).catch(() => {});
+    }
+    messageQueueRef.current = [];
+    setQueueLength(0);
+    processingRef.current = false;
+    liveAssistantIdRef.current = null;
+    setStreaming(false);
+  }, []);
 
-      const pendingToolCalls: ToolCallEvent[] = [];
-      let errorMsg: string | null = null;
-      // 追踪当前轮 assistant 输出内容，用于检测 ::options 澄清选项
-      let assistantContent = '';
+  // ===== 会话级后端自治运行的事件订阅 =====
+  // 会话切换时建立 SSE 订阅；事件驱动消息渲染 / 文档同步 / 队列推进
+  useEffect(() => {
+    if (!currentSessionKey || currentSessionKey.startsWith('draft-')) return;
+    const sessionKey = currentSessionKey;
 
-      const handlers = {
-        onToken: (content: string) => {
-          assistantContent += content;
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === currentAssistantId
-                ? { ...m, content: m.content + content }
-                : m
-            )
-          );
-        },
-        onToolCall: (event: ToolCallEvent) => {
-          pendingToolCalls.push(event);
-          // 使用 toolcall-${event.id} 作为消息 ID，支持原地更新
-          setMessages((prev) => {
-            const existingIdx = prev.findIndex(
-              (m) => m.id === `toolcall-${event.id}`
-            );
-            if (existingIdx >= 0) {
-              const updated = [...prev];
-              updated[existingIdx] = { ...updated[existingIdx], toolCall: event };
-              return updated;
-            }
-            return [
-              ...prev,
-              {
-                id: `toolcall-${event.id}`,
-                role: 'tool' as const,
-                content: '',
-                toolCall: event,
-                timestamp: Date.now(),
-              },
-            ];
+    // 会话切换时恢复服务端画布草稿（产物渲染）
+    agentApi.getSessionDocument(sessionKey).then((dsl) => {
+      if (dsl && Array.isArray(dsl.nodes) && dsl.nodes.length > 0) {
+        try {
+          workflowDocumentStore.replace(WorkflowDocument.fromJSON(dsl), {
+            kind: 'replace',
+            source: 'ai',
+            reason: 'ai-edit',
           });
-        },
-        onDone: () => {},
-        onError: (msg: string) => {
-          errorMsg = msg;
-        },
-        // Task 3: debug handlers — 带会话守卫，防止跨会话串数据
-        onDebugRequest: (data: any) => {
-          const entryId = nanoid();
-          // 优先消费 context_loaded 缓存（后端 context_loaded 先于 debug_request 发送）
-          const ctx = pendingContextRef.current;
-          pendingContextRef.current = null;
-          const entry = { id: entryId, timestamp: Date.now(), request: data, context: ctx || undefined };
-          if (sessionKey === currentSessionKeyRef.current) {
-            // 仍在原会话，更新视图
-            setDebugEntries((prev) => [...prev, entry]);
-            // 关联 entryId 到当前 assistant 消息，支持点击消息跳转调试面板
-            setMessages((prev) =>
-              prev.map((m) =>
-                m.id === currentAssistantId && !m.debugEntryId
-                  ? { ...m, debugEntryId: entryId }
-                  : m
-              )
-            );
-          } else {
-            // 已切走，直接落原会话 localStorage，不污染当前视图
-            persistDebugEntryToSession(sessionKey, entry);
-          }
-        },
-        onDebugResponse: (data: any) => {
-          if (sessionKey === currentSessionKeyRef.current) {
-            setDebugEntries((prev) => {
-              const updated = [...prev];
-              for (let i = updated.length - 1; i >= 0; i--) {
-                if (updated[i].request && !updated[i].response) {
-                  updated[i] = { ...updated[i], response: data };
-                  break;
-                }
-              }
-              return updated;
-            });
-          } else {
-            updateDebugEntryInSession(sessionKey, (e) => !e.response, (e) => ({ ...e, response: data }));
-          }
-        },
-        onContextLoaded: (data: any) => {
-          // 优先使用后端提供的 token 估算（更准确），fallback 到前端粗估
-          if (data.estimatedTokens != null) {
-            backendTokenEstimatedRef.current = data.estimatedTokens;
-            setTokenUsage({
-              estimated: data.estimatedTokens,
-              limit: data.contextWindow || 32768,
-            });
-          } else if (data.contextWindow && data.systemPromptChars) {
-            // 兼容旧版：前端粗估
-            systemPromptTokensRef.current = Math.ceil(data.systemPromptChars / 4);
-            setTokenUsage({
-              estimated: Math.ceil(JSON.stringify(messages).length / 2.5) + systemPromptTokensRef.current,
-              limit: data.contextWindow,
-            });
-          }
-          if (sessionKey === currentSessionKeyRef.current) {
-            // 后端发送顺序：context_loaded → debug_request
-            // 正常情况下 context_loaded 先到达，此时还没有 entry，缓存到 ref 等 debug_request 创建 entry 时消费
-            // 兼容旧顺序：若已有无 context 的 entry（debug_request 已先到），直接回填最后一个
-            const hasEntryWithoutCtx = debugEntriesRef.current.some((e) => !e.context);
-            if (hasEntryWithoutCtx) {
-              setDebugEntries((prev) => {
+        } catch { /* ignore */ }
+      }
+    }).catch(() => {});
+
+    const controller = new AbortController();
+    let disposed = false;
+
+    const handlers: SseHandlers = {
+      onRunState: (data) => {
+        if (disposed) return;
+        const status = data?.status;
+        if (status === 'running') {
+          setStreaming(true);
+          // 用快照内容建立/同步当前助手占位
+          setMessages((prev) => {
+            if (liveAssistantIdRef.current) {
+              const idx = prev.findIndex((m) => m.id === liveAssistantIdRef.current);
+              if (idx >= 0) {
                 const updated = [...prev];
-                for (let i = updated.length - 1; i >= 0; i--) {
-                  if (!updated[i].context) {
-                    updated[i] = { ...updated[i], context: data };
-                    break;
-                  }
-                }
+                updated[idx] = { ...updated[idx], content: data.assistantContent ?? updated[idx].content };
                 return updated;
-              });
-            } else {
-              // 缓存，等 onDebugRequest 创建 entry 时消费
-              pendingContextRef.current = data;
-            }
-          } else {
-            updateDebugEntryInSession(sessionKey, (e) => !e.context, (e) => ({ ...e, context: data }));
-          }
-        },
-        onTokenWarning: (data: any) => {
-          // 80% 警告：更新 tokenUsage 并在 UI 提示
-          setTokenUsage({ estimated: data.estimated, limit: data.limit });
-          if (sessionKey === currentSessionKeyRef.current) {
-            // 可扩展：在聊天界面显示警告提示
-            console.warn(`[Token Warning] ${data.percentage}% (${data.estimated}/${data.limit}): ${data.message}`);
-          }
-        },
-        // 工具执行结果调试事件 — 把每个 tool_call 的实际结果存到最近一个有 response 的 entry
-        onDebugToolResult: (data: any) => {
-          if (sessionKey === currentSessionKeyRef.current) {
-            setDebugEntries((prev) => {
-              const updated = [...prev];
-              for (let i = updated.length - 1; i >= 0; i--) {
-                if (updated[i].response && !updated[i].toolResults) {
-                  updated[i] = { ...updated[i], toolResults: data };
-                  break;
-                }
               }
-              return updated;
-            });
+            }
+            const id = `live-${data.runId || Date.now()}`;
+            liveAssistantIdRef.current = id;
+            return [...prev, { id, role: 'assistant', content: data.assistantContent || '', timestamp: Date.now() }];
+          });
+          // 用快照里的工具调用 upsert 工具卡片（重连恢复现场）
+          const snapshotCalls = data.toolCalls || [];
+          if (snapshotCalls.length > 0) {
+            setMessages((prev) => upsertLiveToolCalls(prev, snapshotCalls));
           }
-        },
-      };
-
-      try {
-        // 第一轮
-        await streamChat(sessionKey, text, getPageContextJson(), handlers, signal, images);
-
-        // 后续轮（tool 结果回灌）
-        // 如果回复包含 ::options（需要用户澄清/选择），不自动处理工具调用，等待用户选择
-        let safetyCounter = 0;
-        while (
-          !assistantContent.includes('::options') &&
-          pendingToolCalls.length > 0 && !errorMsg && safetyCounter < 20
-        ) {
-          safetyCounter++;
-          const calls = pendingToolCalls.splice(0, pendingToolCalls.length);
-          const results: ToolResultItem[] = [];
-          for (const tc of calls) {
-            const toolResult = await executeOneTool(tc);
-            results.push(toolResult);
-            // 执行完成后，原地更新该工具调用的展示消息
-            setMessages((prev) =>
-              prev.map((m) =>
-                m.id === `toolcall-${tc.id}` && m.toolCall
-                  ? {
-                      ...m,
-                      toolCall: {
-                        ...m.toolCall,
-                        result: toolResult.result.substring(0, 200),
-                      },
-                    }
-                  : m
-              )
+        } else {
+          // idle / done / error / stopped
+          liveAssistantIdRef.current = null;
+          setStreaming(false);
+          if (status === 'done' || status === 'error' || status === 'stopped') {
+            reloadMessages(sessionKey);
+            // 队列里还有消息则继续（如断线重连后补齐 done）
+            processingRef.current = false;
+            setQueueLength(messageQueueRef.current.length);
+            void drainQueue();
+          }
+        }
+      },
+      onTurn: (data) => {
+        if (disposed) return;
+        setStreaming(true);
+        setMessages((prev) => {
+          // 若当前占位仍是空内容（订阅快照建立的那个），直接复用为这一轮
+          if (liveAssistantIdRef.current) {
+            const existing = prev.find((m) => m.id === liveAssistantIdRef.current);
+            if (existing && !existing.content) {
+              return prev;
+            }
+          }
+          const id = `live-turn-${data.turn}`;
+          liveAssistantIdRef.current = id;
+          return [...prev, { id, role: 'assistant', content: '', timestamp: Date.now() }];
+        });
+      },
+      onToken: (content) => {
+        if (disposed) return;
+        setMessages((prev) => {
+          if (liveAssistantIdRef.current) {
+            return prev.map((m) =>
+              m.id === liveAssistantIdRef.current ? { ...m, content: m.content + content } : m
             );
           }
-          // 创建新 assistant 占位
-          currentAssistantId = nanoid();
-          workflowDocumentStore.setActiveMessageId(currentAssistantId);
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: currentAssistantId,
-              role: 'assistant',
-              content: '',
-              timestamp: Date.now(),
-            },
-          ]);
-          // 重置内容追踪，用于下一轮检测
-          assistantContent = '';
-          await streamToolResult(sessionKey, results, handlers, signal);
+          const id = `live-${Date.now()}`;
+          liveAssistantIdRef.current = id;
+          return [...prev, { id, role: 'assistant', content, timestamp: Date.now() }];
+        });
+      },
+      onToolCall: (event) => {
+        if (disposed) return;
+        setMessages((prev) => upsertToolCard(prev, event));
+      },
+      onToolResult: (data) => {
+        if (disposed) return;
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === `toolcall-${data.toolCallId}` && m.toolCall
+              ? { ...m, toolCall: { ...m.toolCall, result: (data.payload || '').substring(0, 200) } }
+              : m
+          )
+        );
+      },
+      onPlan: (plan) => {
+        if (disposed) return;
+        setMessages((prev) => upsertPlanCard(prev, plan));
+      },
+      onDocument: (data) => {
+        if (disposed) return;
+        try {
+          if (data?.dsl && Array.isArray(data.dsl.nodes) && data.dsl.nodes.length > 0) {
+            workflowDocumentStore.replace(WorkflowDocument.fromJSON(data.dsl), {
+              kind: 'replace',
+              source: 'ai',
+              reason: 'ai-edit',
+            });
+          }
+        } catch { /* ignore */ }
+      },
+      onUiAction: (data) => {
+        if (disposed) return;
+        if (data?.type === 'navigate' && data.args?.target) {
+          const path = navigatePathFor(data.args.target, data.args);
+          if (path) navigateRef.current(path);
         }
-
-        if (errorMsg) {
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === currentAssistantId
-                ? { ...m, content: m.content || `[错误] ${errorMsg}` }
-                : m
-            )
-          );
-        }
-      } catch (e) {
-        // AbortError 视为优雅停止，不显示错误
-        if (signal.aborted || (e as Error).name === 'AbortError') {
-          // 静默处理
-        } else {
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === currentAssistantId
-                ? { ...m, content: m.content || `[错误] ${(e as Error).message}` }
-                : m
-            )
-          );
-        }
-      } finally {
-        processingRef.current = false;
+      },
+      onConfirmRequest: (data) => {
+        if (disposed) return;
+        // 仅 require 模式需要人工裁决；auto-approve / auto-reject 由后端直接决策，不打扰用户
+        if (data?.mode !== 'require') return;
+        setPendingConfirm({
+          id: data.toolCallId,
+          action: data.action,
+          args: data.args || {},
+          policy: 'confirm',
+        });
+      },
+      onConfirmResolved: (data) => {
+        if (disposed) return;
+        setPendingConfirm((prev) => (prev && prev.id === data.toolCallId ? null : prev));
+      },
+      onDone: () => {
+        if (disposed) return;
+        liveAssistantIdRef.current = null;
         setStreaming(false);
-        abortControllerRef.current = null;
-        // 一轮结束，清掉 activeMessageId，避免影响后续非生成轮的快照归因
-        workflowDocumentStore.setActiveMessageId(null);
-        // 刷新会话列表（后端可能自动生成了标题）
-        agentApi.listSessions().then((list) => {
-          setSessions(list || []);
-        }).catch(() => {});
-        // 处理队列中的下一条消息
-        if (messageQueueRef.current.length > 0) {
-          void processQueue();
+        reloadMessages(sessionKey);
+        // 队列里还有消息则继续
+        processingRef.current = false;
+        setQueueLength(messageQueueRef.current.length);
+        void drainQueue();
+      },
+      onError: (msg) => {
+        if (disposed) return;
+        liveAssistantIdRef.current = null;
+        setStreaming(false);
+        setMessages((prev) => [
+          ...prev,
+          { id: nanoid(), role: 'assistant', content: `[错误] ${msg}`, timestamp: Date.now() },
+        ]);
+        reloadMessages(sessionKey);
+        processingRef.current = false;
+        setQueueLength(messageQueueRef.current.length);
+        void drainQueue();
+      },
+    };
+
+    // 断线自动重连：事件流中断后稍作退避重连，重连时后端会回放运行快照，
+    // 因此「关窗期间跑完的 run」重新打开窗口也能立即收敛到最终状态。
+    const connect = async () => {
+      while (!disposed) {
+        try {
+          await subscribeSessionEvents(sessionKey, handlers, controller.signal);
+          if (disposed || controller.signal.aborted) break;
+          // 流被服务端正常结束（极少）：短暂等待后重连
+          await sleep(1500);
+        } catch (e) {
+          if (disposed || controller.signal.aborted) break;
+          console.warn('[agent] session event stream error, reconnecting...', e);
+          await sleep(2000);
         }
       }
-    },
-    [getPageContextJson, executeOneTool]
-  );
+    };
+    void connect();
 
-  /** 发送消息（入队，串行处理） */
-  const sendMessage = useCallback(
-    async (text: string, images?: string[]) => {
-      const sessionKey = currentSessionKeyRef.current;
-      if (!sessionKey) return;
-      messageQueueRef.current.push({ text, images });
-      setQueueLength(messageQueueRef.current.length);
-      void processQueue();
-    },
-    [processQueue]
-  );
+    return () => {
+      disposed = true;
+      controller.abort();
+    };
+  }, [currentSessionKey, reloadMessages, drainQueue]);
 
   /** Task 2: 压缩上下文 */
   const compactContext = useCallback(async () => {
     const sessionKey = currentSessionKeyRef.current;
     if (!sessionKey) return;
     try {
+      // 复用旧压缩端点；压缩完成后重新加载消息
+      const { streamCompact } = await import('./sse-client');
       await streamCompact(sessionKey, {
-        onDone: () => {
-          // Reload messages after compaction
-          if (sessionKey) {
-            agentApi.getMessages(sessionKey).then((msgs) => {
-              setMessages(convertMessages(msgs || []));
-            }).catch(() => {});
-          }
-        },
-        onError: (msg) => { console.error('Compact error:', msg); },
+        onDone: () => reloadMessages(sessionKey),
+        onError: (msg) => console.error('Compact error:', msg),
       });
     } catch (e) {
       console.error('Compact failed:', e);
     }
-  }, []);
+  }, [reloadMessages]);
 
-  /** 画布加载完成时注入画布摘要（进入编辑器时自动读取画布配置） */
+  /** 画布加载完成时注入画布摘要（兼容保留；画布摘要经 getPageContextJson 随每次 run 提交） */
   const injectCanvasInfo = useCallback(
     (summary: { nodes: Array<{ id: string; type: string; title: string }>; edges: Array<{ from: string; to: string }> }) => {
-      // 画布摘要已通过 getPageContextJson() 随每次请求发送给后端，无需在聊天 UI 中显示。
-      // 此处保留接口签名仅为兼容 EditorCanvasBridge 调用，不再注入聊天消息（避免消息流抖动）。
       void summary;
     },
     []
@@ -1255,20 +905,13 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       const msgId = nanoid();
       setMessages((prev) => [
         ...prev,
-        {
-          id: msgId,
-          role: 'tool',
-          content: '',
-          subagentSteps: [],
-          timestamp: Date.now(),
-        },
+        { id: msgId, role: 'tool', content: '', subagentSteps: [], timestamp: Date.now() },
       ]);
 
       try {
+        const { streamSubagent } = await import('./sse-client');
         await streamSubagent(subagentSessionKey, instruction, getPageContextJson(), {
-          onToken: () => {
-            // ignore streaming text for subagent
-          },
+          onToken: () => { /* ignore streaming text for subagent */ },
           onSubagentToolCall: (data) => {
             setMessages((prev) =>
               prev.map((m) =>
@@ -1277,11 +920,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
                       ...m,
                       subagentSteps: [
                         ...(m.subagentSteps || []),
-                        {
-                          action: data.action,
-                          args: data.args,
-                          status: 'running' as const,
-                        },
+                        { action: data.action, args: data.args, status: 'running' as const },
                       ],
                     }
                   : m
@@ -1293,12 +932,8 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
               prev.map((m) => {
                 if (m.id !== msgId || !m.subagentSteps) return m;
                 const steps = [...m.subagentSteps];
-                // Mark last step as done
                 if (steps.length > 0) {
-                  steps[steps.length - 1] = {
-                    ...steps[steps.length - 1],
-                    status: 'done' as const,
-                  };
+                  steps[steps.length - 1] = { ...steps[steps.length - 1], status: 'done' as const };
                 }
                 return { ...m, subagentSteps: steps };
               })
@@ -1337,18 +972,6 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     [getPageContextJson]
   );
 
-  /** 停止流式输出并清空队列 */
-  const stopStreaming = useCallback(() => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
-    messageQueueRef.current = [];
-    setQueueLength(0);
-    processingRef.current = false;
-    setStreaming(false);
-  }, []);
-
   const value: AgentContextValue = {
     dockOpen,
     setDockOpen,
@@ -1359,6 +982,14 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     streaming,
     queueLength,
     pendingConfirm,
+    folders,
+    refreshFolders,
+    createFolder,
+    renameFolder,
+    deleteFolder,
+    moveSessionToFolder,
+    pinSession,
+    archiveSession,
     tokenUsage,
     compactContext,
     debugEntries,

@@ -88,7 +88,7 @@ export const AdminLayout = () => {
             </Tooltip>
           )
         }
-        bodyStyle={{ display: 'block', overflowY: 'auto', background: CHAT.bgSunken, padding: 24 }}
+        bodyStyle={{ display: 'block', overflowY: 'auto', background: CHAT.bg, padding: 24 }}
       >
         {checking ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: CHAT.textMuted, fontSize: 15 }}>

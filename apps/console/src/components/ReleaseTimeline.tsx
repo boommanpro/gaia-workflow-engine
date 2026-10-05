@@ -8,6 +8,11 @@ const ACCENT = '#4d53e8';
 
 export const releasesItems = [
   {
+    date: '2026.10.05',
+    en: 'Backend-autonomous conversations: the agent loop now runs entirely server-side — the frontend only renders. Multiple windows can watch the same session live and a run keeps going after you close the tab (SSE broadcast with run-snapshot replay on reconnect). Tool permissions moved to the backend (forbid / confirm / always, with auto-approve, auto-reject and manual-require modes plus a confirmation dialog). Canvas tools (add/update node, connect, run) and manage.saveWorkflow (saves the session draft as a new version) now execute on the server. Workspace sessions are organized into folders with a Codex-style accordion rail.',
+    zh: '对话改为后端自治：Agent 循环完全在服务端执行，前端只负责渲染。多个窗口可同时实时观看同一会话，关闭窗口后运行仍继续（SSE 广播 + 重连回放运行快照）。工具权限下沉到后端（forbid / confirm / always，支持 auto-approve、auto-reject、require 人工确认弹窗）。画布工具（增改节点、连线、运行）与 manage.saveWorkflow（把会话草稿存为新版本）改由服务端执行。工作空间会话按文件夹分组，并采用 Codex 风格手风琴侧栏。',
+  },
+  {
     date: '2026.10.04',
     en: 'Workspace rebuilt as a Codex-style three-pane layout: left rail (Chat / Work / Manage switcher, global search ⌘K, account menu at bottom-left), center pane, right inspector. Both panels are drag-resizable, auto-collapse when dragged narrow and reset to default width on double-click. Added light / dark themes aligned with the Codex monochrome palette, unified the rail logo with the homepage, and removed the tab-dependent subtitle.',
     zh: '工作台改造为 Codex 风格三区布局：左栏（对话 / 工作空间 / 管理切换、全局搜索 ⌘K、左下角账号菜单）、中区、右侧面板；左右面板支持拖拽调宽、拖窄自动折叠、双击恢复默认宽度；新增 light / dark 主题并全站对齐 Codex 黑白配色；左侧栏 logo 与首页统一，移除随 tab 切换的副标题小字。',

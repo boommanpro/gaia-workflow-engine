@@ -94,6 +94,13 @@ public class DatabaseConversationStore implements ConversationStore {
     @Override
     public void saveMessage(String sessionKey, String role, String content,
                             String toolCallsJson, String toolCallId) {
+        saveMessage(sessionKey, role, content, toolCallsJson, toolCallId, null);
+    }
+
+    @Override
+    public void saveMessage(String sessionKey, String role, String content,
+                            String toolCallsJson, String toolCallId,
+                            java.util.List<String> images) {
         if (sessionKey == null || sessionKey.isEmpty()) {
             return;
         }
@@ -103,6 +110,7 @@ public class DatabaseConversationStore implements ConversationStore {
         message.setContent(content);
         message.setToolCalls(toolCallsJson);
         message.setToolCallId(toolCallId);
+        message.setImages(images != null && !images.isEmpty() ? JSONUtil.toJsonStr(images) : null);
         message.setCreatedAt(LocalDateTime.now());
         messageService.save(message);
     }

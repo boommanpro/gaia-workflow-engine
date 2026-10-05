@@ -198,6 +198,9 @@ public final class WorkflowDslCanonicalizer {
                 }
             }
 
+            // 扁平字段 → inputsValues（llm/http/start/end 等），保证落库后节点可直接执行
+            NodeDataNormalizer.normalize(type, mergedData);
+
             // meta：保留原 meta 的其他字段，只补 position
             JSONObject meta = raw.getJSONObject("meta");
             JSONObject mergedMeta = meta != null ? new JSONObject(meta.toString()) : new JSONObject();
@@ -356,6 +359,34 @@ public final class WorkflowDslCanonicalizer {
             out.set("globalVariable", globalVariable);
         }
         return new Result(out.toString(), repairs, nodes.size());
+    }
+
+    /**
+     * 对已规范化的文档执行自动分层布局（为缺失坐标的节点补位）。
+     * 供服务端画布草稿的 autoLayout 操作复用。
+     *
+     * @param doc 含 nodes / edges 的文档对象
+     */
+    public static void applyLayout(JSONObject doc) {
+        if (doc == null) {
+            return;
+        }
+        JSONArray nodes = doc.getJSONArray("nodes");
+        if (nodes == null) {
+            return;
+        }
+        List<JSONObject> nodeList = new ArrayList<>();
+        for (int i = 0; i < nodes.size(); i++) {
+            nodeList.add(nodes.getJSONObject(i));
+        }
+        JSONArray edges = doc.getJSONArray("edges");
+        List<JSONObject> edgeList = new ArrayList<>();
+        if (edges != null) {
+            for (int i = 0; i < edges.size(); i++) {
+                edgeList.add(edges.getJSONObject(i));
+            }
+        }
+        autoLayout(nodeList, edgeList);
     }
 
     /** 分层布局：按 BFS 深度定 x，同层依次错开 y，避免节点重叠 */

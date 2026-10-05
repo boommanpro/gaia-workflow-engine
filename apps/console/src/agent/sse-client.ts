@@ -138,7 +138,13 @@ function handleEvent(
       handlers.onToken?.(data.content);
       break;
     case 'tool_call':
-      handlers.onToolCall?.(data as ToolCallEvent);
+      // 后端自治运行的 tool_call 形如 {id, name, args}，统一归一化为前端 ToolCallEvent
+      handlers.onToolCall?.({
+        id: data.id,
+        action: data.name ?? data.action,
+        args: data.args ?? {},
+        policy: 'always',
+      } as ToolCallEvent);
       break;
     case 'debug_request':
       handlers.onDebugRequest?.(data);
@@ -167,6 +173,31 @@ function handleEvent(
     case 'subagent_done':
       handlers.onSubagentDone?.();
       break;
+    // ===== 会话级后端自治运行事件 =====
+    case 'run_state':
+      handlers.onRunState?.(data);
+      break;
+    case 'turn':
+      handlers.onTurn?.(data);
+      break;
+    case 'tool_result':
+      handlers.onToolResult?.(data);
+      break;
+    case 'plan':
+      handlers.onPlan?.(data);
+      break;
+    case 'document':
+      handlers.onDocument?.(data);
+      break;
+    case 'ui_action':
+      handlers.onUiAction?.(data);
+      break;
+    case 'confirm_request':
+      handlers.onConfirmRequest?.(data);
+      break;
+    case 'confirm_resolved':
+      handlers.onConfirmResolved?.(data);
+      break;
     case 'done':
       handlers.onDone?.();
       break;
@@ -174,6 +205,27 @@ function handleEvent(
       handlers.onError?.(data.message);
       break;
   }
+}
+
+/**
+ * 订阅会话级后端自治运行的事件流（SSE，含断线重连回放运行快照）。
+ * 连接保持打开；返回的 Promise 在流结束或取消时 resolve。
+ */
+export function subscribeSessionEvents(
+  sessionKey: string,
+  handlers: SseHandlers,
+  signal?: AbortSignal
+): Promise<void> {
+  const url = `${getApiBaseUrl()}/agent/session/${encodeURIComponent(sessionKey)}/events`;
+  return fetch(url, {
+    headers: { 'Content-Type': 'application/json' },
+    signal,
+  }).then(async (response) => {
+    if (!response.ok) {
+      throw new Error(`Session Events API Error: ${response.status}`);
+    }
+    await readSseStream(response, handlers, signal);
+  });
 }
 
 /**

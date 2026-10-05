@@ -9,11 +9,26 @@ export interface AgentSession {
   title: string;
   createdAt?: string;
   updatedAt?: string;
+  // 工作空间 / 列表增强
+  scope?: string;      // chat / work，两套逻辑隔离
+  folderId?: number | null;
+  pinned?: number;     // 0/1
+  archived?: number;   // 0/1
   // 人工审查标记
   reviewRating?: string | null;   // good / bad / null
   reviewIssue?: string | null;
   reviewStatus?: string;          // pending / analyzing / fixed / ignored
   reviewFixNote?: string | null;
+}
+
+/** 工作空间文件夹 */
+export interface WorkFolder {
+  id: number;
+  name: string;
+  sortOrder?: number;
+  createdAt?: string;
+  updatedAt?: string;
+  sessionCount?: number;
 }
 
 /** 权限策略 */
@@ -28,6 +43,8 @@ export interface AgentMessage {
   toolCalls?: string;
   toolCallId?: string;
   pageContext?: string;
+  /** 多模态图片（JSON 字符串数组，仅 user 消息） */
+  images?: string;
   createdAt?: string;
 }
 
@@ -142,4 +159,36 @@ export interface SseHandlers {
   onSubagentRoundDone?: (data: { round: number; toolCalls: number }) => void;
   onSubagentFinalResult?: (data: { content: string }) => void;
   onSubagentDone?: () => void;
+  // New: 会话级后端自治运行事件（纯后端 / 多窗口 / 关窗继续）
+  /** 订阅连接建立时回放的运行快照 */
+  onRunState?: (data: {
+    status: string;        // running / done / error / stopped / idle
+    phase?: string;        // llm / tools / done
+    runId?: string;
+    sessionKey?: string;
+    turn?: number;
+    assistantContent?: string;
+    toolCalls?: Array<{ id: string; name: string; args: any; status?: string; result?: string }>;
+    error?: string;
+  }) => void;
+  /** 新回合开始 */
+  onTurn?: (data: { turn: number; maxTurns?: number }) => void;
+  /** 工具执行结果（后端执行，无需前端回灌） */
+  onToolResult?: (data: { toolCallId: string; name?: string; rejected?: boolean; payload?: string }) => void;
+  /** 执行计划（createPlan 产出，PlanCard 渲染） */
+  onPlan?: (data: { id: string; steps: any[]; createdNodeIds?: string[] }) => void;
+  /** 服务端画布文档快照（前端据此重渲染产物） */
+  onDocument?: (data: { dsl: any }) => void;
+  /** 需要前端配合的 UI 指令（如 navigate 跳转） */
+  onUiAction?: (data: { type: string; args: any }) => void;
+  /** 工具确认请求（confirm 策略）：mode=require 时需前端弹窗，其余为后端自动决策的通知 */
+  onConfirmRequest?: (data: {
+    toolCallId: string;
+    action: string;
+    args: Record<string, any>;
+    mode?: string;       // require / auto-approve / auto-reject
+    decision?: string;   // approved / rejected（非 require 模式由后端直接给出）
+  }) => void;
+  /** 工具确认已裁决（require 模式下等待结束后广播） */
+  onConfirmResolved?: (data: { toolCallId: string; approved: boolean }) => void;
 }

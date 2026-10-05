@@ -2,7 +2,7 @@
  * Agent 后端 API 封装
  */
 import { getApiBaseUrl, getAbsoluteApiUrl } from '../utils/apiConfig';
-import type { AgentSession, AgentMessage, PermissionPolicy } from './types';
+import type { AgentSession, AgentMessage, PermissionPolicy, WorkFolder } from './types';
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const url = `${getApiBaseUrl()}${path}`;
@@ -21,11 +21,36 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 export const agentApi = {
   // 会话管理
-  listSessions: () => request<AgentSession[]>('/agent/session/list'),
-  createSession: (title?: string) =>
+  listSessions: (params?: {
+    scope?: string;
+    keyword?: string;
+    folderId?: number;
+    unfiled?: boolean;
+    includeArchived?: boolean;
+    page?: number;
+    pageSize?: number;
+  }) => {
+    const qs = new URLSearchParams();
+    if (params?.scope) qs.set('scope', params.scope);
+    if (params?.keyword) qs.set('keyword', params.keyword);
+    if (params?.folderId != null) qs.set('folderId', String(params.folderId));
+    if (params?.unfiled) qs.set('unfiled', 'true');
+    if (params?.includeArchived) qs.set('includeArchived', 'true');
+    if (params?.page != null) qs.set('page', String(params.page));
+    if (params?.pageSize != null) qs.set('pageSize', String(params.pageSize));
+    const q = qs.toString();
+    return request<AgentSession[]>(`/agent/session/list${q ? `?${q}` : ''}`);
+  },
+  /** 会话标记（置顶/归档），只更新传入字段 */
+  updateSessionFlags: (sessionKey: string, flags: { pinned?: boolean; archived?: boolean }) =>
+    request<boolean>(`/agent/session/${sessionKey}/flags`, {
+      method: 'PUT',
+      body: JSON.stringify(flags),
+    }),
+  createSession: (title?: string, opts?: { scope?: 'chat' | 'work'; folderId?: number | null }) =>
     request<AgentSession>('/agent/session/create', {
       method: 'POST',
-      body: JSON.stringify({ title }),
+      body: JSON.stringify({ title, scope: opts?.scope, folderId: opts?.folderId ?? undefined }),
     }),
   renameSession: (sessionKey: string, title: string) =>
     request<boolean>('/agent/session/rename', {
@@ -36,6 +61,46 @@ export const agentApi = {
     request<boolean>(`/agent/session/${sessionKey}`, { method: 'DELETE' }),
   getMessages: (sessionKey: string) =>
     request<AgentMessage[]>(`/agent/session/${sessionKey}/messages`),
+
+  // ===== 会话级后端自治运行（纯后端 / 多窗口 / 关窗继续） =====
+
+  /** 触发一次后端自治运行（异步受理，立即返回；过程事件走 SSE 订阅） */
+  startRun: (
+    sessionKey: string,
+    message: string,
+    pageContext: string,
+    images?: string[],
+    locale?: string,
+    agentId?: string
+  ) =>
+    request<{ accepted: boolean; sessionKey?: string; runId?: string; error?: string }>(
+      `/agent/session/${sessionKey}/run`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          message,
+          pageContext,
+          images,
+          locale: locale || undefined,
+          agentId: agentId || undefined,
+        }),
+      }
+    ),
+  /** 停止当前运行（尽力而为） */
+  stopRun: (sessionKey: string) =>
+    request<boolean>(`/agent/session/${sessionKey}/stop`, { method: 'POST' }),
+  /** 当前运行快照 */
+  getRunStatus: (sessionKey: string) =>
+    request<any>(`/agent/session/${sessionKey}/status`),
+  /** 当前服务端画布草稿（会话切换时恢复产物渲染） */
+  getSessionDocument: (sessionKey: string) =>
+    request<any>(`/agent/session/${sessionKey}/document`),
+  /** 确认 / 拒绝一次等待中的工具调用（confirm require 模式） */
+  confirmTool: (sessionKey: string, toolCallId: string, approved: boolean) =>
+    request<{ success: boolean; error?: string }>(`/agent/session/${sessionKey}/confirm`, {
+      method: 'POST',
+      body: JSON.stringify({ toolCallId, approved }),
+    }),
 
   // 调试信息持久化
   saveDebugData: (sessionKey: string, debugData: string) =>
@@ -76,6 +141,26 @@ export const agentApi = {
   // 导出链接用于浏览器外部（curl/新窗口），必须是绝对 URL（含协议+主机+端口）
   exportSessionUrl: (sessionKey: string) =>
     getAbsoluteApiUrl(`/agent/session/${sessionKey}/export?pretty=true`),
+
+  // 工作空间（文件夹分组的对话）
+  listFolders: () => request<WorkFolder[]>('/agent/workspace/folders'),
+  createFolder: (name: string) =>
+    request<WorkFolder>('/agent/workspace/folder', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    }),
+  renameFolder: (id: number, name: string) =>
+    request<boolean>(`/agent/workspace/folder/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ name }),
+    }),
+  deleteFolder: (id: number) =>
+    request<boolean>(`/agent/workspace/folder/${id}`, { method: 'DELETE' }),
+  setSessionFolder: (sessionKey: string, folderId: number | null) =>
+    request<boolean>(`/agent/workspace/session/${sessionKey}/folder`, {
+      method: 'PUT',
+      body: JSON.stringify({ folderId }),
+    }),
 
   // 权限管理
   getPermissions: (sessionKey: string) =>

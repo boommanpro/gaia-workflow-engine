@@ -6,11 +6,10 @@
  */
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { IconClose } from '@douyinfe/semi-icons';
 
 import { CHAT } from '../../chat/theme';
 import { useLanguage, t } from '../../i18n';
-import { IconFolder, IconManageSliders, IconWorkFolder } from '../../components/app-shell/icons';
+import { IconFolder, IconManageSliders, IconPanelRight, IconWorkFolder } from '../../components/app-shell/icons';
 
 interface WorkToolsPanelProps {
   onClose: () => void;
@@ -43,7 +42,8 @@ export const WorkToolsPanel: React.FC<WorkToolsPanelProps> = ({ onClose }) => {
         <button
           type="button"
           onClick={onClose}
-          title={t('Close')}
+          title={t('shell.collapseInspector')}
+          aria-label={t('shell.collapseInspector')}
           style={{
             width: 26,
             height: 26,
@@ -57,7 +57,7 @@ export const WorkToolsPanel: React.FC<WorkToolsPanelProps> = ({ onClose }) => {
             justifyContent: 'center',
           }}
         >
-          <IconClose size="small" />
+          <IconPanelRight />
         </button>
       </div>
 

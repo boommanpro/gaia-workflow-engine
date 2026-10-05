@@ -84,8 +84,13 @@ export interface AppShellProps {
   children: React.ReactNode;
   /** 中区额外样式（如管理后台的灰底 + 内边距） */
   bodyStyle?: React.CSSProperties;
-  /** 右栏 Inspector 内容；为空则不渲染右栏与右栏开关 */
+  /** 右栏 Inspector 内容；为空则不渲染右栏 */
   inspector?: React.ReactNode;
+  /**
+   * 右栏是否可用。收起到 null 时 inspector 会变成 undefined，
+   * 但展开按钮仍需保留，所以用这个显式标记（不传则回退为 Boolean(inspector)）。
+   */
+  inspectorAvailable?: boolean;
   /** 右栏是否展开（由页面控制内容后告知外壳） */
   inspectorOpen?: boolean;
   /** 右栏宽度，默认 420 */
@@ -224,6 +229,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   children,
   bodyStyle,
   inspector,
+  inspectorAvailable,
   inspectorOpen = false,
   inspectorWidth = 420,
   onToggleInspector,
@@ -314,7 +320,7 @@ export const AppShell: React.FC<AppShellProps> = ({
     return () => window.removeEventListener('keydown', onKey);
   }, [controlledInspector, onToggleInspector]);
 
-  const hasInspector = Boolean(inspector);
+  const hasInspector = inspectorAvailable ?? Boolean(inspector);
   const showInspector = hasInspector && inspectorOpen && (controlledInspector || !inspectorCollapsed);
   const railVisible = !railHidden;
 
@@ -465,11 +471,9 @@ export const AppShell: React.FC<AppShellProps> = ({
 
           {actions && <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>{actions}</div>}
 
-          {hasInspector && (
-            <IconButton
-              label={showInspector ? t('shell.collapseInspector') : t('shell.expandInspector')}
-              onClick={toggleInspector}
-            >
+          {/* 右栏收起时，中区顶栏露出展开按钮（与左栏 PanelLeft 图标镜像）；展开后交给右栏自身右上角的收起按钮 */}
+          {hasInspector && !showInspector && (
+            <IconButton label={t('shell.expandInspector')} onClick={toggleInspector}>
               <IconPanelRight />
             </IconButton>
           )}
@@ -479,13 +483,14 @@ export const AppShell: React.FC<AppShellProps> = ({
       </div>
 
       {/* ---------- 右栏 Inspector ---------- */}
-      {showInspector && (
+      {showInspector && inspector && (
         <div
           style={{
             width: inspectorWidthPx,
             flexShrink: 0,
             display: 'flex',
             borderLeft: `1px solid ${CHAT.line}`,
+            background: CHAT.bg,
             transition: dragging === 'inspector' ? 'none' : 'width .2s ease',
           }}
         >

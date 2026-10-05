@@ -23,6 +23,15 @@ interface SessionListProps {
   onCreate?: () => void;
   /** 隐藏自带标题与底部新建按钮（外层侧栏自己提供这类外框） */
   hideChrome?: boolean;
+  /** 行级过滤（如 Work 模式按文件夹过滤），不传则全部显示 */
+  filter?: (s: import('./types').AgentSession) => boolean;
+  /**
+   * 渲染形态：
+   * - 'list'（默认）：自带滚动容器、占满父级高度（独立侧栏列表用）；
+   * - 'nested'：不接管滚动、不带大留白空态，行整体缩进，
+   *   由外层容器（如 WorkRail 手风琴）统一滚动。
+   */
+  variant?: 'list' | 'nested';
 }
 
 /** 会话时间：今天只给时分，更早给日期 */
@@ -41,7 +50,7 @@ function formatWhen(value?: string): string {
   return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`;
 }
 
-const RowAction: React.FC<{ title: string; danger?: boolean; onClick: () => void; children: React.ReactNode }> = ({
+const RowAction: React.FC<{ title: string; danger?: boolean; onClick: (e: React.MouseEvent<HTMLButtonElement>) => void; children: React.ReactNode }> = ({
   title,
   danger,
   onClick,
@@ -53,7 +62,7 @@ const RowAction: React.FC<{ title: string; danger?: boolean; onClick: () => void
       aria-label={title}
       onClick={(e) => {
         e.stopPropagation();
-        onClick();
+        onClick(e);
       }}
       style={{
         width: 22,
@@ -83,7 +92,7 @@ const RowAction: React.FC<{ title: string; danger?: boolean; onClick: () => void
   </Tooltip>
 );
 
-export const SessionList: React.FC<SessionListProps> = ({ onClose, onSelect, onCreate, hideChrome }) => {
+export const SessionList: React.FC<SessionListProps> = ({ onClose, onSelect, onCreate, hideChrome, filter, variant = 'list' }) => {
   const {
     sessions,
     currentSessionKey,
@@ -145,8 +154,19 @@ export const SessionList: React.FC<SessionListProps> = ({ onClose, onSelect, onC
     onClose?.();
   }, [createSession, onCreate, onClose]);
 
+  /** 嵌套形态：不接管滚动、缩小留白（由外层手风琴统一滚动） */
+  const nested = variant === 'nested';
+  /** 过滤后的可见会话（空态判断也要基于它，否则过滤后为空会没有提示） */
+  const visible = sessions.filter(filter || (() => true));
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'transparent' }}>
+    <div
+      style={
+        nested
+          ? { background: 'transparent' }
+          : { display: 'flex', flexDirection: 'column', height: '100%', background: 'transparent' }
+      }
+    >
       {!hideChrome && (
         <div
           style={{
@@ -165,13 +185,16 @@ export const SessionList: React.FC<SessionListProps> = ({ onClose, onSelect, onC
         </div>
       )}
 
-      <div className="chat-scroll" style={{ flex: 1, overflowY: 'auto', padding: '2px 8px 8px' }}>
-        {sessions.length === 0 ? (
-          <div style={{ padding: '28px 8px', textAlign: 'center', fontSize: 12, color: CHAT.textFaint }}>
+      <div
+        className={nested ? undefined : 'chat-scroll'}
+        style={nested ? { padding: '0 0 4px 22px' } : { flex: 1, overflowY: 'auto', padding: '2px 8px 8px' }}
+      >
+        {visible.length === 0 ? (
+          <div style={{ padding: nested ? '4px 0 6px' : '28px 8px', textAlign: 'center', fontSize: 12, color: CHAT.textFaint }}>
             {t('agent.noSession')}
           </div>
         ) : (
-          sessions.map((s) => {
+          visible.map((s) => {
             const isCurrent = s.sessionKey === currentSessionKey;
             const isEditing = editingKey === s.sessionKey;
             const when = formatWhen(s.updatedAt || s.createdAt);
@@ -188,8 +211,9 @@ export const SessionList: React.FC<SessionListProps> = ({ onClose, onSelect, onC
                   borderRadius: 9,
                   marginBottom: 2,
                   cursor: isEditing ? 'default' : 'pointer',
-                  background: isCurrent ? CHAT.accentSoft : 'transparent',
-                  color: isCurrent ? CHAT.accent : CHAT.textBody,
+                  background: isCurrent ? CHAT.hover : 'transparent',
+                  boxShadow: isCurrent ? `inset 0 0 0 1px ${CHAT.line}` : 'none',
+                  color: CHAT.text,
                   transition: 'background .12s',
                 }}
                 onMouseEnter={(e) => {
@@ -234,7 +258,7 @@ export const SessionList: React.FC<SessionListProps> = ({ onClose, onSelect, onC
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
                         fontSize: 13,
-                        fontWeight: isCurrent ? 600 : 400,
+                        fontWeight: 400,
                       }}
                     >
                       {s.title || t('agent.unnamedSession')}

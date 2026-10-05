@@ -1,6 +1,8 @@
 package cn.boommanpro.gaia.workflow.app.agent.tool.impl;
 
 import cn.boommanpro.gaia.workflow.app.agent.core.AgentRunContext;
+import cn.boommanpro.gaia.workflow.app.agent.core.ExecutionSurface;
+import cn.boommanpro.gaia.workflow.app.agent.session.SessionWorkflowDraftService;
 import cn.boommanpro.gaia.workflow.app.agent.tool.ToolExecutor;
 import cn.boommanpro.gaia.workflow.app.agent.tool.ToolResult;
 import cn.boommanpro.gaia.workflow.infra.manage.entity.GaiaWorkflow;
@@ -37,15 +39,18 @@ public class QueryToolExecutor implements ToolExecutor {
     private final GaiaWorkflowTemplateAppService templateService;
     private final GaiaWorkflowLogService logService;
     private final GaiaWorkflowVersionService versionService;
+    private final SessionWorkflowDraftService draftService;
 
     public QueryToolExecutor(GaiaWorkflowService workflowService,
                              GaiaWorkflowTemplateAppService templateService,
                              GaiaWorkflowLogService logService,
-                             GaiaWorkflowVersionService versionService) {
+                             GaiaWorkflowVersionService versionService,
+                             SessionWorkflowDraftService draftService) {
         this.workflowService = workflowService;
         this.templateService = templateService;
         this.logService = logService;
         this.versionService = versionService;
+        this.draftService = draftService;
     }
 
     @Override
@@ -76,9 +81,10 @@ public class QueryToolExecutor implements ToolExecutor {
                 case "workflowDetail":
                     return workflowDetail(args.getStr("workflowCode"));
                 case "nodeDetail":
-                    return ToolResult.unavailable("无头模式下没有画布实例，无法查询节点详情");
+                    return nodeDetail(context, args.getStr("nodeId"));
                 case "availableVariables":
-                    return ToolResult.unavailable("无头模式下没有画布实例，无法查询可用变量");
+                    return ToolResult.ok(draftService.availableVariables(context.getSessionKey()).toString(),
+                        "查询到可用变量");
                 default:
                     return ToolResult.fail("{\"error\":\"unknown query resource: " + resource + "\"}",
                         "不支持的查询资源");
@@ -167,5 +173,17 @@ public class QueryToolExecutor implements ToolExecutor {
         detail.put("versionNumber", current != null ? current.getVersionNumber() : null);
         detail.put("workflowData", current != null ? current.getWorkflowData() : null);
         return ToolResult.ok(new JSONObject(detail).toString(), "已返回工作流详情");
+    }
+
+    /** 节点详情：读取服务端画布草稿（后端自治模式下同样可用） */
+    private ToolResult nodeDetail(AgentRunContext context, String nodeId) {
+        if (nodeId == null || nodeId.isEmpty()) {
+            return ToolResult.fail("{\"error\":\"nodeId is required\"}", "缺少 nodeId");
+        }
+        cn.hutool.json.JSONObject node = draftService.getNode(context.getSessionKey(), nodeId);
+        if (node == null) {
+            return ToolResult.fail("{\"error\":\"node not found: " + nodeId + "\"}", "节点不存在");
+        }
+        return ToolResult.ok(node.toString(), "已返回节点详情");
     }
 }

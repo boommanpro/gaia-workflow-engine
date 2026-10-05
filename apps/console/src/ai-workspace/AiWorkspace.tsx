@@ -12,7 +12,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { takeInitialPrompt, peekInitialPrompt } from '../agent/initialPrompt';
 import { Button, Tag } from '@douyinfe/semi-ui';
-import { IconHistory, IconPlus, IconSetting } from '@douyinfe/semi-icons';
+import { IconHistory, IconPlus } from '@douyinfe/semi-icons';
 
 import { useAgent } from '../agent/AgentContext';
 import { AgentConfirmLayer } from '../agent/ConfirmModal';
@@ -32,11 +32,10 @@ import { useWorkflowArtifactSync } from './artifact/useWorkflowArtifactSync';
 import { HeadlessCanvasBridge } from './HeadlessCanvasBridge';
 import { WorkspaceToolExecutor } from './WorkspaceToolExecutor';
 import { CanvasHistoryPopover } from './components/CanvasHistoryPopover';
-import { AgentSettingsPanel } from './components/AgentSettingsPanel';
 import { WorkToolsPanel } from './components/WorkToolsPanel';
 
-/** 右栏 Inspector 当前展示的视图 */
-type InspectorView = 'artifact' | 'agent' | 'tools';
+/** 右栏 Inspector 当前展示的视图（Agent 设置只在管理端配置中心，不在此处重复） */
+type InspectorView = 'artifact' | 'tools';
 
 export const AiWorkspace: React.FC = () => {
   useLanguage();
@@ -47,6 +46,8 @@ export const AiWorkspace: React.FC = () => {
   const mode: SectionMode = location.pathname.startsWith('/work') ? 'work' : 'chat';
   /** 会话 URL 前缀：Chat 与 Work 各自一套地址空间 */
   const sessionBase = mode === 'work' ? '/work/c' : '/chat';
+  /** 模式根路径（未选中任何会话时的地址） */
+  const modeRoot = mode === 'work' ? '/work' : '/chat';
 
   const {
     messages,
@@ -91,6 +92,7 @@ export const AiWorkspace: React.FC = () => {
   // 状态 → URL：新建会话后把地址栏跟上去，避免地址栏停留在上一段
   useEffect(() => {
     if (!pendingNewRef.current || !currentSessionKey) return;
+    if (currentSessionKey.startsWith('draft-')) return; // 草稿会话不落 URL，commit 后再跟随
     pendingNewRef.current = false;
     navigate(`${sessionBase}/${currentSessionKey}`, { replace: true });
   }, [currentSessionKey, navigate, sessionBase]);
@@ -98,6 +100,7 @@ export const AiWorkspace: React.FC = () => {
   // 停在 /chat 或 /work 上时归一到当前会话，让「当前对话」永远有地址
   useEffect(() => {
     if (routeSessionKey || !currentSessionKey) return;
+    if (currentSessionKey.startsWith('draft-')) return;
     navigate(`${sessionBase}/${currentSessionKey}`, { replace: true });
   }, [routeSessionKey, currentSessionKey, navigate, sessionBase]);
 
@@ -122,8 +125,27 @@ export const AiWorkspace: React.FC = () => {
 
   const handleNewSession = useCallback(() => {
     pendingNewRef.current = true;
-    void createSession();
-  }, [createSession]);
+    // 新建对话先归位地址栏，避免停留在上一段会话的 URL 上
+    navigate(modeRoot, { replace: true });
+    void createSession(undefined, { scope: mode, folderId: null });
+  }, [createSession, mode, navigate, modeRoot]);
+
+  /** Work 模式：在指定文件夹内新建对话（草稿先建立，首条消息成功后才落库归档） */
+  const handleCreateInFolder = useCallback((folderId: number) => {
+    pendingNewRef.current = true;
+    navigate(modeRoot, { replace: true });
+    void createSession(undefined, { scope: 'work', folderId });
+  }, [createSession, navigate, modeRoot]);
+
+  /**
+   * 点击左栏历史会话。
+   * 关键：清掉 pendingNewRef —— 否则「新建对话」留下未提交的草稿后，
+   * 该标记会让“URL → 状态”的 effect 一直 return，点历史会话就不切了。
+   */
+  const handleSelectSession = useCallback((key: string) => {
+    pendingNewRef.current = false;
+    navigate(`${sessionBase}/${key}`);
+  }, [navigate, sessionBase]);
 
   const currentSession = useMemo(
     () => sessions.find((s) => s.sessionKey === currentSessionKey),
@@ -179,23 +201,32 @@ export const AiWorkspace: React.FC = () => {
       <AppShell
         mode={mode}
         railTop={
-          <Button
-            block
-            theme="solid"
-            type="primary"
-            icon={<IconPlus />}
-            onClick={handleNewSession}
-            style={{ borderRadius: 10, background: CHAT.accent, borderColor: CHAT.accent }}
-          >
-            {t('workspace.newConversation')}
-          </Button>
+          mode === 'work' ? undefined : (
+            <Button
+              block
+              theme="solid"
+              type="primary"
+              icon={<IconPlus />}
+              onClick={handleNewSession}
+              style={{ borderRadius: 10, background: CHAT.accent, borderColor: CHAT.accent }}
+            >
+              {t('workspace.newConversation')}
+            </Button>
+          )
         }
         railMiddle={
           mode === 'work' ? (
-            <WorkRail onSelect={(key) => navigate(`${sessionBase}/${key}`)} />
+            <WorkRail
+              onSelect={handleSelectSession}
+              onCreateInFolder={handleCreateInFolder}
+            />
           ) : (
             <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
-              <SessionList hideChrome onSelect={(key) => navigate(`${sessionBase}/${key}`)} />
+              <SessionList
+                hideChrome
+                onSelect={handleSelectSession}
+                filter={(s) => (s.scope || 'chat') === 'chat'}
+              />
             </div>
           )
         }
@@ -251,30 +282,7 @@ export const AiWorkspace: React.FC = () => {
                 </button>
               </CanvasHistoryPopover>
             )}
-            <button
-              type="button"
-              onClick={() => toggleInspector('artifact')}
-              title={inspectorView === 'artifact' ? t('workspace.collapseArtifact') : t('workspace.expandArtifact')}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 5,
-                border: `1px solid ${inspectorView === 'artifact' ? CHAT.accentBorder : CHAT.line}`,
-                background: inspectorView === 'artifact' ? CHAT.accentSoft : 'var(--g-bg-raised)',
-                borderRadius: 8,
-                padding: '3px 9px',
-                fontSize: 12,
-                color: inspectorView === 'artifact' ? CHAT.accent : CHAT.textSub,
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-              }}
-            >
-              {t('workspace.artifact')}
-              {hasArtifact && (
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: CHAT.accent, flexShrink: 0 }} />
-              )}
-            </button>
-            {mode === 'work' ? (
+            {mode === 'work' && (
               <button
                 type="button"
                 onClick={() => toggleInspector('tools')}
@@ -295,40 +303,17 @@ export const AiWorkspace: React.FC = () => {
               >
                 {t('shell.tools')}
               </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => toggleInspector('agent')}
-                title={t('shell.agentSettings')}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 5,
-                  border: `1px solid ${inspectorView === 'agent' ? CHAT.accentBorder : CHAT.line}`,
-                  background: inspectorView === 'agent' ? CHAT.accentSoft : 'var(--g-bg-raised)',
-                  borderRadius: 8,
-                  padding: '3px 9px',
-                  fontSize: 12,
-                  color: inspectorView === 'agent' ? CHAT.accent : CHAT.textSub,
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                }}
-              >
-                <IconSetting size="small" />
-                {t('shell.agentSettings')}
-              </button>
             )}
           </>
         }
         inspector={
           inspectorView === 'artifact' ? (
             <ArtifactPanel onCollapse={closeInspector} />
-          ) : inspectorView === 'agent' ? (
-            <AgentSettingsPanel onClose={closeInspector} />
           ) : inspectorView === 'tools' ? (
             <WorkToolsPanel onClose={closeInspector} />
           ) : undefined
         }
+        inspectorAvailable
         inspectorOpen={inspectorView !== null}
         onToggleInspector={toggleInspectorFromShell}
       >

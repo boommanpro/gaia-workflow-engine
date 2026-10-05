@@ -2,9 +2,11 @@ package cn.boommanpro.gaia.workflow.app.agent.tool.impl;
 
 import cn.boommanpro.gaia.workflow.app.agent.core.AgentRunContext;
 import cn.boommanpro.gaia.workflow.app.agent.core.ExecutionSurface;
+import cn.boommanpro.gaia.workflow.app.agent.session.SessionWorkflowDraftService;
 import cn.boommanpro.gaia.workflow.app.agent.tool.ToolExecutor;
 import cn.boommanpro.gaia.workflow.app.agent.tool.ToolResult;
 import cn.boommanpro.gaia.workflow.app.service.WorkflowDslApplyService;
+import cn.boommanpro.gaia.workflow.app.service.WorkflowDslCanonicalizer;
 import cn.hutool.json.JSONObject;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -26,9 +28,12 @@ import java.util.UUID;
 public class ApplyWorkflowToolExecutor implements ToolExecutor {
 
     private final WorkflowDslApplyService dslApplyService;
+    private final SessionWorkflowDraftService draftService;
 
-    public ApplyWorkflowToolExecutor(WorkflowDslApplyService dslApplyService) {
+    public ApplyWorkflowToolExecutor(WorkflowDslApplyService dslApplyService,
+                                     SessionWorkflowDraftService draftService) {
         this.dslApplyService = dslApplyService;
+        this.draftService = draftService;
     }
 
     @Override
@@ -81,6 +86,18 @@ public class ApplyWorkflowToolExecutor implements ToolExecutor {
             return ToolResult.fail(
                 new JSONObject().set("error", result.getError()).toString(),
                 "落版失败：" + result.getError());
+        }
+
+        // 同步更新服务端会话草稿并广播 document 事件，让所有订阅窗口立即看到产物
+        try {
+            WorkflowDslCanonicalizer.Result canonicalized = WorkflowDslCanonicalizer.canonicalize(dsl.toString());
+            if (canonicalized != null && canonicalized.getJson() != null) {
+                draftService.replace(context.getSessionKey(),
+                    cn.hutool.json.JSONUtil.parseObj(canonicalized.getJson()));
+            }
+            draftService.emitDocument(context, context.getSessionKey());
+        } catch (Exception e) {
+            log.warn("[tool:applyWorkflow] draft sync failed: {}", e.getMessage());
         }
 
         log.info("[tool:applyWorkflow] {} → {} ({} nodes)",

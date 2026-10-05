@@ -45,6 +45,32 @@ public class AgentSession {
     @TableField("debug_data")
     private String debugData;
 
+    // ===== 工作空间 / 列表增强（Codex 风格三区） =====
+
+    /**
+     * 会话所属空间：chat（对话）/ work（工作空间），两套逻辑隔离
+     */
+    @TableField("scope")
+    private String scope;
+
+    /**
+     * 所属工作文件夹（agent_work_folder.id），null 表示未归档到文件夹
+     */
+    @TableField("folder_id")
+    private Long folderId;
+
+    /**
+     * 置顶标记（0-否，1-是）
+     */
+    @TableField("pinned")
+    private Integer pinned;
+
+    /**
+     * 归档标记（0-否，1-是）
+     */
+    @TableField("archived")
+    private Integer archived;
+
     // ===== 人工审查标记（用于会话质量分析和 event loop） =====
 
     /** 质量评分：good / bad / null（未标记） */

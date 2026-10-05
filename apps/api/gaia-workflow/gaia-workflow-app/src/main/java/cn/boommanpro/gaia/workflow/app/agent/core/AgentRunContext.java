@@ -1,5 +1,7 @@
 package cn.boommanpro.gaia.workflow.app.agent.core;
 
+import cn.boommanpro.gaia.workflow.app.agent.event.AgentEvent;
+import cn.boommanpro.gaia.workflow.app.agent.event.AgentEventSink;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
@@ -30,10 +32,20 @@ public class AgentRunContext {
     /** 运行过程中的共享数据，供各策略之间传递中间结果 */
     private final Map<String, Object> attributes = new HashMap<>();
 
+    /** 事件输出端（运行时注入）。工具可用 {@link #emit} 广播自定义事件（如 document / plan / ui_action） */
+    private AgentEventSink sink;
+
     public AgentRunContext(AgentRequest request, AgentDefinition definition, ToolExecutionMode executionMode) {
         this.request = request;
         this.definition = definition;
         this.executionMode = executionMode;
+    }
+
+    /** 广播一条自定义事件（工具内部使用，如画布变更 document / 计划 plan） */
+    public void emit(String type, cn.hutool.json.JSONObject data) {
+        if (sink != null) {
+            sink.emit(AgentEvent.of(type, data));
+        }
     }
 
     public String getSessionKey() {
