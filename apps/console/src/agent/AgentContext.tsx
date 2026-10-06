@@ -688,18 +688,24 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     if (!currentSessionKey || currentSessionKey.startsWith('draft-')) return;
     const sessionKey = currentSessionKey;
 
-    // 会话切换时恢复服务端画布草稿（产物渲染）
-    agentApi.getSessionDocument(sessionKey).then((dsl) => {
-      if (dsl && Array.isArray(dsl.nodes) && dsl.nodes.length > 0) {
-        try {
-          workflowDocumentStore.replace(WorkflowDocument.fromJSON(dsl), {
-            kind: 'replace',
-            source: 'ai',
-            reason: 'ai-edit',
-          });
-        } catch { /* ignore */ }
-      }
-    }).catch(() => {});
+    // 编辑器（专家模式）页面画布是主位，由工作流加载流程管理；
+    // 这里若用「会话的画布草稿」整表替换，会把用户正在编辑的工作流覆盖成对话产物
+    // （表现为刷新/切会话后所有工作流「长一个样」）。草稿恢复只在 AI 工作区（画布为对话产物）执行。
+    const inEditorRoute = /^\/(editor|template-editor)/.test(location.pathname);
+
+    if (!inEditorRoute) {
+      agentApi.getSessionDocument(sessionKey).then((dsl) => {
+        if (dsl && Array.isArray(dsl.nodes) && dsl.nodes.length > 0) {
+          try {
+            workflowDocumentStore.replace(WorkflowDocument.fromJSON(dsl), {
+              kind: 'replace',
+              source: 'ai',
+              reason: 'ai-edit',
+            });
+          } catch { /* ignore */ }
+        }
+      }).catch(() => {});
+    }
 
     const controller = new AbortController();
     let disposed = false;
@@ -817,6 +823,9 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       },
       onDocument: (data) => {
         if (disposed) return;
+        // 编辑器（专家模式）页面画布是主位，AI 的 document 事件同样不得整表替换 ——
+        // 否则对话中的画布产物会把用户正在编辑的工作流覆盖掉
+        if (/^\/(editor|template-editor)/.test(location.pathname)) return;
         try {
           if (data?.dsl && Array.isArray(data.dsl.nodes) && data.dsl.nodes.length > 0) {
             workflowDocumentStore.replace(WorkflowDocument.fromJSON(data.dsl), {
@@ -896,7 +905,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       disposed = true;
       controller.abort();
     };
-  }, [currentSessionKey, reloadMessages, drainQueue]);
+  }, [currentSessionKey, reloadMessages, drainQueue, location.pathname]);
 
   /** Task 2: 压缩上下文 */
   const compactContext = useCallback(async () => {
