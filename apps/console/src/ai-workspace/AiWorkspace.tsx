@@ -254,6 +254,15 @@ export const AiWorkspace: React.FC = () => {
             >
               {brandSubtitle}
             </Tag>
+            {currentSession?.engine === 'ark' && (
+              <Tag
+                size="small"
+                shape="circle"
+                style={{ flexShrink: 0, background: '#f9f0ff', border: '1px solid #d3adf7', color: '#531dab' }}
+              >
+                方舟托管
+              </Tag>
+            )}
           </>
         }
         actions={

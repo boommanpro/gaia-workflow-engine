@@ -224,7 +224,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
     while (i < messages.length) {
       const m = messages[i];
 
-      if (m.role === 'assistant' && !m.content && !m.subagentSteps && !m.subagentResult) {
+      if (m.role === 'assistant' && !m.content && !m.thinking && !m.subagentSteps && !m.subagentResult) {
         // 空的助手占位消息不渲染正文，但它的画布快照卡仍需渲染
         //（AI 工具在第一轮就写入了快照，mid 指向这个占位消息）
         nodes.push(...cardsFor(m.id));
@@ -318,6 +318,22 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
         >
           <Avatar />
           <div style={{ flex: 1, minWidth: 0 }}>
+            {m.thinking && (
+              <details
+                style={{
+                  marginBottom: 6,
+                  padding: '6px 10px',
+                  borderRadius: 8,
+                  border: `1px dashed ${CHAT.line}`,
+                  background: 'var(--g-bg-raised, transparent)',
+                  fontSize: 12,
+                  color: CHAT.textMuted,
+                }}
+              >
+                <summary style={{ cursor: 'pointer', userSelect: 'none' }}>思考过程</summary>
+                <div style={{ whiteSpace: 'pre-wrap', marginTop: 6, lineHeight: 1.6 }}>{m.thinking}</div>
+              </details>
+            )}
             <Markdown
               content={m.content}
               onOptionClick={handleOptionClick}

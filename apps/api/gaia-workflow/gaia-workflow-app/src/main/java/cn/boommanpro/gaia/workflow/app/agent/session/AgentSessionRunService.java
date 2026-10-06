@@ -4,9 +4,10 @@ import cn.boommanpro.gaia.workflow.app.agent.core.AgentRequest;
 import cn.boommanpro.gaia.workflow.app.agent.core.AgentRunResult;
 import cn.boommanpro.gaia.workflow.app.agent.core.ConversationStore;
 import cn.boommanpro.gaia.workflow.app.agent.core.ToolExecutionMode;
+import cn.boommanpro.gaia.workflow.app.agent.engine.AgentExecutionRouter;
 import cn.boommanpro.gaia.workflow.app.agent.event.AgentEventSink;
 import cn.boommanpro.gaia.workflow.app.agent.event.BusAgentEventSink;
-import cn.boommanpro.gaia.workflow.app.agent.runtime.AgentRuntime;
+import cn.boommanpro.gaia.workflow.app.service.AgentProviderConfigService;
 import cn.boommanpro.gaia.workflow.infra.manage.entity.AgentSession;
 import cn.boommanpro.gaia.workflow.infra.manage.service.AgentSessionService;
 import cn.hutool.json.JSONObject;
@@ -30,7 +31,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * <p>与旧链路（前端 POST /agent/chat 拿 SSE、收到 tool_call 后前端执行再回灌）的区别：</p>
  * <ul>
- *   <li>调用方发一条消息即返回，后端在独立线程里用 {@link AgentRuntime} 跑完整循环</li>
+ *   <li>调用方发一条消息即返回，后端在独立线程里用执行引擎跑完整循环
+ *       （local 自研编排 / ark 方舟托管，由 {@link AgentExecutionRouter} 按 Agent 定义选择）</li>
  *   <li>循环与工具执行都在后端，不依赖任何浏览器窗口存活</li>
  *   <li>运行事件进 {@link SessionEventBus}，任意数量窗口可订阅 / 回放</li>
  * </ul>
@@ -118,10 +120,11 @@ public class AgentSessionRunService {
     /** 工作区后端自治 Agent 的默认 id（请求未指定时使用） */
     public static final String DEFAULT_AGENT_ID = "workspace-backend";
 
-    private final AgentRuntime runtime;
+    private final AgentExecutionRouter executionRouter;
     private final SessionEventBus eventBus;
     private final ConversationStore conversationStore;
     private final AgentSessionService sessionService;
+    private final AgentProviderConfigService providerConfigService;
 
     private final ConcurrentMap<String, RunHandle> runs = new ConcurrentHashMap<>();
 
@@ -131,14 +134,16 @@ public class AgentSessionRunService {
         return t;
     });
 
-    public AgentSessionRunService(AgentRuntime runtime,
+    public AgentSessionRunService(AgentExecutionRouter executionRouter,
                                   SessionEventBus eventBus,
                                   ConversationStore conversationStore,
-                                  AgentSessionService sessionService) {
-        this.runtime = runtime;
+                                  AgentSessionService sessionService,
+                                  AgentProviderConfigService providerConfigService) {
+        this.executionRouter = executionRouter;
         this.eventBus = eventBus;
         this.conversationStore = conversationStore;
         this.sessionService = sessionService;
+        this.providerConfigService = providerConfigService;
     }
 
     @PreDestroy
@@ -185,11 +190,32 @@ public class AgentSessionRunService {
             .set("toolCalls", new cn.hutool.json.JSONArray());
         eventBus.setState(sessionKey, runningState);
 
-        final String agent = (agentId != null && !agentId.isEmpty()) ? agentId : DEFAULT_AGENT_ID;
+        final String agent = (agentId != null && !agentId.isEmpty()) ? agentId : resolveDefaultAgentId();
         executor.execute(() -> runAsync(sessionKey, message, pageContext, locale, agent, handle));
 
         log.info("[session-run] accepted session={} runId={} agent={}", sessionKey, runId, agent);
         return StartResult.accepted(sessionKey, runId);
+    }
+
+    /**
+     * 请求未指定 Agent 时的默认选择（管理端「默认执行引擎」开关驱动，agent.engine.default）：
+     * mode=ark 且方舟已配置（apiKey + environmentId）→ 方舟托管 Agent
+     * （defaultAgentId 已填用之，否则内置 ark-assistant，首次运行自动同步创建远端资源）；
+     * 其余情况 → local 默认 workspace-backend。读取失败一律回退，保证聊天永不被配置问题打挂。
+     */
+    private String resolveDefaultAgentId() {
+        try {
+            if ("ark".equals(providerConfigService.getDefaultEngineMode())
+                && providerConfigService.isArkConfiguredForDefault()) {
+                String defaultAgentId = providerConfigService.getArkConfig().getDefaultAgentId();
+                return defaultAgentId != null && !defaultAgentId.isEmpty()
+                    ? defaultAgentId : "ark-assistant";
+            }
+        } catch (Exception e) {
+            log.warn("[session-run] resolve default agent failed, fallback to {}: {}",
+                DEFAULT_AGENT_ID, e.getMessage());
+        }
+        return DEFAULT_AGENT_ID;
     }
 
     /** 停止当前运行（尽力而为：标记取消，事件不再进总线；后台线程自然结束） */
@@ -247,7 +273,7 @@ public class AgentSessionRunService {
                 sessionKey, message, locale != null ? locale : "zh-CN", pageContext,
                 agentId, ToolExecutionMode.BACKEND, 0, null);
             AgentEventSink sink = new BusAgentEventSink(sessionKey, eventBus, handle);
-            AgentRunResult result = runtime.run(request, sink);
+            AgentRunResult result = executionRouter.run(request, sink);
 
             if (!handle.isCancelled()) {
                 if (result.isError()) {

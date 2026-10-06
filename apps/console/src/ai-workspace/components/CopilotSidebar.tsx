@@ -18,8 +18,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Popover, Tooltip } from '@douyinfe/semi-ui';
 import {
   IconPlus,
-  IconArrowLeft,
-  IconArrowRight,
+  IconMinus,
   IconSend,
   IconClose,
 } from '@douyinfe/semi-icons';
@@ -28,6 +27,7 @@ import { useAgent } from '../../agent/AgentContext';
 import SessionList from '../../agent/SessionList';
 import { AgentConfirmLayer } from '../../agent/ConfirmModal';
 import { useLanguage, t } from '../../i18n';
+import { publicPath } from '../../utils/public-path';
 import { useWorkflowDocumentState, useCanvasSelection, workflowDocumentStore } from '../../document';
 import { CHAT, ChatComposer, ChatMessageList, ChatStyles } from '../../chat';
 import {
@@ -36,9 +36,11 @@ import {
   getWorkflowOfSession,
 } from '../session-scope';
 
-const MIN_WIDTH = 320;
-const MAX_WIDTH = 600;
-const COLLAPSED_WIDTH = 44;
+/** 悬浮窗尺寸：右下角小型浮窗，不占编辑器布局 */
+const FLOAT_WIDTH = 384;
+const FLOAT_HEIGHT = 560;
+const FLOAT_Z_INDEX = 9700;
+const OPEN_STATE_KEY = 'gaia.copilot.open';
 
 interface CopilotSidebarProps {
   /** 当前工作流名（展示在头部，强调「你在哪个上下文里对话」） */
@@ -60,8 +62,23 @@ export const CopilotSidebar: React.FC<CopilotSidebarProps> = ({ workflowName, wo
   const { snapshots, cursor } = useWorkflowDocumentState();
   const selection = useCanvasSelection();
 
-  const [collapsed, setCollapsed] = useState(false);
-  const [width, setWidth] = useState(380);
+  const [open, setOpen] = useState(() => {
+    try {
+      return localStorage.getItem(OPEN_STATE_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const toggleOpen = useCallback((next: boolean) => {
+    setOpen(next);
+    try {
+      localStorage.setItem(OPEN_STATE_KEY, next ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
+  }, []);
+  /** 悬浮窗宽度可拖拽调节（320-560px） */
+  const [floatWidth, setFloatWidth] = useState(FLOAT_WIDTH);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [bindingTick, setBindingTick] = useState(0);
   /** 引用条被手动关掉的那个节点，换节点后会重新出现 */
@@ -108,6 +125,16 @@ export const CopilotSidebar: React.FC<CopilotSidebarProps> = ({ workflowName, wo
     pendingBindRef.current = workflowCode;
     void createSession();
   }, [workflowCode, createSession]);
+
+  // 打开悬浮窗时，若这个工作流还没有归属的对话，自动创建并绑定一段对话 ——
+  // 用户打开窗口直接输入发送即可，不再需要先点「为这个工作流开启一段对话」。
+  // 只在用户主动打开窗口时触发：进编辑器不点开 AI 助手就不会产生空会话。
+  useEffect(() => {
+    if (!open || !workflowCode || scoped) return;
+    if (pendingBindRef.current) return; // 创建/绑定流程已在进行
+    if (userPickedRef.current) return; // 用户刚手动选了别的会话，不强行新建
+    startScopedSession();
+  }, [open, workflowCode, scoped, startScopedSession]);
 
   const handlePickSession = useCallback(
     (sessionKey: string) => {
@@ -173,10 +200,11 @@ export const CopilotSidebar: React.FC<CopilotSidebarProps> = ({ workflowName, wo
     (e: React.MouseEvent) => {
       e.preventDefault();
       const startX = e.clientX;
-      const startWidth = width;
+      const startWidth = floatWidth;
       const onMove = (ev: MouseEvent) => {
         const delta = startX - ev.clientX;
-        setWidth(Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, startWidth + delta)));
+        const next = Math.max(320, Math.min(560, startWidth + delta));
+        setFloatWidth(next);
       };
       const onUp = () => {
         document.removeEventListener('mousemove', onMove);
@@ -189,36 +217,53 @@ export const CopilotSidebar: React.FC<CopilotSidebarProps> = ({ workflowName, wo
       document.body.style.cursor = 'col-resize';
       document.body.style.userSelect = 'none';
     },
-    [width]
+    [floatWidth]
   );
 
-  // ---------- 收起态：一条竖排 rail ----------
-  if (collapsed) {
+  // ---------- 收起态：右下角 Gaia logo 小圆钮 ----------
+  if (!open) {
     return (
       <button
-        onClick={() => setCollapsed(false)}
+        onClick={() => toggleOpen(true)}
         title={t('workspace.expandCopilot')}
         style={{
-          width: COLLAPSED_WIDTH,
-          flexShrink: 0,
-          height: '100%',
-          border: 'none',
-          borderLeft: `1px solid ${CHAT.line}`,
-          background: CHAT.bgSunken,
+          position: 'fixed',
+          right: 20,
+          bottom: 20,
+          width: 52,
+          height: 52,
+          borderRadius: '50%',
+          background: 'var(--g-bg-raised, #fff)',
+          border: `1px solid ${CHAT.line}`,
+          boxShadow: '0 8px 24px rgba(20,20,40,0.18)',
           cursor: 'pointer',
+          zIndex: FLOAT_Z_INDEX,
           display: 'flex',
-          flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: 10,
-          color: CHAT.textMuted,
+          padding: 0,
+          overflow: 'hidden',
         }}
       >
-        <IconArrowLeft />
-        <span style={{ writingMode: 'vertical-rl', fontSize: 11, letterSpacing: 2, color: CHAT.textMuted }}>
-          {t('workspace.copilot')}
-        </span>
-        {streaming && <span style={{ width: 6, height: 6, borderRadius: '50%', background: CHAT.accent }} />}
+        <img
+          src={publicPath('logo.svg')}
+          alt="AI 助手"
+          style={{ width: 34, height: 34, objectFit: 'contain', display: 'block' }}
+        />
+        {streaming && (
+          <span
+            style={{
+              position: 'absolute',
+              top: 3,
+              right: 3,
+              width: 11,
+              height: 11,
+              borderRadius: '50%',
+              background: '#e5404e',
+              border: '2px solid #fff',
+            }}
+          />
+        )}
       </button>
     );
   }
@@ -229,18 +274,25 @@ export const CopilotSidebar: React.FC<CopilotSidebarProps> = ({ workflowName, wo
   return (
     <div
       style={{
-        width,
-        flexShrink: 0,
-        height: '100%',
-        position: 'relative',
-        display: 'flex',
+        position: 'fixed',
+        right: 20,
+        bottom: 20,
+        width: floatWidth,
+        height: FLOAT_HEIGHT,
+        maxHeight: '76vh',
+        zIndex: FLOAT_Z_INDEX,
+        borderRadius: 14,
+        border: `1px solid ${CHAT.line}`,
         background: CHAT.bg,
-        borderLeft: `1px solid ${CHAT.line}`,
+        boxShadow: '0 16px 48px rgba(20,20,40,0.20)',
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
       <ChatStyles />
 
-      {/* 拖拽条 */}
+      {/* 拖拽条：贴着浮窗左缘调宽 */}
       <div
         onMouseDown={onResizeStart}
         style={{
@@ -261,29 +313,28 @@ export const CopilotSidebar: React.FC<CopilotSidebarProps> = ({ workflowName, wo
         }}
       />
 
-      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', position: 'relative' }}>
-        {/* ---------- 单行头部 ---------- */}
-        <div
-          style={{
-            height: 46,
-            padding: '0 8px 0 10px',
-            borderBottom: `1px solid ${CHAT.lineSoft}`,
-            flexShrink: 0,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-          }}
-        >
-          <Tooltip content={t('workspace.collapseCopilot')} position="bottomLeft">
-            <Button
-              size="small"
-              theme="borderless"
-              type="tertiary"
-              icon={<IconArrowRight size="small" />}
-              onClick={() => setCollapsed(true)}
-              aria-label={t('workspace.collapseCopilot')}
-            />
-          </Tooltip>
+      {/* ---------- 单行头部 ---------- */}
+      <div
+        style={{
+          height: 46,
+          padding: '0 8px 0 10px',
+          borderBottom: `1px solid ${CHAT.lineSoft}`,
+          flexShrink: 0,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+        }}
+      >
+        <Tooltip content={t('workspace.collapseCopilot')} position="bottomLeft">
+          <Button
+            size="small"
+            theme="borderless"
+            type="tertiary"
+            icon={<IconMinus size="small" />}
+            onClick={() => toggleOpen(false)}
+            aria-label={t('workspace.collapseCopilot')}
+          />
+        </Tooltip>
 
           {/* 会话选择器：一个入口，包含切换与新建 */}
           <Popover
@@ -631,7 +682,6 @@ export const CopilotSidebar: React.FC<CopilotSidebarProps> = ({ workflowName, wo
 
         {/* 工具确认：窄容器里用覆盖层 */}
         <AgentConfirmLayer position="absolute" />
-      </div>
     </div>
   );
 };

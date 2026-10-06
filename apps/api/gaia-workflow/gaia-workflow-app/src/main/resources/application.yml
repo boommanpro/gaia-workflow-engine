@@ -32,3 +32,12 @@ agent:
     temperature: 0.5
   history:
     max-messages: 20
+  # 火山方舟 Managed Agents（engine=ark 的 Agent 使用；DB provider_config:ark 可在线覆盖）
+  ark:
+    base-url: https://ark.cn-beijing.volces.com/api/v3
+    api-key: ""
+    environment-id: ""
+    default-agent-id: ""
+    default-model-id: ""
+    connect-timeout-ms: 10000
+    read-timeout-ms: 300000

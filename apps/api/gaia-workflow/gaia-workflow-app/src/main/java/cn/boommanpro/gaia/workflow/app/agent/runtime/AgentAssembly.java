@@ -12,6 +12,7 @@ import cn.boommanpro.gaia.workflow.app.agent.llm.OpenAiCompatibleLlmProvider;
 import cn.boommanpro.gaia.workflow.app.agent.tool.ToolExecutor;
 import cn.boommanpro.gaia.workflow.app.agent.tool.ToolExecutorRegistry;
 import cn.boommanpro.gaia.workflow.app.agent.tool.impl.FrontendUiToolExecutor;
+import cn.boommanpro.gaia.workflow.app.service.AgentProviderConfigService;
 import cn.boommanpro.gaia.workflow.infra.manage.entity.AgentConfig;
 import cn.boommanpro.gaia.workflow.infra.manage.service.AgentConfigService;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
@@ -44,6 +45,9 @@ public class AgentAssembly {
     /** 工作流架构师的系统提示词在配置中心的 key（后台可在线修改，改完即生效） */
     public static final String ARCHITECT_PROMPT_KEY = "system_prompt.workflow-architect";
 
+    /** 方舟托管 Agent 的内置定义 ID（与 provider_config:ark 的 defaultAgentId 呼应） */
+    public static final String ARK_ASSISTANT_ID = "ark-assistant";
+
     private final LlmProviderRegistry llmProviderRegistry;
     private final ToolExecutorRegistry toolExecutorRegistry;
     private final ContextProviderRegistry contextProviderRegistry;
@@ -60,19 +64,22 @@ public class AgentAssembly {
 
     private final OpenAiCompatibleLlmProvider defaultLlmProvider;
     private final AgentConfigService agentConfigService;
+    private final AgentProviderConfigService providerConfigService;
 
     public AgentAssembly(LlmProviderRegistry llmProviderRegistry,
                          ToolExecutorRegistry toolExecutorRegistry,
                          ContextProviderRegistry contextProviderRegistry,
                          AgentRegistry agentRegistry,
                          OpenAiCompatibleLlmProvider defaultLlmProvider,
-                         AgentConfigService agentConfigService) {
+                         AgentConfigService agentConfigService,
+                         AgentProviderConfigService providerConfigService) {
         this.llmProviderRegistry = llmProviderRegistry;
         this.toolExecutorRegistry = toolExecutorRegistry;
         this.contextProviderRegistry = contextProviderRegistry;
         this.agentRegistry = agentRegistry;
         this.defaultLlmProvider = defaultLlmProvider;
         this.agentConfigService = agentConfigService;
+        this.providerConfigService = providerConfigService;
     }
 
     @PostConstruct
@@ -108,6 +115,7 @@ public class AgentAssembly {
         registerAgent(defaultAssistantDefinition());
         registerAgent(workflowArchitectDefinition());
         registerAgent(workspaceBackendDefinition());
+        registerAgent(arkAssistantDefinition());
 
         log.info("[agent-assembly] ready: {} agents, {} tools, {} context providers, {} llm providers",
             agentRegistry.size(), toolExecutorRegistry.size(),
@@ -256,6 +264,45 @@ public class AgentAssembly {
             .executionMode(ToolExecutionMode.BACKEND)
             .maxTurns(10)
             .sortOrder(5)
+            .build();
+    }
+
+    /**
+     * 方舟托管助手：对话循环托管给火山方舟 Managed Agents（engine=ark）。
+     *
+     * <p>远端绑定与连接参数来自 {@code provider_config:ark}（apiKey / environmentId /
+     * defaultAgentId）。工具只暴露后端可执行的子集 —— 前端专属工具（canvas / navigate）
+     * 在方舟 Custom Tool 协议里没有执行方，暴露只会得到 unavailable 回执。</p>
+     *
+     * <p>sortOrder 给大（50）：不参与隐式路由，仅当 provider_config:ark.defaultAgentId
+     * 指向本定义（或调用方显式指定 agentId）时被选中。</p>
+     */
+    private AgentDefinition arkAssistantDefinition() {
+        Set<String> tools = new LinkedHashSet<>();
+        tools.add("query");
+        tools.add("manage");
+        tools.add("applyWorkflow");
+        tools.add("createPlan");
+        tools.add("executeStep");
+
+        String remoteAgentId;
+        try {
+            remoteAgentId = providerConfigService.getArkConfig().getDefaultAgentId();
+        } catch (Exception e) {
+            remoteAgentId = null;
+        }
+
+        return AgentDefinition.builder()
+            .id(ARK_ASSISTANT_ID)
+            .name("方舟托管助手")
+            .description("对话循环托管给火山方舟 Managed Agents：模型编排/沙箱/用量统计在方舟侧，"
+                + "本地负责会话映射、事件翻译与自定义工具回传")
+            .source("builtin")
+            .engine("ark")
+            .arkAgentId(remoteAgentId)
+            .toolNames(tools)
+            .executionMode(ToolExecutionMode.BACKEND)
+            .sortOrder(50)
             .build();
     }
 }

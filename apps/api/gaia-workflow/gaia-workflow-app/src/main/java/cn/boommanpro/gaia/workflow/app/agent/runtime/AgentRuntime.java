@@ -10,6 +10,7 @@ import cn.boommanpro.gaia.workflow.app.agent.core.AgentRunResult.PendingToolCall
 import cn.boommanpro.gaia.workflow.app.agent.core.ConversationStore;
 import cn.boommanpro.gaia.workflow.app.agent.core.ToolExecutionMode;
 import cn.boommanpro.gaia.workflow.app.agent.core.ToolPolicyService;
+import cn.boommanpro.gaia.workflow.app.agent.engine.AgentExecutionEngine;
 import cn.boommanpro.gaia.workflow.app.agent.event.AgentEvent;
 import cn.boommanpro.gaia.workflow.app.agent.event.AgentEventSink;
 import cn.boommanpro.gaia.workflow.app.agent.llm.LlmChatRequest;
@@ -52,7 +53,9 @@ import java.util.Optional;
  */
 @Slf4j
 @Component
-public class AgentRuntime {
+public class AgentRuntime implements AgentExecutionEngine {
+
+    public static final String ENGINE_ID = "local";
 
     private final AgentRegistry agentRegistry;
     private final LlmProviderRegistry llmProviderRegistry;
@@ -81,12 +84,18 @@ public class AgentRuntime {
         this.toolPolicyService = toolPolicyService;
     }
 
+    @Override
+    public String id() {
+        return ENGINE_ID;
+    }
+
     /**
      * 执行一次 Agent 运行。
      *
      * @param request 运行请求
      * @param sink    事件输出端；传 {@link AgentEventSink#noop()} 即为完全静默
      */
+    @Override
     public AgentRunResult run(AgentRequest request, AgentEventSink sink) {
         AgentEventSink safeSink = sink != null ? sink : AgentEventSink.noop();
 

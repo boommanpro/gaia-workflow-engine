@@ -29,7 +29,18 @@ public class SchemaMigrationInitializer implements CommandLineRunner {
         new String[]{"agent_session", "scope", "VARCHAR(16) DEFAULT 'chat'"},
         new String[]{"agent_session", "folder_id", "BIGINT"},
         new String[]{"agent_session", "pinned", "TINYINT DEFAULT 0"},
-        new String[]{"agent_session", "archived", "TINYINT DEFAULT 0"}
+        new String[]{"agent_session", "archived", "TINYINT DEFAULT 0"},
+        // 人工审查标记（旧库缺列会导致会话列表 500）
+        new String[]{"agent_session", "review_rating", "VARCHAR(16)"},
+        new String[]{"agent_session", "review_issue", "TEXT"},
+        new String[]{"agent_session", "review_status", "VARCHAR(32) DEFAULT 'pending'"},
+        new String[]{"agent_session", "review_fix_note", "TEXT"},
+        // 双引擎架构：local 自研 / ark 方舟托管的会话映射
+        new String[]{"agent_session", "engine", "VARCHAR(16) DEFAULT 'local'"},
+        new String[]{"agent_session", "remote_session_id", "VARCHAR(128)"},
+        new String[]{"agent_session", "remote_agent_id", "VARCHAR(128)"},
+        new String[]{"agent_session", "remote_agent_version", "INTEGER"},
+        new String[]{"agent_session", "token_usage", "TEXT"}
     );
 
     private final DataSource dataSource;

@@ -19,6 +19,11 @@ export interface AgentSession {
   reviewIssue?: string | null;
   reviewStatus?: string;          // pending / analyzing / fixed / ignored
   reviewFixNote?: string | null;
+  // 双引擎架构：local（自研编排，默认）/ ark（火山方舟 Managed Agents 托管）
+  engine?: string;
+  remoteSessionId?: string | null;
+  /** 累计 token 用量（engine=ark 时由后端聚合） */
+  tokenUsage?: string | null;
 }
 
 /** 工作空间文件夹 */
@@ -54,6 +59,8 @@ export interface ToolCallEvent {
   action: string;
   args: Record<string, any>;
   policy: PermissionPolicy;
+  /** 执行位置：backend（本服务）/ ark-sandbox（方舟云沙箱）/ ark-mcp（方舟 MCP 工具） */
+  executedBy?: string;
   /** 执行结果（执行完成后原地更新） */
   result?: string;
 }
@@ -115,6 +122,8 @@ export interface DisplayMessage {
     success: boolean;
     content: string;
   };
+  /** 思考过程增量累积（方舟托管引擎 agent.thinking 事件；可折叠展示） */
+  thinking?: string;
 }
 
 /** SSE 事件处理器 */
@@ -191,4 +200,11 @@ export interface SseHandlers {
   }) => void;
   /** 工具确认已裁决（require 模式下等待结束后广播） */
   onConfirmResolved?: (data: { toolCallId: string; approved: boolean }) => void;
+  /** 思考过程增量（方舟托管引擎的 agent.thinking 事件） */
+  onThinking?: (data: { content: string }) => void;
+  /** 模型请求用量（方舟托管引擎的 span.model_request_end 聚合） */
+  onUsage?: (data: {
+    last?: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number };
+    total: Record<string, number>;
+  }) => void;
 }

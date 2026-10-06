@@ -6,6 +6,7 @@ import cn.boommanpro.gaia.workflow.app.agent.core.AgentRequest;
 import cn.boommanpro.gaia.workflow.app.agent.core.AgentRunResult;
 import cn.boommanpro.gaia.workflow.app.agent.core.ConversationStore;
 import cn.boommanpro.gaia.workflow.app.agent.core.ToolExecutionMode;
+import cn.boommanpro.gaia.workflow.app.agent.engine.AgentExecutionRouter;
 import cn.boommanpro.gaia.workflow.app.agent.event.AgentEventSink;
 import cn.boommanpro.gaia.workflow.app.agent.event.HeadlessAgentEventSink;
 import cn.boommanpro.gaia.workflow.app.agent.llm.LlmMessage;
@@ -28,7 +29,7 @@ import java.util.concurrent.Executors;
 @Service
 public class ManagedAgentService {
 
-    private final AgentRuntime runtime;
+    private final AgentExecutionRouter executionRouter;
     private final AgentRegistry agentRegistry;
     private final ConversationStore conversationStore;
 
@@ -38,10 +39,10 @@ public class ManagedAgentService {
         return t;
     });
 
-    public ManagedAgentService(AgentRuntime runtime,
+    public ManagedAgentService(AgentExecutionRouter executionRouter,
                               AgentRegistry agentRegistry,
                               ConversationStore conversationStore) {
-        this.runtime = runtime;
+        this.executionRouter = executionRouter;
         this.agentRegistry = agentRegistry;
         this.conversationStore = conversationStore;
     }
@@ -56,7 +57,7 @@ public class ManagedAgentService {
         conversationStore.saveMessage(request.getSessionKey(), "user", message, null, null);
 
         AgentEventSink sink = new HeadlessAgentEventSink(request.getSessionKey());
-        return runtime.run(request, sink);
+        return executionRouter.run(request, sink);
     }
 
     /** 异步执行，适合触发器/定时任务场景 */
@@ -69,7 +70,7 @@ public class ManagedAgentService {
         AgentRequest request = new AgentRequest(
             sessionKey, message, "zh-CN", null, agentId, ToolExecutionMode.BACKEND, 0, null);
         conversationStore.saveMessage(sessionKey, "user", message, null, null);
-        return runtime.run(request, new HeadlessAgentEventSink(sessionKey));
+        return executionRouter.run(request, new HeadlessAgentEventSink(sessionKey));
     }
 
     public Map<String, AgentDefinition> listAgents() {

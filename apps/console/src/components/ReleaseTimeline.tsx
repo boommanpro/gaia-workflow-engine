@@ -8,6 +8,11 @@ const ACCENT = '#4d53e8';
 
 export const releasesItems = [
   {
+    date: '2026.10.06',
+    en: 'Dual-engine agent architecture: Volcengine Ark Managed Agents joins as an execution engine (engine=ark) — the conversation loop, cloud sandbox and token usage run on Ark, while agent definitions sync automatically (the remote agent is created on first run with local tools mapped to Custom Tools; definition changes sync with optimistic versioning). The admin config page adds a "Default engine" switch (local / Ark-managed, effective immediately) and Ark connection settings with required-model validation; sessions show an "Ark-managed" badge, plus new thinking & token-usage events, event-id dedup on SSE reconnect and user.interrupt on stop. The editor AI copilot becomes a bottom-right floating window (Gaia logo button, drag-resizable, auto-binds a conversation per workflow on open).',
+    zh: '双引擎 Agent 架构：火山方舟 Managed Agents 接入为执行引擎（engine=ark）——对话循环、云沙箱与 token 用量由方舟运行；Agent 定义自动同步（首次运行自动创建远端 Agent 并把本地工具映射为 Custom Tool，定义变更带版本乐观锁增量同步）。管理后台新增「默认执行引擎」切换（自研 / 方舟托管，保存即时生效）与方舟连接配置（默认模型 ID 必填校验）；会话标题显示「方舟托管」徽标；新增思考过程（thinking）与 token 用量事件、SSE 断线按事件 ID 补投历史、停止对话转发 user.interrupt。编辑器 AI 助手改为右下角悬浮窗（Gaia logo 悬浮钮、拖拽调宽、打开即自动绑定工作流对话）。',
+  },
+  {
     date: '2026.10.05',
     en: 'Backend-autonomous conversations: the agent loop now runs entirely server-side — the frontend only renders. Multiple windows can watch the same session live and a run keeps going after you close the tab (SSE broadcast with run-snapshot replay on reconnect). Tool permissions moved to the backend (forbid / confirm / always, with auto-approve, auto-reject and manual-require modes plus a confirmation dialog). Canvas tools (add/update node, connect, run) and manage.saveWorkflow (saves the session draft as a new version) now execute on the server. Workspace sessions are organized into folders with a Codex-style accordion rail.',
     zh: '对话改为后端自治：Agent 循环完全在服务端执行，前端只负责渲染。多个窗口可同时实时观看同一会话，关闭窗口后运行仍继续（SSE 广播 + 重连回放运行快照）。工具权限下沉到后端（forbid / confirm / always，支持 auto-approve、auto-reject、require 人工确认弹窗）。画布工具（增改节点、连线、运行）与 manage.saveWorkflow（把会话草稿存为新版本）改由服务端执行。工作空间会话按文件夹分组，并采用 Codex 风格手风琴侧栏。',

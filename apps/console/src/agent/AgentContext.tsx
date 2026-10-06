@@ -733,6 +733,16 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
           // idle / done / error / stopped
           liveAssistantIdRef.current = null;
           setStreaming(false);
+          if (status === 'error' && data.error) {
+            // 运行失败发生在 SSE 订阅建立之前时，error 事件不会被实时收到，
+            // 只能从订阅回放的 run_state 快照里恢复 —— 必须在这里渲染，否则表现为「没反应」
+            const errText = `[错误] ${data.error}`;
+            setMessages((prev) => {
+              const last = prev[prev.length - 1];
+              if (last && last.role === 'assistant' && last.content === errText) return prev;
+              return [...prev, { id: nanoid(), role: 'assistant', content: errText, timestamp: Date.now() }];
+            });
+          }
           if (status === 'done' || status === 'error' || status === 'stopped') {
             reloadMessages(sessionKey);
             // 队列里还有消息则继续（如断线重连后补齐 done）
@@ -769,6 +779,22 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
           const id = `live-${Date.now()}`;
           liveAssistantIdRef.current = id;
           return [...prev, { id, role: 'assistant', content, timestamp: Date.now() }];
+        });
+      },
+      onThinking: (data) => {
+        // 方舟托管引擎的思考过程：累积进当前 live 助手消息的 thinking 字段（折叠展示）
+        if (disposed) return;
+        const chunk = data?.content || '';
+        if (!chunk) return;
+        setMessages((prev) => {
+          if (liveAssistantIdRef.current) {
+            return prev.map((m) =>
+              m.id === liveAssistantIdRef.current ? { ...m, thinking: (m.thinking || '') + chunk } : m
+            );
+          }
+          const id = `live-think-${Date.now()}`;
+          liveAssistantIdRef.current = id;
+          return [...prev, { id, role: 'assistant', content: '', thinking: chunk, timestamp: Date.now() }];
         });
       },
       onToolCall: (event) => {

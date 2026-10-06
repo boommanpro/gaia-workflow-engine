@@ -88,4 +88,26 @@ public class AgentSession {
     /** 修复建议（给 coding agent 的指令） */
     @TableField("review_fix_note")
     private String reviewFixNote;
+
+    // ===== 执行引擎与会话映射（双引擎架构） =====
+
+    /** 执行引擎：local（自研编排，默认）/ ark（火山方舟 Managed Agents 托管） */
+    @TableField("engine")
+    private String engine;
+
+    /** 方舟 Session ID（形如 sesn-...），engine=ark 时与 session_key 双向绑定 */
+    @TableField("remote_session_id")
+    private String remoteSessionId;
+
+    /** 运行时绑定的方舟 Agent ID 快照 */
+    @TableField("remote_agent_id")
+    private String remoteAgentId;
+
+    /** 绑定的方舟 Agent 版本 */
+    @TableField("remote_agent_version")
+    private Integer remoteAgentVersion;
+
+    /** 累计 token 用量 JSON：{input_tokens, output_tokens, cache_read_input_tokens} */
+    @TableField("token_usage")
+    private String tokenUsage;
 }

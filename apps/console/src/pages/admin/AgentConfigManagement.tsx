@@ -21,6 +21,7 @@ import {
   RadioGroup,
 } from '@douyinfe/semi-ui';
 import type { ColumnProps } from '@douyinfe/semi-ui/lib/es/table';
+import { IconHelpCircle } from '@douyinfe/semi-icons';
 import { agentApi } from '../../agent/api';
 import { getApiBaseUrl } from '../../utils/apiConfig';
 import type { PermissionPolicy } from '../../agent/types';
@@ -1227,6 +1228,33 @@ const DEFAULT_EMBEDDING_CONFIG: EmbeddingConfigForm = {
   model: '',
 };
 
+/** 方舟托管（Managed Agents）连接配置：provider_config:ark */
+interface ArkConfigForm {
+  baseUrl: string;
+  apiKey: string;
+  environmentId: string;
+  defaultAgentId: string;
+  defaultModelId: string;
+}
+
+const DEFAULT_ARK_CONFIG: ArkConfigForm = {
+  baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+  apiKey: '',
+  environmentId: '',
+  defaultAgentId: '',
+  defaultModelId: '',
+};
+
+const ARK_CONFIG_KEY = 'provider_config:ark';
+/** 默认执行引擎配置键（与后端 AgentProviderConfigService.DEFAULT_ENGINE_CONFIG_KEY 对应） */
+const ENGINE_CONFIG_KEY = 'agent.engine.default';
+
+interface EngineConfigForm {
+  mode: 'local' | 'ark';
+}
+
+const DEFAULT_ENGINE_CONFIG: EngineConfigForm = { mode: 'local' };
+
 const ModelConfigTab: React.FC = () => {
   useLanguage();
   const [loading, setLoading] = useState(false);
@@ -1234,13 +1262,19 @@ const ModelConfigTab: React.FC = () => {
   const [savingEmbedding, setSavingEmbedding] = useState(false);
   const [form, setForm] = useState<ModelConfigForm>(DEFAULT_MODEL_CONFIG);
   const [embeddingForm, setEmbeddingForm] = useState<EmbeddingConfigForm>(DEFAULT_EMBEDDING_CONFIG);
+  const [arkForm, setArkForm] = useState<ArkConfigForm>(DEFAULT_ARK_CONFIG);
+  const [savingArk, setSavingArk] = useState(false);
+  const [engineForm, setEngineForm] = useState<EngineConfigForm>(DEFAULT_ENGINE_CONFIG);
+  const [savingEngine, setSavingEngine] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [llmData, embData] = await Promise.all([
+      const [llmData, embData, arkData, engineData] = await Promise.all([
         agentApi.listConfigs('llm_config'),
         agentApi.listConfigs('embedding_config'),
+        agentApi.listConfigs('provider_config'),
+        agentApi.listConfigs('engine_config'),
       ]);
       const llmItem = (llmData || [])[0];
       if (llmItem) {
@@ -1263,6 +1297,22 @@ const ModelConfigTab: React.FC = () => {
           apiKey: parsed.apiKey ?? '',
           model: parsed.model ?? '',
         });
+      }
+      const arkItem = (arkData || []).find((c: any) => c.configKey === ARK_CONFIG_KEY);
+      if (arkItem) {
+        const parsed = tryParseJson(arkItem.configData) || {};
+        setArkForm({
+          baseUrl: parsed.baseUrl ?? DEFAULT_ARK_CONFIG.baseUrl,
+          apiKey: parsed.apiKey ?? '',
+          environmentId: parsed.environmentId ?? '',
+          defaultAgentId: parsed.defaultAgentId ?? '',
+          defaultModelId: parsed.defaultModelId ?? '',
+        });
+      }
+      const engineItem = (engineData || []).find((c: any) => c.configKey === ENGINE_CONFIG_KEY);
+      if (engineItem) {
+        const parsed = tryParseJson(engineItem.configData) || {};
+        setEngineForm({ mode: parsed.mode === 'ark' ? 'ark' : 'local' });
       }
     } catch (e) {
       Toast.error(`加载失败: ${(e as Error).message}`);
@@ -1315,6 +1365,73 @@ const ModelConfigTab: React.FC = () => {
     }
   }, [embeddingForm]);
 
+  /** 方舟配置校验：走自动同步（defaultAgentId 为空）时，defaultModelId 必填 —— 方舟创建 Agent 必须指定模型 */
+  const validateArkModelRequired = useCallback((): boolean => {
+    const arkTouched = !!(arkForm.apiKey || arkForm.environmentId);
+    if (arkTouched && !arkForm.defaultAgentId && !arkForm.defaultModelId) {
+      Toast.warning({
+        content: '「默认模型 ID」为必填：自动创建方舟 Agent 时必须指定模型（如 deepseek-v4-1-flash-260910）；'
+          + '仅当填写「默认方舟 Agent ID」手动绑定时可留空',
+        duration: 6,
+      });
+      return false;
+    }
+    return true;
+  }, [arkForm.apiKey, arkForm.environmentId, arkForm.defaultAgentId, arkForm.defaultModelId]);
+
+  const handleSaveArk = useCallback(async () => {
+    if (!validateArkModelRequired()) return;
+    setSavingArk(true);
+    try {
+      await agentApi.saveConfig(
+        {
+          configKey: ARK_CONFIG_KEY,
+          configType: 'provider_config',
+          title: '火山方舟 Managed Agents 连接配置',
+          configData: JSON.stringify(arkForm),
+        },
+        true,
+      );
+      Toast.success('保存成功，方舟托管配置即时生效');
+    } catch (e) {
+      Toast.error(`保存失败: ${(e as Error).message}`);
+    } finally {
+      setSavingArk(false);
+    }
+  }, [arkForm]);
+
+  const handleSaveEngine = useCallback(async () => {
+    if (engineForm.mode === 'ark' && (!arkForm.apiKey || !arkForm.environmentId)) {
+      Toast.warning({
+        content: '请先完善下方「火山方舟托管」的 apiKey 与 environmentId，再切换默认引擎为方舟',
+        duration: 5,
+      });
+      return;
+    }
+    if (engineForm.mode === 'ark' && !validateArkModelRequired()) return;
+    setSavingEngine(true);
+    try {
+      await agentApi.saveConfig(
+        {
+          configKey: ENGINE_CONFIG_KEY,
+          configType: 'engine_config',
+          title: '默认执行引擎',
+          configData: JSON.stringify(engineForm),
+        },
+        true,
+      );
+      Toast.success(
+        engineForm.mode === 'ark'
+          ? '已切换为方舟托管：新会话将走火山方舟（存量会话保持原引擎）'
+          : '已切换为自研引擎：新会话将走本地编排',
+      );
+    } catch (e) {
+      Toast.error(`保存失败: ${(e as Error).message}`);
+    } finally {
+      setSavingEngine(false);
+    }
+  }, [engineForm, arkForm.apiKey, arkForm.environmentId, validateArkModelRequired]);
+
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
@@ -1325,6 +1442,68 @@ const ModelConfigTab: React.FC = () => {
 
   return (
     <div style={{ maxWidth: 640 }}>
+      {/* 默认执行引擎切换（管理端全局开关：自研 / 方舟托管） */}
+      <div
+        style={{
+          padding: 14,
+          border: '1px solid #e8e8ea',
+          borderRadius: 8,
+          marginBottom: 20,
+        }}
+      >
+        <Typography.Title heading={5} style={{ marginBottom: 2 }}>
+          默认执行引擎
+        </Typography.Title>
+        <Typography.Text type="tertiary" style={{ fontSize: 11 }}>
+          决定新会话由谁驱动对话循环；保存即时生效，存量会话保持创建时的引擎。
+        </Typography.Text>
+        <RadioGroup
+          type="card"
+          value={engineForm.mode}
+          onChange={(e) => setEngineForm({ mode: e.target.value as 'local' | 'ark' })}
+          style={{ marginTop: 12, width: '100%' }}
+        >
+          <Radio value="local" style={{ width: '50%' }}>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <Typography.Text strong style={{ fontSize: 13 }}>自研引擎</Typography.Text>
+              <Typography.Text type="tertiary" style={{ fontSize: 11 }}>
+                本地模型循环 + 本地工具执行（原有方式）
+              </Typography.Text>
+            </div>
+          </Radio>
+          <Radio value="ark" style={{ width: '50%' }}>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <Typography.Text strong style={{ fontSize: 13 }}>方舟托管</Typography.Text>
+              <Typography.Text type="tertiary" style={{ fontSize: 11 }}>
+                火山方舟 Managed Agents 托管循环；首次运行自动创建远端 Agent 并同步工具
+              </Typography.Text>
+            </div>
+          </Radio>
+        </RadioGroup>
+        {engineForm.mode === 'ark' && (!arkForm.apiKey || !arkForm.environmentId || (!arkForm.defaultModelId && !arkForm.defaultAgentId)) && (
+          <div
+            style={{
+              marginTop: 10,
+              padding: 10,
+              background: '#fff7e6',
+              border: '1px solid #ffd591',
+              borderRadius: 6,
+              fontSize: 12,
+              color: '#d46b08',
+            }}
+          >
+            方舟配置未完整：{!arkForm.apiKey || !arkForm.environmentId ? 'apiKey / environmentId ' : ''}
+            {!arkForm.defaultModelId && !arkForm.defaultAgentId ? '默认模型 ID' : ''} 缺失，
+            请先在下方「火山方舟托管」分区补全后再切换。
+          </div>
+        )}
+        <div style={{ marginTop: 12 }}>
+          <Button theme="solid" style={{ background: ACCENT }} loading={savingEngine} onClick={handleSaveEngine}>
+            保存引擎切换
+          </Button>
+        </div>
+      </div>
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div>
           <Typography.Text strong style={{ fontSize: 13 }}>{t('agent.config.modelHost')}</Typography.Text>
@@ -1481,6 +1660,121 @@ const ModelConfigTab: React.FC = () => {
               onClick={handleSaveEmbedding}
             >
               {t('agent.config.embeddingSave')}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* 方舟托管（Managed Agents）配置分区 */}
+      <div
+        style={{
+          marginTop: 24,
+          paddingTop: 20,
+          borderTop: '1px dashed #e8e8ea',
+          maxWidth: 640,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <Typography.Title heading={5} style={{ marginBottom: 4 }}>
+            火山方舟托管（Managed Agents）
+          </Typography.Title>
+          <a
+            href="https://docs.volcengine.com/docs/ark/quick-start?lang=zh"
+            target="_blank"
+            rel="noreferrer"
+            title="火山方舟 Managed Agents 官方帮助文档"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              fontSize: 12.5,
+              fontWeight: 600,
+              color: 'var(--g-accent, #4d53e8)',
+              textDecoration: 'none',
+              flexShrink: 0,
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none'; }}
+          >
+            <IconHelpCircle size="small" />
+            方舟托管帮助文档
+          </a>
+        </div>
+        <Typography.Text type="tertiary" style={{ fontSize: 11 }}>
+          engine=ark 的 Agent（内置 ark-assistant）由方舟托管对话循环；apiKey / environmentId /
+          defaultModelId 配置完整并在上方切换默认引擎后，新会话走方舟托管。
+        </Typography.Text>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 12 }}>
+          <div>
+            <Typography.Text strong style={{ fontSize: 13 }}>Base URL</Typography.Text>
+            <Input
+              value={arkForm.baseUrl}
+              onChange={(v) => setArkForm({ ...arkForm, baseUrl: v })}
+              placeholder="https://ark.cn-beijing.volces.com/api/v3"
+              style={{ marginTop: 6 }}
+            />
+          </div>
+          <div>
+            <Typography.Text strong style={{ fontSize: 13 }}>API Key</Typography.Text>
+            <Input
+              value={arkForm.apiKey}
+              onChange={(v) => setArkForm({ ...arkForm, apiKey: v })}
+              placeholder="方舟 API Key（ark-...）"
+              style={{ marginTop: 6 }}
+            />
+          </div>
+          <div>
+            <Typography.Text strong style={{ fontSize: 13 }}>Environment ID</Typography.Text>
+            <Input
+              value={arkForm.environmentId}
+              onChange={(v) => setArkForm({ ...arkForm, environmentId: v })}
+              placeholder="env-2026...-xxxx（方舟控制台 → Environments）"
+              style={{ marginTop: 6 }}
+            />
+          </div>
+          <div>
+            <Typography.Text strong style={{ fontSize: 13 }}>默认方舟 Agent ID</Typography.Text>
+            <Input
+              value={arkForm.defaultAgentId}
+              onChange={(v) => setArkForm({ ...arkForm, defaultAgentId: v })}
+              placeholder="agent-2026...-xxxx（留空则不启用方舟默认引擎）"
+              style={{ marginTop: 6 }}
+            />
+          </div>
+          <div>
+            <Typography.Text strong style={{ fontSize: 13 }}>
+              {arkForm.defaultAgentId ? '默认模型 ID（手动绑定时可选）' : (
+                <span>默认模型 ID<span style={{ color: '#f54a45' }}> *</span></span>
+              )}
+            </Typography.Text>
+            <Input
+              value={arkForm.defaultModelId}
+              onChange={(v) => setArkForm({ ...arkForm, defaultModelId: v })}
+              placeholder="deepseek-v4-1-flash-260910"
+              validateStatus={!arkForm.defaultAgentId && !arkForm.defaultModelId ? 'error' : 'default'}
+              style={{ marginTop: 6 }}
+            />
+            <Typography.Text type="tertiary" style={{ fontSize: 11 }}>
+              自动创建方舟 Agent 时必填（用你账号已开通的模型 ID）；填了「默认方舟 Agent ID」手动绑定时可留空。
+            </Typography.Text>
+          </div>
+          <div
+            style={{
+              padding: 12,
+              background: '#f9f0ff',
+              border: '1px solid #d3adf7',
+              borderRadius: 8,
+              fontSize: 12,
+              color: '#531dab',
+            }}
+          >
+            无需在方舟控制台手动创建 Agent：engine=ark 的 Agent 首次运行时会自动在方舟创建远端资源，
+            并把本地工具（query / manage / applyWorkflow / createPlan / executeStep）声明为 Custom Tool，
+            定义变更时自动带版本号同步。若你在「默认方舟 Agent ID」填入自己创建的 agent-...，则视为手动绑定，系统不再改动它。
+          </div>
+          <div>
+            <Button theme="solid" style={{ background: ACCENT }} loading={savingArk} onClick={handleSaveArk}>
+              保存方舟配置
             </Button>
           </div>
         </div>

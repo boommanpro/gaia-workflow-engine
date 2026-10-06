@@ -84,4 +84,23 @@ public class AgentDefinition {
     @Builder.Default
     private String source = "builtin";
 
+    // ===== 执行引擎选择（双引擎架构） =====
+
+    /**
+     * 执行引擎：local=自研编排（AgentRuntime，默认）、ark=火山方舟 Managed Agents 托管。
+     * 为空按 local 处理，存量定义零改造。
+     */
+    @Builder.Default
+    private String engine = "local";
+
+    /** 方舟 Agent 资源 ID（engine=ark 必填，形如 agent-20260812081435-xxxxx） */
+    private String arkAgentId;
+
+    /** 固定使用的方舟 Agent 版本号；为空则创建 Session 时使用最新版本 */
+    private Integer arkAgentVersion;
+
+    /** 是否要求方舟侧启用沙箱内置工具集（bash/文件/web 等，按次计费）；本地定义只是防御性声明，远端 Agent 需同步配置 */
+    @Builder.Default
+    private boolean arkSandboxTools = false;
+
 }

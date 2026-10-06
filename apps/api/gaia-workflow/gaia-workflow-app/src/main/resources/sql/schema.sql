@@ -87,7 +87,13 @@ CREATE TABLE IF NOT EXISTS agent_session (
     review_rating VARCHAR(16),      -- good / bad / null
     review_issue TEXT,              -- 问题描述（哪里不好）
     review_status VARCHAR(32) DEFAULT 'pending', -- pending / analyzing / fixed / ignored
-    review_fix_note TEXT            -- 修复建议（给 coding agent 的指令）
+    review_fix_note TEXT,           -- 修复建议（给 coding agent 的指令）
+    -- 执行引擎与会话映射（双引擎架构：local 自研 / ark 方舟托管）
+    engine VARCHAR(16) DEFAULT 'local',          -- local | ark
+    remote_session_id VARCHAR(128),              -- 方舟 sesn-*（engine=ark 时绑定）
+    remote_agent_id VARCHAR(128),                -- 运行时绑定的方舟 agent-* 快照
+    remote_agent_version INTEGER,                -- 绑定的方舟 Agent 版本
+    token_usage TEXT                -- 累计用量 JSON：{input_tokens, output_tokens, cache_read_input_tokens}
 );
 
 -- 工作空间文件夹表（Work 模式：按文件夹分组的对话）

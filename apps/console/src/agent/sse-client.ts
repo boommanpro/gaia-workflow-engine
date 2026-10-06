@@ -144,7 +144,16 @@ function handleEvent(
         action: data.name ?? data.action,
         args: data.args ?? {},
         policy: 'always',
+        executedBy: data.executedBy,
       } as ToolCallEvent);
+      break;
+    case 'thinking':
+      // 方舟托管引擎的思考过程增量；未注册 handler 时自然忽略
+      handlers.onThinking?.(data);
+      break;
+    case 'usage':
+      // 方舟托管引擎的模型请求用量聚合
+      handlers.onUsage?.(data);
       break;
     case 'debug_request':
       handlers.onDebugRequest?.(data);
