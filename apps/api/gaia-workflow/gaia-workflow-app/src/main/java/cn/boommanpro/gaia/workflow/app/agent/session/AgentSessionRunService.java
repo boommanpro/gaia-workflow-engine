@@ -125,6 +125,7 @@ public class AgentSessionRunService {
     private final ConversationStore conversationStore;
     private final AgentSessionService sessionService;
     private final AgentProviderConfigService providerConfigService;
+    private final cn.boommanpro.gaia.workflow.app.agent.core.ToolPolicyService toolPolicyService;
 
     private final ConcurrentMap<String, RunHandle> runs = new ConcurrentHashMap<>();
 
@@ -138,12 +139,14 @@ public class AgentSessionRunService {
                                   SessionEventBus eventBus,
                                   ConversationStore conversationStore,
                                   AgentSessionService sessionService,
-                                  AgentProviderConfigService providerConfigService) {
+                                  AgentProviderConfigService providerConfigService,
+                                  cn.boommanpro.gaia.workflow.app.agent.core.ToolPolicyService toolPolicyService) {
         this.executionRouter = executionRouter;
         this.eventBus = eventBus;
         this.conversationStore = conversationStore;
         this.sessionService = sessionService;
         this.providerConfigService = providerConfigService;
+        this.toolPolicyService = toolPolicyService;
     }
 
     @PreDestroy
@@ -286,11 +289,14 @@ public class AgentSessionRunService {
 
     private void runAsync(String sessionKey, String message, String pageContext, String locale,
                           String agentId, RunHandle handle) {
+        // 调用日志录制器：旁路记录 llm_end / tool_call / tool_result，结束后并入 debug_data（会话审查数据源）
+        ToolLogRecorder recorder = new ToolLogRecorder(
+            new BusAgentEventSink(sessionKey, eventBus, handle), sessionService, message);
         try {
             AgentRequest request = new AgentRequest(
                 sessionKey, message, locale != null ? locale : "zh-CN", pageContext,
                 agentId, ToolExecutionMode.BACKEND, 0, null);
-            AgentEventSink sink = new BusAgentEventSink(sessionKey, eventBus, handle);
+            AgentEventSink sink = recorder;
             AgentRunResult result = executionRouter.run(request, sink);
 
             if (!handle.isCancelled()) {
@@ -315,6 +321,13 @@ public class AgentSessionRunService {
                     new JSONObject().set("message", errorText));
             }
         } finally {
+            recorder.flush(sessionKey);
+            // 运行收尾：放弃本会话仍挂起的确认等待（turn-limit 截断/异常路径的确认卡不该悬到 300s 超时）
+            try {
+                toolPolicyService.cancelPendingConfirms(sessionKey);
+            } catch (Exception e) {
+                log.warn("[session-run] cancel pending confirms failed session={}: {}", sessionKey, e.getMessage());
+            }
             // 兜底收尾：任何路径离开 run 都不允许快照停留在 running，
             // 否则重启前订阅的新窗口会回放到僵尸 running 并注入旧内容
             JSONObject state = eventBus.getState(sessionKey);

@@ -38,6 +38,11 @@ public class ToolResult {
         return new ToolResult(false, "{\"error\":\"forbidden: " + message + "\"}", true, message);
     }
 
+    /** 拒绝并回灌自定义 payload（如给模型的补救指引） */
+    public static ToolResult rejected(String payload, String message) {
+        return new ToolResult(false, payload, true, message);
+    }
+
     /** 工具在当前执行面不可用 */
     public static ToolResult unavailable(String message) {
         return new ToolResult(false, "{\"error\":\"" + message + "\"}", false, message);

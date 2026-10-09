@@ -46,6 +46,8 @@ export interface AgentMessage {
   role: 'user' | 'assistant' | 'tool';
   content?: string;
   toolCalls?: string;
+  /** 思考过程（assistant 消息持久化的 reasoning 输出，回放折叠展示） */
+  thinking?: string;
   toolCallId?: string;
   pageContext?: string;
   /** 多模态图片（JSON 字符串数组，仅 user 消息） */

@@ -30,6 +30,16 @@ public interface ConversationStore {
         saveMessage(sessionKey, role, content, toolCallsJson, toolCallId);
     }
 
+    /**
+     * 保存一条消息（可携带思考过程）。
+     * 思考过程仅用于审查与回放展示，不参与下一轮模型上下文。
+     */
+    default void saveMessage(String sessionKey, String role, String content,
+                             String toolCallsJson, String toolCallId,
+                             String thinking) {
+        saveMessage(sessionKey, role, content, toolCallsJson, toolCallId);
+    }
+
     /** 生成一个会话 key */
     String newSessionKey();
 }

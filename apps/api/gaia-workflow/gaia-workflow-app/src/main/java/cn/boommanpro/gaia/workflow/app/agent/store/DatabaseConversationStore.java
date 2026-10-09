@@ -94,13 +94,27 @@ public class DatabaseConversationStore implements ConversationStore {
     @Override
     public void saveMessage(String sessionKey, String role, String content,
                             String toolCallsJson, String toolCallId) {
-        saveMessage(sessionKey, role, content, toolCallsJson, toolCallId, null);
+        saveMessage(sessionKey, role, content, toolCallsJson, toolCallId,
+            (java.util.List<String>) null, null);
     }
 
     @Override
     public void saveMessage(String sessionKey, String role, String content,
                             String toolCallsJson, String toolCallId,
                             java.util.List<String> images) {
+        saveMessage(sessionKey, role, content, toolCallsJson, toolCallId, images, null);
+    }
+
+    @Override
+    public void saveMessage(String sessionKey, String role, String content,
+                            String toolCallsJson, String toolCallId,
+                            String thinking) {
+        saveMessage(sessionKey, role, content, toolCallsJson, toolCallId, null, thinking);
+    }
+
+    private void saveMessage(String sessionKey, String role, String content,
+                             String toolCallsJson, String toolCallId,
+                             java.util.List<String> images, String thinking) {
         if (sessionKey == null || sessionKey.isEmpty()) {
             return;
         }
@@ -111,6 +125,7 @@ public class DatabaseConversationStore implements ConversationStore {
         message.setToolCalls(toolCallsJson);
         message.setToolCallId(toolCallId);
         message.setImages(images != null && !images.isEmpty() ? JSONUtil.toJsonStr(images) : null);
+        message.setThinking(thinking != null && !thinking.isEmpty() ? thinking : null);
         message.setCreatedAt(LocalDateTime.now());
         messageService.save(message);
     }

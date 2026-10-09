@@ -262,7 +262,8 @@ public class AgentAssembly {
             .llmProviderId(OpenAiCompatibleLlmProvider.PROVIDER_ID)
             .toolNames(tools)
             .executionMode(ToolExecutionMode.BACKEND)
-            .maxTurns(10)
+            // 实测 10 轮不够：占位修正+重落版+试运行的常规链路就会触顶截断（话说到一半被掐）
+            .maxTurns(18)
             .sortOrder(5)
             .build();
     }

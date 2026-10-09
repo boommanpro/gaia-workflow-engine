@@ -80,12 +80,14 @@ export const AiWorkspace: React.FC = () => {
   }, [hasArtifact]);
 
   // ---------- 会话与 URL 双向对齐 ----------
-  // URL → 状态：直接打开 /chat/xxx 或 /work/c/xxx 时切到那一段
+  // URL → 状态：直接打开 /chat/xxx 或 /work/c/xxx 时切到那一段。
+  // URL 上的会话可能还没进 sessions 列表（工作流库「发起会话」创建后直跳）：
+  // 路由是权威，无条件跟随——等列表刷新再切会把消息发回旧会话（实测踩坑）。
   useEffect(() => {
     if (!routeSessionKey) return;
     if (routeSessionKey === currentSessionKey) return;
     if (pendingNewRef.current) return;
-    if (!sessions.some((s) => s.sessionKey === routeSessionKey)) return;
+    if (routeSessionKey.startsWith('draft-')) return;
     void switchSession(routeSessionKey);
   }, [routeSessionKey, currentSessionKey, sessions, switchSession]);
 

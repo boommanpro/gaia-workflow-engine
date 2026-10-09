@@ -156,6 +156,20 @@ public class ApplyWorkflowToolExecutor implements ToolExecutor {
                     new JSONObject().set("error", buildFatalError(canonical.getFatalIssues())).toString(),
                     "落版校验未通过：" + String.join("；", canonical.getFatalIssues()));
             }
+            // 结构完整性：多节点却没有任何连线是灾难性缺陷（实测弱模型重构 DSL 时高发），
+            // 一旦落版所有节点都是孤立的，线上版本完全不可运行——必须在弹卡前拒绝
+            cn.hutool.json.JSONArray edges = canonical.getJson() != null
+                ? cn.hutool.json.JSONUtil.parseObj(canonical.getJson()).getJSONArray("edges") : null;
+            cn.hutool.json.JSONArray nodesArr = canonical.getJson() != null
+                ? cn.hutool.json.JSONUtil.parseObj(canonical.getJson()).getJSONArray("nodes") : null;
+            if (nodesArr != null && nodesArr.size() >= 2 && (edges == null || edges.isEmpty())) {
+                return ToolResult.fail(
+                    new JSONObject().set("error", "edges is empty: " + nodesArr.size()
+                        + " nodes but 0 edges. 提交的 DSL 缺少节点连线，落版后所有节点都是孤立的。"
+                        + "请先补全 edges（start → ... → end 完整链路）后重新提交，"
+                        + "或用 query(resource=workflowDetail) / 会话画布获取真实连线关系，不要凭记忆重构。").toString(),
+                    "落版校验未通过：" + nodesArr.size() + " 个节点但没有任何连线（edges）");
+            }
             return null;
         } catch (Exception e) {
             log.warn("[tool:applyWorkflow] preValidate failed: {}", e.getMessage());

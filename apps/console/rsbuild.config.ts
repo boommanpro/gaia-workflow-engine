@@ -56,7 +56,8 @@ export default defineConfig({
     historyApiFallback: true,
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:48080',
+        // GAIA_API_TARGET：并行开发/测试时可把前端指到另一个后端实例（如 48081）
+        target: process.env.GAIA_API_TARGET || 'http://127.0.0.1:48080',
         changeOrigin: true,
       },
     },

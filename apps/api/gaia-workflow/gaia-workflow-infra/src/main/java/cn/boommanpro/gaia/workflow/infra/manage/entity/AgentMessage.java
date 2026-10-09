@@ -39,6 +39,12 @@ public class AgentMessage {
     private String toolCalls;
 
     /**
+     * 思考过程文本（assistant 角色；模型 reasoning 输出，审查页/回放折叠展示）
+     */
+    @TableField("thinking")
+    private String thinking;
+
+    /**
      * 工具结果对应的 tool_call_id（tool 角色使用）
      */
     @TableField("tool_call_id")

@@ -65,6 +65,7 @@ public class AgentRuntime implements AgentExecutionEngine {
     private final ConversationStore conversationStore;
     private final SystemPromptResolver promptResolver;
     private final ToolPolicyService toolPolicyService;
+    private final cn.boommanpro.gaia.workflow.app.agent.session.SessionArtifactStore artifactStore;
 
     public AgentRuntime(AgentRegistry agentRegistry,
                         LlmProviderRegistry llmProviderRegistry,
@@ -73,7 +74,8 @@ public class AgentRuntime implements AgentExecutionEngine {
                         AgentToolRegistry toolSchemaRegistry,
                         ConversationStore conversationStore,
                         SystemPromptResolver promptResolver,
-                        ToolPolicyService toolPolicyService) {
+                        ToolPolicyService toolPolicyService,
+                        cn.boommanpro.gaia.workflow.app.agent.session.SessionArtifactStore artifactStore) {
         this.agentRegistry = agentRegistry;
         this.llmProviderRegistry = llmProviderRegistry;
         this.toolExecutorRegistry = toolExecutorRegistry;
@@ -82,6 +84,7 @@ public class AgentRuntime implements AgentExecutionEngine {
         this.conversationStore = conversationStore;
         this.promptResolver = promptResolver;
         this.toolPolicyService = toolPolicyService;
+        this.artifactStore = artifactStore;
     }
 
     @Override
@@ -139,6 +142,10 @@ public class AgentRuntime implements AgentExecutionEngine {
         boolean completed = false;
         boolean aborted = false;
         int turn = 0;
+        // 占位闭环跟踪：applyWorkflow 落版带占位警告后，模型若只在画布上修正而不再落版，
+        // 线上生效版本会一直是占位配置（弱模型实测高发）——run 结束时对用户明确提醒
+        boolean appliedWithPlaceholderWarnings = false;
+        boolean canvasEditAfterApply = false;
 
         while (turn < context.getMaxTurns()) {
             context.nextTurn();
@@ -153,9 +160,22 @@ public class AgentRuntime implements AgentExecutionEngine {
                 .stream(true)
                 .build();
 
-            LlmChatResponse response = llm.chat(chatRequest, token -> {
-                context.recordChars(token.length());
-                safeSink.emit(AgentEvent.of("token", new JSONObject().set("content", token)));
+            StringBuilder turnThinking = new StringBuilder();
+            LlmChatResponse response = llm.chat(chatRequest, new cn.boommanpro.gaia.workflow.app.agent.llm.TokenListener() {
+                @Override
+                public void onToken(String token) {
+                    context.recordChars(token.length());
+                    safeSink.emit(AgentEvent.of("token", new JSONObject().set("content", token)));
+                }
+
+                @Override
+                public void onThinking(String chunk) {
+                    if (chunk == null || chunk.isEmpty()) {
+                        return;
+                    }
+                    turnThinking.append(chunk);
+                    safeSink.emit(AgentEvent.of("thinking", new JSONObject().set("content", chunk)));
+                }
             });
 
             if (response.isError()) {
@@ -164,11 +184,25 @@ public class AgentRuntime implements AgentExecutionEngine {
                 return AgentRunResult.failure(message);
             }
 
+            // 每轮 LLM 调用元信息：会话审查的调用日志 + 调试面板数据源（无订阅者时仅入总线快照）
+            JSONObject turnMeta = new JSONObject()
+                .set("turn", turn)
+                .set("model", response.getModel())
+                .set("temperature", definition.getTemperature())
+                .set("messagesCount", conversation.size() + 1)
+                .set("toolsCount", tools.size())
+                .set("durationMs", response.getDurationMs())
+                .set("contentLength", response.getContent() != null ? response.getContent().length() : 0)
+                .set("thinkingLength", turnThinking.length())
+                .set("toolCalls", toToolCallsJson(response.hasToolCalls() ? response.getToolCalls() : new ArrayList<>()));
+            safeSink.emit(AgentEvent.of("llm_end", turnMeta));
+
             // assistant 消息入库；若回复包含 ::options（请求用户选择），不保留 tool_calls
             boolean hasOptions = response.getContent() != null && response.getContent().contains("::options");
             String toolCallsJson = (response.hasToolCalls() && !hasOptions)
                 ? toToolCallsJson(response.getToolCalls()) : null;
-            conversationStore.saveMessage(sessionKey, "assistant", response.getContent(), toolCallsJson, null);
+            conversationStore.saveMessage(sessionKey, "assistant", response.getContent(), toolCallsJson, null,
+                turnThinking.length() > 0 ? turnThinking.toString() : null);
             conversation.add(toAssistantMessage(response));
 
             // ::options（等用户选择）或没有工具调用 → 本轮结束，等用户下一步
@@ -188,6 +222,19 @@ public class AgentRuntime implements AgentExecutionEngine {
                     executedTools.add(call.getName());
                     conversationStore.saveMessage(sessionKey, "tool", executed.getPayload(), null, call.getId());
                     conversation.add(LlmMessage.tool(call.getId(), executed.getPayload()));
+                    // 占位闭环跟踪（详见 appliedWithPlaceholderWarnings 声明处）
+                    if (executed.isSuccess()) {
+                        if ("applyWorkflow".equals(call.getName())) {
+                            appliedWithPlaceholderWarnings = hasPlaceholderWarnings(executed.getPayload());
+                            canvasEditAfterApply = false;
+                        } else if ("saveWorkflow".equals(call.getName())) {
+                            // saveWorkflow 也算落版闭环（落版成功即线上版本已更新）
+                            appliedWithPlaceholderWarnings = hasPlaceholderWarnings(executed.getPayload());
+                            canvasEditAfterApply = false;
+                        } else if (appliedWithPlaceholderWarnings && call.getName().startsWith("canvas")) {
+                            canvasEditAfterApply = true;
+                        }
+                    }
                     continue;
                 }
 
@@ -230,6 +277,20 @@ public class AgentRuntime implements AgentExecutionEngine {
         if (!completed) {
             aborted = true;
             log.warn("[agent-runtime] session {} hit turn limit {}", sessionKey, context.getMaxTurns());
+        }
+
+        // 占位未闭环提醒：模型在画布上修了占位配置但没重新落版，线上版本仍是占位——
+        // 用户此刻大概率以为「已创建成功就能跑」，必须把状态说破（落库 + 追加进本次回复）
+        if (appliedWithPlaceholderWarnings && canvasEditAfterApply) {
+            String reminder = "\n\n---\n⚠️ **系统提醒**：AI 在画布上修正了占位配置，但没有重新落版——"
+                + "线上生效版本仍包含占位内容，直接运行可能不符合预期。"
+                + "发送「重新落版」让修正生效，或到编辑器确认后手动保存。";
+            try {
+                conversationStore.saveMessage(sessionKey, "assistant", reminder.trim(), null, null);
+                safeSink.emit(AgentEvent.of("token", new JSONObject().set("content", reminder)));
+            } catch (Exception e) {
+                log.warn("[agent-runtime] persist placeholder reminder failed: {}", e.getMessage());
+            }
         }
 
         AgentRunResult result = AgentRunResult.success(finalContent, definition.getId(), sessionKey, turn);
@@ -342,6 +403,19 @@ public class AgentRuntime implements AgentExecutionEngine {
         }
     }
 
+    /** 工具结果 payload 里是否带占位类 warnings（applyWorkflow / saveWorkflow 落版返回） */
+    private static boolean hasPlaceholderWarnings(String payload) {
+        if (payload == null || !payload.contains("warnings")) {
+            return false;
+        }
+        try {
+            JSONArray warnings = JSONUtil.parseObj(payload).getJSONArray("warnings");
+            return warnings != null && !warnings.isEmpty();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     private List<LlmMessage> buildMessages(AgentRunContext context, List<LlmMessage> history, int turn) {
         List<LlmMessage> messages = new ArrayList<>();
         messages.add(LlmMessage.system(buildSystemPrompt(context, turn)));
@@ -356,6 +430,28 @@ public class AgentRuntime implements AgentExecutionEngine {
 
         if (context.getPageContext() != null && !context.getPageContext().isEmpty()) {
             prompt.append("\n\n## 当前页面上下文\n```json\n").append(context.getPageContext()).append("\n```");
+        }
+
+        // D2 发起会话迭代：本会话画布基于某个已有工作流的落版复制而来。
+        // 不注入这条信息，模型只能从 pageContext 猜编码（实测会拿会话 key 当 workflowCode 瞎查）
+        try {
+            cn.boommanpro.gaia.workflow.infra.manage.entity.AgentArtifact wfArtifact =
+                artifactStore.getLatest(context.getSessionKey(), "workflow");
+            if (wfArtifact != null && wfArtifact.getSummary() != null) {
+                java.util.regex.Matcher matcher =
+                    java.util.regex.Pattern.compile("wf_[a-zA-Z0-9_]+").matcher(wfArtifact.getSummary());
+                if (matcher.find()) {
+                    String boundCode = matcher.group();
+                    prompt.append("\n\n## 当前会话绑定的工作流")
+                        .append("\n本会话的画布草稿基于已有工作流 `").append(boundCode)
+                        .append("` 迭代（").append(wfArtifact.getSummary()).append("）。")
+                        .append("\n- 修改后落版：直接用 manage(action=saveWorkflow) 保存当前画布草稿，无需指定 workflowCode")
+                        .append("\n- 查询详情：workflowCode 是 `").append(boundCode)
+                        .append("`；**不要**把会话 key 当作工作流编码");
+                }
+            }
+        } catch (Exception e) {
+            log.debug("[agent-runtime] inject bound workflow context failed: {}", e.getMessage());
         }
 
         String dynamicContext = contextProviderRegistry.assemble(

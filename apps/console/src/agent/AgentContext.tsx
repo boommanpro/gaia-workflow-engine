@@ -196,6 +196,7 @@ export function convertMessages(msgs: AgentMessage[]): DisplayMessage[] {
     }
     if (msg.role === 'assistant') {
       if (!group) group = { firstId: `msg-${msg.id}`, ts, contents: [], thinkings: [], steps: [] };
+      if (msg.thinking) group.thinkings.push(msg.thinking);
       if (msg.content) group.contents.push(msg.content);
       if (msg.toolCalls) {
         try {
@@ -461,6 +462,16 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     // 快速切换时旧请求晚到还会把别段会话的内容盖进当前对话框（跨会话串数据）
     setMessages([]);
     liveAssistantIdRef.current = null;
+    // 运行状态机是全局单例，必须随会话切换复位：
+    // processingRef/queue 不复位时，旧会话挂起的运行/确认会把新会话的消息吞进队列永不发送
+    // （实测：旧会话确认门禁挂起期间切会话，新会话首条消息只入队不执行）；
+    // streaming/pendingConfirm 不复位时，旧会话的确认卡会弹在别的会话页面上。
+    // 若旧会话 run 仍在进行，切回时订阅回放快照会重建 streaming/确认状态（关窗继续语义不变）。
+    messageQueueRef.current = [];
+    processingRef.current = false;
+    setQueueLength(0);
+    setStreaming(false);
+    setPendingConfirm(null);
     // 画布文档是模块级单例，切会话必须清空：否则上一段会话的工作流画布
     // 会残留在产物面板里，误导用户以为是当前会话的产物
     workflowDocumentStore.clear();
@@ -478,6 +489,20 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   }, [currentSessionKey]);
 
   // 会话切换时从 localStorage 和后端 DB 加载调试历史
+  const refreshDebugData = useCallback((sessionKey: string) => {
+    agentApi.getDebugData(sessionKey).then((data) => {
+      if (data && data.trim()) {
+        try {
+          const parsed = JSON.parse(data);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setDebugEntries(parsed);
+            localStorage.setItem(`agent-debug-${sessionKey}`, data);
+          }
+        } catch { /* ignore */ }
+      }
+    }).catch(() => {});
+  }, []);
+
   useEffect(() => {
     if (!currentSessionKey) {
       setDebugEntries([]);
@@ -494,20 +519,11 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     } catch {
       setDebugEntries([]);
     }
-    agentApi.getDebugData(currentSessionKey).then((data) => {
-      if (data && data.trim()) {
-        try {
-          const parsed = JSON.parse(data);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setDebugEntries(parsed);
-            localStorage.setItem(`agent-debug-${currentSessionKey}`, data);
-          }
-        } catch { /* ignore */ }
-      }
-    }).catch(() => {});
-  }, [currentSessionKey]);
+    refreshDebugData(currentSessionKey);
+  }, [currentSessionKey, refreshDebugData]);
 
   // 调试信息变更时持久化到 localStorage + 后端 DB（debounced）
+  // 依赖里带上 currentSessionKey：切换会话时取消旧会话的挂起写入，防止把 A 会话的条目写进 B
   const debugSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!currentSessionKey || debugEntries.length === 0) return;
@@ -529,7 +545,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         clearTimeout(debugSaveTimerRef.current);
       }
     };
-  }, [debugEntries]);
+  }, [debugEntries, currentSessionKey]);
 
   const setToolExecutor = useCallback((executor: ToolExecutor) => {
     toolExecutorRef.current = executor;
@@ -1030,6 +1046,8 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         liveAssistantIdRef.current = null;
         setStreaming(false);
         reloadMessages(sessionKey);
+        // 后端 run 收尾时才把调用日志写入 debug_data（在 done 事件之后），稍等片刻再拉取
+        setTimeout(() => refreshDebugData(sessionKey), 1200);
         // 队列里还有消息则继续
         processingRef.current = false;
         setQueueLength(messageQueueRef.current.length);
@@ -1045,6 +1063,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
           { id: nanoid(), role: 'assistant', content: `[错误] ${msg}`, timestamp: Date.now() },
         ]);
         reloadMessages(sessionKey);
+        setTimeout(() => refreshDebugData(sessionKey), 1200);
         processingRef.current = false;
         setQueueLength(messageQueueRef.current.length);
         void drainQueue();

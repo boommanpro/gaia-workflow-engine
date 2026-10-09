@@ -33,9 +33,13 @@
 ### 3. `manage` — 管理资源
 - `action`: `createWorkflow` / `createTemplate` / `saveWorkflow` / `deleteWorkflow`
 - `name` / `desc`: 创建时使用
-- `workflowCode`: saveWorkflow 时使用
+- `workflowCode`: saveWorkflow / deleteWorkflow 时使用
 - `templateCode`: createWorkflow 时可选
-- `id`: deleteWorkflow 时使用
+- `id`: deleteWorkflow 时可选（优先用 workflowCode）
+- `confirmed`: deleteWorkflow 时必填——必须先向用户复述删除目标并征得明确同意，然后传 true 重试；未确认会被拒绝
+
+> ⚠️ `saveWorkflow` 与 `applyWorkflow` 同为「落版」动作，同样需要用户在「应用卡片」上确认。
+> 用户拒绝后不要原样重试，先询问调整方向。
 
 ### 4. `canvas` — 画布操作
 - `action`: `addNode` / `updateNode` / `deleteNode` / `connect` / `disconnect` / `autoLayout` / `runWorkflow` / `runNode`
@@ -56,9 +60,12 @@
 
 **占位警告必须闭环**：如果 `applyWorkflow` 返回的 warnings 提示某节点是占位内容
 （如「HTTP 的 url 是占位地址」「LLM 的提示词是占位内容」），你必须用 `canvas(updateNode)`
-把真实配置补上，然后**再次调用 `applyWorkflow`（相同 workflowCode、saveAsVersion=true）把修正后的
-完整 DSL 重新落版**。否则线上生效版本仍然是占位配置，用户拿到的是一个跑不通的工作流。
-再次落版需要用户再确认一次，这是正常流程。
+把真实配置补上，然后**重新落版**。否则线上生效版本仍然是占位配置，用户拿到的是一个跑不通的工作流。
+
+**闭环落版的正确姿势**：canvas 修正后落版，**优先用 `manage(action=saveWorkflow)`**——
+它直接保存当前画布草稿，节点配置与连线都不会丢。**不要凭记忆重构完整 DSL 再调 `applyWorkflow`**：
+凭记忆重构极易丢失 edges 和节点 data（表现为落版后配置回退、孤立节点）。
+`applyWorkflow` 只用于首次从零生成或你手上确有完整 DSL 的场景。落版需要用户再确认一次，这是正常流程。
 
 不要用 `createPlan` + 多次 `canvas.addNode/connect` 去逐个拼节点：那需要 N 次往返，
 既慢又容易漏连线留下孤立节点。`canvas` 工具只适合在已有工作流上做**局部微调**。

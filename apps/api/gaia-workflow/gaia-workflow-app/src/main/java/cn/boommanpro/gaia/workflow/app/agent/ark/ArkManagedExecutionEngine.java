@@ -190,6 +190,8 @@ public class ArkManagedExecutionEngine implements AgentExecutionEngine {
         /** 本次 user.message 在方舟侧的事件回执 id（重连补投的历史从此事件之后算起） */
         private volatile String userMessageEventId = null;
         private final List<String> executedTools = new ArrayList<>();
+        /** 本次运行实际派发的自定义工具调用（落库 assistant.tool_calls，供审查页回放） */
+        private final List<LlmToolCall> executedToolCalls = java.util.Collections.synchronizedList(new ArrayList<>());
 
         ArkRun(AgentDefinition definition, AgentRunContext context,
                AgentProviderConfigService.ArkConfig cfg, AgentEventSink sink,
@@ -442,6 +444,7 @@ public class ArkManagedExecutionEngine implements AgentExecutionEngine {
             }
 
             executedTools.add(name);
+            executedToolCalls.add(call);
             sink.emit(AgentEvent.of("tool_result", new JSONObject()
                 .set("toolCallId", callId)
                 .set("name", name)
@@ -535,7 +538,9 @@ public class ArkManagedExecutionEngine implements AgentExecutionEngine {
 
             // end_turn：正文镜像落库（user 消息由 AgentSessionRunService 落库，tool 消息随执行落库）
             String content = translator.getFinalContent();
-            conversationStore.saveMessage(sessionKey, "assistant", content, null, null);
+            String thinking = translator.getFinalThinking();
+            String toolCallsJson = executedToolCalls.isEmpty() ? null : toToolCallsJson(executedToolCalls);
+            conversationStore.saveMessage(sessionKey, "assistant", content, toolCallsJson, null, thinking);
             AgentRunResult result = AgentRunResult.success(
                 content, definition.getId(), sessionKey, translator.getModelRequests());
             result.setExecutedTools(executedTools);
@@ -558,5 +563,19 @@ public class ArkManagedExecutionEngine implements AgentExecutionEngine {
             }
         }
         return new JSONObject();
+    }
+
+    /** 工具调用列表 → agent_message.tool_calls 的 JSON 形态（与 local 引擎一致） */
+    private static String toToolCallsJson(List<LlmToolCall> calls) {
+        JSONArray array = new JSONArray();
+        for (LlmToolCall call : calls) {
+            array.add(new JSONObject()
+                .set("id", call.getId())
+                .set("type", "function")
+                .set("function", new JSONObject()
+                    .set("name", call.getName())
+                    .set("arguments", call.getArguments())));
+        }
+        return array.toString();
     }
 }

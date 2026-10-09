@@ -4,8 +4,8 @@
  * 这里的关键态度：**画布是产物的渲染端，不是宿主**。
  * 数据来自 WorkflowDocumentStore（headless DSL），画布只是把它画出来。
  */
-import React, { Component, type ErrorInfo, type ReactNode } from 'react';
-import { EditorRenderer, FreeLayoutEditorProvider } from '@flowgram.ai/free-layout-editor';
+import React, { Component, useEffect, type ErrorInfo, type ReactNode } from 'react';
+import { useClientContext, EditorRenderer, FreeLayoutEditorProvider } from '@flowgram.ai/free-layout-editor';
 
 import { useEditorProps } from '../../hooks';
 import { nodeRegistries } from '../../nodes';
@@ -53,12 +53,36 @@ class CanvasBoundary extends Component<{ children: ReactNode }, { failed: boolea
   }
 }
 
+/** 落版/产物画布首帧渲染后自动取景：节点默认坐标在原点附近，不 fitView 会缩在角落甚至视野外。
+ *  用 document.fitView（与编辑器 reload 后取景同一路径），首帧时机不定，多时间点兜底重试。 */
+const CanvasFit: React.FC = () => {
+  const ctx = useClientContext();
+  useEffect(() => {
+    let cancelled = false;
+    const fit = () => {
+      if (cancelled) return;
+      try {
+        ctx.document.fitView();
+      } catch {
+        // 画布尚未就绪时忽略
+      }
+    };
+    const timers = [200, 600, 1400].map((d) => setTimeout(fit, d));
+    return () => {
+      cancelled = true;
+      timers.forEach(clearTimeout);
+    };
+  }, [ctx]);
+  return null;
+};
+
 const CanvasInner: React.FC<ReadonlyCanvasProps> = ({ dsl }) => {
   // flowgram 只在初始化时消费 initialData，产物变化时用 remount 强制重载
   const editorProps = useEditorProps(dsl as unknown as FlowDocumentJSON, nodeRegistries, true);
 
   return (
     <FreeLayoutEditorProvider {...editorProps}>
+      <CanvasFit />
       <div style={{ width: '100%', height: '100%', background: 'var(--g-bg-sunken)' }}>
         <EditorRenderer />
       </div>

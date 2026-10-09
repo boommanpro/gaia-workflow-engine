@@ -113,6 +113,7 @@ CREATE TABLE IF NOT EXISTS agent_message (
     role VARCHAR(16) NOT NULL,
     content TEXT,
     tool_calls TEXT,
+    thinking TEXT,
     tool_call_id VARCHAR(64),
     page_context TEXT,
     created_at TEXT

@@ -84,6 +84,12 @@ public class ArkEventTranslator {
         return messageBuffer.toString();
     }
 
+    /** 运行结束时的思考过程累计（落库供审查页回放；无思考返回 null） */
+    public String getFinalThinking() {
+        String thinking = thinkingBuffer.toString();
+        return thinking.isEmpty() ? null : thinking;
+    }
+
     /** 已完成的模型请求次数 */
     public int getModelRequests() {
         return modelRequests;

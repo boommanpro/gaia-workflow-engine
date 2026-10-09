@@ -1,6 +1,8 @@
 package cn.boommanpro.gaia.workflow.app.agent.tool.impl;
 
 import cn.boommanpro.gaia.workflow.app.agent.core.AgentRunContext;
+import cn.boommanpro.gaia.workflow.app.agent.core.ToolPolicyService;
+import cn.boommanpro.gaia.workflow.app.agent.llm.LlmToolCall;
 import cn.boommanpro.gaia.workflow.app.agent.session.SessionWorkflowDraftService;
 import cn.boommanpro.gaia.workflow.app.agent.tool.ToolExecutor;
 import cn.boommanpro.gaia.workflow.app.agent.tool.ToolResult;
@@ -33,15 +35,18 @@ public class ManageToolExecutor implements ToolExecutor {
     private final GaiaWorkflowTemplateAppService templateService;
     private final SessionWorkflowDraftService draftService;
     private final WorkflowDslApplyService dslApplyService;
+    private final ToolPolicyService toolPolicyService;
 
     public ManageToolExecutor(GaiaWorkflowService workflowService,
                               GaiaWorkflowTemplateAppService templateService,
                               SessionWorkflowDraftService draftService,
-                              WorkflowDslApplyService dslApplyService) {
+                              WorkflowDslApplyService dslApplyService,
+                              ToolPolicyService toolPolicyService) {
         this.workflowService = workflowService;
         this.templateService = templateService;
         this.draftService = draftService;
         this.dslApplyService = dslApplyService;
+        this.toolPolicyService = toolPolicyService;
     }
 
     @Override
@@ -120,19 +125,27 @@ public class ManageToolExecutor implements ToolExecutor {
 
     private ToolResult deleteWorkflow(JSONObject args) {
         Long id = args.getLong("id");
-        if (id == null) {
-            String code = args.getStr("workflowCode");
-            if (code == null || code.isEmpty()) {
-                return ToolResult.fail("{\"error\":\"id or workflowCode is required\"}", "缺少删除目标");
-            }
-            boolean removed = workflowService.remove(
-                new QueryWrapper<GaiaWorkflow>().eq("workflow_code", code));
-            return removed
-                ? ToolResult.ok("{\"success\":true}", "已删除工作流 " + code)
+        String code = args.getStr("workflowCode");
+        if (id == null && (code == null || code.isEmpty())) {
+            return ToolResult.fail("{\"error\":\"id or workflowCode is required\"}", "缺少删除目标");
+        }
+        // 删除不可逆：必须先拿到用户在对话中的明确确认（模型询问用户后带 confirmed=true 重试）
+        if (!Boolean.TRUE.equals(args.getBool("confirmed"))) {
+            return ToolResult.rejected(new JSONObject()
+                .set("error", "confirmation_required")
+                .set("message", "删除工作流不可恢复。请先向用户复述要删除的工作流并征求明确同意，"
+                    + "用户同意后再次调用本工具并传入 confirmed=true。")
+                .toString(), "删除工作流需要用户明确确认");
+        }
+        if (id != null) {
+            return workflowService.removeById(id)
+                ? ToolResult.ok("{\"success\":true}", "已删除工作流 " + id)
                 : ToolResult.fail("{\"error\":\"workflow not found\"}", "工作流不存在");
         }
-        return workflowService.removeById(id)
-            ? ToolResult.ok("{\"success\":true}", "已删除工作流 " + id)
+        boolean removed = workflowService.remove(
+            new QueryWrapper<GaiaWorkflow>().eq("workflow_code", code));
+        return removed
+            ? ToolResult.ok("{\"success\":true}", "已删除工作流 " + code)
             : ToolResult.fail("{\"error\":\"workflow not found\"}", "工作流不存在");
     }
 
@@ -140,6 +153,10 @@ public class ManageToolExecutor implements ToolExecutor {
      * saveWorkflow：把当前会话的服务端画布草稿落为一个生效版本。
      * 后端自治模式下「画布」即 {@link SessionWorkflowDraftService} 的草稿文档，
      * 与 applyWorkflow 共用同一条 {@link WorkflowDslApplyService} 落版链路。
+     *
+     * <p>落版是人机交接点：本动作与 applyWorkflow 同样走确认门禁
+     * （会话级/全局对 saveWorkflow 配置的策略优先；默认 confirm），
+     * 否则模型可以在用户确认 applyWorkflow 后又用 saveWorkflow 无门禁落版，绕过门禁语义。</p>
      */
     private ToolResult saveWorkflow(JSONObject args, AgentRunContext context) {
         String workflowCode = args.getStr("workflowCode");
@@ -148,6 +165,21 @@ public class ManageToolExecutor implements ToolExecutor {
         if (nodes == null || nodes.isEmpty()) {
             return ToolResult.fail("{\"error\":\"当前画布为空，请先构建节点\"}",
                 "当前画布为空，请先构建节点");
+        }
+        // 确认门禁：策略解析 saveWorkflow（会话级 > 全局），无覆盖时默认 confirm
+        String policy = toolPolicyService.resolvePolicy(context.getSessionKey(), "saveWorkflow");
+        String effective = policy == null || policy.isEmpty() ? "confirm" : policy;
+        LlmToolCall syntheticCall = LlmToolCall.builder()
+            .id("save-" + System.currentTimeMillis())
+            .name("saveWorkflow")
+            .arguments(args.toString())
+            .build();
+        if ("forbid".equals(effective)) {
+            return ToolResult.rejected("该操作已被权限策略禁止");
+        }
+        if ("confirm".equals(effective)
+            && !toolPolicyService.decideConfirm(context, syntheticCall, context.getSink())) {
+            return ToolResult.rejected("用户未确认保存该版本");
         }
         if (workflowCode == null || workflowCode.isEmpty()) {
             workflowCode = "wf_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
@@ -168,13 +200,21 @@ public class ManageToolExecutor implements ToolExecutor {
 
         log.info("[tool:manage] saved workflow {} → {} ({} nodes)",
             workflowCode, result.getVersionNumber(), result.getNodeCount());
-        return ToolResult.ok(new JSONObject()
+        // warnings/repairs 必须随回执透传：占位内容不闭环模型就不知道要修（与 applyWorkflow 同一语义）
+        JSONObject payload = new JSONObject()
             .set("success", true)
             .set("workflowCode", workflowCode)
             .set("versionNumber", result.getVersionNumber())
             .set("versionId", result.getVersionId())
-            .set("nodeCount", result.getNodeCount())
-            .toString(), "已保存工作流 " + workflowCode + " " + result.getVersionNumber());
+            .set("nodeCount", result.getNodeCount());
+        if (result.getRepairs() != null && !result.getRepairs().isEmpty()) {
+            payload.set("repairs", result.getRepairs());
+        }
+        if (result.getWarnings() != null && !result.getWarnings().isEmpty()) {
+            payload.set("warnings", result.getWarnings());
+        }
+        return ToolResult.ok(payload.toString(),
+            "已保存工作流 " + workflowCode + " " + result.getVersionNumber());
     }
 
     private static String shortId() {

@@ -23,6 +23,7 @@ public class SchemaMigrationInitializer implements CommandLineRunner {
     private static final List<String[]> MIGRATIONS = Arrays.asList(
         new String[]{"agent_message", "images", "TEXT"},
         new String[]{"agent_message", "parent_message_id", "VARCHAR(64)"},
+        new String[]{"agent_message", "thinking", "TEXT"},
         new String[]{"agent_knowledge_chunk", "language", "VARCHAR(10) DEFAULT 'zh'"},
         new String[]{"agent_session", "debug_data", "TEXT"},
         // 工作空间（Codex 风格三区）：旧库补充列
@@ -40,7 +41,12 @@ public class SchemaMigrationInitializer implements CommandLineRunner {
         new String[]{"agent_session", "remote_session_id", "VARCHAR(128)"},
         new String[]{"agent_session", "remote_agent_id", "VARCHAR(128)"},
         new String[]{"agent_session", "remote_agent_version", "INTEGER"},
-        new String[]{"agent_session", "token_usage", "TEXT"}
+        new String[]{"agent_session", "token_usage", "TEXT"},
+        // API 调用看板（对话创建 API 模式）：旧库缺列会导致运行日志写入 500
+        new String[]{"gaia_workflow_log", "invoke_channel", "VARCHAR(32)"},
+        new String[]{"gaia_workflow_log", "api_path", "VARCHAR(128)"},
+        new String[]{"gaia_workflow_log", "api_key_prefix", "VARCHAR(32)"},
+        new String[]{"gaia_workflow_log", "created_at", "TEXT"}
     );
 
     private final DataSource dataSource;

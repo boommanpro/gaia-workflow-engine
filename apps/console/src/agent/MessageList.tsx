@@ -414,6 +414,23 @@ export const MessageItem: React.FC<{
           wordBreak: 'break-word',
         }}
       >
+        {/* 思考过程（持久化的 reasoning 输出，折叠展示；与对话页 ChatMessageList 样式一致） */}
+        {!isUser && message.thinking && (
+          <details
+            style={{
+              marginBottom: 6,
+              padding: '6px 10px',
+              borderRadius: 8,
+              border: '1px dashed #d0d0d8',
+              background: 'rgba(0,0,0,0.03)',
+              fontSize: 12,
+              color: 'var(--g-text-sub, #666)',
+            }}
+          >
+            <summary style={{ cursor: 'pointer', userSelect: 'none' }}>思考过程</summary>
+            <div style={{ whiteSpace: 'pre-wrap', marginTop: 6, lineHeight: 1.6 }}>{message.thinking}</div>
+          </details>
+        )}
         {isUser ? (
           <span style={{ whiteSpace: 'pre-wrap' }}>{message.content}</span>
         ) : (

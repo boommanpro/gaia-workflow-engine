@@ -24,6 +24,12 @@ public class LlmChatResponse {
     @Builder.Default
     private List<LlmToolCall> toolCalls = new ArrayList<>();
 
+    /** 思考过程累计（模型 reasoning 输出；仅展示用，不进下一轮上下文） */
+    private String thinking;
+
+    /** 实际使用的模型名（调试日志用） */
+    private String model;
+
     /** 耗时毫秒 */
     private long durationMs;
 

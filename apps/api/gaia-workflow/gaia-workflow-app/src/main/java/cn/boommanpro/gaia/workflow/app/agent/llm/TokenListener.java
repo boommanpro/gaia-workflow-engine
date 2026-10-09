@@ -8,4 +8,9 @@ package cn.boommanpro.gaia.workflow.app.agent.llm;
 public interface TokenListener {
 
     void onToken(String text);
+
+    /** 思考过程增量（模型 reasoning 输出，如 OpenAI 兼容协议的 reasoning_content）；默认忽略 */
+    default void onThinking(String text) {
+        // intentionally empty
+    }
 }

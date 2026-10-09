@@ -15,6 +15,7 @@
  * 切进来时对话历史和刚生成的工作流都还在，不是新开一局。
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Button, Popover, Tooltip } from '@douyinfe/semi-ui';
 import {
   IconPlus,
@@ -24,6 +25,7 @@ import {
 } from '@douyinfe/semi-icons';
 
 import { useAgent } from '../../agent/AgentContext';
+import { agentApi } from '../../agent/api';
 import SessionList from '../../agent/SessionList';
 import { AgentConfirmLayer } from '../../agent/ConfirmModal';
 import { useLanguage, t } from '../../i18n';
@@ -125,6 +127,27 @@ export const CopilotSidebar: React.FC<CopilotSidebarProps> = ({ workflowName, wo
     pendingBindRef.current = workflowCode;
     void createSession();
   }, [workflowCode, createSession]);
+
+  // 专家模式新会话物化后，把工作流当前落版种子进会话草稿。
+  // 不 seed 的话 AI 看到的是空画布，只能凭 workflowDetail 记忆盲重写整份 DSL
+  // （实测在 65s 内连落 9 个版本只为恢复原状）。仅对无消息的全新会话执行，
+  // 且每个会话只 seed 一次——旧会话可能已有 AI 修改过的草稿，覆盖会丢工作。
+  const location = useLocation();
+  const seededSessionRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!open || !workflowCode) return;
+    if (!currentSessionKey || currentSessionKey.startsWith('draft-')) return;
+    if (!/^\/(editor|template-editor)/.test(location.pathname)) return;
+    if (seededSessionRef.current === currentSessionKey) return;
+    seededSessionRef.current = currentSessionKey;
+    void (async () => {
+      try {
+        const msgs = await agentApi.getMessages(currentSessionKey);
+        if (msgs && msgs.length > 0) return;
+        await agentApi.seedDraft(currentSessionKey, workflowCode);
+      } catch { /* seed 失败不阻塞对话 */ }
+    })();
+  }, [open, workflowCode, currentSessionKey, bindingTick, location.pathname]);
 
   // 打开悬浮窗时，若这个工作流还没有归属的对话，自动创建并绑定一段对话 ——
   // 用户打开窗口直接输入发送即可，不再需要先点「为这个工作流开启一段对话」。

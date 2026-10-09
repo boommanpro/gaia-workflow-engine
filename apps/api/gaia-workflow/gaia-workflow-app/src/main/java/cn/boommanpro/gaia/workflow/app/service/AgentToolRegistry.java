@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Agent 工具注册中心
@@ -242,7 +243,10 @@ public class AgentToolRegistry {
     }
 
     /**
-     * 增量补齐工具定义：只补 DB 中缺失的工具，不动用户已修改过的既有定义。
+     * 增量补齐工具定义：缺失的建种；代码侧 schema 有变更的（description/parameters 不一致）
+     * 同步覆盖 DB —— 否则升级后新增参数（如 manage.confirmed）在老库上永远不生效，
+     * 模型看不到新参数导致行为退化。以 description/parameters 一致性为准，
+     * default_policy/enabled/sort_order 等用户可调字段不碰。
      */
     private void seedMissingTools() {
         JSONArray hardcoded = buildToolsSchema();
@@ -254,21 +258,36 @@ public class AgentToolRegistry {
         }
 
         int added = 0;
+        int updated = 0;
         for (Object item : hardcoded) {
             JSONObject tool = (JSONObject) item;
             JSONObject function = tool.getJSONObject("function");
             String name = function.getStr("name");
             if (name == null) continue;
-            long exists = toolDefinitionService.count(
+            String desc = function.getStr("description");
+            JSONObject params = function.getJSONObject("parameters");
+            String paramsJson = params != null ? params.toString() : new JSONObject().toString();
+
+            AgentToolDefinition existing = toolDefinitionService.getOne(
                 new QueryWrapper<AgentToolDefinition>().eq("tool_name", name));
-            if (exists > 0) continue;
+            if (existing != null) {
+                if (!Objects.equals(existing.getDescription(), desc)
+                    || !Objects.equals(existing.getParameters(), paramsJson)) {
+                    existing.setDescription(desc);
+                    existing.setParameters(paramsJson);
+                    existing.setUpdatedAt(LocalDateTime.now().toString());
+                    toolDefinitionService.updateById(existing);
+                    updated++;
+                    log.info("Synced tool definition from code: {} (description/parameters changed)", name);
+                }
+                continue;
+            }
 
             AgentToolDefinition def = new AgentToolDefinition();
             def.setToolName(name);
             def.setToolGroup(toolGroupOf(name));
-            def.setDescription(function.getStr("description"));
-            JSONObject params = function.getJSONObject("parameters");
-            def.setParameters(params != null ? params.toString() : new JSONObject().toString());
+            def.setDescription(desc);
+            def.setParameters(paramsJson);
             def.setDefaultPolicy(policies.getOrDefault(name, "confirm"));
             def.setEnabled(1);
             def.setSortOrder(++maxOrder);
@@ -280,6 +299,9 @@ public class AgentToolRegistry {
         }
         if (added > 0) {
             log.info("Seeded {} missing tool definition(s) into agent_tool_definition table", added);
+        }
+        if (updated > 0) {
+            log.info("Synced {} changed tool definition(s) from code", updated);
         }
     }
 
@@ -515,14 +537,15 @@ public class AgentToolRegistry {
         )));
 
         // ===== 3. 管理复合工具 =====
-        tools.add(func("manage", "管理资源。支持创建工作流、创建模板、保存工作流、删除工作流", obj(
+        tools.add(func("manage", "管理资源。支持创建工作流、创建模板、保存工作流、删除工作流。删除工作流不可逆：必须先向用户复述删除目标并征得明确同意，然后携带 confirmed=true 调用", obj(
             new String[]{"action"}, new JSONObject[]{
                 str("action", "管理操作", enumVal("createWorkflow", "createTemplate", "saveWorkflow", "deleteWorkflow")),
                 str("name", "名称（创建时使用）", null),
                 str("desc", "描述（创建时使用）", null),
-                str("workflowCode", "工作流编码（saveWorkflow时使用）", null),
+                str("workflowCode", "工作流编码（saveWorkflow/deleteWorkflow时使用）", null),
                 str("templateCode", "模板编码（createWorkflow时可选使用）", null),
-                str("id", "工作流ID（deleteWorkflow时使用）", null)
+                str("id", "工作流ID（deleteWorkflow时可选，优先用 workflowCode）", null),
+                str("confirmed", "deleteWorkflow 时必填：用户明确同意删除后传 true；未确认时工具会拒绝执行", null)
             }
         )));
 

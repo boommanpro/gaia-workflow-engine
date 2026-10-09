@@ -103,9 +103,11 @@ public class OpenAiCompatibleLlmProvider implements LlmProvider {
                 return LlmChatResponse.failed("LLM 调用失败: " + code + " " + err);
             }
 
-            return request.isStream()
+            LlmChatResponse response = request.isStream()
                 ? readStream(conn, listener, start)
                 : readJson(conn, start);
+            response.setModel(cfg.getModel());
+            return response;
         } catch (Exception e) {
             log.error("[llm] chat error", e);
             return LlmChatResponse.failed(e.getMessage());
@@ -189,6 +191,7 @@ public class OpenAiCompatibleLlmProvider implements LlmProvider {
     private LlmChatResponse readStream(HttpURLConnection conn, TokenListener listener, long start)
         throws Exception {
         StringBuilder content = new StringBuilder();
+        StringBuilder thinking = new StringBuilder();
         Map<Integer, JSONObject> toolCalls = new TreeMap<>();
 
         try (BufferedReader reader = new BufferedReader(
@@ -212,6 +215,15 @@ public class OpenAiCompatibleLlmProvider implements LlmProvider {
                     continue;
                 }
 
+                if (delta.containsKey("reasoning_content")) {
+                    String thought = delta.getStr("reasoning_content");
+                    if (thought != null && !thought.isEmpty()) {
+                        thinking.append(thought);
+                        if (listener != null) {
+                            listener.onThinking(thought);
+                        }
+                    }
+                }
                 if (delta.containsKey("content")) {
                     String token = delta.getStr("content");
                     if (token != null && !token.isEmpty()) {
@@ -225,7 +237,7 @@ public class OpenAiCompatibleLlmProvider implements LlmProvider {
             }
         }
 
-        return buildResponse(content.toString(), toolCalls, start);
+        return buildResponse(content.toString(), thinking.toString(), toolCalls, start);
     }
 
     private LlmChatResponse readJson(HttpURLConnection conn, long start) throws Exception {
@@ -237,6 +249,7 @@ public class OpenAiCompatibleLlmProvider implements LlmProvider {
         }
         JSONObject message = choices.getJSONObject(0).getJSONObject("message");
         String content = message.getStr("content", "");
+        String thinking = message.getStr("reasoning_content", null);
 
         Map<Integer, JSONObject> indexed = new TreeMap<>();
         JSONArray calls = message.getJSONArray("tool_calls");
@@ -246,7 +259,7 @@ public class OpenAiCompatibleLlmProvider implements LlmProvider {
             }
         }
         Map<Integer, JSONObject> toolCalls = new TreeMap<>(indexed);
-        return buildResponse(content, toolCalls, start);
+        return buildResponse(content, thinking, toolCalls, start);
     }
 
     private void accumulateToolCalls(JSONObject delta, Map<Integer, JSONObject> accumulated) {
@@ -286,6 +299,7 @@ public class OpenAiCompatibleLlmProvider implements LlmProvider {
     }
 
     private LlmChatResponse buildResponse(String content,
+                                          String thinking,
                                           Map<Integer, JSONObject> rawToolCalls,
                                           long start) {
         List<LlmToolCall> calls = new ArrayList<>();
@@ -306,6 +320,7 @@ public class OpenAiCompatibleLlmProvider implements LlmProvider {
         return LlmChatResponse.builder()
             .content(content)
             .toolCalls(calls)
+            .thinking(thinking != null && !thinking.isEmpty() ? thinking : null)
             .durationMs(System.currentTimeMillis() - start)
             .build();
     }
