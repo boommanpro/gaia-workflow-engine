@@ -57,44 +57,18 @@ public class AgentToolRegistry {
      * 并与默认模板深度合并，因此 LLM 只需填写关键字段。
      * 将此提示内联到工具定义中，使 AI 无需依赖知识库即可构造合法节点 data。
      */
+    /**
+     * 节点 data 参数的简短提示（嵌入 canvas/applyWorkflow 的 data 参数 description）。
+     * <p>完整字段说明放在系统提示词「data 参数填写规则」中 —— 实测把大段说明塞进
+     * JSON schema 的深层 description 会让弱模型直接放弃填 data（工具调用参数质量暴跌），
+     * 而系统提示词正文模型遵循得很好。</p>
+     */
     private static final String NODE_DATA_SCHEMA_HINT =
-        "节点数据（addNode/updateNode 时使用，只需填关键字段，系统自动合并默认模板并 normalize）。\n" +
-        "支持简化扁平写法，系统会自动转换为嵌套 inputsValues 结构。各类型关键字段：\n" +
-        "\n" +
-        "【llm】填 prompt/systemPrompt/temperature/modelName/apiKey/apiHost（扁平字符串/数字即可）。\n" +
-        "  prompt 和 systemPrompt 支持 Vue 模板语法引用上游输出：{{ nodeId.fieldName }}\n" +
-        "  示例：{\"prompt\":\"分析以下文本的情感：{{ start.text }}\",\"systemPrompt\":\"你是情感分析助手\",\"temperature\":0.3,\"modelName\":\"gpt-4o\"}\n" +
-        "\n" +
-        "【code】填 script 和 outputs。\n" +
-        "  script: {language:\"java\",content:\"return Map.of(\\\"result\\\", input.get(\\\"text\\\"));\"}\n" +
-        "  outputs: {type:\"object\",properties:{result:{type:\"string\"}}}\n" +
-        "\n" +
-        "【http】填 method/url/headers/body（扁平即可，自动 normalize）。\n" +
-        "  示例：{\"method\":\"POST\",\"url\":\"https://api.example.com\",\"headers\":{\"Content-Type\":\"application/json\"},\"body\":\"{\\\"key\\\":\\\"value\\\"}\"}\n" +
-        "\n" +
-        "【condition】填 conditions 数组，每项含 left/value/operator。\n" +
-        "  left 可用 ref 简写引用上游：{\"ref\":\"nodeId.fieldName\"}\n" +
-        "  示例：{\"conditions\":[{\"left\":{\"ref\":\"start.text\"},\"operator\":\"contains\",\"value\":\"好\"}]}\n" +
-        "\n" +
-        "【start】填 outputs 定义输出字段。\n" +
-        "  示例：{\"outputs\":{\"type\":\"object\",\"properties\":{\"text\":{\"type\":\"string\",\"description\":\"待分析文本\"}}}}\n" +
-        "\n" +
-        "【end】填 inputsValues 引用上游输出作为最终结果。\n" +
-        "  ref 格式：{type:\"ref\",content:[\"nodeId\",\"fieldName\"]}\n" +
-        "  示例：{\"inputsValues\":{\"result\":{\"type\":\"ref\",\"content\":[\"llm_1\",\"result\"]}}}\n" +
-        "\n" +
-        "【loop】填 loopFor（ref 数组）和 loopOutputs。\n" +
-        "  示例：{\"loopFor\":{\"type\":\"ref\",\"content\":[\"start\",\"items\"]}}\n" +
-        "\n" +
-        "【branches】填 branches 数组，每项含 conditions 和目标端口。\n" +
-        "\n" +
-        "【variable/string-format】填 inputsValues 和 outputs。\n" +
-        "  string-format 的 script.content 用 SpEL 表达式：如 \"'结果：' + #start.text\"\n" +
-        "\n" +
-        "引用上游节点输出的两种方式：\n" +
-        "1. ref 显式：{type:\"ref\",content:[\"nodeId\",\"field\"]}\n" +
-        "2. 简写：{ref:\"nodeId.field\"}（系统自动转换）\n" +
-        "3. 模板内联：在 prompt/systemPrompt 中用 {{ nodeId.field }}";
+        "节点业务数据，扁平写字段即可，系统自动 normalize。"
+        + "llm 例：{\"prompt\":\"总结：{{ start.text }}\"}；"
+        + "http 例：{\"method\":\"GET\",\"url\":\"https://...\"}；"
+        + "code 填 {\"script\":{\"language\":\"java\",\"content\":\"return ...;\"}}。"
+        + "各类型完整字段说明见系统提示词「data 参数填写规则」一节。";
 
     public AgentToolRegistry(AgentToolDefinitionService toolDefinitionService,
                              AgentConfigService configService) {
@@ -510,7 +484,9 @@ public class AgentToolRegistry {
         policies.put("query", "always");
         policies.put("manage", "always");
         policies.put("canvas", "always");
-        policies.put("applyWorkflow", "always");
+        // applyWorkflow 落版是人机交接点（agent-artifact-design.md D1）：
+        // 走 confirm 门禁，具体模式由 agent.policy.apply_confirm_mode 控制（默认 require）
+        policies.put("applyWorkflow", "confirm");
         policies.put("createPlan", "always");
         policies.put("executeStep", "always");
         return policies;

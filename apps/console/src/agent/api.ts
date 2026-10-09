@@ -95,12 +95,21 @@ export const agentApi = {
   /** 当前服务端画布草稿（会话切换时恢复产物渲染） */
   getSessionDocument: (sessionKey: string) =>
     request<any>(`/agent/session/${sessionKey}/document`),
+  /** 会话产物列表（workflow / plan / test_report / release） */
+  getArtifacts: (sessionKey: string) =>
+    request<import('./types').AgentArtifactDto[]>(`/agent/session/${sessionKey}/artifacts`),
   /** 确认 / 拒绝一次等待中的工具调用（confirm require 模式） */
   confirmTool: (sessionKey: string, toolCallId: string, approved: boolean) =>
     request<{ success: boolean; error?: string }>(`/agent/session/${sessionKey}/confirm`, {
       method: 'POST',
       body: JSON.stringify({ toolCallId, approved }),
     }),
+  /** 基于工作流当前落版初始化会话草稿（「基于工作流迭代」入口） */
+  seedDraft: (sessionKey: string, workflowCode: string) =>
+    request<{ success: boolean; versionNumber?: string; nodeCount?: number; error?: string }>(
+      `/agent/session/${sessionKey}/seed-draft`,
+      { method: 'POST', body: JSON.stringify({ workflowCode }) },
+    ),
 
   // 调试信息持久化
   saveDebugData: (sessionKey: string, debugData: string) =>

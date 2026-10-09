@@ -216,6 +216,14 @@ public class AgentRuntime implements AgentExecutionEngine {
                 break;
             }
 
+            // 连续相同失败熔断：不再带着失败记录进入下一轮空转
+            if (Boolean.TRUE.equals(context.getAttribute("forceStop", Boolean.class))) {
+                finalContent = "AI 连续多次提交了相同且无法通过校验的工具调用，本次执行已自动终止，避免无意义空转。"
+                    + "请换个方式描述你的需求，或直接告诉 AI 缺少的关键信息。";
+                completed = true;
+                break;
+            }
+
             // 本地全部执行完，带着工具结果进入下一轮推理
         }
 
@@ -242,6 +250,7 @@ public class AgentRuntime implements AgentExecutionEngine {
             .set("executedBy", "backend")));
 
         // 策略门禁：forbid → 拒绝；confirm → 按配置决策（auto-approve / auto-reject / require）
+        Optional<ToolExecutor> executor = toolExecutorRegistry.get(call.getName());
         String policy = toolPolicyService.resolvePolicy(context.getSessionKey(), call.getName());
         if ("forbid".equals(policy)) {
             ToolResult rejected = ToolResult.rejected("该操作已被权限策略禁止");
@@ -253,6 +262,22 @@ public class AgentRuntime implements AgentExecutionEngine {
             return rejected;
         }
         if ("confirm".equals(policy)) {
+            // 弹确认卡之前先做无副作用预校验：参数非法直接回传模型补全，不消耗用户确认
+            if (executor.isPresent()) {
+                try {
+                    ToolResult pre = executor.get().preValidate(args);
+                    if (pre != null) {
+                        sink.emit(AgentEvent.of("tool_result", new JSONObject()
+                            .set("toolCallId", call.getId())
+                            .set("name", call.getName())
+                            .set("rejected", pre.isRejected())
+                            .set("payload", pre.getPayload())));
+                        return pre;
+                    }
+                } catch (Exception e) {
+                    log.warn("[agent-runtime] preValidate {} threw: {}", call.getName(), e.getMessage());
+                }
+            }
             boolean approved = toolPolicyService.decideConfirm(context, call, sink);
             if (!approved) {
                 ToolResult rejected = ToolResult.rejected("用户未确认该操作");
@@ -265,7 +290,6 @@ public class AgentRuntime implements AgentExecutionEngine {
             }
         }
 
-        Optional<ToolExecutor> executor = toolExecutorRegistry.get(call.getName());
         if (!executor.isPresent()) {
             ToolResult failure = ToolResult.unavailable("工具 " + call.getName() + " 没有后端执行器");
             sink.emit(AgentEvent.of("tool_result", new JSONObject()
@@ -279,6 +303,24 @@ public class AgentRuntime implements AgentExecutionEngine {
         } catch (Exception e) {
             log.warn("[agent-runtime] tool {} threw: {}", call.getName(), e.getMessage());
             result = ToolResult.fail("{\"error\":\"" + e.getMessage() + "\"}", "工具执行异常");
+        }
+
+        // 连续失败熔断：弱模型容易反复提交非法参数空转（实测连发 7~10 次），
+        // 同一工具连续失败 4 次即强制终止本轮 run，把死循环转化为对用户的明确说明。
+        if (!result.isSuccess()) {
+            Integer streak = context.getAttribute("failStreak:" + call.getName(), Integer.class);
+            int next = streak != null ? streak + 1 : 1;
+            context.setAttribute("failStreak:" + call.getName(), next);
+            if (next >= 4) {
+                log.warn("[agent-runtime] session {} tool {} failed {} times in a row, aborting run",
+                    context.getSessionKey(), call.getName(), next);
+                context.setAttribute("forceStop", Boolean.TRUE);
+                result = ToolResult.fail(
+                    "{\"error\":\"连续 " + next + " 次调用失败，本次执行已终止。\"}",
+                    "同一工具连续失败，已终止执行。请直接用正文向用户说明需要哪些关键信息，不要再重试。");
+            }
+        } else {
+            context.setAttribute("failStreak:" + call.getName(), 0);
         }
 
         sink.emit(AgentEvent.of("tool_result", new JSONObject()

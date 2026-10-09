@@ -128,12 +128,15 @@ export const ConfirmModal: React.FC<{
   );
 };
 
-/** 便捷版：自己从 context 取 pendingConfirm，直接渲染（无待确认时为 null） */
+/** 便捷版：自己从 context 取 pendingConfirm，直接渲染（无待确认时为 null）。
+ *  applyWorkflow 例外：它的确认在对话流内的「应用卡片」上完成（ChatMessageList），
+ *  这里再弹遮罩会造成两套确认 UI 打架。 */
 export const AgentConfirmLayer: React.FC<{ position?: 'absolute' | 'fixed' }> = ({
   position,
 }) => {
   const { pendingConfirm, resolveConfirm } = useAgent();
   if (!pendingConfirm) return null;
+  if (pendingConfirm.action === 'applyWorkflow') return null;
   return <ConfirmModal event={pendingConfirm} onResolve={resolveConfirm} position={position} />;
 };
 

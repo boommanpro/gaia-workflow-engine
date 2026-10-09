@@ -20,6 +20,7 @@ import { nanoid } from 'nanoid';
 
 import { agentApi } from './api';
 import { subscribeSessionEvents } from './sse-client';
+import { artifactStore } from './artifact-store';
 import { getCurrentLocale } from '../i18n';
 import { getCanvasContext } from './tools';
 import { WorkflowDocument, workflowDocumentStore } from '../document';
@@ -33,6 +34,7 @@ import type {
   ActivePlan,
   WorkFolder,
   SseHandlers,
+  AgentArtifactDto,
 } from './types';
 
 /** 工具执行器接口（由 AgentDock 注入；后端自治模式下不再被对话循环使用） */
@@ -117,9 +119,13 @@ export function useAgent(): AgentContextValue {
   return ctx;
 }
 
-/** 后端消息 → 前端展示消息 */
+/** 后端消息 → 前端展示消息。
+ *
+ * 对话维度合并（DeepSeek 式单条回复）：后端按轮次落库（assistant 行 + tool 行），
+ * 前端以 user 行为界把一次 run 的所有行合并成**一条**助手回复——
+ * 多轮的正文拼接为正文，工具调用收进 toolSteps 在消息内折叠展示。 */
 export function convertMessages(msgs: AgentMessage[]): DisplayMessage[] {
-  // 先建立 tool_call_id → tool 结果 content 映射，用于回填 toolCall.result
+  // 先建立 tool_call_id → tool 结果 content 映射，用于回填工具步骤结果
   const toolResultMap = new Map<string, string>();
   for (const msg of msgs) {
     if (msg.role === 'tool' && msg.toolCallId) {
@@ -127,10 +133,51 @@ export function convertMessages(msgs: AgentMessage[]): DisplayMessage[] {
     }
   }
 
+  interface RunGroup {
+    firstId: string;
+    ts: number;
+    contents: string[];
+    thinkings: string[];
+    steps: ToolCallEvent[];
+  }
   const result: DisplayMessage[] = [];
+  let group: RunGroup | null = null;
+
+  const flush = () => {
+    if (!group) return;
+    const g = group;
+    group = null;
+    const content = g.contents.filter(Boolean).join('\n\n');
+    const thinking = g.thinkings.filter(Boolean).join('\n\n');
+    if (!content && !thinking && g.steps.length === 0) return;
+
+    let planSteps: DisplayMessage['planSteps'];
+    const planStep = g.steps.find((s) => s.action === 'createPlan');
+    if (planStep && Array.isArray((planStep.args as any)?.steps)) {
+      planSteps = ((planStep.args as any).steps as any[]).map((s: any, idx: number) => ({
+        id: `plan-restored-${planStep.id}-${idx}`,
+        intent: s.intent || s.description || `Step ${idx + 1}`,
+        action: s.action || 'unknown',
+        args: s.args || {},
+        status: 'done' as const,
+      }));
+    }
+
+    result.push({
+      id: `run-${g.firstId}`,
+      role: 'assistant',
+      content,
+      ...(thinking ? { thinking } : {}),
+      ...(g.steps.length ? { toolSteps: g.steps } : {}),
+      ...(planSteps ? { planSteps } : {}),
+      timestamp: g.ts,
+    });
+  };
+
   for (const msg of msgs) {
     const ts = msg.createdAt ? new Date(msg.createdAt).getTime() : Date.now();
     if (msg.role === 'user') {
+      flush();
       let images: string[] | undefined;
       if (msg.images) {
         try {
@@ -145,15 +192,11 @@ export function convertMessages(msgs: AgentMessage[]): DisplayMessage[] {
         images,
         timestamp: ts,
       });
-    } else if (msg.role === 'assistant') {
-      if (msg.content) {
-        result.push({
-          id: `msg-${msg.id}`,
-          role: 'assistant',
-          content: msg.content,
-          timestamp: ts,
-        });
-      }
+      continue;
+    }
+    if (msg.role === 'assistant') {
+      if (!group) group = { firstId: `msg-${msg.id}`, ts, contents: [], thinkings: [], steps: [] };
+      if (msg.content) group.contents.push(msg.content);
       if (msg.toolCalls) {
         try {
           const tcs = JSON.parse(msg.toolCalls);
@@ -162,85 +205,36 @@ export function convertMessages(msgs: AgentMessage[]): DisplayMessage[] {
             try {
               args = JSON.parse(tc.function?.arguments || '{}');
             } catch { /* ignore */ }
-            // 从映射中回填执行结果，使刷新后工具卡片显示正确状态（done/error）
             const toolResult = toolResultMap.get(tc.id);
-            const actionName = tc.function?.name || 'unknown';
-
-            // createPlan: 从 args.steps 重建 planSteps，使刷新后 PlanCard 仍能展示
-            let planSteps: DisplayMessage['planSteps'];
-            const argsMap = args as Record<string, any>;
-            if (actionName === 'createPlan' && Array.isArray(argsMap.steps)) {
-              planSteps = argsMap.steps.map((s: any, idx: number) => ({
-                id: `plan-restored-${msg.id}-${idx}`,
-                intent: s.intent || s.description || `Step ${idx + 1}`,
-                action: s.action || 'unknown',
-                args: s.args || {},
-                status: 'done' as const,
-              }));
-            }
-
-            result.push({
-              id: `msg-${msg.id}-tool-${tc.id}`,
-              role: 'tool',
-              content: '',
-              toolCall: {
-                id: tc.id,
-                action: actionName,
-                args,
-                policy: 'always',
-                result: toolResult !== undefined ? toolResult.substring(0, 200) : undefined,
-              },
-              planSteps,
-              timestamp: ts,
+            group.steps.push({
+              id: tc.id,
+              action: tc.function?.name || 'unknown',
+              args,
+              policy: 'always',
+              result: toolResult !== undefined ? toolResult.substring(0, 200) : undefined,
             });
           }
         } catch { /* ignore */ }
       }
-    } else if (msg.role === 'tool') {
-      // tool 结果已通过上面的映射回填到对应 toolCall.result，这里跳过单独渲染
-      // 仅当该 tool 消息没有对应 toolCallId 时（孤儿结果）才单独展示
-      if (!msg.toolCallId) {
+      continue;
+    }
+    if (msg.role === 'tool') {
+      // 工具结果已按 toolCallId 回填进对应 run 的 toolSteps；
+      // 只有孤儿结果（无 toolCallId）才单独成条
+      if (!msg.toolCallId && msg.content) {
+        flush();
         result.push({
           id: `msg-${msg.id}`,
           role: 'tool',
-          content: msg.content || '',
+          content: msg.content,
           timestamp: ts,
         });
       }
+      continue;
     }
   }
+  flush();
   return result;
-}
-
-/** 把一个后端 tool_call 事件 upsert 成工具卡片消息 */
-function upsertToolCard(prev: DisplayMessage[], event: ToolCallEvent): DisplayMessage[] {
-  const id = `toolcall-${event.id}`;
-  const existingIdx = prev.findIndex((m) => m.id === id);
-  if (existingIdx >= 0) {
-    const updated = [...prev];
-    updated[existingIdx] = { ...updated[existingIdx], toolCall: { ...updated[existingIdx].toolCall, ...event } };
-    return updated;
-  }
-  return [...prev, { id, role: 'tool', content: '', toolCall: event, timestamp: Date.now() }];
-}
-
-/** 用运行快照里的工具调用批量 upsert（订阅建立 / 重连时） */
-function upsertLiveToolCalls(
-  prev: DisplayMessage[],
-  calls: Array<{ id: string; name: string; args: any; status?: string; result?: string }>
-): DisplayMessage[] {
-  let next = prev;
-  for (const call of calls) {
-    if (!call?.id) continue;
-    next = upsertToolCard(next, {
-      id: call.id,
-      action: call.name,
-      args: call.args ?? {},
-      policy: 'always',
-      result: call.result ? call.result.substring(0, 200) : undefined,
-    });
-  }
-  return next;
 }
 
 /** 用后端 plan 事件 upsert PlanCard 消息 */
@@ -261,6 +255,56 @@ function upsertPlanCard(prev: DisplayMessage[], plan: { id: string; steps: any[]
     return updated;
   }
   return [...prev, { id, role: 'tool', content: '', planSteps, timestamp: Date.now() }];
+}
+
+/** 产物卡消息 id（live upsert 与历史重放共用，保证不重复渲染） */
+function artifactCardId(artifact: AgentArtifactDto): string {
+  return `artifact-${artifact.artifactKey}`;
+}
+
+/** 用产物事件 upsert 一张产物卡消息（test_report / release） */
+function upsertArtifactCard(prev: DisplayMessage[], artifact: AgentArtifactDto): DisplayMessage[] {
+  const id = artifactCardId(artifact);
+  const existingIdx = prev.findIndex((m) => m.id === id);
+  if (existingIdx >= 0) {
+    const updated = [...prev];
+    updated[existingIdx] = { ...updated[existingIdx], artifact };
+    return updated;
+  }
+  return [...prev, { id, role: 'tool', content: '', artifact, timestamp: Date.now() }];
+}
+
+/**
+ * 历史消息重放时，把会话产物里的 test_report / release 卡按时间戳插回消息流
+ * （后端 artifact 没有直接挂 messageId，用「插在最后一条更早的消息后面」归位；
+ * live 运行时的卡由 upsertArtifactCard 追加，两者通过同一消息 id 去重）。
+ */
+function placeArtifactCards(msgs: DisplayMessage[], artifacts: AgentArtifactDto[]): DisplayMessage[] {
+  if (!artifacts || artifacts.length === 0) return msgs;
+  const cardArts = artifacts.filter(
+    (a) => (a.type === 'test_report' || a.type === 'release') && !msgs.some((m) => m.id === artifactCardId(a))
+  );
+  if (cardArts.length === 0) return msgs;
+  let next = [...msgs];
+  for (const art of cardArts) {
+    const at = art.updatedAt ? new Date(art.updatedAt).getTime() : Date.now();
+    let insertAt = next.length;
+    for (let i = next.length - 1; i >= 0; i--) {
+      if (next[i].timestamp <= at) {
+        insertAt = i + 1;
+        break;
+      }
+    }
+    const card: DisplayMessage = {
+      id: artifactCardId(art),
+      role: 'tool',
+      content: '',
+      artifact: art,
+      timestamp: at,
+    };
+    next = [...next.slice(0, insertAt), card, ...next.slice(insertAt)];
+  }
+  return next;
 }
 
 /** 后端 navigate ui_action 参数 → 路由路径 */
@@ -286,6 +330,8 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   const [streaming, setStreaming] = useState(false);
   const [queueLength, setQueueLength] = useState(0);
   const [pendingConfirm, setPendingConfirm] = useState<ToolCallEvent | null>(null);
+  /** 订阅重启信号：草稿会话物化为真实会话时递增，强制 SSE 订阅 effect 重跑 */
+  const [sessionEpoch, setSessionEpoch] = useState(0);
   // 工作空间文件夹
   const [folders, setFolders] = useState<WorkFolder[]>([]);
 
@@ -407,13 +453,28 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     }).catch(() => {});
   }, []);
 
-  // 切换会话时加载消息和权限
+  // 切换会话时加载消息、权限和产物（artifact store 全量替换）
   useEffect(() => {
     if (!currentSessionKey) return;
-    agentApi.getMessages(currentSessionKey).then((msgs) => {
+    const sessionKey = currentSessionKey;
+    // 立刻清空上一段会话的消息：否则旧会话内容会一直显示到新请求返回，
+    // 快速切换时旧请求晚到还会把别段会话的内容盖进当前对话框（跨会话串数据）
+    setMessages([]);
+    liveAssistantIdRef.current = null;
+    // 画布文档是模块级单例，切会话必须清空：否则上一段会话的工作流画布
+    // 会残留在产物面板里，误导用户以为是当前会话的产物
+    workflowDocumentStore.clear();
+    agentApi.getMessages(sessionKey).then((msgs) => {
+      // 竞态 guard：只有仍是当前会话的响应才允许落地
+      if (currentSessionKeyRef.current !== sessionKey) return;
       setMessages(convertMessages(msgs || []));
     }).catch(() => {});
-    agentApi.getPermissions(currentSessionKey).then(setPermissions).catch(() => {});
+    agentApi.getPermissions(sessionKey).then(setPermissions).catch(() => {});
+    agentApi.getArtifacts(sessionKey).then((arts) => {
+      if (currentSessionKeyRef.current !== sessionKey) return;
+      artifactStore.setAll(sessionKey, arts || []);
+      setMessages((prev) => placeArtifactCards(prev, arts || []));
+    }).catch(() => {});
   }, [currentSessionKey]);
 
   // 会话切换时从 localStorage 和后端 DB 加载调试历史
@@ -569,15 +630,25 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   /** 从后端 DB 重新加载消息（一轮结束 / 出错 / 会话切换后收敛 live 态） */
   const reloadMessages = useCallback((sessionKey: string) => {
     agentApi.getMessages(sessionKey).then((msgs) => {
-      // 仅在仍处于该会话时应用，避免跨会话串数据
+      // 仅在仍处于该会话时应用，避免跨会话串数据。
+      // placeArtifactCards 必须在这里同步做：messages 与 artifacts 两个请求是并发的，
+      // 若 artifacts 先返回 place 完成、messages 后返回直接覆盖，产物卡会被冲掉。
       if (currentSessionKeyRef.current === sessionKey) {
-        setMessages(convertMessages(msgs || []));
+        setMessages((prev) =>
+          placeArtifactCards(convertMessages(msgs || []), artifactStore.latestAll(sessionKey))
+        );
       }
     }).catch(() => {});
     agentApi.listSessions().then((list) => {
       if (currentSessionKeyRef.current === sessionKey) {
         setSessions(list || []);
       }
+    }).catch(() => {});
+    // 产物同样收敛一轮（test_report / release 在 run 期间落库）
+    agentApi.getArtifacts(sessionKey).then((arts) => {
+      if (currentSessionKeyRef.current !== sessionKey) return;
+      artifactStore.setAll(sessionKey, arts || []);
+      setMessages((prev) => placeArtifactCards(prev, arts || []));
     }).catch(() => {});
   }, []);
 
@@ -639,6 +710,10 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
           sessionKey = real.sessionKey;
           currentSessionKeyRef.current = sessionKey;
           setCurrentSessionKey(sessionKey);
+          // 强制订阅 effect 重跑：草稿 → 真实会话的切换发生过「effect 因 draft- 前缀
+          // 直接 return」的情况，仅靠 currentSessionKey 变化不足以保证 SSE 订阅重建，
+          // 表现为门禁误判「无订阅者」而自动放行落版。epoch 变化是确定性触发源。
+          setSessionEpoch((e) => e + 1);
           setSessions((prev) => [real, ...prev]);
           if (draft.scope === 'work') void refreshFolders();
         } catch (e) {
@@ -677,6 +752,8 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     }
     messageQueueRef.current = [];
     setQueueLength(0);
+    // 停止也是一轮结束：把已发生的 AI 变更定格为会话版本
+    workflowDocumentStore.captureAiRunSnapshot(liveAssistantIdRef.current ?? undefined);
     processingRef.current = false;
     liveAssistantIdRef.current = null;
     setStreaming(false);
@@ -716,6 +793,21 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         const status = data?.status;
         if (status === 'running') {
           setStreaming(true);
+          // 快照里带着待确认的门禁请求：窗口刷新 / SSE 重连后恢复确认卡。
+          // 后端在确认挂起期间还会周期性重发 confirm_request，这里兜底恢复。
+          const pendingFromSnapshot = (data as any)?.pendingConfirm;
+          if (pendingFromSnapshot?.toolCallId) {
+            setPendingConfirm((prev) =>
+              prev && prev.id === pendingFromSnapshot.toolCallId
+                ? prev
+                : {
+                    id: pendingFromSnapshot.toolCallId,
+                    action: pendingFromSnapshot.action,
+                    args: pendingFromSnapshot.args || {},
+                    policy: 'confirm',
+                  }
+            );
+          }
           // 用快照内容建立/同步当前助手占位
           setMessages((prev) => {
             if (liveAssistantIdRef.current) {
@@ -730,13 +822,42 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
             liveAssistantIdRef.current = id;
             return [...prev, { id, role: 'assistant', content: data.assistantContent || '', timestamp: Date.now() }];
           });
-          // 用快照里的工具调用 upsert 工具卡片（重连恢复现场）
+          // 用快照里的工具调用合并进 live 回复（重连恢复现场，单条回复语义）
           const snapshotCalls = data.toolCalls || [];
           if (snapshotCalls.length > 0) {
-            setMessages((prev) => upsertLiveToolCalls(prev, snapshotCalls));
+            const lid = liveAssistantIdRef.current;
+            setMessages((prev) =>
+              prev.map((m) => {
+                if (m.id !== lid) return m;
+                const steps = m.toolSteps ?? [];
+                const merged = [...steps];
+                for (const call of snapshotCalls) {
+                  if (!call?.id) continue;
+                  const ev: ToolCallEvent = {
+                    id: call.id,
+                    action: call.name,
+                    args: call.args ?? {},
+                    policy: 'always',
+                    ...(call.result ? { result: String(call.result).substring(0, 200) } : {}),
+                  };
+                  const idx = merged.findIndex((s) => s.id === call.id);
+                  if (idx >= 0) merged[idx] = { ...merged[idx], ...ev };
+                  else merged.push(ev);
+                }
+                return { ...m, toolSteps: merged };
+              })
+            );
+          }
+          // 快照里的产物列表（SessionEventBus 反哺）对齐 store（断线重连恢复现场）
+          const snapshotArts = (data as any).artifacts || [];
+          if (snapshotArts.length > 0) {
+            artifactStore.setAll(sessionKey, snapshotArts);
+            setMessages((prev) => placeArtifactCards(prev, snapshotArts));
           }
         } else {
           // idle / done / error / stopped
+          // run 结束：本轮 AI 画布变更定格为一个会话版本（run 粒度），再收敛消息
+          workflowDocumentStore.captureAiRunSnapshot(liveAssistantIdRef.current ?? undefined);
           liveAssistantIdRef.current = null;
           setStreaming(false);
           if (status === 'error' && data.error) {
@@ -761,18 +882,11 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       onTurn: (data) => {
         if (disposed) return;
         setStreaming(true);
-        setMessages((prev) => {
-          // 若当前占位仍是空内容（订阅快照建立的那个），直接复用为这一轮
-          if (liveAssistantIdRef.current) {
-            const existing = prev.find((m) => m.id === liveAssistantIdRef.current);
-            if (existing && !existing.content) {
-              return prev;
-            }
-          }
-          const id = `live-turn-${data.turn}`;
-          liveAssistantIdRef.current = id;
-          return [...prev, { id, role: 'assistant', content: '', timestamp: Date.now() }];
-        });
+        // 单条回复语义：轮次不再切分消息，只保证有 live 占位可承接流式内容
+        if (liveAssistantIdRef.current) return;
+        const id = `live-turn-${data.turn}`;
+        liveAssistantIdRef.current = id;
+        setMessages((prev) => [...prev, { id, role: 'assistant', content: '', timestamp: Date.now() }]);
       },
       onToken: (content) => {
         if (disposed) return;
@@ -798,23 +912,59 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
               m.id === liveAssistantIdRef.current ? { ...m, thinking: (m.thinking || '') + chunk } : m
             );
           }
-          const id = `live-think-${Date.now()}`;
+          const id = `live-${Date.now()}`;
           liveAssistantIdRef.current = id;
           return [...prev, { id, role: 'assistant', content: '', thinking: chunk, timestamp: Date.now() }];
         });
       },
       onToolCall: (event) => {
         if (disposed) return;
-        setMessages((prev) => upsertToolCard(prev, event));
+        // 工具调用合并进当前 live 回复（DeepSeek 式）；live 占位尚未建立时先建一条
+        if (!liveAssistantIdRef.current) {
+          const id = `live-${Date.now()}`;
+          liveAssistantIdRef.current = id;
+          setMessages((prev) => [
+            ...prev,
+            { id, role: 'assistant', content: '', toolSteps: [event], timestamp: Date.now() },
+          ]);
+          return;
+        }
+        const lid = liveAssistantIdRef.current;
+        setMessages((prev) =>
+          prev.map((m) => {
+            if (m.id !== lid) return m;
+            const steps = m.toolSteps ?? [];
+            return {
+              ...m,
+              toolSteps: steps.some((s) => s.id === event.id)
+                ? steps.map((s) => (s.id === event.id ? { ...s, ...event } : s))
+                : [...steps, event],
+            };
+          })
+        );
       },
       onToolResult: (data) => {
         if (disposed) return;
+        const lid = liveAssistantIdRef.current;
         setMessages((prev) =>
-          prev.map((m) =>
-            m.id === `toolcall-${data.toolCallId}` && m.toolCall
-              ? { ...m, toolCall: { ...m.toolCall, result: (data.payload || '').substring(0, 200) } }
-              : m
-          )
+          prev.map((m) => {
+            // live 回复内的工具步骤原地更新结果
+            if (lid && m.id === lid && m.toolSteps?.some((s) => s.id === data.toolCallId)) {
+              return {
+                ...m,
+                toolSteps: m.toolSteps.map((s) =>
+                  s.id === data.toolCallId
+                    ? { ...s, result: (data.payload || '').substring(0, 200) }
+                    : s
+                ),
+              };
+            }
+            // 兼容：无 live 占位时落下的独立工具卡
+            if (m.id === `toolcall-${data.toolCallId}` && m.toolCall) {
+              return { ...m, toolCall: { ...m.toolCall, result: (data.payload || '').substring(0, 200) } };
+            }
+            return m;
+          })
         );
       },
       onPlan: (plan) => {
@@ -832,15 +982,31 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
               kind: 'replace',
               source: 'ai',
               reason: 'ai-edit',
+              // 归因到当前流式助手消息：对话流里的画布快照卡才能挂到产出它的消息下
+              messageId: liveAssistantIdRef.current ?? undefined,
             });
           }
         } catch { /* ignore */ }
+      },
+      onArtifact: (data) => {
+        if (disposed) return;
+        if (data?.action === 'upsert' && data.artifact?.artifactKey) {
+          const art = data.artifact;
+          artifactStore.upsert(sessionKey, art);
+          // test_report / release 直接成为对话流里的产物卡
+          if (art.type === 'test_report' || art.type === 'release') {
+            setMessages((prev) => upsertArtifactCard(prev, art));
+          }
+        } else if (data?.action === 'state' && data.artifactKey) {
+          artifactStore.updateStatus(sessionKey, data.artifactKey, data.status || '');
+        }
       },
       onUiAction: (data) => {
         if (disposed) return;
         if (data?.type === 'navigate' && data.args?.target) {
           const path = navigatePathFor(data.args.target, data.args);
-          if (path) navigateRef.current(path);
+          // 带上来源路径：编辑器「返回」据此回到当前会话，而不是兜底首页
+          if (path) navigateRef.current(path, { state: { from: location.pathname } });
         }
       },
       onConfirmRequest: (data) => {
@@ -860,6 +1026,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       },
       onDone: () => {
         if (disposed) return;
+        workflowDocumentStore.captureAiRunSnapshot(liveAssistantIdRef.current ?? undefined);
         liveAssistantIdRef.current = null;
         setStreaming(false);
         reloadMessages(sessionKey);
@@ -870,6 +1037,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       },
       onError: (msg) => {
         if (disposed) return;
+        workflowDocumentStore.captureAiRunSnapshot(liveAssistantIdRef.current ?? undefined);
         liveAssistantIdRef.current = null;
         setStreaming(false);
         setMessages((prev) => [
@@ -905,7 +1073,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       disposed = true;
       controller.abort();
     };
-  }, [currentSessionKey, reloadMessages, drainQueue, location.pathname]);
+  }, [currentSessionKey, sessionEpoch, reloadMessages, drainQueue, location.pathname]);
 
   /** Task 2: 压缩上下文 */
   const compactContext = useCallback(async () => {

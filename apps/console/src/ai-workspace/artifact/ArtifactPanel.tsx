@@ -1,104 +1,102 @@
 /**
- * 工作流产物面板 —— 「工作流是 AI 的最终产物」的主呈现区。
+ * 工作流产物面板 —— 产物化之后的「验收面」。
  *
- * 三重视角切换：
- *   预览：给人看的（节点构成 + 执行链路 + 校验结论）
- *   画布：给眼睛看的（只读 flowgram 画布）
- *   DSL：给机器看的（可直接复制/下载落版）
+ * 布局哲学：画布是主位（ai-native PRD「画布永不缺席」），一切信息围着画布转。
+ *   · 顶部信息条：版本 / 校验（点击展开问题清单）/ 节点统计 / DSL 与导出
+ *   · 主体：全高只读画布 —— 对话流里的真渲染只是缩略，全尺寸在这里
+ *   · 底部：产物记录（会话的试运行 / 发布 / 计划历史）+ 主操作
+ * 旧的「预览」tab 已移除：执行路径与节点构成和对话流卡片、画布重复；
+ * 「DSL」tab 收进弹层，不再占一个常驻页签。
  */
-import React, { useCallback, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button, Input, Modal, Tabs, Tag, Toast, Tooltip } from '@douyinfe/semi-ui';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Button, Input, Modal, Popover, Tag, Toast, Tooltip } from '@douyinfe/semi-ui';
 import {
+  IconAlertTriangle,
   IconCode,
-  IconExternalOpen,
-  IconSave,
   IconCopy,
   IconDownload,
+  IconExternalOpen,
+  IconSave,
   IconTickCircle,
-  IconAlertTriangle,
 } from '@douyinfe/semi-icons';
 
-import { useWorkflowDocumentState, workflowDocumentStore, validateDsl } from '../../document';
-import type { DslNode, WorkflowDsl } from '../../document';
+import { useWorkflowDocumentState, workflowDocumentStore, validateDsl, WorkflowDocument } from '../../document';
+import type { GaiaWorkflowVersion } from '../../services/workflow-api';
 import { t } from '../../i18n';
 import { workflowApi } from '../../services/workflow-api';
+import { useAgent } from '../../agent/AgentContext';
+import { useArtifactState } from '../../agent/artifact-store';
+import type { AgentArtifactDto } from '../../agent/types';
 import { CHAT } from '../../chat/theme';
 import { IconPanelRight } from '../../components/app-shell/icons';
 import { ReadonlyCanvas } from './ReadonlyCanvas';
 
-const NODE_LABELS: Record<string, string> = {
-  start: '开始',
-  end: '结束',
-  llm: '大模型',
-  code: '代码',
-  http: 'HTTP 请求',
-  condition: '条件判断',
-  'multi-condition': '多条件',
-  branches: '分支',
-  loop: '循环',
-  variable: '变量',
-  'string-format': '字符串处理',
-  assignee: '指派人',
-  comment: '批注',
-  workflow: '子流程',
-  'block-start': '代码块开始',
-  'block-end': '代码块结束',
-  continue: '继续',
-  break: '中断',
-};
-
-function nodeLabel(node: DslNode): string {
-  const explicit = node.data?.title;
-  if (typeof explicit === 'string' && explicit.trim()) return explicit;
-  return NODE_LABELS[node.type] || node.type;
-}
-
-/** 从 start 出发，贪心走出一条主执行链路 */
-function buildExecutionPath(dsl: WorkflowDsl): string[] {
-  const byId = new Map(dsl.nodes.map((n) => [n.id, n]));
-  const outgoing = new Map<string, string[]>();
-  for (const edge of dsl.edges) {
-    const list = outgoing.get(edge.sourceNodeID) || [];
-    list.push(edge.targetNodeID);
-    outgoing.set(edge.sourceNodeID, list);
-  }
-
-  const start = dsl.nodes.find((n) => n.type === 'start') || dsl.nodes[0];
-  if (!start) return [];
-
-  const path: string[] = [];
-  const seen = new Set<string>();
-  let cursor: string | undefined = start.id;
-
-  while (cursor && !seen.has(cursor)) {
-    seen.add(cursor);
-    const label = byId.get(cursor) ? nodeLabel(byId.get(cursor)!) : cursor;
-    path.push(label);
-    const next = outgoing.get(cursor);
-    cursor = next && next.length > 0 ? next[0] : undefined;
-  }
-  return path;
-}
-
-type TabKey = 'preview' | 'canvas' | 'dsl';
-
 export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollapse }) => {
-  const { doc, meta, snapshots, cursor } = useWorkflowDocumentState();
+  const { doc, meta, cursor, snapshots, revision } = useWorkflowDocumentState();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { currentSessionKey } = useAgent();
+  const artifactState = useArtifactState();
 
-  const [tab, setTab] = useState<TabKey>('preview');
   const [saveVisible, setSaveVisible] = useState(false);
   const [saving, setSaving] = useState(false);
   const [workflowCode, setWorkflowCode] = useState('');
   const [versionDesc, setVersionDesc] = useState('AI 生成');
+  const [dslOpen, setDslOpen] = useState(false);
+  const [recordsOpen, setRecordsOpen] = useState(false);
+  const [recordDetail, setRecordDetail] = useState<AgentArtifactDto | null>(null);
 
   const dsl = doc.toJSON();
   const validation = useMemo(() => validateDsl(dsl), [dsl]);
   const stats = useMemo(() => doc.toStats(), [doc]);
-  const executionPath = useMemo(() => buildExecutionPath(dsl), [dsl]);
   const dirty = workflowDocumentStore.isDirty;
   const isEmpty = doc.isEmpty;
+
+  // ---------- D4 版本切换器：会话版本轴 + 落版版本轴 ----------
+  const [versions, setVersions] = useState<GaiaWorkflowVersion[]>([]);
+  useEffect(() => {
+    const code = meta.workflowCode;
+    if (!code) {
+      setVersions([]);
+      return;
+    }
+    let cancelled = false;
+    workflowApi.listVersions(code).then((list) => {
+      if (!cancelled) setVersions(list || []);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [meta.workflowCode, dirty]);
+
+  /** 切到某会话版本：游标移动，不删历史（可随时切回） */
+  const switchSessionVersion = useCallback((snapshotId: string) => {
+    workflowDocumentStore.rollbackTo(snapshotId);
+  }, []);
+
+  /** 切到某落版版本查看：加载该版本 DSL 进画布，可继续迭代或另存 */
+  const switchPublishedVersion = useCallback(async (versionId: number) => {
+    try {
+      const v = await workflowApi.getVersionById(versionId);
+      if (!v?.workflowData) return;
+      const parsed = typeof v.workflowData === 'string' ? JSON.parse(v.workflowData) : v.workflowData;
+      workflowDocumentStore.replace(WorkflowDocument.fromJSON(parsed), {
+        kind: 'replace',
+        source: 'system',
+        reason: 'import',
+      });
+      if (meta.workflowCode) {
+        workflowDocumentStore.markSaved({ workflowCode: meta.workflowCode, workflowName: meta.workflowName });
+      }
+    } catch (error) {
+      Toast.error(`${(error as Error).message}`);
+    }
+  }, [meta.workflowCode, meta.workflowName]);
+
+  /** 会话产物记录：试运行 / 发布 / 计划（workflow 即当前画布，不进列表） */
+  const records = useMemo(() => {
+    const list = artifactState.bySession[currentSessionKey || ''] || [];
+    return [...list].filter((a) => a.type !== 'workflow').reverse();
+  }, [artifactState, currentSessionKey]);
 
   const handleSave = useCallback(async () => {
     if (!workflowCode.trim()) {
@@ -126,15 +124,17 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
   const handleRefine = useCallback(() => {
     // 同标签页跳转，而不是新开一个标签：
     // workflowDocumentStore 是模块级单例，同标签页里 AI 刚生成的那份 DSL 原样承接，
-    // 对话会话也不会断（AgentContext 全局）。新标签会得到空 store + 空会话。
+    // 对话会话也不会断（AgentContext 全局）。带 state.from 让编辑器「返回」回到本会话。
     try {
       sessionStorage.setItem('gaia.artifactDraft', JSON.stringify(dsl));
     } catch {
       /* 忽略隐私模式下的写入失败 */
     }
     const code = meta.workflowCode?.trim();
-    navigate(code ? `/editor/${encodeURIComponent(code)}` : '/editor/__draft__');
-  }, [dsl, meta.workflowCode, navigate]);
+    navigate(code ? `/editor/${encodeURIComponent(code)}` : '/editor/__draft__', {
+      state: { from: location.pathname },
+    });
+  }, [dsl, meta.workflowCode, navigate, location.pathname]);
 
   const handleCopy = useCallback(() => {
     void navigator.clipboard.writeText(JSON.stringify(dsl, null, 2));
@@ -151,6 +151,50 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
     URL.revokeObjectURL(url);
   }, [dsl, meta.workflowCode]);
 
+  const validationContent = (
+    <div style={{ width: 250, maxHeight: 260, overflow: 'auto' }}>
+      {validation.issues.length === 0 ? (
+        <div style={{ fontSize: 12, color: CHAT.success, display: 'flex', alignItems: 'center', gap: 5 }}>
+          <IconTickCircle size="small" />
+          {t('workspace.noIssues')}
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {validation.issues.map((issue, index) => (
+            <div
+              key={`${issue.code}-${index}`}
+              style={{
+                padding: '6px 9px',
+                borderRadius: 8,
+                fontSize: 12,
+                background: issue.level === 'error' ? CHAT.dangerSoft : CHAT.warnSoft,
+                color: issue.level === 'error' ? CHAT.danger : CHAT.warn,
+                border: `1px solid ${issue.level === 'error' ? 'var(--g-danger-soft)' : 'var(--g-warn-soft)'}`,
+              }}
+            >
+              {issue.message}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  const formatTime = (iso?: string) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  };
+
+  const recordIcon = (artifact: AgentArtifactDto) => {
+    const failed = artifact.type === 'test_report' && /fail|error|timeout/i.test(String(artifact.payload?.status || ''));
+    if (failed) return <IconAlertTriangle size="small" style={{ color: CHAT.danger }} />;
+    if (artifact.type === 'release') return <IconExternalOpen size="small" style={{ color: CHAT.success }} />;
+    if (artifact.type === 'plan') return <IconTickCircle size="small" style={{ color: CHAT.accent }} />;
+    return <IconTickCircle size="small" style={{ color: CHAT.success }} />;
+  };
+
   return (
     <div
       style={{
@@ -162,27 +206,44 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
         borderLeft: `1px solid ${CHAT.line}`,
       }}
     >
-      {/* 头部 */}
+      {/* 头部：版本 / 校验 / 统计 / 导出 */}
       <div style={{ padding: '12px 14px 10px', borderBottom: `1px solid ${CHAT.lineSoft}`, flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: CHAT.text, flexShrink: 0 }}>
             {t('workspace.artifact')}
           </span>
-          {snapshots.length > 0 && (
+          {!isEmpty && (
             <Tag size="small" shape="circle" style={{ background: CHAT.bgSunken, color: CHAT.textSub, border: 'none' }}>
               {t('chat.snapshotVersion', { n: cursor + 1 })}
             </Tag>
           )}
           {!isEmpty && (
-            <Tag size="small" shape="circle" color={validation.valid ? 'green' : 'orange'}>
-              {validation.valid
-                ? t('workspace.validationPassed')
-                : t('workspace.validationIssues', { count: validation.issues.length })}
-            </Tag>
+            <Popover content={validationContent} position="bottomRight" trigger="click">
+              <Tag
+                size="small"
+                shape="circle"
+                color={validation.valid ? 'green' : 'orange'}
+                style={{ cursor: 'pointer' }}
+              >
+                {validation.valid
+                  ? t('workspace.validationPassed')
+                  : t('workspace.validationIssues', { count: validation.issues.length })}
+              </Tag>
+            </Popover>
           )}
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 2, flexShrink: 0 }}>
             {!isEmpty && (
               <>
+                <Tooltip content={t('workspace.tabDsl')} position="bottomRight">
+                  <Button
+                    size="small"
+                    theme="borderless"
+                    type="tertiary"
+                    icon={<IconCode size="small" />}
+                    onClick={() => setDslOpen(true)}
+                    aria-label={t('workspace.tabDsl')}
+                  />
+                </Tooltip>
                 <Tooltip content={t('workspace.copyDsl')} position="bottomRight">
                   <Button
                     size="small"
@@ -221,7 +282,7 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
         </div>
 
         {!isEmpty && (
-          <div style={{ marginTop: 6, fontSize: 11.5, color: CHAT.textMuted, display: 'flex', gap: 8 }}>
+          <div style={{ marginTop: 6, fontSize: 11.5, color: CHAT.textMuted, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <span>
               {t('workspace.stats', { nodes: stats.nodeCount, edges: stats.edgeCount })}
             </span>
@@ -236,6 +297,94 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
                   {meta.workflowCode}
                 </span>
               </>
+            )}
+            {/* D4 版本切换器：会话版本（run 粒度）与落版版本两轴，点击画布即切换查看 */}
+            {snapshots.length > 0 && (
+              <Popover
+                trigger="click"
+                position="bottomLeft"
+                content={
+                  <div style={{ width: 260, maxHeight: 280, overflow: 'auto' }}>
+                    {snapshots.map((s, i) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => switchSessionVersion(s.id)}
+                        style={{
+                          width: '100%',
+                          border: 'none',
+                          background: i === cursor ? 'var(--g-primary-soft, rgba(77,83,232,.1))' : 'transparent',
+                          padding: '6px 10px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          fontSize: 11.5,
+                          color: i === cursor ? CHAT.accent : CHAT.textSub,
+                        }}
+                      >
+                        <span style={{ fontWeight: 600, flexShrink: 0 }}>{t('chat.snapshotVersion', { n: i + 1 })}</span>
+                        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {s.outcome === 'failed'
+                            ? t('chat.snapshotFailedShort')
+                            : s.source === 'ai' ? t('chat.snapshotReasonAiEdit') : t('chat.snapshotReasonUserEdit')}
+                        </span>
+                        <span style={{ color: CHAT.textFaint, flexShrink: 0, fontSize: 10.5 }}>
+                          {new Date(s.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                }
+              >
+                <span
+                  style={{ cursor: 'pointer', textDecoration: 'underline dotted', textUnderlineOffset: 2 }}
+                  title={t('chat.historySnapshots')}
+                >
+                  {t('chat.historySnapshots')} v{cursor + 1}/{snapshots.length} ▾
+                </span>
+              </Popover>
+            )}
+            {meta.workflowCode && versions.length > 0 && (
+              <Popover
+                trigger="click"
+                position="bottomLeft"
+                content={
+                  <div style={{ width: 240, maxHeight: 280, overflow: 'auto' }}>
+                    {versions.map((v) => (
+                      <button
+                        key={v.id}
+                        type="button"
+                        onClick={() => v.id != null && void switchPublishedVersion(v.id)}
+                        style={{
+                          width: '100%',
+                          border: 'none',
+                          background: 'transparent',
+                          padding: '6px 10px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          fontSize: 11.5,
+                          color: v.isCurrent === 1 ? CHAT.accent : CHAT.textSub,
+                        }}
+                      >
+                        <span style={{ fontWeight: 600, flexShrink: 0 }}>{v.versionNumber}</span>
+                        {v.isCurrent === 1 && <span style={{ flex: 1 }}>{t('chat.snapshotCurrent')}</span>}
+                      </button>
+                    ))}
+                  </div>
+                }
+              >
+                <span
+                  style={{ cursor: 'pointer', textDecoration: 'underline dotted', textUnderlineOffset: 2 }}
+                  title={t('chat.historyVersions')}
+                >
+                  {t('chat.historyVersions')} ({versions.length}) ▾
+                </span>
+              </Popover>
             )}
           </div>
         )}
@@ -277,117 +426,82 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
         </div>
       ) : (
         <>
-          <Tabs
-            type="line"
-            size="small"
-            activeKey={tab}
-            onChange={(key) => setTab(key as TabKey)}
-            style={{ flexShrink: 0, padding: '0 14px' }}
-          >
-            <Tabs.TabPane tab={t('workspace.tabPreview')} itemKey="preview" />
-            <Tabs.TabPane tab={t('workspace.tabCanvas')} itemKey="canvas" />
-            <Tabs.TabPane tab={t('workspace.tabDsl')} itemKey="dsl" />
-          </Tabs>
+          {/* 主位：全高只读画布。flowgram 内部是 absolute 定位层，
+              容器必须自带 relative + overflow hidden，否则画布会逃逸占满整个视口。
+              key=revision：flowgram 只在初始化时消费 initialData，产物变化必须 remount 重载，
+              否则常驻画布会停在旧内容（数据是新的、画面是旧的）。 */}
+          <div style={{ flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden' }}>
+            <ReadonlyCanvas key={`canvas-${revision}`} dsl={dsl} />
+          </div>
 
-          <div className="chat-scroll" style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
-            {tab === 'preview' && (
-              <div style={{ padding: '14px 14px 18px' }}>
-                <SectionTitle>{t('workspace.executionPath')}</SectionTitle>
-                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 4, marginBottom: 18 }}>
-                  {executionPath.map((label, index) => (
-                    <React.Fragment key={`${label}-${index}`}>
-                      {index > 0 && <span style={{ color: CHAT.textFaint, fontSize: 11 }}>→</span>}
-                      <span
-                        style={{
-                          padding: '4px 9px',
-                          background: CHAT.bgSunken,
-                          border: `1px solid ${CHAT.line}`,
-                          borderRadius: 7,
-                          fontSize: 11.5,
-                          color: CHAT.textSub,
-                        }}
-                      >
-                        {label}
-                      </span>
-                    </React.Fragment>
-                  ))}
-                </div>
-
-                <SectionTitle>{t('workspace.nodesSection')}</SectionTitle>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 18 }}>
-                  {Object.entries(stats.nodeTypes).map(([type, count]) => (
-                    <div
-                      key={type}
-                      style={{
-                        padding: '8px 10px',
-                        border: `1px solid ${CHAT.line}`,
-                        borderRadius: 8,
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <span style={{ fontSize: 12, color: CHAT.textSub }}>{NODE_LABELS[type] || type}</span>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: CHAT.accent }}>{count}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <SectionTitle>{t('workspace.validation')}</SectionTitle>
-                {validation.issues.length === 0 ? (
-                  <div style={{ fontSize: 12.5, color: CHAT.success, display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <IconTickCircle size="small" />
-                    {t('workspace.noIssues')}
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {validation.issues.map((issue, index) => (
-                      <div
-                        key={`${issue.code}-${index}`}
-                        style={{
-                          padding: '7px 10px',
-                          borderRadius: 8,
-                          fontSize: 12,
-                          background: issue.level === 'error' ? CHAT.dangerSoft : CHAT.warnSoft,
-                          color: issue.level === 'error' ? CHAT.danger : CHAT.warn,
-                          border: `1px solid ${issue.level === 'error' ? 'var(--g-danger-soft)' : 'var(--g-warn-soft)'}`,
-                          display: 'flex',
-                          gap: 6,
-                          alignItems: 'flex-start',
-                        }}
-                      >
-                        <IconAlertTriangle size="small" style={{ marginTop: 1 }} />
-                        <span>{issue.message}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {tab === 'canvas' && (
-              <div style={{ height: '100%', minHeight: 340 }}>
-                <ReadonlyCanvas dsl={dsl} />
-              </div>
-            )}
-
-            {tab === 'dsl' && (
-              <pre
+          {/* 产物记录：会话的试运行 / 发布 / 计划历史（收起式） */}
+          {records.length > 0 && (
+            <div style={{ borderTop: `1px solid ${CHAT.lineSoft}`, flexShrink: 0 }}>
+              <button
+                type="button"
+                onClick={() => setRecordsOpen((v) => !v)}
                 style={{
-                  margin: 0,
-                  padding: '14px 16px',
-                  fontSize: 11,
-                  lineHeight: 1.65,
+                  width: '100%',
+                  border: 'none',
+                  background: CHAT.bgSunken,
+                  padding: '7px 14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  cursor: 'pointer',
                   color: CHAT.textSub,
-                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-all',
+                  fontSize: 11.5,
+                  fontWeight: 600,
                 }}
               >
-                {JSON.stringify(dsl, null, 2)}
-              </pre>
-            )}
-          </div>
+                <span style={{ transform: recordsOpen ? 'rotate(90deg)' : 'none', transition: 'transform .15s' }}>▸</span>
+                {t('workspace.artifactRecords')}
+                <span style={{ color: CHAT.textFaint, fontWeight: 400 }}>({records.length})</span>
+              </button>
+              {recordsOpen && (
+                <div style={{ maxHeight: 168, overflow: 'auto' }}>
+                  {records.map((a) => (
+                    <button
+                      key={a.artifactKey}
+                      type="button"
+                      onClick={() => setRecordDetail(a)}
+                      style={{
+                        width: '100%',
+                        border: 'none',
+                        borderTop: `1px solid ${CHAT.lineSoft}`,
+                        background: CHAT.bg,
+                        padding: '7px 14px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                      }}
+                    >
+                      <span style={{ flexShrink: 0, display: 'flex' }}>{recordIcon(a)}</span>
+                      <span
+                        style={{
+                          flex: 1,
+                          minWidth: 0,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          fontSize: 12,
+                          color: CHAT.text,
+                        }}
+                      >
+                        {a.title}
+                        {a.summary ? <span style={{ color: CHAT.textMuted }}> · {a.summary}</span> : null}
+                      </span>
+                      <span style={{ flexShrink: 0, fontSize: 10.5, color: CHAT.textFaint }}>
+                        {formatTime(a.updatedAt)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* 主操作：先「打开」，落版是次要动作 */}
           <div
@@ -426,6 +540,66 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
         </>
       )}
 
+      {/* DSL 弹层（原 DSL tab） */}
+      <Modal
+        title={`DSL${meta.workflowCode ? ` · ${meta.workflowCode}` : ''}`}
+        visible={dslOpen}
+        onCancel={() => setDslOpen(false)}
+        footer={null}
+        width={Math.min(760, typeof window !== 'undefined' ? window.innerWidth - 80 : 760)}
+        bodyStyle={{ maxHeight: '62vh', overflow: 'auto', padding: 0 }}
+      >
+        <pre
+          style={{
+            margin: 0,
+            padding: '14px 16px',
+            fontSize: 11,
+            lineHeight: 1.65,
+            color: CHAT.textSub,
+            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-all',
+          }}
+        >
+          {JSON.stringify(dsl, null, 2)}
+        </pre>
+      </Modal>
+
+      {/* 产物记录详情 */}
+      <Modal
+        title={recordDetail?.title || t('workspace.artifactRecords')}
+        visible={!!recordDetail}
+        onCancel={() => setRecordDetail(null)}
+        footer={null}
+        width={Math.min(640, typeof window !== 'undefined' ? window.innerWidth - 80 : 640)}
+        bodyStyle={{ maxHeight: '62vh', overflow: 'auto' }}
+      >
+        {recordDetail && (
+          <>
+            {recordDetail.summary && (
+              <div style={{ fontSize: 12, color: CHAT.textSub, marginBottom: 10 }}>{recordDetail.summary}</div>
+            )}
+            <pre
+              style={{
+                margin: 0,
+                padding: '12px 14px',
+                background: CHAT.bgSunken,
+                borderRadius: 8,
+                fontSize: 11,
+                lineHeight: 1.65,
+                color: CHAT.textSub,
+                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-all',
+                overflow: 'auto',
+              }}
+            >
+              {JSON.stringify(recordDetail.payload ?? {}, null, 2)}
+            </pre>
+          </>
+        )}
+      </Modal>
+
       <Modal
         title={t('workspace.saveVersion')}
         visible={saveVisible}
@@ -460,20 +634,5 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
     </div>
   );
 };
-
-const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div
-    style={{
-      fontSize: 11,
-      fontWeight: 600,
-      color: CHAT.textMuted,
-      letterSpacing: '0.05em',
-      marginBottom: 8,
-      marginTop: 4,
-    }}
-  >
-    {children}
-  </div>
-);
 
 export default ArtifactPanel;

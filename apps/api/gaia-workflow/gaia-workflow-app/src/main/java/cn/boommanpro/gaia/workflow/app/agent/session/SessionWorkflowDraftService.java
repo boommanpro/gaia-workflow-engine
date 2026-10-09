@@ -36,18 +36,51 @@ public class SessionWorkflowDraftService {
     /** 节点 id 递增器（避免同会话内快速增删时 id 冲突） */
     private final ConcurrentMap<String, AtomicInteger> idCounters = new ConcurrentHashMap<>();
 
+    private final SessionArtifactStore artifactStore;
+
+    public SessionWorkflowDraftService(SessionArtifactStore artifactStore) {
+        this.artifactStore = artifactStore;
+    }
+
     // ---------------- 读取 ----------------
 
-    /** 获取会话草稿文档（无则返回空文档） */
+    /** 获取会话草稿文档（无则返回空文档）。缓存未命中时从产物表恢复（重启不丢草稿） */
     public JSONObject get(String sessionKey) {
         if (sessionKey == null) {
             return emptyDoc();
         }
-        return drafts.getOrDefault(sessionKey, emptyDoc());
+        JSONObject cached = drafts.get(sessionKey);
+        if (cached != null) {
+            return cached;
+        }
+        cn.boommanpro.gaia.workflow.infra.manage.entity.AgentArtifact artifact =
+            artifactStore.getLatest(sessionKey, SessionArtifactStore.TYPE_WORKFLOW);
+        if (artifact != null && artifact.getPayload() != null) {
+            try {
+                JSONObject restored = normalizeDoc(cn.hutool.json.JSONUtil.parseObj(artifact.getPayload()));
+                if (restored.getJSONArray("nodes") != null && !restored.getJSONArray("nodes").isEmpty()) {
+                    drafts.put(sessionKey, restored);
+                    log.info("[draft] {} restored from artifact (v{}, {} nodes)", sessionKey,
+                        artifact.getVersion(), restored.getJSONArray("nodes").size());
+                    return restored;
+                }
+            } catch (Exception e) {
+                log.warn("[draft] restore from artifact failed: {} — {}", sessionKey, e.getMessage());
+            }
+        }
+        return emptyDoc();
     }
 
-    /** 直接用整份 DSL 覆盖草稿（applyWorkflow 落版成功后调用，让产物立即可见） */
+    /**
+     * 直接用整份 DSL 覆盖草稿（applyWorkflow 落版成功后调用，让产物立即可见）。
+     * 同步落产物表（status=applied）并广播 artifact 事件。
+     */
     public void replace(String sessionKey, JSONObject dsl) {
+        replace(sessionKey, dsl, "applied", null);
+    }
+
+    /** 带产物状态的 replace：status 传 applied（落版）或 stable（普通覆盖） */
+    public void replace(String sessionKey, JSONObject dsl, String status, String summary) {
         if (sessionKey == null || dsl == null) {
             return;
         }
@@ -55,6 +88,30 @@ public class SessionWorkflowDraftService {
         drafts.put(sessionKey, copy);
         log.info("[draft] {} replaced with {} nodes", sessionKey,
             copy.getJSONArray("nodes") != null ? copy.getJSONArray("nodes").size() : 0);
+        persistArtifact(sessionKey, status, summary);
+    }
+
+    /**
+     * 把当前草稿持久化为 workflow 产物并广播 artifact 事件。
+     * 画布增量操作（canvas 工具）每次结构性变更后调用；草稿为空时跳过。
+     */
+    public void persistArtifact(String sessionKey, String status, String summary) {
+        if (sessionKey == null) {
+            return;
+        }
+        JSONObject doc = drafts.get(sessionKey);
+        if (doc == null) {
+            return;
+        }
+        JSONArray nodes = doc.getJSONArray("nodes");
+        if (nodes == null || nodes.isEmpty()) {
+            return;
+        }
+        JSONArray edges = doc.getJSONArray("edges");
+        String resolvedSummary = summary != null ? summary
+            : nodes.size() + " 节点 · " + (edges != null ? edges.size() : 0) + " 连线";
+        artifactStore.upsertSessionScoped(sessionKey, null, SessionArtifactStore.TYPE_WORKFLOW,
+            status != null ? status : "stable", "画布草稿", resolvedSummary, doc);
     }
 
     // ---------------- 画布操作（供 CanvasToolExecutor 调用） ----------------

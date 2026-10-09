@@ -23,9 +23,16 @@ import { PlanCard } from '../agent/PlanCard';
 import { useLanguage, t } from '../i18n';
 import { useWorkflowDocumentState, workflowDocumentStore } from '../document';
 import type { CanvasSnapshot } from '../document';
+import { useLatestArtifact } from '../agent/artifact-store';
 import { CHAT, CHAT_COLUMN_WIDTH, ChatStyles } from './theme';
 import { ToolSteps } from './ToolSteps';
 import { CanvasSnapshotCard } from './CanvasSnapshotCard';
+import {
+  ApplyWorkflowCard,
+  LiveCanvasCard,
+  ReleaseCard,
+  TestReportCard,
+} from './ArtifactCards';
 
 /** AI 头像用的四角星，比通用图标更能指向「这是模型说的话」 */
 const Spark: React.FC<{ size?: number }> = ({ size = 14 }) => (
@@ -129,9 +136,11 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   dense = false,
   onSnapshotView,
 }) => {
-  const { messages, streaming, sendMessage, queueLength } = useAgent();
+  const { messages, streaming, sendMessage, queueLength, pendingConfirm, resolveConfirm, currentSessionKey } = useAgent();
   useLanguage();
   const { snapshots, cursor } = useWorkflowDocumentState();
+  /** run 期间最新的 workflow 产物 —— 驱动对话流里的画布活卡（随版本原地生长） */
+  const liveWorkflowArtifact = useLatestArtifact(currentSessionKey, 'workflow');
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickRef = useRef(true);
@@ -224,7 +233,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
     while (i < messages.length) {
       const m = messages[i];
 
-      if (m.role === 'assistant' && !m.content && !m.thinking && !m.subagentSteps && !m.subagentResult) {
+      if (m.role === 'assistant' && !m.content && !m.thinking && !m.subagentSteps && !m.subagentResult && !m.planSteps && !m.toolSteps) {
         // 空的助手占位消息不渲染正文，但它的画布快照卡仍需渲染
         //（AI 工具在第一轮就写入了快照，mid 指向这个占位消息）
         nodes.push(...cardsFor(m.id));
@@ -241,6 +250,15 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
       if (m.role === 'tool') {
         if (m.planSteps && m.planSteps.length > 0) {
           nodes.push(<PlanCard key={m.id} steps={m.planSteps} />);
+          i += 1;
+          continue;
+        }
+        if (m.artifact) {
+          if (m.artifact.type === 'test_report') {
+            nodes.push(<TestReportCard key={m.id} artifact={m.artifact} />);
+          } else if (m.artifact.type === 'release') {
+            nodes.push(<ReleaseCard key={m.id} artifact={m.artifact} />);
+          }
           i += 1;
           continue;
         }
@@ -309,7 +327,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
         continue;
       }
 
-      // assistant
+      // assistant：一次 run 合并为一条回复 —— 工具步骤与计划在前（折叠），正文在后
       nodes.push(
         <div
           key={m.id}
@@ -333,6 +351,19 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
                 <summary style={{ cursor: 'pointer', userSelect: 'none' }}>思考过程</summary>
                 <div style={{ whiteSpace: 'pre-wrap', marginTop: 6, lineHeight: 1.6 }}>{m.thinking}</div>
               </details>
+            )}
+            {m.planSteps && m.planSteps.length > 0 && <PlanCard key={`plan-${m.id}`} steps={m.planSteps} />}
+            {m.toolSteps && m.toolSteps.length > 0 && (
+              <ToolSteps
+                messages={m.toolSteps.map((ts) => ({
+                  id: `ts-${ts.id}`,
+                  role: 'tool' as const,
+                  content: '',
+                  toolCall: ts,
+                  timestamp: m.timestamp,
+                }))}
+                compact={compact}
+              />
             )}
             <Markdown
               content={m.content}
@@ -363,7 +394,37 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   }, [messages, compact, streaming, lastAssistantId, handleOptionClick, copyMessage, openDebug, cardsFor]);
 
   const lastMsg = messages[messages.length - 1];
-  const showTyping = streaming && !!lastMsg && lastMsg.role === 'assistant' && !lastMsg.content;
+  const showTyping = streaming && !!lastMsg && lastMsg.role === 'assistant' && !lastMsg.content && !lastMsg.toolSteps?.length;
+
+  // 画布活卡只在「这一轮真的动过画布」时出现：streaming 开始时记下当前产物版本，
+  // 版本号在本轮内发生过变化才亮卡；run 结束即定格（对话流交还给快照卡）。
+  const [liveCanvasVersion, setLiveCanvasVersion] = useState<number | null>(null);
+  const prevStreamingRef = useRef(false);
+  const versionAtStartRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (streaming && !prevStreamingRef.current) {
+      versionAtStartRef.current = liveWorkflowArtifact?.version ?? null;
+      setLiveCanvasVersion(null);
+    }
+    if (streaming && liveWorkflowArtifact) {
+      if (versionAtStartRef.current !== null && versionAtStartRef.current !== liveWorkflowArtifact.version) {
+        setLiveCanvasVersion(liveWorkflowArtifact.version);
+      } else if (versionAtStartRef.current === null && liveWorkflowArtifact.version > 0) {
+        // run 从零构建：本会话此前没有产物，第一次 upsert 就算「动了」
+        versionAtStartRef.current = 0;
+        setLiveCanvasVersion(liveWorkflowArtifact.version);
+      }
+    }
+    if (!streaming && prevStreamingRef.current) {
+      setLiveCanvasVersion(null);
+      versionAtStartRef.current = null;
+    }
+    prevStreamingRef.current = streaming;
+  }, [streaming, liveWorkflowArtifact]);
+
+  /** applyWorkflow 的确认走对话流内的应用卡片，不弹遮罩弹窗 */
+  const showApplyCard = !!pendingConfirm && pendingConfirm.action === 'applyWorkflow';
 
   return (
     <div style={{ position: 'relative', height: '100%', minHeight: 0 }}>
@@ -391,6 +452,12 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
           }}
         >
           {items}
+          {streaming && liveCanvasVersion !== null && liveWorkflowArtifact && (
+            <LiveCanvasCard artifact={liveWorkflowArtifact} />
+          )}
+          {showApplyCard && pendingConfirm && (
+            <ApplyWorkflowCard args={pendingConfirm.args || {}} onResolve={resolveConfirm} />
+          )}
           {showTyping && <TypingIndicator />}
           {queueLength > 0 && streaming && (
             <div

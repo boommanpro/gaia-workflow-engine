@@ -2,6 +2,7 @@ package cn.boommanpro.gaia.workflow.app.agent.tool.impl;
 
 import cn.boommanpro.gaia.workflow.app.agent.core.AgentRunContext;
 import cn.boommanpro.gaia.workflow.app.agent.core.ExecutionSurface;
+import cn.boommanpro.gaia.workflow.app.agent.llm.LlmToolCall;
 import cn.boommanpro.gaia.workflow.app.agent.session.SessionPlanStore;
 import cn.boommanpro.gaia.workflow.app.agent.tool.ToolExecutor;
 import cn.boommanpro.gaia.workflow.app.agent.tool.ToolExecutorRegistry;
@@ -30,10 +31,14 @@ public class ExecuteStepToolExecutor implements ToolExecutor {
 
     private final SessionPlanStore planStore;
     private final ToolExecutorRegistry registry;
+    private final cn.boommanpro.gaia.workflow.app.agent.core.ToolPolicyService policyService;
 
-    public ExecuteStepToolExecutor(SessionPlanStore planStore, ToolExecutorRegistry registry) {
+    public ExecuteStepToolExecutor(SessionPlanStore planStore,
+                                   ToolExecutorRegistry registry,
+                                   cn.boommanpro.gaia.workflow.app.agent.core.ToolPolicyService policyService) {
         this.planStore = planStore;
         this.registry = registry;
+        this.policyService = policyService;
     }
 
     @Override
@@ -80,6 +85,43 @@ public class ExecuteStepToolExecutor implements ToolExecutor {
 
         // ---- 占位 nodeId 解析（镜像前端逻辑） ----
         JSONObject resolved = resolveNodeIds(stepArgs, createdNodeIds);
+
+        // ---- 计划步骤不允许绕过工具策略门禁 ----
+        // 否则模型只要把敏感动作（如 applyWorkflow）写进计划，就能借 executeStep
+        // 之手绕开 confirm/forbid 策略直接落版。这里与 AgentRuntime.executeLocally
+        // 保持同一套裁决语义。
+        cn.boommanpro.gaia.workflow.app.agent.core.ToolPolicyService policyService = this.policyService;
+        String policy = policyService.resolvePolicy(context.getSessionKey(), stepAction);
+        if ("forbid".equals(policy)) {
+            step.set("status", "error");
+            step.set("result", "步骤动作 " + stepAction + " 被权限策略禁止");
+            planStore.save(context.getSessionKey(), plan);
+            context.emit("plan", plan);
+            return ToolResult.fail(new JSONObject()
+                .set("success", false)
+                .set("stepIndex", stepIndex)
+                .set("error", "forbidden: 步骤动作 " + stepAction + " 被权限策略禁止，请调整计划")
+                .toString(), "步骤被权限策略禁止");
+        }
+        if ("confirm".equals(policy)) {
+            LlmToolCall stepCall = LlmToolCall.builder()
+                .id("step-" + stepIndex + "-" + stepAction)
+                .name(stepAction)
+                .arguments(resolved.toString())
+                .build();
+            boolean approved = policyService.decideConfirm(context, stepCall, context.getSink());
+            if (!approved) {
+                step.set("status", "error");
+                step.set("result", "用户未确认步骤动作 " + stepAction);
+                planStore.save(context.getSessionKey(), plan);
+                context.emit("plan", plan);
+                return ToolResult.fail(new JSONObject()
+                    .set("success", false)
+                    .set("stepIndex", stepIndex)
+                    .set("error", "forbidden: 用户未确认该操作，请调整计划或先向用户说明")
+                    .toString(), "用户未确认该步骤");
+            }
+        }
 
         step.set("status", "running");
         context.emit("plan", plan);

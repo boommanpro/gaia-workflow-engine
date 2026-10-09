@@ -198,6 +198,9 @@ function handleEvent(
     case 'document':
       handlers.onDocument?.(data);
       break;
+    case 'artifact':
+      handlers.onArtifact?.(data);
+      break;
     case 'ui_action':
       handlers.onUiAction?.(data);
       break;

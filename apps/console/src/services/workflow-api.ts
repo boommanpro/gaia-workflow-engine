@@ -199,11 +199,11 @@ export const workflowApi = {
     ),
 
   // ---------- 对话创建 API 模式 ----------
-  /** 发布为 API */
-  publishApi: (workflowCode: string, apiName?: string, apiDesc?: string) =>
+  /** 发布为 API。sessionKey 可选：由 AI 会话产物走出来的发布传入，成功后在会话里落 release 产物卡 */
+  publishApi: (workflowCode: string, apiName?: string, apiDesc?: string, sessionKey?: string | null) =>
     request<GaiaApiMeta>('/workflow-api/publish', {
       method: 'POST',
-      body: JSON.stringify({ workflowCode, apiName, apiDesc }),
+      body: JSON.stringify({ workflowCode, apiName, apiDesc, sessionKey: sessionKey || undefined }),
     }),
   /** 下架 API */
   unpublishApi: (workflowCode: string) =>

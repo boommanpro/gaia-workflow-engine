@@ -2,6 +2,7 @@ package cn.boommanpro.gaia.workflow.app.agent.tool.impl;
 
 import cn.boommanpro.gaia.workflow.app.agent.core.AgentRunContext;
 import cn.boommanpro.gaia.workflow.app.agent.core.ExecutionSurface;
+import cn.boommanpro.gaia.workflow.app.agent.session.SessionArtifactStore;
 import cn.boommanpro.gaia.workflow.app.agent.session.SessionWorkflowDraftService;
 import cn.boommanpro.gaia.workflow.app.agent.tool.ToolExecutor;
 import cn.boommanpro.gaia.workflow.app.agent.tool.ToolResult;
@@ -37,11 +38,14 @@ public class CanvasToolExecutor implements ToolExecutor {
 
     private final SessionWorkflowDraftService draftService;
     private final WorkflowTaskService taskService;
+    private final SessionArtifactStore artifactStore;
 
     public CanvasToolExecutor(SessionWorkflowDraftService draftService,
-                              WorkflowTaskService taskService) {
+                              WorkflowTaskService taskService,
+                              SessionArtifactStore artifactStore) {
         this.draftService = draftService;
         this.taskService = taskService;
+        this.artifactStore = artifactStore;
     }
 
     @Override
@@ -101,7 +105,9 @@ public class CanvasToolExecutor implements ToolExecutor {
                     return ToolResult.fail(
                         "{\"error\":\"unknown canvas action: " + action + "\"}", "不支持的画布操作");
             }
-            // 结构性变更后广播文档，让所有订阅窗口实时跟随
+            // 结构性变更后：先落 workflow 产物（草稿持久化 + artifact 事件），再广播文档，
+            // 让所有订阅窗口实时跟随（对话流里的画布活卡由此驱动）
+            draftService.persistArtifact(sessionKey, "stable", null);
             draftService.emitDocument(context, sessionKey);
             return ToolResult.ok(result.toString(), "canvas." + action + " 已执行");
         } catch (Exception e) {
@@ -137,13 +143,18 @@ public class CanvasToolExecutor implements ToolExecutor {
             TaskReportOutput report = taskService.getTaskReport(taskId);
             if (report.getWorkflowStatus() != null && report.getWorkflowStatus().isTerminated()) {
                 TaskResultOutput result = taskService.getTaskResult(taskId);
+                String status = report.getWorkflowStatus().getStatus();
                 JSONObject payload = new JSONObject()
                     .set("taskId", taskId)
-                    .set("status", report.getWorkflowStatus().getStatus())
+                    .set("status", status)
                     .set("outputs", result != null && result.getOutputs() != null
                         ? result.getOutputs() : report.getOutputs())
                     .set("reports", report.getReports() != null ? report.getReports() : new java.util.HashMap<>());
-                return ToolResult.ok(payload.toString(), "工作流运行完成：" + report.getWorkflowStatus().getStatus());
+                // 试运行证据：独立产物，可追溯（输入/输出/节点级报告）
+                emitTestReport(sessionKey, "工作流试运行",
+                    status + " · taskId " + taskId,
+                    payload.set("kind", "runWorkflow").set("inputs", inputs != null ? inputs : new JSONObject()));
+                return ToolResult.ok(payload.toString(), "工作流运行完成：" + status);
             }
         }
         return ToolResult.fail("{\"error\":\"workflow run timed out\"}", "工作流运行超时");
@@ -168,8 +179,22 @@ public class CanvasToolExecutor implements ToolExecutor {
             .set("executeResult", output.getExecuteResult())
             .set("timeCost", output.getTimeCost())
             .set("error", output.getError());
+        emitTestReport(sessionKey, "节点试运行",
+            (output.isSuccess() ? "成功" : "失败") + " · " + nodeId,
+            payload.set("kind", "runNode").set("nodeId", nodeId)
+                .set("inputs", inputs != null ? inputs : new JSONObject()));
         return ToolResult.ok(payload.toString(),
             output.isSuccess() ? "节点运行成功" : "节点运行失败");
+    }
+
+    /** 试运行证据落为 test_report 产物（失败只告警，不影响工具结果） */
+    private void emitTestReport(String sessionKey, String title, String summary, JSONObject payload) {
+        try {
+            artifactStore.appendArtifact(sessionKey, null, SessionArtifactStore.TYPE_TEST_REPORT,
+                "completed", title, summary, payload);
+        } catch (Exception e) {
+            log.warn("[tool:canvas] test_report artifact failed: {}", e.getMessage());
+        }
     }
 
     private JSONObject nodeDetail(String sessionKey, String nodeId) {

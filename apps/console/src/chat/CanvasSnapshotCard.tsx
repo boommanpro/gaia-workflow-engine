@@ -34,6 +34,7 @@ import {
 
 import { t } from '../i18n';
 import { CHAT } from './theme';
+import { RealCanvasPreview } from './ArtifactCards';
 
 export interface CanvasSnapshotCardProps {
   snapshot: CanvasSnapshot;
@@ -445,6 +446,12 @@ export const CanvasSnapshotCard: React.FC<CanvasSnapshotCardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* 当前版才做真实渲染（D5）：历史版本保持 SVG 缩略，flowgram 实例数可控。
+          懒挂载 + 点击放大，滚动长对话不卡。 */}
+      {isCurrent && (
+        <RealCanvasPreview dsl={snapshot.dsl} height={190} />
+      )}
 
       {rollbackOpen && (
         <RollbackConfirm

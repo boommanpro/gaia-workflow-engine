@@ -60,3 +60,15 @@ export function findSessionForWorkflow(
   matches.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
   return matches[0].sessionKey;
 }
+
+/** 不依赖会话列表的反向解析：这个工作流最近被哪段会话绑定过（发布收口用）。
+ *  对象键序即绑定写入顺序，遍历取最后命中的即为最近绑定。 */
+export function getSessionKeyForWorkflow(workflowCode: string | null): string | null {
+  if (!workflowCode) return null;
+  const binding = read();
+  let found: string | null = null;
+  for (const [sessionKey, code] of Object.entries(binding)) {
+    if (code === workflowCode) found = sessionKey;
+  }
+  return found;
+}

@@ -245,6 +245,14 @@ public class AgentSessionRunService {
 
     /** 订阅会话事件流（SSE 用），返回取消句柄 */
     public Runnable subscribe(String sessionKey, SseEmitter emitter) {
+        // 僵尸快照归位：进程重启 / 线程被杀等情况下 latestState 可能停留在 "running"，
+        // 回放给新订阅窗口会被当成 live 消息，把旧 token 流（含模型回显的工具输出）
+        // 整段注入对话框。凡是没有活跃 run 却自称 running 的，一律改写为 idle 再回放。
+        JSONObject stale = eventBus.getState(sessionKey);
+        if ("running".equals(stale.getStr("status")) && !isRunning(sessionKey)) {
+            stale.set("status", "idle").set("phase", "idle");
+            eventBus.setState(sessionKey, stale);
+        }
         return eventBus.subscribe(sessionKey, (type, data) -> {
             try {
                 emitter.send(SseEmitter.event().name(type).data(data.toString()));
@@ -266,6 +274,16 @@ public class AgentSessionRunService {
 
     // ---------------- 内部 ----------------
 
+    /** 把 run 失败原因持久化为 assistant 消息，保证切走/刷新后用户仍能看到失败原因 */
+    private void persistRunError(String sessionKey, String errorText) {
+        try {
+            conversationStore.saveMessage(sessionKey, "assistant",
+                "⚠️ 本次执行失败：" + errorText, null, null);
+        } catch (Exception e) {
+            log.warn("[session-run] persist run error failed session={}: {}", sessionKey, e.getMessage());
+        }
+    }
+
     private void runAsync(String sessionKey, String message, String pageContext, String locale,
                           String agentId, RunHandle handle) {
         try {
@@ -277,9 +295,11 @@ public class AgentSessionRunService {
 
             if (!handle.isCancelled()) {
                 if (result.isError()) {
+                    String errorText = result.getErrorMessage() != null ? result.getErrorMessage() : "未知错误";
+                    // 失败要落消息：否则用户切走再回来/刷新后，失败原因凭空消失，界面只剩沉默
+                    persistRunError(sessionKey, errorText);
                     eventBus.publish(sessionKey, "error",
-                        new JSONObject().set("message",
-                            result.getErrorMessage() != null ? result.getErrorMessage() : "未知错误"));
+                        new JSONObject().set("message", errorText));
                 }
                 eventBus.publish(sessionKey, "done",
                     new JSONObject()
@@ -289,10 +309,19 @@ public class AgentSessionRunService {
         } catch (Exception e) {
             log.error("[session-run] run failed session={} runId={}", sessionKey, handle.getRunId(), e);
             if (!handle.isCancelled()) {
+                String errorText = e.getMessage() != null ? e.getMessage() : "运行异常";
+                persistRunError(sessionKey, errorText);
                 eventBus.publish(sessionKey, "error",
-                    new JSONObject().set("message", e.getMessage() != null ? e.getMessage() : "运行异常"));
+                    new JSONObject().set("message", errorText));
             }
         } finally {
+            // 兜底收尾：任何路径离开 run 都不允许快照停留在 running，
+            // 否则重启前订阅的新窗口会回放到僵尸 running 并注入旧内容
+            JSONObject state = eventBus.getState(sessionKey);
+            if ("running".equals(state.getStr("status"))) {
+                state.set("status", handle.isCancelled() ? "stopped" : "done").set("phase", "done");
+                eventBus.setState(sessionKey, state);
+            }
             handle.markFinished();
             runs.remove(sessionKey, handle);
         }

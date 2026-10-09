@@ -104,6 +104,14 @@ export const AiWorkspace: React.FC = () => {
     navigate(`${sessionBase}/${currentSessionKey}`, { replace: true });
   }, [routeSessionKey, currentSessionKey, navigate, sessionBase]);
 
+  // 草稿路由跟随物化：首页发起的会话 commit 后，地址栏从 draft-xxx 换成真实 key。
+  // 不跟的话浏览器从编辑器「后退」会落在一个不存在的草稿地址上，会话恢复必然错位。
+  useEffect(() => {
+    if (!routeSessionKey?.startsWith('draft-')) return;
+    if (!currentSessionKey || currentSessionKey.startsWith('draft-')) return;
+    navigate(`${sessionBase}/${currentSessionKey}`, { replace: true });
+  }, [routeSessionKey, currentSessionKey, navigate, sessionBase]);
+
   // 首页对话入口带过来的「首条消息」：等 URL 落到目标会话后消费一次并自动发送。
   // 依赖只挂 routeSessionKey，避免 sendMessage/messages 变化导致 effect 重跑把定时器清掉；
   // 用 peek（不消费）判断、真正触发时才 take（取走即清空），

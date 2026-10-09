@@ -35,11 +35,14 @@ public class WorkflowDslApplyService {
 
     private final GaiaWorkflowVersionService versionService;
     private final GaiaWorkflowService workflowService;
+    private final AgentModelConfigService modelConfigService;
 
     public WorkflowDslApplyService(GaiaWorkflowVersionService versionService,
-                                   GaiaWorkflowService workflowService) {
+                                   GaiaWorkflowService workflowService,
+                                   AgentModelConfigService modelConfigService) {
         this.versionService = versionService;
         this.workflowService = workflowService;
+        this.modelConfigService = modelConfigService;
     }
 
     /**
@@ -63,14 +66,31 @@ public class WorkflowDslApplyService {
 
         // 落库前统一规范化：连线别名、缺失坐标、嵌套结构、start/end 完整性
         // —— 下游（画布、执行引擎）只认规范结构，这一步不能省。
-        WorkflowDslCanonicalizer.Result canonical = WorkflowDslCanonicalizer.canonicalize(workflowData);
+        // LLM 节点缺凭证时自动填平台默认模型，避免运行时空壳节点。
+        WorkflowDslCanonicalizer.Result canonical =
+            WorkflowDslCanonicalizer.canonicalize(workflowData, platformLlmDefaults());
         if (canonical.getJson() == null) {
             result.setSuccess(false);
             result.setError("dsl 结构无法识别：未解析出任何合法节点");
             return result;
         }
+        // 结构之外还有语义：llm 没有 prompt、http 没有 url 的「空壳节点」
+        // 落库后必然执行失败，直接拒绝并把缺失清单回传给模型补全。
+        if (!canonical.getFatalIssues().isEmpty()) {
+            result.setSuccess(false);
+            result.setError("工作流存在不可执行的缺失，请补全后重新提交：" + String.join("；", canonical.getFatalIssues())
+                + "。修复方法：给对应节点的 data 填上关键字段，例如 "
+                + "{\"type\":\"llm\",\"id\":\"llm_0\",\"data\":{\"prompt\":\"请总结以下文本：{{ start_0.text }}\",\"modelName\":\"qwen/qwen3-4b-2507\"}}，"
+                + "http 节点填 {\"data\":{\"method\":\"GET\",\"url\":\"https://...\"}}，"
+                + "code 节点填 {\"data\":{\"script\":{\"language\":\"java\",\"content\":\"return ...;\"}}}。"
+                + "补全后用相同 workflowCode 重新调用 applyWorkflow。");
+            result.setFatalIssues(canonical.getFatalIssues());
+            result.setWarnings(canonical.getWarnings());
+            return result;
+        }
         workflowData = canonical.getJson();
         result.setRepairs(canonical.getRepairs());
+        result.setWarnings(canonical.getWarnings());
 
         try {
             GaiaWorkflow workflow = workflowService.getOne(
@@ -136,6 +156,20 @@ public class WorkflowDslApplyService {
             result.setSuccess(false);
             result.setError(e.getMessage());
             return result;
+        }
+    }
+
+    /** 平台默认模型配置（读失败时返回 null，规范化按不填充处理） */
+    private WorkflowDslCanonicalizer.LlmDefaults platformLlmDefaults() {
+        try {
+            AgentModelConfigService.LlmConfig llm = modelConfigService.getLlmConfig();
+            if (llm == null) {
+                return null;
+            }
+            return new WorkflowDslCanonicalizer.LlmDefaults(llm.getApiHost(), llm.getApiKey(), llm.getModel());
+        } catch (Exception e) {
+            log.warn("[dsl-apply] 读取平台默认模型配置失败，跳过 LLM 凭证填充: {}", e.getMessage());
+            return null;
         }
     }
 
@@ -223,6 +257,10 @@ public class WorkflowDslApplyService {
         private boolean workflowCreated;
         /** 规范化过程中做的修补说明（回传给模型，便于它下一轮自己写规范） */
         private List<String> repairs = new java.util.ArrayList<>();
+        /** 可疑但放行的告警（start 无输出、end 无映射等），随回执提示模型 */
+        private List<String> warnings = new java.util.ArrayList<>();
+        /** 致命语义缺失（拒绝落版时给模型的补全清单） */
+        private List<String> fatalIssues = new java.util.ArrayList<>();
         private String error;
     }
 }

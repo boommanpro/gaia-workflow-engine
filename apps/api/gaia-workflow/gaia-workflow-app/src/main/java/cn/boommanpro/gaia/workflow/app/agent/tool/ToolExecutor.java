@@ -50,6 +50,20 @@ public interface ToolExecutor {
     ToolResult execute(JSONObject args, AgentRunContext context);
 
     /**
+     * 确认门禁前的快速校验。
+     *
+     * <p>confirm 类工具（如 applyWorkflow）在弹出「应用卡片」打扰用户之前，
+     * 先在这里做无副作用的参数校验；返回非 null 表示校验失败，
+     * 门禁直接把该失败回传给模型补全，不再向用户展示确认卡片 ——
+     * 避免「用户点了确认，结果却是参数非法」的空跑交互。</p>
+     *
+     * @return null 表示校验通过（或工具无需预校验）；否则为回传给模型的失败结果
+     */
+    default ToolResult preValidate(JSONObject args) {
+        return null;
+    }
+
+    /**
      * 判断该执行器能否在指定模式下由后端直接跑。
      */
     default boolean canRunOnBackend() {

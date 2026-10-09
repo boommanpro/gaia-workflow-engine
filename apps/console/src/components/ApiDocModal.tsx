@@ -9,6 +9,7 @@ import { Modal, Toast, Input, Button as SemiButton } from '@douyinfe/semi-ui';
 import { workflowApi, GaiaApiMeta } from '../services/workflow-api';
 import { getApiBaseUrl } from '../utils/apiConfig';
 import { useLanguage, t } from '../i18n';
+import { getSessionKeyForWorkflow } from '../ai-workspace/session-scope';
 
 const ACCENT = 'var(--g-accent)';
 
@@ -95,7 +96,8 @@ export const ApiDocModal: React.FC<ApiDocModalProps> = ({ workflowCode, workflow
       const m = await workflowApi.publishApi(
         workflowCode,
         apiName.trim() || undefined,
-        apiDesc.trim() || undefined
+        apiDesc.trim() || undefined,
+        getSessionKeyForWorkflow(workflowCode) || undefined
       );
       setMeta(m);
       setRevealedKey(m.apiKey || null);

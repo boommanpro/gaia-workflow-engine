@@ -230,6 +230,44 @@ public class SessionEventBus {
                 }
                 break;
             }
+            case "artifact": {
+                // 产物事件反哺快照：新订阅窗口无需等 GET /artifacts 就能拿到最新产物画面
+                if ("upsert".equals(data.getStr("action"))) {
+                    JSONObject artifact = data.getJSONObject("artifact");
+                    if (artifact != null && artifact.getStr("artifactKey") != null) {
+                        JSONArray list = state.getJSONArray("artifacts");
+                        if (list == null) {
+                            list = new JSONArray();
+                            state.set("artifacts", list);
+                        }
+                        String key = artifact.getStr("artifactKey");
+                        for (int i = 0; i < list.size(); i++) {
+                            JSONObject entry = list.getJSONObject(i);
+                            if (key.equals(entry.getStr("artifactKey"))) {
+                                list.remove(i);
+                                break;
+                            }
+                        }
+                        list.add(artifact);
+                        while (list.size() > 10) {
+                            list.remove(0);
+                        }
+                    }
+                } else if ("state".equals(data.getStr("action"))) {
+                    JSONArray list = state.getJSONArray("artifacts");
+                    String key = data.getStr("artifactKey");
+                    if (list != null && key != null) {
+                        for (int i = 0; i < list.size(); i++) {
+                            JSONObject entry = list.getJSONObject(i);
+                            if (key.equals(entry.getStr("artifactKey"))) {
+                                entry.set("status", data.getStr("status"));
+                                break;
+                            }
+                        }
+                    }
+                }
+                break;
+            }
             case "done":
                 state.set("status", "done");
                 state.set("phase", "done");
@@ -239,6 +277,25 @@ public class SessionEventBus {
                 state.set("phase", "error");
                 state.set("error", data.getStr("message", ""));
                 break;
+            case "confirm_request": {
+                // 待确认状态反哺快照：窗口刷新 / SSE 断线重连后，确认卡能从
+                // run_state 回放里恢复，而不是永远丢掉（后端还在挂起等待）。
+                if ("require".equals(data.getStr("mode"))) {
+                    state.set("pendingConfirm", new JSONObject()
+                        .set("toolCallId", data.getStr("toolCallId"))
+                        .set("action", data.getStr("action"))
+                        .set("args", data.get("args"))
+                        .set("mode", "require"));
+                }
+                break;
+            }
+            case "confirm_resolved": {
+                JSONObject pending = state.getJSONObject("pendingConfirm");
+                if (pending != null && pending.getStr("toolCallId").equals(data.getStr("toolCallId"))) {
+                    state.set("pendingConfirm", null);
+                }
+                break;
+            }
             default:
                 // document / ui_action / plan 等不影响运行快照，只进缓冲与实时广播
                 break;

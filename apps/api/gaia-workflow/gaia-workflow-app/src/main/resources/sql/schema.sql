@@ -119,6 +119,28 @@ CREATE TABLE IF NOT EXISTS agent_message (
 );
 CREATE INDEX IF NOT EXISTS idx_agent_message_session ON agent_message(session_key, id);
 
+-- Agent 产物表（Artifact 一等实体）
+-- type: workflow（画布草稿/落版产物，每会话一行）/ plan（执行计划，每会话一行）
+--       / test_report（试运行证据，追加式）/ release（发布收口记录，追加式）
+-- status: streaming | stable | applied | discarded | proposed | completed | published
+CREATE TABLE IF NOT EXISTS agent_artifact (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    artifact_key VARCHAR(96) NOT NULL UNIQUE,   -- 对外稳定标识：会话级产物为 "{sessionKey}:{type}"，追加式为 "art_xxx"
+    session_key VARCHAR(64) NOT NULL,
+    run_id VARCHAR(64),
+    type VARCHAR(24) NOT NULL,
+    status VARCHAR(24) NOT NULL DEFAULT 'stable',
+    title VARCHAR(128),
+    summary VARCHAR(256),
+    payload TEXT NOT NULL,                      -- JSON，schema 按 type 定义
+    version INTEGER NOT NULL DEFAULT 1,         -- 同一 artifact 的第 N 次内容更新
+    engine VARCHAR(16),
+    created_at TEXT,
+    updated_at TEXT,
+    is_deleted TINYINT DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_agent_artifact_session ON agent_artifact(session_key, updated_at);
+
 -- Agent 权限习惯表（per-action 可配置）
 CREATE TABLE IF NOT EXISTS agent_permission (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

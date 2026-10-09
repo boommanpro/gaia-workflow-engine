@@ -46,6 +46,9 @@ public class AgentModelConfigService {
                 result.setTemperature(json.getDouble("temperature", properties.getLlm().getTemperature()));
                 result.setMaxTokens(json.getInt("maxTokens", properties.getLlm().getMaxTokens()));
                 result.setContextWindow(json.getInt("contextWindow", properties.getLlm().getContextWindow()));
+                // 透传 chat_template_kwargs（如 {"enable_thinking":false} 关闭本地模型的思考模式，
+                // 思考会拖慢工具调用并挤占生成预算）。仅显式配置时发送，避免不兼容服务报错。
+                result.setChatTemplateKwargs(json.getJSONObject("chatTemplateKwargs"));
                 return result;
             } catch (Exception e) {
                 log.warn("Failed to parse LLM config from DB, falling back to yml defaults: {}", e.getMessage());
@@ -107,6 +110,8 @@ public class AgentModelConfigService {
         private double temperature;
         private int maxTokens;
         private int contextWindow;
+        /** 透传给 /chat/completions 的 chat_template_kwargs（可空） */
+        private JSONObject chatTemplateKwargs;
     }
 
     /**

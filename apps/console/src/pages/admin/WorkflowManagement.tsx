@@ -9,6 +9,8 @@ import { workflowApi, type GaiaWorkflow, type GaiaWorkflowTemplate } from '../..
 import type { CSSProperties } from 'react';
 import { useLanguage, t } from '../../i18n';
 import { ApiDocModal } from '../../components/ApiDocModal';
+import { agentApi } from '../../agent/api';
+import { bindSessionToWorkflow } from '../../ai-workspace/session-scope';
 import type { AdminOutletContext } from './AdminLayout';
 
 const ACCENT = 'var(--g-accent)';
@@ -140,7 +142,7 @@ export const WorkflowManagement = () => {
       okType: 'danger',
       onOk: async () => {
         try {
-          await workflowApi.deleteWorkflow(wf.id);
+          if (wf.id != null) await workflowApi.deleteWorkflow(wf.id);
           await loadData();
           Toast.success(t('admin.deleteSuccess'));
         } catch (err) {
@@ -159,6 +161,23 @@ export const WorkflowManagement = () => {
   const handleOpenApiDocs = (wf: GaiaWorkflow) => {
     // 原位打开 API 文档弹窗，不再跳转到独立 /docs 页面
     setApiDocsWorkflow(wf);
+  };
+
+  /** 基于该工作流发起 AI 会话（D2）：会话草稿从当前落版复制，迭代 + 确认落版才生效新版本 */
+  const [startingChatFor, setStartingChatFor] = useState<string | null>(null);
+  const handleStartChat = async (wf: GaiaWorkflow) => {
+    if (startingChatFor) return;
+    setStartingChatFor(wf.workflowCode);
+    try {
+      const session = await agentApi.createSession(`迭代 ${wf.workflowName || wf.workflowCode}`, { scope: 'chat' });
+      await agentApi.seedDraft(session.sessionKey, wf.workflowCode);
+      bindSessionToWorkflow(session.sessionKey, wf.workflowCode);
+      navigate(`/chat/${session.sessionKey}`);
+    } catch (err) {
+      Toast.error(t('admin.startChatFailed') + (err as Error).message);
+    } finally {
+      setStartingChatFor(null);
+    }
   };
 
   // 将「新建」按钮注册到顶栏标题右侧
@@ -207,6 +226,7 @@ export const WorkflowManagement = () => {
                   <td style={{ ...tdStyle, color: 'var(--g-text-sub)', whiteSpace: 'nowrap' }}>{formatDateTime(wf.createdAt)}</td>
                   <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
                     <button onClick={() => openEditModal(wf)} style={actionBtnBlueStyle}>{t('Edit')}</button>
+                    <button onClick={() => handleStartChat(wf)} style={actionBtnPurpleStyle} disabled={startingChatFor === wf.workflowCode}>{t('admin.startChat')}</button>
                     <button onClick={() => handleOpenEditor(wf)} style={actionBtnPurpleStyle}>{t('admin.openEditor')}</button>
                     <button onClick={() => handleOpenApiDocs(wf)} style={actionBtnPurpleStyle}>{t('admin.apiDocs')}</button>
                     <button onClick={() => handleDelete(wf)} style={actionBtnRedStyle}>{t('Delete')}</button>

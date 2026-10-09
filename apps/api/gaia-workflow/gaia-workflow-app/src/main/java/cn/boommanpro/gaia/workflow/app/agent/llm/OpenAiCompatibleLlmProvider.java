@@ -91,6 +91,9 @@ public class OpenAiCompatibleLlmProvider implements LlmProvider {
             if (request.getTools() != null && !request.getTools().isEmpty()) {
                 body.set("tools", request.getTools());
             }
+            if (cfg.getChatTemplateKwargs() != null && !cfg.getChatTemplateKwargs().isEmpty()) {
+                body.set("chat_template_kwargs", cfg.getChatTemplateKwargs());
+            }
 
             HttpURLConnection conn = openConnection(cfg, body);
             int code = conn.getResponseCode();

@@ -405,29 +405,37 @@ public class ArkManagedExecutionEngine implements AgentExecutionEngine {
             LlmToolCall call = new LlmToolCall(callId, name, args.toString());
             log.info("[ark-engine] session={} 执行自定义工具 {} args={}", sessionKey, name, args);
 
-            ToolResult result;
+            ToolResult result = null;
             String policy = toolPolicyService.resolvePolicy(sessionKey, name);
             if ("forbid".equals(policy)) {
                 result = ToolResult.rejected("该操作已被权限策略禁止");
             } else {
                 boolean approved = true;
                 if ("confirm".equals(policy)) {
-                    // 方舟侧 Session 已因 requires_action 暂停，本地等待用户确认不会死锁
-                    approved = toolPolicyService.decideConfirm(context, call, sink);
-                }
-                if (!approved) {
-                    result = ToolResult.rejected("用户未确认该操作");
-                } else {
-                    Optional<ToolExecutor> executor = toolExecutorRegistry.get(name);
-                    if (!executor.isPresent() || !executor.get().canRunOnBackend()) {
-                        result = ToolResult.unavailable(
-                            "工具 " + name + " 不可用或需要浏览器界面，请改用可在服务端完成的方式");
+                    // 弹确认卡之前先做无副作用预校验，参数非法不消耗用户确认（与 local 引擎一致）
+                    Optional<ToolResult> pre = preValidateGated(name, args);
+                    if (pre.isPresent()) {
+                        result = pre.get();
                     } else {
-                        try {
-                            result = executor.get().execute(args, context);
-                        } catch (Exception e) {
-                            log.warn("[ark-engine] session={} 工具 {} 执行异常: {}", sessionKey, name, e.getMessage());
-                            result = ToolResult.fail("{\"error\":\"" + e.getMessage() + "\"}", "工具执行异常");
+                        // 方舟侧 Session 已因 requires_action 暂停，本地等待用户确认不会死锁
+                        approved = toolPolicyService.decideConfirm(context, call, sink);
+                    }
+                }
+                if (result == null) {
+                    if (!approved) {
+                        result = ToolResult.rejected("用户未确认该操作");
+                    } else {
+                        Optional<ToolExecutor> executor = toolExecutorRegistry.get(name);
+                        if (!executor.isPresent() || !executor.get().canRunOnBackend()) {
+                            result = ToolResult.unavailable(
+                                "工具 " + name + " 不可用或需要浏览器界面，请改用可在服务端完成的方式");
+                        } else {
+                            try {
+                                result = executor.get().execute(args, context);
+                            } catch (Exception e) {
+                                log.warn("[ark-engine] session={} 工具 {} 执行异常: {}", sessionKey, name, e.getMessage());
+                                result = ToolResult.fail("{\"error\":\"" + e.getMessage() + "\"}", "工具执行异常");
+                            }
                         }
                     }
                 }
@@ -459,6 +467,20 @@ public class ArkManagedExecutionEngine implements AgentExecutionEngine {
                 completion.countDown();
             } finally {
                 dispatchingTools.remove(callId);
+            }
+        }
+
+        /** confirm 类工具的门禁前预校验；无执行器或校验通过时返回 empty */
+        private Optional<ToolResult> preValidateGated(String name, JSONObject args) {
+            Optional<ToolExecutor> executor = toolExecutorRegistry.get(name);
+            if (!executor.isPresent()) {
+                return Optional.empty();
+            }
+            try {
+                return Optional.ofNullable(executor.get().preValidate(args));
+            } catch (Exception e) {
+                log.warn("[ark-engine] session={} preValidate {} threw: {}", sessionKey, name, e.getMessage());
+                return Optional.empty();
             }
         }
 

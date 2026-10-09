@@ -27,6 +27,7 @@ import { LanguageToggle } from './components/language-toggle';
 import { EditorCanvasBridge } from './agent';
 import { WorkflowDocument, workflowDocumentStore, useWorkflowDocumentState } from './document';
 import { WorkspaceToolExecutor } from './ai-workspace/WorkspaceToolExecutor';
+import { getSessionKeyForWorkflow } from './ai-workspace/session-scope';
 import { useWorkflowArtifactSync } from './ai-workspace/artifact/useWorkflowArtifactSync';
 import { CopilotSidebar } from './ai-workspace/components/CopilotSidebar';
 import { CanvasHistoryPopover } from './ai-workspace/components/CanvasHistoryPopover';
@@ -58,7 +59,13 @@ function readDraftDsl(): any {
  * 所以这里能直接命中 —— 这就是「从主页面跳转到工作流，数据整体承接」的实现点。
  * 带 workflowCode 时必须匹配，避免把 A 工作流的图渲染到 B 上。
  */
-function readCarriedDsl(workflowCode?: string): any | null {
+/**
+ * 从 headless store 里「承接」产物。allowCarry 决定是否允许承接：
+ * 只有从 AI 工作区（/chat、/work）跳过来时才允许 —— 工作流库等入口
+ * 必须展示落版版本，而不是会话里那份可能未落版的草稿。
+ */
+function readCarriedDsl(workflowCode?: string, allowCarry = false): any | null {
+  if (!allowCarry && workflowCode !== DRAFT_CODE) return null;
   try {
     const { doc, meta } = workflowDocumentStore.getSnapshot();
     if (doc.isEmpty) return null;
@@ -76,9 +83,9 @@ function readCarriedDsl(workflowCode?: string): any | null {
   }
 }
 
-/** 首屏数据：内存承接优先，其次草稿，最后给个空壳 */
-function resolveInitialData(workflowCode?: string): any {
-  const carried = readCarriedDsl(workflowCode);
+/** 首屏数据：内存承接优先（仅 AI 工作区来源），其次草稿，最后给个空壳 */
+function resolveInitialData(workflowCode?: string, cameFromWorkspace = false): any {
+  const carried = readCarriedDsl(workflowCode, cameFromWorkspace);
   if (carried) return carried;
   if (workflowCode === DRAFT_CODE) return readDraftDsl() ?? initialData;
   return workflowCode ? emptyWorkflowData : initialData;
@@ -90,12 +97,15 @@ export const Editor = () => {
   const navigate = useNavigate();
   const location = useLocation();
   useLanguage();
+  // 是否从 AI 工作区跳过来（决定是否允许承接会话草稿，见 readCarriedDsl）
+  const cameFromWorkspace = typeof (location.state as any)?.from === 'string'
+    && /^\/(chat|work)\//.test((location.state as any).from);
   // 专家模式同样要接住「AI 在对话里产出的工作流」——不接的话，侧边栏说改了、画布却没动。
   useWorkflowArtifactSync();
-  const [workflowData, setWorkflowData] = useState<any>(() => resolveInitialData(workflowCode));
+  const [workflowData, setWorkflowData] = useState<any>(() => resolveInitialData(workflowCode, cameFromWorkspace));
   // 内存里已有承接数据就不必再 loading，避免画布闪一下
   const [loading, setLoading] = useState(
-    () => !!workflowCode && workflowCode !== DRAFT_CODE && !readCarriedDsl(workflowCode)
+    () => !!workflowCode && workflowCode !== DRAFT_CODE && !readCarriedDsl(workflowCode, cameFromWorkspace)
   );
   const [workflowInfo, setWorkflowInfo] = useState<any>(null);
   const [versions, setVersions] = useState<GaiaWorkflowVersion[]>([]);
@@ -141,8 +151,8 @@ export const Editor = () => {
     if (handledCodeRef.current === workflowCode) return;
     handledCodeRef.current = workflowCode;
 
-    // —— 1) 内存承接：AI 刚产出 / 刚精修过的产物还在 store 里，直接用 ——
-    const carried = readCarriedDsl(workflowCode);
+    // —— 1) 内存承接：仅 AI 工作区来源；工作流库入口一律加载落版版本 ——
+    const carried = readCarriedDsl(workflowCode, cameFromWorkspace);
     if (carried) {
       setWorkflowData(carried);
       setLoading(false);
@@ -255,8 +265,12 @@ export const Editor = () => {
   const effectiveCode =
     workflowCode === DRAFT_CODE ? storeCode || undefined : workflowCode;
 
-  // 返回目标：从 AI 工作区跳过来的回工作区，否则回工作流库
-  const backTo = (location.state as any)?.from === '/admin/workflows' ? '/admin/workflows' : '/';
+  // 返回目标：state.from 优先（AI 工作区 / 管理页带过来的来源路径），否则回首页。
+  // 只接受站内路径，避免把任意字符串当跳转目标。
+  const stateFrom = (location.state as any)?.from;
+  const backTo = typeof stateFrom === 'string' && /^\/(chat|work|admin)\//.test(stateFrom)
+    ? stateFrom
+    : '/';
 
   return (
     <div style={{ display: 'flex', height: '100vh', width: '100%', overflow: 'hidden' }}>
@@ -412,7 +426,12 @@ const EditorHeader = ({
     if (!workflowCode) return;
     setPublishing(true);
     try {
-      const meta = await workflowApi.publishApi(workflowCode, apiName, apiDesc);
+      const meta = await workflowApi.publishApi(
+        workflowCode,
+        apiName,
+        apiDesc,
+        getSessionKeyForWorkflow(workflowCode) || undefined
+      );
       setPublishedMeta(meta);
     } catch (e) {
       alert(t('apiDocs.publish') + ' ' + (e as Error).message);

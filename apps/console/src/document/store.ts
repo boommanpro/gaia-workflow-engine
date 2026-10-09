@@ -85,6 +85,13 @@ class WorkflowDocumentStore {
    */
   private activeMessageId: string | null = null;
 
+  /**
+   * run 粒度会话版本的「待定格」标记：AI 来源的变更不立即落版本（一轮 run 里
+   * 模型可能调十几次工具，逐次记版本会把版本轴刷成 v27、v33 这种碎片），
+   * 只记「本轮有结构变更 + 首个原因」，run 结束由 captureAiRunSnapshot 定格一版。
+   */
+  private pendingAiChange: { reason: SnapshotReason } | null = null;
+
   // ---------------- React 绑定 ----------------
 
   subscribe = (listener: Listener): (() => void) => {
@@ -107,8 +114,32 @@ class WorkflowDocumentStore {
    *   · 内容和当前快照完全一致（例如刷新后重新应用同一份产物）
    *   · 空文档
    * 命中更早的快照时，说明这是一次「回到旧版」的操作，标成 rollback 更好读。
+   *
+   * AI 来源的变更在这里只做「待定格」标记（run 粒度合并，见 pendingAiChange），
+   * 用户/系统来源照常立即落版本。
    */
   private recordSnapshot(change: DslChange, outcome: SnapshotOutcome = 'ok'): void {
+    if (change.source === 'ai') {
+      this.pendingAiChange = this.pendingAiChange ?? {
+        reason: this.state.snapshots.length === 0 ? 'ai-generate' : 'ai-edit',
+      };
+      return;
+    }
+    this.recordSnapshotImmediate(change, outcome);
+  }
+
+  /** run 结束时调用：本轮 AI 变更若有，定格为一个会话版本 */
+  captureAiRunSnapshot(messageId?: string): void {
+    const pending = this.pendingAiChange;
+    this.pendingAiChange = null;
+    if (!pending) return;
+    this.recordSnapshotImmediate(
+      { kind: 'replace', source: 'ai', reason: pending.reason, messageId },
+      'ok'
+    );
+  }
+
+  private recordSnapshotImmediate(change: DslChange, outcome: SnapshotOutcome = 'ok'): void {
     const dsl = this.state.doc.toJSON();
     if (!dsl.nodes.length) return;
 

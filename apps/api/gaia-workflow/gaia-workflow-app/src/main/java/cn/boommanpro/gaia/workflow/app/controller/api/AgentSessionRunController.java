@@ -2,8 +2,15 @@ package cn.boommanpro.gaia.workflow.app.controller.api;
 
 import cn.boommanpro.gaia.workflow.app.agent.core.ToolPolicyService;
 import cn.boommanpro.gaia.workflow.app.agent.session.AgentSessionRunService;
+import cn.boommanpro.gaia.workflow.app.agent.session.SessionArtifactStore;
+import cn.boommanpro.gaia.workflow.app.agent.session.SessionEventBus;
 import cn.boommanpro.gaia.workflow.app.agent.session.SessionWorkflowDraftService;
+import cn.boommanpro.gaia.workflow.infra.manage.entity.GaiaWorkflow;
+import cn.boommanpro.gaia.workflow.infra.manage.entity.GaiaWorkflowVersion;
+import cn.boommanpro.gaia.workflow.infra.manage.service.GaiaWorkflowService;
+import cn.boommanpro.gaia.workflow.infra.manage.service.GaiaWorkflowVersionService;
 import cn.hutool.json.JSONObject;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,6 +34,7 @@ import java.util.concurrent.atomic.AtomicReference;
  *  GET  /api/agent/session/{key}/status    当前运行快照（轮询兜底）
  *  POST /api/agent/session/{key}/stop      停止当前运行
  *  GET  /api/agent/session/{key}/document  当前服务端画布草稿
+ *  GET  /api/agent/session/{key}/artifacts 会话产物列表（workflow/plan/test_report/release）
  * </pre>
  */
 @Slf4j
@@ -37,13 +45,25 @@ public class AgentSessionRunController {
     private final AgentSessionRunService runService;
     private final SessionWorkflowDraftService draftService;
     private final ToolPolicyService toolPolicyService;
+    private final SessionArtifactStore artifactStore;
+    private final GaiaWorkflowService workflowService;
+    private final GaiaWorkflowVersionService workflowVersionService;
+    private final SessionEventBus eventBus;
 
     public AgentSessionRunController(AgentSessionRunService runService,
                                      SessionWorkflowDraftService draftService,
-                                     ToolPolicyService toolPolicyService) {
+                                     ToolPolicyService toolPolicyService,
+                                     SessionArtifactStore artifactStore,
+                                     GaiaWorkflowService workflowService,
+                                     GaiaWorkflowVersionService workflowVersionService,
+                                     SessionEventBus eventBus) {
         this.runService = runService;
         this.draftService = draftService;
         this.toolPolicyService = toolPolicyService;
+        this.artifactStore = artifactStore;
+        this.workflowService = workflowService;
+        this.workflowVersionService = workflowVersionService;
+        this.eventBus = eventBus;
     }
 
     /** 触发一次后端自治运行 */
@@ -139,5 +159,54 @@ public class AgentSessionRunController {
     public Map<String, Object> document(@PathVariable String sessionKey) {
         JSONObject doc = draftService.get(sessionKey);
         return doc;
+    }
+
+    /** 会话产物列表（会话打开时加载，驱动产物面板与历史卡片） */
+    @GetMapping("/{sessionKey}/artifacts")
+    public List<Map<String, Object>> artifacts(@PathVariable String sessionKey) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (cn.boommanpro.gaia.workflow.infra.manage.entity.AgentArtifact artifact
+            : artifactStore.listBySession(sessionKey)) {
+            JSONObject json = SessionArtifactStore.toPublicJson(artifact);
+            result.add(json);
+        }
+        return result;
+    }
+
+    /**
+     * 基于工作流的当前落版初始化会话草稿（「基于工作流迭代」入口，D2）。
+     * 会话不直接修改线上工作流：草稿从落版复制一份，迭代 + 确认落版后才产生新版本。
+     */
+    @PostMapping("/{sessionKey}/seed-draft")
+    public Map<String, Object> seedDraft(@PathVariable String sessionKey,
+                                         @RequestBody Map<String, String> body) {
+        String workflowCode = body != null ? body.get("workflowCode") : null;
+        if (workflowCode == null || workflowCode.isEmpty()) {
+            return new JSONObject().set("success", false).set("error", "workflowCode is required");
+        }
+        GaiaWorkflow workflow = workflowService.getOne(
+            new QueryWrapper<GaiaWorkflow>().eq("workflow_code", workflowCode).last("LIMIT 1"));
+        if (workflow == null || workflow.getCurrentVersionId() == null) {
+            return new JSONObject().set("success", false).set("error", "workflow not found: " + workflowCode);
+        }
+        GaiaWorkflowVersion version = workflowVersionService.getById(workflow.getCurrentVersionId());
+        if (version == null || version.getWorkflowData() == null) {
+            return new JSONObject().set("success", false).set("error", "workflow current version not found");
+        }
+        JSONObject dsl;
+        try {
+            dsl = cn.hutool.json.JSONUtil.parseObj(version.getWorkflowData());
+        } catch (Exception e) {
+            return new JSONObject().set("success", false).set("error", "invalid workflow data");
+        }
+        String summary = "基于 " + workflowCode + " " + version.getVersionNumber() + " 迭代";
+        draftService.replace(sessionKey, dsl, "stable", summary);
+        // 无 run 上下文，直接经事件总线广播文档，让在线窗口立即渲染出「被迭代的那份」
+        eventBus.publish(sessionKey, "document", new JSONObject().set("dsl", draftService.get(sessionKey)));
+        return new JSONObject()
+            .set("success", true)
+            .set("workflowCode", workflowCode)
+            .set("versionNumber", version.getVersionNumber())
+            .set("nodeCount", dsl.getJSONArray("nodes") != null ? dsl.getJSONArray("nodes").size() : 0);
     }
 }

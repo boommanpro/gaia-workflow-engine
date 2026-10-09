@@ -53,11 +53,19 @@ public final class WorkflowDslCanonicalizer {
     public static final class Result {
         private final String json;
         private final List<String> repairs;
+        private final List<String> fatalIssues;
+        private final List<String> warnings;
         private final int nodeCount;
 
         Result(String json, List<String> repairs, int nodeCount) {
+            this(json, repairs, new ArrayList<>(), new ArrayList<>(), nodeCount);
+        }
+
+        Result(String json, List<String> repairs, List<String> fatalIssues, List<String> warnings, int nodeCount) {
             this.json = json;
             this.repairs = repairs;
+            this.fatalIssues = fatalIssues;
+            this.warnings = warnings;
             this.nodeCount = nodeCount;
         }
 
@@ -67,6 +75,16 @@ public final class WorkflowDslCanonicalizer {
 
         public List<String> getRepairs() {
             return repairs;
+        }
+
+        /** 致命语义缺失：节点缺了业务必需字段，落库也跑不起来（llm 无 prompt、http 无 url 等） */
+        public List<String> getFatalIssues() {
+            return fatalIssues;
+        }
+
+        /** 非致命告警：能落版但很可能不是用户想要的（start 无输出、end 无映射等） */
+        public List<String> getWarnings() {
+            return warnings;
         }
 
         public int getNodeCount() {
@@ -85,9 +103,26 @@ public final class WorkflowDslCanonicalizer {
      * @return 规范化结果；输入非法时 json 为 null
      */
     public static Result canonicalize(String rawJson) {
+        return canonicalize(rawJson, null);
+    }
+
+    /**
+     * 规范化并可选地为 LLM 节点填充平台默认模型配置。
+     *
+     * <p>工作流运行时（LlmNode）只认节点级 apiKey/apiHost/modelName，没有平台兜底；
+     * 模型产出 DSL 时又经常不带这些凭证。落版时把平台 llm_config 填进去，
+     * 让「用户不贴 API Key」成为默认体验，同时保留节点级显式配置的优先级。</p>
+     *
+     * @param rawJson DSL 的 JSON 文本
+     * @param llmDefaults 平台默认模型配置；null 表示不填充（保持调用方原语义）
+     * @return 规范化结果；输入非法时 json 为 null
+     */
+    public static Result canonicalize(String rawJson, LlmDefaults llmDefaults) {
         List<String> repairs = new ArrayList<>();
+        List<String> fatalIssues = new ArrayList<>();
+        List<String> warnings = new ArrayList<>();
         if (rawJson == null || rawJson.trim().isEmpty()) {
-            return new Result(null, repairs, 0);
+            return new Result(null, repairs, fatalIssues, warnings, 0);
         }
 
         JSONObject root;
@@ -111,10 +146,10 @@ public final class WorkflowDslCanonicalizer {
                     rawNodes = firstArray(root, "steps");
                 }
             } else {
-                return new Result(null, repairs, 0);
+                return new Result(null, repairs, fatalIssues, warnings, 0);
             }
         } catch (Exception e) {
-            return new Result(null, repairs, 0);
+            return new Result(null, repairs, fatalIssues, warnings, 0);
         }
         if (rawNodes == null) {
             rawNodes = new JSONArray();
@@ -124,7 +159,7 @@ public final class WorkflowDslCanonicalizer {
         }
         if (rawNodes.isEmpty()) {
             repairs.add("未找到任何节点");
-            return new Result(null, repairs, 0);
+            return new Result(null, repairs, fatalIssues, warnings, 0);
         }
 
         // ---------- 节点 ----------
@@ -199,7 +234,37 @@ public final class WorkflowDslCanonicalizer {
             }
 
             // 扁平字段 → inputsValues（llm/http/start/end 等），保证落库后节点可直接执行
+            int llmFilled = fillLlmDefaults(type, mergedData, llmDefaults);
             NodeDataNormalizer.normalize(type, mergedData);
+            if (llmFilled > 0) {
+                repairs.add("节点 \"" + id + "\"（LLM）缺少模型配置，已自动填入平台默认模型（"
+                    + llmFilled + " 项），用户无需手动提供 API Key");
+            }
+            if (llmPromptDerived(type, mergedData, llmDefaults)) {
+                String title = mergedData.getStr("title");
+                String derived = "请完成" + (title != null && !title.trim().isEmpty() ? "「" + title.trim() + "」" : "当前环节")
+                    + "任务：阅读输入内容并给出结果。";
+                mergedData.set("prompt", derived);
+                NodeDataNormalizer.normalize(type, mergedData);
+                repairs.add("节点 \"" + id + "\"（LLM）缺少 prompt，已按节点标题生成占位提示词，落版后可在编辑器中修改");
+                warnings.add("节点 " + id + "（LLM）的提示词是系统生成的占位内容，请确认后修改为真实业务提示词");
+            }
+            if ("http".equals(type) && llmDefaults != null && isBlank(mergedData.get("url"))
+                && !hasWrapperValue(mergedData, "url")) {
+                mergedData.set("method", isBlank(mergedData.get("method")) ? "GET" : mergedData.get("method"));
+                mergedData.set("url", "https://example.com/api");
+                NodeDataNormalizer.normalize(type, mergedData);
+                repairs.add("节点 \"" + id + "\"（HTTP）缺少 url，已填占位地址 https://example.com/api，落版后请改为真实地址");
+                warnings.add("节点 " + id + "（HTTP）的 url 是占位地址，必须修改后才能真正调用");
+            }
+            if ("code".equals(type) && llmDefaults != null && !hasScript(mergedData)) {
+                mergedData.set("script", new JSONObject()
+                    .set("language", "java")
+                    .set("content", "return input;"));
+                NodeDataNormalizer.normalize(type, mergedData);
+                repairs.add("节点 \"" + id + "\"（Code）缺少 script，已填占位脚本 return input，落版后请修改为真实逻辑");
+                warnings.add("节点 " + id + "（Code）的脚本是占位内容，请修改为真实业务逻辑");
+            }
 
             // meta：保留原 meta 的其他字段，只补 position
             JSONObject meta = raw.getJSONObject("meta");
@@ -238,8 +303,13 @@ public final class WorkflowDslCanonicalizer {
 
         if (nodes.isEmpty()) {
             repairs.add("没有任何结构合法的节点");
-            return new Result(null, repairs, 0);
+            return new Result(null, repairs, fatalIssues, warnings, 0);
         }
+
+        // ---------- 语义完整性检查 ----------
+        // 结构修好了不代表能跑：llm 没有 prompt、http 没有 url 这类「空壳节点」
+        // 落库后执行必然失败或产出无意义结果，必须在落版前拦下并回传给模型补全。
+        checkNodeSemantics(nodes, fatalIssues, warnings);
 
         Map<String, JSONObject> byId = new LinkedHashMap<>();
         for (JSONObject n : nodes) {
@@ -358,7 +428,208 @@ public final class WorkflowDslCanonicalizer {
         if (globalVariable != null) {
             out.set("globalVariable", globalVariable);
         }
-        return new Result(out.toString(), repairs, nodes.size());
+        return new Result(out.toString(), repairs, fatalIssues, warnings, nodes.size());
+    }
+
+    /**
+     * 节点语义完整性检查：收集致命缺失与可疑告警。
+     *
+     * <p>致命（fatalIssues）：节点缺了业务必需字段，执行必然失败或无意义——
+     * llm 无 prompt、http 无 url、code 无 script。落版门禁会据此拒绝。</p>
+     *
+     * <p>告警（warnings）：可能不是用户想要的但系统能兜住——start 没定义任何输出、
+     * end 没引用上游、llm 没指定模型等。放行但随回执提示模型。</p>
+     */
+    private static void checkNodeSemantics(List<JSONObject> nodes, List<String> fatalIssues, List<String> warnings) {
+        for (JSONObject n : nodes) {
+            String type = n.getStr("type");
+            String id = n.getStr("id");
+            JSONObject data = n.getJSONObject("data");
+            if (data == null) {
+                data = new JSONObject();
+            }
+            JSONObject iv = data.getJSONObject("inputsValues");
+            switch (type == null ? "" : type) {
+                case "llm": {
+                    if (!hasTemplateContent(iv, "prompt") && !hasTemplateContent(iv, "systemPrompt")) {
+                        fatalIssues.add("节点 " + id + "（LLM）缺少 prompt/systemPrompt，没有提示词无法完成任何任务");
+                    }
+                    if (iv == null || iv.get("modelName") == null) {
+                        warnings.add("节点 " + id + "（LLM）未指定 modelName，节点运行时将缺少模型配置");
+                    }
+                    break;
+                }
+                case "http": {
+                    if (!hasConstantContent(iv, "url")) {
+                        fatalIssues.add("节点 " + id + "（HTTP）缺少 url，无法发起请求");
+                    }
+                    if (iv == null || iv.get("method") == null) {
+                        warnings.add("节点 " + id + "（HTTP）未指定 method，将默认使用 GET");
+                    }
+                    break;
+                }
+                case "code": {
+                    if (!hasScript(data)) {
+                        fatalIssues.add("节点 " + id + "（Code）缺少 script，空脚本无法产出结果");
+                    }
+                    break;
+                }
+                case "start": {
+                    JSONObject outputs = data.getJSONObject("outputs");
+                    JSONObject properties = outputs == null ? null : outputs.getJSONObject("properties");
+                    if (properties == null || properties.isEmpty()) {
+                        warnings.add("节点 " + id + "（开始）没有定义任何输出参数，下游节点将拿不到输入");
+                    }
+                    break;
+                }
+                case "end": {
+                    if (iv == null || iv.isEmpty()) {
+                        warnings.add("节点 " + id + "（结束）没有引用任何上游输出，工作流运行结果将为空");
+                    }
+                    break;
+                }
+                case "condition":
+                case "multi-condition": {
+                    JSONArray conditions = data.getJSONArray("conditions");
+                    if (conditions == null || conditions.isEmpty()) {
+                        warnings.add("节点 " + id + "（条件）没有配置任何条件分支");
+                    }
+                    break;
+                }
+                case "branches": {
+                    JSONArray branches = data.getJSONArray("branches");
+                    if (branches == null || branches.isEmpty()) {
+                        warnings.add("节点 " + id + "（分支）没有配置任何分支");
+                    }
+                    break;
+                }
+                case "loop": {
+                    if (iv == null || iv.get("loopFor") == null) {
+                        warnings.add("节点 " + id + "（循环）未配置 loopFor，不知道要循环什么");
+                    }
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+    }
+
+    /** inputsValues[key] 是 template/constant 且 content 非空 */
+    private static boolean hasTemplateContent(JSONObject iv, String key) {
+        return hasWrapperContent(iv, key, "template") || hasWrapperContent(iv, key, "constant");
+    }
+
+    /**
+     * 为 llm 节点补齐平台默认模型配置（apiKey/apiHost/modelName），返回填充项数。
+     * 只补缺失项，绝不覆盖模型/用户显式给出的配置。
+     */
+    private static int fillLlmDefaults(String type, JSONObject data, LlmDefaults defaults) {
+        if (!"llm".equals(type) || defaults == null) {
+            return 0;
+        }
+        int filled = 0;
+        if (isBlank(data.get("apiKey")) && !isBlank(defaults.apiKey)) {
+            data.set("apiKey", defaults.apiKey);
+            filled++;
+        }
+        if (isBlank(data.get("apiHost")) && !isBlank(defaults.apiHost)) {
+            data.set("apiHost", defaults.apiHost);
+            filled++;
+        }
+        if (isBlank(data.get("modelName")) && !isBlank(defaults.modelName)) {
+            data.set("modelName", defaults.modelName);
+            filled++;
+        }
+        return filled;
+    }
+
+    private static boolean isBlank(Object value) {
+        return value == null || value.toString().trim().isEmpty();
+    }
+
+    /** inputsValues 中该字段是否已有 template/constant 包装值（normalize 后判断用） */
+    private static boolean hasWrapperValue(JSONObject data, String key) {
+        JSONObject iv = data.getJSONObject("inputsValues");
+        if (iv == null) {
+            return false;
+        }
+        return iv.get(key) != null;
+    }
+
+    /**
+     * llm 节点 prompt/systemPrompt 均缺失时是否可派生占位提示词。
+     * 仅限 agent 落版路径（llmDefaults != null）：编辑器手动发布保持严格校验，
+     * 弱模型反复漏写 data 时不至于陷入「报错→重试」死循环，占位内容交给用户在确认卡/编辑器里修正。
+     */
+    private static boolean llmPromptDerived(String type, JSONObject data, LlmDefaults llmDefaults) {
+        if (!"llm".equals(type) || llmDefaults == null) {
+            return false;
+        }
+        // normalize 之后 prompt/systemPrompt 已进 inputsValues
+        JSONObject iv = data.getJSONObject("inputsValues");
+        boolean hasPrompt = iv != null && (iv.get("prompt") != null || iv.get("systemPrompt") != null);
+        if (hasPrompt) {
+            return false;
+        }
+        // data 扁平字段兜底检查（normalize 未覆盖的非标准写法）
+        return isBlank(data.get("prompt")) && isBlank(data.get("systemPrompt"));
+    }
+
+    /** 平台默认模型配置（来自 agent_config 的 llm_config），用于 LLM 节点缺省填充 */
+    public static final class LlmDefaults {
+        public final String apiHost;
+        public final String apiKey;
+        public final String modelName;
+
+        public LlmDefaults(String apiHost, String apiKey, String modelName) {
+            this.apiHost = apiHost;
+            this.apiKey = apiKey;
+            this.modelName = modelName;
+        }
+    }
+
+    private static boolean hasConstantContent(JSONObject iv, String key) {
+        return hasWrapperContent(iv, key, "constant") || hasWrapperContent(iv, key, "template");
+    }
+
+    private static boolean hasWrapperContent(JSONObject iv, String key, String expectedType) {
+        if (iv == null) {
+            return false;
+        }
+        Object value = iv.get(key);
+        if (!(value instanceof JSONObject)) {
+            return false;
+        }
+        JSONObject wrapper = (JSONObject) value;
+        String type = wrapper.getStr("type");
+        if (type != null && !expectedType.equals(type)) {
+            return false;
+        }
+        Object content = wrapper.get("content");
+        if (content instanceof String) {
+            return !((String) content).trim().isEmpty();
+        }
+        // ref 引用（{type:ref, content:[nodeId, field]}）也算有值
+        return "ref".equals(wrapper.getStr("type")) && content != null;
+    }
+
+    /** code 节点的 script：data.script（{language, content}）或 data.inputsValues.script */
+    private static boolean hasScript(JSONObject data) {
+        Object script = data.get("script");
+        if (hasScriptContent(script)) {
+            return true;
+        }
+        JSONObject iv = data.getJSONObject("inputsValues");
+        return iv != null && hasScriptContent(iv.get("script"));
+    }
+
+    private static boolean hasScriptContent(Object script) {
+        if (script instanceof JSONObject) {
+            Object content = ((JSONObject) script).get("content");
+            return content instanceof String && !((String) content).trim().isEmpty();
+        }
+        return script instanceof String && !((String) script).trim().isEmpty();
     }
 
     /**

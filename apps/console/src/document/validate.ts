@@ -10,11 +10,11 @@ import type { DslIssue, DslValidationResult, WorkflowDsl } from './types';
 /** 不参与「孤立节点」检查的类型 */
 const IGNORE_ORPHAN_TYPES = new Set(['comment', 'note']);
 
-/** 需要必填内容的节点字段 */
+/** 需要必填内容的节点字段（缺失=error：节点是空壳，落库也跑不起来） */
 const REQUIRED_FIELDS: Record<string, string[]> = {
   http: ['url'],
   llm: ['prompt'],
-  code: [],
+  code: ['script'],
 };
 
 export function validateDsl(dsl: WorkflowDsl | null | undefined): DslValidationResult {
@@ -134,11 +134,11 @@ export function validateDsl(dsl: WorkflowDsl | null | undefined): DslValidationR
     if (!required) continue;
     for (const field of required) {
       const value = readInputValue(node, field);
-      if (value === undefined || value === null || value === '') {
+      if (value === undefined || value === null || value === '' || isEmptyScript(node, field)) {
         push(
-          'warning',
+          'error',
           'NODE_FIELD_EMPTY',
-          `节点「${getNodeTitle(node)}」的 ${field} 为空`,
+          `节点「${getNodeTitle(node)}」缺少 ${field}，无法执行，请补全后再应用`,
           { nodeId: node.id }
         );
       }
@@ -232,4 +232,15 @@ function readInputValue(node: { data?: Record<string, any> }, field: string): un
     if (entry !== undefined) return entry;
   }
   return node.data?.[field];
+}
+
+/** script 特例：{language, content} 对象里 content 为空也算缺失 */
+function isEmptyScript(node: { data?: Record<string, any> }, field: string): boolean {
+  if (field !== 'script') return false;
+  const value = readInputValue(node, field);
+  if (value && typeof value === 'object' && 'content' in (value as Record<string, unknown>)) {
+    const content = (value as Record<string, unknown>).content;
+    return typeof content !== 'string' || content.trim() === '';
+  }
+  return false;
 }

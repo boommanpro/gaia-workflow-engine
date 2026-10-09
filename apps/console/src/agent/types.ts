@@ -94,6 +94,21 @@ export interface PageContext {
   };
 }
 
+/** 产物（与后端 agent_artifact 表 / SessionArtifactStore.toPublicJson 对应） */
+export interface AgentArtifactDto {
+  artifactKey: string;
+  sessionKey?: string;
+  runId?: string;
+  type: 'workflow' | 'plan' | 'test_report' | 'release';
+  status: string;
+  title?: string;
+  summary?: string;
+  version: number;
+  payload?: any;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 /** 前端展示的消息（含 plan 卡片等扩展） */
 export interface DisplayMessage {
   id: string;
@@ -104,11 +119,18 @@ export interface DisplayMessage {
   timestamp: number;
   // New: for multimodal images
   images?: string[];
-  // New: for debug panel
+  /** New: for debug panel */
   debugInfo?: {
     request?: any;
     response?: any;
   };
+  /** 产物卡（test_report / release）：由 artifact 事件 upsert，key 即消息 id 的一部分 */
+  artifact?: AgentArtifactDto;
+  /**
+   * 本条回复内合并的工具调用（DeepSeek 式单条回复）：
+   * 一次 run 的所有 tool_call 不再各自成卡，而是折进这条助手消息里按序折叠展示。
+   */
+  toolSteps?: ToolCallEvent[];
   // 关联的调试条目 ID，用于点击消息跳转调试面板
   debugEntryId?: string;
   // New: for subagent
@@ -188,6 +210,8 @@ export interface SseHandlers {
   onPlan?: (data: { id: string; steps: any[]; createdNodeIds?: string[] }) => void;
   /** 服务端画布文档快照（前端据此重渲染产物） */
   onDocument?: (data: { dsl: any }) => void;
+  /** 产物事件（SessionArtifactStore 广播）：upsert 全量 / state 仅状态迁移 */
+  onArtifact?: (data: { action: 'upsert' | 'state'; artifact?: AgentArtifactDto; artifactKey?: string; status?: string }) => void;
   /** 需要前端配合的 UI 指令（如 navigate 跳转） */
   onUiAction?: (data: { type: string; args: any }) => void;
   /** 工具确认请求（confirm 策略）：mode=require 时需前端弹窗，其余为后端自动决策的通知 */

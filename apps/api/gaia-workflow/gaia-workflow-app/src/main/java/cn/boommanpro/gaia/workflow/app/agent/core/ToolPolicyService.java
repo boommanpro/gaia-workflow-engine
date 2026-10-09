@@ -50,14 +50,32 @@ public class ToolPolicyService {
     /** 确认模式配置 key（agent_config 表，config_type=agent_policy） */
     public static final String CONFIRM_MODE_KEY = "agent.policy.confirm_mode";
 
+    /**
+     * applyWorkflow 专用确认模式 key（设计文档 agent-artifact-design.md D1）。
+     * 落版是人机交接点：默认 require（用户确认后才写 gaia_workflow_version），
+     * 管理端配置中心可切 auto-approve / auto-reject。独立于全局 confirm_mode。
+     */
+    public static final String APPLY_CONFIRM_MODE_KEY = "agent.policy.apply_confirm_mode";
+
     /** confirm require 模式下的等待上限 */
     private static final long CONFIRM_TIMEOUT_SECONDS = 300;
+
+    /** 等待确认期间的心跳间隔（秒）：保活 SSE + 窗口丢卡后重新弹出 */
+    private static final long CONFIRM_HEARTBEAT_SECONDS = 20;
 
     private final AgentPermissionService permissionService;
     private final AgentGlobalPermissionService globalPermissionService;
     private final AgentToolRegistry toolRegistry;
     private final AgentConfigService configService;
     private final SessionEventBus eventBus;
+
+    /** 确认心跳调度器（daemon，不阻塞 JVM 退出） */
+    private final java.util.concurrent.ScheduledExecutorService confirmHeartbeat =
+        java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "confirm-heartbeat");
+            t.setDaemon(true);
+            return t;
+        });
 
     /** sessionKey#toolCallId → 等待用户确认的 future（仅 require 模式使用） */
     private final ConcurrentMap<String, CompletableFuture<Boolean>> pendingConfirms = new ConcurrentHashMap<>();
@@ -102,31 +120,61 @@ public class ToolPolicyService {
      */
     public boolean decideConfirm(AgentRunContext context, LlmToolCall call, AgentEventSink sink) {
         String sessionKey = context.getSessionKey();
-        String mode = confirmMode();
+        String mode = confirmModeFor(call.getName());
         String toolCallId = call.getId();
+        log.info("[tool-policy] decide session={} tool={} mode={} subscribers={}",
+            sessionKey, call.getName(), mode, eventBus.hasSubscribers(sessionKey));
 
         // require + 有窗口在线 → 挂起等待任一窗口确认
         if ("require".equals(mode) && eventBus.hasSubscribers(sessionKey)) {
             CompletableFuture<Boolean> future = new CompletableFuture<>();
             pendingConfirms.put(key(sessionKey, toolCallId), future);
-            sink.emit(AgentEvent.of("confirm_request", new JSONObject()
+            JSONObject request = new JSONObject()
                 .set("toolCallId", toolCallId)
                 .set("action", call.getName())
                 .set("args", parseArgs(call.getArguments()))
-                .set("mode", "require")));
+                .set("mode", "require");
+            sink.emit(AgentEvent.of("confirm_request", request));
+            // 等待期间周期性重发确认请求：一是给 SSE 链路保活（空闲连接可能被
+            // 代理掐断），二是窗口意外丢卡（组件重挂载/重连窗口）时能重新弹出。
+            java.util.concurrent.ScheduledFuture<?> heartbeat = confirmHeartbeat.scheduleAtFixedRate(
+                () -> {
+                    if (future.isDone()) {
+                        return;
+                    }
+                    try {
+                        sink.emit(AgentEvent.of("confirm_request", request));
+                    } catch (Exception e) {
+                        log.debug("[tool-policy] confirm heartbeat failed: {}", e.getMessage());
+                    }
+                },
+                CONFIRM_HEARTBEAT_SECONDS, CONFIRM_HEARTBEAT_SECONDS, TimeUnit.SECONDS);
             try {
                 boolean approved = future.get(CONFIRM_TIMEOUT_SECONDS, TimeUnit.SECONDS);
                 log.info("[tool-policy] session={} tool={} confirm require resolved={}",
                     sessionKey, call.getName(), approved);
+                // 决议结果广播出去，所有窗口据此摘掉确认卡（快照同步清空）
+                sink.emit(AgentEvent.of("confirm_resolved", new JSONObject()
+                    .set("toolCallId", toolCallId)
+                    .set("approved", approved)));
                 return approved;
             } catch (TimeoutException te) {
                 log.warn("[tool-policy] session={} tool={} confirm timed out, auto-reject",
                     sessionKey, call.getName());
+                sink.emit(AgentEvent.of("confirm_resolved", new JSONObject()
+                    .set("toolCallId", toolCallId)
+                    .set("approved", false)
+                    .set("reason", "timeout")));
                 return false;
             } catch (Exception e) {
                 log.warn("[tool-policy] session={} confirm wait failed: {}", sessionKey, e.getMessage());
+                sink.emit(AgentEvent.of("confirm_resolved", new JSONObject()
+                    .set("toolCallId", toolCallId)
+                    .set("approved", false)
+                    .set("reason", "error")));
                 return false;
             } finally {
+                heartbeat.cancel(false);
                 pendingConfirms.remove(key(sessionKey, toolCallId));
             }
         }
@@ -158,11 +206,21 @@ public class ToolPolicyService {
 
     // ---------------- 内部 ----------------
 
-    /** 确认模式：agent_config 里 agent.policy.confirm_mode，默认 auto-approve */
-    private String confirmMode() {
+    /** 确认模式裁决：applyWorkflow 走专用 key（默认 require），其余工具走全局 confirm_mode */
+    private String confirmModeFor(String action) {
+        if ("applyWorkflow".equals(action)) {
+            String mode = readModeConfig(APPLY_CONFIRM_MODE_KEY);
+            return mode != null ? mode : "require";
+        }
+        String mode = readModeConfig(CONFIRM_MODE_KEY);
+        return mode != null ? mode : "auto-approve";
+    }
+
+    /** 读取模式配置，非法值返回 null（由调用方决定默认） */
+    private String readModeConfig(String configKey) {
         try {
             AgentConfig config = configService.getOne(
-                new QueryWrapper<AgentConfig>().eq("config_key", CONFIRM_MODE_KEY).last("LIMIT 1"));
+                new QueryWrapper<AgentConfig>().eq("config_key", configKey).last("LIMIT 1"));
             if (config != null && config.getContent() != null && !config.getContent().trim().isEmpty()) {
                 String mode = config.getContent().trim();
                 if ("auto-approve".equals(mode) || "auto-reject".equals(mode) || "require".equals(mode)) {
@@ -170,9 +228,9 @@ public class ToolPolicyService {
                 }
             }
         } catch (Exception e) {
-            log.warn("[tool-policy] read confirm_mode failed: {}", e.getMessage());
+            log.warn("[tool-policy] read config {} failed: {}", configKey, e.getMessage());
         }
-        return "auto-approve";
+        return null;
     }
 
     private static String key(String sessionKey, String toolCallId) {

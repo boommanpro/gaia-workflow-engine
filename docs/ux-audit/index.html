@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gaia 全站交互与视觉一致性审计</title>
+<style>
+  :root{
+    --accent:#4d53e8;
+    --accent-soft:#f3f3ff;
+    --ink:#1a1a1a;
+    --ink-2:#444;
+    --ink-3:#6b6b75;
+    --ink-4:#9a9aa4;
+    --line:#e8e8ee;
+    --line-soft:#f2f2f6;
+    --bg:#ffffff;
+    --bg-sunken:#f7f7fa;
+    --p0:#d4380d;
+    --p0-soft:#fff3ef;
+    --p1:#b7791f;
+    --p1-soft:#fdf7ec;
+    --p2:#3b6fb6;
+    --p2-soft:#f1f6fc;
+    --ok:#1f9d55;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--bg-sunken);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;
+    font-size:14px;line-height:1.7;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:40px 24px 96px}
+  header.top{
+    background:linear-gradient(135deg,#4d53e8 0%,#7b7ff0 100%);
+    border-radius:18px;padding:32px 34px;color:#fff;margin-bottom:28px;
+  }
+  header.top .kicker{font-size:12px;font-weight:600;letter-spacing:.08em;opacity:.85;text-transform:uppercase}
+  header.top h1{margin:10px 0 12px;font-size:28px;line-height:1.3;letter-spacing:-.02em}
+  header.top p{margin:0;font-size:14px;opacity:.92;max-width:760px}
+  header.top .meta{margin-top:18px;display:flex;flex-wrap:wrap;gap:8px}
+  header.top .meta span{background:rgba(255,255,255,.16);border-radius:999px;padding:4px 12px;font-size:12px}
+
+  .scoreboard{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:32px}
+  .score{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+  .score b{display:block;font-size:26px;letter-spacing:-.02em}
+  .score i{font-style:normal;font-size:12px;color:var(--ink-4)}
+  .score.p0 b{color:var(--p0)} .score.p1 b{color:var(--p1)} .score.p2 b{color:var(--p2)}
+
+  h2{font-size:19px;margin:44px 0 6px;letter-spacing:-.01em;padding-top:8px}
+  h2 .n{display:inline-flex;width:24px;height:24px;border-radius:8px;background:var(--accent-soft);color:var(--accent);
+        align-items:center;justify-content:center;font-size:12px;font-weight:700;margin-right:9px;vertical-align:2px}
+  h2 + .sub{margin:0 0 18px;color:var(--ink-3);font-size:13.5px}
+
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin-bottom:14px}
+  .card h3{margin:0 0 4px;font-size:15.5px;letter-spacing:-.01em;display:flex;align-items:flex-start;gap:9px;flex-wrap:wrap}
+  .tag{font-size:11px;font-weight:700;border-radius:6px;padding:2px 7px;letter-spacing:.02em;flex-shrink:0;margin-top:2px}
+  .tag.p0{background:var(--p0-soft);color:var(--p0)}
+  .tag.p1{background:var(--p1-soft);color:var(--p1)}
+  .tag.p2{background:var(--p2-soft);color:var(--p2)}
+  .card .why{color:var(--ink-2);margin:8px 0 0;font-size:13.5px}
+  .card .ev{margin:12px 0 0;background:var(--bg-sunken);border:1px solid var(--line-soft);border-radius:10px;padding:10px 13px;font-size:12.5px;color:var(--ink-3)}
+  .card .ev b{color:var(--ink-2)}
+  .card .ev code{background:#fff;border:1px solid var(--line);border-radius:5px;padding:1px 5px;color:#b3383f;font-size:11.5px}
+  .card .fix{margin:12px 0 0;font-size:13px;color:var(--ink-2);border-left:3px solid var(--accent);padding:2px 0 2px 12px}
+  .card .fix b{color:var(--accent)}
+
+  .shots{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:16px 0 8px}
+  .shot{background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .shot img{display:block;width:100%;height:auto}
+  .shot figcaption{padding:9px 13px 11px;font-size:12.5px;color:var(--ink-3);border-top:1px solid var(--line-soft)}
+  .shot figcaption b{color:var(--ink)}
+  .shot.wide{grid-column:1/-1}
+  .shot .box{position:relative}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;background:#fff;
+        border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:14px 0}
+  th,td{text-align:left;padding:10px 13px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+  th{background:var(--bg-sunken);font-weight:600;color:var(--ink-2);font-size:12.5px;white-space:nowrap}
+  tr:last-child td{border-bottom:none}
+  td code{background:var(--bg-sunken);border-radius:5px;padding:1px 5px;font-size:11.5px;color:#b3383f}
+
+  .callout{background:var(--accent-soft);border:1px solid #dcdcff;border-radius:12px;padding:16px 18px;font-size:13.5px;color:#33334d;margin:18px 0}
+  .callout b{color:var(--accent)}
+  ul.tight{margin:8px 0 0;padding-left:20px}
+  ul.tight li{margin:4px 0}
+  .kv{display:grid;grid-template-columns:150px 1fr;gap:6px 16px;font-size:13px;margin-top:10px}
+  .kv dt{color:var(--ink-4)}
+  .kv dd{margin:0}
+  footer{margin-top:52px;padding-top:20px;border-top:1px solid var(--line);color:var(--ink-4);font-size:12.5px}
+  @media(max-width:720px){.shots{grid-template-columns:1fr}.wrap{padding:24px 16px 64px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <div class="kicker">UX / UE / UI Audit</div>
+  <h1>Gaia 全站交互与视觉一致性审计</h1>
+  <p>以「从 <code style="background:rgba(255,255,255,.16);border-radius:4px;padding:1px 5px">/</code> 出发能走到的每一个页面」为范围，逐条核对跳转、返回、状态反馈、文案与视觉规范。证据来自源码逐行核对 + 真实浏览器逐页截图（桌面 1440×900 / 移动 390×780）。</p>
+  <div class="meta">
+    <span>审计点 12 个路由</span>
+    <span>43 处 navigate / 5 处 NavLink</span>
+    <span>0 处 focus 样式</span>
+    <span>748 个 i18n key</span>
+  </div>
+</header>
+
+<div class="scoreboard">
+  <div class="score p0"><b>4</b><i>P0 · 走不通 / 像换了个产品</i></div>
+  <div class="score p1"><b>7</b><i>P1 · 一致性缺口</i></div>
+  <div class="score p2"><b>17</b><i>P2 · 细节与美观</i></div>
+  <div class="score"><b>3</b><i>可复现的功能性缺陷</i></div>
+</div>
+
+<div class="callout">
+  <b>一句话结论：</b>这个产品目前有 <b>五套导航壳</b>（统一顶栏 / 预览自绘 / 发布日志自绘 / 后台侧栏 / 会话左栏）、<b>四种品牌标识</b>、<b>三个滚动容器实现</b>，而且最关键的对话主链路（<code>/c/:key</code>、<code>/editor/:code</code>）<b>没有任何回到站点其他页面的出口</b>。功能都在，但用户每跨一次页面边界，就要重新认一次界面。
+</div>
+
+<h2><span class="n">1</span>导航地图：哪些路是通的，哪些是断的</h2>
+<p class="sub">从 <code>/</code> 出发点击可达（实线）与实际存在但不可达（虚线）。</p>
+
+<table>
+  <thead><tr><th>页面</th><th>用哪套导航壳</th><th>从 <code>/</code> 可达</th><th>能回到站点其他页</th><th>入口文案</th></tr></thead>
+  <tbody>
+    <tr><td><code>/</code> 落地页</td><td>ContentTopNav（60px）</td><td>—</td><td>是</td><td>—</td></tr>
+    <tr><td><code>/c/:key</code> AI 工作区</td><td>SessionRail 左栏（252px）</td><td>提交首句后</td><td><b style="color:var(--p0)">仅 3 个二级入口</b></td><td>Conversation</td></tr>
+    <tr><td><code>/preview</code> 预览</td><td><b style="color:var(--p0)">Home 自绘 nav（64px）</b></td><td>是</td><td>是（另一套）</td><td>Preview</td></tr>
+    <tr><td><code>/docs</code> API 文档</td><td>ContentTopNav</td><td>是</td><td>是</td><td>API Docs</td></tr>
+    <tr><td><code>/dashboard</code> 调用看板</td><td>ContentTopNav</td><td>是</td><td>是</td><td>Dashboard</td></tr>
+    <tr><td><code>/admin/*</code> 管理后台</td><td>AdminLayout 侧栏（240px）</td><td>是</td><td>是（侧栏底部）</td><td>Admin console</td></tr>
+    <tr><td><code>/editor/:code</code> 专家模式</td><td><b style="color:var(--p0)">EditorHeader 自绘</b></td><td>是</td><td><b style="color:var(--p0)">只有 ← 返回</b></td><td>—</td></tr>
+    <tr><td><code>/template-editor/:code</code></td><td>TemplateEditorHeader</td><td>否（仅后台内）</td><td>只有 ← 返回</td><td>—</td></tr>
+    <tr><td><code>/releases</code> 发布日志</td><td><b style="color:var(--p0)">Releases 自绘 nav</b></td><td><b style="color:var(--p0)">否（孤岛）</b></td><td>是</td><td>—（全站顶栏无此入口）</td></tr>
+    <tr><td>无效 URL</td><td>—</td><td colspan="2"><b style="color:var(--p0)">静默改写为 <code>/</code>，无 404 页</b></td><td>—</td></tr>
+  </tbody>
+</table>
+
+<div class="shots">
+  <figure class="shot">
+    <img src="assets/ux-01-landing.png" alt="落地页导航">
+    <figcaption><b>A. 统一顶栏</b>　Preview · API Docs · Dashboard · Admin console，渐变方块 logo，CTA 圆角 8。四项全灰 —— <b>没有任何一项高亮</b>，首页自己不在导航里。</figcaption>
+  </figure>
+  <figure class="shot">
+    <img src="assets/ux-02-preview.png" alt="预览页导航">
+    <figcaption><b>B. 预览页（同一次点击的落点）</b>　变成 Live Demo · Docs · Release Log · API Docs · Dashboard，多出 GitHub 图标与「Backend Online」灯，logo 换成另一张蓝色 G，CTA 圆角 6。顶栏从 5 项变 7 项。</figcaption>
+  </figure>
+</div>
+
+<h2><span class="n">2</span>P0 · 四个必须优先处理的问题</h2>
+<p class="sub">这四个直接影响「用户能不能顺畅走完一遍」，且都有一致性/可达性上的硬伤。</p>
+
+<div class="card">
+  <h3><span class="tag p0">P0-1</span>「预览」页是另一个产品：导航结构、logo、按钮样式全部换了一套</h3>
+  <p class="why">点一下「Preview」，顶栏从 4 项变 7 项、品牌标识从渐变方块变成 <code>logo.svg</code>、CTA 圆角从 8 变 6、还凭空多出 GitHub 入口与「Backend Online」状态灯。更麻烦的是新顶栏里同时出现 <b>「Docs」和「API Docs」</b>两个入口：前者是页内滚动到「如何本地启动」，后者才是路由 <code>/docs</code> 的对外 API 文档 —— 用户无法从字面区分。</p>
+  <div class="ev"><b>证据</b>　<code>pages/Home.tsx:160-331</code> 自绘 nav（height 64 / padding <code>0 48px</code>）；<code>components/ContentTopNav.tsx:72</code>（height 60 / <code>px-4 sm:px-6</code>）。<code>Home.tsx:210</code> 用 <code>nav.docs</code> 指向页内 <code>#docs</code>，<code>Home.tsx:240</code> 用 <code>nav.apiDocs</code> 指向路由 <code>/docs</code>。而 <code>LandingPage.tsx:7</code> 的注释明确写着「顶部导航与预览/文档/看板共用 ContentTopNav」—— 实现与注释相反。</div>
+  <p class="fix"><b>建议方向　</b>把 <code>/preview</code> 接回 <code>ContentTopNav</code>，把「Live Demo / Release Log」收进页面内的次级锚点或内容区；全站只保留一个 <code>/docs</code> 语义。</p>
+</div>
+
+<div class="card">
+  <h3><span class="tag p0">P0-2</span>预览页在移动端导航直接崩坏</h3>
+  <p class="why">固定 <code>padding: 0 48px</code> + 全内联样式 + 零断点。390px 宽下：品牌副标题被压成竖排、「Live Demo」与「Demo」文字重叠、「Release Log」折成两行、GitHub 图标与语言开关被挤出视口、主 CTA「Start a conversation」完全消失。这一页在手机上不可用。</p>
+  <div class="ev"><b>证据</b>　<code>pages/Home.tsx:167</code> <code>padding:'0 48px'</code>，整页无任何 <code>md:</code> / <code>sm:</code> 断点类（只有 <code>hidden lg:block</code> 用于隐藏 API Docs / Dashboard，导致 <b>lg 以下这两个入口彻底消失且无抽屉替代</b>）。</div>
+  <p class="fix"><b>建议方向　</b>统一用 ContentTopNav（它已内置移动端抽屉），即 P0-1 的修复顺带解决本项。</p>
+</div>
+
+<div class="card">
+  <h3><span class="tag p0">P0-3</span>对话主链路没有出口：工作区与编辑器回不到站点其他页面</h3>
+  <p class="why">这正是产品的核心链路，但 <code>/c/:key</code> 与 <code>/editor/:code</code> 都没有站点级导航。工作区左栏只有「Workflow library / Preview / Admin console」三个二级入口，<b>没有 API 文档、没有调用看板、没有回首页</b>，且已发布的 API 在哪里看完全无从得知；左栏品牌区是不可点击的 <code>&lt;div&gt;</code>，连"点 logo 回家"这条最通用的习惯都没有。编辑器更极端，唯一出口是「← 返回」，而它的落点还会根据来源漂移（见 P1-4）。</p>
+  <div class="ev"><b>证据</b>　<code>ai-workspace/components/SessionRail.tsx:34-38</code>（entries 只有 3 项）；<code>SessionRail.tsx:53</code> 品牌是 <code>&lt;div&gt;</code> 无 onClick（对比 <code>ContentTopNav.tsx:73</code> 的 BrandMark 是可点 button）；<code>editor.tsx:460-580</code> EditorHeader 只有 Back / 历史版本 / 语言 / Publish / Save。</div>
+  <p class="fix"><b>建议方向　</b>工作区与编辑器共用同一个「轻量站点顶栏」（或至少把 <code>/docs</code>、<code>/dashboard</code>、<code>/</code> 补进 SessionRail 的二级入口并让品牌可点回首页）。</p>
+</div>
+
+<div class="card">
+  <h3><span class="tag p0">P0-4</span>会话列表全是「新对话」，八个会话完全无法区分</h3>
+  <p class="why">自动命名逻辑写在 <code>ChatComposer.submit()</code> 里，但<b>只要消息不是从这个输入框敲的就不会触发</b>：首页首句承接（<code>AiWorkspace</code> 里 <code>sendMessageRef.current(prompt)</code>）和欢迎页建议卡（<code>ChatWelcome.onPick → sendMessage</code>）都绕过了它。而这两条恰恰是「以对话为核心」最主要的进入方式。实测截图里 8 条会话标题全是「新对话」，用户无法找回任何一次对话。</p>
+  <div class="ev"><b>证据</b>　<code>chat/ChatComposer.tsx:156-158</code> 是唯一 <code>renameSession</code> 触发点；<code>ai-workspace/AiWorkspace.tsx:101-103</code> 与 <code>AiWorkspace.tsx:224</code> 直接调 <code>sendMessage</code>。运行态证据：<code>/api/agent/session/list</code> 返回标题均为「新对话」。</div>
+  <p class="fix"><b>建议方向　</b>把「首条消息 → 会话命名」下沉到 <code>AgentContext.sendMessage</code>（一处生效，所有入口都对），而不是留在某一个输入框组件里。</p>
+</div>
+
+<h2><span class="n">3</span>P1 · 一致性缺口：同一件事，不同地方不同做法</h2>
+<p class="sub">这些不阻断流程，但每一次跨页都在削弱「这是一个产品」的感觉。</p>
+
+<div class="shots">
+  <figure class="shot"><img src="assets/ux-05-releases.png" alt="发布日志导航"><figcaption><b>C. 发布日志</b>　logo.svg + 「Gaia / AI Workflow Editor」；导航 Home · <u>Release Log</u> · 实心 Admin Console；语言开关是无边框纯文字。而这一页在全站顶栏里<b>没有任何入口</b>，只能从预览页到达。</figcaption></figure>
+  <figure class="shot"><img src="assets/ux-07-workspace.png" alt="工作区左栏"><figcaption><b>D. 工作区左栏</b>　同一时间同一产品，底部主 CTA 是实心紫色的「New conversation」，品牌叫「Gaia AI」并挂「General」徽章；右侧产物面板是<b>竖排文字</b>「Workflow artifact」，收起态只有一个 6px 小圆点表示"里面有东西"。</figcaption></figure>
+</div>
+
+<div class="card">
+  <h3><span class="tag p1">P1-1</span>同一个品牌，四种长相；其中两个还是完全不同的图形</h3>
+  <p class="why">ContentTopNav 与 SessionRail 用的是手写 SVG 渐变方块（星形），而 Home / Releases / AdminLayout 用的是 <code>public/logo.svg</code>（蓝色 G）。这不是"同一个 logo 的不同尺寸"，是<b>两个不同的标识</b>。名字也分三种：Gaia / Gaia AI / Gaia · Admin。副标题只有预览页和发布日志页有。</p>
+  <div class="ev"><b>证据</b>　<code>ContentTopNav.tsx:24-46</code> 与 <code>SessionRail.tsx:63-99</code>（内联 SVG + gradient）vs <code>Home.tsx:174</code> / <code>Releases.tsx:84</code> / <code>AdminLayout.tsx:139</code>（<code>&lt;img src={publicPath('logo.svg')} width=48&gt;</code>）。</div>
+  <p class="fix"><b>建议方向　</b>抽一个 <code>&lt;BrandMark size="lg|sm" /&gt;</code> 统一出口，删掉或弃用其一。</p>
+</div>
+
+<div class="card">
+  <h3><span class="tag p1">P1-2</span>同一个目的地，三种叫法；有一个还指错了地方</h3>
+  <p class="why"><code>/admin/workflows</code> 在顶栏叫「Admin console」、在后台侧栏叫「Workflows」、在会话左栏叫「Workflow library」。最严重的是会话左栏那条：<b>文案写「Admin console」（管理后台），齿轮图标，落点却是 <code>/admin/agent-config</code>（Agent 配置二级页）</b>——用户以为进后台首页，实际被丢进配置页。同理 <code>/admin/sessions</code> 侧栏叫「Session Review」、页头叫「Agent Session Review」；<code>/preview</code> 导航叫「Preview」、页内 H1 是「Build AI workflows, visually.」。</p>
+  <div class="ev"><b>证据</b>　<code>ContentTopNav.tsx:21</code>（<code>landing.admin</code>）、<code>AdminLayout.tsx:151</code>（<code>admin.workflows</code>）、<code>SessionRail.tsx:35</code>（<code>workspace.workflowLibrary</code>）、<code>SessionRail.tsx:37</code>（<code>workspace.adminConsole → /admin/agent-config</code>）。</div>
+  <p class="fix"><b>建议方向　</b>建一张「路由 → 唯一名称」的映射表，所有入口从表里取词；导航栏名称与着陆页 H1 允许不同，但同层入口必须同名。</p>
+</div>
+
+<div class="card">
+  <h3><span class="tag p1">P1-3</span>滚动容器三套实现，其中两套还嵌套了</h3>
+  <p class="why">落地页自己写 <code>height:100vh; overflowY:auto</code>；内容页走 <code>&lt;ScrollPage&gt;</code>；预览页靠内层 <code>minHeight:100vh</code> 自然流。而且 <code>/docs</code> 与 <code>/dashboard</code> 是<b>双重 ScrollPage 嵌套</b>（App 包一层，组件内部又包一层），sticky 顶栏挂在里层，滚动条行为与外层不一致。</p>
+  <div class="ev"><b>证据</b>　<code>App.tsx:48-51</code> + <code>ApiDocsPage.tsx:71/162/171/191</code> + <code>DashboardPage.tsx:111</code>（均为组件内再包一层）；<code>LandingPage.tsx:53-60</code>（自绘滚动容器）。</div>
+  <p class="fix"><b>建议方向　</b>只保留 App 层一处 ScrollPage，页面内不再包；落地页也改用它。</p>
+</div>
+
+<div class="card">
+  <h3><span class="tag p1">P1-4</span>编辑器的「← 返回」会丢失来源，从文档页进就掉回首页</h3>
+  <p class="why"><code>backTo</code> 只认一种来源 token：只有从后台工作流管理进来才回后台，其它一律回 <code>/</code>。所以从 API 文档的「去发布」、或从工作区产物面板的「在编辑器中精修」进入编辑器后，点返回都会被打到落地页 —— 用户的上下文（他在看哪个 API 的文档）被丢掉。</p>
+  <div class="ev"><b>证据</b>　<code>editor.tsx:293</code> <code>const backTo = location.state?.from === '/admin/workflows' ? '/admin/workflows' : '/'</code>；只有 <code>admin/WorkflowManagement.tsx:162</code> 传了 <code>state.from</code>；<code>ApiDocsPage.tsx:176</code>、<code>artifact/ArtifactPanel.tsx:136</code> 均未传。</div>
+  <p class="fix"><b>建议方向　</b>改成 <code>navigate(-1)</code> 或统一由 <code>state.from</code> 携带来源，缺省回落到 <code>/</code> 而不是只有一种白名单。</p>
+</div>
+
+<div class="card">
+  <h3><span class="tag p1">P1-5</span>全站导航几乎都是 <code>&lt;button onClick&gt;</code>，不是链接</h3>
+  <p class="why">全站 43 处 <code>navigate(...)</code>，只有 5 处 <code>&lt;NavLink&gt;</code>（都在后台侧栏）。后果：<b>不能 Cmd/Ctrl+点击新开标签页、不能右键复制链接、hover 看不到目标地址</b>，屏幕阅读器也读不出"这是个链接"。对一个"讲 API 调用文档"的产品来说，用户想分享一条文档链接的路径是不通的。</p>
+  <div class="ev"><b>证据</b>　<code>ContentTopNav.tsx:80-91/124-135</code>、<code>Home.tsx:184-256</code>、<code>SessionRail.tsx:125-158</code> 全部为 button；唯 5 处 NavLink 在 <code>AdminLayout.tsx:149/153/157/161/167</code>。</div>
+  <p class="fix"><b>建议方向　</b>导航项与卡片入口换成 <code>&lt;Link&gt;</code>/<code>&lt;NavLink&gt;</code>，保留样式。这是低成本、高收益的一项。</p>
+</div>
+
+<div class="card">
+  <h3><span class="tag p1">P1-6</span>发布日志页完全脱离 i18n，且默认语言与全站相反</h3>
+  <p class="why">这一页没有 import 全局 <code>t()</code>，而是自建了一个本地 <code>t</code> 对象；语言状态默认值写死 <code>'en'</code>，而全站默认是 <code>zh-CN</code>（按浏览器语言判定）。结果是：中文用户从预览页点进「Release Log」，会看到一页英文，且页面内的语言开关与全站语言<b>互不同步</b>——在同一浏览器里切一次语言，两处状态就永久分裂了。</p>
+  <div class="ev"><b>证据</b>　<code>pages/Releases.tsx:37</code> <code>useState&lt;Lang&gt;('en')</code>；<code>Releases.tsx:39-52</code> 本地 t 对象；<code>Releases.tsx</code> 未 import <code>../i18n</code>；对比 <code>i18n/index.ts:54-64</code>。</div>
+  <p class="fix"><b>建议方向　</b>改用全局 <code>useLanguage()</code>/<code>t()</code>，release 条目文案进词典。</p>
+</div>
+
+<div class="card">
+  <h3><span class="tag p1">P1-7</span>字体三套，而且有一页会临时去网上拉 Inter</h3>
+  <p class="why"><code>tailwind.config.js</code> 没有配置 <code>fontFamily</code>，所以 <code>/</code>、<code>/docs</code>、<code>/dashboard</code> 用浏览器默认字体；<code>/preview</code>、<code>/releases</code>、<code>/admin</code> 声明 <code>'Inter', -apple-system…</code>；而 <code>/preview</code> 和 <code>/releases</code> 还会在挂载时动态往 <code>&lt;head&gt;</code> 插一个 Google Fonts <code>&lt;link&gt;</code>，离开时移除。也就是说同一段中文/英文文字，在首页和在预览页是不同字体；预览页首屏还会出现字体替换闪烁。另外内网/被墙环境下这个外链会明显拖慢首屏。</p>
+  <div class="ev"><b>证据</b>　<code>tailwind.config.js</code>（theme.extend 为空）；<code>Home.tsx:116-124</code>、<code>Releases.tsx</code> 同款 <code>document.head.appendChild(link)</code>。</div>
+  <p class="fix"><b>建议方向　</b>在 tailwind theme 里统一 <code>fontFamily</code>，字体改为本地自托管或直接用系统字体栈。</p>
+</div>
+
+<h2><span class="n">4</span>P2 · 交互细节与美观问题</h2>
+<p class="sub">逐条都很小，但它们是"完成度"的主要来源。</p>
+
+<table>
+  <thead><tr><th style="width:32px">#</th><th>问题</th><th>证据 / 位置</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td><b>全站零焦点样式</b>。没有任何 <code>focus-visible:</code> 类，全局也无自定义焦点环；落地页输入框还显式 <code>outline-none</code>。键盘用户完全看不到焦点位置（唯一例外是聊天气泡操作栏的 <code>focus-within</code>）。</td><td><code>LandingPage.tsx:97</code> <code>outline-none</code>；全仓 <code>focus:ring/focus-visible</code> 匹配数为 <b>0</b>；<code>chat/theme.tsx:77</code> 是唯一一处</td></tr>
+    <tr><td>2</td><td><b>首页发消息没有加载反馈</b>。<code>busy</code> 只把按钮降到 40% 透明，无 spinner、无「正在创建会话」文案；<code>createSession</code> 失败被空 catch 吞掉，用户只看到"点了没反应"——这正是上一轮被误判成前端 bug 的根源。</td><td><code>LandingPage.tsx:39-42, 104-105</code></td></tr>
+    <tr><td>3</td><td><b>导航缺「当前位置」</b>。首页时四个导航项全不高亮（因为首页自己不在导航里）；预览页那套导航里也没有「Preview」项。用户在任何一页都很难确认自己在哪。</td><td><code>ContentTopNav.tsx:59</code> + 截图 A</td></tr>
+    <tr><td>4</td><td><b>同一句文案用了两次</b>：<code>landing.tagline</code>「Gaia · Conversation as API」既是 hero 顶部徽章，又是页脚文字。移动端截图上两处同屏可见。</td><td><code>LandingPage.tsx:73, 130</code></td></tr>
+    <tr><td>5</td><td><b>输入提示文案两套</b>：首页「Try these · Enter ↵」（把"示例"和"键盘"拼一行），工作区「Enter to send · Shift+Enter for a new line」。同一件事两种说法，且首页没说 Shift+Enter 换行。</td><td><code>LandingPage.tsx:101</code> vs <code>workspace.inputHint</code> 词典</td></tr>
+    <tr><td>6</td><td><b>示例 chips 换行不齐</b>：4 个 chip 在 1440 下排成 3+1，在 390 下排成 2+1+1，没有等宽或栅格约束；点击只填词，不聚焦也不发送。</td><td><code>LandingPage.tsx:117-127</code> + 截图 A / 移动端截图</td></tr>
+    <tr><td>7</td><td><b>原生 <code>&lt;select&gt;</code> 混在自绘控件里</b>：看板的「API 过滤」是浏览器默认下拉（原生箭头、原生焦点环），同一行旁边却是自绘的 Segmented 分段控件。</td><td><code>DashboardPage.tsx:146-158</code></td></tr>
+    <tr><td>8</td><td><b>颜色语义重叠</b>：全站主色是 <code>#4d53e8</code>，但编辑器主 CTA 之一「Test Run」是实心绿色（事实上的第二主色）；看板上「成功率 86%」用红色（阈值 90%），于是红色<b>同时表示"失败"和"未达标"</b>两种不同含义。</td><td><code>editor.tsx</code> Test Run 按钮；<code>DashboardPage.tsx:207</code> <code>successRate &gt;= 0.9 ? GREEN : RED</code></td></tr>
+    <tr><td>9</td><td><b>时间格式三套且未本地化</b>：看板「Updated at 9:23:58 AM · 2026-08-17 ~ 2026-09-15」（硬编码 <code>toLocaleTimeString()</code>，中文界面下出现 AM/PM）；会话列表在当天显示 <code>09:24</code>、往日显示 <code>9/14</code>；后台表格用 <code>2026-08-06 23:57</code>。</td><td><code>DashboardPage.tsx:60</code>；截图 D / F</td></tr>
+    <tr><td>10</td><td><b>loading 与 empty 文案混用</b>：<code>dashboard.listEmpty</code>（「暂无调用数据」）被当作 API 文档页的加载中文案，页面上会短暂出现「No call data yet…」而其实只是在加载。</td><td><code>ApiDocsPage.tsx:80, 164</code></td></tr>
+    <tr><td>11</td><td><b>空态 CTA 文案与落点语义不符</b>：API 文档列表为空时，按钮文案取的是 <code>preview.title</code>（「Preview」）并跳到 <code>/preview</code>。正确引导应是"去对话创建一个工作流"。</td><td><code>ApiDocsPage.tsx:85-91</code></td></tr>
+    <tr><td>12</td><td><b>编辑器里用裸 <code>&lt;a href&gt;</code> 做内部跳转</b>，点击会整页重载，丢失 <code>workflowDocumentStore</code> 内存态与当前 Agent 会话（项目约定明确要求同标签页内 client-side 跳转）。</td><td><code>editor.tsx:614</code> <code>&lt;a href={`/docs/${...}`}&gt;</code></td></tr>
+    <tr><td>13</td><td><b>无效 URL 静默重定向</b>：<code>*</code> 路由直接 <code>Navigate to="/"</code>，地址栏被改写、无 404 提示。用户打错一个字母只会"莫名其妙回到首页"，无法判断是自己错了还是页面没了。<br><em>（已实测：访问 <code>/this-page-does-not-exist</code> 后 <code>location.pathname</code> 变成 <code>"/"</code>）</em></td><td><code>App.tsx:68</code></td></tr>
+    <tr><td>14</td><td><b>竖排「Workflow artifact」是全站唯一的竖排交互</b>，且收起态只靠一个 6px 小圆点暗示"里面有内容"，hover 才出 tooltip。这是整个产物面板（产品最核心的产出物）的唯一常驻入口。</td><td><code>AiWorkspace.tsx:251-288</code></td></tr>
+    <tr><td>15</td><td><b>42 个 i18n 死 key + 4 个缺失 key</b>。缺失的 4 个（<code>Add condition</code> / <code>Add branch</code> / <code>Add Condition</code> / <code>Add Branch</code>）走 flowgram 的 <code>I18n.t</code>，词典里根本没登记，中文环境下会直接显示英文；而词典里真正对应的 <code>condition.addCondition</code> / <code>condition.addBranch</code> 从未被引用。死 key 里 <code>preview.*</code> 11 个有 10 个是死的。</td><td><code>nodes/multi-condition/condition-inputs/index.tsx:116,161</code>；<code>nodes/branches/branch-inputs/index.tsx:172,205</code></td></tr>
+    <tr><td>16</td><td><b>商品化文案硬编码中文</b>：产物面板的节点类型映射表、会话审查的「关闭调试/调试面板」、Copilot 侧栏的三个提示词模板（「解释一下节点「X」的作用…」）都是写死的中文 → 英文界面下仍是中文。而词典里已有 <code>node.label.*</code> 未被使用。</td><td><code>ai-workspace/artifact/ArtifactPanel.tsx:30-49, 94</code>；<code>ai-workspace/components/CopilotSidebar.tsx:167-169</code>；<code>pages/admin/SessionReview.tsx:561</code></td></tr>
+    <tr><td>17</td><td><b>孤儿锚点与孤岛页面</b>：<code>Releases.tsx:154</code> 的 <code>id="releases"</code> 无任何跳转指向；<code>/releases</code> 在全站统一顶栏里没有入口；<code>nav.admin</code> 是死 key。</td><td>见第 1 节导航表</td></tr>
+  </tbody>
+</table>
+
+<h2><span class="n">5</span>建议的一致性地基（修一次，处处生效）</h2>
+<p class="sub">上面 28 条里有 20 条以上其实是「缺一套统一 token」的表现。先把下面这几件事定死，剩下的是替换。</p>
+
+<table>
+  <thead><tr><th style="width:150px">维度</th><th>现状</th><th>建议基线</th></tr></thead>
+  <tbody>
+    <tr><td>品牌标识</td><td>4 种（SVG 渐变方块 / logo.svg / Gaia AI / Gaia · Admin）</td><td>1 个 <code>&lt;BrandMark size /&gt;</code>，两种尺寸</td></tr>
+    <tr><td>站点顶栏</td><td>3 套（ContentTopNav / Home nav / Releases nav）</td><td>1 个 ContentTopNav，高 60px，含移动抽屉</td></tr>
+    <tr><td>主 CTA</td><td>圆角 6 / 8 / 10 / 12 混用</td><td>圆角 8，<code>#4d53e8</code>，唯一实心主色</td></tr>
+    <tr><td>警告色</td><td>绿既是"成功"又是编辑器主 CTA；红既是"失败"又是"未达标"</td><td>语义色只用于状态；阈值不改变颜色语义</td></tr>
+    <tr><td>字体</td><td>系统默认 / Inter(网络加载) / 编辑器自带</td><td>tailwind theme 统一 <code>fontFamily</code>，不依赖外网字体</td></tr>
+    <tr><td>滚动容器</td><td>3 套，其中 2 处嵌套</td><td>只在 App 层一处 <code>&lt;ScrollPage&gt;</code></td></tr>
+    <tr><td>页面跳转</td><td>43 处 button+onClick</td><td>导航一律 <code>&lt;Link&gt;</code>，可新开/可复制</td></tr>
+    <tr><td>时间格式</td><td>3 套，含硬编码 AM/PM</td><td>1 个 <code>formatTime()</code>，随 locale</td></tr>
+  </tbody>
+</table>
+
+<div class="card" style="border-color:#dcdcff;background:var(--accent-soft)">
+  <h3 style="color:var(--accent)">建议的修复批次</h3>
+  <ul class="tight" style="color:#33334d">
+    <li><b>第 1 批（统一外壳）</b>　P0-1 + P0-2 + P1-1 + P1-2 + P1-3：抽出统一 BrandMark 与统一顶栏，把 <code>/preview</code>、<code>/releases</code> 接进来，修掉双重 ScrollPage。这一批做完，全站观感问题会掉一大半。</li>
+    <li><b>第 2 批（打通出口）</b>　P0-3 + P1-4 + P2-13：给工作区/编辑器补站点出口，统一返回来源，加真正的 404 页。</li>
+    <li><b>第 3 批（功能缺陷）</b>　P0-4（会话命名下沉）+ P2-2（发送反馈）+ P2-12（裸 a 标签）+ P2-10/11（loading 与空态文案）。</li>
+    <li><b>第 4 批（打磨）</b>　焦点环、chips 栅格、原生 select、时间格式、i18n 死/缺 key 清理。</li>
+  </ul>
+</div>
+
+<footer>
+  审计方式：源码逐行核对（<code>apps/console/src</code>）+ 真实浏览器逐页截图与 DOM 读取（1440×900 / 390×780）。<br>
+  截图证据见同目录 <code>assets/</code>。本报告只做问题分析，未改动任何代码。
+</footer>
+
+</div>
+</body>
+</html>
