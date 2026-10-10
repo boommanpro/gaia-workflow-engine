@@ -39,6 +39,10 @@ public class OpenAiCompatibleLlmProvider implements LlmProvider {
 
     public static final String PROVIDER_ID = "openai-compatible";
 
+    /** 流式末 chunk 的 usage 经 ThreadLocal 传回 chat()（单例并发安全） */
+    private final ThreadLocal<Integer> lastPromptTokens = new ThreadLocal<>();
+    private final ThreadLocal<Integer> lastCompletionTokens = new ThreadLocal<>();
+
     private final AgentModelConfigService modelConfigService;
 
     public OpenAiCompatibleLlmProvider(AgentModelConfigService modelConfigService) {
@@ -75,6 +79,8 @@ public class OpenAiCompatibleLlmProvider implements LlmProvider {
     public LlmChatResponse chat(LlmChatRequest request, TokenListener listener) {
         long start = System.currentTimeMillis();
         AgentModelConfigService.LlmConfig cfg = modelConfigService.getLlmConfig();
+        lastPromptTokens.remove();
+        lastCompletionTokens.remove();
 
         try {
             JSONObject body = new JSONObject();
@@ -100,18 +106,44 @@ public class OpenAiCompatibleLlmProvider implements LlmProvider {
             if (code != 200) {
                 String err = readAll(conn.getErrorStream());
                 log.error("[llm] request failed: {} {}", code, err);
-                return LlmChatResponse.failed("LLM 调用失败: " + code + " " + err);
+                return LlmChatResponse.failed("LLM 调用失败: " + code + " " + err,
+                    classifyHttpStatus(code));
             }
 
             LlmChatResponse response = request.isStream()
                 ? readStream(conn, listener, start)
                 : readJson(conn, start);
             response.setModel(cfg.getModel());
+            if (response.getErrorCode() == null && response.getContent() != null) {
+                // usage 锚点（存在则记）：TokenMeter 优先用真实值，估算兜底
+                response.setPromptTokens(lastPromptTokens.get());
+                response.setCompletionTokens(lastCompletionTokens.get());
+            }
             return response;
+        } catch (java.net.SocketTimeoutException e) {
+            log.error("[llm] chat timeout", e);
+            return LlmChatResponse.failed("LLM 调用超时: " + e.getMessage(), "TIMEOUT");
+        } catch (java.io.IOException e) {
+            log.error("[llm] chat transport error", e);
+            return LlmChatResponse.failed("LLM 网络异常: " + e.getMessage(), "TRANSPORT");
         } catch (Exception e) {
             log.error("[llm] chat error", e);
-            return LlmChatResponse.failed(e.getMessage());
+            return LlmChatResponse.failed(e.getMessage(), "TRANSPORT");
         }
+    }
+
+    /** HTTP 状态码 → 重试策略可识别的错误分类 */
+    static String classifyHttpStatus(int code) {
+        if (code == 429) {
+            return "RATE_LIMIT";
+        }
+        if (code == 408) {
+            return "TIMEOUT";
+        }
+        if (code >= 500) {
+            return "SERVER";
+        }
+        return null;
     }
 
     // ---------------- 请求构造 ----------------
@@ -130,7 +162,10 @@ public class OpenAiCompatibleLlmProvider implements LlmProvider {
         conn.setRequestProperty("Content-Type", "application/json");
         conn.setDoOutput(true);
         conn.setConnectTimeout(30_000);
-        conn.setReadTimeout(0);
+        // 流空闲看门狗（dsh streamIdleTimeoutMs 同款语义）：单次 read 阻塞超过 5 分钟视为
+        // 服务端僵死，抛 SocketTimeoutException 由上层按 TIMEOUT 分类重试；
+        // 0（无限等待）会把死连接变成永远挂起的 run
+        conn.setReadTimeout(300_000);
         try (OutputStream os = conn.getOutputStream()) {
             os.write(body.toString().getBytes(StandardCharsets.UTF_8));
         }
@@ -206,6 +241,7 @@ public class OpenAiCompatibleLlmProvider implements LlmProvider {
                     continue;
                 }
                 JSONObject chunk = JSONUtil.parseObj(data);
+                captureUsage(chunk);
                 JSONArray choices = chunk.getJSONArray("choices");
                 if (choices == null || choices.isEmpty()) {
                     continue;
@@ -243,6 +279,7 @@ public class OpenAiCompatibleLlmProvider implements LlmProvider {
     private LlmChatResponse readJson(HttpURLConnection conn, long start) throws Exception {
         String raw = readAll(conn.getInputStream());
         JSONObject json = JSONUtil.parseObj(raw);
+        captureUsage(json);
         JSONArray choices = json.getJSONArray("choices");
         if (choices == null || choices.isEmpty()) {
             return LlmChatResponse.of("");
@@ -260,6 +297,26 @@ public class OpenAiCompatibleLlmProvider implements LlmProvider {
         }
         Map<Integer, JSONObject> toolCalls = new TreeMap<>(indexed);
         return buildResponse(content, thinking, toolCalls, start);
+    }
+
+    /** 解析 OpenAI 兼容响应里的 usage（vLLM/LM Studio 等在流式末 chunk 或非流式 body 携带） */
+    private void captureUsage(JSONObject json) {
+        try {
+            JSONObject usage = json.getJSONObject("usage");
+            if (usage == null) {
+                return;
+            }
+            Integer prompt = usage.getInt("prompt_tokens");
+            Integer completion = usage.getInt("completion_tokens");
+            if (prompt != null) {
+                lastPromptTokens.set(prompt);
+            }
+            if (completion != null) {
+                lastCompletionTokens.set(completion);
+            }
+        } catch (Exception ignore) {
+            // usage 是可选锚点，缺形状不影响主流程
+        }
     }
 
     private void accumulateToolCalls(JSONObject delta, Map<Integer, JSONObject> accumulated) {

@@ -69,4 +69,13 @@ public interface ToolExecutor {
     default boolean canRunOnBackend() {
         return enabled() && (surface() == ExecutionSurface.ANY || surface() == ExecutionSurface.BACKEND_ONLY);
     }
+
+    /**
+     * 是否可与其他工具并发执行（对齐 dsh isConcurrencySafe）：
+     * 纯读、无会话草稿写、无确认门禁的工具返回 true。
+     * 运行时把连续的可并发调用放进并行池，独占工具形成顺序栅栏。
+     */
+    default boolean concurrencySafe() {
+        return false;
+    }
 }

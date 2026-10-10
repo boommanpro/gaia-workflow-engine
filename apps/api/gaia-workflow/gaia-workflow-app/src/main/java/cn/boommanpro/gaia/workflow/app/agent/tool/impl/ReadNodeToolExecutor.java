@@ -40,6 +40,12 @@ public class ReadNodeToolExecutor implements ToolExecutor {
     }
 
     @Override
+    public boolean concurrencySafe() {
+        // 纯读工具：可与其他读并发执行（dsh isConcurrencySafe 语义）
+        return true;
+    }
+
+    @Override
     public ToolResult execute(JSONObject args, AgentRunContext context) {
         String nodeId = args.getStr("nodeId");
         JSONObject node = draftService.getNode(context.getSessionKey(), nodeId);

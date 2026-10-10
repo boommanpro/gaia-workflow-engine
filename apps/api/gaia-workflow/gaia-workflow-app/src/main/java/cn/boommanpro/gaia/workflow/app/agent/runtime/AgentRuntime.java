@@ -8,6 +8,7 @@ import cn.boommanpro.gaia.workflow.app.agent.core.AgentRunContext;
 import cn.boommanpro.gaia.workflow.app.agent.core.AgentRunResult;
 import cn.boommanpro.gaia.workflow.app.agent.core.AgentRunResult.PendingToolCall;
 import cn.boommanpro.gaia.workflow.app.agent.core.ConversationStore;
+import cn.boommanpro.gaia.workflow.app.agent.core.SteeringInbox;
 import cn.boommanpro.gaia.workflow.app.agent.core.ToolExecutionMode;
 import cn.boommanpro.gaia.workflow.app.agent.core.ToolPolicyService;
 import cn.boommanpro.gaia.workflow.app.agent.engine.AgentExecutionEngine;
@@ -18,11 +19,16 @@ import cn.boommanpro.gaia.workflow.app.agent.llm.LlmChatResponse;
 import cn.boommanpro.gaia.workflow.app.agent.llm.LlmMessage;
 import cn.boommanpro.gaia.workflow.app.agent.llm.LlmProvider;
 import cn.boommanpro.gaia.workflow.app.agent.llm.LlmProviderRegistry;
+import cn.boommanpro.gaia.workflow.app.agent.llm.LlmRetryPolicy;
 import cn.boommanpro.gaia.workflow.app.agent.llm.LlmToolCall;
+import cn.boommanpro.gaia.workflow.app.agent.llm.TokenListener;
 import cn.boommanpro.gaia.workflow.app.agent.context.ContextProviderRegistry;
+import cn.boommanpro.gaia.workflow.app.agent.tool.ToolArgsValidator;
+import cn.boommanpro.gaia.workflow.app.agent.tool.ToolErrorCode;
 import cn.boommanpro.gaia.workflow.app.agent.tool.ToolExecutor;
 import cn.boommanpro.gaia.workflow.app.agent.tool.ToolExecutorRegistry;
 import cn.boommanpro.gaia.workflow.app.agent.tool.ToolResult;
+import cn.boommanpro.gaia.workflow.app.config.AgentProperties;
 import cn.boommanpro.gaia.workflow.app.service.AgentToolRegistry;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
@@ -33,23 +39,28 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 /**
- * Agent 运行时引擎 —— 系统的执行心脏。
+ * Agent 运行时引擎 —— 系统的执行心脏（dsh 式自治循环）。
  *
- * <p>取代原先「后端转发 tool_call、前端执行、再回灌」的半截循环，
- * 这里实现完整的自治闭环：</p>
- *
- * <pre>
- *   选 Agent → 装上下文 → 调模型 → 有工具调用？
- *                              ├─ 否 → 输出并结束
- *                              └─ 是 → 判断工具能否本地跑
- *                                     ├─ 能 → 本地执行 → 结果入历史 → 回到「调模型」
- *                                     └─ 不能 → 挂起并返回待办给前端
- * </pre>
- *
- * <p>引擎本身不认识任何具体工具、上下文或模型，全部通过注册表解析，
- * 因此新增能力不需要改动这里。</p>
+ * <p>核心机制（本轮对齐 deepseek-harness）：</p>
+ * <ul>
+ *   <li><b>自然停止</b>：没有 maxTurns 硬上限。run 结束于模型不再调用工具；
+ *       跑飞的防护交给护栏组合——连续失败熔断、同参数复读提醒、上下文压力压缩。</li>
+ *   <li><b>协作式真中断</b>：轮边界 / 工具前后 / 重试等待都是取消检查点；
+ *       未执行完的 tool call 合成中断结果回灌，保证 tool_call/result 配对完整。</li>
+ *   <li><b>LLM 重试</b>：可重试错误码（RATE_LIMIT/SERVER/TIMEOUT/TRANSPORT/空响应）
+ *       指数退避重试，重试事件先落日志再睡眠（durable-before-wait）。</li>
+ *   <li><b>上下文经济学</b>：系统提示词 run 内构建一次（前缀缓存友好）；
+ *       token 压力触发压缩（确定性剪枝 → 模型摘要）；超大工具结果 spill 成预览。</li>
+ *   <li><b>steering</b>：run 进行中的用户新消息在 turn 边界注入当前对话。</li>
+ *   <li><b>并行工具</b>：连续的可并发工具（纯读）进并行池，独占工具顺序栅栏。</li>
+ *   <li><b>model-visible ⟺ logged</b>：llm_request / assistant_settled / tool_call /
+ *       tool_result 全量落事件日志，请求可从日志重建。</li>
+ * </ul>
  */
 @Slf4j
 @Component
@@ -68,6 +79,8 @@ public class AgentRuntime implements AgentExecutionEngine {
     private final cn.boommanpro.gaia.workflow.app.agent.session.SessionArtifactStore artifactStore;
     /** 工具调用指标（缺 bean 时静默降级为不记录） */
     private final cn.boommanpro.gaia.workflow.infra.manage.service.AgentToolCallLogService toolCallLogService;
+    private final ContextCompactor compactor;
+    private final AgentProperties properties;
 
     public AgentRuntime(AgentRegistry agentRegistry,
                         LlmProviderRegistry llmProviderRegistry,
@@ -78,7 +91,9 @@ public class AgentRuntime implements AgentExecutionEngine {
                         SystemPromptResolver promptResolver,
                         ToolPolicyService toolPolicyService,
                         cn.boommanpro.gaia.workflow.app.agent.session.SessionArtifactStore artifactStore,
-                        cn.boommanpro.gaia.workflow.infra.manage.service.AgentToolCallLogService toolCallLogService) {
+                        cn.boommanpro.gaia.workflow.infra.manage.service.AgentToolCallLogService toolCallLogService,
+                        ContextCompactor compactor,
+                        AgentProperties properties) {
         this.agentRegistry = agentRegistry;
         this.llmProviderRegistry = llmProviderRegistry;
         this.toolExecutorRegistry = toolExecutorRegistry;
@@ -89,6 +104,8 @@ public class AgentRuntime implements AgentExecutionEngine {
         this.toolPolicyService = toolPolicyService;
         this.artifactStore = artifactStore;
         this.toolCallLogService = toolCallLogService;
+        this.compactor = compactor;
+        this.properties = properties;
     }
 
     @Override
@@ -96,12 +113,6 @@ public class AgentRuntime implements AgentExecutionEngine {
         return ENGINE_ID;
     }
 
-    /**
-     * 执行一次 Agent 运行。
-     *
-     * @param request 运行请求
-     * @param sink    事件输出端；传 {@link AgentEventSink#noop()} 即为完全静默
-     */
     @Override
     public AgentRunResult run(AgentRequest request, AgentEventSink sink) {
         AgentEventSink safeSink = sink != null ? sink : AgentEventSink.noop();
@@ -125,7 +136,6 @@ public class AgentRuntime implements AgentExecutionEngine {
         }
 
         AgentRunContext context = new AgentRunContext(request, definition, mode);
-        // 把输出端注入上下文：工具可用 context.emit(...) 广播自定义事件（document / plan / ui_action）
         context.setSink(safeSink);
         String sessionKey = request.getSessionKey();
 
@@ -140,148 +150,285 @@ public class AgentRuntime implements AgentExecutionEngine {
         List<LlmMessage> conversation = conversationStore.loadHistory(sessionKey, 0);
         JSONArray tools = resolveTools(request, definition, context);
 
+        // 系统提示词 run 内只构建一次：静态段（人格/规则）在前、动态段（页面/绑定）在后，
+        // 且轮次无关 —— 跨轮字节级稳定，服务端前缀缓存才能命中
+        String systemPrompt = buildSystemPrompt(context);
+
         String finalContent = "";
         List<PendingToolCall> pending = new ArrayList<>();
         List<String> executedTools = new ArrayList<>();
         boolean completed = false;
         boolean aborted = false;
+        boolean interrupted = false;
         int turn = 0;
-        // 占位闭环跟踪：applyWorkflow 落版带占位警告后，模型若只在画布上修正而不再落版，
-        // 线上生效版本会一直是占位配置（弱模型实测高发）——run 结束时对用户明确提醒
-        boolean appliedWithPlaceholderWarnings = false;
-        boolean canvasEditAfterApply = false;
+        RepeatToolGuard repeatGuard = new RepeatToolGuard();
+        StringBuilder advisory = new StringBuilder();
+        Long usageAnchor = null;
 
-        while (turn < context.getMaxTurns()) {
-            context.nextTurn();
-            turn = context.getTurn();
-            safeSink.emit(AgentEvent.of("turn",
-                new JSONObject().set("turn", turn).set("maxTurns", context.getMaxTurns())));
-
-            LlmChatRequest chatRequest = LlmChatRequest.builder()
-                .messages(buildMessages(context, conversation, turn))
-                .tools(tools)
-                .temperature(definition.getTemperature())
-                .stream(true)
-                .build();
-
-            StringBuilder turnThinking = new StringBuilder();
-            LlmChatResponse response = llm.chat(chatRequest, new cn.boommanpro.gaia.workflow.app.agent.llm.TokenListener() {
-                @Override
-                public void onToken(String token) {
-                    context.recordChars(token.length());
-                    safeSink.emit(AgentEvent.of("token", new JSONObject().set("content", token)));
-                }
-
-                @Override
-                public void onThinking(String chunk) {
-                    if (chunk == null || chunk.isEmpty()) {
-                        return;
-                    }
-                    turnThinking.append(chunk);
-                    safeSink.emit(AgentEvent.of("thinking", new JSONObject().set("content", chunk)));
-                }
+        ExecutorService parallelPool = Executors.newFixedThreadPool(
+            Math.max(2, Runtime.getRuntime().availableProcessors() / 2), r -> {
+                Thread t = new Thread(r, "agent-tool-parallel");
+                t.setDaemon(true);
+                return t;
             });
 
-            if (response.isError()) {
-                String message = response.getErrorMessage();
-                safeSink.emit(AgentEvent.of("error", new JSONObject().set("message", message)));
-                return AgentRunResult.failure(message);
-            }
+        try {
+            while (true) {
+                // ---- 检查点：协作式取消（轮边界） ----
+                if (context.isInterrupted()) {
+                    interrupted = true;
+                    break;
+                }
 
-            // 每轮 LLM 调用元信息：会话审查的调用日志 + 调试面板数据源（无订阅者时仅入总线快照）
-            JSONObject turnMeta = new JSONObject()
-                .set("turn", turn)
-                .set("model", response.getModel())
-                .set("temperature", definition.getTemperature())
-                .set("messagesCount", conversation.size() + 1)
-                .set("toolsCount", tools.size())
-                .set("durationMs", response.getDurationMs())
-                .set("contentLength", response.getContent() != null ? response.getContent().length() : 0)
-                .set("thinkingLength", turnThinking.length())
-                .set("toolCalls", toToolCallsJson(response.hasToolCalls() ? response.getToolCalls() : new ArrayList<>()));
-            safeSink.emit(AgentEvent.of("llm_end", turnMeta));
-
-            // assistant 消息入库；若回复包含 ::options（请求用户选择），不保留 tool_calls
-            boolean hasOptions = response.getContent() != null && response.getContent().contains("::options");
-            String toolCallsJson = (response.hasToolCalls() && !hasOptions)
-                ? toToolCallsJson(response.getToolCalls()) : null;
-            conversationStore.saveMessage(sessionKey, "assistant", response.getContent(), toolCallsJson, null,
-                turnThinking.length() > 0 ? turnThinking.toString() : null);
-            conversation.add(toAssistantMessage(response));
-
-            // ::options（等用户选择）或没有工具调用 → 本轮结束，等用户下一步
-            if (!response.hasToolCalls() || hasOptions) {
-                finalContent = response.getContent();
-                completed = true;
-                break;
-            }
-
-            // 逐个处理工具调用：本地执行 / 交前端 / 明确告知不可用
-            boolean handOffToFrontend = false;
-            for (LlmToolCall call : response.getToolCalls()) {
-                boolean canRunLocally = toolExecutorRegistry.isBackendExecutable(call.getName());
-
-                if (canRunLocally && mode == ToolExecutionMode.BACKEND) {
-                    ToolResult executed = executeLocally(call, context, safeSink);
-                    executedTools.add(call.getName());
-                    conversationStore.saveMessage(sessionKey, "tool", executed.getPayload(), null, call.getId());
-                    conversation.add(LlmMessage.tool(call.getId(), executed.getPayload()));
-                    // 占位闭环跟踪（详见 appliedWithPlaceholderWarnings 声明处）
-                    if (executed.isSuccess()) {
-                        if ("write_workflow".equals(call.getName()) || "save_workflow".equals(call.getName())) {
-                            // 落版（整写/草稿保存）都算闭环起点：线上版本已更新
-                            appliedWithPlaceholderWarnings = hasPlaceholderWarnings(executed.getPayload());
-                            canvasEditAfterApply = false;
-                        } else if (appliedWithPlaceholderWarnings && "edit_workflow".equals(call.getName())) {
-                            canvasEditAfterApply = true;
+                // ---- steering：把 run 进行中到达的用户新消息注入当前对话 ----
+                SteeringInbox inbox = context.getSteeringInbox();
+                if (inbox != null && !inbox.isEmpty()) {
+                    for (SteeringInbox.Message m : inbox.drain()) {
+                        LlmMessage steering = LlmMessage.user(m.content);
+                        if (m.images != null && !m.images.isEmpty()) {
+                            steering.setImages(m.images);
                         }
+                        conversation.add(steering);
+                        safeSink.emit(AgentEvent.of("user_message", new JSONObject()
+                            .set("content", m.content).set("steering", true)));
                     }
-                    continue;
                 }
 
-                if (mode == ToolExecutionMode.FRONTEND) {
-                    // 旧链路：把工具调用打包交给浏览器执行，前端执行完再回灌
-                    pending.add(new PendingToolCall(call.getId(), call.getName(), call.getArguments(), null));
-                    handOffToFrontend = true;
-                    continue;
+                context.nextTurn();
+                turn = context.getTurn();
+
+                // ---- token 压力 → 上下文压缩（确定性剪枝 → 模型摘要） ----
+                ContextCompactor.Result compaction = null;
+                try {
+                    compaction = compactor.compactIfNeeded(
+                        sessionKey, systemPrompt, conversation, llm, definition.getTemperature(), usageAnchor);
+                    if (compaction.compacted) {
+                        safeSink.emit(AgentEvent.of("compaction", compaction.toJson()
+                            .set("turn", turn)));
+                    }
+                } catch (Exception e) {
+                    log.warn("[agent-runtime] compaction failed (ignored): {}", e.getMessage());
+                }
+                if (compaction != null && compactor.exceedsHardLimit(systemPrompt, conversation)) {
+                    // 压缩后仍超出上下文窗口：带着放不进的请求重试只会持续报错，明确收束
+                    String message = "上下文长度已超出模型窗口（压缩后仍超过 "
+                        + properties.getLlm().getContextWindow() + " tokens），本次执行已停止。"
+                        + "可以新开一个会话继续，或让 AI 先落版当前进度。";
+                    conversationStore.saveMessage(sessionKey, "assistant", message, null, null);
+                    safeSink.emit(AgentEvent.of("token", new JSONObject().set("content", message)));
+                    finalContent = message;
+                    completed = true;
+                    aborted = true;
+                    break;
                 }
 
-                // 自治模式 + 只能在 UI 执行的工具：不要挂起等待，明确反馈给模型让它换路子
-                ToolResult unavailable = ToolResult.unavailable(
-                    "工具 " + call.getName() + " 需要浏览器界面，当前后端自治模式下不可用，请改用可在服务端完成的方式");
-                safeSink.emit(AgentEvent.of("tool_result", new JSONObject()
-                    .set("toolCallId", call.getId())
-                    .set("name", call.getName())
-                    .set("unavailable", true)
-                    .set("payload", unavailable.getPayload())));
-                conversationStore.saveMessage(sessionKey, "tool", unavailable.getPayload(), null, call.getId());
-                conversation.add(LlmMessage.tool(call.getId(), unavailable.getPayload()));
-            }
+                safeSink.emit(AgentEvent.of("turn", new JSONObject()
+                    .set("turn", turn)
+                    .set("contextTokens", compaction != null ? compaction.tokensAfter
+                        : compactor.estimateTotal(systemPrompt, conversation, usageAnchor))));
 
-            if (handOffToFrontend) {
-                finalContent = response.getContent();
-                completed = true;
-                break;
-            }
+                // ---- 请求构造（advisory 提醒以视图注记注入，不持久化） ----
+                List<LlmMessage> requestMessages = new ArrayList<>();
+                requestMessages.add(LlmMessage.system(systemPrompt));
+                requestMessages.addAll(conversation);
+                if (advisory.length() > 0) {
+                    requestMessages.add(LlmMessage.user("【系统提示】" + advisory));
+                    advisory.setLength(0);
+                }
+                safeSink.emit(AgentEvent.of("llm_request", new JSONObject()
+                    .set("turn", turn)
+                    .set("messageCount", requestMessages.size())
+                    .set("toolsCount", tools.size())
+                    .set("contextTokens", TokenMeter.estimate(requestMessages))));
 
-            // 连续相同失败熔断：不再带着失败记录进入下一轮空转
-            if (Boolean.TRUE.equals(context.getAttribute("forceStop", Boolean.class))) {
-                finalContent = "AI 连续多次提交了相同且无法通过校验的工具调用，本次执行已自动终止，避免无意义空转。"
-                    + "请换个方式描述你的需求，或直接告诉 AI 缺少的关键信息。";
-                completed = true;
-                break;
-            }
+                LlmChatRequest chatRequest = LlmChatRequest.builder()
+                    .messages(requestMessages)
+                    .tools(tools)
+                    .temperature(definition.getTemperature())
+                    .stream(true)
+                    .build();
 
-            // 本地全部执行完，带着工具结果进入下一轮推理
+                // ---- LLM 调用（可重试码退避重试） ----
+                StringBuilder turnThinking = new StringBuilder();
+                LlmChatResponse response = chatWithRetry(llm, chatRequest, new TokenListener() {
+                    @Override
+                    public void onToken(String token) {
+                        context.recordChars(token.length());
+                        safeSink.emit(AgentEvent.of("token", new JSONObject().set("content", token)));
+                    }
+
+                    @Override
+                    public void onThinking(String chunk) {
+                        if (chunk == null || chunk.isEmpty()) {
+                            return;
+                        }
+                        turnThinking.append(chunk);
+                        safeSink.emit(AgentEvent.of("thinking", new JSONObject().set("content", chunk)));
+                    }
+                }, context, safeSink);
+
+                if (response.isError()) {
+                    String message = response.getErrorMessage();
+                    safeSink.emit(AgentEvent.of("error", new JSONObject().set("message", message)));
+                    return AgentRunResult.failure(message);
+                }
+                if (response.getPromptTokens() != null) {
+                    usageAnchor = response.getPromptTokens().longValue();
+                }
+
+                // 每轮 LLM 调用元信息：会话审查的调用日志 + 调试面板数据源（无订阅者时仅入总线快照）
+                JSONObject turnMeta = new JSONObject()
+                    .set("turn", turn)
+                    .set("model", response.getModel())
+                    .set("temperature", definition.getTemperature())
+                    .set("messagesCount", conversation.size() + 1)
+                    .set("toolsCount", tools.size())
+                    .set("durationMs", response.getDurationMs())
+                    .set("contentLength", response.getContent() != null ? response.getContent().length() : 0)
+                    .set("thinkingLength", turnThinking.length())
+                    .set("promptTokens", response.getPromptTokens())
+                    .set("completionTokens", response.getCompletionTokens())
+                    .set("toolCalls", toToolCallsJson(response.hasToolCalls() ? response.getToolCalls() : new ArrayList<>()));
+                safeSink.emit(AgentEvent.of("llm_end", turnMeta));
+
+                // assistant 消息入库；若回复包含 ::options（请求用户选择），不保留 tool_calls
+                boolean hasOptions = response.getContent() != null && response.getContent().contains("::options");
+                String toolCallsJson = (response.hasToolCalls() && !hasOptions)
+                    ? toToolCallsJson(response.getToolCalls()) : null;
+                conversationStore.saveMessage(sessionKey, "assistant", response.getContent(), toolCallsJson, null,
+                    turnThinking.length() > 0 ? turnThinking.toString() : null);
+                conversation.add(toAssistantMessage(response));
+                // 结算事件（model-visible ⟺ logged 的 assistant 侧）：内容 + 工具调用全量落日志
+                safeSink.emit(AgentEvent.of("assistant_settled", new JSONObject()
+                    .set("turn", turn)
+                    .set("content", response.getContent())
+                    .set("thinkingLength", turnThinking.length())
+                    .set("toolCalls", toolCallsJson != null ? JSONUtil.parseArray(toolCallsJson) : new JSONArray())));
+
+                // ::options（等用户选择）或没有工具调用 → 本轮结束，等用户下一步（自然停止）
+                if (!response.hasToolCalls() || hasOptions) {
+                    finalContent = response.getContent();
+                    completed = true;
+                    break;
+                }
+
+                // ---- 工具调用执行（并行分段 + 顺序栅栏） ----
+                boolean handOffToFrontend = false;
+                List<LlmToolCall> calls = response.getToolCalls();
+                int i = 0;
+                while (i < calls.size()) {
+                    // 检查点：工具批次之间的取消
+                    if (context.isInterrupted()) {
+                        // 未执行的调用合成中断结果回灌 —— assistant 的 tool_calls 已入库，
+                        // 悬空配对会让下一次 run 的历史校验直接失败
+                        for (int r = i; r < calls.size(); r++) {
+                            LlmToolCall call = calls.get(r);
+                            ToolResult cancelled = interruptedResult();
+                            safeSink.emit(AgentEvent.of("tool_result", new JSONObject()
+                                .set("toolCallId", call.getId())
+                                .set("name", call.getName())
+                                .set("payload", cancelled.getPayload())));
+                            conversationStore.saveMessage(sessionKey, "tool", cancelled.getPayload(), null, call.getId());
+                            conversation.add(LlmMessage.tool(call.getId(), cancelled.getPayload()));
+                        }
+                        interrupted = true;
+                        break;
+                    }
+
+                    LlmToolCall call = calls.get(i);
+                    boolean canRunLocally = toolExecutorRegistry.isBackendExecutable(call.getName());
+
+                    if (canRunLocally && mode == ToolExecutionMode.BACKEND) {
+                        if (isParallelEligible(call, mode)) {
+                            // 收集连续可并发段，进并行池；结果按调用顺序收口（配对/落库顺序确定）
+                            int j = i;
+                            while (j < calls.size() && isParallelEligible(calls.get(j), mode)) {
+                                j++;
+                            }
+                            List<Future<ToolResult>> futures = new ArrayList<>();
+                            for (int k = i; k < j; k++) {
+                                final LlmToolCall c = calls.get(k);
+                                futures.add(parallelPool.submit(() -> executeLocally(c, context, safeSink)));
+                            }
+                            for (int k = i; k < j; k++) {
+                                ToolResult executed;
+                                try {
+                                    executed = futures.get(k - i).get();
+                                } catch (Exception e) {
+                                    log.warn("[agent-runtime] parallel tool failed: {}", e.getMessage());
+                                    executed = ToolResult.fail("{\"error\":\"" + e.getMessage() + "\"}", "工具执行异常");
+                                }
+                                settleToolResult(calls.get(k), executed, context, safeSink,
+                                    conversation, executedTools, repeatGuard, advisory);
+                            }
+                            i = j;
+                            continue;
+                        }
+                        ToolResult executed = executeLocally(call, context, safeSink);
+                        settleToolResult(call, executed, context, safeSink,
+                            conversation, executedTools, repeatGuard, advisory);
+                        i++;
+                        continue;
+                    }
+
+                    if (mode == ToolExecutionMode.FRONTEND) {
+                        // 旧链路：把工具调用打包交给浏览器执行，前端执行完再回灌
+                        pending.add(new PendingToolCall(call.getId(), call.getName(), call.getArguments(), null));
+                        handOffToFrontend = true;
+                        i++;
+                        continue;
+                    }
+
+                    // 自治模式 + 只能在 UI 执行的工具：不要挂起等待，明确反馈给模型让它换路子
+                    ToolResult unavailable = ToolResult.unavailable(
+                        "工具 " + call.getName() + " 需要浏览器界面，当前后端自治模式下不可用，请改用可在服务端完成的方式");
+                    settleToolResult(call, unavailable, context, safeSink,
+                        conversation, executedTools, repeatGuard, advisory);
+                    i++;
+                }
+                if (interrupted) {
+                    break;
+                }
+
+                if (handOffToFrontend) {
+                    finalContent = response.getContent();
+                    completed = true;
+                    break;
+                }
+
+                // 连续基础设施失败熔断：不再带着失败记录进入下一轮空转
+                if (Boolean.TRUE.equals(context.getAttribute("forceStop", Boolean.class))) {
+                    finalContent = "AI 连续多次提交了相同且无法通过校验的工具调用，本次执行已自动终止，避免无意义空转。"
+                        + "请换个方式描述你的需求，或直接告诉 AI 缺少的关键信息。";
+                    completed = true;
+                    break;
+                }
+                // 本地全部执行完，带着工具结果进入下一轮推理
+            }
+        } finally {
+            parallelPool.shutdown();
         }
 
-        if (!completed) {
+        if (interrupted) {
+            // 中断收尾：落一条可见的中断标记（刷新/切走后用户仍能看出 run 没跑完）
+            String marker = "⏹ 本次运行已被中断。已完成的部分（草稿/已落版版本）保持有效。";
+            try {
+                conversationStore.saveMessage(sessionKey, "assistant", marker, null, null);
+                safeSink.emit(AgentEvent.of("interrupted", new JSONObject().set("turn", turn)));
+            } catch (Exception e) {
+                log.warn("[agent-runtime] persist interrupted marker failed: {}", e.getMessage());
+            }
+        } else if (!completed) {
             aborted = true;
-            log.warn("[agent-runtime] session {} hit turn limit {}", sessionKey, context.getMaxTurns());
+            log.warn("[agent-runtime] session {} aborted by guard", sessionKey);
         }
 
         // 占位未闭环提醒：模型在草稿上修了占位配置但没重新落版，线上版本仍是占位——
         // 用户此刻大概率以为「已创建成功就能跑」，必须把状态说破（落库 + 追加进本次回复）
+        boolean appliedWithPlaceholderWarnings = Boolean.TRUE.equals(
+            context.getAttribute("appliedWithPlaceholderWarnings", Boolean.class));
+        boolean canvasEditAfterApply = Boolean.TRUE.equals(
+            context.getAttribute("canvasEditAfterApply", Boolean.class));
         if (appliedWithPlaceholderWarnings && canvasEditAfterApply) {
             String reminder = "\n\n---\n⚠️ **系统提醒**：AI 在草稿上修正了占位配置，但没有重新落版——"
                 + "线上生效版本仍包含占位内容，直接运行可能不符合预期。"
@@ -296,12 +443,139 @@ public class AgentRuntime implements AgentExecutionEngine {
 
         AgentRunResult result = AgentRunResult.success(finalContent, definition.getId(), sessionKey, turn);
         result.setAbortedByTurnLimit(aborted);
+        result.setInterrupted(interrupted);
         result.setPendingToolCalls(pending);
         result.setExecutedTools(executedTools);
         return result;
     }
 
     // ---------------- 内部实现 ----------------
+
+    /** 该调用能否进并行段：后端可执行 + 声明 concurrencySafe 的纯读工具 */
+    private boolean isParallelEligible(LlmToolCall call, ToolExecutionMode mode) {
+        if (mode != ToolExecutionMode.BACKEND || !toolExecutorRegistry.isBackendExecutable(call.getName())) {
+            return false;
+        }
+        Optional<ToolExecutor> executor = toolExecutorRegistry.get(call.getName());
+        return executor.isPresent() && executor.get().concurrencySafe();
+    }
+
+    /**
+     * 工具结果收口：事件外发 + spill + 入库 + 进对话 + 占位闭环跟踪 + 复读护栏。
+     */
+    private void settleToolResult(LlmToolCall call, ToolResult executed, AgentRunContext context,
+                                  AgentEventSink sink, List<LlmMessage> conversation,
+                                  List<String> executedTools, RepeatToolGuard repeatGuard,
+                                  StringBuilder advisory) {
+        String sessionKey = context.getSessionKey();
+
+        sink.emit(AgentEvent.of("tool_result", new JSONObject()
+            .set("toolCallId", call.getId())
+            .set("name", call.getName())
+            .set("rejected", executed.isRejected())
+            .set("payload", executed.getPayload())));
+        executedTools.add(call.getName());
+
+        // 复读护栏（advisory）：同参数第 3/5/8 次时提醒模型换策略
+        JSONObject args = parseArgsQuiet(call.getArguments());
+        String reminder = repeatGuard.record(call.getName(), args);
+        if (reminder != null) {
+            if (advisory.length() > 0) {
+                advisory.append('\n');
+            }
+            advisory.append(reminder);
+            sink.emit(AgentEvent.of("repeat_reminder", new JSONObject()
+                .set("tool", call.getName()).set("message", reminder)));
+        }
+
+        // spill（大结果只给模型看预览；完整内容已在事件日志与消息表）
+        conversationStore.saveMessage(sessionKey, "tool", executed.getPayload(), null, call.getId());
+        conversation.add(LlmMessage.tool(call.getId(), spillForModel(executed.getPayload())));
+
+        // 占位闭环跟踪（详见 appliedWithPlaceholderWarnings 声明处）
+        if (executed.isSuccess()) {
+            if ("write_workflow".equals(call.getName()) || "save_workflow".equals(call.getName())) {
+                context.setAttribute("appliedWithPlaceholderWarnings",
+                    hasPlaceholderWarnings(executed.getPayload()));
+                context.setAttribute("canvasEditAfterApply", Boolean.FALSE);
+            } else if (Boolean.TRUE.equals(context.getAttribute("appliedWithPlaceholderWarnings", Boolean.class))
+                && "edit_workflow".equals(call.getName())) {
+                context.setAttribute("canvasEditAfterApply", Boolean.TRUE);
+            }
+        }
+    }
+
+    /** 超大结果 → head/tail 预览 + 取回指引（dsh spill 语义；完整内容留在日志/消息表） */
+    private String spillForModel(String payload) {
+        AgentProperties.Spill config = properties.getSpill();
+        if (payload == null || !config.isEnabled() || payload.length() <= config.getMaxInlineChars()) {
+            return payload;
+        }
+        int head = Math.min(config.getHeadChars(), payload.length());
+        int tail = Math.min(config.getTailChars(), payload.length() - head);
+        return payload.substring(0, head)
+            + "\n…（内容过长：已省略 " + (payload.length() - head - tail)
+            + " 字符。完整结果保存在会话记录中；需要最新状态请重新调用工具读取）\n"
+            + payload.substring(payload.length() - tail);
+    }
+
+    private static ToolResult interruptedResult() {
+        JSONObject error = new JSONObject()
+            .set("code", "INTERRUPTED")
+            .set("message", "运行已被用户中断，此工具调用未执行。");
+        return ToolResult.fail(error.toString(), "运行已被中断", ToolErrorCode.EXEC_ERROR);
+    }
+
+    /** LLM 调用 + 重试（可重试码驱动；重试事件先落日志再睡眠） */
+    private LlmChatResponse chatWithRetry(LlmProvider llm, LlmChatRequest request, TokenListener listener,
+                                          AgentRunContext context, AgentEventSink sink) {
+        LlmChatResponse response;
+        for (int attempt = 1; ; attempt++) {
+            response = llm.chat(request, listener);
+
+            boolean failed = response.isError();
+            boolean empty = !failed && LlmRetryPolicy.isEmptyResponse(response);
+            if (!failed && !empty) {
+                return response;
+            }
+            String code = failed ? response.getErrorCode() : "EMPTY_RESPONSE";
+            boolean retryable = failed ? response.isRetryable() : true;
+            if (attempt >= LlmRetryPolicy.MAX_ATTEMPTS || !retryable) {
+                if (empty) {
+                    return LlmChatResponse.failed(
+                        "LLM 返回了空响应（已重试 " + Math.max(0, attempt - 1) + " 次）", "EMPTY_RESPONSE");
+                }
+                return response;
+            }
+            long delay = LlmRetryPolicy.backoffMs(attempt);
+            // durable-before-wait：先把重试决定写进日志，再进入等待
+            sink.emit(AgentEvent.of("llm_retry", new JSONObject()
+                .set("attempt", attempt)
+                .set("code", code)
+                .set("delayMs", delay)
+                .set("message", failed ? response.getErrorMessage() : "空响应")));
+            if (!interruptibleSleep(delay, context)) {
+                return LlmChatResponse.failed("运行已中断", "INTERRUPTED");
+            }
+        }
+    }
+
+    /** 分片睡眠：每 200ms 检查一次取消，避免长退避阻塞中断 */
+    private static boolean interruptibleSleep(long delayMs, AgentRunContext context) {
+        long deadline = System.currentTimeMillis() + delayMs;
+        while (System.currentTimeMillis() < deadline) {
+            if (context.isInterrupted()) {
+                return false;
+            }
+            try {
+                Thread.sleep(Math.min(200, Math.max(1, deadline - System.currentTimeMillis())));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+        }
+        return !context.isInterrupted();
+    }
 
     private ToolResult executeLocally(LlmToolCall call, AgentRunContext context, AgentEventSink sink) {
         JSONObject args = parseArgs(call.getArguments());
@@ -320,12 +594,7 @@ public class AgentRuntime implements AgentExecutionEngine {
                     .set("code", "INVALID_ARGS")
                     .set("message", "工具参数不是合法 JSON（可能被截断，常见于超长 id/字段）。"
                         + "请重新发送完整、精简的参数：id 用短语义名（如 http_1），不要拼接长数字串")).toString(),
-                "参数 JSON 解析失败", cn.boommanpro.gaia.workflow.app.agent.tool.ToolErrorCode.INVALID_ARGS);
-            sink.emit(AgentEvent.of("tool_result", new JSONObject()
-                .set("toolCallId", call.getId())
-                .set("name", call.getName())
-                .set("rejected", false)
-                .set("payload", broken.getPayload())));
+                "参数 JSON 解析失败", ToolErrorCode.INVALID_ARGS);
             recordToolCallMetric(context, call, broken, args, startedAt);
             trackFailureStreak(context, call.getName(), broken);
             return broken;
@@ -333,19 +602,14 @@ public class AgentRuntime implements AgentExecutionEngine {
 
         // 参数 schema 校验（dsh「执行前强校验」）：违规在门禁/执行之前拦截，
         // 错误带 path 级修复指引直接回传模型，一轮自修，不浪费确认卡与执行开销
-        cn.hutool.json.JSONObject paramsSchema = toolSchemaRegistry.getToolParameters(call.getName());
+        JSONObject paramsSchema = toolSchemaRegistry.getToolParameters(call.getName());
         if (paramsSchema != null) {
-            java.util.List<cn.boommanpro.gaia.workflow.app.agent.tool.ToolArgsValidator.Violation> violations =
-                cn.boommanpro.gaia.workflow.app.agent.tool.ToolArgsValidator.validate(paramsSchema, args);
+            List<ToolArgsValidator.Violation> violations =
+                ToolArgsValidator.validate(paramsSchema, args);
             if (!violations.isEmpty()) {
-                ToolResult invalid = cn.boommanpro.gaia.workflow.app.agent.tool.ToolResult.invalidArgs(violations, null);
-                sink.emit(AgentEvent.of("tool_result", new JSONObject()
-                    .set("toolCallId", call.getId())
-                    .set("name", call.getName())
-                    .set("rejected", false)
-                    .set("payload", invalid.getPayload())));
+                ToolResult invalid = ToolResult.invalidArgs(violations, null);
                 recordToolCallMetric(context, call, invalid, args, startedAt);
-                // 参数违规同样计入熔断序列：模型反复发同样坏的参数是死循环信号
+                // 参数违规不计入熔断（模型自省范畴，交给复读护栏），但要跟踪序列归零以外的情况
                 trackFailureStreak(context, call.getName(), invalid);
                 return invalid;
             }
@@ -356,11 +620,6 @@ public class AgentRuntime implements AgentExecutionEngine {
         String policy = toolPolicyService.resolvePolicy(context.getSessionKey(), call.getName());
         if ("forbid".equals(policy)) {
             ToolResult rejected = ToolResult.rejected("该操作已被权限策略禁止");
-            sink.emit(AgentEvent.of("tool_result", new JSONObject()
-                .set("toolCallId", call.getId())
-                .set("name", call.getName())
-                .set("rejected", true)
-                .set("payload", rejected.getPayload())));
             recordToolCallMetric(context, call, rejected, args, startedAt);
             return rejected;
         }
@@ -370,11 +629,6 @@ public class AgentRuntime implements AgentExecutionEngine {
                 try {
                     ToolResult pre = executor.get().preValidate(args);
                     if (pre != null) {
-                        sink.emit(AgentEvent.of("tool_result", new JSONObject()
-                            .set("toolCallId", call.getId())
-                            .set("name", call.getName())
-                            .set("rejected", pre.isRejected())
-                            .set("payload", pre.getPayload())));
                         recordToolCallMetric(context, call, pre, args, startedAt);
                         return pre;
                     }
@@ -385,11 +639,6 @@ public class AgentRuntime implements AgentExecutionEngine {
             boolean approved = toolPolicyService.decideConfirm(context, call, sink);
             if (!approved) {
                 ToolResult rejected = ToolResult.rejected("用户未确认该操作");
-                sink.emit(AgentEvent.of("tool_result", new JSONObject()
-                    .set("toolCallId", call.getId())
-                    .set("name", call.getName())
-                    .set("rejected", true)
-                    .set("payload", rejected.getPayload())));
                 recordToolCallMetric(context, call, rejected, args, startedAt);
                 return rejected;
             }
@@ -397,8 +646,6 @@ public class AgentRuntime implements AgentExecutionEngine {
 
         if (!executor.isPresent()) {
             ToolResult failure = ToolResult.unavailable("工具 " + call.getName() + " 没有后端执行器");
-            sink.emit(AgentEvent.of("tool_result", new JSONObject()
-                .set("toolCallId", call.getId()).set("payload", failure.getPayload())));
             recordToolCallMetric(context, call, failure, args, startedAt);
             return failure;
         }
@@ -411,21 +658,21 @@ public class AgentRuntime implements AgentExecutionEngine {
             result = ToolResult.fail("{\"error\":\"" + e.getMessage() + "\"}", "工具执行异常");
         }
 
-        // 连续失败熔断：弱模型容易反复提交非法参数空转（实测连发 7~10 次），
-        // 同一工具连续失败 4 次即强制终止本轮 run，把死循环转化为对用户的明确说明。
+        // 连续失败熔断（仅基础设施类失败计数；参数错/未找到/CAS 冲突是模型可自修的正常信号）
         result = trackFailureStreak(context, call.getName(), result);
-
-        sink.emit(AgentEvent.of("tool_result", new JSONObject()
-            .set("toolCallId", call.getId())
-            .set("name", call.getName())
-            .set("rejected", result.isRejected())
-            .set("payload", result.getPayload())));
         recordToolCallMetric(context, call, result, args, startedAt);
         return result;
     }
 
-    /** 熔断序列维护（含 schema 校验失败的路径） */
+    /**
+     * 熔断序列维护。分类对齐 dsh 重试哲学：只有基础设施类失败（EXEC_ERROR/TIMEOUT/
+     * UNAVAILABLE/UNKNOWN）累计触发熔断；INVALID_ARGS/NOT_FOUND/STALE_REVISION/
+     * REJECTED_POLICY 属于模型可自修信号，交给复读护栏用 advisory 提醒处理。
+     */
     private ToolResult trackFailureStreak(AgentRunContext context, String toolName, ToolResult result) {
+        if (!countsTowardCircuit(result)) {
+            return result;
+        }
         if (result.isSuccess()) {
             context.setAttribute("failStreak:" + toolName, 0);
             return result;
@@ -442,9 +689,28 @@ public class AgentRuntime implements AgentExecutionEngine {
                 .set("message", "连续 " + next + " 次调用失败，本次执行已终止。");
             return ToolResult.fail(error.toString(),
                 "同一工具连续失败，已终止执行。请直接用正文向用户说明需要哪些关键信息，不要再重试。",
-                cn.boommanpro.gaia.workflow.app.agent.tool.ToolErrorCode.EXEC_ERROR);
+                ToolErrorCode.EXEC_ERROR);
         }
         return result;
+    }
+
+    private static boolean countsTowardCircuit(ToolResult result) {
+        if (result.isSuccess() || result.isRejected()) {
+            return false;
+        }
+        ToolErrorCode code = result.getErrorCode();
+        if (code == null) {
+            return true;
+        }
+        switch (code) {
+            case INVALID_ARGS:
+            case NOT_FOUND:
+            case STALE_REVISION:
+            case REJECTED_POLICY:
+                return false;
+            default:
+                return true;
+        }
     }
 
     /** 工具调用指标落库（agent_tool_call_log）：结局码 + 耗时 + 参数摘要 */
@@ -535,6 +801,15 @@ public class AgentRuntime implements AgentExecutionEngine {
         }
     }
 
+    /** 复读护栏用的安静解析：失败时返回空对象（不影响计数语义即可） */
+    private static JSONObject parseArgsQuiet(String raw) {
+        try {
+            return parseArgs(raw);
+        } catch (Exception e) {
+            return new JSONObject();
+        }
+    }
+
     /** 简单 JSON 补全：按栈补右引号/右括号（截断的 arguments 常见） */
     private static String balanceJson(String text) {
         if (text == null || text.trim().isEmpty()) {
@@ -579,7 +854,7 @@ public class AgentRuntime implements AgentExecutionEngine {
         return sb.toString();
     }
 
-    /** 工具结果 payload 里是否带占位类 warnings（applyWorkflow / saveWorkflow 落版返回） */
+    /** 工具结果 payload 里是否带占位类 warnings（write/save 落版返回） */
     private static boolean hasPlaceholderWarnings(String payload) {
         if (payload == null || !payload.contains("warnings")) {
             return false;
@@ -592,16 +867,14 @@ public class AgentRuntime implements AgentExecutionEngine {
         }
     }
 
-    private List<LlmMessage> buildMessages(AgentRunContext context, List<LlmMessage> history, int turn) {
-        List<LlmMessage> messages = new ArrayList<>();
-        messages.add(LlmMessage.system(buildSystemPrompt(context, turn)));
-        if (history != null) {
-            messages.addAll(history);
-        }
-        return messages;
-    }
-
-    private String buildSystemPrompt(AgentRunContext context, int turn) {
+    /**
+     * 系统提示词（run 内构建一次、轮次无关 —— 前缀缓存友好）。
+     *
+     * <p>静态段（人格 + 规则）在前；动态段（页面上下文 / 绑定工作流 / 上下文提供者）
+     * 在后且 run 内不变。历史上这里的「第 N 轮思考」后缀每轮改写整个前缀，
+     * 会让服务端 prompt 缓存每轮全量 miss —— 已移除，轮次感由工具结果本身传达。</p>
+     */
+    private String buildSystemPrompt(AgentRunContext context) {
         StringBuilder prompt = new StringBuilder(promptResolver.resolve(context.getDefinition(), context.getLocale()));
 
         if (context.getPageContext() != null && !context.getPageContext().isEmpty()) {
@@ -643,9 +916,8 @@ public class AgentRuntime implements AgentExecutionEngine {
                 .append("直接说明需要用户做什么，不要尝试调用不可用的工具。");
         }
 
-        if (turn > 1) {
-            prompt.append("\n\n（这是第 ").append(turn).append(" 轮思考，工具结果已附在对话中，请基于结果继续或收尾。）");
-        }
+        prompt.append("\n\n## 工作方式\n")
+            .append("工具结果就附在对话中：基于结果继续推进或收尾即可，不需要重读刚刚返回的信息。");
         return prompt.toString();
     }
 

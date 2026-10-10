@@ -217,7 +217,7 @@ export interface SseHandlers {
     error?: string;
   }) => void;
   /** 新回合开始 */
-  onTurn?: (data: { turn: number; maxTurns?: number }) => void;
+  onTurn?: (data: { turn: number; maxTurns?: number; contextTokens?: number }) => void;
   /** 工具执行结果（后端执行，无需前端回灌） */
   onToolResult?: (data: { toolCallId: string; name?: string; rejected?: boolean; payload?: string }) => void;
   /** 执行计划（createPlan 产出，PlanCard 渲染） */

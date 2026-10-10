@@ -68,6 +68,10 @@ public class AgentMessage {
     @TableField("parent_message_id")
     private String parentMessageId;
 
+    /** 是否已被上下文摘要覆盖（surface replace 持久化侧）：1=已被摘要取代，不再进入模型上下文 */
+    @TableField("compacted")
+    private Integer compacted;
+
     @TableField("created_at")
     private LocalDateTime createdAt;
 }

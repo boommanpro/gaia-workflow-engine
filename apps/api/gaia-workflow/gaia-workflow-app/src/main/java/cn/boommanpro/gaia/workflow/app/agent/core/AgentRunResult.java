@@ -29,8 +29,11 @@ public class AgentRunResult {
     /** 实际轮次数 */
     private int turns;
 
-    /** 是否因触达最大轮次而中止（true 说明可能没跑完） */
+    /** 是否因触达护栏（上下文硬上限等）而中止（true 说明可能没跑完） */
     private boolean abortedByTurnLimit;
+
+    /** 是否被用户/系统主动中断（协作式取消；已交付内容以 interrupted 标记落盘） */
+    private boolean interrupted;
 
     /** 是否出错 */
     private boolean error;

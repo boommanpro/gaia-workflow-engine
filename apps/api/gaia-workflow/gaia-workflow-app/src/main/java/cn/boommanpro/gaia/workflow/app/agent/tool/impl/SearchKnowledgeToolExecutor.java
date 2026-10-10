@@ -42,6 +42,12 @@ public class SearchKnowledgeToolExecutor implements ToolExecutor {
     }
 
     @Override
+    public boolean concurrencySafe() {
+        // 纯读工具：可与其他读并发执行（dsh isConcurrencySafe 语义）
+        return true;
+    }
+
+    @Override
     public ToolResult execute(JSONObject args, AgentRunContext context) {
         String query = args.getStr("query");
         Integer topK = args.getInt("topK");

@@ -170,20 +170,58 @@ public class WorkflowDslApplyService {
             }
             version.setCreatedBy("agent");
             version.setCreatedAt(LocalDateTime.now());
-            version.setIsCurrent(1);
+            // 先以非生效版本落行，切换由下面的原子 CAS 完成——
+            // 并发竞争失败时这行会被回滚删除，不会留下指向它的悬空状态
+            version.setIsCurrent(opts.getExpectedRevision() != null ? 0 : 1);
             versionService.save(version);
 
-            // 切换生效版本 + revision 递增（CAS 基准）
-            versionService.update(new UpdateWrapper<GaiaWorkflowVersion>()
-                .eq("workflow_code", workflowCode)
-                .ne("id", version.getId())
-                .set("is_current", 0));
-            long nextRevision = (workflow.getRevision() != null ? workflow.getRevision() : 0L) + 1;
-            workflowService.update(new UpdateWrapper<GaiaWorkflow>()
-                .eq("workflow_code", workflowCode)
-                .set("current_version_id", version.getId())
-                .set("revision", nextRevision)
-                .set("updated_at", LocalDateTime.now()));
+            // 原子切换生效版本 + revision 递增（CAS 基准）。
+            // 条件 UPDATE 消除「先读再比对再写」的 TOCTOU 窗口：
+            // 两个并发提交基于同一 revision 时，只有一个能把 revision 推到 next。
+            boolean switched;
+            if (opts.getExpectedRevision() != null && workflow != null) {
+                switched = workflowService.update(new UpdateWrapper<GaiaWorkflow>()
+                    .eq("workflow_code", workflowCode)
+                    .eq("revision", opts.getExpectedRevision())
+                    .set("current_version_id", version.getId())
+                    .setSql("revision = revision + 1")
+                    .set("updated_at", LocalDateTime.now()));
+                if (!switched) {
+                    // 竞争失败：撤掉刚插的版本行，按当前实际 revision 报 CAS 冲突
+                    versionService.removeById(version.getId());
+                    GaiaWorkflow current = workflowService.getOne(
+                        new QueryWrapper<GaiaWorkflow>().eq("workflow_code", workflowCode).last("LIMIT 1"));
+                    long actual = current != null && current.getRevision() != null ? current.getRevision() : 0L;
+                    result.setSuccess(false);
+                    result.setStaleRevision(true);
+                    result.setExpectedRevision(opts.getExpectedRevision());
+                    result.setActualRevision(actual);
+                    result.setError("stale revision: expected " + opts.getExpectedRevision()
+                        + " but current is " + actual + "，工作流已被并发修改，请重新读取后再提交");
+                    return result;
+                }
+            } else {
+                // 无 CAS 基准（REST 手动落版等）：revision 仍在 SQL 内原子自增
+                workflowService.update(new UpdateWrapper<GaiaWorkflow>()
+                    .eq("workflow_code", workflowCode)
+                    .set("current_version_id", version.getId())
+                    .setSql("revision = revision + 1")
+                    .set("updated_at", LocalDateTime.now()));
+            }
+            if (version.getIsCurrent() == null || version.getIsCurrent() != 1) {
+                versionService.update(new UpdateWrapper<GaiaWorkflowVersion>()
+                    .eq("workflow_code", workflowCode)
+                    .ne("id", version.getId())
+                    .set("is_current", 0));
+                versionService.update(new UpdateWrapper<GaiaWorkflowVersion>()
+                    .eq("id", version.getId())
+                    .set("is_current", 1));
+            }
+
+            // 提交后的 revision 以数据库为准回读（并发下自己拿到的也可能不是最终值）
+            GaiaWorkflow committed = workflowService.getOne(
+                new QueryWrapper<GaiaWorkflow>().eq("workflow_code", workflowCode).last("LIMIT 1"));
+            long nextRevision = committed != null && committed.getRevision() != null ? committed.getRevision() : 1L;
 
             result.setSuccess(true);
             result.setVersionId(version.getId());

@@ -41,9 +41,12 @@ public class DatabaseConversationStore implements ConversationStore {
         }
         int limit = maxMessages > 0 ? maxMessages : properties.getHistory().getMaxMessages();
 
+        // compacted=1 的消息已被前情摘要取代，不再进入模型上下文
+        //（surface replace：摘要消息本身会按普通 user 消息出现在序列里）
         List<AgentMessage> all = messageService.list(
             new QueryWrapper<AgentMessage>()
                 .eq("session_key", sessionKey)
+                .and(w -> w.isNull("compacted").or().eq("compacted", 0))
                 .orderByAsc("created_at", "id"));
 
         // 只保留最近 N 条；整体截取比 SQL limit 更可靠地保留尾部语境
@@ -52,9 +55,40 @@ public class DatabaseConversationStore implements ConversationStore {
             : all;
 
         for (AgentMessage entity : window) {
-            result.add(toLlmMessage(entity));
+            LlmMessage message = toLlmMessage(entity);
+            message.setRefId(entity.getId());
+            result.add(message);
         }
         return result;
+    }
+
+    @Override
+    public void markCompacted(String sessionKey, List<Long> messageIds) {
+        if (messageIds == null || messageIds.isEmpty() || sessionKey == null || sessionKey.isEmpty()) {
+            return;
+        }
+        try {
+            messageService.update(new com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper<AgentMessage>()
+                .eq("session_key", sessionKey)
+                .in("id", messageIds)
+                .set("compacted", 1));
+        } catch (Exception e) {
+            log.warn("[conversation-store] markCompacted failed session={}: {}", sessionKey, e.getMessage());
+        }
+    }
+
+    @Override
+    public Long saveSummary(String sessionKey, String content) {
+        if (sessionKey == null || sessionKey.isEmpty()) {
+            return null;
+        }
+        AgentMessage message = new AgentMessage();
+        message.setSessionKey(sessionKey);
+        message.setRole("user");
+        message.setContent(content);
+        message.setCreatedAt(LocalDateTime.now());
+        messageService.save(message);
+        return message.getId();
     }
 
     private LlmMessage toLlmMessage(AgentMessage entity) {

@@ -684,6 +684,7 @@ export const enUS: I18nLanguage = {
     'chat.copyFailed': 'Copy failed',
     'chat.debug': 'Debug details',
     'chat.streamTurn': 'Turn {{turn}}/{{max}}',
+    'chat.streamTurnOnly': 'Step {turn}',
     'chat.toolFullArgs': 'Full args JSON',
     'chat.toolRunning': 'running…',
     'chat.stepTypeThink': 'Think',
@@ -701,7 +702,7 @@ export const enUS: I18nLanguage = {
     'chat.toolStepsFailed': 'Ran {{count}} steps, some failed',
     'chat.expandSteps': 'Expand',
     'chat.collapseSteps': 'Collapse',
-    'chat.queued': '{{count}} message(s) queued…',
+    'chat.queued': '{{count}} message(s) injected into running task…',
     'chat.scrollToBottom': 'Back to bottom',
 
     // —— Canvas snapshots / versions / rollback ——

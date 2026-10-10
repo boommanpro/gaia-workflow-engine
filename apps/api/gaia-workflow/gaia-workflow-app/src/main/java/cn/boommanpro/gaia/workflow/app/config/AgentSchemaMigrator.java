@@ -35,6 +35,9 @@ public class AgentSchemaMigrator {
                 "ALTER TABLE gaia_workflow ADD COLUMN revision INTEGER DEFAULT 0");
             addColumnIfMissing("gaia_workflow_version", "diff_json",
                 "ALTER TABLE gaia_workflow_version ADD COLUMN diff_json TEXT");
+            // 上下文压缩（surface replace）的持久化侧：被摘要覆盖的消息打标
+            addColumnIfMissing("agent_message", "compacted",
+                "ALTER TABLE agent_message ADD COLUMN compacted INTEGER DEFAULT 0");
             // 新表兜底（schema.sql 已建，这里防的是 init 顺序问题）
             createTableIfMissing("agent_session_event",
                 "CREATE TABLE agent_session_event ("

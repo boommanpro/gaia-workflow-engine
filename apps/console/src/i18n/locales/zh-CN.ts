@@ -684,6 +684,7 @@ export const zhCN: I18nLanguage = {
     'chat.copyFailed': '复制失败',
     'chat.debug': '调试详情',
     'chat.streamTurn': '第 {{turn}}/{{max}} 轮',
+    'chat.streamTurnOnly': '第 {turn} 步',
     'chat.toolFullArgs': '参数完整 JSON',
     'chat.toolRunning': '执行中…',
     'chat.stepTypeThink': '思考',
@@ -701,7 +702,7 @@ export const zhCN: I18nLanguage = {
     'chat.toolStepsFailed': '已执行 {{count}} 个步骤，其中有失败',
     'chat.expandSteps': '展开',
     'chat.collapseSteps': '收起',
-    'chat.queued': '{{count}} 条消息排队中…',
+    'chat.queued': '已插入 {{count}} 条到当前运行…',
     'chat.scrollToBottom': '回到底部',
 
     // —— 画布快照 / 版本 / 回滚 ——

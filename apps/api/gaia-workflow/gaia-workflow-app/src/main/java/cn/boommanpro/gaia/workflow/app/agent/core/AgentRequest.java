@@ -31,7 +31,8 @@ public class AgentRequest {
     /** 覆盖执行模式；为空则沿用 Agent 定义 */
     private ToolExecutionMode executionMode;
 
-    /** 覆盖最大轮次；<=0 表示沿用定义 */
+    /** @deprecated 主循环已移除轮次硬上限（自然停止 + 护栏组合），字段仅为兼容保留 */
+    @Deprecated
     private int maxTurns;
 
     /** 附加变量，供上下文提供者与工具使用 */

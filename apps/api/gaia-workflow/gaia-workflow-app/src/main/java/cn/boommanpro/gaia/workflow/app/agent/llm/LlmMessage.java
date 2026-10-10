@@ -29,6 +29,9 @@ public class LlmMessage {
     /** 多模态图片（base64 data url），仅 user 角色使用 */
     private java.util.List<String> images;
 
+    /** 对应持久层消息 id（会话压缩需要回写 compacted 标记；内存构造的消息为 null） */
+    private Long refId;
+
     public static LlmMessage system(String content) {
         return LlmMessage.builder().role("system").content(content).build();
     }

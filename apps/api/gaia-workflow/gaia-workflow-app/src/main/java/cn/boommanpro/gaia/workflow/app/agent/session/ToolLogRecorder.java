@@ -38,8 +38,6 @@ public class ToolLogRecorder implements AgentEventSink {
     private static final int MAX_ENTRIES = 50;
     private static final int MAX_ARGS_CHARS = 400;
     private static final int MAX_RESULT_CHARS = 800;
-    /** 持久事件的 payload 截断上限 */
-    private static final int MAX_EVENT_PAYLOAD_CHARS = 4000;
 
     private final AgentEventSink delegate;
     private final AgentSessionService sessionService;
@@ -96,12 +94,15 @@ public class ToolLogRecorder implements AgentEventSink {
 
     // ---------------- 持久事件日志（v2） ----------------
 
-    private void persistEvent(AgentEvent event) {
+    /** 并行工具任务会并发外发事件：seq 分配与落表必须串行化，保证日志序确定 */
+    private synchronized void persistEvent(AgentEvent event) {
         if (eventService == null || event == null || event.getType() == null) {
             return;
         }
         String type = event.getType();
-        // 高频流事件不入表（token 每秒几十条，落表只有噪声）
+        // 高频流事件不入表（token 每秒几十条，落表只有噪声）；
+        // 其余事件全量落库不截断 ——「model-visible ⟺ logged」：
+        // 模型看过的工具参数/结果必须能从事件日志完整重建
         if ("token".equals(type) || "thinking".equals(type)) {
             return;
         }
@@ -114,9 +115,7 @@ public class ToolLogRecorder implements AgentEventSink {
         row.setRunId(runId);
         row.setSeq(++eventSeq);
         row.setEventType(type);
-        String payload = event.getData() != null ? event.getData().toString() : null;
-        row.setPayload(payload != null && payload.length() > MAX_EVENT_PAYLOAD_CHARS
-            ? payload.substring(0, MAX_EVENT_PAYLOAD_CHARS) + "…(truncated)" : payload);
+        row.setPayload(event.getData() != null ? event.getData().toString() : null);
         row.setCreatedAt(java.time.LocalDateTime.now().toString());
         eventService.save(row);
     }

@@ -125,22 +125,28 @@ public class GaiaWorkflowVersionController {
     public boolean setCurrentVersion(@PathVariable Long id) {
         // 先将该工作流下的所有版本设为非当前版本
         GaiaWorkflowVersion version = workflowVersionService.getById(id);
-        gaiaWorkflowService.update(new UpdateWrapper<GaiaWorkflow>().eq("workflow_code", version.getWorkflowCode()).set("current_version_id", id));
-        if (version != null) {
-            workflowVersionService.update(
-                new com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper<GaiaWorkflowVersion>()
-                    .eq("workflow_code", version.getWorkflowCode())
-                    .set("is_current", 0)
-            );
-
-            // 再将指定版本设为当前版本
-            return workflowVersionService.update(
-                new com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper<GaiaWorkflowVersion>()
-                    .eq("id", id)
-                    .set("is_current", 1)
-            );
+        if (version == null) {
+            return false;
         }
-        return false;
+        // 切换生效版本 = 生效内容变更：revision 必须同步递增，
+        // 否则切换前读取的 CAS 基准（revision 未变）仍会被认作新鲜，并发覆盖生效版本
+        gaiaWorkflowService.update(new UpdateWrapper<GaiaWorkflow>()
+            .eq("workflow_code", version.getWorkflowCode())
+            .set("current_version_id", id)
+            .setSql("revision = revision + 1")
+            .set("updated_at", java.time.LocalDateTime.now()));
+        workflowVersionService.update(
+            new com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper<GaiaWorkflowVersion>()
+                .eq("workflow_code", version.getWorkflowCode())
+                .set("is_current", 0)
+        );
+
+        // 再将指定版本设为当前版本
+        return workflowVersionService.update(
+            new com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper<GaiaWorkflowVersion>()
+                .eq("id", id)
+                .set("is_current", 1)
+        );
     }
 
     // ==================================================================

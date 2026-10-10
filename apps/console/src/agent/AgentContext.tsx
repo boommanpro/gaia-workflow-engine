@@ -383,8 +383,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   // refs
   const currentSessionKeyRef = useRef<string | null>(null);
   const draftMetaRef = useRef<Map<string, { scope: 'chat' | 'work'; folderId: number | null }>>(new Map());
-  const messageQueueRef = useRef<Array<{ sessionKey: string; text: string; images?: string[] }>>([]);
-  const processingRef = useRef<boolean>(false);
+  // steering 计数：run 进行中发出、由后端 turn 边界注入的消息数（仅排队指示用）
   /** 当前正在流式渲染的助手占位消息 id */
   const liveAssistantIdRef = useRef<string | null>(null);
   const [liveMessageId, setLiveMessageId] = useState<string | null>(null);
@@ -479,12 +478,8 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     setMessages([]);
     liveAssistantIdRef.current = null;
     // 运行状态机是全局单例，必须随会话切换复位：
-    // processingRef/queue 不复位时，旧会话挂起的运行/确认会把新会话的消息吞进队列永不发送
-    // （实测：旧会话确认门禁挂起期间切会话，新会话首条消息只入队不执行）；
     // streaming/pendingConfirm 不复位时，旧会话的确认卡会弹在别的会话页面上。
     // 若旧会话 run 仍在进行，切回时订阅回放快照会重建 streaming/确认状态（关窗继续语义不变）。
-    messageQueueRef.current = [];
-    processingRef.current = false;
     setQueueLength(0);
     setStreaming(false);
     setPendingConfirm(null);
@@ -612,7 +607,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   }, [location.pathname]);
 
   const createSession = useCallback(async (title?: string, opts?: { scope?: 'chat' | 'work'; folderId?: number | null }) => {
-    // 新建对话只生成本地草稿 key，不请求后端；首条消息发送时（drainQueue）才真正创建会话
+    // 新建对话只生成本地草稿 key，不请求后端；首条消息发送时（postMessage）才真正创建会话
     const key = `draft-${nanoid(8)}`;
     draftMetaRef.current.set(key, {
       scope: opts?.scope || 'chat',
@@ -684,43 +679,28 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     }).catch(() => {});
   }, []);
 
-  /** 串行消费消息队列：每条消息触发一次后端自治 run */
-  const drainQueue = useCallback(async () => {
-    if (processingRef.current) return;
-    const item = messageQueueRef.current.shift();
-    if (!item) return;
-    processingRef.current = true;
-    setQueueLength(messageQueueRef.current.length);
+  /**
+   * 直发一条消息给后端（steering 语义）：run 进行中时后端把它注入当前运行的
+   * turn 边界（或收尾时链接成新 run）—— 前端不再排队等上一条跑完。
+   */
+  const postMessage = useCallback(async (sessionKey: string, text: string, images?: string[]) => {
     setStreaming(true);
     try {
-      const res = await agentApi.startRun(
-        item.sessionKey,
-        item.text,
-        getPageContextJson(),
-        item.images,
-        getCurrentLocale()
-      );
+      const res = await agentApi.startRun(sessionKey, text, getPageContextJson(), images, getCurrentLocale());
       if (!res?.accepted) {
         setStreaming(false);
         setMessages((prev) => [
           ...prev,
           { id: nanoid(), role: 'assistant', content: `[错误] ${res?.error || '运行未受理'}`, timestamp: Date.now() },
         ]);
-        processingRef.current = false;
-        setQueueLength(messageQueueRef.current.length);
-        void drainQueue();
-        return;
       }
-      // 成功受理后：streaming / 渲染由 SSE 事件驱动；done/error 事件会调用 drainQueue 继续
+      // 成功受理后：streaming / 渲染由 SSE 事件驱动（run 进行中则是 steering 注入）
     } catch (e) {
       setStreaming(false);
       setMessages((prev) => [
         ...prev,
         { id: nanoid(), role: 'assistant', content: `[错误] ${(e as Error).message}`, timestamp: Date.now() },
       ]);
-      processingRef.current = false;
-      setQueueLength(messageQueueRef.current.length);
-      void drainQueue();
     }
   }, [getPageContextJson]);
 
@@ -769,24 +749,22 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       }
       setMessages((prev) => [...prev, userMsg]);
 
-      messageQueueRef.current.push({ sessionKey, text, images });
-      setQueueLength(messageQueueRef.current.length);
-      void drainQueue();
+      // steering：run 进行中直接发送，后端在 turn 边界注入；本地仅维护排队指示
+      if (liveStreamStore.getSnapshot().streaming) setQueueLength((q) => q + 1);
+      void postMessage(sessionKey, text, images);
     },
-    [drainQueue, refreshFolders]
+    [postMessage, refreshFolders]
   );
 
-  /** 停止当前运行：通知后端停止 + 清空队列（后端线程自然结束） */
+  /** 停止当前运行：通知后端停止（协作式中断，主循环在下一个检查点退出） */
   const stopStreaming = useCallback(() => {
     const sessionKey = currentSessionKeyRef.current;
     if (sessionKey && !sessionKey.startsWith('draft-')) {
       void agentApi.stopRun(sessionKey).catch(() => {});
     }
-    messageQueueRef.current = [];
     setQueueLength(0);
     // 停止也是一轮结束：把已发生的 AI 变更定格为会话版本
     workflowDocumentStore.captureAiRunSnapshot(liveAssistantIdRef.current ?? undefined);
-    processingRef.current = false;
     liveAssistantIdRef.current = null;
     setLiveMessageId(null);
     liveStreamStore.endRun();
@@ -925,10 +903,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
           }
           if (status === 'done' || status === 'error' || status === 'stopped') {
             reloadMessages(sessionKey);
-            // 队列里还有消息则继续（如断线重连后补齐 done）
-            processingRef.current = false;
-            setQueueLength(messageQueueRef.current.length);
-            void drainQueue();
+            setQueueLength(0);
           }
         }
       },
@@ -937,7 +912,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         setStreaming(true);
         if (!liveStreamStore.getSnapshot().streaming) liveStreamStore.beginRun();
         liveStreamStore.flush();
-        liveStreamStore.beginTurn(data.turn, data.maxTurns || 0);
+        liveStreamStore.beginTurn(data.turn, data.maxTurns || 0, data.contextTokens);
         // 单条回复语义：轮次不再切分消息，只保证有 live 占位可承接流式内容
         if (liveAssistantIdRef.current) return;
         const id = `live-turn-${data.turn}`;
@@ -1102,10 +1077,8 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         reloadMessages(sessionKey);
         // 后端 run 收尾时才把调用日志写入 debug_data（在 done 事件之后），稍等片刻再拉取
         setTimeout(() => refreshDebugData(sessionKey), 1200);
-        // 队列里还有消息则继续
-        processingRef.current = false;
-        setQueueLength(messageQueueRef.current.length);
-        void drainQueue();
+        // steering 残留消息由后端链接式 run 继续（turn 事件会重新拉起 streaming）
+        setQueueLength(0);
       },
       onError: (msg) => {
         if (disposed) return;
@@ -1120,9 +1093,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         ]);
         reloadMessages(sessionKey);
         setTimeout(() => refreshDebugData(sessionKey), 1200);
-        processingRef.current = false;
-        setQueueLength(messageQueueRef.current.length);
-        void drainQueue();
+        setQueueLength(0);
       },
     };
 
@@ -1168,7 +1139,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       setPendingConfirm(null);
       liveStreamStore.reset();
     };
-  }, [currentSessionKey, sessionEpoch, reloadMessages, drainQueue, location.pathname]);
+  }, [currentSessionKey, sessionEpoch, reloadMessages, location.pathname]);
 
   /** Task 2: 压缩上下文 */
   const compactContext = useCallback(async () => {

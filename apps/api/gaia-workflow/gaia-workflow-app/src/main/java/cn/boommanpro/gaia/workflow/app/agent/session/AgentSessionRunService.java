@@ -129,6 +129,9 @@ public class AgentSessionRunService {
     private final cn.boommanpro.gaia.workflow.infra.manage.service.AgentSessionEventService sessionEventService;
 
     private final ConcurrentMap<String, RunHandle> runs = new ConcurrentHashMap<>();
+    /** 会话级 steering 收件箱：run 进行中的新消息在 turn 边界注入；run 结束后残留消息链接成新 run */
+    private final ConcurrentMap<String, cn.boommanpro.gaia.workflow.app.agent.core.SteeringInbox> steeringInboxes =
+        new ConcurrentHashMap<>();
 
     private final ExecutorService executor = Executors.newCachedThreadPool(r -> {
         Thread t = new Thread(r, "agent-session-run");
@@ -162,6 +165,10 @@ public class AgentSessionRunService {
     /**
      * 在指定会话上异步启动一次后端自治运行。
      * 立即返回受理结果；运行在后台线程推进，事件进会话事件总线。
+     *
+     * <p>run 进行中再来消息不再拒绝（旧 conflict 语义），而是进入 steering 收件箱：
+     * 运行循环在下一个 turn 边界把它注入当前对话；若 run 已到尾声来不及注入，
+     * 收尾阶段会把它链接成新的 run 继续执行。</p>
      */
     public StartResult startRun(String sessionKey, String message, String pageContext,
                                 String locale, List<String> images, String agentId) {
@@ -174,7 +181,16 @@ public class AgentSessionRunService {
 
         RunHandle existing = runs.get(sessionKey);
         if (existing != null && !existing.isFinished()) {
-            return StartResult.conflict("该会话正在执行中，请等待完成或先停止");
+            // steering：消息入库 + 进收件箱（turn 边界注入或收尾链接）
+            conversationStore.saveMessage(sessionKey, "user", message, null, null, images);
+            steeringInboxes.computeIfAbsent(sessionKey, k ->
+                new cn.boommanpro.gaia.workflow.app.agent.core.SteeringInbox())
+                .offer(new cn.boommanpro.gaia.workflow.app.agent.core.SteeringInbox.Message(
+                    message, images, pageContext, locale, agentId));
+            eventBus.publish(sessionKey, "steering_queued",
+                new JSONObject().set("content", message).set("runId", existing.getRunId()));
+            log.info("[session-run] steering queued session={} activeRun={}", sessionKey, existing.getRunId());
+            return StartResult.accepted(sessionKey, existing.getRunId());
         }
 
         ensureSession(sessionKey, message);
@@ -182,6 +198,15 @@ public class AgentSessionRunService {
         // 用户消息入库（含多模态图片）
         conversationStore.saveMessage(sessionKey, "user", message, null, null, images);
 
+        startExecution(sessionKey, message, pageContext, locale,
+            (agentId != null && !agentId.isEmpty()) ? agentId : resolveDefaultAgentId(), images, true);
+
+        return StartResult.accepted(sessionKey, currentRunId(sessionKey));
+    }
+
+    /** 内部：把一次执行挂到线程池（persistedUserMessage 表示用户消息已入库，避免链接式重复落） */
+    private void startExecution(String sessionKey, String message, String pageContext, String locale,
+                                String agent, List<String> images, boolean persistedUserMessage) {
         String runId = UUID.randomUUID().toString().replace("-", "").substring(0, 12);
         RunHandle handle = new RunHandle(runId, sessionKey);
         runs.put(sessionKey, handle);
@@ -196,11 +221,14 @@ public class AgentSessionRunService {
             .set("toolCalls", new cn.hutool.json.JSONArray());
         eventBus.setState(sessionKey, runningState);
 
-        final String agent = (agentId != null && !agentId.isEmpty()) ? agentId : resolveDefaultAgentId();
-        executor.execute(() -> runAsync(sessionKey, message, pageContext, locale, agent, handle));
+        executor.execute(() -> runAsync(sessionKey, message, pageContext, locale, agent, handle, persistedUserMessage));
+        log.info("[session-run] accepted session={} runId={} agent={} persistedUserMessage={}",
+            sessionKey, runId, agent, persistedUserMessage);
+    }
 
-        log.info("[session-run] accepted session={} runId={} agent={}", sessionKey, runId, agent);
-        return StartResult.accepted(sessionKey, runId);
+    private String currentRunId(String sessionKey) {
+        RunHandle handle = runs.get(sessionKey);
+        return handle != null ? handle.getRunId() : null;
     }
 
     /**
@@ -292,16 +320,33 @@ public class AgentSessionRunService {
 
     private void runAsync(String sessionKey, String message, String pageContext, String locale,
                           String agentId, RunHandle handle) {
+        runAsync(sessionKey, message, pageContext, locale, agentId, handle, true);
+    }
+
+    private void runAsync(String sessionKey, String message, String pageContext, String locale,
+                          String agentId, RunHandle handle, boolean persistedUserMessage) {
         // 调用日志录制器：旁路记录 llm_end / tool_call / tool_result，结束后并入 debug_data（会话审查数据源）
         ToolLogRecorder recorder = new ToolLogRecorder(
             new BusAgentEventSink(sessionKey, eventBus, handle), sessionService,
             sessionEventService, handle.getRunId(), sessionKey, message);
+        AgentRunResult result = null;
         try {
             AgentRequest request = new AgentRequest(
                 sessionKey, message, locale != null ? locale : "zh-CN", pageContext,
                 agentId, ToolExecutionMode.BACKEND, 0, null, handle.getRunId());
+            if (request.getVariables() == null) {
+                request.setVariables(new java.util.HashMap<>());
+            }
+            // 协作式中断：主循环在轮边界/工具前后/重试等待轮询本句柄
+            request.getVariables().put("interrupt", (java.util.function.BooleanSupplier) handle::isCancelled);
+            // steering 收件箱（会话级）：turn 边界注入；收尾残留由此处的链接逻辑消费
+            request.getVariables().put("steeringInbox",
+                steeringInboxes.computeIfAbsent(sessionKey, k ->
+                    new cn.boommanpro.gaia.workflow.app.agent.core.SteeringInbox()));
+            request.getVariables().put("persistedUserMessage", persistedUserMessage);
+
             AgentEventSink sink = recorder;
-            AgentRunResult result = executionRouter.run(request, sink);
+            result = executionRouter.run(request, sink);
 
             if (!handle.isCancelled()) {
                 if (result.isError()) {
@@ -314,7 +359,8 @@ public class AgentSessionRunService {
                 eventBus.publish(sessionKey, "done",
                     new JSONObject()
                         .set("turns", result.getTurns())
-                        .set("abortedByTurnLimit", result.isAbortedByTurnLimit()));
+                        .set("abortedByTurnLimit", result.isAbortedByTurnLimit())
+                        .set("interrupted", result.isInterrupted()));
             }
         } catch (Exception e) {
             log.error("[session-run] run failed session={} runId={}", sessionKey, handle.getRunId(), e);
@@ -325,8 +371,19 @@ public class AgentSessionRunService {
                     new JSONObject().set("message", errorText));
             }
         } finally {
+            // run_end 终态事件（dsh 崩溃恢复依赖）：先落日志再收尾，
+            // 启动归位组件据此区分「正常结束」与「进程死亡时仍在跑」
+            try {
+                String outcome = handle.isCancelled() ? "stopped"
+                    : (result != null && result.isError() ? "error" : "done");
+                recorder.emit(cn.boommanpro.gaia.workflow.app.agent.event.AgentEvent.of("run_end",
+                    new JSONObject().set("outcome", outcome)
+                        .set("turns", result != null ? result.getTurns() : 0)));
+            } catch (Exception e) {
+                log.debug("[session-run] run_end emit failed: {}", e.getMessage());
+            }
             recorder.flush(sessionKey);
-            // 运行收尾：放弃本会话仍挂起的确认等待（turn-limit 截断/异常路径的确认卡不该悬到 300s 超时）
+            // 运行收尾：放弃本会话仍挂起的确认等待（护栏截断/异常路径的确认卡不该悬到 300s 超时）
             try {
                 toolPolicyService.cancelPendingConfirms(sessionKey);
             } catch (Exception e) {
@@ -341,7 +398,40 @@ public class AgentSessionRunService {
             }
             handle.markFinished();
             runs.remove(sessionKey, handle);
+            // steering 链接：run 结束时收件箱里还有消息（到达太晚没赶上 turn 边界），
+            // 不丢给用户一个「已发送但没人处理」的沉默——链接成新 run 继续执行
+            chainSteering(sessionKey);
         }
+    }
+
+    /** 把收件箱残留消息链接成新 run（消息已入库，跳过重复持久化；后续消息由链接链继续处理） */
+    private void chainSteering(String sessionKey) {
+        if (handleIsActive(sessionKey)) {
+            return; // 新 run 已经抢先注册（极端竞态），收件箱归它消费
+        }
+        cn.boommanpro.gaia.workflow.app.agent.core.SteeringInbox inbox = steeringInboxes.get(sessionKey);
+        if (inbox == null) {
+            return;
+        }
+        java.util.List<cn.boommanpro.gaia.workflow.app.agent.core.SteeringInbox.Message> remaining = inbox.drain();
+        if (remaining.isEmpty()) {
+            steeringInboxes.remove(sessionKey, inbox);
+            return;
+        }
+        cn.boommanpro.gaia.workflow.app.agent.core.SteeringInbox.Message next = remaining.remove(0);
+        // 更晚到达的消息回填：链接 run 的收尾会再次进入这里，逐条顺序执行
+        for (cn.boommanpro.gaia.workflow.app.agent.core.SteeringInbox.Message m : remaining) {
+            inbox.offer(m);
+        }
+        String agent = next.agentId != null && !next.agentId.isEmpty()
+            ? next.agentId : resolveDefaultAgentId();
+        log.info("[session-run] chaining steering message session={}: {}", sessionKey, next.content);
+        startExecution(sessionKey, next.content, next.pageContext, next.locale, agent, next.images, false);
+    }
+
+    private boolean handleIsActive(String sessionKey) {
+        RunHandle handle = runs.get(sessionKey);
+        return handle != null && !handle.isFinished();
     }
 
     /** 会话不存在时自动创建（标题取首条消息前 30 字），保证 run 总能落库 */

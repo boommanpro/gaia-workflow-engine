@@ -31,6 +31,8 @@ export interface LiveStreamState {
   /** 轮次信息（turn 事件） */
   turn: number;
   maxTurns: number;
+  /** 当前上下文 token 估算（turn 事件携带；超过阈值触发自动压缩） */
+  contextTokens: number;
   /** 当前执行中的工具名（tool_call 事件 → tool_result 清空） */
   currentTool: string | null;
   /** run 开始时间戳（状态行耗时用） */
@@ -46,6 +48,7 @@ const initial = (): LiveStreamState => ({
   streaming: false,
   turn: 0,
   maxTurns: 0,
+  contextTokens: 0,
   currentTool: null,
   startedAt: 0,
 });
@@ -215,8 +218,8 @@ export const liveStreamStore = {
     state = initial();
     notify();
   },
-  beginTurn(turn: number, maxTurns: number): void {
-    state = { ...state, turn, maxTurns: maxTurns || state.maxTurns };
+  beginTurn(turn: number, maxTurns: number, contextTokens?: number): void {
+    state = { ...state, turn, maxTurns: maxTurns || state.maxTurns, contextTokens: contextTokens ?? state.contextTokens };
     notify();
   },
   markTool(name: string | null): void {

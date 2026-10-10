@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.BooleanSupplier;
 
 /**
  * Agent 运行时上下文 —— 在一次运行生命周期内贯穿所有策略组件。
@@ -29,8 +30,8 @@ public class AgentRunContext {
     /** 本次运行累计消耗的字符数，粗粒度成本核算 */
     private long emittedChars = 0;
 
-    /** 运行过程中的共享数据，供各策略之间传递中间结果 */
-    private final Map<String, Object> attributes = new HashMap<>();
+    /** 运行过程中的共享数据，供各策略之间传递中间结果（并行工具任务会并发读写） */
+    private final Map<String, Object> attributes = new java.util.concurrent.ConcurrentHashMap<>();
 
     /** 事件输出端（运行时注入）。工具可用 {@link #emit} 广播自定义事件（如 document / plan / ui_action） */
     private AgentEventSink sink;
@@ -66,6 +67,28 @@ public class AgentRunContext {
 
     public int getMaxTurns() {
         return request.getMaxTurns() > 0 ? request.getMaxTurns() : definition.getMaxTurns();
+    }
+
+    /**
+     * 是否被请求中断（协作式取消）。
+     * 运行编排侧把 {@code BooleanSupplier} 放进 request.variables["interrupt"]，
+     * 主循环在每个检查点（轮边界 / 工具前后 / 重试等待）轮询。
+     */
+    public boolean isInterrupted() {
+        if (request == null || request.getVariables() == null) {
+            return false;
+        }
+        Object supplier = request.getVariables().get("interrupt");
+        return supplier instanceof BooleanSupplier && ((BooleanSupplier) supplier).getAsBoolean();
+    }
+
+    /** 运行中 steering 收件箱（无则为 null）：turn 边界排空注入当前对话 */
+    public SteeringInbox getSteeringInbox() {
+        if (request == null || request.getVariables() == null) {
+            return null;
+        }
+        Object inbox = request.getVariables().get("steeringInbox");
+        return inbox instanceof SteeringInbox ? (SteeringInbox) inbox : null;
     }
 
     public boolean isHeadless() {

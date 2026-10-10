@@ -207,8 +207,13 @@ const StreamStatusBar: React.FC = () => {
           flexShrink: 0,
         }}
       />
-      {state.maxTurns > 0 && (
+      {state.maxTurns > 0 ? (
         <span>{t('chat.streamTurn', { turn: state.turn, max: state.maxTurns })}</span>
+      ) : (
+        <span title="当前上下文 token 估算（超过阈值会自动压缩）">
+          {t('chat.streamTurnOnly', { turn: state.turn })}
+          {state.contextTokens > 0 && ` · ≈${state.contextTokens} tok`}
+        </span>
       )}
       {state.currentTool && (
         <span style={{ color: CHAT.accent, fontWeight: 500 }}>{state.currentTool}</span>

@@ -292,6 +292,37 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
       }
 
       if (m.role === 'user') {
+        // 上下文摘要（后端 compaction 产物）：渲染为居中的系统注记卡，不占用户气泡
+        if (m.content && m.content.startsWith('【前情摘要】')) {
+          nodes.push(
+            <div
+              key={m.id}
+              className="chat-fade"
+              style={{ display: 'flex', justifyContent: 'center', padding: '6px 0' }}
+            >
+              <details
+                style={{
+                  maxWidth: '86%',
+                  border: `1px dashed ${CHAT.line}`,
+                  borderRadius: 12,
+                  padding: '6px 14px',
+                  fontSize: compact ? 12 : 13,
+                  color: CHAT.textSub,
+                  background: 'transparent',
+                }}
+              >
+                <summary style={{ cursor: 'pointer', userSelect: 'none', listStyle: 'none' }}>
+                  🗂 {m.content.split('\n')[0]}
+                </summary>
+                <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', paddingTop: 6, lineHeight: 1.6, color: CHAT.textSub }}>
+                  {m.content.split('\n').slice(1).join('\n')}
+                </div>
+              </details>
+            </div>
+          );
+          i += 1;
+          continue;
+        }
         nodes.push(
           <div key={m.id} className="chat-fade" style={{ display: 'flex', justifyContent: 'flex-end', padding: '6px 0' }}>
             <div style={{ maxWidth: compact ? '88%' : '70.2%', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>

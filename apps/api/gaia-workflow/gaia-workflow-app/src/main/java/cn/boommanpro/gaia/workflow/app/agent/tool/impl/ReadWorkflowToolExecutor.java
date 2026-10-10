@@ -91,7 +91,47 @@ public class ReadWorkflowToolExecutor implements ToolExecutor {
             .set("versionNumber", current != null ? current.getVersionNumber() : null)
             .set("dsl", current != null && current.getWorkflowData() != null
                 ? cn.hutool.json.JSONUtil.parseObj(current.getWorkflowData()) : null);
+        // 大 DSL 结构化视图（dsh 拉模式钻取）：全量 JSON 超过阈值时只给节点骨架
+        // （id/type/标题 + 连线），模型用 read_node 按需取单节点详情——
+        // 一方面省上下文，一方面避免弱模型被长 JSON 淹没后放弃填写 data
+        String dslText = current != null && current.getWorkflowData() != null ? current.getWorkflowData() : "";
+        if (dslText.length() > MAX_INLINE_DSL_CHARS && payload.get("dsl") != null) {
+            payload.set("dsl", structuralView(payload.getJSONObject("dsl")));
+            payload.set("dslPruned", true);
+            payload.set("hint", "DSL 较大，已返回节点结构骨架；用 read_node(nodeId) 查看单个节点的完整 data，"
+                + "用 edit_workflow 修改后 save_workflow 落版");
+        }
         return ToolResult.ok(payload.toString(),
             "已返回 " + code + "（revision " + revision + (hydrated ? "，已同步为会话草稿" : "") + "）");
+    }
+
+    /** 全量 DSL 超过此字符数时降级为结构骨架 */
+    static final int MAX_INLINE_DSL_CHARS = 6000;
+
+    /** 节点骨架：id / type / 标题 + 连线列表（编辑所需的最小信息集） */
+    static cn.hutool.json.JSONObject structuralView(cn.hutool.json.JSONObject dsl) {
+        cn.hutool.json.JSONObject view = new cn.hutool.json.JSONObject();
+        cn.hutool.json.JSONArray nodes = new cn.hutool.json.JSONArray();
+        cn.hutool.json.JSONArray rawNodes = dsl.getJSONArray("nodes");
+        if (rawNodes != null) {
+            for (int i = 0; i < rawNodes.size(); i++) {
+                cn.hutool.json.JSONObject node = rawNodes.getJSONObject(i);
+                if (node == null) {
+                    continue;
+                }
+                cn.hutool.json.JSONObject data = node.getJSONObject("data");
+                cn.hutool.json.JSONObject skeleton = new cn.hutool.json.JSONObject()
+                    .set("id", node.getStr("id"))
+                    .set("type", data != null ? data.getStr("type") : null)
+                    .set("title", data != null ? data.getStr("title") : null);
+                nodes.add(skeleton);
+            }
+        }
+        view.set("nodes", nodes);
+        cn.hutool.json.JSONArray edges = dsl.getJSONArray("edges");
+        if (edges != null) {
+            view.set("edges", edges);
+        }
+        return view;
     }
 }

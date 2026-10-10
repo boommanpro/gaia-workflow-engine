@@ -118,7 +118,8 @@ CREATE TABLE IF NOT EXISTS agent_message (
     thinking TEXT,
     tool_call_id VARCHAR(64),
     page_context TEXT,
-    created_at TEXT
+    created_at TEXT,
+    compacted INTEGER DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_agent_message_session ON agent_message(session_key, id);
 

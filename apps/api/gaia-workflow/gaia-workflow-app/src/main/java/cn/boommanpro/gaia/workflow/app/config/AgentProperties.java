@@ -15,6 +15,8 @@ public class AgentProperties {
     private Llm llm = new Llm();
     private History history = new History();
     private Ark ark = new Ark();
+    private Compaction compaction = new Compaction();
+    private Spill spill = new Spill();
 
     @Data
     public static class Llm {
@@ -31,6 +33,42 @@ public class AgentProperties {
     @Data
     public static class History {
         private int maxMessages = 20;
+    }
+
+    /**
+     * 上下文压缩（对齐 dsh compaction：确定性剪枝 → 模型摘要，配对完整性保持）。
+     * 触发条件：估算上下文 token &gt; contextWindow × triggerRatio。
+     */
+    @Data
+    public static class Compaction {
+        private boolean enabled = true;
+        /** 触发比例（相对 contextWindow） */
+        private double triggerRatio = 0.7;
+        /** 摘要后至少保留的最近消息条数（不参与摘要） */
+        private int keepRecentMessages = 8;
+        /** 触发摘要所需的最小消息数（太短的对话不值得摘要） */
+        private int minMessagesToSummarize = 12;
+        /** 老工具结果超过此字符数即剪枝（保留最近 keepRecentToolResults 条完整） */
+        private int pruneToolResultChars = 1200;
+        /** 保持完整的老工具结果条数 */
+        private int keepRecentToolResults = 6;
+        /** 摘要请求的最大输出 token */
+        private int summaryMaxTokens = 600;
+    }
+
+    /**
+     * 大结果 spill（对齐 dsh spill-policy）：工具结果超过 inline 上限时，
+     * 模型只看 head/tail 预览 + 取回指引，完整内容留在事件日志与会话历史里。
+     */
+    @Data
+    public static class Spill {
+        private boolean enabled = true;
+        /** 进入模型上下文的单条工具结果上限（字符） */
+        private int maxInlineChars = 12000;
+        /** 预览保留的头部字符数 */
+        private int headChars = 8000;
+        /** 预览保留的尾部字符数 */
+        private int tailChars = 2000;
     }
 
     /**

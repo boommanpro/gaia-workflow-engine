@@ -42,4 +42,24 @@ public interface ConversationStore {
 
     /** 生成一个会话 key */
     String newSessionKey();
+
+    // ===== 上下文压缩（surface replace）的持久化侧 =====
+
+    /**
+     * 把一批已加载的消息标记为「已被摘要覆盖」。
+     * 这些消息不再进入后续 run 的模型上下文（loadHistory 跳过），
+     * 但前端展示与审查日志不受影响。
+     */
+    default void markCompacted(String sessionKey, java.util.List<Long> messageIds) {
+        // 内存实现/测试假实现无需支持
+    }
+
+    /**
+     * 写入一条前情摘要消息（user 角色，带标记前缀），返回消息 id。
+     * 返回 null 表示存储不支持（压缩降级为仅本次 run 内存生效）。
+     */
+    default Long saveSummary(String sessionKey, String content) {
+        saveMessage(sessionKey, "user", content, null, null);
+        return null;
+    }
 }

@@ -38,8 +38,25 @@ public class LlmChatResponse {
 
     private String errorMessage;
 
+    /**
+     * 失败分类码（供重试策略判定）：RATE_LIMIT / SERVER / TIMEOUT / TRANSPORT /
+     * EMPTY_RESPONSE / CONTEXT_WINDOW；null = 不可重试或非失败。
+     */
+    private String errorCode;
+
+    /** 本次请求的 prompt token 用量（流式末 chunk 的 usage，可能为 null） */
+    private Integer promptTokens;
+
+    /** 本次请求的 completion token 用量（可能为 null） */
+    private Integer completionTokens;
+
     public boolean hasToolCalls() {
         return toolCalls != null && !toolCalls.isEmpty();
+    }
+
+    public boolean isRetryable() {
+        return errorCode != null && !errorCode.isEmpty()
+            && !"CONTEXT_WINDOW".equals(errorCode);
     }
 
     public static LlmChatResponse of(String content) {
@@ -47,6 +64,11 @@ public class LlmChatResponse {
     }
 
     public static LlmChatResponse failed(String message) {
-        return LlmChatResponse.builder().error(true).errorMessage(message).content("").build();
+        return failed(message, null);
+    }
+
+    public static LlmChatResponse failed(String message, String errorCode) {
+        return LlmChatResponse.builder()
+            .error(true).errorMessage(message).errorCode(errorCode).content("").build();
     }
 }

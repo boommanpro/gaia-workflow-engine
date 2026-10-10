@@ -667,7 +667,7 @@ export const AgentDockPanel: React.FC = () => {
                 placeholder={
                   streaming
                     ? queueLength > 0
-                      ? `排队中 (${queueLength})，可继续输入…`
+                      ? `已插入 ${queueLength} 条到当前运行，可继续输入…`
                       : t('agent.inputPlaceholderStreaming')
                     : t('agent.inputPlaceholder')
                 }

@@ -1,0 +1,67 @@
+{
+  "name": "stale-revision-recovery",
+  "userMessage": "再迭代一次这个工作流",
+  "history": [
+    { "role": "user", "content": "建一个舆情分析工作流" },
+    { "role": "assistant", "content": "已创建 wf_opinion 并落版 v1.0（revision 2）。" }
+  ],
+  "tools": ["read_workflow", "edit_workflow", "save_workflow"],
+  "steps": [
+    {
+      "response": {
+        "content": "读取当前版本准备修改。",
+        "toolCalls": [
+          { "id": "s1", "name": "read_workflow", "arguments": "{\"workflowCode\":\"wf_opinion\"}" }
+        ]
+      },
+      "results": {
+        "read_workflow#1": "{\"workflowCode\":\"wf_opinion\",\"workflowName\":\"舆情分析\",\"revision\":2,\"versionNumber\":\"v1.0\",\"dsl\":{\"nodes\":[],\"edges\":[]}}"
+      }
+    },
+    {
+      "response": {
+        "content": "修改后落版。",
+        "toolCalls": [
+          { "id": "s2", "name": "save_workflow", "arguments": "{\"versionDesc\":\"迭代\"}" }
+        ]
+      },
+      "results": {
+        "save_workflow#1": "{\"error\":{\"code\":\"STALE_REVISION\",\"message\":\"工作流已被并发修改\",\"expected\":2,\"actual\":3,\"fix\":\"重新 read_workflow 后再提交\"}}"
+      }
+    },
+    {
+      "response": {
+        "content": "基准过期了，重新读取。",
+        "toolCalls": [
+          { "id": "s3", "name": "read_workflow", "arguments": "{\"workflowCode\":\"wf_opinion\"}" }
+        ]
+      },
+      "results": {
+        "read_workflow#2": "{\"workflowCode\":\"wf_opinion\",\"workflowName\":\"舆情分析\",\"revision\":3,\"versionNumber\":\"v1.1\",\"dsl\":{\"nodes\":[],\"edges\":[]}}"
+      }
+    },
+    {
+      "response": {
+        "content": "基于 revision 3 重新落版。",
+        "toolCalls": [
+          { "id": "s4", "name": "save_workflow", "arguments": "{\"versionDesc\":\"迭代（重试）\"}" }
+        ]
+      },
+      "results": {
+        "save_workflow#2": "{\"success\":true,\"workflowCode\":\"wf_opinion\",\"versionNumber\":\"v1.2\",\"revision\":4,\"nodeCount\":0}"
+      }
+    },
+    {
+      "response": {
+        "content": "已完成迭代：检测到并发修改（revision 2→3），已基于最新版本重新落版 v1.2。"
+      }
+    }
+  ],
+  "expect": {
+    "finalContent": "已完成迭代：检测到并发修改（revision 2→3），已基于最新版本重新落版 v1.2。",
+    "turns": 5,
+    "savedRoles": ["assistant", "tool", "assistant", "tool", "assistant", "tool", "assistant", "tool", "assistant"],
+    "executedTools": ["read_workflow", "save_workflow", "read_workflow", "save_workflow"],
+    "eventSequenceContains": ["turn", "llm_request", "tool_call", "tool_result"]
+  }
+}

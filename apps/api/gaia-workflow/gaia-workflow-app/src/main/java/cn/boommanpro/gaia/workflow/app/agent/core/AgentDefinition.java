@@ -61,7 +61,12 @@ public class AgentDefinition {
     @Builder.Default
     private List<String> contextProviderIds = new ArrayList<>();
 
-    /** 自治循环最大轮次，防御性设计，避免模型空转 */
+    /**
+     * @deprecated 主循环已移除轮次硬上限（对齐 dsh 自然停止）：
+     * run 结束于模型不再调用工具；跑飞防护交给护栏组合
+     * （连续失败熔断 / 同参数复读提醒 / 上下文压力压缩）。字段保留仅为兼容存量定义。
+     */
+    @Deprecated
     @Builder.Default
     private int maxTurns = 8;
 

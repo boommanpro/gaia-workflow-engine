@@ -1,0 +1,66 @@
+{
+  "name": "iteration-flow",
+  "userMessage": "帮我把翻译工作流改成只读版本",
+  "history": [
+    { "role": "user", "content": "帮我把翻译工作流改成只读版本" }
+  ],
+  "tools": ["todo_write", "read_workflow", "edit_workflow", "save_workflow"],
+  "steps": [
+    {
+      "response": {
+        "content": "我先列一下计划。",
+        "toolCalls": [
+          { "id": "c1", "name": "todo_write", "arguments": "{\"steps\":[{\"intent\":\"读取当前工作流\",\"action\":\"read_workflow\",\"status\":\"in_progress\"},{\"intent\":\"改为只读\",\"action\":\"edit_workflow\",\"status\":\"pending\"},{\"intent\":\"落版\",\"action\":\"save_workflow\",\"status\":\"pending\"}]}" }
+        ]
+      },
+      "results": {
+        "todo_write#1": "{\"success\":true,\"total\":3,\"done\":0,\"message\":\"计划已记录\"}"
+      }
+    },
+    {
+      "response": {
+        "content": "读取当前工作流。",
+        "toolCalls": [
+          { "id": "c2", "name": "read_workflow", "arguments": "{\"workflowCode\":\"wf_translate\"}" }
+        ]
+      },
+      "results": {
+        "read_workflow#1": "{\"workflowCode\":\"wf_translate\",\"workflowName\":\"翻译\",\"revision\":3,\"versionNumber\":\"v1.0\",\"dsl\":{\"nodes\":[{\"id\":\"start_0\",\"data\":{\"type\":\"start\"}},{\"id\":\"llm_0\",\"data\":{\"type\":\"llm\",\"title\":\"翻译\"}},{\"id\":\"end_0\",\"data\":{\"type\":\"end\"}}],\"edges\":[]}}"
+      }
+    },
+    {
+      "response": {
+        "content": "把写节点替换为只读展示。",
+        "toolCalls": [
+          { "id": "c3", "name": "edit_workflow", "arguments": "{\"ops\":[{\"type\":\"updateNode\",\"nodeId\":\"llm_0\",\"data\":{\"type\":\"llm\",\"title\":\"只读展示\"}}]}" }
+        ]
+      },
+      "results": {
+        "edit_workflow#1": "{\"success\":true,\"applied\":1,\"draftRevision\":4,\"boundCode\":\"wf_translate\",\"baseRevision\":3}"
+      }
+    },
+    {
+      "response": {
+        "content": "落版保存。",
+        "toolCalls": [
+          { "id": "c4", "name": "save_workflow", "arguments": "{\"versionDesc\":\"改为只读\"}" }
+        ]
+      },
+      "results": {
+        "save_workflow#1": "{\"success\":true,\"workflowCode\":\"wf_translate\",\"versionNumber\":\"v1.1\",\"revision\":4,\"nodeCount\":3}"
+      }
+    },
+    {
+      "response": {
+        "content": "已完成：翻译工作流已改为只读并落版 v1.1。"
+      }
+    }
+  ],
+  "expect": {
+    "finalContent": "已完成：翻译工作流已改为只读并落版 v1.1。",
+    "turns": 5,
+    "savedRoles": ["assistant", "tool", "assistant", "tool", "assistant", "tool", "assistant", "tool", "assistant"],
+    "executedTools": ["todo_write", "read_workflow", "edit_workflow", "save_workflow"],
+    "eventSequenceContains": ["turn", "llm_request", "llm_end", "assistant_settled", "tool_call", "tool_result"]
+  }
+}
