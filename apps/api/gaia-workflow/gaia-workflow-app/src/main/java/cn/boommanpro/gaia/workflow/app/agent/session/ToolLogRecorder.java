@@ -3,6 +3,8 @@ package cn.boommanpro.gaia.workflow.app.agent.session;
 import cn.boommanpro.gaia.workflow.app.agent.event.AgentEvent;
 import cn.boommanpro.gaia.workflow.app.agent.event.AgentEventSink;
 import cn.boommanpro.gaia.workflow.infra.manage.entity.AgentSession;
+import cn.boommanpro.gaia.workflow.infra.manage.entity.AgentSessionEvent;
+import cn.boommanpro.gaia.workflow.infra.manage.service.AgentSessionEventService;
 import cn.boommanpro.gaia.workflow.infra.manage.service.AgentSessionService;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
@@ -16,12 +18,16 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 工具调用日志录制器 —— 会话审查「调用日志」的数据生产端。
+ * 运行日志录制器 —— 会话审查「调用日志」的数据生产端 + 持久事件日志（v2）。
  *
- * <p>包装真实事件输出端，旁路记录每次 run 的 LLM 轮次元信息（llm_end）与
- * 工具调用（tool_call / tool_result），run 结束后合并写入
- * {@code agent_session.debug_data}（与前端调试面板的 DebugEntry 结构兼容，
- * 旧链路的消费端无需改动即可展示）。</p>
+ * <p>双写职责：</p>
+ * <ol>
+ *   <li><b>debug_data</b>（旧行为保留）：run 结束后合并写入 {@code agent_session.debug_data}，
+ *       与前端调试面板的 DebugEntry 结构兼容；</li>
+ *   <li><b>agent_session_event</b>（v2 新增，对齐 dsh durable session log）：结构化事件
+ *       （turn/llm_end/tool_call/tool_result/confirm/document/plan/knowledge_retrieved/error）
+ *       按序落表，追加只写，供回放调试与指标统计。token/thinking 等高频流事件不入表。</li>
+ * </ol>
  *
  * <p>记录永远不能影响主链路：录制异常一律吞掉。</p>
  */
@@ -32,9 +38,14 @@ public class ToolLogRecorder implements AgentEventSink {
     private static final int MAX_ENTRIES = 50;
     private static final int MAX_ARGS_CHARS = 400;
     private static final int MAX_RESULT_CHARS = 800;
+    /** 持久事件的 payload 截断上限 */
+    private static final int MAX_EVENT_PAYLOAD_CHARS = 4000;
 
     private final AgentEventSink delegate;
     private final AgentSessionService sessionService;
+    private final AgentSessionEventService eventService;
+    private final String runId;
+    private final String eventSessionKey;
     /** 触发本次 run 的用户消息（作为条目标题，方便审查列表定位） */
     private final String userMessage;
     private final long startedAt = System.currentTimeMillis();
@@ -43,12 +54,23 @@ public class ToolLogRecorder implements AgentEventSink {
     /** 当前 LLM 轮次对应的条目（turn / llm_end 事件推进） */
     private JSONObject current;
     private int seq = 0;
+    /** 持久事件序号（run 内递增） */
+    private int eventSeq = 0;
     /** callId → 本次 run 内已见的调用（tool_call 时登记，tool_result 时补全） */
     private final Map<String, JSONObject> openCalls = new HashMap<>();
 
     public ToolLogRecorder(AgentEventSink delegate, AgentSessionService sessionService, String userMessage) {
+        this(delegate, sessionService, null, null, null, userMessage);
+    }
+
+    public ToolLogRecorder(AgentEventSink delegate, AgentSessionService sessionService,
+                           AgentSessionEventService eventService, String runId,
+                           String eventSessionKey, String userMessage) {
         this.delegate = delegate;
         this.sessionService = sessionService;
+        this.eventService = eventService;
+        this.runId = runId;
+        this.eventSessionKey = eventSessionKey;
         this.userMessage = userMessage;
     }
 
@@ -60,12 +82,46 @@ public class ToolLogRecorder implements AgentEventSink {
         } catch (Exception e) {
             log.debug("[tool-log] record failed (ignored): {}", e.getMessage());
         }
+        try {
+            persistEvent(event);
+        } catch (Exception e) {
+            log.debug("[tool-log] event persist failed (ignored): {}", e.getMessage());
+        }
     }
 
     @Override
     public boolean isActive() {
         return delegate.isActive();
     }
+
+    // ---------------- 持久事件日志（v2） ----------------
+
+    private void persistEvent(AgentEvent event) {
+        if (eventService == null || event == null || event.getType() == null) {
+            return;
+        }
+        String type = event.getType();
+        // 高频流事件不入表（token 每秒几十条，落表只有噪声）
+        if ("token".equals(type) || "thinking".equals(type)) {
+            return;
+        }
+        String sessionKey = eventSessionKey;
+        if (sessionKey == null || sessionKey.isEmpty()) {
+            return;
+        }
+        AgentSessionEvent row = new AgentSessionEvent();
+        row.setSessionKey(sessionKey);
+        row.setRunId(runId);
+        row.setSeq(++eventSeq);
+        row.setEventType(type);
+        String payload = event.getData() != null ? event.getData().toString() : null;
+        row.setPayload(payload != null && payload.length() > MAX_EVENT_PAYLOAD_CHARS
+            ? payload.substring(0, MAX_EVENT_PAYLOAD_CHARS) + "…(truncated)" : payload);
+        row.setCreatedAt(java.time.LocalDateTime.now().toString());
+        eventService.save(row);
+    }
+
+    // ---------------- debug_data 录制（原有行为） ----------------
 
     private synchronized void record(AgentEvent event) {
         String type = event.getType();
@@ -80,16 +136,19 @@ public class ToolLogRecorder implements AgentEventSink {
                 ensureCurrent();
                 current.set("turn", data.getInt("turn"));
                 break;
-            case "llm_end":
+            case "llm_end": {
                 ensureCurrent();
+                // JSONArray.add() 返回 boolean，必须先构造再 add，禁止内联进 set()
+                JSONArray requestMessages = new JSONArray();
+                requestMessages.add(new JSONObject()
+                    .set("role", "user")
+                    .set("content", userMessage));
                 current.set("request", new JSONObject()
                     .set("model", data.getStr("model"))
-                    .set("temperature", data.get("temperature"))
+                    .set("temperature", data.getStr("temperature"))
                     .set("messagesCount", data.getInt("messagesCount"))
                     .set("toolsCount", data.getInt("toolsCount"))
-                    .set("messages", new JSONArray().add(new JSONObject()
-                        .set("role", "user")
-                        .set("content", userMessage))));
+                    .set("messages", requestMessages));
                 current.set("response", new JSONObject()
                     .set("durationMs", data.getLong("durationMs"))
                     .set("contentLength", data.getInt("contentLength"))
@@ -98,6 +157,7 @@ public class ToolLogRecorder implements AgentEventSink {
                         ? data.getJSONArray("toolCalls").size() : 0)
                     .set("toolCalls", trimToolCalls(data.getJSONArray("toolCalls"))));
                 break;
+            }
             case "tool_call": {
                 ensureCurrent();
                 JSONObject call = new JSONObject()

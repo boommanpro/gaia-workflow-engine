@@ -148,7 +148,19 @@ export interface DisplayMessage {
   };
   /** 思考过程增量累积（方舟托管引擎 agent.thinking 事件；可折叠展示） */
   thinking?: string;
+  /**
+   * 时间线（真实调用链路的交错顺序：思考 → 工具 → 思考 → 工具 → 正文）。
+   * 历史（convertMessages 构建）与 live（live-stream-store）共用该结构；
+   * 渲染层优先用 timeline，缺失时回退到 content/thinking/toolSteps 合并视图。
+   */
+  timeline?: TimelineItem[];
 }
+
+/** 时间线条目：kind 决定渲染样式 */
+export type TimelineItem =
+  | { kind: 'thinking'; id: string; text: string }
+  | { kind: 'tool'; id: string; call: ToolCallEvent; startedAt?: number; endedAt?: number }
+  | { kind: 'text'; id: string; text: string };
 
 /** SSE 事件处理器 */
 export interface SseHandlers {

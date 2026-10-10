@@ -138,13 +138,16 @@ public class AgentToolRegistry {
     }
 
     /**
-     * 旧版 21 个独立工具名（迁移检测用）
+     * 旧版独立工具名（第一代）+ v1 复合工具名（第二代）—— 迁移检测用，启动时删除
      */
     private static final String[] OLD_TOOL_NAMES = {
+        // 第一代 21 个独立工具
         "goHome", "goAdmin", "goReleases", "goEditor", "goTemplateEditor",
         "listWorkflows", "listTemplates", "listLogs", "getWorkflowDetail", "getNodeDetail",
         "createWorkflow", "createTemplate", "saveWorkflow", "deleteWorkflow",
-        "addNode", "updateNode", "deleteNode", "connect", "disconnect", "autoLayout"
+        "addNode", "updateNode", "deleteNode", "connect", "disconnect", "autoLayout",
+        // 第二代 7 个复合工具（v2 用 dsh 命名替代）
+        "navigate", "query", "manage", "canvas", "applyWorkflow", "createPlan", "executeStep"
     };
 
     /**
@@ -377,6 +380,38 @@ public class AgentToolRegistry {
         return defaultPolicies.getOrDefault(action, "confirm");
     }
 
+    /**
+     * 取某工具的 parameters schema（运行时参数校验用）。
+     * 优先内存缓存（DB 加载结果），缺失时兜底查硬编码种子。
+     */
+    public JSONObject getToolParameters(String toolName) {
+        if (toolName == null) {
+            return null;
+        }
+        try {
+            if (toolsSchema != null) {
+                for (int i = 0; i < toolsSchema.size(); i++) {
+                    JSONObject tool = toolsSchema.getJSONObject(i);
+                    JSONObject function = tool.getJSONObject("function");
+                    if (function != null && toolName.equals(function.getStr("name"))) {
+                        return function.getJSONObject("parameters");
+                    }
+                }
+            }
+            // 兜底：硬编码种子里找（DB 加载失败 / 定义未启用时）
+            JSONArray hardcoded = buildToolsSchema();
+            for (int i = 0; i < hardcoded.size(); i++) {
+                JSONObject function = hardcoded.getJSONObject(i).getJSONObject("function");
+                if (function != null && toolName.equals(function.getStr("name"))) {
+                    return function.getJSONObject("parameters");
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to get parameters for tool [{}]: {}", toolName, e.getMessage());
+        }
+        return null;
+    }
+
     public Map<String, String> getAllDefaultPolicies() {
         return defaultPolicies;
     }
@@ -466,19 +501,24 @@ public class AgentToolRegistry {
             return "other";
         }
         switch (toolName) {
-            case "navigate":
-                return "navigation";
-            case "query":
-                return "query";
-            case "manage":
-                return "write";
-            case "canvas":
-                return "canvas";
-            case "applyWorkflow":
-                return "write";
-            case "createPlan":
-            case "executeStep":
-                return "plan";
+            case "list_workflows":
+            case "read_workflow":
+            case "read_node":
+            case "list_runs":
+            case "list_templates":
+            case "search_knowledge":
+            case "get_node_schema":
+                return "read";
+            case "edit_workflow":
+                return "edit";
+            case "run_workflow":
+                return "run";
+            case "write_workflow":
+            case "save_workflow":
+            case "delete_workflow":
+                return "commit";
+            case "todo_write":
+                return "meta";
             default:
                 return "other";
         }
@@ -501,121 +541,198 @@ public class AgentToolRegistry {
 
     private Map<String, String> buildDefaultPolicies() {
         Map<String, String> policies = new HashMap<>();
-        // 复合工具策略（默认全部总是允许，减少用户手动确认）
-        policies.put("navigate", "always");
-        policies.put("query", "always");
-        policies.put("manage", "always");
-        policies.put("canvas", "always");
-        // applyWorkflow 落版是人机交接点（agent-artifact-design.md D1）：
-        // 走 confirm 门禁，具体模式由 agent.policy.apply_confirm_mode 控制（默认 require）
-        policies.put("applyWorkflow", "confirm");
-        policies.put("createPlan", "always");
-        policies.put("executeStep", "always");
+        // 读层：无副作用，直接放行
+        policies.put("list_workflows", "always");
+        policies.put("read_workflow", "always");
+        policies.put("read_node", "always");
+        policies.put("list_runs", "always");
+        policies.put("list_templates", "always");
+        policies.put("search_knowledge", "always");
+        policies.put("get_node_schema", "always");
+        // 会话域编辑：草稿不落库，放行
+        policies.put("edit_workflow", "always");
+        // 试运行：沙箱执行，放行
+        policies.put("run_workflow", "always");
+        // 落版是人机交接点（agent-artifact-design.md D1）：走 confirm 门禁，
+        // 具体模式由 agent.policy.apply_confirm_mode 控制（默认 require）
+        policies.put("write_workflow", "confirm");
+        policies.put("save_workflow", "confirm");
+        // 删除不可逆：确认
+        policies.put("delete_workflow", "confirm");
+        // todo：纯展示状态
+        policies.put("todo_write", "always");
         return policies;
     }
 
     private JSONArray buildToolsSchema() {
         JSONArray tools = new JSONArray();
+        String nodeTypes = "start, end, llm, code, http, condition, multi-condition, branches, loop, variable, string-format, assignee, comment";
 
-        // ===== 1. 导航复合工具 =====
-        tools.add(func("navigate", "页面导航。支持跳转到首页、管理后台、更新记录、工作流编辑器、模板编辑器", obj(
-            new String[]{"target"}, new JSONObject[]{
-                str("target", "导航目标", enumVal("home", "admin", "releases", "editor", "templateEditor")),
-                str("workflowCode", "工作流编码（target=editor时使用）", null),
-                str("templateCode", "模板编码（target=templateEditor时使用）", null),
-                str("tab", "管理后台标签页：workflows 或 templates（target=admin时使用）", null)
+        // ===== 读层 =====
+        tools.add(func("list_workflows", "列出工作流目录（编码/名称/revision）。找目标工作流或确认存在性时用", obj(
+            null, new JSONObject[]{
+                str("keyword", "按名称/编码过滤（可选）", null)
             }
         )));
 
-        // ===== 2. 查询复合工具 =====
-        tools.add(func("query", "查询资源。支持工作流列表、模板列表、调用日志、工作流详情、节点详情、可用变量", obj(
-            new String[]{"resource"}, new JSONObject[]{
-                str("resource", "查询的资源类型", enumVal("workflows", "templates", "logs", "workflowDetail", "nodeDetail", "availableVariables")),
-                str("workflowCode", "工作流编码（resource=logs或workflowDetail时使用）", null),
-                str("nodeId", "节点ID（resource=nodeDetail时使用）", null)
+        tools.add(func("read_workflow", "读取工作流完整 DSL，返回 nodes/edges 和 revision。"
+            + "修改已有工作流前【必须先调用】：revision 是后续落版的 baseRevision（CAS 基准），"
+            + "读取会同时把它同步为本会话草稿（之后 edit_workflow 直接改）", obj(
+            new String[]{"workflowCode"}, new JSONObject[]{
+                str("workflowCode", "工作流编码", null)
             }
         )));
 
-        // ===== 3. 管理复合工具 =====
-        tools.add(func("manage", "管理资源。支持创建工作流、创建模板、保存工作流、删除工作流。删除工作流不可逆：必须先向用户复述删除目标并征得明确同意，然后携带 confirmed=true 调用", obj(
-            new String[]{"action"}, new JSONObject[]{
-                str("action", "管理操作", enumVal("createWorkflow", "createTemplate", "saveWorkflow", "deleteWorkflow")),
-                str("name", "名称（创建时使用）", null),
-                str("desc", "描述（创建时使用）", null),
-                str("workflowCode", "工作流编码（saveWorkflow/deleteWorkflow时使用）", null),
-                str("templateCode", "模板编码（createWorkflow时可选使用）", null),
-                str("id", "工作流ID（deleteWorkflow时可选，优先用 workflowCode）", null),
-                str("confirmed", "deleteWorkflow 时必填：用户明确同意删除后传 true；未确认时工具会拒绝执行", null)
+        tools.add(func("read_node", "读取单个节点详情 + 全部可用变量（更新节点前核对字段与可引用变量用；基于会话草稿）", obj(
+            new String[]{"nodeId"}, new JSONObject[]{
+                str("nodeId", "节点ID", null)
             }
         )));
 
-        // ===== 4. 画布复合工具 =====
-        tools.add(func("canvas", "画布操作。支持添加节点、更新节点、删除节点、连接节点、断开连接、自动布局、运行工作流、运行单节点", obj(
-            new String[]{"action"}, new JSONObject[]{
-                str("action", "画布操作类型", enumVal("addNode", "updateNode", "deleteNode", "connect", "disconnect", "autoLayout", "runWorkflow", "runNode")),
-                str("type", "节点类型（action=addNode时使用）", enumVal("start", "end", "llm", "code", "http", "condition", "branches", "loop", "variable", "string-format", "assignee", "comment")),
-                str("nodeId", "节点ID（updateNode/deleteNode/runNode时使用）", null),
-                str("afterNodeId", "在此节点之后添加（action=addNode时可选使用）", null),
-                str("title", "节点标题（action=addNode时可选使用）", null),
-                objProp("data", NODE_DATA_SCHEMA_HINT),
-                str("from", "源节点ID（connect/disconnect时使用）", null),
-                str("to", "目标节点ID（connect/disconnect时使用）", null),
-                str("fromPort", "源端口（connect时可选，用于分支/条件节点）", null),
-                objProp("inputs", "运行输入参数（runWorkflow/runNode时使用）")
+        tools.add(func("list_runs", "查询工作流执行日志（状态/耗时/错误）", obj(
+            null, new JSONObject[]{
+                str("workflowCode", "按工作流过滤（可选，不传则查最近）", null)
             }
         )));
 
-        // ===== 5. 整份工作流一次成型（「AI 主视角 → 工作流产物」的核心动作） =====
-        tools.add(func("applyWorkflow",
-            "一次性写入完整工作流 DSL 并落为一个生效版本。生成或重写工作流时【优先使用此工具】，" +
-            "不要用 canvas.addNode 逐节点拼装 —— 那需要 N 次往返且容易断链。" +
-            "系统会自动做归一化：补全缺失的 id、缺失坐标时自动分层布局、" +
-            "扁平字段（如 {url: \"...\"}）转 flowgram 嵌套结构、去重连线、" +
-            "缺少 start/end 时自动补齐并接入主链。产出后请把校验结果如实告诉用户。",
-            obj(
-                new String[]{"nodes"},
-                new JSONObject[]{
-                    str("workflowCode", "工作流编码。留空或省略表示新建，系统会自动生成", null),
-                    str("workflowName", "工作流名称（新建时使用）", null),
-                    str("workflowDesc", "工作流描述", null),
-                    str("versionDesc", "版本描述，例如「按需求生成初版」", null),
-                    arrProp("nodes",
-                        "节点数组。每项 {id?, type, title?, data?}；type 取值同 canvas 工具的节点类型枚举。" +
-                        "给 id 时用语义化命名（如 llm_summarize），连线直接引用这个 id 即可。",
-                        obj(new String[]{"type"}, new JSONObject[]{
-                            str("type", "节点类型", null),
-                            str("id", "节点ID，省略则自动生成；后续连线需要用 id 引用", null),
-                            str("title", "节点标题", null),
-                            objProp("data", NODE_DATA_SCHEMA_HINT)
-                        })),
-                    arrProp("edges",
-                        "连线数组。每项 {from, to}（也可用 {sourceNodeID, targetNodeID}）。" +
-                        "必须覆盖完整执行链路，不要留下孤立节点。",
-                        obj(new String[]{"from", "to"}, new JSONObject[]{
-                            str("from", "源节点ID", null),
-                            str("to", "目标节点ID", null),
-                            str("fromPort", "源端口（条件/分支节点多出口时使用）", null)
-                        })),
-                    boolProp("saveAsVersion", "是否立即落为生效版本，默认 true；false 表示只在工作台上预览", true)
-                }
-            )));
+        tools.add(func("list_templates", "列出工作流模板目录", obj(
+            null, new JSONObject[]{
+                str("keyword", "按名称/编码过滤（可选）", null)
+            }
+        )));
 
-        // ===== 6. 执行计划 =====
-        tools.add(func("createPlan", "创建多步骤执行计划，用于复杂任务（如创建完整 workflow）", obj(
-            new String[]{"steps"}, new JSONObject[]{
-                arrProp("steps", "执行步骤数组",
-                    obj(new String[]{"intent", "action"}, new JSONObject[]{
-                        str("intent", "该步骤的意图说明", null),
-                        str("action", "要执行的工具名称", null),
-                        objProp("args", "工具参数")
+        tools.add(func("search_knowledge", "检索知识库（节点用法/示例/最佳实践）。不确定某概念或用法时先搜一下", obj(
+            new String[]{"query"}, new JSONObject[]{
+                str("query", "检索词（自然语言）", null),
+                num("topK", "返回条数（默认5，最大8）", 5)
+            }
+        )));
+
+        tools.add(func("get_node_schema", "获取节点类型的完整字段结构与 JSON 示例。"
+            + "【配置任何节点前先查它】，尤其是不常用的类型（loop/branches/variable 等）", obj(
+            new String[]{"nodeType"}, new JSONObject[]{
+                str("nodeType", "节点类型", enumVal("start", "end", "llm", "code", "http", "condition",
+                    "multi-condition", "branches", "loop", "variable", "string-format", "assignee", "comment"))
+            }
+        )));
+
+        // ===== 编辑层 =====
+        tools.add(func("edit_workflow",
+            "增量修改工作流（会话草稿）。ops 数组一次性原子应用：任一 op 非法则整批拒绝并给出逐项修复指引。"
+            + "已有工作流先 read_workflow（或传 workflowCode）同步为草稿，再改；改完用 save_workflow 落版。"
+            + "新增节点【必须】带 type 和 data（业务字段直接放 data，扁平写法）："
+            + "{\"op\":\"addNode\",\"ref\":\"http_1\",\"type\":\"http\",\"data\":{\"method\":\"POST\",\"url\":\"https://...\"}}；"
+            + "随后用 connect(from:\"$http_1\", to:\"end_1\") 接线（$ref 引用同批新节点)。"
+            + "改已有节点用 {\"op\":\"updateNode\",\"nodeId\":\"llm_1\",\"data\":{只传变更字段}}（深合并）。",
+            obj(null, new JSONObject[]{
+                str("workflowCode", "目标工作流编码（可选；草稿未绑定时自动从该工作流当前版本同步）", null),
+                str("ops", "（形状一）操作数组，见 items 说明", null),
+                arrProp("addNodes", "（形状二·推荐）新增节点数组，元素同 write_workflow 的 nodes：{type, ref?, id?, title?, data?}，后续用 $ref 引用", obj(
+                    new String[]{"type"}, new JSONObject[]{
+                        str("type", "节点类型（start/end/llm/code/http/condition/multi-condition/branches/loop/variable/string-format/assignee/comment）", null),
+                        str("ref", "本批引用名（后续 addEdges 的 from/to 用 $ref 引用）", null),
+                        str("id", "节点ID（可选）", null),
+                        str("title", "节点标题", null),
+                        objProp("data", NODE_DATA_SCHEMA_HINT)
+                    })),
+                arrProp("updateNodes", "修改变量数组：{nodeId, title?, data?}（data 深合并只传变更字段）", obj(
+                    new String[]{"nodeId"}, new JSONObject[]{
+                        str("nodeId", "目标节点ID", null),
+                        str("title", "新标题（可选）", null),
+                        objProp("data", "变更字段（深合并）")
+                    })),
+                arrProp("removeNodes", "要删除的节点：{nodeId}", obj(
+                    new String[]{"nodeId"}, new JSONObject[]{
+                        str("nodeId", "节点ID", null)
+                    })),
+                arrProp("addEdges", "新增连线：{from, to, fromPort?}（from/to 可用 $ref）", obj(
+                    new String[]{"from", "to"}, new JSONObject[]{
+                        str("from", "源节点ID或$ref", null),
+                        str("to", "目标节点ID或$ref", null),
+                        str("fromPort", "源端口（条件/分支多出口）", null)
+                    })),
+                arrProp("removeEdges", "删除连线：{from, to}", obj(
+                    new String[]{"from", "to"}, new JSONObject[]{
+                        str("from", "源节点ID", null),
+                        str("to", "目标节点ID", null)
+                    })),
+                arrProp("ops", "操作数组（按顺序应用到草稿）", obj(new String[]{"op"}, new JSONObject[]{
+                    str("op", "操作类型", enumVal("addNode", "updateNode", "deleteNode", "connect", "disconnect", "autoLayout")),
+                    str("ref", "addNode 时可选：本批引用名，后续 op 用 $ref 引用它", null),
+                    str("type", "addNode：节点类型（" + nodeTypes + "）", null),
+                    str("id", "addNode：节点ID（可选，省略自动分配）", null),
+                    str("title", "addNode/updateNode：节点标题", null),
+                    objProp("data", NODE_DATA_SCHEMA_HINT),
+                    str("afterNodeId", "addNode：放在某节点之后（可选）", null),
+                    str("nodeId", "updateNode/deleteNode：目标节点ID（本批新节点可用 $ref）", null),
+                    str("from", "connect/disconnect：源节点ID", null),
+                    str("to", "connect/disconnect：目标节点ID", null),
+                    str("fromPort", "connect：源端口（条件/分支多出口时用）", null)
+                }))
+            })));
+
+        // ===== 执行层 =====
+        tools.add(func("run_workflow", "试运行当前会话草稿的工作流，等待终态并返回输出（超时默认180s）。"
+            + "落版前后都可以跑，用真实输出验证节点配置", obj(
+            null, new JSONObject[]{
+                objProp("inputs", "运行输入参数（可选，如 {\"query\":\"测试输入\"}）"),
+                num("timeoutMs", "超时毫秒数（默认180000，最大600000）", 180000)
+            }
+        )));
+
+        // ===== 落版层 =====
+        tools.add(func("write_workflow",
+            "一次性写入完整工作流 DSL 并落为生效版本。【仅新建或推倒重来时用】——"
+            + "修改已有工作流请走 read_workflow → edit_workflow → save_workflow 增量链路。"
+            + "系统会自动规范化：补 id、缺坐标自动布局、扁平字段转嵌套结构、去重连线、缺 start/end 自动补齐。"
+            + "对已存在的工作流整写必须带 baseRevision（read_workflow 获取），否则拒绝。",
+            obj(new String[]{"nodes"}, new JSONObject[]{
+                str("workflowCode", "工作流编码。留空表示新建，系统自动生成", null),
+                str("workflowName", "工作流名称（新建时使用）", null),
+                str("workflowDesc", "工作流描述", null),
+                str("versionDesc", "版本描述", null),
+                num("baseRevision", "整写已有工作流时的 CAS 基准（read_workflow 返回的 revision）", null),
+                arrProp("nodes", "节点数组。每项 {id?, type, title?, data?}；给 id 用语义化命名（如 llm_summarize），连线直接引用", obj(
+                    new String[]{"type"}, new JSONObject[]{
+                        str("type", "节点类型（" + nodeTypes + "）", null),
+                        str("id", "节点ID，省略则自动生成", null),
+                        str("title", "节点标题", null),
+                        objProp("data", NODE_DATA_SCHEMA_HINT)
+                    })),
+                arrProp("edges", "连线数组。每项 {from, to}，必须覆盖完整执行链路，不要留孤立节点", obj(
+                    new String[]{"from", "to"}, new JSONObject[]{
+                        str("from", "源节点ID", null),
+                        str("to", "目标节点ID", null),
+                        str("fromPort", "源端口（条件/分支多出口时用）", null)
                     }))
+            })));
+
+        tools.add(func("save_workflow", "把当前会话草稿落为生效版本（edit_workflow 修改后的收口动作）。"
+            + "默认作用于当前绑定的工作流，无需重复传 workflowCode；revision 基准自动携带", obj(
+            null, new JSONObject[]{
+                str("workflowCode", "目标工作流编码（可选；默认用会话草稿绑定的）", null),
+                str("name", "工作流名称（可选，顺带改名）", null),
+                str("versionDesc", "版本描述（可选）", null),
+                num("baseRevision", "CAS 基准（可选；默认用草稿记录的 revision）", null)
+            })));
+
+        tools.add(func("delete_workflow", "删除工作流（不可逆）。必须先向用户复述删除目标并征得明确同意，"
+            + "然后携带 confirmed=true 调用", obj(
+            new String[]{"workflowCode"}, new JSONObject[]{
+                str("workflowCode", "工作流编码", null),
+                str("confirmed", "用户明确同意后传 true；未确认时工具会拒绝执行", null)
             }
         )));
 
-        // ===== 7. 执行单步 =====
-        tools.add(func("executeStep", "执行 plan 中的单个步骤。createPlan 生成计划后，逐个调用此工具执行步骤，根据结果决定继续下一步或调整重试。", obj(
-            new String[]{"stepIndex"}, new JSONObject[]{
-                num("stepIndex", "要执行的步骤索引（从0开始，对应 createPlan 返回的 steps 数组索引）", 0)
+        // ===== 元层 =====
+        tools.add(func("todo_write", "写入/更新任务进度清单（3 步以上的任务先列清单，完成一项勾一项）。"
+            + "这只是进度展示，不影响执行——每步仍由你在主循环里逐个完成", obj(
+            new String[]{"steps"}, new JSONObject[]{
+                arrProp("steps", "清单步骤（全量重写，每次传完整列表）", obj(new String[]{"content"}, new JSONObject[]{
+                    str("id", "步骤ID（可选）", null),
+                    str("content", "步骤内容（一句话）", null),
+                    str("status", "状态", enumVal("pending", "in_progress", "completed", "blocked"))
+                }))
             }
         )));
 

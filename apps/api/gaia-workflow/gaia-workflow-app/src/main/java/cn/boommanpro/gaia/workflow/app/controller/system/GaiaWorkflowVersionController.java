@@ -23,13 +23,16 @@ public class GaiaWorkflowVersionController {
 
     private final GaiaWorkflowVersionService workflowVersionService;
     private final WorkflowDslApplyService dslApplyService;
+    private final cn.boommanpro.gaia.workflow.app.service.WorkflowDiffService diffService;
     @Autowired
     private GaiaWorkflowService gaiaWorkflowService;
 
     public GaiaWorkflowVersionController(GaiaWorkflowVersionService workflowVersionService,
-                                          WorkflowDslApplyService dslApplyService) {
+                                          WorkflowDslApplyService dslApplyService,
+                                          cn.boommanpro.gaia.workflow.app.service.WorkflowDiffService diffService) {
         this.workflowVersionService = workflowVersionService;
         this.dslApplyService = dslApplyService;
+        this.diffService = diffService;
         }
 
     /**
@@ -50,6 +53,43 @@ public class GaiaWorkflowVersionController {
     @GetMapping("/{id}")
     public GaiaWorkflowVersion getVersionById(@PathVariable Long id) {
         return workflowVersionService.getById(id);
+    }
+
+    /**
+     * 版本差异（v2）：落版时已计算存 diff_json；为空（旧版本）时现场计算。
+     */
+    @GetMapping("/diff/{id}")
+    public Map<String, Object> versionDiff(@PathVariable Long id) {
+        GaiaWorkflowVersion version = workflowVersionService.getById(id);
+        Map<String, Object> result = new HashMap<>();
+        if (version == null) {
+            result.put("error", "version not found");
+            return result;
+        }
+        result.put("workflowCode", version.getWorkflowCode());
+        result.put("versionNumber", version.getVersionNumber());
+        if (version.getDiffJson() != null && !version.getDiffJson().isEmpty()) {
+            result.put("diff", cn.hutool.json.JSONUtil.parseObj(version.getDiffJson()));
+            return result;
+        }
+        // 旧版本无存档 diff：现场与上一版本对比
+        List<GaiaWorkflowVersion> versions = workflowVersionService.list(
+            new QueryWrapper<GaiaWorkflowVersion>()
+                .eq("workflow_code", version.getWorkflowCode())
+                .orderByDesc("created_at"));
+        String previous = null;
+        boolean seenSelf = false;
+        for (GaiaWorkflowVersion v : versions) {
+            if (seenSelf) {
+                previous = v.getWorkflowData();
+                break;
+            }
+            if (v.getId().equals(version.getId())) {
+                seenSelf = true;
+            }
+        }
+        result.put("diff", diffService.diff(previous, version.getWorkflowData()));
+        return result;
     }
 
     /**

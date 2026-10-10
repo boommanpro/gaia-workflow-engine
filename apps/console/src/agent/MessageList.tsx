@@ -2,12 +2,14 @@
  * MessageList - 消息流渲染组件
  * 渲染 user / assistant / tool 三类消息，支持流式追加与工具调用卡片
  */
-import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo , useSyncExternalStore } from 'react';
 
 import { useAgent } from './AgentContext';
 import { useLanguage, t } from '../i18n';
 import SubagentCard from './SubagentCard';
 import Markdown from './Markdown';
+import { LiveAssistantContent } from './LiveAssistantMessage';
+import { liveStreamStore } from './live-stream-store';
 import { PlanCard } from './PlanCard';
 import type { DisplayMessage, ToolCallEvent } from './types';
 
@@ -360,7 +362,8 @@ export const MessageItem: React.FC<{
   /** 可选：覆盖调试跳转行为（当在 AgentContext 外复用时需要传入） */
   onDebugJump?: (debugEntryId: string) => void;
 }> = ({ message, streaming, onOptionClick, optionsRetired, onDebugJump }) => {
-  const agent = useAgent() as { openDebugEntry?: (id: string) => void } | undefined;
+  const agent = useAgent() as { openDebugEntry?: (id: string) => void; liveMessageId?: string | null } | undefined;
+  const liveMessageIdRef = agent?.liveMessageId ?? null;
   const openDebugEntry = (id: string) => {
     if (onDebugJump) {
       onDebugJump(id);
@@ -433,6 +436,8 @@ export const MessageItem: React.FC<{
         )}
         {isUser ? (
           <span style={{ whiteSpace: 'pre-wrap' }}>{message.content}</span>
+        ) : message.id === liveMessageIdRef ? (
+          <LiveAssistantContent />
         ) : (
           <Markdown
             content={message.content}
@@ -521,7 +526,8 @@ const TypingIndicator: React.FC = () => (
 );
 
 export const MessageList: React.FC = () => {
-  const { messages, streaming, sendMessage, queueLength } = useAgent();
+  const { messages, streaming, liveMessageId, sendMessage, queueLength } = useAgent();
+  const streamState = useSyncExternalStore(liveStreamStore.subscribe, liveStreamStore.getSnapshot);
   useLanguage();
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -599,7 +605,8 @@ export const MessageList: React.FC = () => {
   // 判断是否需要显示打字指示器：流式 + 最后一条 assistant 内容为空
   const lastMsg = messages[messages.length - 1];
   const showTyping =
-    streaming && lastMsg && lastMsg.role === 'assistant' && !lastMsg.content;
+    streaming && lastMsg && lastMsg.role === 'assistant' && !lastMsg.content
+    && !streamState.content && !streamState.thinking;
 
   return (
     <div
@@ -618,8 +625,8 @@ export const MessageList: React.FC = () => {
         let i = 0;
         while (i < messages.length) {
           const m = messages[i];
-          // 跳过内容为空的 assistant 占位消息（避免渲染空气泡）
-          if (m.role === 'assistant' && !m.content) {
+          // 跳过内容为空的 assistant 占位消息（live 行除外：其正文在流式 store 里）
+          if (m.role === 'assistant' && !m.content && m.id !== liveMessageId) {
             i++;
             continue;
           }

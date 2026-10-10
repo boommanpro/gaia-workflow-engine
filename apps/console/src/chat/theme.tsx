@@ -46,7 +46,7 @@ export const CHAT = {
   overlay: 'var(--g-overlay)',
   panelShadow: 'var(--g-panel-shadow)',
 
-  radius: 14,
+  radius: 16, // dsh --dsw-radius-lg（composer 卡片）
   radiusSm: 8,
 } as const;
 
@@ -101,7 +101,7 @@ export const useThemeMode = (): ThemeMode => {
 };
 
 /** 对话列最大宽度：窄栏阅读体验，宽屏下不会拉成一整行 */
-export const CHAT_COLUMN_WIDTH = 780;
+export const CHAT_COLUMN_WIDTH = 748; // dsh --dsh-chat-content-width 同值
 /** 侧边栏形态下的列宽（撑满） */
 export const CHAT_COLUMN_WIDTH_COMPACT = 0;
 
@@ -120,6 +120,17 @@ export const ChatStyles: React.FC = () => (
     .chat-scroll::-webkit-scrollbar-track { background: transparent; }
 
     @keyframes chat-spin { to { transform: rotate(360deg); } }
+    /* dsh TextShimmer：流式摘要的微光扫过 */
+    @keyframes chat-shimmer { 0% { background-position: 120% 0; } 100% { background-position: -120% 0; } }
+    .dsh-shimmer {
+      background: linear-gradient(100deg, transparent 35%, var(--g-text-muted) 50%, transparent 65%);
+      background-size: 200% 100%;
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      animation: chat-shimmer 2.2s linear infinite;
+    }
+    .dsh-tool-row:hover { color: var(--g-text-muted) !important; }
     @keyframes chat-typing {
       0%, 60%, 100% { opacity: .28; transform: translateY(0); }
       30% { opacity: 1; transform: translateY(-3px); }

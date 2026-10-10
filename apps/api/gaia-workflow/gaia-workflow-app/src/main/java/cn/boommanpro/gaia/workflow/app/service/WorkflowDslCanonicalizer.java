@@ -5,6 +5,7 @@ import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 
 import java.util.ArrayDeque;
+import java.util.Collections;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Deque;
@@ -50,6 +51,16 @@ public final class WorkflowDslCanonicalizer {
     }
 
     /** 规范化结果 */
+    /** 供工具链做 op 级类型校验（edit_workflow.addNode 的枚举检查） */
+    public static boolean isSupportedType(String type) {
+        return type != null && SUPPORTED_TYPES.contains(type);
+    }
+
+    /** 受支持节点类型清单（提示词目录 / 校验错误指引用） */
+    public static Set<String> supportedTypes() {
+        return Collections.unmodifiableSet(SUPPORTED_TYPES);
+    }
+
     public static final class Result {
         private final String json;
         private final List<String> repairs;

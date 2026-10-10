@@ -37,11 +37,19 @@ public class AgentRequest {
     /** 附加变量，供上下文提供者与工具使用 */
     private Map<String, Object> variables;
 
+    /** 本次 run 的运行标识（事件日志/指标关联用；可为空） */
+    private String runId;
+
     public static AgentRequest of(String message) {
-        return new AgentRequest(null, message, "zh-CN", null, null, null, 0, null);
+        return new AgentRequest(null, message, "zh-CN", null, null, null, 0, null, null);
     }
 
     public static AgentRequest of(String sessionKey, String message, String locale, String pageContext) {
-        return new AgentRequest(sessionKey, message, locale, pageContext, null, null, 0, null);
+        return new AgentRequest(sessionKey, message, locale, pageContext, null, null, 0, null, null);
+    }
+
+    public AgentRequest withRunId(String runId) {
+        this.runId = runId;
+        return this;
     }
 }

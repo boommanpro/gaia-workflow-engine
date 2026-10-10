@@ -85,6 +85,14 @@ public class ToolPolicyService {
     /** sessionKey#toolCallId → 等待用户确认的 future（仅 require 模式使用） */
     private final ConcurrentMap<String, CompletableFuture<Boolean>> pendingConfirms = new ConcurrentHashMap<>();
 
+    /** sessionKey → 挂起确认的展示信息（刷新/重连后前端恢复确认入口用） */
+    private final ConcurrentMap<String, JSONObject> pendingConfirmInfo = new ConcurrentHashMap<>();
+
+    /** 挂起确认的展示信息（无挂起返回 null） */
+    public JSONObject getPendingConfirm(String sessionKey) {
+        return sessionKey == null ? null : pendingConfirmInfo.get(sessionKey);
+    }
+
     public ToolPolicyService(AgentPermissionService permissionService,
                              AgentGlobalPermissionService globalPermissionService,
                              AgentToolRegistry toolRegistry,
@@ -171,7 +179,9 @@ public class ToolPolicyService {
 
     /** 落版类动作（人机交接点，无窗口静默放行需要限额） */
     private static boolean isVersionedApply(String action) {
-        return "applyWorkflow".equals(action) || "saveWorkflow".equals(action);
+        return "write_workflow".equals(action) || "save_workflow".equals(action)
+            // 兼容 v1 名称（老会话/旧配置残留）
+            || "applyWorkflow".equals(action) || "saveWorkflow".equals(action);
     }
 
     /** require 模式的挂起等待：弹卡 + 心跳保活 + 超时自动拒绝 */
@@ -184,6 +194,12 @@ public class ToolPolicyService {
             .set("action", call.getName())
             .set("args", parseArgs(call.getArguments()))
             .set("mode", "require");
+        // 展示信息登记：前端刷新/重连后可通过查询端点即时恢复确认卡，
+        // 不必等 20s 心跳重发（原「用户看不到弹窗无法确认」的根因之一）
+        pendingConfirmInfo.put(sessionKey, new JSONObject()
+            .set("toolCallId", toolCallId)
+            .set("action", call.getName())
+            .set("args", parseArgs(call.getArguments())));
         sink.emit(AgentEvent.of("confirm_request", request));
         // 等待期间周期性重发确认请求：一是给 SSE 链路保活（空闲连接可能被
         // 代理掐断），二是窗口意外丢卡（组件重挂载/重连窗口）时能重新弹出。
@@ -226,6 +242,7 @@ public class ToolPolicyService {
         } finally {
             heartbeat.cancel(false);
             pendingConfirms.remove(key(sessionKey, toolCallId));
+            pendingConfirmInfo.remove(sessionKey, request);
         }
     }
 
@@ -258,14 +275,15 @@ public class ToolPolicyService {
                 entry.getValue().complete(false);
                 log.info("[tool-policy] session={} pending confirm {} cancelled (run ended)", sessionKey, entry.getKey());
             }
+            pendingConfirmInfo.remove(sessionKey);
         }
     }
 
     // ---------------- 内部 ----------------
 
-    /** 确认模式裁决：applyWorkflow / saveWorkflow 走落版专用 key（默认 require），其余工具走全局 confirm_mode */
+    /** 确认模式裁决：write_workflow / save_workflow 走落版专用 key（默认 require），其余工具走全局 confirm_mode */
     private String confirmModeFor(String action) {
-        if ("applyWorkflow".equals(action) || "saveWorkflow".equals(action)) {
+        if (isVersionedApply(action)) {
             String mode = readModeConfig(APPLY_CONFIRM_MODE_KEY);
             return mode != null ? mode : "require";
         }

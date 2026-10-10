@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS gaia_workflow (
     workflow_name VARCHAR(128) NOT NULL,
     workflow_desc TEXT,
     current_version_id INTEGER,
+    revision INTEGER DEFAULT 0,
     template_code VARCHAR(64),
     created_at TEXT,
     updated_at TEXT,
@@ -27,6 +28,7 @@ CREATE TABLE IF NOT EXISTS gaia_workflow_version (
     version_number VARCHAR(32) NOT NULL,
     version_desc VARCHAR(256),
     workflow_data TEXT,
+    diff_json TEXT,
     created_by VARCHAR(64),
     created_at TEXT,
     is_current TINYINT DEFAULT 0,
@@ -240,3 +242,30 @@ CREATE TABLE IF NOT EXISTS agent_global_permission (
     action VARCHAR(64) NOT NULL UNIQUE,
     policy VARCHAR(16) NOT NULL DEFAULT 'confirm'
 );
+
+-- Agent 会话持久事件日志（追加只写，v2）：turn/llm_end/tool_call/tool_result/knowledge_retrieved/confirm 等
+CREATE TABLE IF NOT EXISTS agent_session_event (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_key VARCHAR(64) NOT NULL,
+    run_id VARCHAR(64),
+    seq INTEGER NOT NULL,
+    event_type VARCHAR(48) NOT NULL,
+    payload TEXT,
+    created_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_agent_session_event ON agent_session_event(session_key, id);
+
+-- 工具调用指标（v2）：每次调用一行的结局码/耗时/参数摘要
+CREATE TABLE IF NOT EXISTS agent_tool_call_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_key VARCHAR(64) NOT NULL,
+    run_id VARCHAR(64),
+    turn INTEGER,
+    tool_name VARCHAR(128) NOT NULL,
+    outcome VARCHAR(32) NOT NULL,
+    error_code VARCHAR(32),
+    duration_ms BIGINT,
+    args_digest TEXT,
+    created_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_agent_tool_call_log ON agent_tool_call_log(tool_name, outcome);

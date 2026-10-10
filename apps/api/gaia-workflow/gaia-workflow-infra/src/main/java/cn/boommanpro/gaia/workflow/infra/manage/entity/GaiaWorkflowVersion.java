@@ -39,6 +39,13 @@ public class GaiaWorkflowVersion {
     private String workflowData;
 
     /**
+     * 与上一版本的差异（JSON）：nodes 的 added/removed/changed 与 edges 的 added/removed。
+     * 首个版本为空。供版本审查与 E2E 断言使用。
+     */
+    @TableField("diff_json")
+    private String diffJson;
+
+    /**
      * 创建人
      */
     @TableField("created_by")

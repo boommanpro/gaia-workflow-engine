@@ -66,6 +66,8 @@ public class AgentRuntime implements AgentExecutionEngine {
     private final SystemPromptResolver promptResolver;
     private final ToolPolicyService toolPolicyService;
     private final cn.boommanpro.gaia.workflow.app.agent.session.SessionArtifactStore artifactStore;
+    /** 工具调用指标（缺 bean 时静默降级为不记录） */
+    private final cn.boommanpro.gaia.workflow.infra.manage.service.AgentToolCallLogService toolCallLogService;
 
     public AgentRuntime(AgentRegistry agentRegistry,
                         LlmProviderRegistry llmProviderRegistry,
@@ -75,7 +77,8 @@ public class AgentRuntime implements AgentExecutionEngine {
                         ConversationStore conversationStore,
                         SystemPromptResolver promptResolver,
                         ToolPolicyService toolPolicyService,
-                        cn.boommanpro.gaia.workflow.app.agent.session.SessionArtifactStore artifactStore) {
+                        cn.boommanpro.gaia.workflow.app.agent.session.SessionArtifactStore artifactStore,
+                        cn.boommanpro.gaia.workflow.infra.manage.service.AgentToolCallLogService toolCallLogService) {
         this.agentRegistry = agentRegistry;
         this.llmProviderRegistry = llmProviderRegistry;
         this.toolExecutorRegistry = toolExecutorRegistry;
@@ -85,6 +88,7 @@ public class AgentRuntime implements AgentExecutionEngine {
         this.promptResolver = promptResolver;
         this.toolPolicyService = toolPolicyService;
         this.artifactStore = artifactStore;
+        this.toolCallLogService = toolCallLogService;
     }
 
     @Override
@@ -224,14 +228,11 @@ public class AgentRuntime implements AgentExecutionEngine {
                     conversation.add(LlmMessage.tool(call.getId(), executed.getPayload()));
                     // 占位闭环跟踪（详见 appliedWithPlaceholderWarnings 声明处）
                     if (executed.isSuccess()) {
-                        if ("applyWorkflow".equals(call.getName())) {
+                        if ("write_workflow".equals(call.getName()) || "save_workflow".equals(call.getName())) {
+                            // 落版（整写/草稿保存）都算闭环起点：线上版本已更新
                             appliedWithPlaceholderWarnings = hasPlaceholderWarnings(executed.getPayload());
                             canvasEditAfterApply = false;
-                        } else if ("saveWorkflow".equals(call.getName())) {
-                            // saveWorkflow 也算落版闭环（落版成功即线上版本已更新）
-                            appliedWithPlaceholderWarnings = hasPlaceholderWarnings(executed.getPayload());
-                            canvasEditAfterApply = false;
-                        } else if (appliedWithPlaceholderWarnings && call.getName().startsWith("canvas")) {
+                        } else if (appliedWithPlaceholderWarnings && "edit_workflow".equals(call.getName())) {
                             canvasEditAfterApply = true;
                         }
                     }
@@ -279,10 +280,10 @@ public class AgentRuntime implements AgentExecutionEngine {
             log.warn("[agent-runtime] session {} hit turn limit {}", sessionKey, context.getMaxTurns());
         }
 
-        // 占位未闭环提醒：模型在画布上修了占位配置但没重新落版，线上版本仍是占位——
+        // 占位未闭环提醒：模型在草稿上修了占位配置但没重新落版，线上版本仍是占位——
         // 用户此刻大概率以为「已创建成功就能跑」，必须把状态说破（落库 + 追加进本次回复）
         if (appliedWithPlaceholderWarnings && canvasEditAfterApply) {
-            String reminder = "\n\n---\n⚠️ **系统提醒**：AI 在画布上修正了占位配置，但没有重新落版——"
+            String reminder = "\n\n---\n⚠️ **系统提醒**：AI 在草稿上修正了占位配置，但没有重新落版——"
                 + "线上生效版本仍包含占位内容，直接运行可能不符合预期。"
                 + "发送「重新落版」让修正生效，或到编辑器确认后手动保存。";
             try {
@@ -304,11 +305,51 @@ public class AgentRuntime implements AgentExecutionEngine {
 
     private ToolResult executeLocally(LlmToolCall call, AgentRunContext context, AgentEventSink sink) {
         JSONObject args = parseArgs(call.getArguments());
+        long startedAt = System.currentTimeMillis();
         sink.emit(AgentEvent.of("tool_call", new JSONObject()
             .set("id", call.getId())
             .set("name", call.getName())
             .set("args", args)
             .set("executedBy", "backend")));
+
+        // 参数 JSON 完整性：流式 arguments 拼接截断/非法转义时 parseObj 失败落入 _raw 通道，
+        // 必须在此拦截（否则后续所有 required 校验形同虚设）
+        if (args.containsKey("_raw")) {
+            ToolResult broken = ToolResult.fail(
+                new JSONObject().set("error", new JSONObject()
+                    .set("code", "INVALID_ARGS")
+                    .set("message", "工具参数不是合法 JSON（可能被截断，常见于超长 id/字段）。"
+                        + "请重新发送完整、精简的参数：id 用短语义名（如 http_1），不要拼接长数字串")).toString(),
+                "参数 JSON 解析失败", cn.boommanpro.gaia.workflow.app.agent.tool.ToolErrorCode.INVALID_ARGS);
+            sink.emit(AgentEvent.of("tool_result", new JSONObject()
+                .set("toolCallId", call.getId())
+                .set("name", call.getName())
+                .set("rejected", false)
+                .set("payload", broken.getPayload())));
+            recordToolCallMetric(context, call, broken, args, startedAt);
+            trackFailureStreak(context, call.getName(), broken);
+            return broken;
+        }
+
+        // 参数 schema 校验（dsh「执行前强校验」）：违规在门禁/执行之前拦截，
+        // 错误带 path 级修复指引直接回传模型，一轮自修，不浪费确认卡与执行开销
+        cn.hutool.json.JSONObject paramsSchema = toolSchemaRegistry.getToolParameters(call.getName());
+        if (paramsSchema != null) {
+            java.util.List<cn.boommanpro.gaia.workflow.app.agent.tool.ToolArgsValidator.Violation> violations =
+                cn.boommanpro.gaia.workflow.app.agent.tool.ToolArgsValidator.validate(paramsSchema, args);
+            if (!violations.isEmpty()) {
+                ToolResult invalid = cn.boommanpro.gaia.workflow.app.agent.tool.ToolResult.invalidArgs(violations, null);
+                sink.emit(AgentEvent.of("tool_result", new JSONObject()
+                    .set("toolCallId", call.getId())
+                    .set("name", call.getName())
+                    .set("rejected", false)
+                    .set("payload", invalid.getPayload())));
+                recordToolCallMetric(context, call, invalid, args, startedAt);
+                // 参数违规同样计入熔断序列：模型反复发同样坏的参数是死循环信号
+                trackFailureStreak(context, call.getName(), invalid);
+                return invalid;
+            }
+        }
 
         // 策略门禁：forbid → 拒绝；confirm → 按配置决策（auto-approve / auto-reject / require）
         Optional<ToolExecutor> executor = toolExecutorRegistry.get(call.getName());
@@ -320,6 +361,7 @@ public class AgentRuntime implements AgentExecutionEngine {
                 .set("name", call.getName())
                 .set("rejected", true)
                 .set("payload", rejected.getPayload())));
+            recordToolCallMetric(context, call, rejected, args, startedAt);
             return rejected;
         }
         if ("confirm".equals(policy)) {
@@ -333,6 +375,7 @@ public class AgentRuntime implements AgentExecutionEngine {
                             .set("name", call.getName())
                             .set("rejected", pre.isRejected())
                             .set("payload", pre.getPayload())));
+                        recordToolCallMetric(context, call, pre, args, startedAt);
                         return pre;
                     }
                 } catch (Exception e) {
@@ -347,6 +390,7 @@ public class AgentRuntime implements AgentExecutionEngine {
                     .set("name", call.getName())
                     .set("rejected", true)
                     .set("payload", rejected.getPayload())));
+                recordToolCallMetric(context, call, rejected, args, startedAt);
                 return rejected;
             }
         }
@@ -355,6 +399,7 @@ public class AgentRuntime implements AgentExecutionEngine {
             ToolResult failure = ToolResult.unavailable("工具 " + call.getName() + " 没有后端执行器");
             sink.emit(AgentEvent.of("tool_result", new JSONObject()
                 .set("toolCallId", call.getId()).set("payload", failure.getPayload())));
+            recordToolCallMetric(context, call, failure, args, startedAt);
             return failure;
         }
 
@@ -368,28 +413,91 @@ public class AgentRuntime implements AgentExecutionEngine {
 
         // 连续失败熔断：弱模型容易反复提交非法参数空转（实测连发 7~10 次），
         // 同一工具连续失败 4 次即强制终止本轮 run，把死循环转化为对用户的明确说明。
-        if (!result.isSuccess()) {
-            Integer streak = context.getAttribute("failStreak:" + call.getName(), Integer.class);
-            int next = streak != null ? streak + 1 : 1;
-            context.setAttribute("failStreak:" + call.getName(), next);
-            if (next >= 4) {
-                log.warn("[agent-runtime] session {} tool {} failed {} times in a row, aborting run",
-                    context.getSessionKey(), call.getName(), next);
-                context.setAttribute("forceStop", Boolean.TRUE);
-                result = ToolResult.fail(
-                    "{\"error\":\"连续 " + next + " 次调用失败，本次执行已终止。\"}",
-                    "同一工具连续失败，已终止执行。请直接用正文向用户说明需要哪些关键信息，不要再重试。");
-            }
-        } else {
-            context.setAttribute("failStreak:" + call.getName(), 0);
-        }
+        result = trackFailureStreak(context, call.getName(), result);
 
         sink.emit(AgentEvent.of("tool_result", new JSONObject()
             .set("toolCallId", call.getId())
             .set("name", call.getName())
             .set("rejected", result.isRejected())
             .set("payload", result.getPayload())));
+        recordToolCallMetric(context, call, result, args, startedAt);
         return result;
+    }
+
+    /** 熔断序列维护（含 schema 校验失败的路径） */
+    private ToolResult trackFailureStreak(AgentRunContext context, String toolName, ToolResult result) {
+        if (result.isSuccess()) {
+            context.setAttribute("failStreak:" + toolName, 0);
+            return result;
+        }
+        Integer streak = context.getAttribute("failStreak:" + toolName, Integer.class);
+        int next = streak != null ? streak + 1 : 1;
+        context.setAttribute("failStreak:" + toolName, next);
+        if (next >= 4) {
+            log.warn("[agent-runtime] session {} tool {} failed {} times in a row, aborting run",
+                context.getSessionKey(), toolName, next);
+            context.setAttribute("forceStop", Boolean.TRUE);
+            JSONObject error = new JSONObject()
+                .set("code", "CIRCUIT_BROKEN")
+                .set("message", "连续 " + next + " 次调用失败，本次执行已终止。");
+            return ToolResult.fail(error.toString(),
+                "同一工具连续失败，已终止执行。请直接用正文向用户说明需要哪些关键信息，不要再重试。",
+                cn.boommanpro.gaia.workflow.app.agent.tool.ToolErrorCode.EXEC_ERROR);
+        }
+        return result;
+    }
+
+    /** 工具调用指标落库（agent_tool_call_log）：结局码 + 耗时 + 参数摘要 */
+    private void recordToolCallMetric(AgentRunContext context, LlmToolCall call, ToolResult result,
+                                      JSONObject args, long startedAt) {
+        if (toolCallLogService == null) {
+            return;
+        }
+        try {
+            cn.boommanpro.gaia.workflow.infra.manage.entity.AgentToolCallLog row =
+                new cn.boommanpro.gaia.workflow.infra.manage.entity.AgentToolCallLog();
+            row.setSessionKey(context.getSessionKey());
+            row.setRunId(context.getRequest().getRunId());
+            row.setTurn(context.getTurn());
+            row.setToolName(call.getName());
+            row.setOutcome(outcomeOf(result));
+            row.setErrorCode(result.getErrorCode() != null ? result.getErrorCode().name() : null);
+            row.setDurationMs(System.currentTimeMillis() - startedAt);
+            String argsText = args != null ? args.toString() : "";
+            row.setArgsDigest(argsText.length() > 2000 ? argsText.substring(0, 2000) + "…" : argsText);
+            row.setCreatedAt(java.time.LocalDateTime.now().toString());
+            toolCallLogService.save(row);
+        } catch (Exception e) {
+            log.debug("[agent-runtime] metric persist failed (ignored): {}", e.getMessage());
+        }
+    }
+
+    /** 结局码映射（指标口径） */
+    private static String outcomeOf(ToolResult result) {
+        if (result.isSuccess()) {
+            return "SUCCESS";
+        }
+        if (result.isRejected()) {
+            return "REJECTED_POLICY";
+        }
+        if (result.getErrorCode() != null) {
+            switch (result.getErrorCode()) {
+                case INVALID_ARGS:
+                    return "INVALID_ARGS";
+                case NOT_FOUND:
+                    return "NOT_FOUND";
+                case STALE_REVISION:
+                    return "STALE_REVISION";
+                case TIMEOUT:
+                    return "TIMEOUT";
+                case UNAVAILABLE_SURFACE:
+                case UNKNOWN_TOOL:
+                    return "UNAVAILABLE_SURFACE";
+                default:
+                    break;
+            }
+        }
+        return "EXEC_ERROR";
     }
 
     private static JSONObject parseArgs(String raw) {
@@ -399,8 +507,76 @@ public class AgentRuntime implements AgentExecutionEngine {
         try {
             return JSONUtil.parseObj(raw);
         } catch (Exception e) {
+            // 容错修复（弱模型实测高发：数字串复读导致 JSON 截断）：
+            // 1) 截断超长数字串（≥20 位连数字视为复读病理）
+            // 2) 仍失败时补右花括号/右引号再试
+            String repaired = raw.replaceAll("(\\d{4})\\d{16,}", "$1");
+            try {
+                return JSONUtil.parseObj(repaired);
+            } catch (Exception ignore) {
+                // fallthrough 到补括号
+            }
+            // 截断常发生在字符串值中间：剥掉悬挂的半截 key:value（, "id": "http_1111 → 丢弃）
+            // 之后 balance 补栈就能得到结构合法的 JSON（被丢的字段由 ref/默认值兜底）
+            String trimmed = repaired.replaceFirst(",\\s*\"[^\"]*\"\\s*:\\s*\"[^\"]*$", "");
+            String balanced = balanceJson(trimmed);
+            if (balanced != null) {
+                try {
+                    return JSONUtil.parseObj(balanced);
+                } catch (Exception e2) {
+                    log.warn("[agent-runtime] args repair failed after balance: {} | balanced tail: {}",
+                        e2.getMessage(), balanced.substring(Math.max(0, balanced.length() - 160)));
+                }
+            } else {
+                log.warn("[agent-runtime] args balance returned null | repaired tail: {}",
+                    repaired.substring(Math.max(0, repaired.length() - 160)));
+            }
             return new JSONObject().set("_raw", raw);
         }
+    }
+
+    /** 简单 JSON 补全：按栈补右引号/右括号（截断的 arguments 常见） */
+    private static String balanceJson(String text) {
+        if (text == null || text.trim().isEmpty()) {
+            return null;
+        }
+        StringBuilder sb = new StringBuilder(text.trim());
+        // 去掉尾部明显不完整的转义或半截 key
+        while (sb.length() > 0 && (sb.charAt(sb.length() - 1) == '\\' || sb.charAt(sb.length() - 1) == ',')) {
+            sb.setLength(sb.length() - 1);
+        }
+        java.util.Deque<Character> stack = new java.util.ArrayDeque<>();
+        boolean inString = false;
+        char prev = 0;
+        for (int i = 0; i < sb.length(); i++) {
+            char c = sb.charAt(i);
+            if (inString) {
+                if (c == '"' && prev != '\\') {
+                    inString = false;
+                }
+            } else {
+                if (c == '"') {
+                    inString = true;
+                } else if (c == '{' || c == '[') {
+                    stack.push(c);
+                } else if (c == '}' || c == ']') {
+                    if (!stack.isEmpty()) {
+                        stack.pop();
+                    } else {
+                        return null; // 结构错乱，不修
+                    }
+                }
+            }
+            prev = c;
+        }
+        if (inString) {
+            sb.append('"');
+        }
+        while (!stack.isEmpty()) {
+            char open = stack.pop();
+            sb.append(open == '{' ? '}' : ']');
+        }
+        return sb.toString();
     }
 
     /** 工具结果 payload 里是否带占位类 warnings（applyWorkflow / saveWorkflow 落版返回） */
@@ -445,7 +621,7 @@ public class AgentRuntime implements AgentExecutionEngine {
                     prompt.append("\n\n## 当前会话绑定的工作流")
                         .append("\n本会话的画布草稿基于已有工作流 `").append(boundCode)
                         .append("` 迭代（").append(wfArtifact.getSummary()).append("）。")
-                        .append("\n- 修改后落版：直接用 manage(action=saveWorkflow) 保存当前画布草稿，无需指定 workflowCode")
+                        .append("\n- 修改后落版：直接用 save_workflow 保存当前草稿，无需指定 workflowCode")
                         .append("\n- 查询详情：workflowCode 是 `").append(boundCode)
                         .append("`；**不要**把会话 key 当作工作流编码");
                 }

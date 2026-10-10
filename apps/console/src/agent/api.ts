@@ -87,6 +87,14 @@ export const agentApi = {
       }
     ),
   /** 停止当前运行（尽力而为） */
+  /** 当前挂起的确认（require 模式）：刷新/重连后即时恢复确认卡（不等 20s 心跳） */
+  getPendingConfirm: (sessionKey: string): Promise<{
+    pending: boolean;
+    toolCallId?: string;
+    action?: string;
+    args?: Record<string, unknown>;
+  }> => request(`/agent/session/${encodeURIComponent(sessionKey)}/pending-confirm`),
+
   stopRun: (sessionKey: string) =>
     request<boolean>(`/agent/session/${sessionKey}/stop`, { method: 'POST' }),
   /** 当前运行快照 */

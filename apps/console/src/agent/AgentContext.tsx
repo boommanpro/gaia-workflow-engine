@@ -19,6 +19,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { nanoid } from 'nanoid';
 
 import { agentApi } from './api';
+import { liveStreamStore } from './live-stream-store';
 import { subscribeSessionEvents } from './sse-client';
 import { artifactStore } from './artifact-store';
 import { getCurrentLocale } from '../i18n';
@@ -51,6 +52,8 @@ interface AgentContextValue {
   messages: DisplayMessage[];
   permissions: Record<string, PermissionPolicy>;
   streaming: boolean;
+  /** 流式中的 live 助手消息 id（渲染层据此走 store 订阅渲染，null=无流式） */
+  liveMessageId: string | null;
   queueLength: number;
   pendingConfirm: ToolCallEvent | null;
 
@@ -139,6 +142,8 @@ export function convertMessages(msgs: AgentMessage[]): DisplayMessage[] {
     contents: string[];
     thinkings: string[];
     steps: ToolCallEvent[];
+    /** 真实调用链路的交错时间线（思考 → 工具 → 思考 → … → 正文） */
+    timeline: import('./types').TimelineItem[];
   }
   const result: DisplayMessage[] = [];
   let group: RunGroup | null = null;
@@ -152,7 +157,7 @@ export function convertMessages(msgs: AgentMessage[]): DisplayMessage[] {
     if (!content && !thinking && g.steps.length === 0) return;
 
     let planSteps: DisplayMessage['planSteps'];
-    const planStep = g.steps.find((s) => s.action === 'createPlan');
+    const planStep = g.steps.find((s) => s.action === 'todo_write' || s.action === 'createPlan');
     if (planStep && Array.isArray((planStep.args as any)?.steps)) {
       planSteps = ((planStep.args as any).steps as any[]).map((s: any, idx: number) => ({
         id: `plan-restored-${planStep.id}-${idx}`,
@@ -170,6 +175,7 @@ export function convertMessages(msgs: AgentMessage[]): DisplayMessage[] {
       ...(thinking ? { thinking } : {}),
       ...(g.steps.length ? { toolSteps: g.steps } : {}),
       ...(planSteps ? { planSteps } : {}),
+      ...(g.timeline.length ? { timeline: g.timeline } : {}),
       timestamp: g.ts,
     });
   };
@@ -195,9 +201,16 @@ export function convertMessages(msgs: AgentMessage[]): DisplayMessage[] {
       continue;
     }
     if (msg.role === 'assistant') {
-      if (!group) group = { firstId: `msg-${msg.id}`, ts, contents: [], thinkings: [], steps: [] };
-      if (msg.thinking) group.thinkings.push(msg.thinking);
-      if (msg.content) group.contents.push(msg.content);
+      if (!group) group = { firstId: `msg-${msg.id}`, ts, contents: [], thinkings: [], steps: [], timeline: [] };
+      // 时间线按真实落库顺序推进：思考 → （正文若有）→ 工具调用 → …
+      if (msg.thinking) {
+        group.thinkings.push(msg.thinking);
+        group.timeline.push({ kind: 'thinking', id: `thk-${msg.id}`, text: msg.thinking });
+      }
+      if (msg.content) {
+        group.contents.push(msg.content);
+        group.timeline.push({ kind: 'text', id: `txt-${msg.id}`, text: msg.content });
+      }
       if (msg.toolCalls) {
         try {
           const tcs = JSON.parse(msg.toolCalls);
@@ -207,13 +220,15 @@ export function convertMessages(msgs: AgentMessage[]): DisplayMessage[] {
               args = JSON.parse(tc.function?.arguments || '{}');
             } catch { /* ignore */ }
             const toolResult = toolResultMap.get(tc.id);
-            group.steps.push({
+            const step: ToolCallEvent = {
               id: tc.id,
               action: tc.function?.name || 'unknown',
               args,
               policy: 'always',
-              result: toolResult !== undefined ? toolResult.substring(0, 200) : undefined,
-            });
+              result: toolResult !== undefined ? toolResult.substring(0, 600) : undefined,
+            };
+            group.steps.push(step);
+            group.timeline.push({ kind: 'tool', id: tc.id, call: step });
           }
         } catch { /* ignore */ }
       }
@@ -372,6 +387,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   const processingRef = useRef<boolean>(false);
   /** 当前正在流式渲染的助手占位消息 id */
   const liveAssistantIdRef = useRef<string | null>(null);
+  const [liveMessageId, setLiveMessageId] = useState<string | null>(null);
 
   useEffect(() => {
     currentSessionKeyRef.current = currentSessionKey;
@@ -772,6 +788,8 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     workflowDocumentStore.captureAiRunSnapshot(liveAssistantIdRef.current ?? undefined);
     processingRef.current = false;
     liveAssistantIdRef.current = null;
+    setLiveMessageId(null);
+    liveStreamStore.endRun();
     setStreaming(false);
   }, []);
 
@@ -809,21 +827,9 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         const status = data?.status;
         if (status === 'running') {
           setStreaming(true);
-          // 快照里带着待确认的门禁请求：窗口刷新 / SSE 重连后恢复确认卡。
-          // 后端在确认挂起期间还会周期性重发 confirm_request，这里兜底恢复。
-          const pendingFromSnapshot = (data as any)?.pendingConfirm;
-          if (pendingFromSnapshot?.toolCallId) {
-            setPendingConfirm((prev) =>
-              prev && prev.id === pendingFromSnapshot.toolCallId
-                ? prev
-                : {
-                    id: pendingFromSnapshot.toolCallId,
-                    action: pendingFromSnapshot.action,
-                    args: pendingFromSnapshot.args || {},
-                    policy: 'confirm',
-                  }
-            );
-          }
+          // 守卫：已在流式中（SSE 重连的快照回放）不得重置 store ——
+          // 否则挂起的确认卡/timeline 被清空，用户失去确认入口（300s 超时被拒）
+          if (!liveStreamStore.getSnapshot().streaming) liveStreamStore.beginRun();
           // 用快照内容建立/同步当前助手占位
           setMessages((prev) => {
             if (liveAssistantIdRef.current) {
@@ -836,8 +842,37 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
             }
             const id = `live-${data.runId || Date.now()}`;
             liveAssistantIdRef.current = id;
-            return [...prev, { id, role: 'assistant', content: data.assistantContent || '', timestamp: Date.now() }];
+            setLiveMessageId(id);
+            return [...prev, { id, role: 'assistant', content: '', timestamp: Date.now() }];
           });
+          // 快照正文走 store（live 行从 store 渲染，state.content 流式期间不再逐 token 更新）
+          liveStreamStore.replaceContent(data.assistantContent || '');
+          // 快照里的工具调用按序补进时间线（含已有结果）
+          for (const call of data.toolCalls || []) {
+            if (!call?.id) continue;
+            liveStreamStore.recordTool({ id: call.id, action: call.name, args: call.args ?? {} });
+            if (call.result) liveStreamStore.resolveTool(call.id, String(call.result).substring(0, 600));
+          }
+          // 快照里挂起的确认卡恢复（重连/刷新后确认入口不能丢）：
+          // 必须在 beginRun/timeline 重建之后写 store，内联应用卡才有渲染依据
+          const pendingRestore = (data as any)?.pendingConfirm;
+          if (pendingRestore?.toolCallId) {
+            setPendingConfirm((prev) =>
+              prev && prev.id === pendingRestore.toolCallId
+                ? prev
+                : {
+                    id: pendingRestore.toolCallId,
+                    action: pendingRestore.action,
+                    args: pendingRestore.args || {},
+                    policy: 'confirm',
+                  }
+            );
+            liveStreamStore.setPendingConfirm({
+              toolCallId: pendingRestore.toolCallId,
+              action: pendingRestore.action,
+              args: pendingRestore.args || {},
+            });
+          }
           // 用快照里的工具调用合并进 live 回复（重连恢复现场，单条回复语义）
           const snapshotCalls = data.toolCalls || [];
           if (snapshotCalls.length > 0) {
@@ -875,6 +910,8 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
           // run 结束：本轮 AI 画布变更定格为一个会话版本（run 粒度），再收敛消息
           workflowDocumentStore.captureAiRunSnapshot(liveAssistantIdRef.current ?? undefined);
           liveAssistantIdRef.current = null;
+          setLiveMessageId(null);
+          liveStreamStore.endRun();
           setStreaming(false);
           if (status === 'error' && data.error) {
             // 运行失败发生在 SSE 订阅建立之前时，error 事件不会被实时收到，
@@ -898,47 +935,53 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       onTurn: (data) => {
         if (disposed) return;
         setStreaming(true);
+        if (!liveStreamStore.getSnapshot().streaming) liveStreamStore.beginRun();
+        liveStreamStore.flush();
+        liveStreamStore.beginTurn(data.turn, data.maxTurns || 0);
         // 单条回复语义：轮次不再切分消息，只保证有 live 占位可承接流式内容
         if (liveAssistantIdRef.current) return;
         const id = `live-turn-${data.turn}`;
         liveAssistantIdRef.current = id;
+        setLiveMessageId(id);
         setMessages((prev) => [...prev, { id, role: 'assistant', content: '', timestamp: Date.now() }]);
       },
       onToken: (content) => {
         if (disposed) return;
-        setMessages((prev) => {
-          if (liveAssistantIdRef.current) {
-            return prev.map((m) =>
-              m.id === liveAssistantIdRef.current ? { ...m, content: m.content + content } : m
-            );
-          }
+        // 高频路径：不进 React state，只入 store 缓冲（三重 rAF 合帧发布）。
+        // live 占位尚未建立时（模型先出 token 后出 turn 的边界），先补占位再缓冲。
+        if (!liveAssistantIdRef.current) {
           const id = `live-${Date.now()}`;
           liveAssistantIdRef.current = id;
-          return [...prev, { id, role: 'assistant', content, timestamp: Date.now() }];
-        });
+          setLiveMessageId(id);
+          setMessages((prev) => [...prev, { id, role: 'assistant', content: '', timestamp: Date.now() }]);
+        }
+        liveStreamStore.appendContent(content);
       },
       onThinking: (data) => {
-        // 方舟托管引擎的思考过程：累积进当前 live 助手消息的 thinking 字段（折叠展示）
+        // 思考过程同样走高频缓冲（三重 rAF 合帧），live 行从 store 渲染
         if (disposed) return;
         const chunk = data?.content || '';
         if (!chunk) return;
-        setMessages((prev) => {
-          if (liveAssistantIdRef.current) {
-            return prev.map((m) =>
-              m.id === liveAssistantIdRef.current ? { ...m, thinking: (m.thinking || '') + chunk } : m
-            );
-          }
+        if (!liveAssistantIdRef.current) {
           const id = `live-${Date.now()}`;
           liveAssistantIdRef.current = id;
-          return [...prev, { id, role: 'assistant', content: '', thinking: chunk, timestamp: Date.now() }];
-        });
+          setLiveMessageId(id);
+          setMessages((prev) => [...prev, { id, role: 'assistant', content: '', timestamp: Date.now() }]);
+        }
+        liveStreamStore.appendThinking(chunk);
       },
       onToolCall: (event) => {
         if (disposed) return;
+        // 结构性事件：先把缓冲的流式内容发布出去（状态行立即反映当前工具）
+        liveStreamStore.flush();
+        liveStreamStore.markTool(event.action);
+        liveStreamStore.recordTool({ id: event.id, action: event.action, args: event.args });
         // 工具调用合并进当前 live 回复（DeepSeek 式）；live 占位尚未建立时先建一条
         if (!liveAssistantIdRef.current) {
           const id = `live-${Date.now()}`;
           liveAssistantIdRef.current = id;
+          setLiveMessageId(id);
+          liveStreamStore.beginRun();
           setMessages((prev) => [
             ...prev,
             { id, role: 'assistant', content: '', toolSteps: [event], timestamp: Date.now() },
@@ -961,6 +1004,9 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       },
       onToolResult: (data) => {
         if (disposed) return;
+        liveStreamStore.flush();
+        liveStreamStore.markTool(null);
+        liveStreamStore.resolveTool(data.toolCallId, (data.payload || '').substring(0, 600));
         const lid = liveAssistantIdRef.current;
         setMessages((prev) =>
           prev.map((m) => {
@@ -977,7 +1023,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
             }
             // 兼容：无 live 占位时落下的独立工具卡
             if (m.id === `toolcall-${data.toolCallId}` && m.toolCall) {
-              return { ...m, toolCall: { ...m.toolCall, result: (data.payload || '').substring(0, 200) } };
+              return { ...m, toolCall: { ...m.toolCall, result: (data.payload || '').substring(0, 600) } };
             }
             return m;
           })
@@ -1035,15 +1081,23 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
           args: data.args || {},
           policy: 'confirm',
         });
+        liveStreamStore.setPendingConfirm({
+          toolCallId: data.toolCallId,
+          action: data.action,
+          args: data.args || {},
+        });
       },
       onConfirmResolved: (data) => {
         if (disposed) return;
         setPendingConfirm((prev) => (prev && prev.id === data.toolCallId ? null : prev));
+        liveStreamStore.setPendingConfirm(null);
       },
       onDone: () => {
         if (disposed) return;
         workflowDocumentStore.captureAiRunSnapshot(liveAssistantIdRef.current ?? undefined);
         liveAssistantIdRef.current = null;
+        setLiveMessageId(null);
+        liveStreamStore.endRun();
         setStreaming(false);
         reloadMessages(sessionKey);
         // 后端 run 收尾时才把调用日志写入 debug_data（在 done 事件之后），稍等片刻再拉取
@@ -1057,6 +1111,8 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         if (disposed) return;
         workflowDocumentStore.captureAiRunSnapshot(liveAssistantIdRef.current ?? undefined);
         liveAssistantIdRef.current = null;
+        setLiveMessageId(null);
+        liveStreamStore.endRun();
         setStreaming(false);
         setMessages((prev) => [
           ...prev,
@@ -1075,6 +1131,23 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     const connect = async () => {
       while (!disposed) {
         try {
+          // 订阅前先拉一次挂起确认：刷新/重连场景 0 秒恢复确认卡
+          //（后端确认挂起期间每 20s 才重发 confirm_request，等心跳用户会以为卡死了）
+          try {
+            const pending = await agentApi.getPendingConfirm(sessionKey);
+            if (!disposed && pending?.pending && pending.toolCallId) {
+              setPendingConfirm((prev) =>
+                prev && prev.id === pending.toolCallId
+                  ? prev
+                  : { id: pending.toolCallId!, action: pending.action || '', args: pending.args || {}, policy: 'confirm' }
+              );
+              liveStreamStore.setPendingConfirm({
+                toolCallId: pending.toolCallId!,
+                action: pending.action || '',
+                args: pending.args || {},
+              });
+            }
+          } catch { /* 查询失败不阻塞订阅 */ }
           await subscribeSessionEvents(sessionKey, handlers, controller.signal);
           if (disposed || controller.signal.aborted) break;
           // 流被服务端正常结束（极少）：短暂等待后重连
@@ -1091,6 +1164,9 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     return () => {
       disposed = true;
       controller.abort();
+      // 会话切换：挂起的确认卡不得带入新会话（表现为「一打开对话就出现应用卡」）
+      setPendingConfirm(null);
+      liveStreamStore.reset();
     };
   }, [currentSessionKey, sessionEpoch, reloadMessages, drainQueue, location.pathname]);
 
@@ -1202,6 +1278,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     messages,
     permissions,
     streaming,
+      liveMessageId,
     queueLength,
     pendingConfirm,
     folders,

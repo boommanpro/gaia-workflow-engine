@@ -36,13 +36,16 @@ public class WorkflowDslApplyService {
     private final GaiaWorkflowVersionService versionService;
     private final GaiaWorkflowService workflowService;
     private final AgentModelConfigService modelConfigService;
+    private final WorkflowDiffService diffService;
 
     public WorkflowDslApplyService(GaiaWorkflowVersionService versionService,
                                    GaiaWorkflowService workflowService,
-                                   AgentModelConfigService modelConfigService) {
+                                   AgentModelConfigService modelConfigService,
+                                   WorkflowDiffService diffService) {
         this.versionService = versionService;
         this.workflowService = workflowService;
         this.modelConfigService = modelConfigService;
+        this.diffService = diffService;
     }
 
     /**
@@ -96,6 +99,30 @@ public class WorkflowDslApplyService {
             GaiaWorkflow workflow = workflowService.getOne(
                 new QueryWrapper<GaiaWorkflow>().eq("workflow_code", workflowCode).last("LIMIT 1"));
 
+            // CAS：带 expectedRevision 且工作流已存在时，revision 不匹配直接拒绝。
+            // 防止 AI 基于陈旧读取覆盖并发修改（用户手动保存 / 另一会话落版）。
+            if (workflow != null && opts.getExpectedRevision() != null) {
+                long actual = workflow.getRevision() != null ? workflow.getRevision() : 0L;
+                if (actual != opts.getExpectedRevision()) {
+                    result.setSuccess(false);
+                    result.setStaleRevision(true);
+                    result.setExpectedRevision(opts.getExpectedRevision());
+                    result.setActualRevision(actual);
+                    result.setError("stale revision: expected " + opts.getExpectedRevision()
+                        + " but current is " + actual + "，工作流已被并发修改，请重新读取后再提交");
+                    return result;
+                }
+            }
+
+            // 上一版数据（diff 基准）
+            String previousData = null;
+            if (workflow != null && workflow.getCurrentVersionId() != null) {
+                GaiaWorkflowVersion prev = versionService.getById(workflow.getCurrentVersionId());
+                if (prev != null) {
+                    previousData = prev.getWorkflowData();
+                }
+            }
+
             if (workflow == null) {
                 if (!opts.isCreateIfMissing()) {
                     result.setSuccess(false);
@@ -132,25 +159,37 @@ public class WorkflowDslApplyService {
                 opts.getVersionDesc() != null && !opts.getVersionDesc().isEmpty()
                     ? opts.getVersionDesc() : "AI generated");
             version.setWorkflowData(workflowData);
+            // 版本 diff：与上一生效版本的差异（首版 diff 为空集合）
+            try {
+                cn.hutool.json.JSONObject diff = diffService.diff(previousData, workflowData);
+                if (!diffService.isEmpty(diff)) {
+                    version.setDiffJson(diff.toString());
+                }
+            } catch (Exception e) {
+                log.debug("[dsl-apply] diff compute failed (ignored): {}", e.getMessage());
+            }
             version.setCreatedBy("agent");
             version.setCreatedAt(LocalDateTime.now());
             version.setIsCurrent(1);
             versionService.save(version);
 
-            // 切换生效版本
+            // 切换生效版本 + revision 递增（CAS 基准）
             versionService.update(new UpdateWrapper<GaiaWorkflowVersion>()
                 .eq("workflow_code", workflowCode)
                 .ne("id", version.getId())
                 .set("is_current", 0));
+            long nextRevision = (workflow.getRevision() != null ? workflow.getRevision() : 0L) + 1;
             workflowService.update(new UpdateWrapper<GaiaWorkflow>()
                 .eq("workflow_code", workflowCode)
                 .set("current_version_id", version.getId())
+                .set("revision", nextRevision)
                 .set("updated_at", LocalDateTime.now()));
 
             result.setSuccess(true);
             result.setVersionId(version.getId());
             result.setVersionNumber(version.getVersionNumber());
             result.setNodeCount(countNodes(workflowData));
+            result.setRevision(nextRevision);
             return result;        } catch (Exception e) {
             log.error("[dsl-apply] failed, workflowCode={}", workflowCode, e);
             result.setSuccess(false);
@@ -244,6 +283,8 @@ public class WorkflowDslApplyService {
         private String workflowDesc;
         private String versionDesc;
         private boolean createIfMissing = true;
+        /** CAS 基准：工作流已存在时须与当前 revision 一致才允许提交（null=跳过检查，REST 兼容） */
+        private Long expectedRevision;
     }
 
     /** 落版结果 */
@@ -255,6 +296,8 @@ public class WorkflowDslApplyService {
         private String versionNumber;
         private int nodeCount;
         private boolean workflowCreated;
+        /** 提交后的 revision（下一次 CAS 的基准） */
+        private Long revision;
         /** 规范化过程中做的修补说明（回传给模型，便于它下一轮自己写规范） */
         private List<String> repairs = new java.util.ArrayList<>();
         /** 可疑但放行的告警（start 无输出、end 无映射等），随回执提示模型 */
@@ -262,5 +305,9 @@ public class WorkflowDslApplyService {
         /** 致命语义缺失（拒绝落版时给模型的补全清单） */
         private List<String> fatalIssues = new java.util.ArrayList<>();
         private String error;
+        /** CAS 冲突标记（expectedRevision 与实际不一致） */
+        private boolean staleRevision;
+        private Long expectedRevision;
+        private Long actualRevision;
     }
 }

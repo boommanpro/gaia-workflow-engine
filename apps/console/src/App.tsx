@@ -1,3 +1,4 @@
+import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 
 import { Releases } from './pages/Releases';
@@ -12,6 +13,68 @@ import { SessionReview } from './pages/admin/SessionReview';
 import { AgentProvider } from './agent';
 import { AiWorkspace } from './ai-workspace';
 import ScrollPage from './components/ScrollPage';
+
+/** 路由级兜底：任何页面组件崩溃时给出错误提示和出路，绝不整页白屏 */
+class RouteErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state = { error: null as Error | null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error('[app] route crashed:', error, info);
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div
+          style={{
+            width: '100vw',
+            height: '100vh',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 12,
+            fontFamily: 'inherit',
+          }}
+        >
+          <div style={{ fontSize: 18, fontWeight: 600 }}>页面渲染出错</div>
+          <div
+            style={{
+              maxWidth: 640,
+              color: 'var(--g-text-muted, #888)',
+              fontSize: 12,
+              fontFamily: 'monospace',
+              wordBreak: 'break-all',
+              textAlign: 'center',
+              padding: '0 24px',
+            }}
+          >
+            {String(this.state.error?.message || this.state.error)}
+          </div>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <button
+              onClick={() => window.location.reload()}
+              style={{ padding: '6px 18px', borderRadius: 6, cursor: 'pointer' }}
+            >
+              刷新页面
+            </button>
+            <button
+              onClick={() => { window.location.href = '/'; }}
+              style={{ padding: '6px 18px', borderRadius: 6, cursor: 'pointer' }}
+            >
+              回首页
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 /** 旧地址 /c/:sessionKey → 新地址 /chat/:sessionKey */
 const LegacyChatRedirect = () => {
@@ -44,7 +107,8 @@ function App() {
   return (
     <AgentProvider>
       <div style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
-        <Routes>
+        <RouteErrorBoundary>
+          <Routes>
           {/* 产品首页（对话创建 API 入口） */}
           <Route path="/" element={<LandingPage />} />
 
@@ -79,7 +143,8 @@ function App() {
           <Route path="/template-editor/:templateCode" element={<TemplateEditor />} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+          </Routes>
+        </RouteErrorBoundary>
       </div>
     </AgentProvider>
   );

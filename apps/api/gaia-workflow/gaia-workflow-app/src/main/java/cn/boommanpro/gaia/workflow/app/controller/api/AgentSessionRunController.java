@@ -119,6 +119,23 @@ public class AgentSessionRunController {
         return emitter;
     }
 
+    /**
+     * 当前挂起的确认（require 模式）：页面刷新/重连后前端立即恢复确认卡，
+     * 不依赖 20s 心跳重发。无挂起返回 {pending: false}。
+     */
+    @GetMapping("/{sessionKey}/pending-confirm")
+    public Map<String, Object> pendingConfirm(@PathVariable String sessionKey) {
+        JSONObject pending = toolPolicyService.getPendingConfirm(sessionKey);
+        if (pending == null) {
+            return new JSONObject().set("pending", false);
+        }
+        return new JSONObject()
+            .set("pending", true)
+            .set("toolCallId", pending.getStr("toolCallId"))
+            .set("action", pending.getStr("action"))
+            .set("args", pending.getJSONObject("args"));
+    }
+
     /** 当前运行快照 */
     @GetMapping("/{sessionKey}/status")
     public Map<String, Object> status(@PathVariable String sessionKey) {

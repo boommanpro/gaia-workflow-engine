@@ -16,34 +16,36 @@ const ACCENT = '#4d53e8';
 /** action 分组定义（title/desc 存储 i18n key，渲染时用 t() 翻译） */
 const ACTION_GROUPS: { titleKey: string; actions: { name: string; descKey: string }[] }[] = [
   {
-    titleKey: 'agent.perm.groupNav',
-    actions: [
-      { name: 'navigate', descKey: 'agent.perm.action.navigate' },
-    ],
-  },
-  {
     titleKey: 'agent.perm.groupQuery',
     actions: [
-      { name: 'query', descKey: 'agent.perm.action.query' },
-    ],
-  },
-  {
-    titleKey: 'agent.perm.groupWrite',
-    actions: [
-      { name: 'manage', descKey: 'agent.perm.action.manage' },
+      { name: 'list_workflows', descKey: 'agent.perm.action.list_workflows' },
+      { name: 'read_workflow', descKey: 'agent.perm.action.read_workflow' },
+      { name: 'read_node', descKey: 'agent.perm.action.read_node' },
+      { name: 'list_runs', descKey: 'agent.perm.action.list_runs' },
+      { name: 'list_templates', descKey: 'agent.perm.action.list_templates' },
+      { name: 'search_knowledge', descKey: 'agent.perm.action.search_knowledge' },
+      { name: 'get_node_schema', descKey: 'agent.perm.action.get_node_schema' },
     ],
   },
   {
     titleKey: 'agent.perm.groupCanvas',
     actions: [
-      { name: 'canvas', descKey: 'agent.perm.action.canvas' },
+      { name: 'edit_workflow', descKey: 'agent.perm.action.edit_workflow' },
+      { name: 'run_workflow', descKey: 'agent.perm.action.run_workflow' },
+    ],
+  },
+  {
+    titleKey: 'agent.perm.groupWrite',
+    actions: [
+      { name: 'write_workflow', descKey: 'agent.perm.action.write_workflow' },
+      { name: 'save_workflow', descKey: 'agent.perm.action.save_workflow' },
+      { name: 'delete_workflow', descKey: 'agent.perm.action.delete_workflow' },
     ],
   },
   {
     titleKey: 'agent.perm.groupPlan',
     actions: [
-      { name: 'createPlan', descKey: 'agent.perm.action.createPlan' },
-      { name: 'executeStep', descKey: 'agent.perm.action.executeStep' },
+      { name: 'todo_write', descKey: 'agent.perm.action.todo_write' },
     ],
   },
 ];

@@ -53,7 +53,7 @@ public class ManagedAgentService {
     public AgentRunResult runHeadless(String agentId, String message, Map<String, Object> variables) {
         AgentRequest request = new AgentRequest(
             conversationStore.newSessionKey(), message, "zh-CN", null,
-            agentId, ToolExecutionMode.BACKEND, 0, variables);
+            agentId, ToolExecutionMode.BACKEND, 0, variables, null);
         conversationStore.saveMessage(request.getSessionKey(), "user", message, null, null);
 
         AgentEventSink sink = new HeadlessAgentEventSink(request.getSessionKey());
@@ -68,7 +68,7 @@ public class ManagedAgentService {
     /** 在既有会话上继续执行（会带上历史消息） */
     public AgentRunResult continueSession(String agentId, String sessionKey, String message) {
         AgentRequest request = new AgentRequest(
-            sessionKey, message, "zh-CN", null, agentId, ToolExecutionMode.BACKEND, 0, null);
+            sessionKey, message, "zh-CN", null, agentId, ToolExecutionMode.BACKEND, 0, null, null);
         conversationStore.saveMessage(sessionKey, "user", message, null, null);
         return executionRouter.run(request, new HeadlessAgentEventSink(sessionKey));
     }

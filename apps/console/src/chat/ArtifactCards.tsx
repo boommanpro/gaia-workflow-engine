@@ -126,6 +126,80 @@ const CardShell: React.FC<{ border?: string; children: React.ReactNode }> = ({
 
 // ---------------- 应用卡片（applyWorkflow 确认门禁的对话流呈现） ----------------
 
+/** diff 明细行：符号 + id/连线（等宽字体） */
+const DiffRow: React.FC<{ sign: string; id: string; color: string }> = ({ sign, id, color }) => (
+  <div style={{ display: 'flex', gap: 6, alignItems: 'baseline' }}>
+    <span style={{ color, fontWeight: 600, flexShrink: 0 }}>{sign}</span>
+    <span
+      style={{
+        fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+        fontSize: 11,
+        color: CHAT.textSub,
+        wordBreak: 'break-all',
+      }}
+    >
+      {id}
+    </span>
+  </div>
+);
+
+interface WorkflowDiffResult {
+  nodes: { added: string[]; removed: string[]; changed: string[] };
+  edges: { added: string[]; removed: string[] };
+}
+
+/** 客户端工作流 diff（write_workflow 待确认参数 vs 当前画布），与后端 WorkflowDiffService 同语义 */
+function diffWorkflows(
+  current: { nodes?: any[]; edges?: any[] },
+  proposed: { nodes: any[]; edges: any[] }
+): WorkflowDiffResult {
+  const result: WorkflowDiffResult = {
+    nodes: { added: [], removed: [], changed: [] },
+    edges: { added: [], removed: [] },
+  };
+  const currentNodeById = new Map<string, any>();
+  for (const n of current.nodes || []) {
+    if (n?.id) currentNodeById.set(String(n.id), n);
+  }
+  const proposedIds = new Set<string>();
+  for (const n of proposed.nodes || []) {
+    const id = n?.id != null ? String(n.id) : null;
+    if (!id) {
+      // 无 id 的新节点按 type+title 生成展示名
+      result.nodes.added.push(`${n?.type || 'node'}${n?.title ? `(${n.title})` : ''}`);
+      continue;
+    }
+    proposedIds.add(id);
+    const prev = currentNodeById.get(id);
+    if (!prev) {
+      result.nodes.added.push(id);
+    } else {
+      // 语义对比：剥掉坐标（坐标变更不算 diff，自动布局会大面积改坐标）
+      const semantic = (node: any) => {
+        const copy = { ...node };
+        if (copy.meta) copy.meta = { ...copy.meta, position: undefined };
+        return JSON.stringify(copy);
+      };
+      if (semantic(prev) !== semantic(n)) result.nodes.changed.push(id);
+    }
+  }
+  for (const id of currentNodeById.keys()) {
+    if (!proposedIds.has(id)) result.nodes.removed.push(id);
+  }
+
+  const edgeKey = (e: any) => {
+    const from = e?.sourceNodeID ?? e?.from;
+    const to = e?.targetNodeID ?? e?.to;
+    const port = e?.sourcePortID ?? e?.fromPort;
+    return `${from}→${to}${port ? `@${port}` : ''}`;
+  };
+  const currentEdges = new Set((current.edges || []).map(edgeKey));
+  const proposedEdges = new Set((proposed.edges || []).map(edgeKey));
+  for (const key of proposedEdges) if (!currentEdges.has(key)) result.edges.added.push(key);
+  for (const key of currentEdges) if (!proposedEdges.has(key)) result.edges.removed.push(key);
+  return result;
+}
+
 export const ApplyWorkflowCard: React.FC<{
   args: Record<string, any>;
   onResolve: (approved: boolean) => void;
@@ -138,29 +212,93 @@ export const ApplyWorkflowCard: React.FC<{
     [args]
   );
   const current = workflowDocumentStore.getSnapshot().doc.toJSON();
-  const addedNodes = proposedDsl.nodes.length - (current.nodes?.length || 0);
+  /** 节点/连线级 diff（与后端 WorkflowDiffService 同语义：id 对齐，坐标变更不计） */
+  const diff = useMemo(() => diffWorkflows(current, proposedDsl), [current, proposedDsl]);
+
+  const hasDiff = diff.nodes.added.length > 0 || diff.nodes.removed.length > 0
+    || diff.nodes.changed.length > 0 || diff.edges.added.length > 0 || diff.edges.removed.length > 0;
 
   return (
     <CardShell border={CHAT.accentBorder}>
-      <div style={{ display: 'flex', gap: 11, padding: '11px 12px' }}>
+      <div style={{ display: 'flex', gap: 12, padding: '12px 14px' }}>
         <MiniTopology dsl={proposedDsl} width={132} height={52} />
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: CHAT.text }}>
-            {t('chat.applyWorkflowTitle')}
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {/* 标题行：左accent条 + 主标题 + 工作流名（dsh 式层级） */}
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0 }}>
+            <span
+              style={{
+                flexShrink: 0,
+                width: 3,
+                height: 14,
+                borderRadius: 2,
+                background: CHAT.accent,
+                display: 'inline-block',
+                alignSelf: 'center',
+              }}
+            />
+            <span style={{ fontSize: 13, fontWeight: 600, color: CHAT.text, flexShrink: 0 }}>
+              {t('chat.applyWorkflowTitle')}
+            </span>
+            {args?.workflowName && (
+              <span
+                style={{
+                  fontSize: 12.5,
+                  color: CHAT.accent,
+                  fontWeight: 500,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {String(args.workflowName)}
+              </span>
+            )}
           </div>
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
             <Chip>
               {t('chat.snapshotNodes', { nodes: proposedDsl.nodes.length, edges: proposedDsl.edges.length })}
             </Chip>
-            {args?.workflowName && <Chip>{String(args.workflowName)}</Chip>}
-            {addedNodes !== 0 && (
-              <Chip color={addedNodes > 0 ? CHAT.success : CHAT.danger}>
-                {addedNodes > 0
-                  ? t('chat.snapshotAddedNodes', { count: addedNodes })
-                  : t('chat.snapshotRemovedNodes', { count: -addedNodes })}
+            {diff.nodes.added.length > 0 && (
+              <Chip color={CHAT.success}>
+                {t('chat.snapshotAddedNodes', { count: diff.nodes.added.length })}
               </Chip>
             )}
+            {diff.nodes.removed.length > 0 && (
+              <Chip color={CHAT.danger}>
+                {t('chat.snapshotRemovedNodes', { count: diff.nodes.removed.length })}
+              </Chip>
+            )}
+            {diff.nodes.changed.length > 0 && (
+              <Chip color="#b7791f">~{diff.nodes.changed.length}</Chip>
+            )}
+            {diff.edges.added.length > 0 && <Chip color={CHAT.success}>+{diff.edges.added.length} →</Chip>}
+            {diff.edges.removed.length > 0 && <Chip color={CHAT.danger}>-{diff.edges.removed.length} →</Chip>
+            }
           </div>
+          {hasDiff && (
+            <details style={{ fontSize: 11.5, color: CHAT.textSub }}>
+              <summary style={{ cursor: 'pointer', userSelect: 'none' }}>
+                {t('chat.applyDiffDetail')}
+              </summary>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 4 }}>
+                {diff.nodes.added.map((id) => (
+                  <DiffRow key={`a-${id}`} sign="+" id={id} color={CHAT.success} />
+                ))}
+                {diff.nodes.changed.map((id) => (
+                  <DiffRow key={`c-${id}`} sign="~" id={id} color="#b7791f" />
+                ))}
+                {diff.nodes.removed.map((id) => (
+                  <DiffRow key={`r-${id}`} sign="-" id={id} color={CHAT.danger} />
+                ))}
+                {diff.edges.added.map((e) => (
+                  <DiffRow key={`ea-${e}`} sign="+" id={e} color={CHAT.success} />
+                ))}
+                {diff.edges.removed.map((e) => (
+                  <DiffRow key={`er-${e}`} sign="-" id={e} color={CHAT.danger} />
+                ))}
+              </div>
+            </details>
+          )}
           <div style={{ display: 'flex', gap: 8, marginTop: 'auto', alignItems: 'center' }}>
             <Button
               size="small"

@@ -60,6 +60,18 @@ export function parseDebugData(raw: string | null | undefined): DebugEntry[] {
   }
 }
 
+/** 清洗单条 entry：历史上后端曾把 boolean 写进 request.messages（hutool add 返回值坑），
+ *  非数组字段直接置 undefined，保证渲染层的 .map 永不踩到标量。 */
+function sanitizeEntry(entry: DebugEntry): DebugEntry {
+  const req = entry.request;
+  if (!req || typeof req !== 'object') return entry;
+  const patch: Record<string, undefined> = {};
+  if ('messages' in req && !Array.isArray(req.messages)) patch.messages = undefined;
+  if ('tools' in req && !Array.isArray(req.tools)) patch.tools = undefined;
+  if (Object.keys(patch).length === 0) return entry;
+  return { ...entry, request: { ...req, ...patch } };
+}
+
 export const DebugPanel: React.FC<{
   onClose?: () => void;
   focusEntryId?: string | null;
@@ -99,6 +111,8 @@ export const DebugPanel: React.FC<{
     currentSessionKey = agentCtx.currentSessionKey;
   }
   const externalMode = entries !== undefined;
+  // 渲染/聚焦/Raw 面板一律走清洗后的数据，坏字段置 undefined 而不是让 .map 崩掉整页
+  const safeEntries = useMemo(() => debugEntries.map(sanitizeEntry), [debugEntries]);
 
   useLanguage();
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -114,7 +128,7 @@ export const DebugPanel: React.FC<{
   // 点击消息跳转：聚焦到指定 entry，自动展开并打开 Raw 面板
   useEffect(() => {
     if (!focusEntryId) return;
-    const target = debugEntries.find((e) => e.id === focusEntryId);
+    const target = safeEntries.find((e) => e.id === focusEntryId);
     if (!target) return;
     setExpandedIds((prev) => new Set(prev).add(focusEntryId));
     setRawEntry(target);
@@ -123,7 +137,7 @@ export const DebugPanel: React.FC<{
       const el = listRef.current?.querySelector(`[data-entry-id="${focusEntryId}"]`);
       if (el) (el as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 60);
-  }, [focusEntryId, debugEntries]);
+  }, [focusEntryId, safeEntries]);
 
   const toggleExpand = (id: string) => {
     setExpandedIds((prev) => {
@@ -157,7 +171,7 @@ export const DebugPanel: React.FC<{
     clearDebugEntries();
   };
 
-  const reversed = [...debugEntries].reverse();
+  const reversed = [...safeEntries].reverse();
 
   return (
     <>
@@ -412,7 +426,8 @@ export const DebugPanel: React.FC<{
                             }}
                           >
                             {JSON.stringify(
-                              entry.request.messages?.map((m: any) => ({
+                              Array.isArray(entry.request.messages)
+                                ? entry.request.messages.map((m: any) => ({
                                 role: m.role,
                                 content:
                                   typeof m.content === 'string'
@@ -421,7 +436,8 @@ export const DebugPanel: React.FC<{
                                 tool_calls: m.tool_calls
                                   ? `[${m.tool_calls.length} calls]`
                                   : undefined,
-                              })),
+                              }))
+                                : entry.request.messages,
                               null,
                               2
                             )}

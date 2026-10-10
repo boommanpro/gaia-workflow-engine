@@ -39,6 +39,13 @@ public class GaiaWorkflow {
     private Long currentVersionId;
 
     /**
+     * 乐观锁修订号：任何提交（AI 落版 / 编辑器手动保存）+1。
+     * 工具链的 read→edit→save 均以它做 CAS 基准，防止基于陈旧状态的覆盖。
+     */
+    @TableField("revision")
+    private Long revision;
+
+    /**
      * 来源模板编码
      */
     @TableField("template_code")

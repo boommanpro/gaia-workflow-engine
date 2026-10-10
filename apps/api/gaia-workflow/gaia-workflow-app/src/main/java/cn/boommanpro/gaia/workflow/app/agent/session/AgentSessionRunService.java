@@ -126,6 +126,7 @@ public class AgentSessionRunService {
     private final AgentSessionService sessionService;
     private final AgentProviderConfigService providerConfigService;
     private final cn.boommanpro.gaia.workflow.app.agent.core.ToolPolicyService toolPolicyService;
+    private final cn.boommanpro.gaia.workflow.infra.manage.service.AgentSessionEventService sessionEventService;
 
     private final ConcurrentMap<String, RunHandle> runs = new ConcurrentHashMap<>();
 
@@ -140,13 +141,15 @@ public class AgentSessionRunService {
                                   ConversationStore conversationStore,
                                   AgentSessionService sessionService,
                                   AgentProviderConfigService providerConfigService,
-                                  cn.boommanpro.gaia.workflow.app.agent.core.ToolPolicyService toolPolicyService) {
+                                  cn.boommanpro.gaia.workflow.app.agent.core.ToolPolicyService toolPolicyService,
+                                  cn.boommanpro.gaia.workflow.infra.manage.service.AgentSessionEventService sessionEventService) {
         this.executionRouter = executionRouter;
         this.eventBus = eventBus;
         this.conversationStore = conversationStore;
         this.sessionService = sessionService;
         this.providerConfigService = providerConfigService;
         this.toolPolicyService = toolPolicyService;
+        this.sessionEventService = sessionEventService;
     }
 
     @PreDestroy
@@ -291,11 +294,12 @@ public class AgentSessionRunService {
                           String agentId, RunHandle handle) {
         // 调用日志录制器：旁路记录 llm_end / tool_call / tool_result，结束后并入 debug_data（会话审查数据源）
         ToolLogRecorder recorder = new ToolLogRecorder(
-            new BusAgentEventSink(sessionKey, eventBus, handle), sessionService, message);
+            new BusAgentEventSink(sessionKey, eventBus, handle), sessionService,
+            sessionEventService, handle.getRunId(), sessionKey, message);
         try {
             AgentRequest request = new AgentRequest(
                 sessionKey, message, locale != null ? locale : "zh-CN", pageContext,
-                agentId, ToolExecutionMode.BACKEND, 0, null);
+                agentId, ToolExecutionMode.BACKEND, 0, null, handle.getRunId());
             AgentEventSink sink = recorder;
             AgentRunResult result = executionRouter.run(request, sink);
 

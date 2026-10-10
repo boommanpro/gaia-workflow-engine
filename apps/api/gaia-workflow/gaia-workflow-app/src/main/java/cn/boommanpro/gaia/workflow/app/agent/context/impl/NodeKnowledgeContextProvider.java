@@ -2,28 +2,25 @@ package cn.boommanpro.gaia.workflow.app.agent.context.impl;
 
 import cn.boommanpro.gaia.workflow.app.agent.context.ContextProvider;
 import cn.boommanpro.gaia.workflow.app.agent.core.AgentRunContext;
-import cn.boommanpro.gaia.workflow.infra.manage.entity.AgentConfig;
-import cn.boommanpro.gaia.workflow.infra.manage.service.AgentConfigService;
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import cn.boommanpro.gaia.workflow.app.service.AgentKnowledgeService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
-
 /**
- * 节点知识库上下文提供者。
+ * 节点知识目录上下文提供者（v2 瘦身版）。
  *
- * <p>把原先写死在 {@code streamLlm} 里的「加载 node_knowledge 配置并拼进提示词」
- * 抽成独立策略：要不要注入、注入哪些语言版本，都由它自己决定。</p>
+ * <p>v1 把全部节点类型的完整文档（数千 token）每轮注入系统提示词——上下文膨胀、
+ * 注意力稀释。v2 对齐 dsh 拉模式：这里只注入「类型目录 + 一句话」，
+ * 完整字段结构由模型按需调 {@code get_node_schema(nodeType)} 获取。</p>
  */
 @Slf4j
 @Component
 public class NodeKnowledgeContextProvider implements ContextProvider {
 
-    private final AgentConfigService configService;
+    private final AgentKnowledgeService knowledgeService;
 
-    public NodeKnowledgeContextProvider(AgentConfigService configService) {
-        this.configService = configService;
+    public NodeKnowledgeContextProvider(AgentKnowledgeService knowledgeService) {
+        this.knowledgeService = knowledgeService;
     }
 
     @Override
@@ -33,7 +30,7 @@ public class NodeKnowledgeContextProvider implements ContextProvider {
 
     @Override
     public String name() {
-        return "节点知识库";
+        return "节点类型目录";
     }
 
     @Override
@@ -43,28 +40,11 @@ public class NodeKnowledgeContextProvider implements ContextProvider {
 
     @Override
     public String build(AgentRunContext context) {
-        List<AgentConfig> configs = configService.list(
-            new QueryWrapper<AgentConfig>().eq("config_type", "node_knowledge"));
-        if (configs == null || configs.isEmpty()) {
+        String catalog = knowledgeService.nodeTypeCatalog();
+        if (catalog == null || catalog.isEmpty()) {
             return null;
         }
-
-        String suffix = "zh-CN".equals(context.getLocale()) ? "" : ".en";
-        StringBuilder builder = new StringBuilder();
-        int count = 0;
-        for (AgentConfig config : configs) {
-            String content = config.getContent();
-            if (content == null || content.trim().isEmpty()) {
-                continue;
-            }
-            boolean isEnglishVariant = config.getConfigKey() != null
-                && config.getConfigKey().endsWith(".en");
-            if (suffix.isEmpty() == isEnglishVariant) {
-                continue;
-            }
-            builder.append("\n### ").append(config.getConfigKey()).append("\n").append(content.trim()).append("\n");
-            count++;
-        }
-        return count == 0 ? null : builder.toString();
+        return "\n### 可用节点类型目录\n" + catalog
+            + "配置任何节点前，用 get_node_schema(nodeType) 获取该类型的完整字段结构与 JSON 示例。\n";
     }
 }

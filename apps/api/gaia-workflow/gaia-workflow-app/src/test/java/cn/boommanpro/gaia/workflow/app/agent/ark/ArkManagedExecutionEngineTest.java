@@ -198,7 +198,8 @@ class ArkManagedExecutionEngineTest {
 
         JSONObject sentResult = client.sentToolResults.get(0);
         assertTrue(sentResult.getBool("is_error", false));
-        assertTrue(sentResult.getJSONArray("content").getJSONObject(0).getStr("text").contains("forbidden"));
+        assertTrue(sentResult.getJSONArray("content").getJSONObject(0).getStr("text").contains("forbidden")
+            || sentResult.getJSONArray("content").getJSONObject(0).getStr("text").contains("权限策略禁止"));
         assertFalse(conversationStore.hasToolMessagePayloadContaining("\"result\":\"ok\""));
     }
 
@@ -241,7 +242,7 @@ class ArkManagedExecutionEngineTest {
 
     private static AgentRequest requestWithAgent(String agentId) {
         return new AgentRequest("sess-1", "帮我看看", "zh-CN", null, agentId,
-            ToolExecutionMode.BACKEND, 0, null);
+            ToolExecutionMode.BACKEND, 0, null, null);
     }
 
     private static boolean isUserMessage(JSONArray events) {

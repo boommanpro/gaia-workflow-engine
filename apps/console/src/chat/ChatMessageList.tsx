@@ -18,6 +18,9 @@ import {
 import { useAgent } from '../agent/AgentContext';
 import type { DisplayMessage } from '../agent/types';
 import Markdown from '../agent/Markdown';
+import { LiveAssistantContent, TimelineView } from '../agent/LiveAssistantMessage';
+import { liveStreamStore } from '../agent/live-stream-store';
+import { useSyncExternalStore } from 'react';
 import SubagentCard from '../agent/SubagentCard';
 import { PlanCard } from '../agent/PlanCard';
 import { useLanguage, t } from '../i18n';
@@ -136,7 +139,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   dense = false,
   onSnapshotView,
 }) => {
-  const { messages, streaming, sendMessage, queueLength, pendingConfirm, resolveConfirm, currentSessionKey } = useAgent();
+  const { messages, streaming, liveMessageId, sendMessage, queueLength, pendingConfirm, resolveConfirm, currentSessionKey } = useAgent();
   useLanguage();
   const { snapshots, cursor } = useWorkflowDocumentState();
   /** run 期间最新的 workflow 产物 —— 驱动对话流里的画布活卡（随版本原地生长） */
@@ -145,6 +148,8 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickRef = useRef(true);
   const [showJump, setShowJump] = useState(false);
+  /** 流式帧订阅：typing 门控 + 合帧滚动（token 不再触发 messages effect） */
+  const streamState = useSyncExternalStore(liveStreamStore.subscribe, liveStreamStore.getSnapshot);
 
   const lastAssistantId = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i -= 1) {
@@ -171,6 +176,11 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   useEffect(() => {
     if (stickRef.current) scrollToBottom('auto');
   }, [messages, streaming, scrollToBottom]);
+
+  useEffect(() => {
+    // 流式帧（≤20fps）：跟随滚动在此统一处理，避免逐 token 的 scroll 布局抖动
+    if (streamState.version > 0 && stickRef.current) scrollToBottom('auto');
+  }, [streamState.version, scrollToBottom]);
 
   const handleOptionClick = useCallback(
     (option: string) => {
@@ -233,7 +243,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
     while (i < messages.length) {
       const m = messages[i];
 
-      if (m.role === 'assistant' && !m.content && !m.thinking && !m.subagentSteps && !m.subagentResult && !m.planSteps && !m.toolSteps) {
+      if (m.role === 'assistant' && m.id !== liveMessageId && !m.content && !m.thinking && !m.subagentSteps && !m.subagentResult && !m.planSteps && !m.toolSteps) {
         // 空的助手占位消息不渲染正文，但它的画布快照卡仍需渲染
         //（AI 工具在第一轮就写入了快照，mid 指向这个占位消息）
         nodes.push(...cardsFor(m.id));
@@ -284,12 +294,12 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
       if (m.role === 'user') {
         nodes.push(
           <div key={m.id} className="chat-fade" style={{ display: 'flex', justifyContent: 'flex-end', padding: '6px 0' }}>
-            <div style={{ maxWidth: compact ? '88%' : '78%', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+            <div style={{ maxWidth: compact ? '88%' : '70.2%', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
               {m.content && (
                 <div
                   style={{
-                    padding: '10px 14px',
-                    borderRadius: '16px 16px 5px 16px',
+                    padding: '10px 16px',
+                    borderRadius: '20px 20px 6px 20px',
                     background: CHAT.userBubble,
                     color: CHAT.userBubbleText,
                     fontSize: compact ? 13 : 14,
@@ -336,7 +346,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
         >
           <Avatar />
           <div style={{ flex: 1, minWidth: 0 }}>
-            {m.thinking && (
+            {!m.timeline?.length && m.thinking && (
               <details
                 style={{
                   marginBottom: 6,
@@ -353,7 +363,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
               </details>
             )}
             {m.planSteps && m.planSteps.length > 0 && <PlanCard key={`plan-${m.id}`} steps={m.planSteps} />}
-            {m.toolSteps && m.toolSteps.length > 0 && (
+            {!m.timeline?.length && m.toolSteps && m.toolSteps.length > 0 && (
               <ToolSteps
                 messages={m.toolSteps.map((ts) => ({
                   id: `ts-${ts.id}`,
@@ -365,12 +375,21 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
                 compact={compact}
               />
             )}
-            <Markdown
-              content={m.content}
-              onOptionClick={handleOptionClick}
-              optionsDisabled={streaming}
-              optionsRetired={!!lastAssistantId && m.id !== lastAssistantId}
-            />
+            {streaming && m.id === liveMessageId ? (
+              <LiveAssistantContent
+                onResolveConfirm={resolveConfirm}
+                pendingConfirm={pendingConfirm ? { toolCallId: pendingConfirm.id, action: pendingConfirm.action, args: (pendingConfirm.args || {}) as Record<string, unknown> } : null}
+              />
+            ) : m.timeline && m.timeline.length > 0 ? (
+              <TimelineView timeline={m.timeline} streaming={false} />
+            ) : (
+              <Markdown
+                content={m.content}
+                onOptionClick={handleOptionClick}
+                optionsDisabled={streaming}
+                optionsRetired={!!lastAssistantId && m.id !== lastAssistantId}
+              />
+            )}
             <div
               className="chat-msg-actions"
               style={{ display: 'flex', alignItems: 'center', gap: 2, marginTop: 4, marginLeft: -4 }}
@@ -391,10 +410,12 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
       i += 1;
     }
     return nodes;
-  }, [messages, compact, streaming, lastAssistantId, handleOptionClick, copyMessage, openDebug, cardsFor]);
+  }, [messages, compact, streaming, liveMessageId, lastAssistantId, handleOptionClick, copyMessage, openDebug, cardsFor]);
 
   const lastMsg = messages[messages.length - 1];
-  const showTyping = streaming && !!lastMsg && lastMsg.role === 'assistant' && !lastMsg.content && !lastMsg.toolSteps?.length;
+  // 正文已入 store（state.content 流式期间恒为空），打字点由 store 判空
+  const showTyping = streaming && !!lastMsg && lastMsg.role === 'assistant'
+    && !streamState.content && !streamState.thinking && !lastMsg.toolSteps?.length;
 
   // 画布活卡只在「这一轮真的动过画布」时出现：streaming 开始时记下当前产物版本，
   // 版本号在本轮内发生过变化才亮卡；run 结束即定格（对话流交还给快照卡）。
@@ -423,8 +444,6 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
     prevStreamingRef.current = streaming;
   }, [streaming, liveWorkflowArtifact]);
 
-  /** applyWorkflow 的确认走对话流内的应用卡片，不弹遮罩弹窗 */
-  const showApplyCard = !!pendingConfirm && pendingConfirm.action === 'applyWorkflow';
 
   return (
     <div style={{ position: 'relative', height: '100%', minHeight: 0 }}>
@@ -455,10 +474,12 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
           {streaming && liveCanvasVersion !== null && liveWorkflowArtifact && (
             <LiveCanvasCard artifact={liveWorkflowArtifact} />
           )}
-          {showApplyCard && pendingConfirm && (
+          {showTyping && <TypingIndicator />}
+          {pendingConfirm
+            && (pendingConfirm.action === 'write_workflow' || pendingConfirm.action === 'save_workflow')
+            && !(streaming && messages.some((m) => m.id === liveMessageId)) && (
             <ApplyWorkflowCard args={pendingConfirm.args || {}} onResolve={resolveConfirm} />
           )}
-          {showTyping && <TypingIndicator />}
           {queueLength > 0 && streaming && (
             <div
               className="chat-fade"

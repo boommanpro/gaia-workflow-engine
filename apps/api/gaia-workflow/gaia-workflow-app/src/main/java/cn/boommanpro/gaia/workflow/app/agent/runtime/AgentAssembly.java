@@ -11,7 +11,6 @@ import cn.boommanpro.gaia.workflow.app.agent.llm.LlmProviderRegistry;
 import cn.boommanpro.gaia.workflow.app.agent.llm.OpenAiCompatibleLlmProvider;
 import cn.boommanpro.gaia.workflow.app.agent.tool.ToolExecutor;
 import cn.boommanpro.gaia.workflow.app.agent.tool.ToolExecutorRegistry;
-import cn.boommanpro.gaia.workflow.app.agent.tool.impl.FrontendUiToolExecutor;
 import cn.boommanpro.gaia.workflow.app.service.AgentProviderConfigService;
 import cn.boommanpro.gaia.workflow.infra.manage.entity.AgentConfig;
 import cn.boommanpro.gaia.workflow.infra.manage.service.AgentConfigService;
@@ -99,11 +98,7 @@ public class AgentAssembly {
         if (toolExecutors != null) {
             toolExecutors.forEach(toolExecutorRegistry::register);
         }
-        // 兜底：仅当没有后端实现时才注册「只能在前端跑」的占位器。
-        // 这样新增的后端执行器（CanvasToolExecutor / NavigateToolExecutor）优先生效，
-        // 占位器只在缺实现时兜底，避免把后端能力误降级成前端专属。
-        registerFrontendPlaceholderIfAbsent("canvas", "画布节点操作（需要浏览器画布）");
-        registerFrontendPlaceholderIfAbsent("navigate", "页面跳转（需要浏览器）");
+        // v2：全部工具 BACKEND_ONLY / ANY，无前端专属占位器 —— 纯后端执行，前端仅展示
 
         // 3. 上下文提供者
         if (contextProviders != null) {
@@ -132,13 +127,6 @@ public class AgentAssembly {
     /** 注册一个工具执行器（覆盖同名实现） */
     public void registerToolExecutor(ToolExecutor executor) {
         toolExecutorRegistry.register(executor);
-    }
-
-    /** 工具缺后端实现时，注册「只能在前端跑」的占位器 */
-    private void registerFrontendPlaceholderIfAbsent(String name, String description) {
-        if (!toolExecutorRegistry.get(name).isPresent()) {
-            toolExecutorRegistry.register(new FrontendUiToolExecutor(name, description));
-        }
     }
 
     /** 注册一个上下文提供者 */
@@ -200,19 +188,42 @@ public class AgentAssembly {
 
     // ---------------- 内置 Agent 定义 ----------------
     /**
-     * 默认助手：保持历史行为 —— 工具交给前端执行，UI 在场时一切照旧。
+     * 默认助手：v2 起与工作区助手同一套后端自治工具（旧前端执行链路已退役）。
      */
     private AgentDefinition defaultAssistantDefinition() {
         return AgentDefinition.builder()
             .id("default-assistant")
             .name("默认助手")
-            .description("沿用历史行为的通用助手：工具调用交由前端执行")
+            .description("通用助手：工具全部在服务端执行，前端仅展示")
             .source("builtin")
             .llmProviderId(OpenAiCompatibleLlmProvider.PROVIDER_ID)
-            .executionMode(ToolExecutionMode.FRONTEND)
+            .executionMode(ToolExecutionMode.BACKEND)
             .maxTurns(8)
             .sortOrder(10)
             .build();
+    }
+
+    /** v2 工具全集（dsh 命名：读 7 + edit + run + 落版 3 + todo） */
+    private Set<String> v2Tools() {
+        Set<String> tools = new LinkedHashSet<>();
+        // 读
+        tools.add("list_workflows");
+        tools.add("read_workflow");
+        tools.add("read_node");
+        tools.add("list_runs");
+        tools.add("list_templates");
+        tools.add("search_knowledge");
+        tools.add("get_node_schema");
+        // 编辑 / 执行
+        tools.add("edit_workflow");
+        tools.add("run_workflow");
+        // 落版 / 生命周期
+        tools.add("write_workflow");
+        tools.add("save_workflow");
+        tools.add("delete_workflow");
+        // 元
+        tools.add("todo_write");
+        return tools;
     }
 
     /**
@@ -220,11 +231,6 @@ public class AgentAssembly {
      * 只用服务端能力，因此关掉前端对话也能独立完成「需求 → 工作流落版」。
      */
     private AgentDefinition workflowArchitectDefinition() {
-        Set<String> tools = new LinkedHashSet<>();
-        tools.add("query");
-        tools.add("manage");
-        tools.add("applyWorkflow");
-
         return AgentDefinition.builder()
             .id("workflow-architect")
             .name("工作流架构师（自治）")
@@ -232,9 +238,9 @@ public class AgentAssembly {
             .source("builtin")
             .systemPromptConfigKey(ARCHITECT_PROMPT_KEY)
             .llmProviderId(OpenAiCompatibleLlmProvider.PROVIDER_ID)
-            .toolNames(tools)
+            .toolNames(v2Tools())
             .executionMode(ToolExecutionMode.BACKEND)
-            .maxTurns(6)
+            .maxTurns(8)
             .sortOrder(20)
             .build();
     }
@@ -245,22 +251,13 @@ public class AgentAssembly {
      * 因此关掉窗口对话照常跑完，多窗口共享同一份会话与产物。
      */
     private AgentDefinition workspaceBackendDefinition() {
-        Set<String> tools = new LinkedHashSet<>();
-        tools.add("query");
-        tools.add("manage");
-        tools.add("applyWorkflow");
-        tools.add("canvas");
-        tools.add("navigate");
-        tools.add("createPlan");
-        tools.add("executeStep");
-
         return AgentDefinition.builder()
             .id("workspace-backend")
             .name("工作区助手（后端自治）")
             .description("前端仅展示、后端自治的通用助手：对话循环与工具执行都在服务端")
             .source("builtin")
             .llmProviderId(OpenAiCompatibleLlmProvider.PROVIDER_ID)
-            .toolNames(tools)
+            .toolNames(v2Tools())
             .executionMode(ToolExecutionMode.BACKEND)
             // 实测 10 轮不够：占位修正+重落版+试运行的常规链路就会触顶截断（话说到一半被掐）
             .maxTurns(18)
@@ -272,20 +269,12 @@ public class AgentAssembly {
      * 方舟托管助手：对话循环托管给火山方舟 Managed Agents（engine=ark）。
      *
      * <p>远端绑定与连接参数来自 {@code provider_config:ark}（apiKey / environmentId /
-     * defaultAgentId）。工具只暴露后端可执行的子集 —— 前端专属工具（canvas / navigate）
-     * 在方舟 Custom Tool 协议里没有执行方，暴露只会得到 unavailable 回执。</p>
+     * defaultAgentId）。v2 工具全部可在服务端执行，Custom Tool 协议都有执行方。</p>
      *
      * <p>sortOrder 给大（50）：不参与隐式路由，仅当 provider_config:ark.defaultAgentId
      * 指向本定义（或调用方显式指定 agentId）时被选中。</p>
      */
     private AgentDefinition arkAssistantDefinition() {
-        Set<String> tools = new LinkedHashSet<>();
-        tools.add("query");
-        tools.add("manage");
-        tools.add("applyWorkflow");
-        tools.add("createPlan");
-        tools.add("executeStep");
-
         String remoteAgentId;
         try {
             remoteAgentId = providerConfigService.getArkConfig().getDefaultAgentId();
@@ -301,7 +290,7 @@ public class AgentAssembly {
             .source("builtin")
             .engine("ark")
             .arkAgentId(remoteAgentId)
-            .toolNames(tools)
+            .toolNames(v2Tools())
             .executionMode(ToolExecutionMode.BACKEND)
             .sortOrder(50)
             .build();
