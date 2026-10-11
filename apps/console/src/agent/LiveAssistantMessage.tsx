@@ -2,13 +2,20 @@
  * LiveAssistantMessage —— 流式期间 live 助手消息的时间线渲染体（对标 dsh）。
  *
  * 展示逻辑与真实调用链路一致：思考 → 工具 → 思考 → 工具 → … → 正文，
- * 按事件到达顺序交错渲染；write/save_workflow 的应用卡内联在对应工具
- * 行之后（不再是悬浮在对话尾部的孤儿卡）。
+ * 按事件到达顺序交错渲染。
  *
- * 性能：正文/思考直接订阅 liveStreamStore（三重 rAF 合帧），token 更新
- * 不触发 messages state 变化，历史行零重渲染；已收尾文本段 memo 缓存。
+ * 性能（条目级 memo 契约）：
+ *   · 合帧层（store，~20fps）保证发布频率；本层保证单次发布的渲染成本——
+ *     时间线条目全部 React.memo，timeline 拷贝时未变条目复用旧引用即 bail out，
+ *     每帧只有「正在生长的那一条」真正重渲染。
+ *   · 尾块 Markdown 以 200ms 节流降频重解析（对标 dsh transient-chunk 轻 DOM：
+ *     活动尾行低频换装，收尾后一次性完整渲染），settled 段零重解析。
+ *
+ * shimmer 语义（条目自身完备性驱动，不靠 run 级标志透传）：
+ *   条目仅在自己的 closed !== true 且连接未中断时才流式闪烁；
+ *   工具/通知入场、run 终态、断线重连任一发生即停 —— 已完成的思考块永远安静。
  */
-import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 
 import { liveStreamStore } from './live-stream-store';
 import type { TimelineItem } from './types';
@@ -16,7 +23,6 @@ import Markdown from './Markdown';
 import { t } from '../i18n';
 import { CHAT } from '../chat/theme';
 import { StepRow } from '../chat/ToolSteps';
-import { ApplyWorkflowCard } from '../chat/ArtifactCards';
 
 /** 已收尾文本块的 memo 化渲染 */
 const MemoText: React.FC<{ text: string }> = React.memo(({ text }) => (
@@ -34,7 +40,7 @@ function latestCompletedFirstLine(text: string): string {
 }
 
 /** 思考行：思考图标 + 首行摘要（流式 shimmer），展开完整正文（dsh ReasoningRow） */
-const ThinkingItem: React.FC<{ text: string; live?: boolean }> = ({ text, live }) => {
+const ThinkingItem: React.FC<{ text: string; live?: boolean }> = React.memo(({ text, live }) => {
   const [open, setOpen] = useState(false);
   const summary = live ? latestCompletedFirstLine(text) : (text.split('\n')[0] || '').split('**').join('');
   return (
@@ -120,10 +126,26 @@ const ThinkingItem: React.FC<{ text: string; live?: boolean }> = ({ text, live }
       )}
     </div>
   );
-};
+});
 
-/** 文本块：按段落切块，已收尾段落 memo（每帧只重解析尾段） */
-const TextItem: React.FC<{ text: string; streaming?: boolean }> = ({ text, streaming }) => {
+/** 值节流：高频 value 以固定间隔采样（尾块 Markdown 重解析降频用） */
+function useThrottledValue<T>(value: T, ms: number): T {
+  const [delayed, setDelayed] = useState(value);
+  const latestRef = useRef(value);
+  latestRef.current = value;
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setDelayed((prev) => (Object.is(prev, latestRef.current) ? prev : latestRef.current));
+    }, ms);
+    return () => clearInterval(timer);
+  }, [ms]);
+  return delayed;
+}
+
+const TAIL_PARSE_INTERVAL_MS = 200;
+
+/** 文本块：按段落切块，已收尾段落 memo；活动尾块 Markdown 降频重解析 */
+const TextItem: React.FC<{ text: string; streaming?: boolean }> = React.memo(({ text, streaming }) => {
   const blocks = useMemo(() => {
     if (!streaming) return { settled: [text], tail: '' };
     // 流式中：按空行分块，最后一块视为未收尾
@@ -131,42 +153,178 @@ const TextItem: React.FC<{ text: string; streaming?: boolean }> = ({ text, strea
     if (parts.length <= 1) return { settled: [], tail: text };
     return { settled: parts.slice(0, -1), tail: parts[parts.length - 1] };
   }, [text, streaming]);
+  // 活动尾块：markdown 解析 200ms 节流（每帧字符串追加不重解析，对标 dsh transient chunk）
+  const throttledTail = useThrottledValue(blocks.tail, TAIL_PARSE_INTERVAL_MS);
   return (
     <div className="md-body">
       {blocks.settled.map((b, i) => (
         <MemoText key={i} text={b} />
       ))}
-      {blocks.tail && <Markdown content={blocks.tail} optionsDisabled />}
+      {blocks.tail && (
+        <Markdown content={streaming ? throttledTail : blocks.tail} optionsDisabled />
+      )}
+    </div>
+  );
+});
+
+/** 系统通知条（护栏复读警报 / wrap_up / 重试 / 中断 / 压缩播报）：dsh 式 notice 行 */
+const NoticeItem: React.FC<{ text: string; source?: string; meta?: Record<string, any> }> = React.memo(
+  ({ text, source, meta }) => {
+    const warn = source === 'repeat' || source === 'wrap_up';
+    // llm_retry：带退避倒计时条（对标 OWB 结构化 attempt/delayMs 播报）
+    if (source === 'llm_retry' && meta?.delayMs) {
+      return <RetryNotice text={text} delayMs={Number(meta.delayMs) || 0} />;
+    }
+    // run_end 时间账小结卡：耗时/工具占比/最慢步骤/失败链 + 执行追踪入口
+    if (source === 'run_summary') {
+      return <RunSummaryCard text={text} meta={meta || {}} />;
+    }
+    return (
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 6,
+          margin: '2px 0',
+          padding: '5px 10px',
+          borderRadius: 6,
+          fontSize: 12.5,
+          lineHeight: 1.55,
+          whiteSpace: 'pre-wrap',
+          color: warn ? '#b45309' : CHAT.textMuted,
+          background: warn ? 'rgba(245, 158, 11, 0.08)' : 'rgba(148, 163, 184, 0.08)',
+          border: `1px solid ${warn ? 'rgba(245, 158, 11, 0.25)' : 'rgba(148, 163, 184, 0.2)'}`,
+        }}
+      >
+        <span style={{ flexShrink: 0 }}>{warn ? '🛡️' : source === 'compaction' ? '📜' : 'ℹ️'}</span>
+        <span style={{ minWidth: 0 }}>{text}</span>
+      </div>
+    );
+  }
+);
+
+/** 重试倒计时条：delayMs 内线性收缩的进度线 */
+const RetryNotice: React.FC<{ text: string; delayMs: number }> = ({ text, delayMs }) => {
+  const [remaining, setRemaining] = useState(delayMs);
+  useEffect(() => {
+    const started = Date.now();
+    const timer = setInterval(() => {
+      const left = delayMs - (Date.now() - started);
+      setRemaining(Math.max(0, left));
+      if (left <= 0) clearInterval(timer);
+    }, 100);
+    return () => clearInterval(timer);
+  }, [delayMs]);
+  const pct = delayMs > 0 ? Math.max(0, Math.min(100, (remaining / delayMs) * 100)) : 0;
+  return (
+    <div
+      style={{
+        margin: '2px 0',
+        padding: '5px 10px 7px',
+        borderRadius: 6,
+        fontSize: 12.5,
+        lineHeight: 1.55,
+        color: CHAT.textMuted,
+        background: 'rgba(148, 163, 184, 0.08)',
+        border: '1px solid rgba(148, 163, 184, 0.2)',
+      }}
+    >
+      <div>ℹ️ {text}</div>
+      <div style={{ marginTop: 4, height: 3, borderRadius: 2, background: 'rgba(148, 163, 184, 0.25)', overflow: 'hidden' }}>
+        <div
+          style={{
+            height: '100%',
+            width: `${pct}%`,
+            background: CHAT.accent,
+            transition: 'width .12s linear',
+          }}
+        />
+      </div>
     </div>
   );
 };
 
-/** 时间线渲染：交错条目 + 内联应用卡 + 轮状态行 */
+/** run 时间账小结卡：失败链徽标 + 「执行追踪」入口（OWB 收尾时间账对标） */
+const RunSummaryCard: React.FC<{ text: string; meta: Record<string, any> }> = ({ text, meta }) => {
+  const chain: string[] = Array.isArray(meta.failureChain) ? meta.failureChain : [];
+  const failed = meta.outcome === 'error' || chain.some((c) => !c.startsWith('wrap_up'));
+  const slowest: Array<{ name: string; durationMs: number }> = Array.isArray(meta.slowestTools)
+    ? meta.slowestTools
+    : [];
+  return (
+    <div
+      style={{
+        margin: '2px 0',
+        padding: '6px 10px',
+        borderRadius: 6,
+        fontSize: 12,
+        lineHeight: 1.6,
+        color: CHAT.textMuted,
+        background: failed ? 'rgba(239, 68, 68, 0.06)' : 'rgba(148, 163, 184, 0.08)',
+        border: `1px solid ${failed ? 'rgba(239, 68, 68, 0.25)' : 'rgba(148, 163, 184, 0.2)'}`,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <span>{text}</span>
+        {chain.map((c, i) => (
+          <span
+            key={i}
+            style={{
+              padding: '0 6px',
+              borderRadius: 4,
+              fontSize: 11,
+              color: '#b45309',
+              background: 'rgba(245, 158, 11, 0.12)',
+            }}
+            title="失败归因链：护栏/重试/触顶的结构化标记"
+          >
+            {c}
+          </span>
+        ))}
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent('gaia-open-trace'))}
+          style={{
+            marginLeft: 'auto',
+            border: 'none',
+            background: 'transparent',
+            color: CHAT.accent,
+            cursor: 'pointer',
+            fontSize: 12,
+            padding: 0,
+          }}
+        >
+          执行追踪 →
+        </button>
+      </div>
+      {slowest.length > 0 && (
+        <div style={{ marginTop: 2, color: CHAT.textFaint }}>
+          最慢：{slowest.map((s) => `${s.name} ${(s.durationMs / 1000).toFixed(1)}s`).join(' · ')}
+        </div>
+      )}
+    </div>
+  );
+};
+
+/** 时间线渲染：交错条目 + 轮状态行。
+ *  connected=false（断线重连中）时所有条目一律按已收尾渲染 —— 重连期不得假装还在流式。 */
 export const TimelineView: React.FC<{
   timeline: TimelineItem[];
   streaming: boolean;
-  pendingConfirm?: { toolCallId: string; action: string; args: Record<string, unknown> } | null;
-  onResolveConfirm?: (approved: boolean) => void;
-}> = ({ timeline, streaming, pendingConfirm, onResolveConfirm }) => (
+  connected?: boolean;
+}> = ({ timeline, streaming, connected = true }) => (
   <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
     {timeline.map((item) => {
       if (item.kind === 'thinking') {
-        return <ThinkingItem key={item.id} text={item.text} live={streaming} />;
+        const live = streaming && connected && item.closed !== true;
+        return <ThinkingItem key={item.id} text={item.text} live={live} />;
+      }
+      if (item.kind === 'notice') {
+        return <NoticeItem key={item.id} text={item.text} source={item.source} meta={item.meta} />;
       }
       if (item.kind === 'tool') {
-        const isPendingConfirm = pendingConfirm?.toolCallId === item.id;
-        return (
-          <React.Fragment key={item.id}>
-            <StepRow call={item.call} defaultOpen={streaming} />
-            {isPendingConfirm && onResolveConfirm && (
-              <div style={{ margin: '4px 0 2px 12px' }}>
-                <ApplyWorkflowCard args={pendingConfirm!.args} onResolve={onResolveConfirm} />
-              </div>
-            )}
-          </React.Fragment>
-        );
+        return <StepRow key={item.id} call={item.call} defaultOpen={streaming} />;
       }
-      return <TextItem key={item.id} text={item.text} streaming={streaming} />;
+      return <TextItem key={item.id} text={item.text} streaming={streaming && connected && item.closed !== true} />;
     })}
   </div>
 );
@@ -183,6 +341,12 @@ const StreamStatusBar: React.FC = () => {
   if (!state.streaming) return null;
 
   const elapsed = state.startedAt ? (Date.now() - state.startedAt) / 1000 : 0;
+  const reconnecting = state.connection === 'reconnecting';
+  // 卡死中判定：streaming 且 >90s 无任何事件到达（对标 OWB「中断」态，不假装还在跑）
+  const stalled =
+    state.startedAt > 0 &&
+    state.lastEventAt > 0 &&
+    Date.now() - state.lastEventAt > 90000;
   return (
     <div
       style={{
@@ -195,28 +359,36 @@ const StreamStatusBar: React.FC = () => {
         userSelect: 'none',
       }}
     >
-      <span
-        style={{
-          width: 10,
-          height: 10,
-          border: `1.5px solid ${CHAT.line}`,
-          borderTopColor: CHAT.accent,
-          borderRadius: '50%',
-          animation: 'chat-spin .8s linear infinite',
-          display: 'inline-block',
-          flexShrink: 0,
-        }}
-      />
-      {state.maxTurns > 0 ? (
-        <span>{t('chat.streamTurn', { turn: state.turn, max: state.maxTurns })}</span>
+      {reconnecting ? (
+        <span style={{ color: '#b45309' }}>⚠ {t('chat.reconnecting')}</span>
+      ) : stalled ? (
+        <span style={{ color: '#b45309' }}>⚠ 运行疑似卡住（超过 90s 无事件），可停止后重试</span>
       ) : (
-        <span title="当前上下文 token 估算（超过阈值会自动压缩）">
-          {t('chat.streamTurnOnly', { turn: state.turn })}
-          {state.contextTokens > 0 && ` · ≈${state.contextTokens} tok`}
-        </span>
-      )}
-      {state.currentTool && (
-        <span style={{ color: CHAT.accent, fontWeight: 500 }}>{state.currentTool}</span>
+        <>
+          <span
+            style={{
+              width: 10,
+              height: 10,
+              border: `1.5px solid ${CHAT.line}`,
+              borderTopColor: CHAT.accent,
+              borderRadius: '50%',
+              animation: 'chat-spin .8s linear infinite',
+              display: 'inline-block',
+              flexShrink: 0,
+            }}
+          />
+          {state.maxTurns > 0 ? (
+            <span>{t('chat.streamTurn', { turn: state.turn, max: state.maxTurns })}</span>
+          ) : (
+            <span title="当前上下文 token 估算（超过阈值会自动压缩）">
+              {t('chat.streamTurnOnly', { turn: state.turn })}
+              {state.contextTokens > 0 && ` · ≈${state.contextTokens} tok`}
+            </span>
+          )}
+          {state.currentTool && (
+            <span style={{ color: CHAT.accent, fontWeight: 500 }}>{state.currentTool}</span>
+          )}
+        </>
       )}
       <span style={{ marginLeft: 'auto', color: CHAT.textFaint }}>{elapsed.toFixed(1)}s</span>
     </div>
@@ -243,19 +415,11 @@ const WaitingDots: React.FC = () => (
 );
 
 /**
- * live 助手消息渲染体：时间线走 store；确认卡内联；
+ * live 助手消息渲染体：时间线走 store；
  * 工具步骤等结构化内容由 store.timeline 驱动（结构性事件低频）。
  */
-export const LiveAssistantContent: React.FC<{
-  onResolveConfirm?: (approved: boolean) => void;
-  /**
-   * 挂起确认的权威来源（AgentContext React state）：SSE 重连/页面刷新后
-   * 快照恢复可靠；store 副本在 beginRun 时会被重置，只作兜底。
-   */
-  pendingConfirm?: { toolCallId: string; action: string; args: Record<string, unknown> } | null;
-}> = ({ onResolveConfirm, pendingConfirm }) => {
+export const LiveAssistantContent: React.FC = () => {
   const state = useSyncExternalStore(liveStreamStore.subscribe, liveStreamStore.getSnapshot);
-  const effectiveConfirm = pendingConfirm !== undefined ? pendingConfirm : state.pendingConfirm;
   const empty = state.timeline.length === 0;
   return (
     <div>
@@ -263,15 +427,8 @@ export const LiveAssistantContent: React.FC<{
         <TimelineView
           timeline={state.timeline}
           streaming={state.streaming}
-          pendingConfirm={effectiveConfirm}
-          onResolveConfirm={onResolveConfirm}
+          connected={state.connection !== 'reconnecting'}
         />
-      )}
-      {empty && effectiveConfirm && onResolveConfirm && (
-        /* timeline 尚空但确认已挂起（边界时序）：卡不能等 timeline */
-        <div style={{ margin: '4px 0 2px 12px' }}>
-          <ApplyWorkflowCard args={effectiveConfirm.args} onResolve={onResolveConfirm} />
-        </div>
       )}
       <StreamStatusBar />
     </div>

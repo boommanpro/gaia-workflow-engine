@@ -202,4 +202,28 @@ class SessionWorkflowDraftOpsTest {
         service.markApplied("s1", "wf_a", 4L);
         assertEquals(4L, service.getBaseRevision("s1"));
     }
+
+    @Test
+    @DisplayName("空壳 updateNode 的 fix 附节点当前配置（弱模型自修复依据）")
+    void emptyUpdateNodeFixCarriesCurrentData() {
+        service.bindFromVersion("s1", "wf_a", 3L, JSONUtil.parseObj(START_DOC));
+        SessionWorkflowDraftService.OpsOutcome outcome = service.applyOps("s1",
+            ops("{\"op\":\"updateNode\",\"nodeId\":\"start_0\"}").getJSONArray("ops"));
+        assertFalse(outcome.ok, "空壳 updateNode 必须被拒绝");
+        assertEquals(1, outcome.violations.size());
+        String fix = outcome.violations.get(0).getFix();
+        // fix 里必须带节点的当前 data，模型抄下来改字段即可修复
+        assertTrue(fix.contains("start_0"), "fix 应点名节点：" + fix);
+        assertTrue(fix.contains("outputs"), "fix 应附节点当前配置：" + fix);
+        assertTrue(fix.contains("updateNode"), "fix 应给可拷贝的目标形状：" + fix);
+    }
+
+    @Test
+    @DisplayName("updateNode 只带 title 合法（title 或 data 其一即可）")
+    void titleOnlyUpdateNodeIsValid() {
+        service.bindFromVersion("s1", "wf_a", 3L, JSONUtil.parseObj(START_DOC));
+        SessionWorkflowDraftService.OpsOutcome outcome = service.applyOps("s1",
+            ops("{\"op\":\"updateNode\",\"nodeId\":\"start_0\",\"title\":\"输入节点\"}").getJSONArray("ops"));
+        assertTrue(outcome.ok, String.valueOf(outcome.violations));
+    }
 }

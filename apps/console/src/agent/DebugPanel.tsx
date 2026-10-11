@@ -11,6 +11,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { IconClose, IconCopy } from '@douyinfe/semi-icons';
 import { useAgent } from './AgentContext';
 import { useLanguage, t } from '../i18n';
+import { TraceView } from './TraceView';
 
 export interface DebugEntry {
   id: string;
@@ -118,6 +119,14 @@ export const DebugPanel: React.FC<{
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   // 当前查看原始数据的条目
   const [rawEntry, setRawEntry] = useState<DebugEntry | null>(null);
+  // 面板视图：calls = 调用日志（原视图）；trace = 执行追踪（run 列表 + 事件回放 + LLM 账本）
+  const [view, setView] = useState<'calls' | 'trace'>('calls');
+  // 时间账卡「执行追踪 →」按钮经 window 事件切到 trace 视图
+  useEffect(() => {
+    const handler = () => setView('trace');
+    window.addEventListener('gaia-open-trace', handler);
+    return () => window.removeEventListener('gaia-open-trace', handler);
+  }, []);
   // 列表容器引用，用于聚焦时滚动定位
   const listRef = React.useRef<HTMLDivElement | null>(null);
 
@@ -213,7 +222,26 @@ export const DebugPanel: React.FC<{
             )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {(!externalMode || onClearEntries) && (
+            {/* 视图切换：调用日志 / 执行追踪 */}
+            <div style={{ display: 'flex', borderRadius: 4, overflow: 'hidden', border: '1px solid #e0e0e6' }}>
+              {(['calls', 'trace'] as const).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setView(v)}
+                  style={{
+                    padding: '2px 10px',
+                    fontSize: '11px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    background: view === v ? ACCENT : 'var(--g-bg-raised)',
+                    color: view === v ? '#fff' : 'var(--g-text-sub)',
+                  }}
+                >
+                  {v === 'calls' ? t('agent.debugTitle') : '执行追踪'}
+                </button>
+              ))}
+            </div>
+            {view === 'calls' && (!externalMode || onClearEntries) && (
               <button
                 onClick={handleClear}
                 style={{
@@ -256,7 +284,9 @@ export const DebugPanel: React.FC<{
 
         {/* Content */}
         <div ref={listRef} style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
-          {reversed.length === 0 ? (
+          {view === 'trace' ? (
+            <TraceView sessionKey={currentSessionKey} />
+          ) : reversed.length === 0 ? (
             <div style={{ textAlign: 'center', color: 'var(--g-text-muted)', fontSize: '12px', marginTop: '40px' }}>
               {t('agent.debugEmpty')}
             </div>
@@ -338,7 +368,6 @@ export const DebugPanel: React.FC<{
                           value={`${ctx.ragChunks} (${ctx.ragMs}ms)${ctx.ragDegraded ? ' · 关键词降级' : ''}`}
                           color={ctx.ragDegraded ? '#e5404e' : '#d46b08'}
                         />
-                        <ContextBadge label={t('agent.debugGraph')} value={`${ctx.graphNodes} (${ctx.graphMs}ms)`} color="#cf1322" />
                         <ContextBadge label={t('agent.debugHistory')} value={`${ctx.historyMessages} 条`} color="#555" />
                         <ContextBadge label={t('agent.debugSystemPrompt')} value={`${ctx.systemPromptChars} 字`} color="#555" />
                         <ContextBadge label={t('agent.debugTotalMessages')} value={`${ctx.totalMessages}`} color="#555" />
@@ -368,15 +397,6 @@ export const DebugPanel: React.FC<{
                           content={ctx.nodeKbContext}
                           color="#531dab"
                           bg="#f9f0ff"
-                        />
-                      )}
-                      {/* 知识图谱内容（可折叠） */}
-                      {ctx.graphContext && ctx.graphContext.trim() && (
-                        <ContextContentBlock
-                          label={`知识图谱 (${ctx.graphNodes} 节点, ${ctx.graphMs}ms)`}
-                          content={ctx.graphContext}
-                          color="#cf1322"
-                          bg="#fff1f0"
                         />
                       )}
                     </div>
@@ -969,7 +989,7 @@ const ContextBadge: React.FC<{ label: string; value: string; color: string }> = 
   </span>
 );
 
-/** 上下文内容块（可折叠）— 展示 RAG / 节点知识库 / 图谱 命中的具体内容 */
+/** 上下文内容块（可折叠）— 展示 RAG / 节点知识库 命中的具体内容 */
 const ContextContentBlock: React.FC<{ label: string; content: string; color: string; bg: string }> = ({ label, content, color, bg }) => {
   const [open, setOpen] = useState(false);
   const preview = content.length > 100 ? content.slice(0, 100).replace(/\n/g, ' ') + '…' : content.replace(/\n/g, ' ');

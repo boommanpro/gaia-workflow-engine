@@ -34,6 +34,14 @@ public class SessionEventBus {
 
     private final ConcurrentMap<String, Channel> channels = new ConcurrentHashMap<>();
 
+    /** 可选录制器（agent.dev.record-events-dir 配置后装配）；录制失败不影响主链路 */
+    private volatile SessionEventRecorder recorder;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setEventRecorder(SessionEventRecorder recorder) {
+        this.recorder = recorder;
+    }
+
     /** 订阅者：返回 false 表示连接已失效，总线会将其移除 */
     public interface Subscriber {
         boolean send(String type, JSONObject data);
@@ -86,6 +94,14 @@ public class SessionEventBus {
             }
         }
         broadcast(channel, type, data);
+        SessionEventRecorder sink = recorder;
+        if (sink != null) {
+            try {
+                sink.record(sessionKey, type, data);
+            } catch (Exception e) {
+                log.debug("[event-bus] recorder failed (ignored): {}", e.getMessage());
+            }
+        }
     }
 
     /**
@@ -179,6 +195,9 @@ public class SessionEventBus {
         }
     }
 
+    /** 快照时间线条目上限（防超长 run 把快照撑爆；头部丢弃） */
+    private static final int SNAPSHOT_TIMELINE_CAP = 200;
+
     /** 事件流反哺「当前运行快照」，让新订阅者拿到此刻画面而不是从头回放 */
     private void applyToSnapshot(Channel channel, String type, JSONObject data) {
         JSONObject state = channel.latestState;
@@ -196,6 +215,14 @@ public class SessionEventBus {
                 String content = data.getStr("content", "");
                 String existing = state.getStr("assistantContent", "");
                 state.set("assistantContent", existing + content);
+                appendTimeline(state, "text", content);
+                break;
+            }
+            case "thinking": {
+                String chunk = data.getStr("content", "");
+                String existing = state.getStr("thinking", "");
+                state.set("thinking", existing + chunk);
+                appendTimeline(state, "thinking", chunk);
                 break;
             }
             case "tool_call": {
@@ -211,23 +238,55 @@ public class SessionEventBus {
                     .set("args", data.get("args"))
                     .set("status", "running");
                 calls.add(entry);
+                appendTimelineTool(state, entry);
                 break;
             }
             case "tool_result": {
                 JSONArray calls = state.getJSONArray("toolCalls");
-                if (calls == null) {
-                    break;
-                }
                 String toolCallId = data.getStr("toolCallId");
-                for (int i = 0; i < calls.size(); i++) {
-                    JSONObject entry = calls.getJSONObject(i);
-                    if (toolCallId != null && toolCallId.equals(entry.getStr("id"))) {
-                        entry.set("status", "done");
-                        entry.set("rejected", data.getBool("rejected", false));
-                        entry.set("result", data.getStr("payload", ""));
-                        break;
+                String payload = data.getStr("payload", "");
+                if (calls != null) {
+                    for (int i = 0; i < calls.size(); i++) {
+                        JSONObject entry = calls.getJSONObject(i);
+                        if (toolCallId != null && toolCallId.equals(entry.getStr("id"))) {
+                            entry.set("status", "done");
+                            entry.set("rejected", data.getBool("rejected", false));
+                            entry.set("result", payload);
+                            break;
+                        }
                     }
                 }
+                // 时间线里的工具条目同步回填结果（快照恢复时工具卡才有终态）
+                JSONArray timeline = state.getJSONArray("timeline");
+                if (timeline != null) {
+                    for (int i = timeline.size() - 1; i >= 0; i--) {
+                        JSONObject item = timeline.getJSONObject(i);
+                        if ("tool".equals(item.getStr("kind")) && toolCallId != null
+                            && toolCallId.equals(item.getStr("id"))) {
+                            JSONObject call = item.getJSONObject("call");
+                            if (call != null) {
+                                call.set("result", payload != null && payload.length() > 600
+                                    ? payload.substring(0, 600) : payload);
+                            }
+                            break;
+                        }
+                    }
+                }
+                break;
+            }
+            case "repeat_reminder":
+            case "wrap_up":
+            case "llm_retry":
+            case "interrupted": {
+                // 护栏/韧性事件进时间线：刷新/重连后用户能看到"为什么停、为什么重试"
+                String text = data.getStr("message", "");
+                if (text == null || text.isEmpty()) {
+                    text = data.getStr("content", "");
+                }
+                if (text == null || text.isEmpty()) {
+                    text = "系统提示：" + type;
+                }
+                appendTimelineNotice(state, type, text);
                 break;
             }
             case "artifact": {
@@ -299,6 +358,68 @@ public class SessionEventBus {
             default:
                 // document / ui_action / plan 等不影响运行快照，只进缓冲与实时广播
                 break;
+        }
+    }
+
+    // ---------------- 快照时间线（刷新/重连后重建交错画面的依据） ----------------
+
+    /** 追加文本/思考类时间线条目（相邻同 kind 续写，与前端 live 行为一致） */
+    private void appendTimeline(JSONObject state, String kind, String text) {
+        if (text == null || text.isEmpty()) {
+            return;
+        }
+        JSONArray timeline = state.getJSONArray("timeline");
+        if (timeline == null) {
+            timeline = new JSONArray();
+            state.set("timeline", timeline);
+        }
+        if (!timeline.isEmpty()) {
+            JSONObject last = timeline.getJSONObject(timeline.size() - 1);
+            if (kind.equals(last.getStr("kind")) && last.containsKey("text")) {
+                last.set("text", last.getStr("text", "") + text);
+                return;
+            }
+        }
+        timeline.add(new JSONObject()
+            .set("kind", kind)
+            .set("id", "snap-" + kind + "-" + timeline.size())
+            .set("text", text));
+        capTimeline(timeline);
+    }
+
+    /** 追加工具类时间线条目（call 对象与 toolCalls 数组里的条目同引用，tool_result 一处回填两处生效） */
+    private void appendTimelineTool(JSONObject state, JSONObject callEntry) {
+        JSONArray timeline = state.getJSONArray("timeline");
+        if (timeline == null) {
+            timeline = new JSONArray();
+            state.set("timeline", timeline);
+        }
+        JSONObject item = new JSONObject()
+            .set("kind", "tool")
+            .set("id", callEntry.getStr("id"))
+            .set("call", callEntry);
+        timeline.add(item);
+        capTimeline(timeline);
+    }
+
+    /** 追加系统通知（护栏/重试/中断） */
+    private void appendTimelineNotice(JSONObject state, String source, String text) {
+        JSONArray timeline = state.getJSONArray("timeline");
+        if (timeline == null) {
+            timeline = new JSONArray();
+            state.set("timeline", timeline);
+        }
+        timeline.add(new JSONObject()
+            .set("kind", "notice")
+            .set("id", "snap-notice-" + timeline.size())
+            .set("source", source)
+            .set("text", text));
+        capTimeline(timeline);
+    }
+
+    private void capTimeline(JSONArray timeline) {
+        while (timeline.size() > SNAPSHOT_TIMELINE_CAP) {
+            timeline.remove(0);
         }
     }
 }

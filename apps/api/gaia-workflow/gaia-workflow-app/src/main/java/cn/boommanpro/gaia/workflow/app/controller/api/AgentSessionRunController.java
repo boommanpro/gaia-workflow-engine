@@ -1,8 +1,8 @@
 package cn.boommanpro.gaia.workflow.app.controller.api;
 
-import cn.boommanpro.gaia.workflow.app.agent.core.ToolPolicyService;
 import cn.boommanpro.gaia.workflow.app.agent.session.AgentSessionRunService;
 import cn.boommanpro.gaia.workflow.app.agent.session.SessionArtifactStore;
+import cn.boommanpro.gaia.workflow.app.agent.session.SessionCompactionService;
 import cn.boommanpro.gaia.workflow.app.agent.session.SessionEventBus;
 import cn.boommanpro.gaia.workflow.app.agent.session.SessionWorkflowDraftService;
 import cn.boommanpro.gaia.workflow.infra.manage.entity.GaiaWorkflow;
@@ -44,7 +44,7 @@ public class AgentSessionRunController {
 
     private final AgentSessionRunService runService;
     private final SessionWorkflowDraftService draftService;
-    private final ToolPolicyService toolPolicyService;
+    private final SessionCompactionService compactionService;
     private final SessionArtifactStore artifactStore;
     private final GaiaWorkflowService workflowService;
     private final GaiaWorkflowVersionService workflowVersionService;
@@ -52,14 +52,14 @@ public class AgentSessionRunController {
 
     public AgentSessionRunController(AgentSessionRunService runService,
                                      SessionWorkflowDraftService draftService,
-                                     ToolPolicyService toolPolicyService,
+                                     SessionCompactionService compactionService,
                                      SessionArtifactStore artifactStore,
                                      GaiaWorkflowService workflowService,
                                      GaiaWorkflowVersionService workflowVersionService,
                                      SessionEventBus eventBus) {
         this.runService = runService;
         this.draftService = draftService;
-        this.toolPolicyService = toolPolicyService;
+        this.compactionService = compactionService;
         this.artifactStore = artifactStore;
         this.workflowService = workflowService;
         this.workflowVersionService = workflowVersionService;
@@ -120,20 +120,12 @@ public class AgentSessionRunController {
     }
 
     /**
-     * 当前挂起的确认（require 模式）：页面刷新/重连后前端立即恢复确认卡，
-     * 不依赖 20s 心跳重发。无挂起返回 {pending: false}。
+     * 手动压缩会话历史：把前半段（user 消息边界安全切分）摘要为一条 user 消息，
+     * 被压缩消息标记 compacted=1 不再进入模型上下文（surface replace 语义）。
      */
-    @GetMapping("/{sessionKey}/pending-confirm")
-    public Map<String, Object> pendingConfirm(@PathVariable String sessionKey) {
-        JSONObject pending = toolPolicyService.getPendingConfirm(sessionKey);
-        if (pending == null) {
-            return new JSONObject().set("pending", false);
-        }
-        return new JSONObject()
-            .set("pending", true)
-            .set("toolCallId", pending.getStr("toolCallId"))
-            .set("action", pending.getStr("action"))
-            .set("args", pending.getJSONObject("args"));
+    @PostMapping("/{sessionKey}/compact")
+    public Map<String, Object> compact(@PathVariable String sessionKey) {
+        return compactionService.compact(sessionKey);
     }
 
     /** 当前运行快照 */
@@ -149,26 +141,6 @@ public class AgentSessionRunController {
         runService.stop(sessionKey);
         JSONObject result = new JSONObject().set("success", true);
         return result;
-    }
-
-    /**
-     * 确认 / 拒绝一次等待中的工具调用（confirm require 模式）。
-     * body: { "toolCallId": "...", "approved": true }
-     */
-    @PostMapping("/{sessionKey}/confirm")
-    public Map<String, Object> confirm(@PathVariable String sessionKey,
-                                       @RequestBody Map<String, Object> body) {
-        String toolCallId = body != null && body.get("toolCallId") != null
-            ? String.valueOf(body.get("toolCallId")) : null;
-        boolean approved = body != null && Boolean.TRUE.equals(body.get("approved"));
-        if (toolCallId == null || toolCallId.isEmpty()) {
-            return new JSONObject().set("success", false).set("error", "toolCallId is required");
-        }
-        toolPolicyService.resolve(sessionKey, toolCallId, approved);
-        return new JSONObject()
-            .set("success", true)
-            .set("toolCallId", toolCallId)
-            .set("approved", approved);
     }
 
     /** 当前服务端画布草稿 */

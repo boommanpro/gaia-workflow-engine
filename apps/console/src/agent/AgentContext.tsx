@@ -1,6 +1,6 @@
 /**
  * Agent 全局状态 Context
- * 管理：会话列表、当前会话、消息流、权限配置、对话编排
+ * 管理：会话列表、当前会话、消息流、对话编排
  *
  * 对话编排已改为「纯后端自治」：
  *   sendMessage 只负责把消息 POST 给后端触发一次异步 run，
@@ -29,7 +29,6 @@ import type {
   AgentSession,
   AgentMessage,
   DisplayMessage,
-  PermissionPolicy,
   ToolCallEvent,
   PageContext,
   ActivePlan,
@@ -50,12 +49,10 @@ interface AgentContextValue {
   sessions: AgentSession[];
   currentSessionKey: string | null;
   messages: DisplayMessage[];
-  permissions: Record<string, PermissionPolicy>;
   streaming: boolean;
   /** 流式中的 live 助手消息 id（渲染层据此走 store 订阅渲染，null=无流式） */
   liveMessageId: string | null;
   queueLength: number;
-  pendingConfirm: ToolCallEvent | null;
 
   // 工作空间（文件夹分组的对话）
   folders: WorkFolder[];
@@ -93,7 +90,6 @@ interface AgentContextValue {
   openDebugEntry: (entryId: string) => void;
 
   setToolExecutor: (executor: ToolExecutor) => void;
-  resolveConfirm: (approved: boolean) => void;
 
   createSession: (title?: string, opts?: { scope?: 'chat' | 'work'; folderId?: number | null }) => Promise<string>;
   switchSession: (sessionKey: string) => Promise<void>;
@@ -101,8 +97,6 @@ interface AgentContextValue {
   deleteSession: (sessionKey: string) => Promise<void>;
   sendMessage: (text: string, images?: string[]) => Promise<void>;
   stopStreaming: () => void;
-  updatePermission: (action: string, policy: PermissionPolicy) => Promise<void>;
-  updateGlobalPermission: (action: string, policy: PermissionPolicy) => Promise<void>;
 
   // Subagent debug flow
   debugNode: (nodeId: string, instruction: string) => Promise<void>;
@@ -224,7 +218,6 @@ export function convertMessages(msgs: AgentMessage[]): DisplayMessage[] {
               id: tc.id,
               action: tc.function?.name || 'unknown',
               args,
-              policy: 'always',
               result: toolResult !== undefined ? toolResult.substring(0, 600) : undefined,
             };
             group.steps.push(step);
@@ -251,6 +244,28 @@ export function convertMessages(msgs: AgentMessage[]): DisplayMessage[] {
   }
   flush();
   return result;
+}
+
+/**
+ * 幂等合并：把 live 占位行接回历史加载结果之后（dsh 式「本地回声原子退场」的对位物）。
+ *
+ * getMessages 与 SSE 快照并发返回时，整表替换会抹掉已建立的 live 占位行 ——
+ * 一旦抹掉，liveAssistantIdRef 悬空，后续 token 只进 store 而没有任何行去渲染它，
+ * 流式内容不可见直到 done 兜底重载。历史行落位前先摘出 live 行，落位后原样接回，
+ * 流式现场不丢。
+ */
+export function appendLiveRow(
+  history: DisplayMessage[],
+  liveRow: DisplayMessage | null | undefined
+): DisplayMessage[] {
+  if (!liveRow) return history;
+  const existing = history.findIndex((m) => m.id === liveRow.id);
+  if (existing >= 0) {
+    const next = [...history];
+    next[existing] = liveRow;
+    return next;
+  }
+  return [...history, liveRow];
 }
 
 /** 用后端 plan 事件 upsert PlanCard 消息 */
@@ -342,10 +357,8 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   const [sessions, setSessions] = useState<AgentSession[]>([]);
   const [currentSessionKey, setCurrentSessionKey] = useState<string | null>(null);
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
-  const [permissions, setPermissions] = useState<Record<string, PermissionPolicy>>({});
   const [streaming, setStreaming] = useState(false);
   const [queueLength, setQueueLength] = useState(0);
-  const [pendingConfirm, setPendingConfirm] = useState<ToolCallEvent | null>(null);
   /** 订阅重启信号：草稿会话物化为真实会话时递增，强制 SSE 订阅 effect 重跑 */
   const [sessionEpoch, setSessionEpoch] = useState(0);
   // 工作空间文件夹
@@ -355,6 +368,10 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const navigateRef = useRef(navigate);
   navigateRef.current = navigate;
+  // 路由快照 ref：事件处理器内读当前路由用。订阅 effect 的 deps 不得包含
+  // location.pathname —— 否则流式中跳转 = live 现场被 reset + 重连回放（时间线闪烁）
+  const pathnameRef = useRef(location.pathname);
+  pathnameRef.current = location.pathname;
 
   // Token usage tracking
   const [tokenUsage, setTokenUsage] = useState<{ estimated: number; limit: number }>({ estimated: 0, limit: 32768 });
@@ -456,7 +473,6 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         setCurrentSessionKey(list[0].sessionKey);
       }
     }).catch(() => {});
-    agentApi.getPermissionDefaults().then(setPermissions).catch(() => {});
     agentApi.listConfigs('llm_config').then((configs) => {
       if (configs && configs.length > 0) {
         try {
@@ -477,21 +493,23 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     // 快速切换时旧请求晚到还会把别段会话的内容盖进当前对话框（跨会话串数据）
     setMessages([]);
     liveAssistantIdRef.current = null;
-    // 运行状态机是全局单例，必须随会话切换复位：
-    // streaming/pendingConfirm 不复位时，旧会话的确认卡会弹在别的会话页面上。
-    // 若旧会话 run 仍在进行，切回时订阅回放快照会重建 streaming/确认状态（关窗继续语义不变）。
+    // 运行状态机是全局单例，必须随会话切换复位。
+    // 若旧会话 run 仍在进行，切回时订阅回放快照会重建 streaming 状态（关窗继续语义不变）。
     setQueueLength(0);
     setStreaming(false);
-    setPendingConfirm(null);
     // 画布文档是模块级单例，切会话必须清空：否则上一段会话的工作流画布
     // 会残留在产物面板里，误导用户以为是当前会话的产物
     workflowDocumentStore.clear();
     agentApi.getMessages(sessionKey).then((msgs) => {
       // 竞态 guard：只有仍是当前会话的响应才允许落地
       if (currentSessionKeyRef.current !== sessionKey) return;
-      setMessages(convertMessages(msgs || []));
+      // 幂等合并：若 SSE 快照先到并建了 live 占位行，历史整表替换不得抹掉它
+      setMessages((prev) => {
+        const liveId = liveAssistantIdRef.current;
+        const liveRow = liveId ? prev.find((m) => m.id === liveId) ?? null : null;
+        return appendLiveRow(convertMessages(msgs || []), liveRow);
+      });
     }).catch(() => {});
-    agentApi.getPermissions(sessionKey).then(setPermissions).catch(() => {});
     agentApi.getArtifacts(sessionKey).then((arts) => {
       if (currentSessionKeyRef.current !== sessionKey) return;
       artifactStore.setAll(sessionKey, arts || []);
@@ -561,15 +579,6 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   const setToolExecutor = useCallback((executor: ToolExecutor) => {
     toolExecutorRef.current = executor;
   }, []);
-
-  const resolveConfirm = useCallback((approved: boolean) => {
-    const sessionKey = currentSessionKeyRef.current;
-    const pending = pendingConfirm;
-    setPendingConfirm(null);
-    // 把裁决结果回传后端，唤醒 require 模式挂起的工具调用
-    if (!sessionKey || !pending) return;
-    agentApi.confirmTool(sessionKey, pending.id, approved).catch(() => {});
-  }, [pendingConfirm]);
 
   const getPageContextJson = useCallback((): string => {
     const ctx: PageContext = { route: location.pathname };
@@ -643,29 +652,24 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const updatePermission = useCallback(async (action: string, policy: PermissionPolicy) => {
-    setPermissions((prev) => ({ ...prev, [action]: policy }));
-    if (currentSessionKey) {
-      await agentApi.updatePermission(currentSessionKey, action, policy);
-    }
-  }, [currentSessionKey]);
-
-  const updateGlobalPermission = useCallback(async (action: string, policy: PermissionPolicy) => {
-    await agentApi.updateGlobalPermission(action, policy);
-  }, []);
-
-  /** 从后端 DB 重新加载消息（一轮结束 / 出错 / 会话切换后收敛 live 态） */
-  const reloadMessages = useCallback((sessionKey: string) => {
+  /** 从后端 DB 重新加载消息（一轮结束 / 出错 / 会话切换后收敛 live 态）。
+   *  onSettled 在历史成功落位后回调（done→reload 交接协议：落位前 live 行不摘除）。 */
+  const reloadMessages = useCallback((sessionKey: string, opts?: { onSettled?: () => void }) => {
     agentApi.getMessages(sessionKey).then((msgs) => {
       // 仅在仍处于该会话时应用，避免跨会话串数据。
       // placeArtifactCards 必须在这里同步做：messages 与 artifacts 两个请求是并发的，
       // 若 artifacts 先返回 place 完成、messages 后返回直接覆盖，产物卡会被冲掉。
       if (currentSessionKeyRef.current === sessionKey) {
-        setMessages((prev) =>
-          placeArtifactCards(convertMessages(msgs || []), artifactStore.latestAll(sessionKey))
-        );
+        setMessages((prev) => {
+          const liveId = liveAssistantIdRef.current;
+          const liveRow = liveId ? prev.find((m) => m.id === liveId) ?? null : null;
+          return placeArtifactCards(appendLiveRow(convertMessages(msgs || []), liveRow), artifactStore.latestAll(sessionKey));
+        });
+        opts?.onSettled?.();
       }
-    }).catch(() => {});
+    }).catch(() => {
+      // 重载失败：保留 live 现场（store.timeline 内容仍完整可见），不摘占位
+    });
     agentApi.listSessions().then((list) => {
       if (currentSessionKeyRef.current === sessionKey) {
         setSessions(list || []);
@@ -680,6 +684,23 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /**
+   * run 收敛（done / error / stopped / run_state 终态统一入口）：
+   * store 落定（endRun 关闭全部打开条目）→ 历史重载 → 落位成功后才摘除 live 占位行。
+   * 交接期 live 行继续从 store.timeline 渲染完整内容 —— 消灭「done 后闪一帧空回复」。
+   */
+  const settleRun = useCallback((sessionKey: string) => {
+    liveStreamStore.endRun();
+    setStreaming(false);
+    reloadMessages(sessionKey, {
+      onSettled: () => {
+        if (currentSessionKeyRef.current !== sessionKey) return;
+        liveAssistantIdRef.current = null;
+        setLiveMessageId(null);
+      },
+    });
+  }, [reloadMessages]);
+
+  /**
    * 直发一条消息给后端（steering 语义）：run 进行中时后端把它注入当前运行的
    * turn 边界（或收尾时链接成新 run）—— 前端不再排队等上一条跑完。
    */
@@ -687,6 +708,10 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     setStreaming(true);
     try {
       const res = await agentApi.startRun(sessionKey, text, getPageContextJson(), images, getCurrentLocale());
+      if (res?.accepted && !liveStreamStore.getSnapshot().streaming) {
+        // 受理即开现场：turn 事件晚到时 token/thinking 也已有落点（store.streaming 语义完整）
+        liveStreamStore.beginRun();
+      }
       if (!res?.accepted) {
         setStreaming(false);
         setMessages((prev) => [
@@ -756,7 +781,9 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     [postMessage, refreshFolders]
   );
 
-  /** 停止当前运行：通知后端停止（协作式中断，主循环在下一个检查点退出） */
+  /** 停止当前运行：通知后端停止（协作式中断，主循环在下一个检查点退出）。
+   *  live 占位保留到 done/interrupted 事件触发 reload 落位后再摘除；
+   *  后端 10s 内没有终态事件时兜底强制收敛（防占位行悬挂）。 */
   const stopStreaming = useCallback(() => {
     const sessionKey = currentSessionKeyRef.current;
     if (sessionKey && !sessionKey.startsWith('draft-')) {
@@ -765,11 +792,42 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     setQueueLength(0);
     // 停止也是一轮结束：把已发生的 AI 变更定格为会话版本
     workflowDocumentStore.captureAiRunSnapshot(liveAssistantIdRef.current ?? undefined);
-    liveAssistantIdRef.current = null;
-    setLiveMessageId(null);
     liveStreamStore.endRun();
     setStreaming(false);
-  }, []);
+    if (sessionKey) {
+      setTimeout(() => {
+        if (currentSessionKeyRef.current === sessionKey && liveAssistantIdRef.current) {
+          settleRun(sessionKey);
+        }
+      }, 10000);
+    }
+  }, [settleRun]);
+
+  // ===== 会话画布草稿恢复 =====
+  // 独立于订阅 effect：路由切换不再重建 SSE 订阅（旧实现 pathname 在订阅 deps 里，
+  // 流式中跳转 = live 现场被 reset + 重连回放，表现为时间线闪烁）。
+  // 编辑器（专家模式）页面画布是主位，由工作流加载流程管理，这里不恢复。
+  useEffect(() => {
+    if (!currentSessionKey || currentSessionKey.startsWith('draft-')) return;
+    if (/^\/(editor|template-editor)/.test(location.pathname)) return;
+    const sessionKey = currentSessionKey;
+    let cancelled = false;
+    agentApi.getSessionDocument(sessionKey).then((dsl) => {
+      if (cancelled) return;
+      if (dsl && Array.isArray(dsl.nodes) && dsl.nodes.length > 0) {
+        try {
+          workflowDocumentStore.replace(WorkflowDocument.fromJSON(dsl), {
+            kind: 'replace',
+            source: 'ai',
+            reason: 'ai-edit',
+          });
+        } catch { /* ignore */ }
+      }
+    }).catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [currentSessionKey, location.pathname]);
 
   // ===== 会话级后端自治运行的事件订阅 =====
   // 会话切换时建立 SSE 订阅；事件驱动消息渲染 / 文档同步 / 队列推进
@@ -777,105 +835,45 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     if (!currentSessionKey || currentSessionKey.startsWith('draft-')) return;
     const sessionKey = currentSessionKey;
 
-    // 编辑器（专家模式）页面画布是主位，由工作流加载流程管理；
-    // 这里若用「会话的画布草稿」整表替换，会把用户正在编辑的工作流覆盖成对话产物
-    // （表现为刷新/切会话后所有工作流「长一个样」）。草稿恢复只在 AI 工作区（画布为对话产物）执行。
-    const inEditorRoute = /^\/(editor|template-editor)/.test(location.pathname);
-
-    if (!inEditorRoute) {
-      agentApi.getSessionDocument(sessionKey).then((dsl) => {
-        if (dsl && Array.isArray(dsl.nodes) && dsl.nodes.length > 0) {
-          try {
-            workflowDocumentStore.replace(WorkflowDocument.fromJSON(dsl), {
-              kind: 'replace',
-              source: 'ai',
-              reason: 'ai-edit',
-            });
-          } catch { /* ignore */ }
-        }
-      }).catch(() => {});
-    }
-
     const controller = new AbortController();
     let disposed = false;
 
     const handlers: SseHandlers = {
+      onOpen: () => {
+        if (disposed) return;
+        liveStreamStore.markConnected();
+      },
       onRunState: (data) => {
         if (disposed) return;
         const status = data?.status;
         if (status === 'running') {
           setStreaming(true);
           // 守卫：已在流式中（SSE 重连的快照回放）不得重置 store ——
-          // 否则挂起的确认卡/timeline 被清空，用户失去确认入口（300s 超时被拒）
+          // 否则挂起的 timeline/排队指示被清空，现场丢失
           if (!liveStreamStore.getSnapshot().streaming) liveStreamStore.beginRun();
-          // 用快照内容建立/同步当前助手占位
-          setMessages((prev) => {
-            if (liveAssistantIdRef.current) {
-              const idx = prev.findIndex((m) => m.id === liveAssistantIdRef.current);
-              if (idx >= 0) {
-                const updated = [...prev];
-                updated[idx] = { ...updated[idx], content: data.assistantContent ?? updated[idx].content };
-                return updated;
-              }
-            }
+          // 建立/复用 live 占位行（工具/正文一律以 store 时间线为唯一渲染源）
+          if (!liveAssistantIdRef.current) {
             const id = `live-${data.runId || Date.now()}`;
             liveAssistantIdRef.current = id;
             setLiveMessageId(id);
-            return [...prev, { id, role: 'assistant', content: '', timestamp: Date.now() }];
-          });
-          // 快照正文走 store（live 行从 store 渲染，state.content 流式期间不再逐 token 更新）
-          liveStreamStore.replaceContent(data.assistantContent || '');
-          // 快照里的工具调用按序补进时间线（含已有结果）
-          for (const call of data.toolCalls || []) {
-            if (!call?.id) continue;
-            liveStreamStore.recordTool({ id: call.id, action: call.name, args: call.args ?? {} });
-            if (call.result) liveStreamStore.resolveTool(call.id, String(call.result).substring(0, 600));
+            setMessages((prev) => [...prev, { id, role: 'assistant', content: '', timestamp: Date.now() }]);
           }
-          // 快照里挂起的确认卡恢复（重连/刷新后确认入口不能丢）：
-          // 必须在 beginRun/timeline 重建之后写 store，内联应用卡才有渲染依据
-          const pendingRestore = (data as any)?.pendingConfirm;
-          if (pendingRestore?.toolCallId) {
-            setPendingConfirm((prev) =>
-              prev && prev.id === pendingRestore.toolCallId
-                ? prev
-                : {
-                    id: pendingRestore.toolCallId,
-                    action: pendingRestore.action,
-                    args: pendingRestore.args || {},
-                    policy: 'confirm',
-                  }
-            );
-            liveStreamStore.setPendingConfirm({
-              toolCallId: pendingRestore.toolCallId,
-              action: pendingRestore.action,
-              args: pendingRestore.args || {},
-            });
+          // 快照正文走 store（live 行从 store 渲染，state.content 流式期间不再逐 token 更新）。
+          // 后端快照带交错时间线（思考/正文/工具/通知）时按真实顺序整体重建现场；
+          // 旧后端（无 timeline 字段）退化为单条文本坍缩。
+          const snapTimeline = (data as any).timeline || [];
+          if (snapTimeline.length > 0) {
+            liveStreamStore.applySnapshot(snapTimeline, data.assistantContent || '', (data as any).thinking || '');
+          } else if ((data.assistantContent || '').length > 0) {
+            liveStreamStore.replaceContent(data.assistantContent || '');
           }
-          // 用快照里的工具调用合并进 live 回复（重连恢复现场，单条回复语义）
-          const snapshotCalls = data.toolCalls || [];
-          if (snapshotCalls.length > 0) {
-            const lid = liveAssistantIdRef.current;
-            setMessages((prev) =>
-              prev.map((m) => {
-                if (m.id !== lid) return m;
-                const steps = m.toolSteps ?? [];
-                const merged = [...steps];
-                for (const call of snapshotCalls) {
-                  if (!call?.id) continue;
-                  const ev: ToolCallEvent = {
-                    id: call.id,
-                    action: call.name,
-                    args: call.args ?? {},
-                    policy: 'always',
-                    ...(call.result ? { result: String(call.result).substring(0, 200) } : {}),
-                  };
-                  const idx = merged.findIndex((s) => s.id === call.id);
-                  if (idx >= 0) merged[idx] = { ...merged[idx], ...ev };
-                  else merged.push(ev);
-                }
-                return { ...m, toolSteps: merged };
-              })
-            );
+          // 快照里的工具调用按序补进时间线（仅旧快照无 timeline 时需要；新快照已含工具条目）
+          if (snapTimeline.length === 0) {
+            for (const call of data.toolCalls || []) {
+              if (!call?.id) continue;
+              liveStreamStore.recordTool({ id: call.id, action: call.name, args: call.args ?? {} });
+              if (call.result) liveStreamStore.resolveTool(call.id, String(call.result).substring(0, 600));
+            }
           }
           // 快照里的产物列表（SessionEventBus 反哺）对齐 store（断线重连恢复现场）
           const snapshotArts = (data as any).artifacts || [];
@@ -885,12 +883,9 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
           }
         } else {
           // idle / done / error / stopped
-          // run 结束：本轮 AI 画布变更定格为一个会话版本（run 粒度），再收敛消息
+          // run 结束：本轮 AI 画布变更定格为一个会话版本（run 粒度），再走收敛协议
           workflowDocumentStore.captureAiRunSnapshot(liveAssistantIdRef.current ?? undefined);
-          liveAssistantIdRef.current = null;
-          setLiveMessageId(null);
-          liveStreamStore.endRun();
-          setStreaming(false);
+          settleRun(sessionKey);
           if (status === 'error' && data.error) {
             // 运行失败发生在 SSE 订阅建立之前时，error 事件不会被实时收到，
             // 只能从订阅回放的 run_state 快照里恢复 —— 必须在这里渲染，否则表现为「没反应」
@@ -902,7 +897,6 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
             });
           }
           if (status === 'done' || status === 'error' || status === 'stopped') {
-            reloadMessages(sessionKey);
             setQueueLength(0);
           }
         }
@@ -930,6 +924,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
           setLiveMessageId(id);
           setMessages((prev) => [...prev, { id, role: 'assistant', content: '', timestamp: Date.now() }]);
         }
+        if (!liveStreamStore.getSnapshot().streaming) liveStreamStore.beginRun();
         liveStreamStore.appendContent(content);
       },
       onThinking: (data) => {
@@ -943,39 +938,24 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
           setLiveMessageId(id);
           setMessages((prev) => [...prev, { id, role: 'assistant', content: '', timestamp: Date.now() }]);
         }
+        if (!liveStreamStore.getSnapshot().streaming) liveStreamStore.beginRun();
         liveStreamStore.appendThinking(chunk);
       },
       onToolCall: (event) => {
         if (disposed) return;
         // 结构性事件：先把缓冲的流式内容发布出去（状态行立即反映当前工具）
         liveStreamStore.flush();
+        // store 时间线是工具的唯一渲染源 —— 不再双写 m.toolSteps（双路渲染已移除）
+        if (!liveStreamStore.getSnapshot().streaming) liveStreamStore.beginRun();
         liveStreamStore.markTool(event.action);
         liveStreamStore.recordTool({ id: event.id, action: event.action, args: event.args });
-        // 工具调用合并进当前 live 回复（DeepSeek 式）；live 占位尚未建立时先建一条
+        // live 占位尚未建立时先建一条
         if (!liveAssistantIdRef.current) {
           const id = `live-${Date.now()}`;
           liveAssistantIdRef.current = id;
           setLiveMessageId(id);
-          liveStreamStore.beginRun();
-          setMessages((prev) => [
-            ...prev,
-            { id, role: 'assistant', content: '', toolSteps: [event], timestamp: Date.now() },
-          ]);
-          return;
+          setMessages((prev) => [...prev, { id, role: 'assistant', content: '', timestamp: Date.now() }]);
         }
-        const lid = liveAssistantIdRef.current;
-        setMessages((prev) =>
-          prev.map((m) => {
-            if (m.id !== lid) return m;
-            const steps = m.toolSteps ?? [];
-            return {
-              ...m,
-              toolSteps: steps.some((s) => s.id === event.id)
-                ? steps.map((s) => (s.id === event.id ? { ...s, ...event } : s))
-                : [...steps, event],
-            };
-          })
-        );
       },
       onToolResult: (data) => {
         if (disposed) return;
@@ -1012,7 +992,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         if (disposed) return;
         // 编辑器（专家模式）页面画布是主位，AI 的 document 事件同样不得整表替换 ——
         // 否则对话中的画布产物会把用户正在编辑的工作流覆盖掉
-        if (/^\/(editor|template-editor)/.test(location.pathname)) return;
+        if (/^\/(editor|template-editor)/.test(pathnameRef.current)) return;
         try {
           if (data?.dsl && Array.isArray(data.dsl.nodes) && data.dsl.nodes.length > 0) {
             workflowDocumentStore.replace(WorkflowDocument.fromJSON(data.dsl), {
@@ -1043,38 +1023,34 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         if (data?.type === 'navigate' && data.args?.target) {
           const path = navigatePathFor(data.args.target, data.args);
           // 带上来源路径：编辑器「返回」据此回到当前会话，而不是兜底首页
-          if (path) navigateRef.current(path, { state: { from: location.pathname } });
+          if (path) navigateRef.current(path, { state: { from: pathnameRef.current } });
         }
       },
-      onConfirmRequest: (data) => {
+      onGuardNotice: (data) => {
         if (disposed) return;
-        // 仅 require 模式需要人工裁决；auto-approve / auto-reject 由后端直接决策，不打扰用户
-        if (data?.mode !== 'require') return;
-        setPendingConfirm({
-          id: data.toolCallId,
-          action: data.action,
-          args: data.args || {},
-          policy: 'confirm',
-        });
-        liveStreamStore.setPendingConfirm({
-          toolCallId: data.toolCallId,
-          action: data.action,
-          args: data.args || {},
-        });
+        // 护栏/韧性事件（复读警报、wrap_up、重试、中断、压缩播报）进 live 时间线：
+        // 循环失控的痕迹必须对用户可见，而不是静默发生在后端
+        liveStreamStore.flush();
+        if (data.message) liveStreamStore.addNotice(data.message, data.source, data as any);
       },
-      onConfirmResolved: (data) => {
+      onRunEnd: (data) => {
         if (disposed) return;
-        setPendingConfirm((prev) => (prev && prev.id === data.toolCallId ? null : prev));
-        liveStreamStore.setPendingConfirm(null);
+        // run_end：时间账小结 + 结构化失败链进 live 时间线（持久视图在调试面板「执行追踪」）。
+        // done 事件先于 run_end 到达（后端 finally 里发），此时 live 时间线尚未销毁，尽力插入。
+        liveStreamStore.flush();
+        liveStreamStore.addRunSummary(data);
+      },
+      onAssistantSettled: (data) => {
+        if (disposed) return;
+        // run 收尾结算：done 事件随即触发 reloadMessages 从 DB 重建（现在带 toolCalls），
+        // 这里只需把缓冲的流式内容落定，避免收尾文本闪烁丢失
+        liveStreamStore.flush();
+        void data;
       },
       onDone: () => {
         if (disposed) return;
         workflowDocumentStore.captureAiRunSnapshot(liveAssistantIdRef.current ?? undefined);
-        liveAssistantIdRef.current = null;
-        setLiveMessageId(null);
-        liveStreamStore.endRun();
-        setStreaming(false);
-        reloadMessages(sessionKey);
+        settleRun(sessionKey);
         // 后端 run 收尾时才把调用日志写入 debug_data（在 done 事件之后），稍等片刻再拉取
         setTimeout(() => refreshDebugData(sessionKey), 1200);
         // steering 残留消息由后端链接式 run 继续（turn 事件会重新拉起 streaming）
@@ -1083,15 +1059,11 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       onError: (msg) => {
         if (disposed) return;
         workflowDocumentStore.captureAiRunSnapshot(liveAssistantIdRef.current ?? undefined);
-        liveAssistantIdRef.current = null;
-        setLiveMessageId(null);
-        liveStreamStore.endRun();
-        setStreaming(false);
+        settleRun(sessionKey);
         setMessages((prev) => [
           ...prev,
           { id: nanoid(), role: 'assistant', content: `[错误] ${msg}`, timestamp: Date.now() },
         ]);
-        reloadMessages(sessionKey);
         setTimeout(() => refreshDebugData(sessionKey), 1200);
         setQueueLength(0);
       },
@@ -1099,32 +1071,18 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
 
     // 断线自动重连：事件流中断后稍作退避重连，重连时后端会回放运行快照，
     // 因此「关窗期间跑完的 run」重新打开窗口也能立即收敛到最终状态。
+    // 重连退避期间标记 reconnecting：UI 显式呈现「连接中断」而不是假装还在流式。
     const connect = async () => {
       while (!disposed) {
         try {
-          // 订阅前先拉一次挂起确认：刷新/重连场景 0 秒恢复确认卡
-          //（后端确认挂起期间每 20s 才重发 confirm_request，等心跳用户会以为卡死了）
-          try {
-            const pending = await agentApi.getPendingConfirm(sessionKey);
-            if (!disposed && pending?.pending && pending.toolCallId) {
-              setPendingConfirm((prev) =>
-                prev && prev.id === pending.toolCallId
-                  ? prev
-                  : { id: pending.toolCallId!, action: pending.action || '', args: pending.args || {}, policy: 'confirm' }
-              );
-              liveStreamStore.setPendingConfirm({
-                toolCallId: pending.toolCallId!,
-                action: pending.action || '',
-                args: pending.args || {},
-              });
-            }
-          } catch { /* 查询失败不阻塞订阅 */ }
           await subscribeSessionEvents(sessionKey, handlers, controller.signal);
           if (disposed || controller.signal.aborted) break;
           // 流被服务端正常结束（极少）：短暂等待后重连
+          liveStreamStore.markReconnecting();
           await sleep(1500);
         } catch (e) {
           if (disposed || controller.signal.aborted) break;
+          liveStreamStore.markReconnecting();
           console.warn('[agent] session event stream error, reconnecting...', e);
           await sleep(2000);
         }
@@ -1135,23 +1093,20 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     return () => {
       disposed = true;
       controller.abort();
-      // 会话切换：挂起的确认卡不得带入新会话（表现为「一打开对话就出现应用卡」）
-      setPendingConfirm(null);
       liveStreamStore.reset();
     };
-  }, [currentSessionKey, sessionEpoch, reloadMessages, location.pathname]);
+  }, [currentSessionKey, sessionEpoch, reloadMessages, settleRun]);
 
-  /** Task 2: 压缩上下文 */
+  /** 压缩上下文：前半段历史摘要为「前情摘要」，压缩后重新加载消息 */
   const compactContext = useCallback(async () => {
     const sessionKey = currentSessionKeyRef.current;
     if (!sessionKey) return;
     try {
-      // 复用旧压缩端点；压缩完成后重新加载消息
-      const { streamCompact } = await import('./sse-client');
-      await streamCompact(sessionKey, {
-        onDone: () => reloadMessages(sessionKey),
-        onError: (msg) => console.error('Compact error:', msg),
-      });
+      const result = await agentApi.compactSession(sessionKey);
+      if (result?.message) {
+        console.info('[agent] compact:', result.message);
+      }
+      reloadMessages(sessionKey);
     } catch (e) {
       console.error('Compact failed:', e);
     }
@@ -1247,11 +1202,9 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     sessions,
     currentSessionKey,
     messages,
-    permissions,
     streaming,
-      liveMessageId,
+    liveMessageId,
     queueLength,
-    pendingConfirm,
     folders,
     refreshFolders,
     createFolder,
@@ -1269,15 +1222,12 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     focusDebugEntryId,
     openDebugEntry,
     setToolExecutor,
-    resolveConfirm,
     createSession,
     switchSession,
     renameSession,
     deleteSession,
     sendMessage,
     stopStreaming,
-    updatePermission,
-    updateGlobalPermission,
     debugNode,
     activePlan,
     injectCanvasInfo,

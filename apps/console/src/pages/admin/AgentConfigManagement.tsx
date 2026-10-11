@@ -1,6 +1,6 @@
 /**
  * AgentConfigManagement — Agent 配置中心
- * 5 个 Tab：模型配置 / 提示词 & 知识库 / 工具定义 / 权限设置 / 知识图谱
+ * 3 个 Tab：模型配置 / 提示词 & 知识库 / 工具定义
  */
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
@@ -23,8 +23,6 @@ import {
 import type { ColumnProps } from '@douyinfe/semi-ui/lib/es/table';
 import { IconHelpCircle } from '@douyinfe/semi-icons';
 import { agentApi } from '../../agent/api';
-import { getApiBaseUrl } from '../../utils/apiConfig';
-import type { PermissionPolicy } from '../../agent/types';
 import { t, useLanguage } from '../../i18n';
 
 const ACCENT = 'var(--g-accent)';
@@ -59,55 +57,11 @@ const jsonStringify = (val: any): string => {
 };
 
 /**
- * AI 生成：创建临时会话 → 调用 chat SSE → 收集 token → 清理临时会话
- * 返回生成的内容文本。
+ * AI 生成：调用配置中心一次性 LLM 补全端点，返回生成的内容文本。
  */
 async function generateWithAI(prompt: string): Promise<string> {
-  const session = await agentApi.createSession('ai-gen-temp');
-  const response = await fetch(`${getApiBaseUrl()}/agent/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      sessionKey: session.sessionKey,
-      message: prompt,
-      locale: 'zh-CN',
-    }),
-  });
-  if (!response.ok) {
-    throw new Error(`Chat API Error: ${response.status}`);
-  }
-  const reader = response.body!.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-  let content = '';
-  let eventName = '';
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop() || '';
-    for (const line of lines) {
-      if (line.startsWith('event:')) {
-        eventName = line.substring(6).trim();
-      } else if (line.startsWith('data:')) {
-        const data = line.substring(5).trim();
-        if (data && eventName === 'token') {
-          try {
-            content += JSON.parse(data).content;
-          } catch {
-            /* ignore */
-          }
-        }
-      }
-    }
-  }
-  try {
-    await agentApi.deleteSession(session.sessionKey);
-  } catch {
-    /* ignore cleanup errors */
-  }
-  return content;
+  const result = await agentApi.generateContent(prompt);
+  return result?.content || '';
 }
 
 /* ---------------- Shared AI generation modal ---------------- */
@@ -249,7 +203,6 @@ interface ToolDefItem {
   toolGroup?: string;
   description?: string;
   parameters?: any;
-  defaultPolicy?: string;
   pageContexts?: any;
   enabled?: boolean;
   sortOrder?: number;
@@ -268,7 +221,6 @@ const ToolDefinitionTab: React.FC = () => {
     toolGroup: '',
     description: '',
     parameters: '',
-    defaultPolicy: 'confirm',
     pageContexts: '',
     enabled: true,
     sortOrder: 0,
@@ -347,25 +299,10 @@ const ToolDefinitionTab: React.FC = () => {
     }
   }, [form, load]);
 
-  const policyColor: Record<string, any> = {
-    always: 'green',
-    confirm: 'orange',
-    forbid: 'red',
-  };
-
   const columns: ColumnProps<ToolDefItem>[] = [
     { title: 'ToolName', dataIndex: 'toolName', key: 'toolName', width: 180 },
     { title: '分组', dataIndex: 'toolGroup', key: 'toolGroup', width: 100 },
     { title: '描述', dataIndex: 'description', key: 'description', width: 240 },
-    {
-      title: '默认策略',
-      dataIndex: 'defaultPolicy',
-      key: 'defaultPolicy',
-      width: 100,
-      render: (text: string) => (
-        <Tag color={policyColor[text] || 'grey'} size="small">{text || '—'}</Tag>
-      ),
-    },
     {
       title: '启用',
       dataIndex: 'enabled',
@@ -457,19 +394,6 @@ const ToolDefinitionTab: React.FC = () => {
             />
           </div>
           <div>
-            <Typography.Text strong style={{ fontSize: 13 }}>{t('agent.config.defaultPolicy')}</Typography.Text>
-            <Select
-              value={form.defaultPolicy}
-              onChange={(v) => setForm({ ...form, defaultPolicy: v as string })}
-              style={{ width: '100%', marginTop: 6 }}
-              optionList={[
-                { value: 'always', label: 'always（总是允许）' },
-                { value: 'confirm', label: 'confirm（每次确认）' },
-                { value: 'forbid', label: 'forbid（禁止）' },
-              ]}
-            />
-          </div>
-          <div>
             <Typography.Text strong style={{ fontSize: 13 }}>PageContexts (JSON array)</Typography.Text>
             <TextArea
               value={form.pageContexts as any}
@@ -506,693 +430,6 @@ const ToolDefinitionTab: React.FC = () => {
 };
 
 /* ================================================================
- * PermissionTab — 全局权限设置（管理所有新会话的默认权限策略）
- * ================================================================ */
-
-const PERMISSION_GROUPS: { title: string; actions: { name: string; desc: string }[] }[] = [
-  {
-    title: '导航',
-    actions: [
-      { name: 'navigate', desc: '页面导航（首页/后台/编辑器等）' },
-    ],
-  },
-  {
-    title: '查询',
-    actions: [
-      { name: 'query', desc: '查询工作流/模板/日志/节点详情' },
-    ],
-  },
-  {
-    title: '管理',
-    actions: [
-      { name: 'manage', desc: '创建/保存/删除工作流和模板' },
-    ],
-  },
-  {
-    title: '画布',
-    actions: [
-      { name: 'canvas', desc: '节点增删改/连线/布局/运行' },
-    ],
-  },
-  {
-    title: '计划',
-    actions: [
-      { name: 'createPlan', desc: '创建多步骤执行计划' },
-      { name: 'executeStep', desc: '逐步执行计划中的单个步骤' },
-    ],
-  },
-];
-
-const ALL_PERMISSION_ACTIONS = PERMISSION_GROUPS.flatMap((g) => g.actions.map((a) => a.name));
-
-const POLICY_OPTIONS: { value: PermissionPolicy; label: string; color: string }[] = [
-  { value: 'always', label: '总是允许', color: '#1f9d55' },
-  { value: 'confirm', label: '每次确认', color: '#b7791f' },
-  { value: 'forbid', label: '禁止', color: '#e5404e' },
-];
-
-const PermissionTab: React.FC = () => {
-  useLanguage();
-  const [permissions, setPermissions] = useState<Record<string, PermissionPolicy>>({});
-  const [loading, setLoading] = useState(false);
-  const [batchLoading, setBatchLoading] = useState(false);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await agentApi.getGlobalPermissions();
-      setPermissions(data || {});
-    } catch (e) {
-      Toast.error(`加载失败: ${(e as Error).message}`);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  const handleChange = useCallback(async (action: string, policy: PermissionPolicy) => {
-    setPermissions((prev) => ({ ...prev, [action]: policy }));
-    try {
-      await agentApi.updateGlobalPermission(action, policy);
-    } catch (e) {
-      Toast.error(`更新失败: ${(e as Error).message}`);
-      void load();
-    }
-  }, [load]);
-
-  const handleBatchSet = useCallback(async (policy: PermissionPolicy) => {
-    setBatchLoading(true);
-    try {
-      for (const action of ALL_PERMISSION_ACTIONS) {
-        setPermissions((prev) => ({ ...prev, [action]: policy }));
-        await agentApi.updateGlobalPermission(action, policy);
-      }
-      Toast.success('批量设置成功');
-    } catch (e) {
-      Toast.error(`批量设置失败: ${(e as Error).message}`);
-      void load();
-    } finally {
-      setBatchLoading(false);
-    }
-  }, [load]);
-
-  const stats = useMemo(() => {
-    let always = 0, confirm = 0, forbid = 0;
-    for (const name of ALL_PERMISSION_ACTIONS) {
-      const p = permissions[name] || 'always';
-      if (p === 'always') always++;
-      else if (p === 'confirm') confirm++;
-      else if (p === 'forbid') forbid++;
-    }
-    return { always, confirm, forbid };
-  }, [permissions]);
-
-  return (
-    <div>
-      {/* 快捷操作区 */}
-      <div
-        style={{
-          padding: '12px 16px',
-          marginBottom: 16,
-          borderBottom: '1px solid #f0f0f0',
-          background: '#fafafa',
-          borderRadius: 8,
-        }}
-      >
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-          <span style={{ fontSize: 13, color: '#666', flexShrink: 0, fontWeight: 500 }}>{t('agent.config.quickActions')}：</span>
-          <Button
-            size="small"
-            disabled={batchLoading}
-            onClick={() => void handleBatchSet('always')}
-            style={{ border: '1px solid #b7eb8f', background: '#f6ffed', color: '#389e0d' }}
-          >
-            {t('agent.config.batchAllow')}
-          </Button>
-          <Button
-            size="small"
-            disabled={batchLoading}
-            onClick={() => void handleBatchSet('confirm')}
-            style={{ border: '1px solid #ffd591', background: '#fff7e6', color: '#d46b08' }}
-          >
-            {t('agent.config.batchConfirm')}
-          </Button>
-          <Button
-            size="small"
-            disabled={batchLoading}
-            onClick={() => void handleBatchSet('forbid')}
-            style={{ border: '1px solid #ffccc7', background: '#fff2f0', color: '#cf1322' }}
-          >
-            {t('agent.config.batchForbid')}
-          </Button>
-          <Button size="small" onClick={() => void load()} loading={loading}>
-            刷新
-          </Button>
-          <span style={{ fontSize: 12, color: '#aaa', marginLeft: 'auto' }}>
-            当前：{stats.always} 允许 / {stats.confirm} 确认 / {stats.forbid} 禁止
-          </span>
-        </div>
-        <div style={{ fontSize: 12, color: '#999' }}>
-          {t('agent.config.permNote')}
-        </div>
-      </div>
-
-      {/* 权限分组列表 */}
-      {loading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
-          <Spin />
-        </div>
-      ) : (
-        PERMISSION_GROUPS.map((group) => (
-          <div key={group.title} style={{ marginBottom: 20 }}>
-            <div
-              style={{
-                fontSize: 13,
-                fontWeight: 600,
-                color: ACCENT,
-                marginBottom: 8,
-                letterSpacing: '0.3px',
-              }}
-            >
-              {group.title}
-            </div>
-            <div
-              style={{
-                border: '1px solid #f0f0f0',
-                borderRadius: 8,
-                overflow: 'hidden',
-              }}
-            >
-              {group.actions.map((action, idx) => {
-                const current = permissions[action.name] || 'confirm';
-                return (
-                  <div
-                    key={action.name}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '10px 14px',
-                      borderTop: idx === 0 ? 'none' : '1px solid #f5f5f5',
-                    }}
-                  >
-                    <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                      <span
-                        style={{
-                          fontSize: 12,
-                          color: '#333',
-                          fontWeight: 500,
-                          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                        }}
-                      >
-                        {action.name}
-                      </span>
-                      <span style={{ fontSize: 11, color: '#aaa' }}>{action.desc}</span>
-                    </div>
-                    <RadioGroup
-                      type="button"
-                      buttonSize="small"
-                      value={current}
-                      onChange={(e) => void handleChange(action.name, e.target.value as PermissionPolicy)}
-                    >
-                      {POLICY_OPTIONS.map((opt) => (
-                        <Radio key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </Radio>
-                      ))}
-                    </RadioGroup>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ))
-      )}
-    </div>
-  );
-};
-
-/* ================================================================
- * KnowledgeGraphTab — 知识图谱（节点 + 边）
- * ================================================================ */
-
-interface GraphNode {
-  id?: number;
-  nodeKey: string;
-  nodeType?: string;
-  title?: string;
-  properties?: any;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-interface GraphEdge {
-  id?: number;
-  sourceKey: string;
-  targetKey: string;
-  edgeType?: string;
-  properties?: any;
-}
-
-const KnowledgeGraphTab: React.FC = () => {
-  const [tabKey, setTabKey] = useState('nodes');
-
-  // Nodes
-  const [nodeLoading, setNodeLoading] = useState(false);
-  const [nodes, setNodes] = useState<GraphNode[]>([]);
-  const [nodeModalVisible, setNodeModalVisible] = useState(false);
-  const [editingNode, setEditingNode] = useState<GraphNode | null>(null);
-  const [nodeForm, setNodeForm] = useState<GraphNode>({ nodeKey: '', nodeType: '', title: '', properties: '{}' });
-  const [nodeSaving, setNodeSaving] = useState(false);
-
-  // Edges
-  const [edgeLoading, setEdgeLoading] = useState(false);
-  const [edges, setEdges] = useState<GraphEdge[]>([]);
-  const [edgeModalVisible, setEdgeModalVisible] = useState(false);
-  const [edgeForm, setEdgeForm] = useState<GraphEdge>({ sourceKey: '', targetKey: '', edgeType: '', properties: '{}' });
-  const [edgeSaving, setEdgeSaving] = useState(false);
-
-  // Subgraph
-  const [subgraphVisible, setSubgraphVisible] = useState(false);
-  const [subgraphNodeType, setSubgraphNodeType] = useState('');
-  const [subgraphKeyword, setSubgraphKeyword] = useState('');
-  const [subgraphLoading, setSubgraphLoading] = useState(false);
-  const [subgraphNodes, setSubgraphNodes] = useState<GraphNode[]>([]);
-  const [subgraphEdges, setSubgraphEdges] = useState<GraphEdge[]>([]);
-
-  const loadNodes = useCallback(async () => {
-    setNodeLoading(true);
-    try {
-      const data = await agentApi.listGraphNodes();
-      setNodes(data || []);
-    } catch (e) {
-      Toast.error(`加载节点失败: ${(e as Error).message}`);
-    } finally {
-      setNodeLoading(false);
-    }
-  }, []);
-
-  const loadEdges = useCallback(async () => {
-    setEdgeLoading(true);
-    try {
-      const data = await agentApi.listGraphEdges();
-      setEdges(data || []);
-    } catch (e) {
-      Toast.error(`加载边失败: ${(e as Error).message}`);
-    } finally {
-      setEdgeLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadNodes();
-    void loadEdges();
-  }, [loadNodes, loadEdges]);
-
-  const openCreateNode = () => {
-    setEditingNode(null);
-    setNodeForm({ nodeKey: '', nodeType: '', title: '', properties: '{}' });
-    setNodeModalVisible(true);
-  };
-
-  const openEditNode = (node: GraphNode) => {
-    setEditingNode(node);
-    setNodeForm({ ...node, properties: jsonStringify(node.properties) });
-    setNodeModalVisible(true);
-  };
-
-  const handleSaveNode = useCallback(async () => {
-    if (!nodeForm.nodeKey) {
-      Toast.warning('请填写 nodeKey');
-      return;
-    }
-    const parsed = tryParseJson(nodeForm.properties);
-    if (nodeForm.properties && parsed === null) {
-      Toast.error('properties 不是合法的 JSON');
-      return;
-    }
-    setNodeSaving(true);
-    try {
-      await agentApi.saveGraphNode({
-        ...nodeForm,
-        properties: parsed || {},
-      });
-      Toast.success('保存成功');
-      setNodeModalVisible(false);
-      void loadNodes();
-    } catch (e) {
-      Toast.error(`保存失败: ${(e as Error).message}`);
-    } finally {
-      setNodeSaving(false);
-    }
-  }, [nodeForm, loadNodes]);
-
-  const handleDeleteNode = useCallback(async (nodeKey: string) => {
-    Modal.confirm({
-      title: '确认删除',
-      content: `确定删除节点「${nodeKey}」及其关联的边吗？`,
-      onOk: async () => {
-        try {
-          await agentApi.deleteGraphNode(nodeKey);
-          Toast.success('删除成功');
-          void loadNodes();
-          void loadEdges();
-        } catch (e) {
-          Toast.error(`删除失败: ${(e as Error).message}`);
-        }
-      },
-    });
-  }, [loadNodes, loadEdges]);
-
-  const handleSaveEdge = useCallback(async () => {
-    if (!edgeForm.sourceKey || !edgeForm.targetKey) {
-      Toast.warning('请填写 sourceKey 和 targetKey');
-      return;
-    }
-    const parsed = tryParseJson(edgeForm.properties);
-    if (edgeForm.properties && parsed === null) {
-      Toast.error('properties 不是合法的 JSON');
-      return;
-    }
-    setEdgeSaving(true);
-    try {
-      await agentApi.saveGraphEdge({
-        ...edgeForm,
-        properties: parsed || {},
-      });
-      Toast.success('保存成功');
-      setEdgeModalVisible(false);
-      setEdgeForm({ sourceKey: '', targetKey: '', edgeType: '', properties: '{}' });
-      void loadEdges();
-    } catch (e) {
-      Toast.error(`保存失败: ${(e as Error).message}`);
-    } finally {
-      setEdgeSaving(false);
-    }
-  }, [edgeForm, loadEdges]);
-
-  const handleDeleteEdge = useCallback(async (id: number) => {
-    Modal.confirm({
-      title: '确认删除',
-      content: '确定删除该边吗？',
-      onOk: async () => {
-        try {
-          await agentApi.deleteGraphEdge(id);
-          Toast.success('删除成功');
-          void loadEdges();
-        } catch (e) {
-          Toast.error(`删除失败: ${(e as Error).message}`);
-        }
-      },
-    });
-  }, [loadEdges]);
-
-  const handleSubgraph = useCallback(async () => {
-    setSubgraphLoading(true);
-    setSubgraphNodes([]);
-    setSubgraphEdges([]);
-    try {
-      const ns = await agentApi.listGraphNodes(subgraphNodeType || undefined, subgraphKeyword || undefined);
-      const nodeKeys = (ns || []).map((n: any) => n.nodeKey);
-      setSubgraphNodes(ns || []);
-      // 加载与这些节点相关的边
-      const allEdges: GraphEdge[] = [];
-      for (const nk of nodeKeys) {
-        try {
-          const out = await agentApi.listGraphEdges(nk);
-          allEdges.push(...(out || []));
-        } catch {
-          /* ignore */
-        }
-      }
-      // 去重
-      const seen = new Set<number>();
-      const dedup: GraphEdge[] = [];
-      for (const e of allEdges) {
-        if (e.id && !seen.has(e.id)) {
-          seen.add(e.id);
-          dedup.push(e);
-        }
-      }
-      setSubgraphEdges(dedup);
-    } catch (e) {
-      Toast.error(`子图检索失败: ${(e as Error).message}`);
-    } finally {
-      setSubgraphLoading(false);
-    }
-  }, [subgraphNodeType, subgraphKeyword]);
-
-  const nodeColumns: ColumnProps<GraphNode>[] = [
-    { title: 'NodeKey', dataIndex: 'nodeKey', key: 'nodeKey', width: 180 },
-    { title: 'Type', dataIndex: 'nodeType', key: 'nodeType', width: 120 },
-    { title: '标题', dataIndex: 'title', key: 'title', width: 200 },
-    {
-      title: '操作',
-      key: 'actions',
-      width: 180,
-      render: (_text: any, record: GraphNode) => (
-        <div style={{ display: 'flex', gap: 6 }}>
-          <Button size="small" theme="borderless" style={{ color: ACCENT }} onClick={() => openEditNode(record)}>
-            编辑
-          </Button>
-          <Button size="small" theme="borderless" type="danger" onClick={() => handleDeleteNode(record.nodeKey)}>
-            删除
-          </Button>
-        </div>
-      ),
-    },
-  ];
-
-  const edgeColumns: ColumnProps<GraphEdge>[] = [
-    { title: 'Source', dataIndex: 'sourceKey', key: 'sourceKey', width: 180 },
-    { title: 'Target', dataIndex: 'targetKey', key: 'targetKey', width: 180 },
-    { title: 'EdgeType', dataIndex: 'edgeType', key: 'edgeType', width: 140 },
-    {
-      title: '操作',
-      key: 'actions',
-      width: 100,
-      render: (_text: any, record: GraphEdge) => (
-        <Button size="small" theme="borderless" type="danger" onClick={() => handleDeleteEdge(record.id!)}>
-          删除
-        </Button>
-      ),
-    },
-  ];
-
-  return (
-    <div>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-        <Button theme="solid" style={{ background: ACCENT }} onClick={() => setSubgraphVisible(true)}>
-          子图检索
-        </Button>
-        <Button onClick={() => { void loadNodes(); void loadEdges(); }}>{t('agent.config.refresh')}</Button>
-      </div>
-
-      <Tabs type="line" activeKey={tabKey} onChange={(k) => setTabKey(k)}>
-        <TabPane tab="节点" itemKey="nodes">
-          <div style={{ marginBottom: 12 }}>
-            <Button theme="solid" style={{ background: ACCENT }} onClick={openCreateNode}>
-              新建节点
-            </Button>
-          </div>
-          <Table
-            columns={nodeColumns}
-            dataSource={nodes}
-            rowKey="nodeKey"
-            loading={nodeLoading}
-            pagination={{ pageSize: 10 }}
-          />
-        </TabPane>
-        <TabPane tab="边" itemKey="edges">
-          <div style={{ marginBottom: 12 }}>
-            <Button theme="solid" style={{ background: ACCENT }} onClick={() => setEdgeModalVisible(true)}>
-              新建边
-            </Button>
-          </div>
-          <Table
-            columns={edgeColumns}
-            dataSource={edges}
-            rowKey="id"
-            loading={edgeLoading}
-            pagination={{ pageSize: 10 }}
-          />
-        </TabPane>
-      </Tabs>
-
-      {/* Node edit modal */}
-      <Modal
-        title={editingNode ? '编辑节点' : '新建节点'}
-        visible={nodeModalVisible}
-        onCancel={() => setNodeModalVisible(false)}
-        footer={null}
-        width={600}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div>
-            <Typography.Text strong style={{ fontSize: 13 }}>NodeKey</Typography.Text>
-            <Input
-              value={nodeForm.nodeKey}
-              onChange={(v) => setNodeForm({ ...nodeForm, nodeKey: v })}
-              disabled={!!editingNode}
-              style={{ marginTop: 6 }}
-            />
-          </div>
-          <div>
-            <Typography.Text strong style={{ fontSize: 13 }}>NodeType</Typography.Text>
-            <Input
-              value={nodeForm.nodeType}
-              onChange={(v) => setNodeForm({ ...nodeForm, nodeType: v })}
-              style={{ marginTop: 6 }}
-            />
-          </div>
-          <div>
-            <Typography.Text strong style={{ fontSize: 13 }}>{t('common.title')}</Typography.Text>
-            <Input
-              value={nodeForm.title}
-              onChange={(v) => setNodeForm({ ...nodeForm, title: v })}
-              style={{ marginTop: 6 }}
-            />
-          </div>
-          <div>
-            <Typography.Text strong style={{ fontSize: 13 }}>Properties (JSON)</Typography.Text>
-            <TextArea
-              value={nodeForm.properties as any}
-              onChange={(v) => setNodeForm({ ...nodeForm, properties: v })}
-              autosize={{ minRows: 4, maxRows: 12 }}
-              style={{ marginTop: 6, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}
-            />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-            <Button onClick={() => setNodeModalVisible(false)}>{t('common.cancel')}</Button>
-            <Button theme="solid" style={{ background: ACCENT }} loading={nodeSaving} onClick={handleSaveNode}>
-              保存
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Edge add modal */}
-      <Modal
-        title="新建边"
-        visible={edgeModalVisible}
-        onCancel={() => setEdgeModalVisible(false)}
-        footer={null}
-        width={600}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div>
-            <Typography.Text strong style={{ fontSize: 13 }}>SourceKey</Typography.Text>
-            <Input
-              value={edgeForm.sourceKey}
-              onChange={(v) => setEdgeForm({ ...edgeForm, sourceKey: v })}
-              style={{ marginTop: 6 }}
-            />
-          </div>
-          <div>
-            <Typography.Text strong style={{ fontSize: 13 }}>TargetKey</Typography.Text>
-            <Input
-              value={edgeForm.targetKey}
-              onChange={(v) => setEdgeForm({ ...edgeForm, targetKey: v })}
-              style={{ marginTop: 6 }}
-            />
-          </div>
-          <div>
-            <Typography.Text strong style={{ fontSize: 13 }}>EdgeType</Typography.Text>
-            <Input
-              value={edgeForm.edgeType}
-              onChange={(v) => setEdgeForm({ ...edgeForm, edgeType: v })}
-              style={{ marginTop: 6 }}
-            />
-          </div>
-          <div>
-            <Typography.Text strong style={{ fontSize: 13 }}>Properties (JSON)</Typography.Text>
-            <TextArea
-              value={edgeForm.properties as any}
-              onChange={(v) => setEdgeForm({ ...edgeForm, properties: v })}
-              autosize={{ minRows: 3, maxRows: 8 }}
-              style={{ marginTop: 6, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}
-            />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-            <Button onClick={() => setEdgeModalVisible(false)}>{t('common.cancel')}</Button>
-            <Button theme="solid" style={{ background: ACCENT }} loading={edgeSaving} onClick={handleSaveEdge}>
-              保存
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Subgraph modal */}
-      <Modal
-        title="子图检索"
-        visible={subgraphVisible}
-        onCancel={() => setSubgraphVisible(false)}
-        footer={null}
-        width={780}
-      >
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-          <Input
-            value={subgraphNodeType}
-            onChange={(v) => setSubgraphNodeType(v)}
-            placeholder="nodeType（可选）"
-            style={{ width: 180 }}
-          />
-          <Input
-            value={subgraphKeyword}
-            onChange={(v) => setSubgraphKeyword(v)}
-            placeholder="keyword（可选）"
-            style={{ flex: 1 }}
-          />
-          <Button theme="solid" style={{ background: ACCENT }} loading={subgraphLoading} onClick={() => void handleSubgraph()}>
-            检索
-          </Button>
-        </div>
-        {subgraphLoading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}>
-            <Spin />
-          </div>
-        ) : (
-          <div>
-            <Typography.Text strong style={{ fontSize: 13 }}>
-              节点（{subgraphNodes.length}）
-            </Typography.Text>
-            <Table
-              columns={[
-                { title: 'NodeKey', dataIndex: 'nodeKey', key: 'nodeKey', width: 160 },
-                { title: 'Type', dataIndex: 'nodeType', key: 'nodeType', width: 120 },
-                { title: '标题', dataIndex: 'title', key: 'title', width: 200 },
-              ]}
-              dataSource={subgraphNodes}
-              rowKey="nodeKey"
-              pagination={false}
-              size="small"
-              style={{ marginBottom: 16 }}
-            />
-            <Typography.Text strong style={{ fontSize: 13 }}>
-              边（{subgraphEdges.length}）
-            </Typography.Text>
-            <Table
-              columns={[
-                { title: 'Source', dataIndex: 'sourceKey', key: 'sourceKey', width: 160 },
-                { title: 'Target', dataIndex: 'targetKey', key: 'targetKey', width: 160 },
-                { title: 'Type', dataIndex: 'edgeType', key: 'edgeType', width: 120 },
-              ]}
-              dataSource={subgraphEdges}
-              rowKey="id"
-              pagination={false}
-              size="small"
-            />
-          </div>
-        )}
-      </Modal>
-    </div>
-  );
-};
-
-/* ================================================================
  * ModelConfigTab — LLM 模型配置（apiHost / apiKey / model 等）
  * ================================================================ */
 
@@ -1212,20 +449,6 @@ const DEFAULT_MODEL_CONFIG: ModelConfigForm = {
   temperature: 0.7,
   maxTokens: 4096,
   contextWindow: 8192,
-};
-
-interface EmbeddingConfigForm {
-  enabled: boolean;
-  apiHost: string;
-  apiKey: string;
-  model: string;
-}
-
-const DEFAULT_EMBEDDING_CONFIG: EmbeddingConfigForm = {
-  enabled: true,
-  apiHost: '',
-  apiKey: '',
-  model: '',
 };
 
 /** 方舟托管（Managed Agents）连接配置：provider_config:ark */
@@ -1259,9 +482,7 @@ const ModelConfigTab: React.FC = () => {
   useLanguage();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [savingEmbedding, setSavingEmbedding] = useState(false);
   const [form, setForm] = useState<ModelConfigForm>(DEFAULT_MODEL_CONFIG);
-  const [embeddingForm, setEmbeddingForm] = useState<EmbeddingConfigForm>(DEFAULT_EMBEDDING_CONFIG);
   const [arkForm, setArkForm] = useState<ArkConfigForm>(DEFAULT_ARK_CONFIG);
   const [savingArk, setSavingArk] = useState(false);
   const [engineForm, setEngineForm] = useState<EngineConfigForm>(DEFAULT_ENGINE_CONFIG);
@@ -1270,9 +491,8 @@ const ModelConfigTab: React.FC = () => {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [llmData, embData, arkData, engineData] = await Promise.all([
+      const [llmData, arkData, engineData] = await Promise.all([
         agentApi.listConfigs('llm_config'),
-        agentApi.listConfigs('embedding_config'),
         agentApi.listConfigs('provider_config'),
         agentApi.listConfigs('engine_config'),
       ]);
@@ -1286,16 +506,6 @@ const ModelConfigTab: React.FC = () => {
           temperature: typeof parsed.temperature === 'number' ? parsed.temperature : 0.7,
           maxTokens: typeof parsed.maxTokens === 'number' ? parsed.maxTokens : 4096,
           contextWindow: typeof parsed.contextWindow === 'number' ? parsed.contextWindow : 8192,
-        });
-      }
-      const embItem = (embData || [])[0];
-      if (embItem) {
-        const parsed = tryParseJson(embItem.configData) || {};
-        setEmbeddingForm({
-          enabled: parsed.enabled !== false,
-          apiHost: parsed.apiHost ?? '',
-          apiKey: parsed.apiKey ?? '',
-          model: parsed.model ?? '',
         });
       }
       const arkItem = (arkData || []).find((c: any) => c.configKey === ARK_CONFIG_KEY);
@@ -1344,26 +554,6 @@ const ModelConfigTab: React.FC = () => {
       setSaving(false);
     }
   }, [form]);
-
-  const handleSaveEmbedding = useCallback(async () => {
-    setSavingEmbedding(true);
-    try {
-      await agentApi.saveConfig(
-        {
-          configKey: 'embedding_config',
-          configType: 'embedding_config',
-          title: 'Embedding 向量检索配置',
-          configData: JSON.stringify(embeddingForm),
-        },
-        true,
-      );
-      Toast.success('保存成功');
-    } catch (e) {
-      Toast.error(`保存失败: ${(e as Error).message}`);
-    } finally {
-      setSavingEmbedding(false);
-    }
-  }, [embeddingForm]);
 
   /** 方舟配置校验：走自动同步（defaultAgentId 为空）时，defaultModelId 必填 —— 方舟创建 Agent 必须指定模型 */
   const validateArkModelRequired = useCallback((): boolean => {
@@ -1455,7 +645,7 @@ const ModelConfigTab: React.FC = () => {
           默认执行引擎
         </Typography.Title>
         <Typography.Text type="tertiary" style={{ fontSize: 11 }}>
-          决定新会话由谁驱动对话循环；保存即时生效，存量会话保持创建时的引擎。
+          先选择引擎，下方只显示该引擎需要的配置；保存即时生效，存量会话保持创建时的引擎。
         </Typography.Text>
         <RadioGroup
           type="card"
@@ -1467,7 +657,7 @@ const ModelConfigTab: React.FC = () => {
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <Typography.Text strong style={{ fontSize: 13 }}>自研引擎</Typography.Text>
               <Typography.Text type="tertiary" style={{ fontSize: 11 }}>
-                本地模型循环 + 本地工具执行（原有方式）
+                需配置 OpenAI 兼容端点（apiHost / apiKey / 模型）
               </Typography.Text>
             </div>
           </Radio>
@@ -1475,7 +665,7 @@ const ModelConfigTab: React.FC = () => {
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <Typography.Text strong style={{ fontSize: 13 }}>方舟托管</Typography.Text>
               <Typography.Text type="tertiary" style={{ fontSize: 11 }}>
-                火山方舟 Managed Agents 托管循环；首次运行自动创建远端 Agent 并同步工具
+                需配置火山方舟 apiKey / environmentId；首次运行自动创建远端 Agent 并同步工具
               </Typography.Text>
             </div>
           </Radio>
@@ -1494,7 +684,7 @@ const ModelConfigTab: React.FC = () => {
           >
             方舟配置未完整：{!arkForm.apiKey || !arkForm.environmentId ? 'apiKey / environmentId ' : ''}
             {!arkForm.defaultModelId && !arkForm.defaultAgentId ? '默认模型 ID' : ''} 缺失，
-            请先在下方「火山方舟托管」分区补全后再切换。
+            请在下方「火山方舟托管」分区补全后再切换。
           </div>
         )}
         <div style={{ marginTop: 12 }}>
@@ -1504,7 +694,14 @@ const ModelConfigTab: React.FC = () => {
         </div>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {engineForm.mode === 'local' && (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 4 }}>
+        <Typography.Title heading={5} style={{ marginBottom: 0 }}>
+          自研引擎（本地模型）
+        </Typography.Title>
+        <Typography.Text type="tertiary" style={{ fontSize: 11 }}>
+          OpenAI 兼容端点直连：推理循环与工具执行都在本地服务。
+        </Typography.Text>
         <div>
           <Typography.Text strong style={{ fontSize: 13 }}>{t('agent.config.modelHost')}</Typography.Text>
           <Input
@@ -1576,96 +773,10 @@ const ModelConfigTab: React.FC = () => {
           </Button>
         </div>
       </div>
+      )}
 
-      {/* Embedding 向量检索配置分区 */}
-      <div
-        style={{
-          marginTop: 24,
-          paddingTop: 20,
-          borderTop: '1px dashed #e8e8ea',
-          maxWidth: 640,
-        }}
-      >
-        <Typography.Title heading={5} style={{ marginBottom: 4 }}>
-          {t('agent.config.embeddingSection')}
-        </Typography.Title>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Switch
-              checked={embeddingForm.enabled}
-              onChange={(v) => setEmbeddingForm({ ...embeddingForm, enabled: v })}
-            />
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <Typography.Text strong style={{ fontSize: 13 }}>
-                {t('agent.config.embeddingEnabled')}
-              </Typography.Text>
-              <Typography.Text type="tertiary" style={{ fontSize: 11 }}>
-                {t('agent.config.embeddingEnabledHint')}
-              </Typography.Text>
-            </div>
-          </div>
-          <div>
-            <Typography.Text strong style={{ fontSize: 13 }}>
-              {t('agent.config.embeddingHost')}
-            </Typography.Text>
-            <Input
-              value={embeddingForm.apiHost}
-              onChange={(v) => setEmbeddingForm({ ...embeddingForm, apiHost: v })}
-              placeholder="https://api.openai.com/v1"
-              style={{ marginTop: 6 }}
-              disabled={!embeddingForm.enabled}
-            />
-          </div>
-          <div>
-            <Typography.Text strong style={{ fontSize: 13 }}>
-              {t('agent.config.embeddingKey')}
-            </Typography.Text>
-            <Input
-              value={embeddingForm.apiKey}
-              onChange={(v) => setEmbeddingForm({ ...embeddingForm, apiKey: v })}
-              placeholder="sk-..."
-              style={{ marginTop: 6 }}
-              disabled={!embeddingForm.enabled}
-            />
-          </div>
-          <div>
-            <Typography.Text strong style={{ fontSize: 13 }}>
-              {t('agent.config.embeddingModel')}
-            </Typography.Text>
-            <Input
-              value={embeddingForm.model}
-              onChange={(v) => setEmbeddingForm({ ...embeddingForm, model: v })}
-              placeholder={t('agent.config.embeddingModelPlaceholder')}
-              style={{ marginTop: 6 }}
-              disabled={!embeddingForm.enabled}
-            />
-          </div>
-          <div
-            style={{
-              padding: 12,
-              background: '#e6f4ff',
-              border: '1px solid #91caff',
-              borderRadius: 8,
-              fontSize: 12,
-              color: '#0958d9',
-            }}
-          >
-            {t('agent.config.embeddingNote')}
-          </div>
-          <div>
-            <Button
-              theme="solid"
-              style={{ background: ACCENT }}
-              loading={savingEmbedding}
-              onClick={handleSaveEmbedding}
-            >
-              {t('agent.config.embeddingSave')}
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* 方舟托管（Managed Agents）配置分区 */}
+      {/* 方舟托管（Managed Agents）配置分区：仅选中方舟引擎时显示 */}
+      {engineForm.mode === 'ark' && (
       <div
         style={{
           marginTop: 24,
@@ -1701,8 +812,7 @@ const ModelConfigTab: React.FC = () => {
           </a>
         </div>
         <Typography.Text type="tertiary" style={{ fontSize: 11 }}>
-          engine=ark 的 Agent（内置 ark-assistant）由方舟托管对话循环；apiKey / environmentId /
-          defaultModelId 配置完整并在上方切换默认引擎后，新会话走方舟托管。
+          engine=ark 的 Agent（内置 ark-assistant）由方舟托管对话循环；配置完整并保存引擎切换后，新会话走方舟托管。
         </Typography.Text>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 12 }}>
           <div>
@@ -1769,7 +879,7 @@ const ModelConfigTab: React.FC = () => {
             }}
           >
             无需在方舟控制台手动创建 Agent：engine=ark 的 Agent 首次运行时会自动在方舟创建远端资源，
-            并把本地工具（query / manage / applyWorkflow / createPlan / executeStep）声明为 Custom Tool，
+            并把本地 13 个 v2 工具（读 / edit_workflow / run_workflow / 落版三件套 / todo_write）声明为 Custom Tool，
             定义变更时自动带版本号同步。若你在「默认方舟 Agent ID」填入自己创建的 agent-...，则视为手动绑定，系统不再改动它。
           </div>
           <div>
@@ -1779,6 +889,7 @@ const ModelConfigTab: React.FC = () => {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 };
@@ -2206,22 +1317,6 @@ const PromptEditorTab: React.FC = () => {
 
   const lineCount = useMemo(() => Math.max(editContent.split('\n').length, 1), [editContent]);
 
-  // RAG: 重新 Embedding
-  const handleReembed = useCallback(async () => {
-    Modal.confirm({
-      title: '重新 Embedding',
-      content: '将对所有 RAG 知识块重新生成向量，可能耗时较长。确认继续？',
-      onOk: async () => {
-        try {
-          await agentApi.reembedAll();
-          Toast.success('已触发重新 Embedding');
-        } catch (e) {
-          Toast.error(`失败: ${(e as Error).message}`);
-        }
-      },
-    });
-  }, []);
-
   // RAG: 检索预览
   const handleSearch = useCallback(async () => {
     if (!searchQuery.trim()) {
@@ -2244,13 +1339,12 @@ const PromptEditorTab: React.FC = () => {
 
   return (
     <div>
-      {/* 顶部工具栏：AI 生成 / 检索预览 / 重新 Embedding / 刷新 */}
+      {/* 顶部工具栏：AI 生成 / 检索预览 / 刷新 */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' }}>
         <Button theme="solid" style={{ background: ACCENT }} onClick={() => setAiVisible(true)}>
           {t('agent.config.aiGenerate')}
         </Button>
         <Button onClick={() => setSearchVisible(true)}>{t('agent.config.retrievalPreview')}</Button>
-        <Button onClick={handleReembed}>{t('agent.config.reembed')}</Button>
         <Button onClick={() => void load()}>{t('agent.config.refresh')}</Button>
         <span style={{ fontSize: 12, color: '#aaa', marginLeft: 'auto' }}>
           {t('agent.config.promptGroup')}: {filteredPrompts.length} / {t('agent.config.knowledgeGroup')}: {filteredKnowledge.length} / {t('agent.config.ragKnowledgeGroup')}: {filteredRag.length}
@@ -2739,14 +1833,8 @@ export const AgentConfigManagement: React.FC = () => {
         <TabPane tab={t('agent.config.tabPrompt')} itemKey="prompts">
           <PromptEditorTab />
         </TabPane>
-        <TabPane tab={t('agent.config.tabGraph')} itemKey="graph">
-          <KnowledgeGraphTab />
-        </TabPane>
         <TabPane tab={t('agent.config.tabTools')} itemKey="tools">
           <ToolDefinitionTab />
-        </TabPane>
-        <TabPane tab={t('agent.config.tabPermission')} itemKey="permission">
-          <PermissionTab />
         </TabPane>
       </Tabs>
     </div>

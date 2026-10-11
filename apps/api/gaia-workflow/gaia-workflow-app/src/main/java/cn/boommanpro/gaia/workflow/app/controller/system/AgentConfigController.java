@@ -2,18 +2,13 @@ package cn.boommanpro.gaia.workflow.app.controller.system;
 
 import cn.boommanpro.gaia.workflow.infra.manage.entity.AgentConfig;
 import cn.boommanpro.gaia.workflow.infra.manage.entity.AgentConfigHistory;
-import cn.boommanpro.gaia.workflow.infra.manage.entity.AgentGlobalPermission;
-import cn.boommanpro.gaia.workflow.infra.manage.entity.AgentGraphEdge;
-import cn.boommanpro.gaia.workflow.infra.manage.entity.AgentGraphNode;
 import cn.boommanpro.gaia.workflow.infra.manage.entity.AgentKnowledgeChunk;
 import cn.boommanpro.gaia.workflow.infra.manage.entity.AgentToolDefinition;
 import cn.boommanpro.gaia.workflow.infra.manage.service.AgentConfigHistoryService;
 import cn.boommanpro.gaia.workflow.infra.manage.service.AgentConfigService;
-import cn.boommanpro.gaia.workflow.infra.manage.service.AgentGlobalPermissionService;
-import cn.boommanpro.gaia.workflow.infra.manage.service.AgentGraphEdgeService;
-import cn.boommanpro.gaia.workflow.infra.manage.service.AgentGraphNodeService;
 import cn.boommanpro.gaia.workflow.infra.manage.service.AgentKnowledgeChunkService;
 import cn.boommanpro.gaia.workflow.infra.manage.service.AgentToolDefinitionService;
+import cn.boommanpro.gaia.workflow.app.service.LlmCompletionService;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
@@ -26,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Agent 配置中心：在线管理 Prompt / 节点知识文档 / LLM 参数
@@ -38,25 +34,19 @@ public class AgentConfigController {
     private final AgentConfigService configService;
     private final AgentConfigHistoryService historyService;
     private final AgentKnowledgeChunkService knowledgeChunkService;
-    private final AgentGraphNodeService graphNodeService;
-    private final AgentGraphEdgeService graphEdgeService;
     private final AgentToolDefinitionService toolDefinitionService;
-    private final AgentGlobalPermissionService globalPermissionService;
+    private final LlmCompletionService completionService;
 
     public AgentConfigController(AgentConfigService configService,
                                  AgentConfigHistoryService historyService,
                                  AgentKnowledgeChunkService knowledgeChunkService,
-                                 AgentGraphNodeService graphNodeService,
-                                 AgentGraphEdgeService graphEdgeService,
                                  AgentToolDefinitionService toolDefinitionService,
-                                 AgentGlobalPermissionService globalPermissionService) {
+                                 LlmCompletionService completionService) {
         this.configService = configService;
         this.historyService = historyService;
         this.knowledgeChunkService = knowledgeChunkService;
-        this.graphNodeService = graphNodeService;
-        this.graphEdgeService = graphEdgeService;
         this.toolDefinitionService = toolDefinitionService;
-        this.globalPermissionService = globalPermissionService;
+        this.completionService = completionService;
     }
 
     /**
@@ -189,11 +179,36 @@ public class AgentConfigController {
         historyService.save(history);
     }
 
+    /**
+     * AI 生成（一次性 LLM 补全）：管理端「AI 生成」弹窗的后端。
+     * body: { "prompt": "...", "maxTokens": 2000 }（可选）
+     */
+    @PostMapping("/generate")
+    public ResponseEntity<Map<String, Object>> generate(@RequestBody Map<String, Object> body) {
+        String prompt = body != null && body.get("prompt") != null ? String.valueOf(body.get("prompt")) : null;
+        if (prompt == null || prompt.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(new JSONObject().set("error", "prompt is required"));
+        }
+        int maxTokens = 2000;
+        if (body.get("maxTokens") instanceof Number) {
+            maxTokens = ((Number) body.get("maxTokens")).intValue();
+        }
+        try {
+            String content = completionService.complete(
+                "你是 Gaia Workflow Engine 的知识库助手。按用户的描述生成结构清晰、可直接使用的内容"
+                    + "（知识文档/提示词片段/配置说明）。直接输出内容正文，不要解释、不要寒暄。",
+                prompt, 0.5, maxTokens);
+            return ResponseEntity.ok(new JSONObject().set("content", content != null ? content : ""));
+        } catch (Exception e) {
+            log.warn("AI generate failed: {}", e.getMessage());
+            return ResponseEntity.status(502).body(new JSONObject().set("error", e.getMessage()));
+        }
+    }
+
     // ==================== Export / Import ====================
 
     /**
-     * 导出所有 Agent 配置（configs / knowledgeChunks / graphNodes / graphEdges /
-     * toolDefinitions / globalPermissions），以 JSON 文件附件形式下载
+     * 导出所有 Agent 配置（configs / knowledgeChunks / toolDefinitions），以 JSON 文件附件形式下载
      */
     @GetMapping("/export")
     public ResponseEntity<String> exportAll() {
@@ -201,14 +216,8 @@ public class AgentConfigController {
             .set("configs", configService.list(new QueryWrapper<AgentConfig>().orderByAsc("id")))
             .set("knowledgeChunks", knowledgeChunkService.list(
                 new QueryWrapper<AgentKnowledgeChunk>().orderByAsc("id")))
-            .set("graphNodes", graphNodeService.list(
-                new QueryWrapper<AgentGraphNode>().orderByAsc("id")))
-            .set("graphEdges", graphEdgeService.list(
-                new QueryWrapper<AgentGraphEdge>().orderByAsc("id")))
             .set("toolDefinitions", toolDefinitionService.list(
-                new QueryWrapper<AgentToolDefinition>().orderByAsc("id")))
-            .set("globalPermissions", globalPermissionService.list(
-                new QueryWrapper<AgentGlobalPermission>().orderByAsc("id")));
+                new QueryWrapper<AgentToolDefinition>().orderByAsc("id")));
 
         String body = JSONUtil.toJsonStr(payload);
         return ResponseEntity.ok()
@@ -219,26 +228,19 @@ public class AgentConfigController {
 
     /**
      * 导入 Agent 配置（与导出格式一致），按 key/title 做 upsert，不删除已有数据。
-     * 返回导入统计 { configs, knowledge, graphNodes, graphEdges, tools, permissions }
+     * 返回导入统计 { configs, knowledge, tools }
      */
     @PostMapping("/import")
     public JSONObject importAll(@RequestBody String body) {
         JSONObject payload = JSONUtil.parseObj(body);
         int configs = importConfigs(payload.getJSONArray("configs"));
         int knowledge = importKnowledgeChunks(payload.getJSONArray("knowledgeChunks"));
-        int graphNodes = importGraphNodes(payload.getJSONArray("graphNodes"));
-        int graphEdges = importGraphEdges(payload.getJSONArray("graphEdges"));
         int tools = importToolDefinitions(payload.getJSONArray("toolDefinitions"));
-        int permissions = importGlobalPermissions(payload.getJSONArray("globalPermissions"));
-        log.info("Agent config import: configs={}, knowledge={}, graphNodes={}, graphEdges={}, tools={}, permissions={}",
-            configs, knowledge, graphNodes, graphEdges, tools, permissions);
+        log.info("Agent config import: configs={}, knowledge={}, tools={}", configs, knowledge, tools);
         return new JSONObject()
             .set("configs", configs)
             .set("knowledge", knowledge)
-            .set("graphNodes", graphNodes)
-            .set("graphEdges", graphEdges)
-            .set("tools", tools)
-            .set("permissions", permissions);
+            .set("tools", tools);
     }
 
     /**
@@ -310,76 +312,7 @@ public class AgentConfigController {
         return count;
     }
 
-    /**
-     * 按 nodeKey upsert
-     */
-    private int importGraphNodes(JSONArray array) {
-        if (array == null || array.isEmpty()) {
-            return 0;
-        }
-        String now = LocalDateTime.now().toString();
-        int count = 0;
-        for (int i = 0; i < array.size(); i++) {
-            JSONObject item = array.getJSONObject(i);
-            String nodeKey = item.getStr("nodeKey");
-            if (nodeKey == null || nodeKey.isEmpty()) {
-                continue;
-            }
-            AgentGraphNode existing = graphNodeService.getOne(
-                new QueryWrapper<AgentGraphNode>().eq("node_key", nodeKey));
-            AgentGraphNode node = JSONUtil.toBean(item, AgentGraphNode.class);
-            if (existing != null) {
-                node.setId(existing.getId());
-                node.setCreatedAt(existing.getCreatedAt());
-                node.setUpdatedAt(now);
-                graphNodeService.updateById(node);
-            } else {
-                node.setId(null);
-                node.setCreatedAt(now);
-                node.setUpdatedAt(now);
-                graphNodeService.save(node);
-            }
-            count++;
-        }
-        return count;
-    }
 
-    /**
-     * 按 (sourceKey, targetKey, edgeType) upsert；无匹配则新增
-     */
-    private int importGraphEdges(JSONArray array) {
-        if (array == null || array.isEmpty()) {
-            return 0;
-        }
-        String now = LocalDateTime.now().toString();
-        int count = 0;
-        for (int i = 0; i < array.size(); i++) {
-            JSONObject item = array.getJSONObject(i);
-            String sourceKey = item.getStr("sourceKey");
-            String targetKey = item.getStr("targetKey");
-            String edgeType = item.getStr("edgeType");
-            if (sourceKey == null || targetKey == null || edgeType == null) {
-                continue;
-            }
-            AgentGraphEdge existing = graphEdgeService.getOne(
-                new QueryWrapper<AgentGraphEdge>()
-                    .eq("source_key", sourceKey)
-                    .eq("target_key", targetKey)
-                    .eq("edge_type", edgeType)
-                    .last("LIMIT 1"));
-            AgentGraphEdge edge = JSONUtil.toBean(item, AgentGraphEdge.class);
-            if (existing != null) {
-                edge.setId(existing.getId());
-                graphEdgeService.updateById(edge);
-            } else {
-                edge.setId(null);
-                edge.setCreatedAt(now);
-                graphEdgeService.save(edge);
-            }
-            count++;
-        }
-        return count;
-    }
 
     /**
      * 按 toolName upsert
@@ -415,32 +348,4 @@ public class AgentConfigController {
         return count;
     }
 
-    /**
-     * 按 action upsert
-     */
-    private int importGlobalPermissions(JSONArray array) {
-        if (array == null || array.isEmpty()) {
-            return 0;
-        }
-        int count = 0;
-        for (int i = 0; i < array.size(); i++) {
-            JSONObject item = array.getJSONObject(i);
-            String action = item.getStr("action");
-            if (action == null || action.isEmpty()) {
-                continue;
-            }
-            AgentGlobalPermission existing = globalPermissionService.getOne(
-                new QueryWrapper<AgentGlobalPermission>().eq("action", action));
-            AgentGlobalPermission permission = JSONUtil.toBean(item, AgentGlobalPermission.class);
-            if (existing != null) {
-                permission.setId(existing.getId());
-                globalPermissionService.updateById(permission);
-            } else {
-                permission.setId(null);
-                globalPermissionService.save(permission);
-            }
-            count++;
-        }
-        return count;
-    }
 }

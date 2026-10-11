@@ -499,9 +499,14 @@ public class SessionWorkflowDraftService {
                     } else if (id != null) {
                         knownIds.add(id); // 同批后续 op 可引用
                     }
-                    if (op.get("data") == null && op.get("title") == null) {
-                        // 允许占位壳（canonicalizer 落版时会补占位配置 + warning），但提示模型
-                        warnings.add(path + ": addNode 未带 data，已创建占位壳节点（" + nodeType + "），记得随后 updateNode 补配置");
+                    if (op.get("data") == null) {
+                        // 校验对称（实测教训）：创建时宽容占位壳 → 模型养成"先发壳再补 data"习惯，
+                        // 而后续 updateNode 是硬校验，弱模型在这个不对称里反复碰壁。
+                        // 统一为一次成型：addNode 必须带 data。
+                        violations.add(v(path, "addNode 必须带 data（一次成型，禁止先建壳再补）",
+                            "先用 get_node_schema(\"" + nodeType + "\") 查完整字段，再："
+                                + "{\"op\":\"addNode\",\"ref\":\"" + (op.getStr("ref") != null ? op.getStr("ref") : nodeType + "_1")
+                                + "\",\"type\":\"" + nodeType + "\",\"data\":{...完整配置...}}"));
                     }
                     String after = op.getStr("afterNodeId");
                     if (after != null && !knownIds.contains(after)) {
@@ -519,8 +524,13 @@ public class SessionWorkflowDraftService {
                             + "（注意：本会话草稿里的节点，不是其它工作流的）", "先 read_workflow 水化草稿或核对 id"));
                     }
                     if (op.get("data") == null && op.get("title") == null) {
-                        violations.add(v(path, "updateNode 需要至少 title 或 data 之一（只想新增节点请用 addNode 并直接带 data）",
-                            "形状：{\"op\":\"updateNode\",\"nodeId\":\"llm_1\",\"data\":{\"prompt\":\"新提示词\"}}"));
+                        // 空壳 updateNode 是弱模型复读病理的头号入口（2026-10-10 实测 31 连败）：
+                        // 把节点当前配置直接贴进 fix，模型抄下来改字段即可，不必再猜结构
+                        violations.add(v(path, "updateNode 缺少要修改的内容（title 或 data 至少其一）。"
+                                + "只传 nodeId 是无效操作——请明确说出要把这个节点改成什么",
+                            "节点 " + nodeId + " 当前配置：" + currentNodeDataJson(nodes, nodeId)
+                                + "。要改字段就只传变更项，如 {\"op\":\"updateNode\",\"nodeId\":\"" + nodeId
+                                + "\",\"data\":{...变更字段...}}；想新增节点请用 addNodes 并直接带完整 data"));
                     }
                     break;
                 }
@@ -684,6 +694,31 @@ public class SessionWorkflowDraftService {
     }
 
     private static final String META_KEY = "_meta";
+
+    /** 节点当前 data 的紧凑 JSON（空壳 updateNode 的 fix 用；超长截断防错误消息爆炸） */
+    private static String currentNodeDataJson(JSONArray nodes, String nodeId) {
+        if (nodes == null || nodeId == null) {
+            return "{}";
+        }
+        for (int i = 0; i < nodes.size(); i++) {
+            JSONObject node = nodes.getJSONObject(i);
+            if (node == null || !nodeId.equals(node.getStr("id"))) {
+                continue;
+            }
+            JSONObject data = node.getJSONObject("data");
+            if (data == null) {
+                return "{}（该节点还没有任何配置）";
+            }
+            try {
+                String json = cn.hutool.json.JSONUtil.toJsonStr(data);
+                return json.length() > 800 ? json.substring(0, 800) + "…（完整结构用 read_node(\""
+                    + nodeId + "\") 查看）" : json;
+            } catch (Exception e) {
+                return "{}";
+            }
+        }
+        return "{}";
+    }
 
     /** 声明式 delta → ops 翻译：addNodes/updateNodes/removeNodes/addEdges/removeEdges 等价于 ops */
     public static JSONArray opsFromDeclarative(JSONObject args) {

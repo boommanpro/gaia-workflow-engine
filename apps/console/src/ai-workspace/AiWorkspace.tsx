@@ -15,7 +15,6 @@ import { Button, Tag } from '@douyinfe/semi-ui';
 import { IconHistory, IconPlus } from '@douyinfe/semi-icons';
 
 import { useAgent } from '../agent/AgentContext';
-import { AgentConfirmLayer } from '../agent/ConfirmModal';
 import { SessionList } from '../agent/SessionList';
 import { useLanguage, t } from '../i18n';
 import { useWorkflowDocumentState } from '../document';
@@ -206,7 +205,6 @@ export const AiWorkspace: React.FC = () => {
       <HeadlessCanvasBridge />
       {/* 工作区不渲染 AgentDock，需要自己挂载工具执行器与确认弹窗 */}
       <WorkspaceToolExecutor />
-      <AgentConfirmLayer position="fixed" />
 
       <AppShell
         mode={mode}

@@ -40,7 +40,7 @@ public class SystemPromptResolver {
 
     public String resolve(AgentDefinition definition, String locale) {
         if (definition == null) {
-            return defaultPrompt(locale);
+            return defaultPrompt(null, locale);
         }
         if (definition.getSystemPrompt() != null && !definition.getSystemPrompt().trim().isEmpty()) {
             return definition.getSystemPrompt();
@@ -51,12 +51,12 @@ public class SystemPromptResolver {
                 return byKey;
             }
         }
-        return defaultPrompt(locale);
+        return defaultPrompt(definition.getToolNames(), locale);
     }
 
-    private String defaultPrompt(String locale) {
-        // AgentToolRegistry 已经处理了「DB 优先 + 资源文件兜底 + 页面上下文」逻辑，这里直接复用
-        return toolSchemaRegistry.getSystemPrompt(locale, null);
+    private String defaultPrompt(java.util.Set<String> toolNames, String locale) {
+        // 默认提示词 = DB 正文 + 按启用状态动态渲染的工具目录（目录随定义的工具集过滤）
+        return toolSchemaRegistry.getSystemPrompt(locale, toolNames);
     }
 
     private String loadFromConfig(String configKey, String locale) {

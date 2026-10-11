@@ -5,7 +5,6 @@ import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -39,17 +38,6 @@ public class ToolRegistryLoadingUtil {
         return tools;
     }
 
-    /**
-     * Build default policies map from DB tool definitions.
-     */
-    public static Map<String, String> buildPoliciesFromDefinitions(List<AgentToolDefinition> definitions) {
-        Map<String, String> policies = new HashMap<>();
-        if (definitions == null) return policies;
-        for (AgentToolDefinition def : definitions) {
-            policies.put(def.getToolName(), def.getDefaultPolicy() != null ? def.getDefaultPolicy() : "confirm");
-        }
-        return policies;
-    }
 
     /**
      * Filter tool definitions by page context.

@@ -326,8 +326,10 @@ function argSummary(args: Record<string, unknown>): string {
 }
 
 // ---------------- 单行 StepRow（dsh DisclosureRow chrome） ----------------
+// memo 契约：call 对象引用在结果回填前保持稳定（store 时间线浅拷贝保证），
+// 未变化的工具行不随流式帧重渲染。
 
-export const StepRow: React.FC<{ call: ToolCallEvent; defaultOpen?: boolean }> = ({ call, defaultOpen }) => {
+const StepRowImpl: React.FC<{ call: ToolCallEvent; defaultOpen?: boolean }> = ({ call, defaultOpen }) => {
   const failed = isFailure(call.result);
   const running = call.result === undefined;
   const parsed = useMemo(() => (failed ? parseResult(call.result) : null), [failed, call.result]);
@@ -463,6 +465,8 @@ export const StepRow: React.FC<{ call: ToolCallEvent; defaultOpen?: boolean }> =
     </div>
   );
 };
+
+export const StepRow = React.memo(StepRowImpl);
 
 // ---------------- 容器：无卡片框，行序列直接排 ----------------
 

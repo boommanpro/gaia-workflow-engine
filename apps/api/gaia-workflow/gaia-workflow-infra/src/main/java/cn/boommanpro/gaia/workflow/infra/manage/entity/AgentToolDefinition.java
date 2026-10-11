@@ -25,9 +25,6 @@ public class AgentToolDefinition {
     @TableField("parameters")
     private String parameters;
 
-    @TableField("default_policy")
-    private String defaultPolicy;
-
     @TableField("page_contexts")
     private String pageContexts;
 

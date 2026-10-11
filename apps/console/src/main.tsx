@@ -5,6 +5,7 @@ import { BrowserRouter } from 'react-router-dom';
 import './index.css';
 import App from './App';
 import { initThemeMode } from './chat/theme';
+import { bootstrapReplay } from './agent/replay/replay-driver';
 
 // 首屏渲染前应用主题，避免闪白
 initThemeMode();
@@ -20,10 +21,14 @@ const assetPrefix: string = process.env.ASSET_PREFIX || '';
 const basename = assetPrefix.replace(/\/+$/, '');
 
 const root = ReactDOM.createRoot(rootElement!);
-root.render(
-  <React.StrictMode>
-    <BrowserRouter basename={basename}>
-      <App />
-    </BrowserRouter>
-  </React.StrictMode>
-);
+// 回放模式（?replay=<fixture>）必须在 AgentProvider 首个请求发出前激活，
+// 否则挂载期并发请求会先打到真实后端 —— bootstrap 完成后再渲染。
+void bootstrapReplay().finally(() => {
+  root.render(
+    <React.StrictMode>
+      <BrowserRouter basename={basename}>
+        <App />
+      </BrowserRouter>
+    </React.StrictMode>
+  );
+});

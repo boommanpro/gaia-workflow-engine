@@ -8,15 +8,13 @@
     <name>gaia-workflow-app</name>
     <description>gaia-workflow-app</description>
     <properties>
+        <!-- AgentScope Java 2.0 要求 JDK 17+，自研 agent 运行时已整体升到 17 -->
         <java.version>17</java.version>
+        <maven.compiler.release>17</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <spring-boot.version>2.7.18</spring-boot.version>
-        <revision>2025.10-jdk8-SNAPSHOT</revision>
-        <!-- Maven 相关 -->
-        <java.version>1.8</java.version>
-        <maven.compiler.source>${java.version}</maven.compiler.source>
-        <maven.compiler.target>${java.version}</maven.compiler.target>
+        <revision>2025.10-jdk17-SNAPSHOT</revision>
         <maven-surefire-plugin.version>3.0.0-M5</maven-surefire-plugin.version>
         <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
         <flatten-maven-plugin.version>1.6.0</flatten-maven-plugin.version>
@@ -24,7 +22,13 @@
         <lombok.version>1.18.34</lombok.version>
         <spring.boot.version>2.7.18</spring.boot.version>
         <mapstruct.version>1.6.2</mapstruct.version>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- AgentScope Java：覆盖 Boot 2.7 默认的三方版本 -->
+        <agentscope.version>2.0.3</agentscope.version>
+        <jackson-bom.version>2.21.1</jackson-bom.version>
+        <!-- slf4j 2.x（agentscope 要求）+ logback 1.2（Boot 2.7 LogbackLoggingSystem 唯一兼容线）：
+             由 GaiaLogback12Slf4j2Provider 桥接 slf4j2 ServiceLoader → logback 1.2 绑定 -->
+        <slf4j.version>2.0.17</slf4j.version>
+        <logback.version>1.2.12</logback.version>
     </properties>
 
     <dependencies>
@@ -63,6 +67,19 @@
             <artifactId>sqlite-jdbc</artifactId>
             <version>3.42.0.0</version>
         </dependency>
+
+        <!-- AgentScope Java 2.0（推理内核换核：HarnessAgent ReAct 循环 + 内建韧性） -->
+        <dependency>
+            <groupId>io.agentscope</groupId>
+            <artifactId>agentscope-harness</artifactId>
+            <version>${agentscope.version}</version>
+        </dependency>
+        <!-- OpenAI 兼容模型扩展：本地 Qwen / vLLM 端点直连 -->
+        <dependency>
+            <groupId>io.agentscope</groupId>
+            <artifactId>agentscope-extensions-model-openai</artifactId>
+            <version>${agentscope.version}</version>
+        </dependency>
     </dependencies>
 
     <dependencyManagement>
@@ -73,6 +90,50 @@
                 <version>${spring-boot.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <!-- agentscope 需要 reactor-core 3.8（Boot 2.7 默认 3.4），显式管理避免降级 -->
+            <dependency>
+                <groupId>io.projectreactor</groupId>
+                <artifactId>reactor-core</artifactId>
+                <version>3.8.2</version>
+            </dependency>
+            <!-- import 进来的 Boot BOM 不吃属性覆盖，下面的条目必须直接声明才能压过 Boot 默认版本 -->
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-core</artifactId>
+                <version>${jackson-bom.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+                <version>${jackson-bom.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-annotations</artifactId>
+                <!-- Jackson 2.20 起 annotations 版本号不带 patch：2.21 线就是 "2.21" -->
+                <version>2.21</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.dataformat</groupId>
+                <artifactId>jackson-dataformat-yaml</artifactId>
+                <version>${jackson-bom.version}</version>
+            </dependency>
+            <!-- slf4j 2.x + logback 1.5：agentscope-core 按 slf4j 2.0.17 编译 -->
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>${slf4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-classic</artifactId>
+                <version>${logback.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-core</artifactId>
+                <version>${logback.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -103,6 +164,7 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>${maven-compiler-plugin.version}</version>
                 <configuration>
+                    <parameters>true</parameters>
                     <annotationProcessorPaths>
                         <path>
                             <groupId>org.springframework.boot</groupId>

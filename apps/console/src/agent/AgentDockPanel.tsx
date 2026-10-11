@@ -13,7 +13,6 @@ import MessageList from './MessageList';
 import SessionList from './SessionList';
 import { DebugPanel } from './DebugPanel';
 import { PlanCard } from './PlanCard';
-import { ConfirmModal } from './ConfirmModal';
 
 const ACCENT = '#4d53e8';
 
@@ -58,13 +57,11 @@ export const AgentDockPanel: React.FC = () => {
     setDockOpen,
     sessions,
     currentSessionKey,
-    pendingConfirm,
     streaming,
     queueLength,
     tokenUsage,
     compactContext,
     setToolExecutor,
-    resolveConfirm,
     createSession,
     renameSession,
     sendMessage,
@@ -735,9 +732,6 @@ export const AgentDockPanel: React.FC = () => {
               )}
             </div>
           </div>
-
-          {/* 确认弹窗 */}
-          {pendingConfirm && <ConfirmModal event={pendingConfirm} onResolve={resolveConfirm} />}
         </div>
       </div>
 

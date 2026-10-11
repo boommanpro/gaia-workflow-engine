@@ -2,9 +2,13 @@
  * Agent 后端 API 封装
  */
 import { getApiBaseUrl, getAbsoluteApiUrl } from '../utils/apiConfig';
-import type { AgentSession, AgentMessage, PermissionPolicy, WorkFolder } from './types';
+import { isReplayActive, replayRequest } from './replay/replay-driver';
+import type { AgentSession, AgentMessage, WorkFolder } from './types';
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  if (isReplayActive()) {
+    return replayRequest<T>(path);
+  }
   const url = `${getApiBaseUrl()}${path}`;
   const response = await fetch(url, {
     ...options,
@@ -87,14 +91,6 @@ export const agentApi = {
       }
     ),
   /** 停止当前运行（尽力而为） */
-  /** 当前挂起的确认（require 模式）：刷新/重连后即时恢复确认卡（不等 20s 心跳） */
-  getPendingConfirm: (sessionKey: string): Promise<{
-    pending: boolean;
-    toolCallId?: string;
-    action?: string;
-    args?: Record<string, unknown>;
-  }> => request(`/agent/session/${encodeURIComponent(sessionKey)}/pending-confirm`),
-
   stopRun: (sessionKey: string) =>
     request<boolean>(`/agent/session/${sessionKey}/stop`, { method: 'POST' }),
   /** 当前运行快照 */
@@ -106,12 +102,13 @@ export const agentApi = {
   /** 会话产物列表（workflow / plan / test_report / release） */
   getArtifacts: (sessionKey: string) =>
     request<import('./types').AgentArtifactDto[]>(`/agent/session/${sessionKey}/artifacts`),
-  /** 确认 / 拒绝一次等待中的工具调用（confirm require 模式） */
-  confirmTool: (sessionKey: string, toolCallId: string, approved: boolean) =>
-    request<{ success: boolean; error?: string }>(`/agent/session/${sessionKey}/confirm`, {
-      method: 'POST',
-      body: JSON.stringify({ toolCallId, approved }),
-    }),
+  /** 手动压缩会话历史（前半段摘要为一条 user 前情摘要，被压缩消息退出模型上下文） */
+  compactSession: (sessionKey: string) =>
+    request<{ compacted: boolean; message?: string; removed?: number; kept?: number; tokenPercentage?: number; estimatedTokens?: number; limit?: number }>(
+      `/agent/session/${encodeURIComponent(sessionKey)}/compact`,
+      { method: 'POST' },
+    ),
+
   /** 基于工作流当前落版初始化会话草稿（「基于工作流迭代」入口） */
   seedDraft: (sessionKey: string, workflowCode: string) =>
     request<{ success: boolean; versionNumber?: string; nodeCount?: number; error?: string }>(
@@ -126,6 +123,7 @@ export const agentApi = {
       body: JSON.stringify({ debugData }),
     }),
   getDebugData: async (sessionKey: string): Promise<string> => {
+    if (isReplayActive()) return '';
     // debug 接口可能返回空 body（debugData 为 null），不能用通用 request 的 response.json()
     const url = `${getApiBaseUrl()}/agent/session/${sessionKey}/debug`;
     const response = await fetch(url, {
@@ -159,6 +157,19 @@ export const agentApi = {
   exportSessionUrl: (sessionKey: string) =>
     getAbsoluteApiUrl(`/agent/session/${sessionKey}/export?pretty=true`),
 
+  // ===== 执行追踪（观测 API，对标 OWB Trace View）=====
+  /** 会话的 run 列表（从 agent_session_event 派生：终态/失败链/时间账） */
+  getSessionRuns: (sessionKey: string) =>
+    request<any[]>(`/agent/metrics/sessions/${sessionKey}/runs?limit=100`),
+  /** 会话事件流（跨 run，追加只写） */
+  getSessionEvents: (sessionKey: string, limit = 500) =>
+    request<any[]>(`/agent/metrics/sessions/${sessionKey}/events?limit=${limit}`),
+  /** LLM 调用账本（generation 级：prompt/输出摘要、usage、耗时、结局） */
+  getRunLlmCalls: (sessionKey: string, runId?: string) =>
+    request<any[]>(
+      `/agent/metrics/sessions/${sessionKey}/llm-calls?limit=200${runId ? `&runId=${encodeURIComponent(runId)}` : ''}`
+    ),
+
   // 工作空间（文件夹分组的对话）
   listFolders: () => request<WorkFolder[]>('/agent/workspace/folders'),
   createFolder: (name: string) =>
@@ -179,26 +190,6 @@ export const agentApi = {
       body: JSON.stringify({ folderId }),
     }),
 
-  // 权限管理
-  getPermissions: (sessionKey: string) =>
-    request<Record<string, PermissionPolicy>>(`/agent/permission/${sessionKey}`),
-  updatePermission: (sessionKey: string, action: string, policy: PermissionPolicy) =>
-    request<boolean>('/agent/permission', {
-      method: 'PUT',
-      body: JSON.stringify({ sessionKey, action, policy }),
-    }),
-  getPermissionDefaults: () =>
-    request<Record<string, PermissionPolicy>>('/agent/permission/defaults'),
-
-  // 全局权限（默认策略）
-  getGlobalPermissions: () =>
-    request<Record<string, PermissionPolicy>>('/agent/permission/global'),
-  updateGlobalPermission: (action: string, policy: PermissionPolicy) =>
-    request<boolean>('/agent/permission/global', {
-      method: 'PUT',
-      body: JSON.stringify({ action, policy }),
-    }),
-
   // Agent 配置
   listConfigs: (configType?: string) =>
     request<any[]>(`/agent/config/list${configType ? `?configType=${configType}` : ''}`),
@@ -216,6 +207,13 @@ export const agentApi = {
   revertConfig: (configKey: string, version: number) =>
     request<any>(`/agent/config/${configKey}/revert/${version}`, { method: 'POST' }),
 
+  // 配置中心 AI 生成（一次性 LLM 补全）
+  generateContent: (prompt: string, maxTokens?: number) =>
+    request<{ content: string }>('/agent/config/generate', {
+      method: 'POST',
+      body: JSON.stringify({ prompt, maxTokens }),
+    }),
+
   // 知识库
   listKnowledge: (keyword?: string) =>
     request<any[]>(`/agent/knowledge/list${keyword ? `?keyword=${encodeURIComponent(keyword)}` : ''}`),
@@ -227,35 +225,6 @@ export const agentApi = {
     request<boolean>(`/agent/knowledge/${id}`, { method: 'DELETE' }),
   searchKnowledge: (query: string, topK?: number, lang?: string) =>
     request<any[]>('/agent/knowledge/search', { method: 'POST', body: JSON.stringify({ query, topK: topK || 5, lang }) }),
-  reembedAll: () =>
-    request<any>('/agent/knowledge/reembed-all', { method: 'POST' }),
-
-  // 知识图谱
-  listGraphNodes: (nodeType?: string, keyword?: string) => {
-    const params = new URLSearchParams();
-    if (nodeType) params.set('nodeType', nodeType);
-    if (keyword) params.set('keyword', keyword);
-    const qs = params.toString();
-    return request<any[]>(`/agent/graph/node/list${qs ? `?${qs}` : ''}`);
-  },
-  getGraphNode: (nodeKey: string) =>
-    request<any>(`/agent/graph/node/${nodeKey}`),
-  saveGraphNode: (node: any) =>
-    request<any>('/agent/graph/node/save', { method: 'POST', body: JSON.stringify(node) }),
-  deleteGraphNode: (nodeKey: string) =>
-    request<boolean>(`/agent/graph/node/${nodeKey}`, { method: 'DELETE' }),
-  listGraphEdges: (sourceKey?: string, targetKey?: string, edgeType?: string) => {
-    const params = new URLSearchParams();
-    if (sourceKey) params.set('sourceKey', sourceKey);
-    if (targetKey) params.set('targetKey', targetKey);
-    if (edgeType) params.set('edgeType', edgeType);
-    const qs = params.toString();
-    return request<any[]>(`/agent/graph/edge/list${qs ? `?${qs}` : ''}`);
-  },
-  saveGraphEdge: (edge: any) =>
-    request<any>('/agent/graph/edge/save', { method: 'POST', body: JSON.stringify(edge) }),
-  deleteGraphEdge: (id: number) =>
-    request<boolean>(`/agent/graph/edge/${id}`, { method: 'DELETE' }),
 
   // 工具定义
   listToolDefinitions: (toolGroup?: string) =>

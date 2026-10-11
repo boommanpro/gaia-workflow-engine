@@ -27,7 +27,6 @@ import {
 import { useAgent } from '../../agent/AgentContext';
 import { agentApi } from '../../agent/api';
 import SessionList from '../../agent/SessionList';
-import { AgentConfirmLayer } from '../../agent/ConfirmModal';
 import { useLanguage, t } from '../../i18n';
 import { publicPath } from '../../utils/public-path';
 import { useWorkflowDocumentState, useCanvasSelection, workflowDocumentStore } from '../../document';
@@ -704,7 +703,6 @@ export const CopilotSidebar: React.FC<CopilotSidebarProps> = ({ workflowName, wo
         )}
 
         {/* 工具确认：窄容器里用覆盖层 */}
-        <AgentConfirmLayer position="absolute" />
     </div>
   );
 };

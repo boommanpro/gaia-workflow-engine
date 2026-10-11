@@ -125,8 +125,8 @@ public class AgentSessionRunService {
     private final ConversationStore conversationStore;
     private final AgentSessionService sessionService;
     private final AgentProviderConfigService providerConfigService;
-    private final cn.boommanpro.gaia.workflow.app.agent.core.ToolPolicyService toolPolicyService;
     private final cn.boommanpro.gaia.workflow.infra.manage.service.AgentSessionEventService sessionEventService;
+    private final SessionCompactionService compactionService;
 
     private final ConcurrentMap<String, RunHandle> runs = new ConcurrentHashMap<>();
     /** 会话级 steering 收件箱：run 进行中的新消息在 turn 边界注入；run 结束后残留消息链接成新 run */
@@ -144,15 +144,15 @@ public class AgentSessionRunService {
                                   ConversationStore conversationStore,
                                   AgentSessionService sessionService,
                                   AgentProviderConfigService providerConfigService,
-                                  cn.boommanpro.gaia.workflow.app.agent.core.ToolPolicyService toolPolicyService,
-                                  cn.boommanpro.gaia.workflow.infra.manage.service.AgentSessionEventService sessionEventService) {
+                                  cn.boommanpro.gaia.workflow.infra.manage.service.AgentSessionEventService sessionEventService,
+                                  SessionCompactionService compactionService) {
         this.executionRouter = executionRouter;
         this.eventBus = eventBus;
         this.conversationStore = conversationStore;
         this.sessionService = sessionService;
         this.providerConfigService = providerConfigService;
-        this.toolPolicyService = toolPolicyService;
         this.sessionEventService = sessionEventService;
+        this.compactionService = compactionService;
     }
 
     @PreDestroy
@@ -345,8 +345,20 @@ public class AgentSessionRunService {
                     new cn.boommanpro.gaia.workflow.app.agent.core.SteeringInbox()));
             request.getVariables().put("persistedUserMessage", persistedUserMessage);
 
-            AgentEventSink sink = recorder;
-            result = executionRouter.run(request, sink);
+        AgentEventSink sink = recorder;
+        // 跨 run 压缩闭环（对标 dsh compaction-basic 的 pre-run 触发位）：历史压力过阈值时
+        // 先摘要再推理。压缩本身会调一次 LLM（阻塞在此线程，run 线程无碍）；结果外发
+        // compaction 事件让前端播报「已压缩历史」——压缩必须可见，不能只默默变短。
+        try {
+            JSONObject compactResult = compactionService.compact(sessionKey);
+            if (Boolean.TRUE.equals(compactResult.getBool("compacted"))) {
+                recorder.emit(cn.boommanpro.gaia.workflow.app.agent.event.AgentEvent.of("compaction",
+                    compactResult.set("kind", "summary")));
+            }
+        } catch (Exception e) {
+            log.debug("[session-run] pre-run compaction failed (ignored): {}", e.getMessage());
+        }
+        result = executionRouter.run(request, sink);
 
             if (!handle.isCancelled()) {
                 if (result.isError()) {
@@ -372,23 +384,34 @@ public class AgentSessionRunService {
             }
         } finally {
             // run_end 终态事件（dsh 崩溃恢复依赖）：先落日志再收尾，
-            // 启动归位组件据此区分「正常结束」与「进程死亡时仍在跑」
+            // 启动归位组件据此区分「正常结束」与「进程死亡时仍在跑」。
+            // 载荷带结构化归因（失败链/时间账/token）—— 调试面板归因卡与时间账卡的数据源。
             try {
                 String outcome = handle.isCancelled() ? "stopped"
                     : (result != null && result.isError() ? "error" : "done");
-                recorder.emit(cn.boommanpro.gaia.workflow.app.agent.event.AgentEvent.of("run_end",
-                    new JSONObject().set("outcome", outcome)
-                        .set("turns", result != null ? result.getTurns() : 0)));
+                JSONObject runEnd = new JSONObject()
+                    .set("outcome", outcome)
+                    .set("turns", result != null ? result.getTurns() : 0);
+                if (result != null) {
+                    runEnd.set("engine", result.getEngine())
+                        .set("durationMs", result.getDurationMs())
+                        .set("toolTimeMs", result.getToolTimeMs())
+                        .set("promptTokens", result.getPromptTokens())
+                        .set("completionTokens", result.getCompletionTokens())
+                        .set("llmRetries", result.getLlmRetries());
+                    if (result.getFailureChain() != null && !result.getFailureChain().isEmpty()) {
+                        cn.hutool.json.JSONArray chain = new cn.hutool.json.JSONArray();
+                        for (String item : result.getFailureChain()) {
+                            chain.add(item);
+                        }
+                        runEnd.set("failureChain", chain);
+                    }
+                }
+                recorder.emit(cn.boommanpro.gaia.workflow.app.agent.event.AgentEvent.of("run_end", runEnd));
             } catch (Exception e) {
                 log.debug("[session-run] run_end emit failed: {}", e.getMessage());
             }
             recorder.flush(sessionKey);
-            // 运行收尾：放弃本会话仍挂起的确认等待（护栏截断/异常路径的确认卡不该悬到 300s 超时）
-            try {
-                toolPolicyService.cancelPendingConfirms(sessionKey);
-            } catch (Exception e) {
-                log.warn("[session-run] cancel pending confirms failed session={}: {}", sessionKey, e.getMessage());
-            }
             // 兜底收尾：任何路径离开 run 都不允许快照停留在 running，
             // 否则重启前订阅的新窗口会回放到僵尸 running 并注入旧内容
             JSONObject state = eventBus.getState(sessionKey);
@@ -447,6 +470,7 @@ public class AgentSessionRunService {
             String title = message != null ? message.trim().replaceAll("\\s+", " ") : "";
             session.setTitle(title.length() > 30 ? title.substring(0, 30) : (title.isEmpty() ? "新对话" : title));
             session.setScope("chat");
+            session.setEngine("agentscope");
             session.setPinned(0);
             session.setArchived(0);
             session.setCreatedAt(LocalDateTime.now());

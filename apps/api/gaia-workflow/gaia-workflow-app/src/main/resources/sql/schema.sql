@@ -145,15 +145,6 @@ CREATE TABLE IF NOT EXISTS agent_artifact (
 );
 CREATE INDEX IF NOT EXISTS idx_agent_artifact_session ON agent_artifact(session_key, updated_at);
 
--- Agent 权限习惯表（per-action 可配置）
-CREATE TABLE IF NOT EXISTS agent_permission (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_key VARCHAR(64) NOT NULL,
-    action VARCHAR(64) NOT NULL,
-    policy VARCHAR(16) NOT NULL DEFAULT 'confirm',
-    UNIQUE(session_key, action)
-);
-
 -- Agent 配置中心：在线管理 Prompt / 节点知识文档 / LLM 参数
 CREATE TABLE IF NOT EXISTS agent_config (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -182,12 +173,11 @@ CREATE TABLE IF NOT EXISTS agent_config_history (
 );
 CREATE INDEX IF NOT EXISTS idx_agent_config_history_key ON agent_config_history(config_key, version);
 
--- Agent RAG 知识库分块
+-- Agent RAG 知识库分块（关键词检索）
 CREATE TABLE IF NOT EXISTS agent_knowledge_chunk (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title VARCHAR(256) NOT NULL,
     content TEXT NOT NULL,
-    embedding TEXT,
     source VARCHAR(128),
     metadata TEXT,
     language VARCHAR(10) DEFAULT 'zh',
@@ -196,30 +186,6 @@ CREATE TABLE IF NOT EXISTS agent_knowledge_chunk (
     is_deleted TINYINT DEFAULT 0
 );
 
--- Agent 知识图谱 - 节点
-CREATE TABLE IF NOT EXISTS agent_graph_node (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    node_key VARCHAR(128) NOT NULL UNIQUE,
-    node_type VARCHAR(64) NOT NULL,
-    title VARCHAR(256) NOT NULL,
-    properties TEXT,
-    created_at TEXT,
-    updated_at TEXT,
-    is_deleted TINYINT DEFAULT 0
-);
-
--- Agent 知识图谱 - 边
-CREATE TABLE IF NOT EXISTS agent_graph_edge (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    source_key VARCHAR(128) NOT NULL,
-    target_key VARCHAR(128) NOT NULL,
-    edge_type VARCHAR(64) NOT NULL,
-    properties TEXT,
-    created_at TEXT,
-    is_deleted TINYINT DEFAULT 0
-);
-CREATE INDEX IF NOT EXISTS idx_agent_graph_edge_source ON agent_graph_edge(source_key);
-CREATE INDEX IF NOT EXISTS idx_agent_graph_edge_target ON agent_graph_edge(target_key);
 
 -- Agent 工具定义（动态管理）
 CREATE TABLE IF NOT EXISTS agent_tool_definition (
@@ -228,20 +194,12 @@ CREATE TABLE IF NOT EXISTS agent_tool_definition (
     tool_group VARCHAR(64) NOT NULL,
     description TEXT,
     parameters TEXT NOT NULL,
-    default_policy VARCHAR(16) NOT NULL DEFAULT 'confirm',
     page_contexts TEXT,
     enabled TINYINT DEFAULT 1,
     sort_order INTEGER DEFAULT 0,
     created_at TEXT,
     updated_at TEXT,
     is_deleted TINYINT DEFAULT 0
-);
-
--- Agent 全局默认权限（跨会话生效）
-CREATE TABLE IF NOT EXISTS agent_global_permission (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    action VARCHAR(64) NOT NULL UNIQUE,
-    policy VARCHAR(16) NOT NULL DEFAULT 'confirm'
 );
 
 -- Agent 会话持久事件日志（追加只写，v2）：turn/llm_end/tool_call/tool_result/knowledge_retrieved/confirm 等
@@ -270,3 +228,32 @@ CREATE TABLE IF NOT EXISTS agent_tool_call_log (
     created_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_agent_tool_call_log ON agent_tool_call_log(tool_name, outcome);
+
+-- LLM 调用账本（generation 级观测，对标 OWB trace generation 层）：每次模型调用一行
+CREATE TABLE IF NOT EXISTS agent_llm_call_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_key VARCHAR(64) NOT NULL,
+    run_id VARCHAR(64),
+    seq INTEGER,
+    model VARCHAR(128),
+    messages_count INTEGER,
+    tools_count INTEGER,
+    prompt_digest TEXT,
+    output_digest TEXT,
+    prompt_tokens INTEGER,
+    completion_tokens INTEGER,
+    cached_tokens INTEGER,
+    duration_ms BIGINT,
+    status VARCHAR(16),
+    error_message TEXT,
+    created_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_agent_llm_call_log ON agent_llm_call_log(session_key, run_id);
+-- ---------------------------------------------------------------------------
+-- 已下线功能的存量清理（幂等）：知识图谱 / 权限体系（2026-10 简体重构）
+-- spring.sql.init.mode=always，每次启动执行；新库无这些表时为空操作。
+-- ---------------------------------------------------------------------------
+DROP TABLE IF EXISTS agent_graph_node;
+DROP TABLE IF EXISTS agent_graph_edge;
+DROP TABLE IF EXISTS agent_permission;
+DROP TABLE IF EXISTS agent_global_permission;

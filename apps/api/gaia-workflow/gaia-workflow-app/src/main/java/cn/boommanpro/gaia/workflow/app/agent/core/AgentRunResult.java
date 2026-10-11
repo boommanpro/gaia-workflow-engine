@@ -41,6 +41,33 @@ public class AgentRunResult {
     /** 错误信息 */
     private String errorMessage;
 
+    /** 执行引擎 id（agentscope / ark / local） */
+    private String engine;
+
+    /** run 总耗时（ms） */
+    private long durationMs;
+
+    /** 工具耗时合计（并发区间重叠合并，非各步相加） */
+    private long toolTimeMs;
+
+    @Builder.Default
+    private Integer promptTokens = 0;
+
+    @Builder.Default
+    private Integer completionTokens = 0;
+
+    /** 空响应/模型级重试次数 */
+    @Builder.Default
+    private int llmRetries = 0;
+
+    /**
+     * 结构化失败链（有序）：user_interrupt / repeat_guard_hard_stop[:tool] /
+     * exceeded_max_iters / empty_response / empty_response_unrecovered /
+     * wrap_up_advisory / engine_error。run_end 归因卡的数据源；成功 run 可为空。
+     */
+    @Builder.Default
+    private List<String> failureChain = new ArrayList<>();
+
     /** 等待前端执行的工具调用（仅 FRONTEND 模式会产生） */
     @Builder.Default
     private List<PendingToolCall> pendingToolCalls = new ArrayList<>();

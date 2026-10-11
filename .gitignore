@@ -1,4 +1,3 @@
-|.gitignore
 # 忽略系统文件
 .DS_Store
 Thumbs.db
@@ -181,3 +180,9 @@ Thumbs.db
 
 # agent-v2 DB 备份（运行时产物，不入库）
 scripts/agent-v2/backups/
+
+# 本地工具会话产物（架构图工具）
+.archify/
+
+# Playwright 测试运行产物
+test-results/

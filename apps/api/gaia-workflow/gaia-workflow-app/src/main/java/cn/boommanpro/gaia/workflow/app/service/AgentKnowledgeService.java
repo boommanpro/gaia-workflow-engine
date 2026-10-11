@@ -24,8 +24,7 @@ import java.util.Set;
  * 模型在需要时调 search_knowledge / get_node_schema，检索结果带 sourceType + sourceId，
  * 每次检索都产生 knowledge_retrieved 事件（归因闭环：知道了什么知识被用掉）。</p>
  *
- * <p>评分用轻量关键词模型（中英混合分词 + bigram 命中计分），
- * 不依赖 embedding 服务可用性；embedding 命中时作为加分项排序。</p>
+ * <p>评分用轻量关键词模型（中英混合分词 + bigram 命中计分）。</p>
  */
 @Slf4j
 @Service
@@ -33,14 +32,11 @@ public class AgentKnowledgeService {
 
     private final AgentConfigService configService;
     private final AgentKnowledgeChunkService chunkService;
-    private final EmbeddingService embeddingService;
 
     public AgentKnowledgeService(AgentConfigService configService,
-                                 AgentKnowledgeChunkService chunkService,
-                                 EmbeddingService embeddingService) {
+                                 AgentKnowledgeChunkService chunkService) {
         this.configService = configService;
         this.chunkService = chunkService;
-        this.embeddingService = embeddingService;
     }
 
     /** 一条知识命中 */
@@ -166,18 +162,6 @@ public class AgentKnowledgeService {
                 if (score <= 0) {
                     continue;
                 }
-                // 向量相似度加分（embedding 可用且分块已有向量时）
-                if (embeddingService.isAvailable() && chunk.getEmbedding() != null) {
-                    try {
-                        double[] queryVec = embeddingService.embed(query);
-                        double[] chunkVec = embeddingService.jsonToEmbedding(chunk.getEmbedding());
-                        if (queryVec != null && chunkVec != null) {
-                            score += cosine(queryVec, chunkVec) * 2;
-                        }
-                    } catch (Exception ignore) {
-                        // 向量加分失败不影响关键词得分
-                    }
-                }
                 Hit hit = new Hit();
                 hit.sourceType = "rag_chunk";
                 hit.sourceId = String.valueOf(chunk.getId());
@@ -263,22 +247,6 @@ public class AgentKnowledgeService {
     private static final Set<String> STOP_WORDS = new LinkedHashSet<>(java.util.Arrays.asList(
         "the", "a", "an", "of", "to", "and", "or", "is", "are", "how", "what",
         "的", "了", "在", "是", "我", "有", "和", "就", "不", "人", "都", "一"));
-
-    private static double cosine(double[] a, double[] b) {
-        int n = Math.min(a.length, b.length);
-        double dot = 0;
-        double na = 0;
-        double nb = 0;
-        for (int i = 0; i < n; i++) {
-            dot += a[i] * b[i];
-            na += a[i] * a[i];
-            nb += b[i] * b[i];
-        }
-        if (na == 0 || nb == 0) {
-            return 0;
-        }
-        return dot / (Math.sqrt(na) * Math.sqrt(nb));
-    }
 
     private static String snippet(String content) {
         if (content == null) {

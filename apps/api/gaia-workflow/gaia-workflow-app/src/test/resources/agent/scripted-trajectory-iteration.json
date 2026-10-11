@@ -1,0 +1,16 @@
+{
+  "modelName": "scripted-replay",
+  "loopLast": false,
+  "responses": [
+    {
+      "thinking": ["用户要跑一遍工具链路。先调用 echo_tool 验证执行管道。"],
+      "text": [],
+      "toolCalls": [
+        { "id": "call-1", "name": "echo_tool", "arguments": "{\"input\":\"hello\"}" }
+      ]
+    },
+    {
+      "text": ["工具结果已确认：hello。", "轨迹回放完成。"]
+    }
+  ]
+}

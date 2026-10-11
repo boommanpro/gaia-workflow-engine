@@ -5,9 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.ArrayList;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Set;
 
 /**
@@ -15,14 +13,12 @@ import java.util.Set;
  *
  * <p>过去系统的行为是<strong>提示词工程</strong>驱动的：一份写死的系统提示词
  * （agent/prompt-zh.md）+ 一个写死的工具集合 + 一段写死的上下文拼装顺序，
- * 三者焊死在 {@code AgentChatService} 里，想加一种 Agent 只能改代码重新发版。</p>
+ * 三者焊死在一起，想加一种 Agent 只能改代码重新发版。</p>
  *
  * <p>现在把「一个 Agent 是什么」抽成这份纯数据定义：</p>
  * <ul>
  *   <li>{@code toolNames} —— 用哪些工具（策略注册中心的 key）</li>
- *   <li>{@code contextProviderIds} —— 注入哪些上下文（策略注册中心的 key）</li>
- *   <li>{@code llmProviderId} —— 用哪个模型供应商</li>
- *   <li>{@code maxTurns} —— 自治循环最多几轮，防止跑飞</li>
+ *   <li>{@code systemPromptConfigKey} —— 提示词在配置中心的 key</li>
  *   <li>{@code executionMode} —— 工具在前端还是后端执行</li>
  * </ul>
  *
@@ -50,25 +46,9 @@ public class AgentDefinition {
     /** 配置中心里的提示词 key，如 system_prompt.default */
     private String systemPromptConfigKey;
 
-    /** 使用的 LLM 供应商 id，为空用默认 */
-    private String llmProviderId;
-
     /** 该 Agent 可用的工具名集合 */
     @Builder.Default
     private Set<String> toolNames = new LinkedHashSet<>();
-
-    /** 该 Agent 启用的上下文提供者 id（为空表示启用全部） */
-    @Builder.Default
-    private List<String> contextProviderIds = new ArrayList<>();
-
-    /**
-     * @deprecated 主循环已移除轮次硬上限（对齐 dsh 自然停止）：
-     * run 结束于模型不再调用工具；跑飞防护交给护栏组合
-     * （连续失败熔断 / 同参数复读提醒 / 上下文压力压缩）。字段保留仅为兼容存量定义。
-     */
-    @Deprecated
-    @Builder.Default
-    private int maxTurns = 8;
 
     /** 工具在哪侧执行 */
     @Builder.Default
@@ -92,11 +72,12 @@ public class AgentDefinition {
     // ===== 执行引擎选择（双引擎架构） =====
 
     /**
-     * 执行引擎：local=自研编排（AgentRuntime，默认）、ark=火山方舟 Managed Agents 托管。
-     * 为空按 local 处理，存量定义零改造。
+     * 执行引擎：agentscope=AgentScope Java 2.0 HarnessAgent（默认，推理循环内核）、
+     * ark=火山方舟 Managed Agents 托管。为空按 agentscope 处理。
+     * （历史 local 自研引擎已移除，存量 engine=local 的会话由路由回退到 agentscope。）
      */
     @Builder.Default
-    private String engine = "local";
+    private String engine = "agentscope";
 
     /** 方舟 Agent 资源 ID（engine=ark 必填，形如 agent-20260812081435-xxxxx） */
     private String arkAgentId;

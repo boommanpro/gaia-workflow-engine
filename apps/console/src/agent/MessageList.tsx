@@ -74,23 +74,8 @@ function summarizeArgs(args: Record<string, any>): string {
     .join(', ');
 }
 
-/** policy 文案 + 颜色 */
-function policyLabel(policy: string): { text: string; color: string; bg: string } {
-  switch (policy) {
-    case 'always':
-      return { text: t('agent.policyAlways'), color: '#1f9d55', bg: '#e6f6ee' };
-    case 'confirm':
-      return { text: t('agent.policyConfirm'), color: '#b7791f', bg: '#fdf3e0' };
-    case 'forbid':
-      return { text: t('agent.policyForbid'), color: '#e5404e', bg: '#fdecee' };
-    default:
-      return { text: policy, color: 'var(--g-text-sub)', bg: 'var(--g-line)' };
-  }
-}
-
 /** 工具调用卡片 */
 export const ToolCallCard: React.FC<{ toolCall: ToolCallEvent }> = ({ toolCall }) => {
-  const pl = policyLabel(toolCall.policy);
   return (
     <div
       style={{
@@ -106,18 +91,6 @@ export const ToolCallCard: React.FC<{ toolCall: ToolCallEvent }> = ({ toolCall }
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
         <span style={{ color: 'var(--g-text-muted)', fontSize: '11px' }}>{t('agent.toolCall')}</span>
         <span style={{ color: ACCENT, fontWeight: 600 }}>{toolCall.action}</span>
-        <span
-          style={{
-            fontSize: '10px',
-            color: pl.color,
-            background: pl.bg,
-            padding: '1px 6px',
-            borderRadius: '4px',
-            fontWeight: 500,
-          }}
-        >
-          {pl.text}
-        </span>
       </div>
       <div
         style={{
@@ -269,7 +242,6 @@ export const GroupedToolCard: React.FC<{ messages: DisplayMessage[] }> = ({ mess
               </div>
               {toolCallMsgs.map((m, idx) => {
                 const tc = m.toolCall!;
-                const pl = policyLabel(tc.policy);
                 return (
                   <div
                     key={m.id}
@@ -289,18 +261,6 @@ export const GroupedToolCard: React.FC<{ messages: DisplayMessage[] }> = ({ mess
                     >
                       <ToolStatusIcon toolCall={tc} />
                       <span style={{ color: ACCENT, fontWeight: 600 }}>{tc.action}</span>
-                      <span
-                        style={{
-                          fontSize: '10px',
-                          color: pl.color,
-                          background: pl.bg,
-                          padding: '1px 6px',
-                          borderRadius: '4px',
-                          fontWeight: 500,
-                        }}
-                      >
-                        {pl.text}
-                      </span>
                     </div>
                     <div
                       style={{

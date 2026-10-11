@@ -1,7 +1,9 @@
 package cn.boommanpro.gaia.workflow.app.controller.system;
 
+import cn.boommanpro.gaia.workflow.infra.manage.entity.AgentLlmCallLog;
 import cn.boommanpro.gaia.workflow.infra.manage.entity.AgentSessionEvent;
 import cn.boommanpro.gaia.workflow.infra.manage.entity.AgentToolCallLog;
+import cn.boommanpro.gaia.workflow.infra.manage.service.AgentLlmCallLogService;
 import cn.boommanpro.gaia.workflow.infra.manage.service.AgentSessionEventService;
 import cn.boommanpro.gaia.workflow.infra.manage.service.AgentToolCallLogService;
 import cn.hutool.json.JSONArray;
@@ -14,7 +16,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -35,11 +39,14 @@ public class AgentObservabilityController {
 
     private final AgentToolCallLogService toolCallLogService;
     private final AgentSessionEventService sessionEventService;
+    private final AgentLlmCallLogService llmCallLogService;
 
     public AgentObservabilityController(AgentToolCallLogService toolCallLogService,
-                                        AgentSessionEventService sessionEventService) {
+                                        AgentSessionEventService sessionEventService,
+                                        AgentLlmCallLogService llmCallLogService) {
         this.toolCallLogService = toolCallLogService;
         this.sessionEventService = sessionEventService;
+        this.llmCallLogService = llmCallLogService;
     }
 
     /** 工具×结局 聚合（可选 days 限定最近 N 天，默认 7） */
@@ -111,5 +118,82 @@ public class AgentObservabilityController {
                 .eq("session_key", sessionKey)
                 .orderByDesc("id")
                 .last("LIMIT " + Math.min(Math.max(limit, 1), 1000)));
+    }
+
+    /**
+     * 会话的 run 列表（执行追踪页数据源）—— 从 agent_session_event 派生：
+     * 每个 run 一行，含终态（run_end 的 outcome/失败链/时间账）、起止时间、事件数。
+     * 无 run_end 事件的 run 判为 running/stalled（进程死亡或仍进行中，前端区分展示）。
+     */
+    @GetMapping("/sessions/{sessionKey}/runs")
+    public List<Map<String, Object>> sessionRuns(@PathVariable String sessionKey,
+                                                 @RequestParam(required = false, defaultValue = "200") int limit) {
+        List<AgentSessionEvent> events = sessionEventService.list(
+            new QueryWrapper<AgentSessionEvent>()
+                .eq("session_key", sessionKey)
+                .orderByAsc("id")
+                .last("LIMIT " + Math.min(Math.max(limit, 1) * 20, 2000)));
+
+        // 按 runId 聚合（保持首次出现顺序）
+        Map<String, Map<String, Object>> runs = new LinkedHashMap<>();
+        for (AgentSessionEvent event : events) {
+            String runId = event.getRunId() != null ? event.getRunId() : "unknown";
+            Map<String, Object> run = runs.computeIfAbsent(runId, k -> {
+                Map<String, Object> m = new HashMap<>();
+                m.put("runId", k);
+                m.put("startedAt", event.getCreatedAt());
+                m.put("eventCount", 0);
+                m.put("hasError", false);
+                return m;
+            });
+            run.put("eventCount", (Integer) run.get("eventCount") + 1);
+            run.put("lastEventAt", event.getCreatedAt());
+            String type = event.getEventType();
+            if ("error".equals(type)) {
+                run.put("hasError", true);
+            }
+            if ("run_end".equals(type)) {
+                run.put("endedAt", event.getCreatedAt());
+                try {
+                    cn.hutool.json.JSONObject payload = cn.hutool.json.JSONUtil.parseObj(
+                        event.getPayload() != null ? event.getPayload() : "{}");
+                    run.put("outcome", payload.getStr("outcome", "done"));
+                    run.put("turns", payload.getInt("turns", 0));
+                    run.put("durationMs", payload.getLong("durationMs"));
+                    run.put("toolTimeMs", payload.getLong("toolTimeMs"));
+                    run.put("promptTokens", payload.getInt("promptTokens"));
+                    run.put("completionTokens", payload.getInt("completionTokens"));
+                    run.put("llmRetries", payload.getInt("llmRetries"));
+                    run.put("failureChain", payload.getJSONArray("failureChain"));
+                    run.put("engine", payload.getStr("engine"));
+                } catch (Exception ignore) {
+                    run.put("outcome", "done");
+                }
+            }
+        }
+        // 无 run_end 的事件流 → 状态 running（或历史遗留的僵尸 run）
+        for (Map<String, Object> run : runs.values()) {
+            if (!run.containsKey("outcome")) {
+                run.put("outcome", "running");
+            }
+        }
+        List<Map<String, Object>> list = new ArrayList<>(runs.values());
+        java.util.Collections.reverse(list); // 最新 run 在前
+        return list;
+    }
+
+    /** 某会话（可再按 runId 过滤）的 LLM 调用账本 —— generation 级根因探索 */
+    @GetMapping("/sessions/{sessionKey}/llm-calls")
+    public List<AgentLlmCallLog> llmCalls(@PathVariable String sessionKey,
+                                          @RequestParam(required = false) String runId,
+                                          @RequestParam(required = false, defaultValue = "200") int limit) {
+        QueryWrapper<AgentLlmCallLog> query = new QueryWrapper<AgentLlmCallLog>()
+            .eq("session_key", sessionKey)
+            .orderByDesc("id")
+            .last("LIMIT " + Math.min(Math.max(limit, 1), 1000));
+        if (runId != null && !runId.isEmpty()) {
+            query.eq("run_id", runId);
+        }
+        return llmCallLogService.list(query);
     }
 }

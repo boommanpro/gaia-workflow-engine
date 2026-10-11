@@ -31,7 +31,6 @@ import { CHAT, CHAT_COLUMN_WIDTH, ChatStyles } from './theme';
 import { ToolSteps } from './ToolSteps';
 import { CanvasSnapshotCard } from './CanvasSnapshotCard';
 import {
-  ApplyWorkflowCard,
   LiveCanvasCard,
   ReleaseCard,
   TestReportCard,
@@ -139,7 +138,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   dense = false,
   onSnapshotView,
 }) => {
-  const { messages, streaming, liveMessageId, sendMessage, queueLength, pendingConfirm, resolveConfirm, currentSessionKey } = useAgent();
+  const { messages, streaming, liveMessageId, sendMessage, queueLength, currentSessionKey } = useAgent();
   useLanguage();
   const { snapshots, cursor } = useWorkflowDocumentState();
   /** run 期间最新的 workflow 产物 —— 驱动对话流里的画布活卡（随版本原地生长） */
@@ -394,7 +393,9 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
               </details>
             )}
             {m.planSteps && m.planSteps.length > 0 && <PlanCard key={`plan-${m.id}`} steps={m.planSteps} />}
-            {!m.timeline?.length && m.toolSteps && m.toolSteps.length > 0 && (
+            {/* live 行的工具只从 store 时间线渲染（LiveAssistantContent 内），
+                toolSteps 双路渲染已被移除 —— 同一工具卡出现两次即本条件回归 */}
+            {m.id !== liveMessageId && !m.timeline?.length && m.toolSteps && m.toolSteps.length > 0 && (
               <ToolSteps
                 messages={m.toolSteps.map((ts) => ({
                   id: `ts-${ts.id}`,
@@ -406,11 +407,10 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
                 compact={compact}
               />
             )}
-            {streaming && m.id === liveMessageId ? (
-              <LiveAssistantContent
-                onResolveConfirm={resolveConfirm}
-                pendingConfirm={pendingConfirm ? { toolCallId: pendingConfirm.id, action: pendingConfirm.action, args: (pendingConfirm.args || {}) as Record<string, unknown> } : null}
-              />
+            {/* live 行渲染体不要求 streaming=true：done→reload 交接期（streaming 已落定、
+                历史重载未返回）store.timeline 仍持有完整内容，避免闪一帧空回复 */}
+            {m.id === liveMessageId ? (
+              <LiveAssistantContent />
             ) : m.timeline && m.timeline.length > 0 ? (
               <TimelineView timeline={m.timeline} streaming={false} />
             ) : (
@@ -446,7 +446,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   const lastMsg = messages[messages.length - 1];
   // 正文已入 store（state.content 流式期间恒为空），打字点由 store 判空
   const showTyping = streaming && !!lastMsg && lastMsg.role === 'assistant'
-    && !streamState.content && !streamState.thinking && !lastMsg.toolSteps?.length;
+    && !streamState.content && !streamState.thinking && streamState.timeline.length === 0;
 
   // 画布活卡只在「这一轮真的动过画布」时出现：streaming 开始时记下当前产物版本，
   // 版本号在本轮内发生过变化才亮卡；run 结束即定格（对话流交还给快照卡）。
@@ -506,11 +506,6 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
             <LiveCanvasCard artifact={liveWorkflowArtifact} />
           )}
           {showTyping && <TypingIndicator />}
-          {pendingConfirm
-            && (pendingConfirm.action === 'write_workflow' || pendingConfirm.action === 'save_workflow')
-            && !(streaming && messages.some((m) => m.id === liveMessageId)) && (
-            <ApplyWorkflowCard args={pendingConfirm.args || {}} onResolve={resolveConfirm} />
-          )}
           {queueLength > 0 && streaming && (
             <div
               className="chat-fade"

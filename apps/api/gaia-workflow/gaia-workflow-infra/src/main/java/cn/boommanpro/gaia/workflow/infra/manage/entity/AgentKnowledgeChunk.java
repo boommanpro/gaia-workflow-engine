@@ -19,9 +19,6 @@ public class AgentKnowledgeChunk {
     @TableField("content")
     private String content;
 
-    @TableField("embedding")
-    private String embedding;
-
     @TableField("source")
     private String source;
 

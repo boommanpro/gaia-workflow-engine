@@ -120,14 +120,15 @@ export const TemplateManagement = () => {
   };
 
   const handleDelete = (tpl: GaiaWorkflowTemplate) => {
-    if (tpl.id == null) return;
+    const templateId = tpl.id;
+    if (templateId == null) return;
     Modal.confirm({
       title: t('admin.deleteTemplate.title'),
       content: t('admin.deleteTemplate.confirm', { name: tpl.templateName }),
       okType: 'danger',
       onOk: async () => {
         try {
-          await workflowApi.deleteTemplate(tpl.id);
+          await workflowApi.deleteTemplate(templateId);
           await loadData();
           Toast.success(t('admin.deleteSuccess'));
         } catch (err) {

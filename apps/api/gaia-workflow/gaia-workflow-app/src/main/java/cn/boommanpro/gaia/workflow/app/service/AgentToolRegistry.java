@@ -46,10 +46,31 @@ public class AgentToolRegistry {
     private List<AgentToolDefinition> toolDefinitions = new ArrayList<>();
 
     /**
-     * action -> 默认权限策略
-     * always: 自动执行；confirm: 每次确认；forbid: 禁止
+     * 系统提示词正文中工具目录段的位置标记：渲染时以「启用的工具定义」
+     * 动态生成的目录替换该行 —— 管理端禁用/新增工具后无需改提示词正文。
      */
-    private final Map<String, String> defaultPolicies = new HashMap<>();
+    private static final String TOOLS_CATALOG_MARKER = "<!-- gaia:tools-catalog -->";
+
+    /** 工具目录中每个工具的一句话说明（与 schema 的长 description 互补，保持目录紧凑） */
+    private static final Map<String, String> TOOL_SUMMARIES = buildToolSummaries();
+
+    private static Map<String, String> buildToolSummaries() {
+        Map<String, String> m = new java.util.LinkedHashMap<>();
+        m.put("list_workflows", "工作流目录（编码/名称/revision），可按关键词过滤");
+        m.put("read_workflow", "完整 DSL + revision。**修改已有工作流前必读**（读取会同步为会话草稿）");
+        m.put("read_node", "节点详情 + 全部可用变量");
+        m.put("list_runs", "执行日志（状态/耗时/错误）");
+        m.put("list_templates", "模板目录");
+        m.put("search_knowledge", "检索知识库（用法/示例/最佳实践）");
+        m.put("get_node_schema", "节点类型的完整字段结构与 JSON 示例");
+        m.put("edit_workflow", "**增量修改主力**。声明式 delta 原子生效，任一项非法则整批拒绝并给出逐项修复指引；同批新节点用 `$ref` 互连");
+        m.put("run_workflow", "试运行当前会话草稿，等待终态返回输出");
+        m.put("write_workflow", "整份 DSL 一次成型。**仅新建或推倒重来用**；改已有必须带 baseRevision");
+        m.put("save_workflow", "把会话草稿落为新版本（edit_workflow 的收口动作，默认作用于当前绑定的工作流）");
+        m.put("delete_workflow", "删除（不可逆，须用户明确同意后带 confirmed=true）");
+        m.put("todo_write", "任务进度清单（3 步以上任务先列清单，完成一项勾一项）");
+        return java.util.Collections.unmodifiableMap(m);
+    }
 
     /**
      * 节点 data 参数的结构提示（嵌入 canvas 工具的 data 参数 description 中）
@@ -84,6 +105,57 @@ public class AgentToolRegistry {
         promptEn = readResource("agent/prompt-en.md");
         loadFromDatabase();
         loadSystemPromptFromDb();
+    }
+
+    /** classpath 提示词里的版本标记：<!-- gaia:prompt-version:N --> */
+    private static final java.util.regex.Pattern PROMPT_VERSION =
+        java.util.regex.Pattern.compile("gaia:prompt-version:(\\d+)");
+
+    private static int versionOf(String content) {
+        if (content == null) {
+            return 0;
+        }
+        java.util.regex.Matcher m = PROMPT_VERSION.matcher(content);
+        return m.find() ? Integer.parseInt(m.group(1)) : 1;
+    }
+
+    /** DB 提示词版本低于 classpath 时覆盖（升级生效）；同版本/更高不碰（尊重管理后台手改）。
+     *  内置 Agent 专属提示词（workflow-architect）同样纳入版本同步。 */
+    private void syncSystemPromptFromCode() {
+        syncOnePrompt("system_prompt.default", "agent/prompt-zh.md", promptZh);
+        syncOnePrompt("system_prompt.default.en", "agent/prompt-en.md", promptEn);
+        syncOnePrompt("system_prompt.workflow-architect", "agent/prompt-workflow-architect-zh.md", null);
+        syncOnePrompt("system_prompt.workflow-architect.en", "agent/prompt-workflow-architect-en.md", null);
+    }
+
+    private void syncOnePrompt(String configKey, String classpathPath, String codeFallback) {
+        try {
+            String codeContent = readResource(classpathPath);
+            int codeVersion = versionOf(codeContent);
+            AgentConfig config = configService.getOne(
+                new QueryWrapper<AgentConfig>()
+                    .eq("config_key", configKey)
+                    .eq("config_type", "system_prompt"));
+            String dbContent = config != null ? config.getContent() : null;
+            if (dbContent != null && !dbContent.isEmpty() && versionOf(dbContent) >= codeVersion) {
+                return;
+            }
+            String now = LocalDateTime.now().toString();
+            if (config == null) {
+                config = new AgentConfig();
+                config.setConfigKey(configKey);
+                config.setConfigType("system_prompt");
+                config.setTitle("系统提示词" + (configKey.endsWith(".en") ? "（英文）" : ""));
+                config.setCreatedAt(now);
+            }
+            config.setContent(codeContent);
+            config.setUpdatedAt(now);
+            configService.saveOrUpdate(config);
+            log.info("System prompt [{}] synced from code to version {} (DB was {})",
+                configKey, codeVersion, versionOf(dbContent));
+        } catch (Exception e) {
+            log.warn("Failed to sync system prompt [{}]: {}", configKey, e.toString());
+        }
     }
 
     /**
@@ -132,9 +204,13 @@ public class AgentToolRegistry {
      * 确保工具定义已播种到 DB（表为空时建种）。
      * 由 {@link cn.boommanpro.gaia.workflow.app.config.AgentDataSeeder} 在 SQL 初始化完成后调用，
      * 弥补 {@code @PostConstruct} 时机过早可能导致的建种失败。
+     * 提示词版本同步也在这里做：@PostConstruct 阶段数据源未就绪，DB 查询只会白失败
+     * （实测日志：sync failed 于 :48.7，Loaded definitions 于 :49.3）。
      */
     public void ensureSeeded() {
         loadFromDatabase(true);
+        syncSystemPromptFromCode();
+        loadSystemPromptFromDb();
     }
 
     /**
@@ -197,20 +273,11 @@ public class AgentToolRegistry {
                     .orderByAsc("sort_order", "id"));
             this.toolDefinitions = enabled;
             this.toolsSchema = buildSchemaFromDefinitions(enabled);
-
-            this.defaultPolicies.clear();
-            for (AgentToolDefinition t : enabled) {
-                if (t.getToolName() != null && t.getDefaultPolicy() != null) {
-                    this.defaultPolicies.put(t.getToolName(), t.getDefaultPolicy());
-                }
-            }
             log.info("Loaded {} enabled tool definitions from DB", enabled.size());
         } catch (Exception e) {
             log.warn("Failed to load tool definitions from DB, falling back to hardcoded schema", e);
             this.toolsSchema = buildToolsSchema();
             this.toolDefinitions = new ArrayList<>();
-            this.defaultPolicies.clear();
-            this.defaultPolicies.putAll(buildDefaultPolicies());
         }
     }
 
@@ -219,7 +286,6 @@ public class AgentToolRegistry {
      */
     private void seedFromHardcoded() {
         JSONArray hardcoded = buildToolsSchema();
-        Map<String, String> policies = buildDefaultPolicies();
         int order = 0;
         for (Object item : hardcoded) {
             JSONObject tool = (JSONObject) item;
@@ -233,7 +299,6 @@ public class AgentToolRegistry {
             def.setToolGroup(toolGroupOf(name));
             def.setDescription(desc);
             def.setParameters(params != null ? params.toString() : new JSONObject().toString());
-            def.setDefaultPolicy(policies.getOrDefault(name, "confirm"));
             def.setPageContexts(null);
             def.setEnabled(1);
             def.setSortOrder(order++);
@@ -247,13 +312,12 @@ public class AgentToolRegistry {
 
     /**
      * 增量补齐工具定义：缺失的建种；代码侧 schema 有变更的（description/parameters 不一致）
-     * 同步覆盖 DB —— 否则升级后新增参数（如 manage.confirmed）在老库上永远不生效，
+     * 同步覆盖 DB —— 否则升级后新增参数在老库上永远不生效，
      * 模型看不到新参数导致行为退化。以 description/parameters 一致性为准，
-     * default_policy/enabled/sort_order 等用户可调字段不碰。
+     * enabled/sort_order 等用户可调字段不碰。
      */
     private void seedMissingTools() {
         JSONArray hardcoded = buildToolsSchema();
-        Map<String, String> policies = buildDefaultPolicies();
 
         int maxOrder = 0;
         for (AgentToolDefinition existing : toolDefinitionService.list()) {
@@ -291,7 +355,6 @@ public class AgentToolRegistry {
             def.setToolGroup(toolGroupOf(name));
             def.setDescription(desc);
             def.setParameters(paramsJson);
-            def.setDefaultPolicy(policies.getOrDefault(name, "confirm"));
             def.setEnabled(1);
             def.setSortOrder(++maxOrder);
             String now = LocalDateTime.now().toString();
@@ -346,13 +409,86 @@ public class AgentToolRegistry {
         return toolDefinitions;
     }
 
-    public String getSystemPrompt(String locale, String pageContext) {
-        // 每次调用从 DB 读取最新内容，确保管理后台修改即时生效
+    /**
+     * 组装默认系统提示词：DB 正文（管理后台可改）+ 按当前启用状态动态渲染的工具目录。
+     *
+     * @param allowedTools 该 Agent 可用的工具名集合；null/空表示全部启用工具
+     *                     （目录与实际下发的工具 schema 保持一致，避免正文目录撒谎）
+     */
+    public String getSystemPrompt(String locale, java.util.Set<String> allowedTools) {
         String prompt = loadPromptFromDb(locale);
-        if (pageContext != null && !pageContext.isEmpty()) {
-            prompt += "\n\n## 当前页面上下文\n```json\n" + pageContext + "\n```";
+        return injectToolCatalog(prompt, allowedTools);
+    }
+
+    /** 把正文中的目录标记替换为按启用状态渲染的工具目录；无标记（管理员删了/自定义正文）原样返回 */
+    private String injectToolCatalog(String prompt, java.util.Set<String> allowedTools) {
+        int at = prompt.indexOf(TOOLS_CATALOG_MARKER);
+        if (at < 0) {
+            return prompt;
         }
-        return prompt;
+        String catalog = renderToolCatalog(allowedTools);
+        return prompt.substring(0, at) + catalog + prompt.substring(at + TOOLS_CATALOG_MARKER.length());
+    }
+
+    /** 渲染「工具总览」一节：分组标题 + 每工具一句话说明 */
+    private String renderToolCatalog(java.util.Set<String> allowedTools) {
+        List<AgentToolDefinition> defs = new ArrayList<>();
+        for (AgentToolDefinition def : toolDefinitions) {
+            if (def.getToolName() == null) {
+                continue;
+            }
+            if (allowedTools != null && !allowedTools.isEmpty() && !allowedTools.contains(def.getToolName())) {
+                continue;
+            }
+            defs.add(def);
+        }
+        StringBuilder sb = new StringBuilder("## 工具总览（").append(defs.size()).append(" 个）");
+        for (String group : new String[]{"read", "edit", "run", "commit", "meta", "other"}) {
+            List<String> lines = new ArrayList<>();
+            for (AgentToolDefinition def : defs) {
+                if (group.equals(toolGroupOf(def.getToolName()))) {
+                    lines.add("- `" + def.getToolName() + "` — " + toolSummary(def));
+                }
+            }
+            if (!lines.isEmpty()) {
+                sb.append("\n\n").append(groupHeader(group)).append("\n");
+                for (String line : lines) {
+                    sb.append(line).append("\n");
+                }
+            }
+        }
+        return sb.toString();
+    }
+
+    private static String groupHeader(String group) {
+        switch (group) {
+            case "read": return "### 读（无副作用，随时可用）";
+            case "edit": return "### 改（作用于会话草稿）";
+            case "run": return "### 执行（沙箱试运行）";
+            case "commit": return "### 落版（写库生效，语义校验 + 乐观锁守护）";
+            case "meta": return "### 元";
+            default: return "### 其它";
+        }
+    }
+
+    /** 目录里的一句话说明：优先人工维护的紧凑文案，未知工具退化为 description 首句 */
+    private static String toolSummary(AgentToolDefinition def) {
+        String curated = TOOL_SUMMARIES.get(def.getToolName());
+        if (curated != null) {
+            return curated;
+        }
+        String desc = def.getDescription() == null ? "" : def.getDescription();
+        for (String sep : new String[]{"。", "；", "\n"}) {
+            int idx = desc.indexOf(sep);
+            if (idx > 0) {
+                desc = desc.substring(0, idx);
+                break;
+            }
+        }
+        if (desc.length() > 80) {
+            desc = desc.substring(0, 80) + "…";
+        }
+        return desc.isEmpty() ? "（见工具 schema）" : desc;
     }
 
     /**
@@ -374,10 +510,6 @@ public class AgentToolRegistry {
         }
         // fallback 到 classpath 缓存
         return isZh ? promptZh : promptEn;
-    }
-
-    public String getDefaultPolicy(String action) {
-        return defaultPolicies.getOrDefault(action, "confirm");
     }
 
     /**
@@ -410,10 +542,6 @@ public class AgentToolRegistry {
             log.warn("Failed to get parameters for tool [{}]: {}", toolName, e.getMessage());
         }
         return null;
-    }
-
-    public Map<String, String> getAllDefaultPolicies() {
-        return defaultPolicies;
     }
 
     // ===== 内部：DB -> schema 构建 =====
@@ -539,30 +667,6 @@ public class AgentToolRegistry {
 
     // ===== 硬编码种子 schema（DB 为空时建种使用） =====
 
-    private Map<String, String> buildDefaultPolicies() {
-        Map<String, String> policies = new HashMap<>();
-        // 读层：无副作用，直接放行
-        policies.put("list_workflows", "always");
-        policies.put("read_workflow", "always");
-        policies.put("read_node", "always");
-        policies.put("list_runs", "always");
-        policies.put("list_templates", "always");
-        policies.put("search_knowledge", "always");
-        policies.put("get_node_schema", "always");
-        // 会话域编辑：草稿不落库，放行
-        policies.put("edit_workflow", "always");
-        // 试运行：沙箱执行，放行
-        policies.put("run_workflow", "always");
-        // 落版是人机交接点（agent-artifact-design.md D1）：走 confirm 门禁，
-        // 具体模式由 agent.policy.apply_confirm_mode 控制（默认 require）
-        policies.put("write_workflow", "confirm");
-        policies.put("save_workflow", "confirm");
-        // 删除不可逆：确认
-        policies.put("delete_workflow", "confirm");
-        // todo：纯展示状态
-        policies.put("todo_write", "always");
-        return policies;
-    }
 
     private JSONArray buildToolsSchema() {
         JSONArray tools = new JSONArray();
@@ -720,7 +824,7 @@ public class AgentToolRegistry {
             + "然后携带 confirmed=true 调用", obj(
             new String[]{"workflowCode"}, new JSONObject[]{
                 str("workflowCode", "工作流编码", null),
-                str("confirmed", "用户明确同意后传 true；未确认时工具会拒绝执行", null)
+                boolProp("confirmed", "用户明确同意后传 true；未确认时工具会拒绝执行", false)
             }
         )));
 

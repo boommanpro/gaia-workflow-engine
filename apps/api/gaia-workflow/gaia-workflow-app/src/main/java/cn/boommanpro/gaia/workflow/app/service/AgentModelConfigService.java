@@ -13,14 +13,13 @@ import org.springframework.stereotype.Service;
  * 模型配置服务 — 数据库优先，application.yml 兜底
  *
  * <p>数据库中 agent_config 表 configKey={@link #LLM_CONFIG_KEY} 的 config_data 字段
- * 存储完整 JSON 配置，修改后即时生效（无缓存），全局影响 AgentChatService / SubagentService。
+ * 存储完整 JSON 配置，修改后即时生效（无缓存），全局影响执行引擎 / SubagentService。
  */
 @Slf4j
 @Service
 public class AgentModelConfigService {
 
     public static final String LLM_CONFIG_KEY = "llm_config";
-    public static final String EMBEDDING_CONFIG_KEY = "embedding_config";
 
     private final AgentConfigService configService;
     private final AgentProperties properties;
@@ -66,40 +65,6 @@ public class AgentModelConfigService {
     }
 
     /**
-     * 获取当前生效的 Embedding 配置（DB 优先 → LLM 配置兜底 → yml 默认值兜底）
-     *
-     * <p>embedding 配置允许独立设置 apiHost/apiKey/model，任一字段留空则复用 LLM 配置，
-     * 这样用户无需为 embedding 单独配置 provider（与 chat 模型共用一套即可），
-     * 同时支持高级用户使用专门的 embedding 模型（如 text-embedding-3-small / bge-m3）。
-     */
-    public EmbeddingConfig getEmbeddingConfig() {
-        LlmConfig llmConfig = getLlmConfig();
-        AgentConfig config = configService.getOne(
-                new QueryWrapper<AgentConfig>().eq("config_key", EMBEDDING_CONFIG_KEY));
-        if (config != null && config.getConfigData() != null && !config.getConfigData().isEmpty()) {
-            try {
-                JSONObject json = JSONUtil.parseObj(config.getConfigData());
-                EmbeddingConfig result = new EmbeddingConfig();
-                // 留空字段复用 LLM 配置，避免用户必须重复填写
-                result.setApiHost(json.getStr("apiHost", llmConfig.getApiHost()));
-                result.setApiKey(json.getStr("apiKey", llmConfig.getApiKey()));
-                result.setModel(json.getStr("model", llmConfig.getModel()));
-                result.setEnabled(json.getBool("enabled", true));
-                return result;
-            } catch (Exception e) {
-                log.warn("Failed to parse embedding config from DB, falling back to LLM config: {}", e.getMessage());
-            }
-        }
-        // 无 DB 配置时直接复用 LLM 配置
-        EmbeddingConfig result = new EmbeddingConfig();
-        result.setApiHost(llmConfig.getApiHost());
-        result.setApiKey(llmConfig.getApiKey());
-        result.setModel(llmConfig.getModel());
-        result.setEnabled(true);
-        return result;
-    }
-
-    /**
      * 运行时 LLM 配置（不可变快照）
      */
     @lombok.Data
@@ -112,18 +77,5 @@ public class AgentModelConfigService {
         private int contextWindow;
         /** 透传给 /chat/completions 的 chat_template_kwargs（可空） */
         private JSONObject chatTemplateKwargs;
-    }
-
-    /**
-     * 运行时 Embedding 配置（不可变快照）
-     * 默认复用 LLM 配置，用户可通过 DB embedding_config 独立覆盖
-     */
-    @lombok.Data
-    public static class EmbeddingConfig {
-        private String apiHost;
-        private String apiKey;
-        private String model;
-        /** 是否启用 embedding（false 时强制走关键词降级，不调用 API） */
-        private boolean enabled;
     }
 }

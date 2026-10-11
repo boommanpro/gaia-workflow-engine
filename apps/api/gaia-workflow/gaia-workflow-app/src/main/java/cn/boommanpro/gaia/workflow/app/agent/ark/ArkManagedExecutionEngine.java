@@ -8,7 +8,6 @@ import cn.boommanpro.gaia.workflow.app.agent.core.AgentRunContext;
 import cn.boommanpro.gaia.workflow.app.agent.core.AgentRunResult;
 import cn.boommanpro.gaia.workflow.app.agent.core.ConversationStore;
 import cn.boommanpro.gaia.workflow.app.agent.core.ToolExecutionMode;
-import cn.boommanpro.gaia.workflow.app.agent.core.ToolPolicyService;
 import cn.boommanpro.gaia.workflow.app.agent.engine.AgentExecutionEngine;
 import cn.boommanpro.gaia.workflow.app.agent.event.AgentEvent;
 import cn.boommanpro.gaia.workflow.app.agent.event.AgentEventSink;
@@ -21,6 +20,7 @@ import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -55,6 +55,7 @@ import javax.annotation.PreDestroy;
  */
 @Slf4j
 @Component
+@Order(2)
 public class ArkManagedExecutionEngine implements AgentExecutionEngine {
 
     public static final String ENGINE_ID = "ark";
@@ -73,7 +74,6 @@ public class ArkManagedExecutionEngine implements AgentExecutionEngine {
     private final ArkAgentSessionService arkSessionService;
     private final ArkAgentProvisioningService provisioningService;
     private final ToolExecutorRegistry toolExecutorRegistry;
-    private final ToolPolicyService toolPolicyService;
     private final ConversationStore conversationStore;
 
     /** 自定义工具执行池：SSE 读取线程只负责收事件，耗时工具在线程池里跑，避免阻塞 TCP 窗口 */
@@ -89,7 +89,6 @@ public class ArkManagedExecutionEngine implements AgentExecutionEngine {
                                      ArkAgentSessionService arkSessionService,
                                      ArkAgentProvisioningService provisioningService,
                                      ToolExecutorRegistry toolExecutorRegistry,
-                                     ToolPolicyService toolPolicyService,
                                      ConversationStore conversationStore) {
         this.agentRegistry = agentRegistry;
         this.client = client;
@@ -97,7 +96,6 @@ public class ArkManagedExecutionEngine implements AgentExecutionEngine {
         this.arkSessionService = arkSessionService;
         this.provisioningService = provisioningService;
         this.toolExecutorRegistry = toolExecutorRegistry;
-        this.toolPolicyService = toolPolicyService;
         this.conversationStore = conversationStore;
     }
 
@@ -295,7 +293,9 @@ public class ArkManagedExecutionEngine implements AgentExecutionEngine {
             content.add(textBlock);
             if (context.getPageContext() != null && !context.getPageContext().isEmpty()) {
                 content.add(new JSONObject().set("type", "text")
-                    .set("text", "\n\n[页面上下文]\n```json\n" + context.getPageContext() + "\n```"));
+                    .set("text", "\n\n[页面上下文快照] 当前页面的路由与画布信息如下"
+                        + "（本快照取代更早的页面上下文信息，仅对理解用户意图有效）：\n```json\n"
+                        + context.getPageContext() + "\n```"));
             }
             JSONArray events = new JSONArray();
             events.add(new JSONObject().set("type", "user.message").set("content", content));
@@ -407,39 +407,17 @@ public class ArkManagedExecutionEngine implements AgentExecutionEngine {
             LlmToolCall call = new LlmToolCall(callId, name, args.toString());
             log.info("[ark-engine] session={} 执行自定义工具 {} args={}", sessionKey, name, args);
 
-            ToolResult result = null;
-            String policy = toolPolicyService.resolvePolicy(sessionKey, name);
-            if ("forbid".equals(policy)) {
-                result = ToolResult.rejected("该操作已被权限策略禁止");
+            ToolResult result;
+            Optional<ToolExecutor> executor = toolExecutorRegistry.get(name);
+            if (!executor.isPresent() || !executor.get().canRunOnBackend()) {
+                result = ToolResult.unavailable(
+                    "工具 " + name + " 不可用或需要浏览器界面，请改用可在服务端完成的方式");
             } else {
-                boolean approved = true;
-                if ("confirm".equals(policy)) {
-                    // 弹确认卡之前先做无副作用预校验，参数非法不消耗用户确认（与 local 引擎一致）
-                    Optional<ToolResult> pre = preValidateGated(name, args);
-                    if (pre.isPresent()) {
-                        result = pre.get();
-                    } else {
-                        // 方舟侧 Session 已因 requires_action 暂停，本地等待用户确认不会死锁
-                        approved = toolPolicyService.decideConfirm(context, call, sink);
-                    }
-                }
-                if (result == null) {
-                    if (!approved) {
-                        result = ToolResult.rejected("用户未确认该操作");
-                    } else {
-                        Optional<ToolExecutor> executor = toolExecutorRegistry.get(name);
-                        if (!executor.isPresent() || !executor.get().canRunOnBackend()) {
-                            result = ToolResult.unavailable(
-                                "工具 " + name + " 不可用或需要浏览器界面，请改用可在服务端完成的方式");
-                        } else {
-                            try {
-                                result = executor.get().execute(args, context);
-                            } catch (Exception e) {
-                                log.warn("[ark-engine] session={} 工具 {} 执行异常: {}", sessionKey, name, e.getMessage());
-                                result = ToolResult.fail("{\"error\":\"" + e.getMessage() + "\"}", "工具执行异常");
-                            }
-                        }
-                    }
+                try {
+                    result = executor.get().execute(args, context);
+                } catch (Exception e) {
+                    log.warn("[ark-engine] session={} 工具 {} 执行异常: {}", sessionKey, name, e.getMessage());
+                    result = ToolResult.fail("{\"error\":\"" + e.getMessage() + "\"}", "工具执行异常");
                 }
             }
 
@@ -470,20 +448,6 @@ public class ArkManagedExecutionEngine implements AgentExecutionEngine {
                 completion.countDown();
             } finally {
                 dispatchingTools.remove(callId);
-            }
-        }
-
-        /** confirm 类工具的门禁前预校验；无执行器或校验通过时返回 empty */
-        private Optional<ToolResult> preValidateGated(String name, JSONObject args) {
-            Optional<ToolExecutor> executor = toolExecutorRegistry.get(name);
-            if (!executor.isPresent()) {
-                return Optional.empty();
-            }
-            try {
-                return Optional.ofNullable(executor.get().preValidate(args));
-            } catch (Exception e) {
-                log.warn("[ark-engine] session={} preValidate {} threw: {}", sessionKey, name, e.getMessage());
-                return Optional.empty();
             }
         }
 

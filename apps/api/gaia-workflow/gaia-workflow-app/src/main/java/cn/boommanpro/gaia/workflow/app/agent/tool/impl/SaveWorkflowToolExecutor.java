@@ -2,8 +2,6 @@ package cn.boommanpro.gaia.workflow.app.agent.tool.impl;
 
 import cn.boommanpro.gaia.workflow.app.agent.core.AgentRunContext;
 import cn.boommanpro.gaia.workflow.app.agent.core.ExecutionSurface;
-import cn.boommanpro.gaia.workflow.app.agent.core.ToolPolicyService;
-import cn.boommanpro.gaia.workflow.app.agent.llm.LlmToolCall;
 import cn.boommanpro.gaia.workflow.app.agent.session.SessionWorkflowDraftService;
 import cn.boommanpro.gaia.workflow.app.agent.tool.ToolErrorCode;
 import cn.boommanpro.gaia.workflow.app.agent.tool.ToolExecutor;
@@ -33,16 +31,13 @@ public class SaveWorkflowToolExecutor implements ToolExecutor {
     private final SessionWorkflowDraftService draftService;
     private final WorkflowDslApplyService dslApplyService;
     private final GaiaWorkflowService workflowService;
-    private final ToolPolicyService toolPolicyService;
 
     public SaveWorkflowToolExecutor(SessionWorkflowDraftService draftService,
                                     WorkflowDslApplyService dslApplyService,
-                                    GaiaWorkflowService workflowService,
-                                    ToolPolicyService toolPolicyService) {
+                                    GaiaWorkflowService workflowService) {
         this.draftService = draftService;
         this.dslApplyService = dslApplyService;
         this.workflowService = workflowService;
-        this.toolPolicyService = toolPolicyService;
     }
 
     @Override
@@ -61,13 +56,6 @@ public class SaveWorkflowToolExecutor implements ToolExecutor {
     }
 
     @Override
-    public ToolResult preValidate(JSONObject args) {
-        // 确认卡弹出前：草稿必须非空（空草稿落版毫无意义）
-        // 注：preValidate 无 sessionKey，真正执行时还会再查一次
-        return null;
-    }
-
-    @Override
     public ToolResult execute(JSONObject args, AgentRunContext context) {
         String sessionKey = context.getSessionKey();
         String workflowCode = args.getStr("workflowCode");
@@ -80,23 +68,6 @@ public class SaveWorkflowToolExecutor implements ToolExecutor {
         if (nodes == null || nodes.isEmpty()) {
             return ToolResult.fail(new JSONObject().set("error", "当前画布为空，请先 edit_workflow 构建节点").toString(),
                 "当前画布为空", ToolErrorCode.INVALID_ARGS);
-        }
-
-        // 确认门禁：与 write_workflow 同语义（防绕过落版确认），策略解析以 save_workflow 为键
-        String policy = toolPolicyService.resolvePolicy(sessionKey, "save_workflow");
-        String effective = policy == null || policy.isEmpty() ? "confirm" : policy;
-        if ("forbid".equals(effective)) {
-            return ToolResult.rejected("该操作已被权限策略禁止");
-        }
-        if ("confirm".equals(effective)) {
-            LlmToolCall syntheticCall = LlmToolCall.builder()
-                .id("save-" + System.currentTimeMillis())
-                .name("save_workflow")
-                .arguments(args.toString())
-                .build();
-            if (!toolPolicyService.decideConfirm(context, syntheticCall, context.getSink())) {
-                return ToolResult.rejected("用户未确认保存该版本");
-            }
         }
 
         boolean isNew = false;

@@ -27,8 +27,8 @@ import java.util.UUID;
  * edit_workflow + save_workflow。修改已存在的工作流时必须带 baseRevision
  * （CAS），防止基于陈旧读取的覆盖。</p>
  *
- * <p>落版是人机交接点：策略由 agent.policy.apply_confirm_mode 控制（默认 require），
- * 确认前先做无副作用 preValidate（语义缺失/零连线直接回传模型，不打扰用户）。</p>
+ * <p>落版前先做无副作用语义校验（结构无法识别/致命问题/零连线直接回传模型修复，
+ * 不产生任何半成品落版）。</p>
  */
 @Slf4j
 @Component
@@ -64,8 +64,8 @@ public class WriteWorkflowToolExecutor implements ToolExecutor {
         return "一次性写入完整工作流 DSL 并落为生效版本（新建/大重构用；日常修改用 edit_workflow）";
     }
 
-    @Override
-    public ToolResult preValidate(JSONObject args) {
+    /** 落版前语义校验：结构无法识别 / 致命问题 / 零连线直接回传模型（不产生半成品版本） */
+    private ToolResult validateSemantics(JSONObject args) {
         if (args.get("nodes") == null) {
             return ToolResult.fail("{\"error\":\"nodes is required\"}", "缺少 nodes 参数",
                 ToolErrorCode.INVALID_ARGS);
@@ -98,13 +98,17 @@ public class WriteWorkflowToolExecutor implements ToolExecutor {
             }
             return null;
         } catch (Exception e) {
-            log.warn("[tool:write_workflow] preValidate failed: {}", e.getMessage());
+            log.warn("[tool:write_workflow] semantic validation failed: {}", e.getMessage());
             return null;
         }
     }
 
     @Override
     public ToolResult execute(JSONObject args, AgentRunContext context) {
+        ToolResult invalid = validateSemantics(args);
+        if (invalid != null) {
+            return invalid;
+        }
         Object nodes = args.get("nodes");
         if (nodes == null) {
             return ToolResult.fail("{\"error\":\"nodes is required\"}", "缺少 nodes 参数",

@@ -17,6 +17,7 @@ public class AgentProperties {
     private Ark ark = new Ark();
     private Compaction compaction = new Compaction();
     private Spill spill = new Spill();
+    private Run run = new Run();
 
     @Data
     public static class Llm {
@@ -28,6 +29,13 @@ public class AgentProperties {
         private int maxTokens = 4096;
         /** 模型上下文窗口大小（用于历史消息截断参考） */
         private int contextWindow = 32768;
+        /**
+         * 脚本化模型（mock LLM）：true 时引擎不再调用真实端点，按 scriptedResource
+         * 的录制轨迹逐次回放 —— 全链路测试验收零 LLM 依赖（dsh trajectory-replay 同款）。
+         */
+        private boolean scripted = false;
+        /** 脚本化模型的轨迹脚本（classpath: 或文件路径） */
+        private String scriptedResource = "classpath:agent/scripted-trajectory.json";
     }
 
     @Data
@@ -54,6 +62,19 @@ public class AgentProperties {
         private int keepRecentToolResults = 6;
         /** 摘要请求的最大输出 token */
         private int summaryMaxTokens = 600;
+    }
+
+    /**
+     * 失控防护（自然停止的安全网，区别于旧版 maxTurns 硬截断）：
+     * 弱模型实测会以略微不同的参数绕过复读护栏无限循环（2026-10-10 实测 105 轮）。
+     * 触发条件后不砍 run，而是收走工具清单 + 指令模型用正文收尾（收尾轮）。
+     */
+    @Data
+    public static class Run {
+        /** 轮次护栏：达到后进入收尾轮（30 对应正常长任务的富余量） */
+        private int runawayTurnCeiling = 30;
+        /** 连续无进展轮护栏：连续 N 轮没有任何工具成功即收尾 */
+        private int noProgressTurnLimit = 8;
     }
 
     /**

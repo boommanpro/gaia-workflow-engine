@@ -51,6 +51,15 @@ public class AgentSchemaMigrator {
                     + "session_key VARCHAR(64) NOT NULL, run_id VARCHAR(64), turn INTEGER, "
                     + "tool_name VARCHAR(128) NOT NULL, outcome VARCHAR(32) NOT NULL, "
                     + "error_code VARCHAR(32), duration_ms BIGINT, args_digest TEXT, created_at TEXT)");
+            // LLM 调用账本（generation 级观测）：每次模型调用一行，失败/空响应根因探索的数据底座
+            createTableIfMissing("agent_llm_call_log",
+                "CREATE TABLE agent_llm_call_log ("
+                    + "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                    + "session_key VARCHAR(64) NOT NULL, run_id VARCHAR(64), seq INTEGER, "
+                    + "model VARCHAR(128), messages_count INTEGER, tools_count INTEGER, "
+                    + "prompt_digest TEXT, output_digest TEXT, "
+                    + "prompt_tokens INTEGER, completion_tokens INTEGER, cached_tokens INTEGER, "
+                    + "duration_ms BIGINT, status VARCHAR(16), error_message TEXT, created_at TEXT)");
             log.info("[schema-migrator] sqlite schema up to date");
         } catch (Exception e) {
             log.warn("[schema-migrator] migration skipped (non-sqlite or failed): {}", e.getMessage());

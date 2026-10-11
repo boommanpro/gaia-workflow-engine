@@ -14,7 +14,7 @@ import java.util.function.BooleanSupplier;
  *
  * 它替代了原先散落在方法签名里的那一长串参数
  * （sessionKey / locale / pageContext / history / tools ...），
- * 让 ContextProvider、ToolExecutor 的策略接口保持稳定。
+ * 让 ToolExecutor 的策略接口保持稳定。
  */
 @Slf4j
 @Data
@@ -33,8 +33,31 @@ public class AgentRunContext {
     /** 运行过程中的共享数据，供各策略之间传递中间结果（并行工具任务会并发读写） */
     private final Map<String, Object> attributes = new java.util.concurrent.ConcurrentHashMap<>();
 
+    /**
+     * 软停标记：护栏（复读硬熔断）触发后由引擎在下一个事件边界终止本轮，
+     * 与用户中断不同——软停会合成一条收尾助手消息落库，而不是中断标记。
+     */
+    private volatile String softStopReason;
+
     /** 事件输出端（运行时注入）。工具可用 {@link #emit} 广播自定义事件（如 document / plan / ui_action） */
     private AgentEventSink sink;
+
+    /** 护栏请求软停（幂等：首个原因生效） */
+    public void requestSoftStop(String reason) {
+        if (softStopReason == null && reason != null && !reason.isEmpty()) {
+            softStopReason = reason;
+        }
+    }
+
+    /** 护栏是否已请求软停 */
+    public boolean isSoftStopRequested() {
+        return softStopReason != null;
+    }
+
+    /** 软停原因（未软停为 null） */
+    public String getSoftStopReason() {
+        return softStopReason;
+    }
 
     public AgentRunContext(AgentRequest request, AgentDefinition definition, ToolExecutionMode executionMode) {
         this.request = request;
@@ -63,10 +86,6 @@ public class AgentRunContext {
 
     public String getUserMessage() {
         return request.getMessage();
-    }
-
-    public int getMaxTurns() {
-        return request.getMaxTurns() > 0 ? request.getMaxTurns() : definition.getMaxTurns();
     }
 
     /**

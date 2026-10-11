@@ -1,79 +1,14 @@
 /**
  * SSE 流式客户端
  * 浏览器 EventSource 不支持 POST body，用 fetch + ReadableStream 手动解析 SSE
+ *
+ * 回放模式：?replay=<fixture> 激活后订阅走 replay-driver（零后端离线驱动）。
  */
 import { getApiBaseUrl } from '../utils/apiConfig';
 import { getCurrentLocale } from '../i18n';
-import type { SseHandlers, ToolCallEvent } from './types';
-
-export interface ToolResultItem {
-  toolCallId: string;
-  result: string;
-  rejected: boolean;
-}
-
-/**
- * 发送对话消息（SSE 流式）
- */
-export async function streamChat(
-  sessionKey: string,
-  message: string,
-  pageContext: string,
-  handlers: SseHandlers,
-  signal?: AbortSignal,
-  images?: string[]
-): Promise<void> {
-  const url = `${getApiBaseUrl()}/agent/chat`;
-  const body: Record<string, any> = {
-    sessionKey,
-    message,
-    pageContext,
-    locale: getCurrentLocale(),
-  };
-  if (images && images.length > 0) {
-    body.images = images;
-  }
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-    signal,
-  });
-
-  if (!response.ok) {
-    throw new Error(`Chat API Error: ${response.status}`);
-  }
-
-  await readSseStream(response, handlers, signal);
-}
-
-/**
- * 回灌工具执行结果后继续对话（SSE 流式）
- */
-export async function streamToolResult(
-  sessionKey: string,
-  results: ToolResultItem[],
-  handlers: SseHandlers,
-  signal?: AbortSignal
-): Promise<void> {
-  const url = `${getApiBaseUrl()}/agent/tool-result`;
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      sessionKey,
-      results,
-      locale: getCurrentLocale(),
-    }),
-    signal,
-  });
-
-  if (!response.ok) {
-    throw new Error(`ToolResult API Error: ${response.status}`);
-  }
-
-  await readSseStream(response, handlers, signal);
-}
+import { isReplayActive, replaySessionStream } from './replay/replay-driver';
+import { handleEvent } from './sse-protocol';
+import type { SseHandlers } from './types';
 
 /**
  * 读取 SSE 流并分发事件
@@ -128,106 +63,19 @@ async function readSseStream(
   }
 }
 
-function handleEvent(
-  name: string,
-  data: any,
-  handlers: SseHandlers
-): void {
-  switch (name) {
-    case 'token':
-      handlers.onToken?.(data.content);
-      break;
-    case 'tool_call':
-      // 后端自治运行的 tool_call 形如 {id, name, args}，统一归一化为前端 ToolCallEvent
-      handlers.onToolCall?.({
-        id: data.id,
-        action: data.name ?? data.action,
-        args: data.args ?? {},
-        policy: 'always',
-        executedBy: data.executedBy,
-      } as ToolCallEvent);
-      break;
-    case 'thinking':
-      // 方舟托管引擎的思考过程增量；未注册 handler 时自然忽略
-      handlers.onThinking?.(data);
-      break;
-    case 'usage':
-      // 方舟托管引擎的模型请求用量聚合
-      handlers.onUsage?.(data);
-      break;
-    case 'debug_request':
-      handlers.onDebugRequest?.(data);
-      break;
-    case 'debug_response':
-      handlers.onDebugResponse?.(data);
-      break;
-    case 'debug_tool_result':
-      handlers.onDebugToolResult?.(data);
-      break;
-    case 'context_loaded':
-      handlers.onContextLoaded?.(data);
-      break;
-    case 'token_warning':
-      handlers.onTokenWarning?.(data);
-      break;
-    case 'subagent_tool_call':
-      handlers.onSubagentToolCall?.(data);
-      break;
-    case 'subagent_round_done':
-      handlers.onSubagentRoundDone?.(data);
-      break;
-    case 'subagent_final_result':
-      handlers.onSubagentFinalResult?.(data);
-      break;
-    case 'subagent_done':
-      handlers.onSubagentDone?.();
-      break;
-    // ===== 会话级后端自治运行事件 =====
-    case 'run_state':
-      handlers.onRunState?.(data);
-      break;
-    case 'turn':
-      handlers.onTurn?.(data);
-      break;
-    case 'tool_result':
-      handlers.onToolResult?.(data);
-      break;
-    case 'plan':
-      handlers.onPlan?.(data);
-      break;
-    case 'document':
-      handlers.onDocument?.(data);
-      break;
-    case 'artifact':
-      handlers.onArtifact?.(data);
-      break;
-    case 'ui_action':
-      handlers.onUiAction?.(data);
-      break;
-    case 'confirm_request':
-      handlers.onConfirmRequest?.(data);
-      break;
-    case 'confirm_resolved':
-      handlers.onConfirmResolved?.(data);
-      break;
-    case 'done':
-      handlers.onDone?.();
-      break;
-    case 'error':
-      handlers.onError?.(data.message);
-      break;
-  }
-}
-
 /**
  * 订阅会话级后端自治运行的事件流（SSE，含断线重连回放运行快照）。
  * 连接保持打开；返回的 Promise 在流结束或取消时 resolve。
+ * 响应就绪即回调 onOpen（连接状态收敛依据，先于任何事件）。
  */
 export function subscribeSessionEvents(
   sessionKey: string,
   handlers: SseHandlers,
   signal?: AbortSignal
 ): Promise<void> {
+  if (isReplayActive()) {
+    return replaySessionStream(handlers, signal);
+  }
   const url = `${getApiBaseUrl()}/agent/session/${encodeURIComponent(sessionKey)}/events`;
   return fetch(url, {
     headers: { 'Content-Type': 'application/json' },
@@ -236,18 +84,9 @@ export function subscribeSessionEvents(
     if (!response.ok) {
       throw new Error(`Session Events API Error: ${response.status}`);
     }
+    handlers.onOpen?.();
     await readSseStream(response, handlers, signal);
   });
-}
-
-/**
- * 压缩会话历史（SSE 流式）
- */
-export async function streamCompact(sessionKey: string, handlers: SseHandlers): Promise<void> {
-  const url = `${getApiBaseUrl()}/agent/compact?sessionKey=${encodeURIComponent(sessionKey)}`;
-  const response = await fetch(url, { method: 'POST' });
-  if (!response.ok) throw new Error(`Compact API Error: ${response.status}`);
-  await readSseStream(response, handlers);
 }
 
 /**

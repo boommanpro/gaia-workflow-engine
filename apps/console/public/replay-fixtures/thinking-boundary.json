@@ -1,0 +1,25 @@
+{
+  "name": "thinking-boundary",
+  "description": "思考→工具→正文的边界收敛：思考块在工具入场时必须停止 shimmer（闪烁回归钉子）",
+  "session": { "sessionKey": "replay-boundary", "title": "回放：思考边界收敛", "scope": "chat" },
+  "messages": [
+    { "id": 1, "sessionKey": "replay-boundary", "role": "user", "content": "帮我检查一下当前工作流的结构", "createdAt": "2026-10-11T10:00:00" },
+    { "id": 2, "sessionKey": "replay-boundary", "role": "assistant", "content": "我先读取了工作流定义，整体结构是「开始 → LLM → 结束」。节点配置没有问题，连线完整，不需要改动。", "toolCalls": "[{\"id\":\"call-1\",\"type\":\"function\",\"function\":{\"name\":\"read_workflow\",\"arguments\":\"{}\"}}]", "thinking": "用户想检查工作流结构。我需要先读取当前工作流的定义，看看节点和连线情况，再给出结论。", "createdAt": "2026-10-11T10:00:20" },
+    { "id": 3, "sessionKey": "replay-boundary", "role": "tool", "toolCallId": "call-1", "content": "{\"success\":true,\"nodes\":3,\"edges\":2}", "createdAt": "2026-10-11T10:00:10" }
+  ],
+  "artifacts": [],
+  "events": [
+    { "event": "run_state", "data": { "status": "running", "runId": "run-boundary", "turn": 1 } },
+    { "event": "turn", "data": { "turn": 1, "maxTurns": 30 } },
+    { "event": "thinking", "data": { "content": "用户想检查工作流结构。" } },
+    { "event": "thinking", "data": { "content": "我需要先读取当前工作流的定义，" } },
+    { "event": "thinking", "data": { "content": "看看节点和连线情况，再给出结论。" } },
+    { "event": "tool_call", "data": { "id": "call-1", "name": "read_workflow", "args": {} } },
+    { "event": "tool_result", "data": { "toolCallId": "call-1", "name": "read_workflow", "outcome": "SUCCESS", "payload": "{\"success\":true,\"nodes\":3,\"edges\":2}" } },
+    { "event": "token", "data": { "content": "我先读取了工作流定义，" } },
+    { "event": "token", "data": { "content": "整体结构是「开始 → LLM → 结束」。\n\n" } },
+    { "event": "token", "data": { "content": "节点配置没有问题，连线完整，不需要改动。" } },
+    { "event": "assistant_settled", "data": { "turn": 2, "content": "我先读取了工作流定义，整体结构是「开始 → LLM → 结束」。\n\n节点配置没有问题，连线完整，不需要改动。", "toolCalls": [{ "id": "call-1", "name": "read_workflow", "arguments": "{}" }] } },
+    { "event": "done", "data": {} }
+  ]
+}

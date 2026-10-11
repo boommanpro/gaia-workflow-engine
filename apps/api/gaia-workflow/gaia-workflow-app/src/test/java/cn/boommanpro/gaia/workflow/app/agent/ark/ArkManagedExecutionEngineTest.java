@@ -7,7 +7,6 @@ import cn.boommanpro.gaia.workflow.app.agent.core.AgentRunResult;
 import cn.boommanpro.gaia.workflow.app.agent.core.ConversationStore;
 import cn.boommanpro.gaia.workflow.app.agent.core.DefinitionBasedAgent;
 import cn.boommanpro.gaia.workflow.app.agent.core.ToolExecutionMode;
-import cn.boommanpro.gaia.workflow.app.agent.core.ToolPolicyService;
 import cn.boommanpro.gaia.workflow.app.agent.event.AgentEventSink;
 import cn.boommanpro.gaia.workflow.app.agent.llm.LlmMessage;
 import cn.boommanpro.gaia.workflow.app.agent.tool.ToolExecutor;
@@ -101,7 +100,6 @@ class ArkManagedExecutionEngineTest {
             arkSessionService,
             provisioning,
             toolExecutorWithQuery(),
-            fakeToolPolicy("always"),
             conversationStore);
     }
 
@@ -167,8 +165,8 @@ class ArkManagedExecutionEngineTest {
     }
 
     @Test
-    @DisplayName("权限策略 forbid：不执行工具，回传 is_error=true 的结果")
-    void forbiddenTool() throws Exception {
+    @DisplayName("不可用工具：无执行器 → 不执行，回传 is_error=true 的结果")
+    void unavailableTool() throws Exception {
         ArkAgentProvisioningService provisioning = new ArkAgentProvisioningService(
             null, null, null, null, null, null) {
             @Override
@@ -178,7 +176,7 @@ class ArkManagedExecutionEngineTest {
         };
         engine = new ArkManagedExecutionEngine(
             agentRegistry, client, fakeProviderConfig(), arkSessionService, provisioning,
-            toolExecutorWithQuery(), fakeToolPolicy("forbid"), conversationStore);
+            emptyToolExecutorRegistry(), conversationStore);
 
         client.onSendEvents = (events) -> {
             String type = firstType(events);
@@ -198,9 +196,7 @@ class ArkManagedExecutionEngineTest {
 
         JSONObject sentResult = client.sentToolResults.get(0);
         assertTrue(sentResult.getBool("is_error", false));
-        assertTrue(sentResult.getJSONArray("content").getJSONObject(0).getStr("text").contains("forbidden")
-            || sentResult.getJSONArray("content").getJSONObject(0).getStr("text").contains("权限策略禁止"));
-        assertFalse(conversationStore.hasToolMessagePayloadContaining("\"result\":\"ok\""));
+        assertTrue(conversationStore.hasToolMessage("sevt-tool-2"));
     }
 
     @Test
@@ -224,7 +220,7 @@ class ArkManagedExecutionEngineTest {
         };
         ArkManagedExecutionEngine failingEngine = new ArkManagedExecutionEngine(
             agentRegistry, client, fakeProviderConfig(), arkSessionService, failingProvisioning,
-            toolExecutorWithQuery(), fakeToolPolicy("always"), conversationStore);
+            toolExecutorWithQuery(), conversationStore);
 
         List<JSONObject> errors = new CopyOnWriteArrayList<>();
         AgentRunResult result = failingEngine.run(requestWithAgent("ark-unbound"), collectSink(errors));
@@ -349,20 +345,9 @@ class ArkManagedExecutionEngineTest {
         return registry;
     }
 
-    private ToolPolicyService fakeToolPolicy(String policy) {
-        return new ToolPolicyService(null, null, null, null, null) {
-            @Override
-            public String resolvePolicy(String sessionKey, String action) {
-                return policy;
-            }
-
-            @Override
-            public boolean decideConfirm(cn.boommanpro.gaia.workflow.app.agent.core.AgentRunContext context,
-                                         cn.boommanpro.gaia.workflow.app.agent.llm.LlmToolCall call,
-                                         cn.boommanpro.gaia.workflow.app.agent.event.AgentEventSink sink) {
-                return true;
-            }
-        };
+    /** 空注册表：任何工具名都无执行器（模拟不可用工具） */
+    private static ToolExecutorRegistry emptyToolExecutorRegistry() {
+        return new ToolExecutorRegistry();
     }
 
     private static void awaitTrue(java.util.function.BooleanSupplier condition, long timeoutMillis)

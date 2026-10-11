@@ -85,7 +85,7 @@ public class SubagentService {
                     String loc = (input.getLocale() != null) ? input.getLocale() : "zh-CN";
                     s.messages.add(new JSONObject()
                         .set("role", "system")
-                        .set("content", toolRegistry.getSystemPrompt(loc, input.getPageContext())));
+                        .set("content", toolRegistry.getSystemPrompt(loc, null)));
                     return s;
                 });
                 // 2. 追加 user 消息

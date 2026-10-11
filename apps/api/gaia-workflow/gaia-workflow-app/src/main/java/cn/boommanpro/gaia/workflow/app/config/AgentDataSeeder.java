@@ -1,15 +1,9 @@
 package cn.boommanpro.gaia.workflow.app.config;
 
 import cn.boommanpro.gaia.workflow.infra.manage.entity.AgentConfig;
-import cn.boommanpro.gaia.workflow.infra.manage.entity.AgentGraphEdge;
-import cn.boommanpro.gaia.workflow.infra.manage.entity.AgentGraphNode;
 import cn.boommanpro.gaia.workflow.infra.manage.entity.AgentKnowledgeChunk;
 import cn.boommanpro.gaia.workflow.infra.manage.service.AgentConfigService;
-import cn.boommanpro.gaia.workflow.infra.manage.service.AgentGlobalPermissionService;
-import cn.boommanpro.gaia.workflow.infra.manage.service.AgentGraphEdgeService;
-import cn.boommanpro.gaia.workflow.infra.manage.service.AgentGraphNodeService;
 import cn.boommanpro.gaia.workflow.infra.manage.service.AgentKnowledgeChunkService;
-import cn.boommanpro.gaia.workflow.infra.manage.service.AgentPermissionService;
 import cn.boommanpro.gaia.workflow.app.service.AgentToolRegistry;
 import cn.hutool.core.io.IoUtil;
 import cn.hutool.json.JSONArray;
@@ -28,10 +22,10 @@ import java.time.LocalDateTime;
 /**
  * Agent 静态种子数据初始化器
  *
- * <p>应用启动后幂等灌入内置的系统提示词、节点知识、RAG 知识库与知识图谱数据。
+ * <p>应用启动后幂等灌入内置的系统提示词、节点知识与 RAG 知识库数据。
  * 每个分区独立检查数据是否已存在，缺失时才灌入，实现自愈能力：
  * 即使某次启动时数据被误删，下次启动会自动补齐。
- * 使用 {@link ApplicationRunner} 保证在 Spring 完全启动（schema.sql 已执行）后运行。
+ * 使用 {@link ApplicationRunner} 保证在 Spring 完全启动（schema.sql 已执行）后运行。</p>
  */
 @Slf4j
 @Component
@@ -46,92 +40,59 @@ public class AgentDataSeeder implements ApplicationRunner {
     private static final String NODE_KNOWLEDGE_EN_PATH = "seed/node-knowledge-en.json";
     private static final String RAG_KNOWLEDGE_ZH_PATH = "seed/rag-knowledge.json";
     private static final String RAG_KNOWLEDGE_EN_PATH = "seed/rag-knowledge-en.json";
-    private static final String KNOWLEDGE_GRAPH_PATH = "seed/knowledge-graph.json";
 
     private final AgentConfigService configService;
     private final AgentKnowledgeChunkService knowledgeChunkService;
-    private final AgentGraphNodeService graphNodeService;
-    private final AgentGraphEdgeService graphEdgeService;
-    private final AgentPermissionService permissionService;
-    private final AgentGlobalPermissionService globalPermissionService;
     private final AgentToolRegistry toolRegistry;
     private final AgentProperties properties;
 
     public AgentDataSeeder(AgentConfigService configService,
                            AgentKnowledgeChunkService knowledgeChunkService,
-                           AgentGraphNodeService graphNodeService,
-                           AgentGraphEdgeService graphEdgeService,
-                           AgentPermissionService permissionService,
-                           AgentGlobalPermissionService globalPermissionService,
                            AgentToolRegistry toolRegistry,
                            AgentProperties properties) {
         this.configService = configService;
         this.knowledgeChunkService = knowledgeChunkService;
-        this.graphNodeService = graphNodeService;
-        this.graphEdgeService = graphEdgeService;
-        this.permissionService = permissionService;
-        this.globalPermissionService = globalPermissionService;
         this.toolRegistry = toolRegistry;
         this.properties = properties;
     }
 
-    /**
-     * 旧版 21 个独立工具名（权限清理用）
-     */
-    private static final String[] OLD_TOOL_NAMES = {
-        "goHome", "goAdmin", "goReleases", "goEditor", "goTemplateEditor",
-        "listWorkflows", "listTemplates", "listLogs", "getWorkflowDetail", "getNodeDetail",
-        "createWorkflow", "createTemplate", "saveWorkflow", "deleteWorkflow",
-        "addNode", "updateNode", "deleteNode", "connect", "disconnect", "autoLayout"
-    };
-
     @Override
     public void run(ApplicationArguments args) {
         try {
-            cleanupOldPermissions();
+            cleanupRetiredConfigKeys();
             int modelCount = seedModelConfig();
             int promptCount = seedSystemPrompt();
             int configCount = seedNodeKnowledge();
             int ragCount = seedRagKnowledge();
-            int[] graphCounts = seedKnowledgeGraph();
             // 确保工具定义已播种（@PostConstruct 时机可能早于 schema.sql 执行）
             toolRegistry.ensureSeeded();
-            log.info("Agent seed data check complete: modelConfig={}, systemPrompt={}, nodeKnowledge={}, rag={}, graphNodes={}, graphEdges={}",
-                    modelCount, promptCount, configCount, ragCount, graphCounts[0], graphCounts[1]);
+            log.info("Agent seed data check complete: modelConfig={}, systemPrompt={}, nodeKnowledge={}, rag={}",
+                    modelCount, promptCount, configCount, ragCount);
         } catch (Exception e) {
             log.warn("Agent seed data initialization failed: {}", e.getMessage(), e);
         }
     }
 
-    /**
-     * 清理旧版独立工具对应的权限设置（会话级 + 全局）
-     */
-    private void cleanupOldPermissions() {
+    /** 已下线功能的配置清理（幂等，无则空过）：权限策略 + embedding 向量检索 */
+    private void cleanupRetiredConfigKeys() {
+        String[] retired = {
+            "agent.policy.confirm_mode", "agent.policy.apply_confirm_mode", "embedding_config"};
         int deleted = 0;
-        for (String oldName : OLD_TOOL_NAMES) {
-            long p = permissionService.count(
-                new QueryWrapper<cn.boommanpro.gaia.workflow.infra.manage.entity.AgentPermission>().eq("action", oldName));
-            if (p > 0) {
-                permissionService.remove(
-                    new QueryWrapper<cn.boommanpro.gaia.workflow.infra.manage.entity.AgentPermission>().eq("action", oldName));
-                deleted += p;
-            }
-            long g = globalPermissionService.count(
-                new QueryWrapper<cn.boommanpro.gaia.workflow.infra.manage.entity.AgentGlobalPermission>().eq("action", oldName));
-            if (g > 0) {
-                globalPermissionService.remove(
-                    new QueryWrapper<cn.boommanpro.gaia.workflow.infra.manage.entity.AgentGlobalPermission>().eq("action", oldName));
-                deleted += g;
+        for (String key : retired) {
+            long cnt = configService.count(new QueryWrapper<AgentConfig>().eq("config_key", key));
+            if (cnt > 0) {
+                configService.remove(new QueryWrapper<AgentConfig>().eq("config_key", key));
+                deleted += cnt;
             }
         }
         if (deleted > 0) {
-            log.info("Cleaned up {} old permission entries for deprecated tools", deleted);
+            log.info("Cleaned up {} retired agent.policy.* config entries", deleted);
         }
     }
 
     /**
      * 灌入模型配置到 agent_config，configKey=llm_config
-     * 使用 agent/prompt-zh.md 的 application.yml 默认值初始化，用户可在管理后台修改
+     * 使用 application.yml 默认值初始化，用户可在管理后台修改
      *
      * @return 灌入条数（0 表示已存在跳过）
      */
@@ -278,7 +239,7 @@ public class AgentDataSeeder implements ApplicationRunner {
     }
 
     /**
-     * 灌入 RAG 知识库到 agent_knowledge_chunk，embedding=null（降级为关键词匹配）
+     * 灌入 RAG 知识库到 agent_knowledge_chunk（关键词检索）
      * 同时灌入中英文两个版本，language 字段区分语言
      *
      * @return 灌入条数（0 表示已存在跳过）
@@ -317,7 +278,6 @@ public class AgentDataSeeder implements ApplicationRunner {
             AgentKnowledgeChunk chunk = new AgentKnowledgeChunk();
             chunk.setTitle(title);
             chunk.setContent(content);
-            chunk.setEmbedding(null);
             chunk.setSource(item.getStr("source", "seed"));
             chunk.setMetadata(null);
             chunk.setLanguage(lang);
@@ -331,80 +291,6 @@ public class AgentDataSeeder implements ApplicationRunner {
     }
 
     /**
-     * 灌入知识图谱节点与边，description 存入 properties JSON
-     *
-     * @return [节点数, 边数]（0 表示已存在跳过）
-     */
-    private int[] seedKnowledgeGraph() {
-        long existingNodes = graphNodeService.count(new QueryWrapper<>());
-        if (existingNodes > 0) {
-            log.debug("Knowledge graph nodes already exist ({}), skip.", existingNodes);
-            return new int[]{0, 0};
-        }
-        JSONObject root = readJsonObject(KNOWLEDGE_GRAPH_PATH);
-        if (root == null) {
-            log.warn("Knowledge graph seed file is empty: {}", KNOWLEDGE_GRAPH_PATH);
-            return new int[]{0, 0};
-        }
-        String now = LocalDateTime.now().toString();
-        int nodeCount = 0;
-        JSONArray nodes = root.getJSONArray("nodes");
-        if (nodes != null) {
-            for (int i = 0; i < nodes.size(); i++) {
-                JSONObject item = nodes.getJSONObject(i);
-                String nodeKey = item.getStr("nodeKey");
-                String nodeType = item.getStr("nodeType");
-                String title = item.getStr("title");
-                if (nodeKey == null || nodeKey.isEmpty()) {
-                    continue;
-                }
-                AgentGraphNode node = new AgentGraphNode();
-                node.setNodeKey(nodeKey);
-                node.setNodeType(nodeType);
-                node.setTitle(title);
-                node.setProperties(buildProperties(item.getStr("description")));
-                node.setCreatedAt(now);
-                node.setUpdatedAt(now);
-                graphNodeService.save(node);
-                nodeCount++;
-            }
-        }
-
-        int edgeCount = 0;
-        JSONArray edges = root.getJSONArray("edges");
-        if (edges != null) {
-            for (int i = 0; i < edges.size(); i++) {
-                JSONObject item = edges.getJSONObject(i);
-                String sourceKey = item.getStr("sourceKey");
-                String targetKey = item.getStr("targetKey");
-                String edgeType = item.getStr("edgeType");
-                if (sourceKey == null || targetKey == null || edgeType == null) {
-                    continue;
-                }
-                AgentGraphEdge edge = new AgentGraphEdge();
-                edge.setSourceKey(sourceKey);
-                edge.setTargetKey(targetKey);
-                edge.setEdgeType(edgeType);
-                edge.setCreatedAt(now);
-                graphEdgeService.save(edge);
-                edgeCount++;
-            }
-        }
-        log.info("Seeded knowledge graph: nodes={}, edges={}", nodeCount, edgeCount);
-        return new int[]{nodeCount, edgeCount};
-    }
-
-    /**
-     * 将 description 封装为 properties JSON 字符串，便于后续扩展
-     */
-    private String buildProperties(String description) {
-        if (description == null || description.isEmpty()) {
-            return null;
-        }
-        return new JSONObject().set("description", description).toString();
-    }
-
-    /**
      * 读取 classpath 下的 JSON 数组资源
      */
     private JSONArray readJsonArray(String path) {
@@ -413,17 +299,6 @@ public class AgentDataSeeder implements ApplicationRunner {
             return null;
         }
         return JSONUtil.parseArray(text);
-    }
-
-    /**
-     * 读取 classpath 下的 JSON 对象资源
-     */
-    private JSONObject readJsonObject(String path) {
-        String text = readResource(path);
-        if (text == null || text.isEmpty()) {
-            return null;
-        }
-        return JSONUtil.parseObj(text);
     }
 
     /**

@@ -10,7 +10,6 @@ import cn.hutool.json.JSONObject;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -18,12 +17,11 @@ import org.junit.jupiter.api.Test;
 class ToolRegistryLoadingUtilTest {
 
     private static AgentToolDefinition def(String name, String description, String parameters,
-                                           String defaultPolicy, String pageContexts, Integer enabled) {
+                                           String pageContexts, Integer enabled) {
         AgentToolDefinition d = new AgentToolDefinition();
         d.setToolName(name);
         d.setDescription(description);
         d.setParameters(parameters);
-        d.setDefaultPolicy(defaultPolicy);
         d.setPageContexts(pageContexts);
         d.setEnabled(enabled);
         return d;
@@ -36,7 +34,6 @@ class ToolRegistryLoadingUtilTest {
             "list_files",
             "List files in a directory",
             "{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\"}}}",
-            "auto",
             null,
             1);
 
@@ -64,8 +61,8 @@ class ToolRegistryLoadingUtilTest {
     @Test
     @DisplayName("buildSchemaFromDefinitions: disabled tool → excluded")
     void buildSchemaDisabledExcluded() {
-        AgentToolDefinition enabled = def("on_tool", "desc", "{}", "auto", null, 1);
-        AgentToolDefinition disabled = def("off_tool", "desc", "{}", "auto", null, 0);
+        AgentToolDefinition enabled = def("on_tool", "desc", "{}", null, 1);
+        AgentToolDefinition disabled = def("off_tool", "desc", "{}", null, 0);
 
         JSONArray tools = ToolRegistryLoadingUtil.buildSchemaFromDefinitions(Arrays.asList(enabled, disabled));
 
@@ -76,7 +73,7 @@ class ToolRegistryLoadingUtilTest {
     @Test
     @DisplayName("buildSchemaFromDefinitions: invalid parameters JSON → fallback to empty object")
     void buildSchemaInvalidParametersFallback() {
-        AgentToolDefinition d = def("bad_params", "desc", "not-json{", "auto", null, 1);
+        AgentToolDefinition d = def("bad_params", "desc", "not-json{", null, 1);
 
         JSONArray tools = ToolRegistryLoadingUtil.buildSchemaFromDefinitions(Collections.singletonList(d));
 
@@ -86,22 +83,11 @@ class ToolRegistryLoadingUtilTest {
         assertTrue(params.containsKey("properties"));
     }
 
-    @Test
-    @DisplayName("buildPoliciesFromDefinitions → correct map")
-    void buildPoliciesCorrect() {
-        AgentToolDefinition d1 = def("a", null, null, "auto", null, 1);
-        AgentToolDefinition d2 = def("b", null, null, null, null, 1);
-
-        Map<String, String> policies = ToolRegistryLoadingUtil.buildPoliciesFromDefinitions(Arrays.asList(d1, d2));
-
-        assertEquals("auto", policies.get("a"));
-        assertEquals("confirm", policies.get("b"));
-    }
 
     @Test
     @DisplayName("filterByPageContext: null pageContexts → included for all pages")
     void filterNullPageContextsIncludedForAll() {
-        AgentToolDefinition d = def("any_page", "desc", null, "auto", null, 1);
+        AgentToolDefinition d = def("any_page", "desc", null, null, 1);
 
         List<AgentToolDefinition> home = ToolRegistryLoadingUtil.filterByPageContext(
             Collections.singletonList(d), "home");
@@ -115,7 +101,7 @@ class ToolRegistryLoadingUtilTest {
     @Test
     @DisplayName("filterByPageContext: pageContexts=[\"editor\"] + pageIdentifier=\"editor\" → included")
     void filterMatchingPageContextIncluded() {
-        AgentToolDefinition d = def("editor_tool", "desc", null, "auto", "[\"editor\"]", 1);
+        AgentToolDefinition d = def("editor_tool", "desc", null, "[\"editor\"]", 1);
 
         List<AgentToolDefinition> result = ToolRegistryLoadingUtil.filterByPageContext(
             Collections.singletonList(d), "editor");
@@ -127,7 +113,7 @@ class ToolRegistryLoadingUtilTest {
     @Test
     @DisplayName("filterByPageContext: pageContexts=[\"editor\"] + pageIdentifier=\"admin\" → excluded")
     void filterNonMatchingPageContextExcluded() {
-        AgentToolDefinition d = def("editor_tool", "desc", null, "auto", "[\"editor\"]", 1);
+        AgentToolDefinition d = def("editor_tool", "desc", null, "[\"editor\"]", 1);
 
         List<AgentToolDefinition> result = ToolRegistryLoadingUtil.filterByPageContext(
             Collections.singletonList(d), "admin");
@@ -146,6 +132,6 @@ class ToolRegistryLoadingUtilTest {
     @DisplayName("needsSeeding: non-empty list → false")
     void needsSeedingNonEmpty() {
         assertFalse(ToolRegistryLoadingUtil.needsSeeding(
-            Collections.singletonList(def("x", null, null, null, null, 1))));
+            Collections.singletonList(def("x", null, null, null, 1))));
     }
 }

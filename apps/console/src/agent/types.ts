@@ -36,9 +36,6 @@ export interface WorkFolder {
   sessionCount?: number;
 }
 
-/** 权限策略 */
-export type PermissionPolicy = 'always' | 'confirm' | 'forbid';
-
 /** 消息 */
 export interface AgentMessage {
   id?: number;
@@ -60,7 +57,6 @@ export interface ToolCallEvent {
   id: string;
   action: string;
   args: Record<string, any>;
-  policy: PermissionPolicy;
   /** 执行位置：backend（本服务）/ ark-sandbox（方舟云沙箱）/ ark-mcp（方舟 MCP 工具） */
   executedBy?: string;
   /** 执行结果（执行完成后原地更新） */
@@ -158,12 +154,16 @@ export interface DisplayMessage {
 
 /** 时间线条目：kind 决定渲染样式 */
 export type TimelineItem =
-  | { kind: 'thinking'; id: string; text: string }
+  | { kind: 'thinking'; id: string; text: string; closed?: boolean }
   | { kind: 'tool'; id: string; call: ToolCallEvent; startedAt?: number; endedAt?: number }
-  | { kind: 'text'; id: string; text: string };
+  | { kind: 'text'; id: string; text: string; closed?: boolean }
+  /** 系统通知（护栏复读警报 / wrap_up / llm_retry / 中断 / 压缩播报 / 时间账）：run 现场的一部分，刷新后须可见 */
+  | { kind: 'notice'; id: string; text: string; source?: string; meta?: Record<string, any> };
 
 /** SSE 事件处理器 */
 export interface SseHandlers {
+  /** 订阅流建立成功（HTTP 响应就绪，事件尚未到达）——连接状态据此收敛 */
+  onOpen?: () => void;
   onToken?: (content: string) => void;
   onToolCall?: (event: ToolCallEvent) => void;
   onDone?: () => void;
@@ -173,7 +173,7 @@ export interface SseHandlers {
   onDebugResponse?: (data: { content: string; toolCalls: any[]; toolCallsCount: number; durationMs: number }) => void;
   /** 工具执行结果调试事件 — 展示每个 tool_call 的实际执行结果 */
   onDebugToolResult?: (data: { results: Array<{ toolCallId: string; rejected: boolean; result: string }>; count: number }) => void;
-  /** 上下文加载详情 — 展示本次请求加载了哪些工具/知识/图谱 */
+  /** 上下文加载详情 — 展示本次请求加载了哪些工具/知识（旧 SSE 链路事件，历史会话回放兼容） */
   onContextLoaded?: (data: {
     model: string;
     apiHost: string;
@@ -188,9 +188,6 @@ export interface SseHandlers {
     nodeKbCount?: number;
     nodeKbMs?: number;
     nodeKbContext?: string;
-    graphNodes: number;
-    graphMs: number;
-    graphContext?: string;
     toolsCount: number;
     toolsMs: number;
     totalMessages: number;
@@ -213,7 +210,17 @@ export interface SseHandlers {
     sessionKey?: string;
     turn?: number;
     assistantContent?: string;
+    thinking?: string;
     toolCalls?: Array<{ id: string; name: string; args: any; status?: string; result?: string }>;
+    /** 交错时间线快照（思考/正文/工具/系统通知的真实顺序），重建现场用 */
+    timeline?: Array<{
+      kind: 'text' | 'thinking' | 'tool' | 'notice';
+      id: string;
+      text?: string;
+      source?: string;
+      call?: { id: string; name: string; args?: any; result?: string };
+    }>;
+    toolCallsCount?: number;
     error?: string;
   }) => void;
   /** 新回合开始 */
@@ -228,18 +235,39 @@ export interface SseHandlers {
   onArtifact?: (data: { action: 'upsert' | 'state'; artifact?: AgentArtifactDto; artifactKey?: string; status?: string }) => void;
   /** 需要前端配合的 UI 指令（如 navigate 跳转） */
   onUiAction?: (data: { type: string; args: any }) => void;
-  /** 工具确认请求（confirm 策略）：mode=require 时需前端弹窗，其余为后端自动决策的通知 */
-  onConfirmRequest?: (data: {
-    toolCallId: string;
-    action: string;
-    args: Record<string, any>;
-    mode?: string;       // require / auto-approve / auto-reject
-    decision?: string;   // approved / rejected（非 require 模式由后端直接给出）
-  }) => void;
-  /** 工具确认已裁决（require 模式下等待结束后广播） */
-  onConfirmResolved?: (data: { toolCallId: string; approved: boolean }) => void;
   /** 思考过程增量（方舟托管引擎的 agent.thinking 事件） */
   onThinking?: (data: { content: string }) => void;
+  /** 复读护栏提醒（repeat_reminder）与收尾/重试/中断/压缩事件（wrap_up / llm_retry / interrupted / compaction） */
+  onGuardNotice?: (data: {
+    source: string;
+    message: string;
+    hardStop?: boolean;
+    /** llm_retry 专用：重试序号与退避毫秒数（倒计时条渲染） */
+    attempt?: number;
+    delayMs?: number;
+  }) => void;
+  /**
+   * run 终态结算（run_end）：结构化归因与时间账 —— 失败归因卡/时间账小结卡的数据源。
+   * 无 run_end 的 run（进程死亡）不会触发该 handler，由「卡死中」提示兜底。
+   */
+  onRunEnd?: (data: {
+    outcome: string; // done / error / stopped / running
+    turns: number;
+    engine?: string;
+    durationMs?: number;
+    toolTimeMs?: number;
+    promptTokens?: number;
+    completionTokens?: number;
+    llmRetries?: number;
+    failureChain?: string[];
+  }) => void;
+  /** run 收尾结算（assistant_settled）：正文 + 全部工具调用清单 */
+  onAssistantSettled?: (data: {
+    turn?: number;
+    content?: string;
+    thinkingLength?: number;
+    toolCalls?: Array<{ id: string; name: string; arguments?: string }>;
+  }) => void;
   /** 模型请求用量（方舟托管引擎的 span.model_request_end 聚合） */
   onUsage?: (data: {
     last?: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number };
