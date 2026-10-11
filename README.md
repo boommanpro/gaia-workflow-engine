@@ -104,7 +104,7 @@ API 服务运行在 48080 端口。SQLite 数据库文件 `gaia_workflow.db` 创
 Agent 对话需要一个 OpenAI 兼容的 LLM 端点（vLLM / Ollama / LM Studio / 各类网关均可）。启动后在浏览器进入 **管理 → 配置 → 模型配置**，填写 API Host / API Key / 模型名并保存——配置写入 `agent_config` 表，即时生效，无需重启。
 
 - 默认执行引擎为内置 **AgentScope**（Harness ReAct 循环，依赖 [io.agentscope:agentscope-harness](https://central.sonatype.com/artifact/io.agentscope/agentscope-harness)，Maven Central 公开可取）；
-- 也可切换为火山方舟 Managed Agents 托管引擎，接入方式见 [docs/ark-managed-agents.md](./docs/ark-managed-agents.md)。
+- 也可切换为火山方舟 Managed Agents 托管引擎：在「模型配置」页的「火山方舟托管」分区填写 apiKey / environmentId / 模型 ID，再把默认引擎切到方舟即可。
 
 ## 技术栈
 

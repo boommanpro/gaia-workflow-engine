@@ -104,7 +104,7 @@ The API server runs on port 48080. The SQLite database file `gaia_workflow.db` i
 Agent chat requires an OpenAI-compatible LLM endpoint (vLLM / Ollama / LM Studio / any gateway). After startup, open **Admin → Config → Model Settings** in the browser, fill in API Host / API Key / model name and save — the config is stored in the `agent_config` table and takes effect immediately without restart.
 
 - The default engine is the built-in **AgentScope** (Harness ReAct loop; depends on [io.agentscope:agentscope-harness](https://central.sonatype.com/artifact/io.agentscope/agentscope-harness), publicly available on Maven Central).
-- Alternatively switch to the Volcengine Ark Managed Agents engine — see [docs/ark-managed-agents.md](./docs/ark-managed-agents.md).
+- Alternatively switch to the Volcengine Ark Managed Agents engine: fill in apiKey / environmentId / model ID in the "Ark Managed" section of the Model Settings page, then flip the default engine to Ark.
 
 ## Tech Stack
 
