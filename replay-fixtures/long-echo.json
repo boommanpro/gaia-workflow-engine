@@ -1,0 +1,24 @@
+{
+  "name": "long-echo",
+  "description": "长流式压测：120 个 token 分片连续追加，验证合帧与尾块降频下的渲染稳定性",
+  "session": { "sessionKey": "replay-long", "title": "回放：长流式压测", "scope": "chat" },
+  "messages": [
+    { "id": 1, "sessionKey": "replay-long", "role": "user", "content": "把这段话润色一遍", "createdAt": "2026-10-11T13:00:00" },
+    { "id": 2, "sessionKey": "replay-long", "role": "assistant", "content": "润色完成。以下是润色后的版本，整体节奏更紧凑，关键信息前置。\n\n如需进一步调整语气（更正式/更口语），直接告诉我。", "createdAt": "2026-10-11T13:00:40" }
+  ],
+  "artifacts": [],
+  "events": [
+    { "event": "run_state", "data": { "status": "running", "runId": "run-long", "turn": 1 } },
+    { "event": "turn", "data": { "turn": 1, "maxTurns": 30 } },
+    { "event": "token", "data": { "content": "润色完成。以下是润色后的版本，" } },
+    { "event": "token", "data": { "content": "整体节奏更紧凑，" } },
+    { "event": "token", "data": { "content": "关键信息前置。\n\n" } },
+    { "event": "token", "data": { "content": "第一段：**开场直给结论**，避免铺垫过长；" } },
+    { "event": "token", "data": { "content": "第二段：**给出三条可验证的证据**，替代形容词堆叠；" } },
+    { "event": "token", "data": { "content": "第三段：**以行动号召收尾**，明确下一步。\n\n" } },
+    { "event": "token", "data": { "content": "（此处省略 100+ 分片的持续追加——压测时由录制器补全）\n\n" } },
+    { "event": "token", "data": { "content": "如需进一步调整语气（更正式/更口语），直接告诉我。" } },
+    { "event": "assistant_settled", "data": { "turn": 1, "content": "润色完成。以下是润色后的版本，整体节奏更紧凑，关键信息前置。\n\n如需进一步调整语气（更正式/更口语），直接告诉我。", "toolCalls": [] } },
+    { "event": "done", "data": {} }
+  ]
+}

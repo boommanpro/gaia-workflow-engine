@@ -1,0 +1,22 @@
+{
+  "name": "snapshot-race",
+  "description": "刷新竞态：订阅快照（running+timeline）先于 getMessages 返回，live 占位行不得被历史整表替换抹掉",
+  "session": { "sessionKey": "replay-snapshot", "title": "回放：快照竞态收敛", "scope": "chat" },
+  "messages": [
+    { "id": 1, "sessionKey": "replay-snapshot", "role": "user", "content": "给工作流加一个 HTTP 节点", "createdAt": "2026-10-11T11:00:00" },
+    { "id": 2, "sessionKey": "replay-snapshot", "role": "assistant", "content": "已经在画布右侧加入 HTTP 节点并连好线。参数用默认 GET，你可以直接在节点面板里改 URL。", "toolCalls": "[{\"id\":\"call-9\",\"type\":\"function\",\"function\":{\"name\":\"add_node\",\"arguments\":\"{\\\"type\\\":\\\"http\\\"}\"}}]", "createdAt": "2026-10-11T11:00:30" },
+    { "id": 3, "sessionKey": "replay-snapshot", "role": "tool", "toolCallId": "call-9", "content": "{\"success\":true,\"nodeId\":\"http-1\"}", "createdAt": "2026-10-11T11:00:12" }
+  ],
+  "artifacts": [],
+  "events": [
+    { "event": "run_state", "data": { "status": "running", "runId": "run-snapshot", "turn": 2, "assistantContent": "已经在画布右侧加入", "thinking": "用户要加 HTTP 节点。", "toolCalls": [{ "id": "call-9", "name": "add_node", "args": { "type": "http" } }], "timeline": [
+      { "kind": "thinking", "id": "thk-1", "text": "用户要加 HTTP 节点。" },
+      { "kind": "tool", "id": "call-9", "call": { "id": "call-9", "name": "add_node", "args": { "type": "http" } } },
+      { "kind": "text", "id": "txt-1", "text": "已经在画布右侧加入" }
+    ] } },
+    { "event": "token", "data": { "content": " HTTP 节点并连好线。\n\n" } },
+    { "event": "token", "data": { "content": "参数用默认 GET，你可以直接在节点面板里改 URL。" } },
+    { "event": "assistant_settled", "data": { "turn": 3, "content": "已经在画布右侧加入 HTTP 节点并连好线。\n\n参数用默认 GET，你可以直接在节点面板里改 URL。", "toolCalls": [{ "id": "call-9", "name": "add_node", "arguments": "{\"type\":\"http\"}" }] } },
+    { "event": "done", "data": {} }
+  ]
+}

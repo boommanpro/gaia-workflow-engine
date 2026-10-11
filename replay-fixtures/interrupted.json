@@ -1,0 +1,18 @@
+{
+  "name": "interrupted",
+  "description": "中断收敛：interrupted 通知入场后思考/正文条目立即收尾，部分正文随终态保留",
+  "session": { "sessionKey": "replay-interrupted", "title": "回放：中断收敛", "scope": "chat" },
+  "messages": [
+    { "id": 1, "sessionKey": "replay-interrupted", "role": "user", "content": "帮我写一个很长的营销方案", "createdAt": "2026-10-11T12:00:00" },
+    { "id": 2, "sessionKey": "replay-interrupted", "role": "assistant", "content": "好的，方案框架如下：\n\n1. 目标人群定位\n\n⏹ 本次运行已被中断。已完成的部分（草稿/已落版版本）保持有效。", "createdAt": "2026-10-11T12:00:15" }
+  ],
+  "artifacts": [],
+  "events": [
+    { "event": "run_state", "data": { "status": "running", "runId": "run-int", "turn": 1 } },
+    { "event": "turn", "data": { "turn": 1, "maxTurns": 30 } },
+    { "event": "token", "data": { "content": "好的，方案框架如下：\n\n" } },
+    { "event": "token", "data": { "content": "1. 目标人群定位\n\n" } },
+    { "event": "interrupted", "data": {} },
+    { "event": "done", "data": {} }
+  ]
+}
