@@ -22,8 +22,8 @@ A modern visual rule engine platform for orchestrating complex AI workflows. Des
 ## Features
 
 - **AI Agent Sidebar** — Conversational workflow generation: CreatePlan step-by-step planning, Canvas auto-create nodes & edges, HTTP/Query workflow lookup, live token & plan progress; sessions are renameable and reviewable.
-- **Agent Config Center** — Model settings (Host/Key/Temperature/Max Tokens), Embedding vector search (Jina RAG knowledge chunks), system prompt & tool catalog (navigate/query/manage/canvas/createPlan/executeStep), and tool permission policies (allow/confirm/deny).
-- **Debug Info Panel** — One DebugEntry per LLM call: raw request (with messages), raw response (with toolCalls), context details, SSE event replay, Raw JSON viewer; click a message bubble to jump and highlight the corresponding entry.
+- **Agent Config Center** — Model settings (Host/Key/Temperature/Max Tokens), default engine switching (built-in AgentScope / Volcengine Ark managed), system prompt & knowledge base, tool definition catalog.
+- **Session Review & Tracing** — TraceView showing thinking, tool calls and LLM call logs (`agent_llm_call_log` observability table); replay sessions from recorded trajectories.
 - **Visual Canvas** — Infinite, zoomable canvas with drag-and-drop nodes. Supports loops, branches, and conditional logic.
 - **AI Node Types** — Built-in LLM calls, code execution, HTTP requests, string formatting, and variable management.
 - **Real-time Preview** — Test individual nodes or entire workflows with live input/output inspection.
@@ -54,7 +54,6 @@ A modern visual rule engine platform for orchestrating complex AI workflows. Des
 | **Debug Panel** — Raw request/response, SSE event stream, context, Raw JSON; click messages to jump | ![Debug Panel](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/agent/Snipaste_2026-08-07_19-20-42.jpg) |
 | **Agent Config · Models** — API Host/Key, model params, BGE Embedding vector search | ![Agent Config · Models](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/agent/Snipaste_2026-08-07_19-21-14.jpg) |
 | **Agent Config · Prompts** — Default system prompt + tool definitions (navigate/query/manage/canvas) | ![Agent Config · Prompts](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/agent/Snipaste_2026-08-07_19-21-29.jpg) |
-| **Agent Config · Permissions** — Global tool permission policy (allow/confirm/deny) | ![Agent Config · Permissions](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/agent/Snipaste_2026-08-07_19-21-44.jpg) |
 | **Agent Running Workflow** — Auto-creates nodes & edges on canvas, tests and executes step-by-step | ![Agent Running Workflow](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/agent/Snipaste_2026-08-07_19-23-25.jpg) |
 
 ## Quick Start
@@ -83,10 +82,29 @@ Visit http://localhost:3000
 
 ```bash
 cd apps/api/gaia-workflow
-mvn spring-boot:run
+mvn install -DskipTests     # required on fresh clone: installs base/infra artifacts locally
+cd gaia-workflow-app
+mvn spring-boot:run         # dev mode, port 48080
 ```
 
-API server runs on port 48080.
+> Multi-module note: running `gaia-workflow-app` alone resolves base/infra `SNAPSHOT` artifacts from the local Maven repository. After cloning (or whenever base/infra change), run `mvn install -DskipTests` from the aggregator directory `apps/api/gaia-workflow` first.
+
+For production, package an executable jar:
+
+```bash
+cd apps/api/gaia-workflow
+mvn package -DskipTests
+java -jar gaia-workflow-app/target/gaia-workflow-app-0.0.1-SNAPSHOT.jar
+```
+
+The API server runs on port 48080. The SQLite database file `gaia_workflow.db` is created in the **process working directory**; first startup initializes schema and seeds default configuration automatically.
+
+### LLM Configuration (required)
+
+Agent chat requires an OpenAI-compatible LLM endpoint (vLLM / Ollama / LM Studio / any gateway). After startup, open **Admin → Config → Model Settings** in the browser, fill in API Host / API Key / model name and save — the config is stored in the `agent_config` table and takes effect immediately without restart.
+
+- The default engine is the built-in **AgentScope** (Harness ReAct loop; depends on [io.agentscope:agentscope-harness](https://central.sonatype.com/artifact/io.agentscope/agentscope-harness), publicly available on Maven Central).
+- Alternatively switch to the Volcengine Ark Managed Agents engine — see [docs/ark-managed-agents.md](./docs/ark-managed-agents.md).
 
 ## Tech Stack
 
@@ -102,7 +120,7 @@ API server runs on port 48080.
 1. **Standalone** — Frontend and backend deployed separately for large distributed systems.
 2. **All-in-One** — Bundled as a single application for small to medium teams.
 3. **GitHub Pages** — Frontend deployed to GitHub Pages with configurable backend address.
-4. **Containerized** — Docker images with Kubernetes support for cloud deployment.
+4. **Containerized** — Planned (no official Docker image yet; build your own from the jar above).
 
 ## Documentation
 

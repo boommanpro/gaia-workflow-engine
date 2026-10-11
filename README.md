@@ -22,8 +22,8 @@
 ## 功能特性
 
 - **AI Agent 侧栏对话** — 对话式生成工作流：CreatePlan 分步规划、Canvas 自动创建节点/连线、HTTP/Query 查询工作流、实时预览 token 与计划进度；会话可重命名、可审查。
-- **Agent 配置中心** — 模型参数（Host/Key/Temperature/Max Tokens）、Embedding 向量检索（Jina RAG 知识块）、系统提示词与工具集（navigate/query/manage/canvas/createPlan/executeStep）、工具权限策略（允许/确认/禁止）。
-- **调试信息面板** — 每条 LLM 调用独立 DebugEntry：原始请求（含 messages）、原始响应（含 toolCalls）、上下文详情、SSE Event 回放、Raw JSON；点击消息气泡跳转定位到对应条目。
+- **Agent 配置中心** — 模型参数（Host/Key/Temperature/Max Tokens）、默认执行引擎切换（内置 AgentScope / 火山方舟托管）、系统提示词与知识库、工具定义目录。
+- **会话审查与追踪** — TraceView 展示 thinking、工具调用与 LLM 调用日志（`agent_llm_call_log` 观测表）；支持基于录制轨迹的会话回放。
 - **可视化画布** — 无限缩放画布，支持拖拽节点。通过循环、分支和条件逻辑设计复杂的工作流。
 - **AI 节点类型** — 内置 LLM 调用、代码执行、HTTP 请求、字符串格式化和变量管理节点。
 - **实时预览** — 测试单个节点或整个工作流，实时查看输入输出和执行历史。
@@ -54,7 +54,6 @@
 | **调试信息面板** — 原始请求/响应、SSE Event、Context 详情、Raw JSON，点击消息跳转定位 | ![调试信息面板](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/agent/Snipaste_2026-08-07_19-20-42.jpg) |
 | **Agent 配置中心 · 模型** — API Host/Key、模型参数、Embedding 向量检索（BGE） | ![Agent 模型配置](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/agent/Snipaste_2026-08-07_19-21-14.jpg) |
 | **Agent 配置中心 · 提示词** — 默认系统提示词 + 工具集定义（navigate/query/manage/canvas） | ![Agent 提示词配置](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/agent/Snipaste_2026-08-07_19-21-29.jpg) |
-| **Agent 配置中心 · 工具权限** — 所有工具的全局权限策略（允许/确认/禁止） | ![Agent 工具权限](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/agent/Snipaste_2026-08-07_19-21-44.jpg) |
 | **Agent 执行工作流** — 在画布上自动创建节点与连线，逐步测试并执行 | ![Agent 执行工作流](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/agent/Snipaste_2026-08-07_19-23-25.jpg) |
 
 ## 快速开始
@@ -83,10 +82,29 @@ npm run dev
 
 ```bash
 cd apps/api/gaia-workflow
-mvn spring-boot:run
+mvn install -DskipTests     # 首次克隆必做：把 base/infra 构件装进本地仓库
+cd gaia-workflow-app
+mvn spring-boot:run         # 开发模式启动，端口 48080
 ```
 
-API 服务运行在 48080 端口。
+> 多模块注意：`gaia-workflow-app` 单模块启动依赖本地仓库中的 base/infra `SNAPSHOT` 构件，克隆后或 base/infra 有改动时，必须先在聚合目录 `apps/api/gaia-workflow` 下执行 `mvn install -DskipTests`。
+
+生产部署可打包为可执行 jar：
+
+```bash
+cd apps/api/gaia-workflow
+mvn package -DskipTests
+java -jar gaia-workflow-app/target/gaia-workflow-app-0.0.1-SNAPSHOT.jar
+```
+
+API 服务运行在 48080 端口。SQLite 数据库文件 `gaia_workflow.db` 创建在**进程工作目录**，首次启动自动建库建表并写入默认配置。
+
+### LLM 配置（必需）
+
+Agent 对话需要一个 OpenAI 兼容的 LLM 端点（vLLM / Ollama / LM Studio / 各类网关均可）。启动后在浏览器进入 **管理 → 配置 → 模型配置**，填写 API Host / API Key / 模型名并保存——配置写入 `agent_config` 表，即时生效，无需重启。
+
+- 默认执行引擎为内置 **AgentScope**（Harness ReAct 循环，依赖 [io.agentscope:agentscope-harness](https://central.sonatype.com/artifact/io.agentscope/agentscope-harness)，Maven Central 公开可取）；
+- 也可切换为火山方舟 Managed Agents 托管引擎，接入方式见 [docs/ark-managed-agents.md](./docs/ark-managed-agents.md)。
 
 ## 技术栈
 
@@ -102,7 +120,7 @@ API 服务运行在 48080 端口。
 1. **独立部署** — 前后端分离部署，适用于大型分布式系统。
 2. **一体化部署** — 打包为单一应用，适用于中小型企业。
 3. **GitHub Pages** — 前端部署到 GitHub Pages，后端地址可配置。
-4. **容器化部署** — 提供 Docker 镜像，支持 Kubernetes 部署。
+4. **容器化部署** — 规划中（暂未提供官方 Docker 镜像，可基于上述 jar 自行构建）。
 
 ## 文档
 

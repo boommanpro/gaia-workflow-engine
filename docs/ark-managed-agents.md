@@ -1,20 +1,20 @@
 # 火山方舟 Managed Agents 接入指南（双引擎架构）
 
-本项目现在支持两种 Agent 执行引擎，由 `AgentDefinition.engine` 字段选择：
+本项目现在支持两种 Agent 执行引擎：
 
 | 引擎 | 值 | 循环在哪跑 | 工具在哪跑 | 适用场景 |
 |---|---|---|---|---|
-| 自研编排（默认） | `local` | 本服务 `AgentRuntime` | 本服务（后端自治）或浏览器（前端执行） | 自定义模型、完全自主可控 |
+| 内置引擎（默认） | `agentscope`（配置里历史遗留的 `local` 值等价映射到它） | 本服务进程内 AgentScope Harness（ReAct 循环） | 本服务（后端自治）或浏览器（前端执行） | 自定义模型、完全自主可控 |
 | 方舟托管 | `ark` | 火山方舟 Managed Agents | 方舟云沙箱（内置工具）+ 本服务（Custom Tool 桥接） | 长任务、沙箱执行、用量统计、少运维 |
 
-存量 Agent 定义未配置 `engine` 时一律按 `local` 处理，行为零变化。
+内置引擎已换核为 [AgentScope](https://central.sonatype.com/artifact/io.agentscope/agentscope-harness)（`io.agentscope:agentscope-harness`，Maven Central 公开可取），模型走 OpenAI 兼容端点（`agent_config` 的 `llm_config`）。未显式配置时默认使用内置引擎。
 
 ## 一、架构速览
 
 ```
 浏览器控制台 ──SSE──> AgentSessionRunService ──> AgentExecutionRouter
-                                                    ├─ engine=local → AgentRuntime（自研循环 + LlmProvider）
-                                                    └─ engine=ark   → ArkManagedExecutionEngine
+                                                    ├─ engine=agentscope → AgentScopeExecutionEngine（AgentScope Harness 循环 + OpenAI 兼容模型）
+                                                    └─ engine=ark       → ArkManagedExecutionEngine
                                                                         ├─ ArkAgentProvisioningService（定义→方舟 Agent 自动同步）
                                                                         ├─ ArkManagedClient      （方舟 REST + SSE）
                                                                         ├─ ArkEventTranslator    （事件映射）
@@ -24,7 +24,7 @@
 
 - **会话映射**：本地 `agent_session.session_key` ↔ 方舟 `sesn-*`，持久在 `agent_session` 新增列（`engine` / `remote_session_id` / `remote_agent_id` / `remote_agent_version` / `token_usage`）。方舟 Session 自带对话历史与沙箱快照（idle 保留 14 天），本地库是控制台使用的镜像投影。
 - **事件翻译**：`agent.message`→`token`（增量归一）、`agent.thinking`→`thinking`、`agent.tool_use/tool_result`→`tool_call/tool_result`（executedBy=ark-sandbox）、`agent.custom_tool_use`→`tool_call`（executedBy=backend）+ 本地执行、`span.model_request_end`→`usage`（token 累计）。
-- **工具桥接**：方舟发 `agent.custom_tool_use` → 本地 `ToolExecutorRegistry` 执行（走 `ToolPolicyService` 策略门禁，确认/拒绝语义与 local 引擎一致）→ `user.custom_tool_result` 回传。deny 时回传 `is_error=true` + 拒绝原因，模型可感知边界。
+- **工具桥接**：方舟发 `agent.custom_tool_use` → 本地 `ToolExecutorRegistry` 执行（工具直接放行；旧的策略门禁已随简体化重构移除）→ `user.custom_tool_result` 回传。
 - **中断**：控制台「停止」→ 引擎转发 `user.interrupt`。
 - **SSE 断线**：按官方推荐流程重开流 + 分页拉历史（`GET /sessions/{id}/events`）+ 按事件 id 去重，仅补投本次 user.message 回执之后的事件。
 
@@ -53,7 +53,7 @@
 ## 三、默认 Agent 与路由
 
 - 内置定义 **`ark-assistant`**（`AgentAssembly.arkAssistantDefinition()`）：engine=ark、工具集为后端可执行的 `query / manage / applyWorkflow / createPlan / executeStep`，sortOrder=50（不参与隐式路由，只被显式指定或默认配置选中）。未填 `arkAgentId`，首次运行时由自动同步创建远端资源。
-- 当 `provider_config:ark` 的 `apiKey` / `environmentId` / `defaultAgentId` 三项齐备时，**新会话默认走方舟托管**（`AgentSessionRunService.resolveDefaultAgentId()`）；任一缺失自动回退 local 的 `workspace-backend`，聊天永不被配置问题打断。要让自动创建的 Agent 作为默认，把 `defaultAgentId` 填 `ark-assistant` 即可。
+- 当「默认执行引擎」开关切到 ark（`agent_config` 的 `agent.engine.default`）且 `provider_config:ark` 的 `apiKey` / `environmentId` 已配置时，**新会话默认走方舟托管**（`AgentSessionRunService.resolveDefaultAgentId()`；`defaultAgentId` 已填用之，否则内置 `ark-assistant`）；任一缺失自动回退内置引擎（agentscope）的 `workspace-backend`，聊天永不被配置问题打断。要让自动创建的 Agent 作为默认，把 `defaultAgentId` 填 `ark-assistant` 即可。
 - 显式指定：`POST /api/agent/session/{key}/run` 请求体传 `agentId: "ark-assistant"`；headless 接口 `POST /api/managed-agent/run` 同理。
 
 ## 四、Custom Tool 的两种形态
@@ -77,7 +77,6 @@
 - [ ] 新建会话发消息（显式 `agentId=ark-assistant` 或 defaultAgentId 指向它）→ 方舟控制台 Agent 列表出现 `ark-auto`（自动创建），工具声明为 Custom Tool。
 - [ ] 回复流式出现（`agent.message` 增量语义以实测为准，若全文重发则由翻译器 diff 归一）。
 - [ ] 让 Agent 调 `query` 工具 → 前端工具卡片显示 executedBy=backend，方舟 Session 从 requires_action 恢复 running。
-- [ ] 把 `manage` 设为 confirm 策略 → 前端弹确认框；allow 后工具执行，deny 后方舟收到错误结果并自行调整。
 - [ ] 修改 ark 引擎定义（如加工具）→ 下次运行时方舟侧 Agent 版本号 +1。
 - [ ] 会话进行中关闭窗口 → 运行继续；重开窗口快照恢复。
 - [ ] 点击停止 → 本地停发事件 + 方舟收到 `user.interrupt`。
