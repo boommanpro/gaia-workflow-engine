@@ -45,6 +45,13 @@ public class AgentMessage {
     private String thinking;
 
     /**
+     * 交错时间线 JSON（assistant 角色；run 收尾时持久化的真实调用链路：
+     * 思考 → 工具 → 思考 → … → 正文。刷新后前端按原样还原，不再退化成合并视图）
+     */
+    @TableField("timeline")
+    private String timeline;
+
+    /**
      * 工具结果对应的 tool_call_id（tool 角色使用）
      */
     @TableField("tool_call_id")

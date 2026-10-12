@@ -86,6 +86,9 @@ export function handleEvent(
     case 'wrap_up':
       handlers.onGuardNotice?.({ source: 'wrap_up', message: data.message || data.reason || '' });
       break;
+    case 'delivery_warning':
+      handlers.onGuardNotice?.({ source: 'delivery', message: data.message || '交付未经验证' });
+      break;
     case 'llm_retry':
       handlers.onGuardNotice?.({
         source: 'llm_retry',
@@ -116,6 +119,12 @@ export function handleEvent(
       break;
     case 'assistant_settled':
       handlers.onAssistantSettled?.(data);
+      break;
+    case 'ask_request':
+      handlers.onAskRequest?.(data);
+      break;
+    case 'ask_resolved':
+      handlers.onAskResolved?.(data);
       break;
     case 'done':
       handlers.onDone?.();

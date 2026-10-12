@@ -60,6 +60,40 @@ public class AgentSchemaMigrator {
                     + "prompt_digest TEXT, output_digest TEXT, "
                     + "prompt_tokens INTEGER, completion_tokens INTEGER, cached_tokens INTEGER, "
                     + "duration_ms BIGINT, status VARCHAR(16), error_message TEXT, created_at TEXT)");
+            // 2026-10-11 持久化语义重构：save_workflow 移出 AI 工具集（落版只由用户界面触发），
+            // 代码侧已无该工具定义，DB 存量行会让模型继续看到它
+            try {
+                jdbc.update("DELETE FROM agent_tool_definition WHERE tool_name = 'save_workflow'");
+            } catch (Exception ignore) {
+                // 表可能尚未创建
+            }
+            // 2026-10-11 模型配置体系（owb 式多模型）：模型条目表 + 会话级绑定列
+            createTableIfMissing("llm_model",
+                "CREATE TABLE llm_model ("
+                    + "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                    + "display_name VARCHAR(128) NOT NULL, "
+                    + "vendor VARCHAR(32), "
+                    + "base_url VARCHAR(256), "
+                    + "api_key VARCHAR(256), "
+                    + "model_id VARCHAR(128), "
+                    + "thinking_override VARCHAR(16), "
+                    + "max_tokens INTEGER, "
+                    + "temperature DOUBLE, "
+                    + "extra_body TEXT, "
+                    + "enabled INTEGER DEFAULT 1, "
+                    + "sort_order INTEGER DEFAULT 0, "
+                    + "created_at TEXT, updated_at TEXT)");
+            addColumnIfMissing("agent_session", "model_id",
+                "ALTER TABLE agent_session ADD COLUMN model_id INTEGER");
+            // 双层记忆的条目区（2026-10-11，owb memory 对标）：remember/forget 工具读写，
+            // 手写区复用 agent_config（config_key=memory.manual）
+            createTableIfMissing("agent_memory",
+                "CREATE TABLE agent_memory ("
+                    + "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                    + "scope VARCHAR(16) DEFAULT 'global', "
+                    + "content TEXT NOT NULL, "
+                    + "source VARCHAR(16) DEFAULT 'agent', "
+                    + "created_at TEXT, updated_at TEXT)");
             log.info("[schema-migrator] sqlite schema up to date");
         } catch (Exception e) {
             log.warn("[schema-migrator] migration skipped (non-sqlite or failed): {}", e.getMessage());
@@ -67,50 +101,90 @@ public class AgentSchemaMigrator {
     }
 
     /**
-     * v2 提示词一次性覆盖：DB 里的旧提示词描述的是 v1 工具（applyWorkflow/canvas 等），
-     * 与 v2 工具链对不上会把模型带偏。这里以 marker（agent.prompt.v2_applied）保证只覆盖一次，
-     * 之后管理后台的修改永远不会再被启动流程覆盖。
+     * 提示词同步：classpath 是唯一事实源，DB 里的拷贝在内容未被手工修改时跟随更新。
+     *
+     * <p>旧方案以 marker（agent.prompt.v2_applied）只覆盖一次，导致后续提示词修订
+     * 永远进不了 DB（2026-10-11 实证：v6 修订因 marker 卡住，线上仍跑旧教学，
+     * 模型连 fromPort 怎么填都没学过）。现改为哈希比对：每个提示词在
+     * agent.prompt.imported_hash.{configKey} 记录上次导入的内容哈希——
+     * DB 内容与哈希一致（没人手工改过）就跟随 classpath 更新；
+     * 不一致（管理后台改过）则跳过，保护人工修改。</p>
      */
     @PostConstruct
     public void migratePrompts() {
         try {
-            Integer marker = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM agent_config WHERE config_key = 'agent.prompt.v2_applied'",
-                Integer.class);
-            if (marker != null && marker > 0) {
-                return;
-            }
-            overwritePrompt("system_prompt.default", "agent/prompt-zh.md");
-            overwritePrompt("system_prompt.default.en", "agent/prompt-en.md");
-            overwritePrompt("system_prompt.workflow-architect", "agent/prompt-workflow-architect-zh.md");
-            overwritePrompt("system_prompt.workflow-architect.en", "agent/prompt-workflow-architect-en.md");
-            jdbc.update("INSERT INTO agent_config (config_key, config_type, title, content, description, created_at, updated_at) "
-                + "VALUES ('agent.prompt.v2_applied', 'migration_marker', 'v2 提示词迁移标记', "
-                + "'v2 toolchain prompts applied at ' || datetime('now'), '存在即不再覆盖提示词', datetime('now'), datetime('now'))");
-            log.info("[schema-migrator] v2 prompts applied (one-time overwrite)");
+            syncPrompt("system_prompt.default", "agent/prompt-zh.md");
+            syncPrompt("system_prompt.default.en", "agent/prompt-en.md");
+            syncPrompt("system_prompt.workflow-architect", "agent/prompt-workflow-architect-zh.md");
+            syncPrompt("system_prompt.workflow-architect.en", "agent/prompt-workflow-architect-en.md");
         } catch (Exception e) {
             log.warn("[schema-migrator] prompt migration failed: {}", e.getMessage());
         }
     }
 
-    private void overwritePrompt(String configKey, String resourcePath) {
+    private void syncPrompt(String configKey, String resourcePath) {
         try {
-            Integer exists = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM agent_config WHERE config_key = ?", Integer.class, configKey);
-            String content = readResource(resourcePath);
-            if (content == null || content.trim().isEmpty()) {
+            String classpathContent = readResource(resourcePath);
+            if (classpathContent == null || classpathContent.trim().isEmpty()) {
                 return;
             }
-            if (exists != null && exists > 0) {
-                jdbc.update("UPDATE agent_config SET content = ?, updated_at = datetime('now') WHERE config_key = ?",
-                    content, configKey);
-            } else {
-                jdbc.update("INSERT INTO agent_config (config_key, config_type, title, content, description, created_at, updated_at) "
-                        + "VALUES (?, 'system_prompt', ?, ?, 'v2 built-in prompt', datetime('now'), datetime('now'))",
-                    configKey, configKey, content);
+            String classpathHash = sha256(classpathContent);
+            String dbContent = queryConfigContent(configKey);
+            String importedHash = queryConfigContent("agent.prompt.imported_hash." + configKey);
+            // 只有存在哈希基线且内容对不上才算手工编辑；首次接管（无基线）一律导入，
+            // 否则 marker 时代导入的旧内容永远被当成"手工修改"而无法接管
+            boolean dbManuallyEdited = dbContent != null && importedHash != null
+                && !sha256(dbContent).equals(importedHash);
+            if (dbManuallyEdited) {
+                log.info("[schema-migrator] prompt {} manually edited in DB, skip sync", configKey);
+                return;
             }
+            if (dbContent != null && classpathHash.equals(importedHash)) {
+                return; // 已是最新
+            }
+            upsertConfig(configKey, "system_prompt", configKey, classpathContent,
+                "从 " + resourcePath + " 导入（内容变更自动同步）");
+            upsertConfig("agent.prompt.imported_hash." + configKey, "migration_marker",
+                configKey + " 导入哈希", classpathHash, "提示词同步哈希，勿改");
+            log.info("[schema-migrator] prompt {} synced from {}", configKey, resourcePath);
         } catch (Exception e) {
-            log.warn("[schema-migrator] overwrite prompt {} failed: {}", configKey, e.getMessage());
+            log.warn("[schema-migrator] sync prompt {} failed: {}", configKey, e.getMessage());
+        }
+    }
+
+    private String queryConfigContent(String configKey) {
+        try {
+            return jdbc.queryForObject(
+                "SELECT content FROM agent_config WHERE config_key = ?", String.class, configKey);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private void upsertConfig(String configKey, String configType, String title, String content, String description) {
+        Integer exists = jdbc.queryForObject(
+            "SELECT COUNT(*) FROM agent_config WHERE config_key = ?", Integer.class, configKey);
+        if (exists != null && exists > 0) {
+            jdbc.update("UPDATE agent_config SET content = ?, description = ?, updated_at = datetime('now') "
+                + "WHERE config_key = ?", content, description, configKey);
+        } else {
+            jdbc.update("INSERT INTO agent_config (config_key, config_type, title, content, description, created_at, updated_at) "
+                    + "VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))",
+                configKey, configType, title, content, description);
+        }
+    }
+
+    private static String sha256(String content) {
+        try {
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(content.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : hash) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            return String.valueOf(content.hashCode());
         }
     }
 

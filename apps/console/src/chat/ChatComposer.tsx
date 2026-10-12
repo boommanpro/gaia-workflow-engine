@@ -30,6 +30,8 @@ interface ChatComposerProps {
   disabled?: boolean;
   placeholder?: string;
   hint?: string;
+  /** 底部工具行右侧插槽（发送按钮左侧）：模型选择器 / 上下文容量 pill 等 */
+  toolbarSlot?: React.ReactNode;
   /** 与对话列对齐的最大宽度 */
   maxWidth?: number;
   /** 卡片顶部插槽（例如「已选中某节点」的引用条） */
@@ -50,6 +52,7 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
   disabled = false,
   placeholder,
   hint,
+  toolbarSlot,
   maxWidth = 780,
   headerSlot,
   prefixBuilder,
@@ -360,7 +363,9 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
             </span>
           </div>
 
-          {streaming ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto', flexShrink: 0 }}>
+            {toolbarSlot}
+            {streaming ? (
             <button
               type="button"
               onClick={stopStreaming}
@@ -411,6 +416,7 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
               <IconSend size="small" />
             </button>
           )}
+          </div>
         </div>
       </div>
     </div>

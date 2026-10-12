@@ -122,8 +122,42 @@ class AgentScopeEngineHistoryTest {
     }
 
     @Test
-    @DisplayName("孤儿 tool 结果（旧数据/无前驱调用）仍然成对进请求，不静默丢弃")
-    void orphanToolResultStillPresent() {
+    @DisplayName("倒序落库（tool 行先于 assistant，真实落库形态）→ 回放归一成 assistant→结果")
+    void invertedPersistOrderNormalizesToPairs() {
+        // 工具结果在 run 中途落库、assistant 在收尾落库 → 同轮 tool 行排在 assistant 前
+        List<LlmMessage> history = Arrays.asList(
+            LlmMessage.builder().role("user").content("改工作流").build(),
+            LlmMessage.builder().role("tool").toolCallId("call-1")
+                .content("{\"error\":{\"code\":\"INVALID_ARGS\"}}").build(),
+            LlmMessage.builder().role("tool").toolCallId("call-2")
+                .content("{\"success\":true}").build(),
+            LlmMessage.builder().role("assistant").content("先改再存。").toolCalls(
+                Arrays.asList(toolCall("call-1", "edit_workflow", "{\"ops\":[]}"),
+                    toolCall("call-2", "save_workflow", "{}"))).build(),
+            LlmMessage.builder().role("user").content("继续").build());
+        when(conversationStore.loadHistory("s3", 0)).thenReturn(history);
+
+        AgentRequest request = new AgentRequest("r3", "继续", "s3", "zh-CN", null,
+            ToolExecutionMode.BACKEND, 0, null, null);
+        AgentRunContext context = new AgentRunContext(request, new AgentDefinition(), ToolExecutionMode.BACKEND);
+        List<io.agentscope.core.message.Msg> msgs = engine.buildMessages(context, "s3");
+
+        // user → assistant(带 tool_use) → tool → tool → user：assistant 必须先于其结果
+        assertEquals(5, msgs.size());
+        assertEquals(MsgRole.USER, msgs.get(0).getRole());
+        assertEquals(MsgRole.ASSISTANT, msgs.get(1).getRole());
+        assertEquals(MsgRole.TOOL, msgs.get(2).getRole());
+        assertEquals(MsgRole.TOOL, msgs.get(3).getRole());
+        assertEquals(MsgRole.USER, msgs.get(4).getRole());
+        io.agentscope.core.message.ToolResultBlock r1 =
+            (io.agentscope.core.message.ToolResultBlock) msgs.get(2).getContent().get(0);
+        assertEquals("call-1", r1.getId());
+        assertTrue(r1.getOutput().toString().contains("INVALID_ARGS"));
+    }
+
+    @Test
+    @DisplayName("孤儿 tool 结果（无前驱调用）不进回放：协议非法，端点会拒绝整批")
+    void orphanToolResultDroppedFromReplay() {
         List<LlmMessage> history = Arrays.asList(
             LlmMessage.builder().role("user").content("改工作流").build(),
             // 旧引擎落库的 assistant：没有 toolCalls
@@ -136,9 +170,32 @@ class AgentScopeEngineHistoryTest {
         AgentRunContext context = new AgentRunContext(request, new AgentDefinition(), ToolExecutionMode.BACKEND);
         List<io.agentscope.core.message.Msg> msgs = engine.buildMessages(context, "s2");
 
-        // assistant 只有文本块也必须保留（不能因为无 blocks 被丢弃）
+        // assistant 只有文本块也必须保留；孤儿结果被丢弃（DB 里仍可审查）
+        assertEquals(2, msgs.size());
+        assertEquals(MsgRole.ASSISTANT, msgs.get(1).getRole());
+        assertEquals(MsgRole.USER, msgs.get(0).getRole());
+    }
+
+    @Test
+    @DisplayName("有调用无结果（run 被中断）→ 补占位结果，配对序列保持完整")
+    void missingResultGetsPlaceholder() {
+        List<LlmMessage> history = Arrays.asList(
+            LlmMessage.builder().role("user").content("跑一下").build(),
+            LlmMessage.builder().role("assistant").content("").toolCalls(
+                List.of(toolCall("call-x", "run_workflow", "{}"))).build());
+        when(conversationStore.loadHistory("s4", 0)).thenReturn(history);
+
+        AgentRequest request = new AgentRequest("r4", "继续", "s4", "zh-CN", null,
+            ToolExecutionMode.BACKEND, 0, null, null);
+        AgentRunContext context = new AgentRunContext(request, new AgentDefinition(), ToolExecutionMode.BACKEND);
+        List<io.agentscope.core.message.Msg> msgs = engine.buildMessages(context, "s4");
+
         assertEquals(3, msgs.size());
         assertEquals(MsgRole.ASSISTANT, msgs.get(1).getRole());
         assertEquals(MsgRole.TOOL, msgs.get(2).getRole());
+        io.agentscope.core.message.ToolResultBlock r =
+            (io.agentscope.core.message.ToolResultBlock) msgs.get(2).getContent().get(0);
+        assertEquals("call-x", r.getId());
+        assertTrue(r.getOutput().toString().contains("未留存"), "占位结果必须说明结果缺失的原因");
     }
 }

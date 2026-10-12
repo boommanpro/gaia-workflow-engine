@@ -1,7 +1,7 @@
 /**
  * Agent 后端 API 封装
  */
-import { getApiBaseUrl, getAbsoluteApiUrl } from '../utils/apiConfig';
+import { getApiBaseUrl } from '../utils/apiConfig';
 import { isReplayActive, replayRequest } from './replay/replay-driver';
 import type { AgentSession, AgentMessage, WorkFolder } from './types';
 
@@ -93,6 +93,12 @@ export const agentApi = {
   /** 停止当前运行（尽力而为） */
   stopRun: (sessionKey: string) =>
     request<boolean>(`/agent/session/${sessionKey}/stop`, { method: 'POST' }),
+  /** 回答 ask_user 提问（唤醒挂起的工具调用继续 run） */
+  answerAsk: (sessionKey: string, askId: string, answer: string) =>
+    request<{ ok: boolean }>(
+      `/agent/session/${encodeURIComponent(sessionKey)}/ask/${encodeURIComponent(askId)}/answer`,
+      { method: 'POST', body: JSON.stringify({ answer }) }
+    ),
   /** 当前运行快照 */
   getRunStatus: (sessionKey: string) =>
     request<any>(`/agent/session/${sessionKey}/status`),
@@ -107,6 +113,56 @@ export const agentApi = {
     request<{ compacted: boolean; message?: string; removed?: number; kept?: number; tokenPercentage?: number; estimatedTokens?: number; limit?: number }>(
       `/agent/session/${encodeURIComponent(sessionKey)}/compact`,
       { method: 'POST' },
+    ),
+
+  // ===== 双层记忆（owb memory 对标）=====
+  getMemory: () =>
+    request<{ manual: string; items: { id: number; content: string; source: string; updatedAt?: string }[] }>(
+      '/agent/memory'),
+  saveMemoryManual: (content: string) =>
+    request<{ success: boolean }>('/agent/memory/manual',
+      { method: 'PUT', body: JSON.stringify({ content }) }),
+  deleteMemoryEntry: (id: number) =>
+    request<{ success: boolean }>(`/agent/memory/${id}`, { method: 'DELETE' }),
+
+  // ===== 模型配置（owb 式多模型）=====
+  listModels: () => request<{ items: any[]; activeModelId: number | null; globalThinking: string; engineMode?: string }>(
+    '/agent/models'),
+  saveModel: (entry: Record<string, unknown>) =>
+    request<{ success: boolean; id?: number; error?: string }>('/agent/models',
+      { method: 'POST', body: JSON.stringify(entry) }),
+  deleteModel: (id: number) =>
+    request<{ success: boolean; error?: string }>(`/agent/models/${id}`, { method: 'DELETE' }),
+  setActiveModel: (id: number | null) =>
+    request<{ success: boolean; activeModelId: number | null }>('/agent/models/active',
+      { method: 'POST', body: JSON.stringify({ id }) }),
+  thinkingLevels: (modelId?: number) =>
+    request<{ levels: { level: string; supported: boolean; note: string }[] }>(
+      `/agent/models/thinking-levels${modelId ? `?modelId=${modelId}` : ''}`),
+  setGlobalThinking: (level: string) =>
+    request<{ success: boolean; globalThinking: string }>('/agent/models/thinking',
+      { method: 'POST', body: JSON.stringify({ level }) }),
+  testModel: (body: { id?: number; baseUrl?: string; apiKey?: string; modelId?: string }) =>
+    request<{ success: boolean; latencyMs?: number; error?: string }>('/agent/models/test',
+      { method: 'POST', body: JSON.stringify(body) }),
+  modelHealth: () =>
+    request<{ items: { model: string; total: number; errors: number; successRate: number; avgLatencyMs: number; healthy: boolean }[] }>(
+      '/agent/models/health'),
+  getSessionModel: (sessionKey: string) =>
+    request<{ modelId: number | null; activeModelId: number | null; model?: any }>(
+      `/agent/session/${sessionKey}/model`),
+  setSessionModel: (sessionKey: string, modelId: number | null) =>
+    request<{ success: boolean; modelId: number | null }>(
+      `/agent/session/${sessionKey}/model`, { method: 'POST', body: JSON.stringify({ modelId }) }),
+
+  /** 保存为版本（用户动作）：把当前会话草稿落为工作流版本（AI 无落版工具） */
+  saveDraftAsVersion: (
+    sessionKey: string,
+    opts?: { workflowCode?: string; name?: string; versionDesc?: string; baseRevision?: number },
+  ) =>
+    request<{ success: boolean; message?: string; workflowCode?: string; versionNumber?: string; revision?: number; nodeCount?: number; error?: string }>(
+      `/agent/session/${sessionKey}/save`,
+      { method: 'POST', body: JSON.stringify(opts ?? {}) },
     ),
 
   /** 基于工作流当前落版初始化会话草稿（「基于工作流迭代」入口） */
@@ -142,33 +198,49 @@ export const agentApi = {
     }
   },
 
-  // 会话审查（人工标记）
-  updateReview: (sessionKey: string, review: {
-    reviewRating?: string | null;
-    reviewIssue?: string | null;
-    reviewStatus?: string;
-    reviewFixNote?: string | null;
-  }) =>
-    request<boolean>(`/agent/session/${sessionKey}/review`, {
-      method: 'PUT',
-      body: JSON.stringify(review),
-    }),
-  // 导出链接用于浏览器外部（curl/新窗口），必须是绝对 URL（含协议+主机+端口）
-  exportSessionUrl: (sessionKey: string) =>
-    getAbsoluteApiUrl(`/agent/session/${sessionKey}/export?pretty=true`),
-
-  // ===== 执行追踪（观测 API，对标 OWB Trace View）=====
+  // ===== 会话级观测 API（调试面板 TraceView 数据源）=====
   /** 会话的 run 列表（从 agent_session_event 派生：终态/失败链/时间账） */
   getSessionRuns: (sessionKey: string) =>
     request<any[]>(`/agent/metrics/sessions/${sessionKey}/runs?limit=100`),
   /** 会话事件流（跨 run，追加只写） */
   getSessionEvents: (sessionKey: string, limit = 500) =>
     request<any[]>(`/agent/metrics/sessions/${sessionKey}/events?limit=${limit}`),
-  /** LLM 调用账本（generation 级：prompt/输出摘要、usage、耗时、结局） */
-  getRunLlmCalls: (sessionKey: string, runId?: string) =>
+  /** LLM 调用账本（generation 级：prompt/输出摘要、usage、耗时、结局；limit 上限 1000） */
+  getRunLlmCalls: (sessionKey: string, runId?: string, limit = 200) =>
     request<any[]>(
-      `/agent/metrics/sessions/${sessionKey}/llm-calls?limit=200${runId ? `&runId=${encodeURIComponent(runId)}` : ''}`
+      `/agent/metrics/sessions/${sessionKey}/llm-calls?limit=${limit}${runId ? `&runId=${encodeURIComponent(runId)}` : ''}`
     ),
+  /** 会话上下文容量（对话页「上下文容量」卡）：最近一次调用的真实规模 + 分类占比 + 缓存命中 + 压缩真线 */
+  getContextStats: (sessionKey: string) =>
+    request<{
+      usedTokens: number;
+      estimated: boolean;
+      breakdown?: { systemPrompt: number; tools: number; messages: number; other: number };
+      cacheHitRate?: number;
+      sampledCalls?: number;
+      lastCallAt?: string;
+      model?: string;
+      /** 模型上下文窗口（容量占比的分母，与压缩决策同源） */
+      contextWindow?: number;
+      /** 跨 run 压缩触发线（tokens）—— 容量药丸的出现/告警线，前端不算数 */
+      compactThreshold?: number;
+      /** 全会话对话调用累计账（旁路调用不计入） */
+      session?: { promptTokens: number; cachedTokens: number; completionTokens: number };
+    }>(`/agent/metrics/sessions/${sessionKey}/context-stats`),
+  /** 按 run 聚合的单轮用量账本（「本轮用量」明细卡：输入/缓存/输出拆分 + 模型） */
+  getTurnUsage: (sessionKey: string) =>
+    request<
+      Array<{
+        runId: string;
+        calls: number;
+        promptTokens: number;
+        cachedTokens: number;
+        completionTokens: number;
+        durationMs: number;
+        model?: string;
+        lastCallAt?: string;
+      }>
+    >(`/agent/metrics/sessions/${sessionKey}/turn-usage`),
 
   // 工作空间（文件夹分组的对话）
   listFolders: () => request<WorkFolder[]>('/agent/workspace/folders'),

@@ -3,7 +3,6 @@ package cn.boommanpro.gaia.workflow.app.agent.store;
 import cn.boommanpro.gaia.workflow.app.agent.core.ConversationStore;
 import cn.boommanpro.gaia.workflow.app.agent.llm.LlmMessage;
 import cn.boommanpro.gaia.workflow.app.agent.llm.LlmToolCall;
-import cn.boommanpro.gaia.workflow.app.config.AgentProperties;
 import cn.boommanpro.gaia.workflow.infra.manage.entity.AgentMessage;
 import cn.boommanpro.gaia.workflow.infra.manage.service.AgentMessageService;
 import cn.hutool.json.JSONArray;
@@ -26,11 +25,9 @@ import java.util.UUID;
 public class DatabaseConversationStore implements ConversationStore {
 
     private final AgentMessageService messageService;
-    private final AgentProperties properties;
 
-    public DatabaseConversationStore(AgentMessageService messageService, AgentProperties properties) {
+    public DatabaseConversationStore(AgentMessageService messageService) {
         this.messageService = messageService;
-        this.properties = properties;
     }
 
     @Override
@@ -39,7 +36,6 @@ public class DatabaseConversationStore implements ConversationStore {
         if (sessionKey == null || sessionKey.isEmpty()) {
             return result;
         }
-        int limit = maxMessages > 0 ? maxMessages : properties.getHistory().getMaxMessages();
 
         // compacted=1 的消息已被前情摘要取代，不再进入模型上下文
         //（surface replace：摘要消息本身会按普通 user 消息出现在序列里）
@@ -49,9 +45,10 @@ public class DatabaseConversationStore implements ConversationStore {
                 .and(w -> w.isNull("compacted").or().eq("compacted", 0))
                 .orderByAsc("created_at", "id"));
 
-        // 只保留最近 N 条；整体截取比 SQL limit 更可靠地保留尾部语境
-        List<AgentMessage> window = all.size() > limit
-            ? all.subList(all.size() - limit, all.size())
+        // 不做条数滑窗：maxMessages > 0 时才截取最近 N 条（显式请求）；
+        // 上下文治理交给阈值压缩（SessionCompactionService / 框架 CompactionMiddleware）
+        List<AgentMessage> window = maxMessages > 0 && all.size() > maxMessages
+            ? all.subList(all.size() - maxMessages, all.size())
             : all;
 
         for (AgentMessage entity : window) {
@@ -162,6 +159,30 @@ public class DatabaseConversationStore implements ConversationStore {
         message.setThinking(thinking != null && !thinking.isEmpty() ? thinking : null);
         message.setCreatedAt(LocalDateTime.now());
         messageService.save(message);
+    }
+
+    @Override
+    public void attachTimelineToLastAssistant(String sessionKey, String timelineJson) {
+        if (sessionKey == null || sessionKey.isEmpty() || timelineJson == null || timelineJson.isEmpty()) {
+            return;
+        }
+        try {
+            AgentMessage last = messageService.getOne(
+                new QueryWrapper<AgentMessage>()
+                    .eq("session_key", sessionKey)
+                    .eq("role", "assistant")
+                    .orderByDesc("id")
+                    .last("LIMIT 1"));
+            if (last == null) {
+                return;
+            }
+            AgentMessage update = new AgentMessage();
+            update.setId(last.getId());
+            update.setTimeline(timelineJson);
+            messageService.updateById(update);
+        } catch (Exception e) {
+            log.warn("[conversation-store] attach timeline failed session={}: {}", sessionKey, e.getMessage());
+        }
     }
 
     @Override

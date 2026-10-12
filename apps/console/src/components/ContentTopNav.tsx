@@ -11,7 +11,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useLanguage, t } from '../i18n';
-import { LanguageToggle } from './language-toggle';
 import { ConnectionStatus } from './ConnectionStatus';
 import { publicPath } from '../utils/public-path';
 
@@ -90,10 +89,11 @@ export const ContentTopNav: React.FC<{
                 <button
                   key={l.path}
                   onClick={() => navigate(l.path)}
-                  className="rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+                  className="rounded-lg px-3.5 py-2 text-sm font-medium transition-colors"
                   style={{
                     color: isActive(l.path) ? ACCENT : '#555',
                     background: isActive(l.path) ? '#f3f3ff' : 'transparent',
+                    border: `1px solid ${isActive(l.path) ? '#c9caff' : '#d8d8de'}`,
                   }}
                 >
                   {t(l.key)}
@@ -109,10 +109,11 @@ export const ContentTopNav: React.FC<{
                 <button
                   key={l.path}
                   onClick={() => navigate(l.path)}
-                  className="rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+                  className="rounded-lg px-3.5 py-2 text-sm font-medium transition-colors"
                   style={{
                     color: isActive(l.path) ? ACCENT : '#555',
                     background: isActive(l.path) ? '#f3f3ff' : 'transparent',
+                    border: `1px solid ${isActive(l.path) ? '#c9caff' : '#d8d8de'}`,
                   }}
                 >
                   {t(l.key)}
@@ -130,7 +131,6 @@ export const ContentTopNav: React.FC<{
             </button>
           )}
           <ConnectionStatus />
-          <LanguageToggle />
           {/* 移动端抽屉开关 */}
           <button
             className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#eee] md:hidden"

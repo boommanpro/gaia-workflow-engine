@@ -1,34 +1,31 @@
 /**
- * LanguageToggle — compact button that switches between `zh` and `en`.
+ * LanguageToggle — 语言切换（暂缓开放）。
  *
- * Reused across Home, Admin, and Editor headers so the user can switch
- * language from anywhere in the app.
+ * 中文体验是当前唯一打磨目标：两套文案来回切换的维护成本高、翻译质量不可控，
+ * 切换入口先统一显示「待实现」，等中文效果稳定后再放开。
  */
-import { useLanguage, setLanguage, t } from '../../i18n';
+import { useLanguage, t } from '../../i18n';
 
 export const LanguageToggle = ({ style }: { style?: React.CSSProperties }) => {
-  const lang = useLanguage();
-  const next = lang === 'zh' ? 'en' : 'zh';
-  const label = lang === 'zh' ? 'EN' : '中文';
-  const title = lang === 'zh' ? t('Switch to English') : t('Switch to Chinese');
-
+  useLanguage(); // 订阅语言变化（当前恒为 zh）
   return (
     <button
       type="button"
-      onClick={() => setLanguage(next)}
-      title={title}
+      disabled
+      title={t('shell.langPendingTitle')}
       style={{
         padding: '6px 14px',
         border: '1px solid #e0e0e6',
         borderRadius: 6,
-        background: '#fff',
-        cursor: 'pointer',
+        background: '#fafafa',
+        cursor: 'not-allowed',
         fontSize: 13,
-        color: '#333',
+        color: '#aaa',
+        opacity: 0.75,
         ...style,
       }}
     >
-      {label}
+      {t('shell.langPending')}
     </button>
   );
 };

@@ -28,7 +28,8 @@ import java.util.List;
 public class SessionCompactionService {
 
     private static final int MIN_MESSAGES = 6;
-    private static final int TOKEN_THRESHOLD_PERCENT = 50;
+    /** 跨 run 压缩触发线（相对 contextWindow 的百分比）—— 前端「上下文容量」药丸的告警线同源 */
+    public static final int TOKEN_THRESHOLD_PERCENT = 50;
 
     private final AgentMessageService messageService;
     private final ConversationStore conversationStore;

@@ -32,6 +32,7 @@ import cn.boommanpro.gaia.workflow.infra.manage.service.AgentToolCallLogService;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.core.event.AgentEventType;
 import io.agentscope.core.event.AgentResultEvent;
@@ -99,8 +100,7 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
 
     private static final Duration STREAM_TIMEOUT = Duration.ofMinutes(10);
 
-    /** 历史确定性剪枝：超过此条数保留最近 {@code HISTORY_KEEP} 条（溢出压缩前的第一道闸） */
-    private static final int HISTORY_PRUNE_THRESHOLD = 40;
+    /** 框架压缩触发时保留的最近消息条数（CompactionConfig.keepMessages，非滑窗） */
     private static final int HISTORY_KEEP = 30;
 
     private final AgentRegistry agentRegistry;
@@ -168,7 +168,8 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
             cn.boommanpro.gaia.workflow.app.agent.core.ToolExecutionMode.BACKEND);
         context.setSink(safeSink);
 
-        AgentModelConfigService.LlmConfig cfg = modelConfigService.getLlmConfig();
+        // 会话级模型解析（owb 式）：会话绑定 > 全局默认 > 平台兜底；含思考参数规划
+        AgentModelConfigService.LlmConfig cfg = modelConfigService.getLlmConfig(sessionKey);
 
         // ---- 系统提示词：按 Agent 定义解析（definition.systemPrompt > configKey > 默认） ----
         // 默认提示词由 AgentToolRegistry 组装（DB 正文 + 按启用状态动态渲染的工具目录）。
@@ -185,15 +186,21 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
             innerModel = cn.boommanpro.gaia.workflow.app.agent.llm.ScriptedChatModel.fromResource(
                 properties.getLlm().getScriptedResource());
         } else {
+            io.agentscope.core.model.GenerateOptions.Builder genOpts = io.agentscope.core.model.GenerateOptions.builder()
+                .temperature(definition.getTemperature() != null ? definition.getTemperature() : cfg.getTemperature())
+                .maxTokens(cfg.getMaxTokens());
+            if (cfg.getThinkingBudgetTokens() != null) {
+                genOpts.thinkingBudget(cfg.getThinkingBudgetTokens());
+            }
+            if (cfg.getReasoningEffort() != null && !cfg.getReasoningEffort().isEmpty()) {
+                genOpts.reasoningEffort(cfg.getReasoningEffort());
+            }
             innerModel = OpenAIChatModel.builder()
                 .baseUrl(cfg.getApiHost())
                 .apiKey(cfg.getApiKey())
                 .modelName(cfg.getModel())
                 .contextWindowSize(cfg.getContextWindow())
-                .generateOptions(io.agentscope.core.model.GenerateOptions.builder()
-                    .temperature(definition.getTemperature() != null ? definition.getTemperature() : cfg.getTemperature())
-                    .maxTokens(cfg.getMaxTokens())
-                    .build())
+                .generateOptions(genOpts.build())
                 .build();
         }
 
@@ -233,7 +240,9 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
         }
     }
 
-    /** LLM 调用账本落库（best-effort：任何异常只打 debug，不影响主链路） */
+    /** LLM 调用账本落库（best-effort：任何异常只打 debug，不影响主链路）。
+     *  request_json 做增量压缩：同 run 首个调用存全量，后续只存与基准的公共前缀之后的尾部 ——
+     *  长跑 20 次调用不再存 20 份近乎相同的历史，总量 ≈ 首份全量 + 各次增量。 */
     private void persistLlmCall(String sessionKey, String runId, RecordingModel.LlmCallRecord rec) {
         if (llmCallLogService == null) {
             return;
@@ -248,6 +257,8 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
             row.setToolsCount(rec.toolsCount);
             row.setPromptDigest(rec.promptDigest);
             row.setOutputDigest(rec.outputDigest);
+            row.setRequestJson(compressRequestJson(runId, rec.seq, rec.requestJson));
+            row.setResponseJson(rec.responseJson);
             row.setPromptTokens(rec.promptTokens);
             row.setCompletionTokens(rec.completionTokens);
             row.setCachedTokens(rec.cachedTokens);
@@ -259,6 +270,18 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
         } catch (Exception e) {
             log.debug("[agentscope-engine] llm call log persist failed: {}", e.getMessage());
         }
+    }
+
+    /**
+     * request_json 落账口径：原封不动存全量（2026-10-11 拍板，保真优先于存储）。
+     *
+     * <p>曾实现过「seq&gt;1 存 {sharedMessages, baseSeq, messages:[尾部]} 增量形态」省存储，
+     * 但 Trajectory 调试需要的是「这轮模型到底收到了什么」的第一手数据——任何需要拼回
+     * 才能看的口径都会让人怀疑数据被动过。存储成本（每次调用重复携带历史与工具 schema）
+     * 在 SQLite 单文件场景下可接受。历史增量行由前端 Trajectory 按同一规则拼回，兼容不受影响。</p>
+     */
+    private String compressRequestJson(String runId, int seq, String requestJson) {
+        return requestJson;
     }
 
     /**
@@ -300,38 +323,37 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
                 .retryOn(ExecutionConfig.RETRYABLE_ERRORS)
                 .build())
             .build();
-        stripForeignTools(toolkit);
+        // build() 会把 harness 默认工具合并进 agent 自己的 toolkit（传入的实例上不可见），
+        // 剥离必须作用在 agent.getToolkit() 返回的真实工具集上 —— 否则模型仍能看到
+        // task_list 等休眠工具（实测 36 个 schema 里 22 个是框架注入的）
+        stripForeignTools(agent.getToolkit(), toolkit.getToolNames());
         return agent;
     }
 
     /**
-     * 剔除 harness build() 默认注入的非自研工具（字节码证实：web_fetch/web_search 无条件注册，
-     * memory_search/get/save、session_search、filesystem_tool、wait_async_results 注册但无后端 ——
-     * 调用即败）。对弱模型是 schema 噪声，对部署是意外出网面。只保留 gaia 自己注册的 13 工具。
+     * 剔除 harness build() 注入的非自研工具（白名单反转：只保留本次 run 注册的 gaia 工具）。
+     * 字节码证实 harness 会无条件合并一批平台工具（task_list/load_skill_through_path/
+     * agent_spawn/__fragment__…），后端无实现或无业务语义——弱模型实测会复读这些空壳工具
+     * 直到熔断。黑名单追不完（框架升级就漏），白名单天然闭合。
      */
-    private static void stripForeignTools(Toolkit toolkit) {
-        try {
-            Set<String> removed = new HashSet<>();
-            for (String name : new HashSet<>(toolkit.getToolNames())) {
-                // 自研工具名是 snake_case 业务名；框架注入的休眠工具统一在此黑名单
-                if (FOREIGN_TOOL_NAMES.contains(name)) {
+    private void stripForeignTools(Toolkit toolkit, java.util.Collection<String> allowedNames) {
+        Set<String> removed = new HashSet<>();
+        for (String name : new HashSet<>(toolkit.getToolNames())) {
+            if (!allowedNames.contains(name)) {
+                try {
                     toolkit.removeTool(name);
                     removed.add(name);
+                } catch (Exception e) {
+                    log.debug("[agentscope-engine] remove foreign tool {} failed (ignored): {}", name, e.getMessage());
                 }
             }
-            if (!removed.isEmpty()) {
-                log.info("[agentscope-engine] stripped harness default tools: {}", removed);
-            }
-        } catch (Exception e) {
-            log.debug("[agentscope-engine] strip foreign tools failed (ignored): {}", e.getMessage());
+        }
+        if (!removed.isEmpty()) {
+            log.info("[agentscope-engine] stripped harness default tools ({} kept): {} removed, e.g. {}",
+                allowedNames.size(), removed.size(),
+                removed.stream().sorted().limit(8).toList());
         }
     }
-
-    /** harness 默认注入、gaia 不需要也不提供的工具名（后端无文件树/沙箱/记忆库/MCP 总线） */
-    private static final Set<String> FOREIGN_TOOL_NAMES = Set.of(
-        "web_fetch", "web_search", "webFetch", "webSearch",
-        "memory_search", "memory_get", "memory_save", "session_search",
-        "filesystem", "filesystem_tool", "wait_async_results");
 
     /** 空响应重试上限（弱模型实测会回 1 个 token 的空转，重跑通常即恢复） */
     private static final int EMPTY_RESPONSE_MAX_RETRIES = 2;
@@ -432,6 +454,9 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
         List<Msg> msgs = buildMessages(context, sessionKey, sink, stats);
         insertPageContextSnapshot(context, msgs);
         drainSteeringInto(context, sink, msgs);
+        // 完整提示词不再单独发事件落库：RecordingModel 的 request_json 记录的就是
+        // 发给模型的真实入参（OpenAI 同构，含 tools/options/tool_calls 配对），
+        // 比这里重组一份更保真 —— TraceService 用首个 generation 的 request_json 还原 trace.input
         // AGENT_RESULT 回显守卫的历史侧基线：与历史 assistant 逐字相同的「结果」不是终稿
         Set<String> historyAssistantTexts = collectAssistantTexts(msgs);
 
@@ -525,9 +550,11 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
                     continue;
                 }
 
-                if (!content.trim().isEmpty()) {
+                if (!content.trim().isEmpty() || !executedToolCalls.isEmpty()) {
                     // assistant 消息必须带 toolCalls 回写：下一轮历史回放才有合法的
-                    // tool_use → tool_result 交错，前端刷新后工具卡才重建得出来
+                    // tool_use → tool_result 交错。纯工具调用轮（正文为空）同样必须落库 ——
+                    // 缺了它这轮的全部工具结果都是孤儿，回放配对修复会把它们整体丢弃，
+                    // 模型看不见自己调过什么、结果是什么
                     conversationStore.saveMessage(sessionKey, "assistant", content, toolCallsJson, null,
                         thinking.length() > 0 ? thinking.toString() : null);
                 } else if (stats.modelCalls.get() > 0) {
@@ -735,10 +762,10 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
     }
 
     /**
-     * 自研历史（agent_message 表，真相源）→ AgentScope Msg 列表。
-     * 确定性剪枝：超长历史只保留最近窗口（dsh context-economics 第一道闸；
-     * run 内溢出由 HarnessAgent 内建 CompactionMiddleware 兜底，跨 run 摘要压缩
-     * 由 SessionCompactionService 在 run 启动前触发）。
+     * 自研历史（agent_message 表，真相源）→ AgentScope Msg 列表。全量透传，不做条数滑窗：
+     * 上下文治理只走阈值机制 —— 跨 run 由 SessionCompactionService（估算 token 超窗 50%）
+     * 在 run 启动前摘要压缩（另有页面手动压缩入口），run 内由 HarnessAgent 内建
+     * CompactionMiddleware（contextWindow 80% 阈值）兜底。
      * 包级可见：历史回放的正确性（tool_use/tool_result 配对）有专项单测守护。
      */
     List<Msg> buildMessages(AgentRunContext context, String sessionKey) {
@@ -747,23 +774,29 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
 
     List<Msg> buildMessages(AgentRunContext context, String sessionKey, AgentEventSink sink, RunStats stats) {
         List<LlmMessage> history = conversationStore.loadHistory(sessionKey, 0);
-        if (history.size() > HISTORY_PRUNE_THRESHOLD) {
-            int before = history.size();
-            int drop = before - HISTORY_KEEP;
-            history = history.subList(drop, before);
-            log.info("[agentscope-engine] session={} history pruned {} -> {} messages",
-                sessionKey, before, HISTORY_KEEP);
-            // 压缩可观测：剪枝必须让前端/事件日志看见，不能只进 log 文件
-            if (sink != null) {
-                sink.emit(AgentEvent.of("compaction", new JSONObject()
-                    .set("kind", "prune")
-                    .set("before", before)
-                    .set("after", HISTORY_KEEP)
-                    .set("dropped", drop)
-                    .set("engine", ENGINE_ID)));
+        return replayHistory(history, sessionKey);
+    }
+
+    /**
+     * 历史回放（配对感知）：把 agent_message 行归一成协议合法的
+     * {@code assistant(tool_use) → tool_result} 交错序列。
+     *
+     * <p>落库顺序不保证配对相邻：工具结果在 run 中途落库，assistant（带 tool_calls）
+     * 在 run 收尾落库 —— 同一轮的 tool 行天然排在 assistant 之前（llm 账本 request_json
+     * 实证过这个倒序）。这里按 tool_call_id 重建配对：assistant 发出后紧跟它的全部结果；
+     * 没有前驱调用的孤儿结果不进请求（协议非法，端点会拒绝或忽略整批结果）；
+     * 有调用无结果的（run 被中断）补占位结果，保证序列完整。</p>
+     */
+    static List<Msg> replayHistory(List<LlmMessage> history, String sessionKey) {
+        // 索引 tool 结果：tool_call_id → 结果行
+        Map<String, LlmMessage> resultsById = new LinkedHashMap<>();
+        for (LlmMessage m : history) {
+            if ("tool".equals(m.getRole()) && m.getToolCallId() != null && !m.getToolCallId().isEmpty()) {
+                resultsById.put(m.getToolCallId(), m);
             }
         }
         List<Msg> msgs = new ArrayList<>();
+        Set<String> consumed = new HashSet<>();
         for (LlmMessage m : history) {
             String role = m.getRole();
             if ("user".equals(role)) {
@@ -781,17 +814,34 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
                 if (!blocks.isEmpty()) {
                     msgs.add(Msg.builder().role(MsgRole.ASSISTANT).content(blocks).build());
                 }
-            } else if ("tool".equals(role) && m.getToolCallId() != null) {
-                msgs.add(new ToolResultMessage(m.getToolCallId(), "tool",
-                    safeText(m.getContent())));
+                // assistant 的调用 → 紧随其后的结果（无论落库时排在哪）
+                if (m.getToolCalls() != null) {
+                    for (LlmToolCall call : m.getToolCalls()) {
+                        LlmMessage result = resultsById.get(call.getId());
+                        if (result != null) {
+                            // 回放侧修剪：落库全量（前端展示口径），回灌模型的旧工具结果截断
+                            msgs.add(new ToolResultMessage(call.getId(), "tool",
+                                pruneReplayContent(safeText(result.getContent()))));
+                            consumed.add(call.getId());
+                        } else {
+                            msgs.add(new ToolResultMessage(call.getId(), "tool",
+                                "{\"note\":\"该工具调用的结果未留存（运行可能被中断），可重新调用获取\"}"));
+                        }
+                    }
+                }
             }
+            // tool 行不在主循环直接输出：统一由它的 assistant 领走（见上）
+        }
+        int orphans = resultsById.size() - consumed.size();
+        if (orphans > 0) {
+            log.info("[agentscope-engine] session={} replay: dropped {} orphan tool result(s) without preceding tool_use",
+                sessionKey, orphans);
         }
         return msgs;
     }
 
     /** 历史 assistant 纯文本集合（AGENT_RESULT 回显守卫的比对基线） */
-    private static Set<String> collectAssistantTexts(List<Msg> msgs) {
-        Set<String> texts = new HashSet<>();
+    private static Set<String> collectAssistantTexts(List<Msg> msgs) {        Set<String> texts = new HashSet<>();
         for (Msg msg : msgs) {
             if (msg.getRole() == MsgRole.ASSISTANT) {
                 String text = extractText(msg);
@@ -876,6 +926,18 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
                 result = ToolResult.invalidArgs(violations, null);
             }
         }
+        // 1.5 skill-gate（owb skill-gate 对标，2026-10-11）：写工作流前必须先触碰过知识
+        //（查结构文档/检索知识/读现状）—— 盲写是空壳骨架与端口错配的事故源头。
+        // 知识类工具成功执行后登记触碰标记，write/edit 首次调用时检查。
+        if (("write_workflow".equals(toolName) || "edit_workflow".equals(toolName))
+            && !"1".equals(context.getAttributes().get("knowledge.touched"))) {
+            return ToolResult.fail(
+                "{\"error\":\"写工作流前先查知识：知识目录已在系统提示词里（含各节点结构说明与工作流编排模式）。"
+                    + "先调用 get_node_schema(nodeType) 查你要用的节点结构，或 search_knowledge 检索编排模式"
+                    + "（推荐先看 workflow-pattern 的双分支完整示例），再创建/修改工作流。\"}",
+                "skill-gate：先查知识再动手（避免盲写踩结构坑）", ToolErrorCode.INVALID_ARGS);
+        }
+
         // 2. 执行（工具不做权限管控：语义校验与 CAS 基准在执行器内完成）
         if (result == null) {
             try {
@@ -897,17 +959,25 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
         // 5. 指标落库
         recordMetric(context, toolName, callId, result, args, startedAt);
 
-        // 6. 事件外发（model-visible ⟺ logged）
+        // 6. 事件外发（model-visible ⟺ logged）：payload 全量不截断 ——
+        //    前端工具行的 OUT 是排障第一现场，半截 JSON 会让解析落入「结果被截断」兜底
         sink.emit(AgentEvent.of("tool_result", new JSONObject()
             .set("toolCallId", callId)
             .set("name", toolName)
             .set("outcome", outcomeOf(result))
             .set("errorCode", result.getErrorCode() != null ? result.getErrorCode().name() : null)
             .set("message", result.getMessage())
-            .set("payload", safePreview(result.getPayload()))));
+            .set("payload", result.getPayload() != null ? result.getPayload() : "")));
 
         // 7. 失控防护进度记账：任一工具成功即本轮「有进展」
         wrapUpGuard.onToolResult(result.isSuccess());
+
+        // 7.5 skill-gate 触碰登记：知识类工具成功执行即视为「已了解知识」
+        if (result.isSuccess() && (toolName.startsWith("get_node_schema") || toolName.startsWith("search_knowledge")
+            || toolName.startsWith("read_workflow") || toolName.startsWith("read_node")
+            || toolName.startsWith("list_templates"))) {
+            context.getAttributes().put("knowledge.touched", "1");
+        }
 
         // 8. 复读护栏：同参数复读升级提醒；INVALID_ARGS 同参 3 次硬熔断（软停收尾）。
         //    提醒只附加进结果、不覆盖——violations 的 path/fix 是模型自修复的唯一线索。
@@ -927,7 +997,39 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
         }
         // 9. 时间账记账（run 收尾的时间账小结卡数据源；并发区间在 RunStats 合并）
         stats.addToolInterval(toolName, startedAt, System.currentTimeMillis());
-        return result;
+        // 10. 模型侧修剪（dsh tool-result-pruner 对标）：只裁「回灌给模型」的结果，
+        //     观测链路（tool_result 事件 / 账本 / 前端展示）保持全量不截断（既定口径）。
+        return pruneForModel(toolName, result);
+    }
+
+    /** 回放修剪：历史工具结果超限截断（保留 JSON 头部 + 截断标记） */
+    static String pruneReplayContent(String content) {
+        if (content == null || content.length() <= MODEL_PAYLOAD_LIMIT) {
+            return content;
+        }
+        return content.substring(0, MODEL_PAYLOAD_LIMIT)
+            + "\n…[历史工具结果已截断，原始 " + content.length() + " 字符；完整内容可在界面时间线查看]";
+    }
+
+    /** 模型上下文里的工具结果上限：正常 DSL 读取远小于此，病态大结果（全量 run reports 等）截断 */
+    private static final int MODEL_PAYLOAD_LIMIT = 60_000;
+
+    /** 超限结果截断为 head+tail + 取回指引（观测全量不受影响） */
+    private static ToolResult pruneForModel(String toolName, ToolResult result) {
+        String payload = result.getPayload();
+        if (payload == null || payload.length() <= MODEL_PAYLOAD_LIMIT) {
+            return result;
+        }
+        JSONObject pruned = new JSONObject(true);
+        pruned.set("truncated", true);
+        pruned.set("originalLength", payload.length());
+        pruned.set("head", payload.substring(0, MODEL_PAYLOAD_LIMIT / 2));
+        pruned.set("tail", payload.substring(payload.length() - MODEL_PAYLOAD_LIMIT / 4));
+        pruned.set("hint", "结果过长已截断（模型上下文保护）。需要完整内容用更窄的查询："
+            + "run_workflow 看 outputs/failedNodes（reports 全量已在界面时间线）；"
+            + "read_node(nodeId) 看单节点；read_workflow 看结构。不要原样重试同样的全量调用");
+        return new ToolResult(result.isSuccess(), pruned.toString(), result.isRejected(),
+            result.getMessage(), result.getErrorCode());
     }
 
     /** 把护栏提醒附加进结果 payload（解析失败时退化为纯文本结果），模型可见、前端可渲染 */
@@ -986,13 +1088,6 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
 
     private static String safeText(String s) {
         return s != null ? s : "";
-    }
-
-    private static String safePreview(String payload) {
-        if (payload == null) {
-            return "";
-        }
-        return payload.length() > 4000 ? payload.substring(0, 4000) + "…" : payload;
     }
 
     private static Map<String, Object> parseInput(String arguments) {

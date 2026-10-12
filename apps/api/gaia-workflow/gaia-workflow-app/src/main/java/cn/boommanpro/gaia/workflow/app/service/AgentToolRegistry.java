@@ -35,6 +35,7 @@ public class AgentToolRegistry {
 
     private final AgentToolDefinitionService toolDefinitionService;
     private final AgentConfigService configService;
+    private final cn.boommanpro.gaia.workflow.app.agent.memory.AgentMemoryManager memoryManager;
 
     private JSONArray toolsSchema;
     private String promptZh;
@@ -63,12 +64,13 @@ public class AgentToolRegistry {
         m.put("list_templates", "模板目录");
         m.put("search_knowledge", "检索知识库（用法/示例/最佳实践）");
         m.put("get_node_schema", "节点类型的完整字段结构与 JSON 示例");
-        m.put("edit_workflow", "**增量修改主力**。声明式 delta 原子生效，任一项非法则整批拒绝并给出逐项修复指引；同批新节点用 `$ref` 互连");
+        m.put("edit_workflow", "**增量修改主力**。声明式各项独立生效：合法项应用、非法项跳过（skipped 给逐项修复指引，只重发跳过项）；同批新节点用 `$ref` 互连");
         m.put("run_workflow", "试运行当前会话草稿，等待终态返回输出");
-        m.put("write_workflow", "整份 DSL 一次成型。**仅新建或推倒重来用**；改已有必须带 baseRevision");
-        m.put("save_workflow", "把会话草稿落为新版本（edit_workflow 的收口动作，默认作用于当前绑定的工作流）");
+        m.put("write_workflow", "整份 DSL 一次成型写入会话草稿（不落版）。**仅新建或推倒重来用**；日常增量用 edit_workflow");
         m.put("delete_workflow", "删除（不可逆，须用户明确同意后带 confirmed=true）");
         m.put("todo_write", "任务进度清单（3 步以上任务先列清单，完成一项勾一项）");
+        m.put("ask_user", "向用户提问并等待回答（选项点选或自由输入；需要用户决定/确认/补充信息时用，不要在正文里输出选项）");
+        m.put("memory", "长期记忆：记住用户偏好/平台事实（跨会话生效），按需查看/删除");
         return java.util.Collections.unmodifiableMap(m);
     }
 
@@ -93,7 +95,9 @@ public class AgentToolRegistry {
         + "各类型完整字段说明见系统提示词「data 参数填写规则」一节。";
 
     public AgentToolRegistry(AgentToolDefinitionService toolDefinitionService,
-                             AgentConfigService configService) {
+                             AgentConfigService configService,
+        cn.boommanpro.gaia.workflow.app.agent.memory.AgentMemoryManager memoryManager) {
+        this.memoryManager = memoryManager;
         this.toolDefinitionService = toolDefinitionService;
         this.configService = configService;
     }
@@ -417,7 +421,52 @@ public class AgentToolRegistry {
      */
     public String getSystemPrompt(String locale, java.util.Set<String> allowedTools) {
         String prompt = loadPromptFromDb(locale);
-        return injectToolCatalog(prompt, allowedTools);
+        prompt = injectToolCatalog(prompt, allowedTools);
+        prompt = injectKnowledgeCatalog(prompt);
+        return injectMemory(prompt);
+    }
+
+    /** 记忆注入（双层：手写区 + 条目区）；无记忆返回原文 */
+    public String injectMemory(String prompt) {
+        try {
+            String section = memoryManager.buildPromptSection();
+            return section != null ? prompt + section : prompt;
+        } catch (Exception e) {
+            log.warn("[tool-registry] memory inject failed: {}", e.getMessage());
+            return prompt;
+        }
+    }
+
+    /**
+     * 知识目录注入（skill 目录等价物，2026-10-11）：模型开局就知道有哪些知识可查
+     * （此前模型不知道知识库内容，节点配置知识查了也用不对）。目录只列 nodeType+标题，
+     * 正文按需 get_node_schema(type) / search_knowledge 拉取 —— 懒加载不撑上下文。
+     */
+    public String injectKnowledgeCatalog(String prompt) {
+        try {
+            List<AgentConfig> knowledge = configService.list(
+                new QueryWrapper<AgentConfig>().likeRight("config_key", "node_").eq("is_deleted", 0));
+            if (knowledge == null || knowledge.isEmpty()) {
+                return prompt;
+            }
+            StringBuilder catalog = new StringBuilder("\n\n## 知识目录（get_node_schema(nodeType) 可取全文）\n");
+            knowledge.stream()
+                .sorted(java.util.Comparator.comparing(AgentConfig::getConfigKey))
+                .forEach((AgentConfig c) -> {
+                    String key = c.getConfigKey();
+                    if (key.endsWith(".en")) {
+                        return;
+                    }
+                    String nodeType = key.substring("node_".length());
+                    catalog.append("- `").append(nodeType).append("`：")
+                        .append(c.getTitle() != null ? c.getTitle() : "").append('\n');
+                });
+            catalog.append("配置节点前按目录查对应结构文档；工作流编排模式见 `workflow-pattern`。\n");
+            return prompt + catalog;
+        } catch (Exception e) {
+            log.warn("[tool-registry] knowledge catalog inject failed: {}", e.getMessage());
+            return prompt;
+        }
     }
 
     /** 把正文中的目录标记替换为按启用状态渲染的工具目录；无标记（管理员删了/自定义正文）原样返回 */
@@ -642,7 +691,6 @@ public class AgentToolRegistry {
             case "run_workflow":
                 return "run";
             case "write_workflow":
-            case "save_workflow":
             case "delete_workflow":
                 return "commit";
             case "todo_write":
@@ -670,7 +718,7 @@ public class AgentToolRegistry {
 
     private JSONArray buildToolsSchema() {
         JSONArray tools = new JSONArray();
-        String nodeTypes = "start, end, llm, code, http, condition, multi-condition, branches, loop, variable, string-format, assignee, comment";
+        String nodeTypes = "start, end, llm, code, http, condition, branches, loop, variable, string-format, assignee, comment";
 
         // ===== 读层 =====
         tools.add(func("list_workflows", "列出工作流目录（编码/名称/revision）。找目标工作流或确认存在性时用", obj(
@@ -716,30 +764,33 @@ public class AgentToolRegistry {
             + "【配置任何节点前先查它】，尤其是不常用的类型（loop/branches/variable 等）", obj(
             new String[]{"nodeType"}, new JSONObject[]{
                 str("nodeType", "节点类型", enumVal("start", "end", "llm", "code", "http", "condition",
-                    "multi-condition", "branches", "loop", "variable", "string-format", "assignee", "comment"))
+                    "branches", "loop", "variable", "string-format", "assignee", "comment"))
             }
         )));
 
         // ===== 编辑层 =====
+        // 单一声明式形态：addNodes/updateNodes/removeNodes/addEdges/removeEdges。
+        // （旧版还接受 ops 数组形态——服务端 EditWorkflowToolExecutor 仍宽容兼容，但 schema 不再宣传，
+        //  双形态会让模型在两种写法间摇摆。）
         tools.add(func("edit_workflow",
-            "增量修改工作流（会话草稿）。ops 数组一次性原子应用：任一 op 非法则整批拒绝并给出逐项修复指引。"
-            + "已有工作流先 read_workflow（或传 workflowCode）同步为草稿，再改；改完用 save_workflow 落版。"
-            + "新增节点【必须】带 type 和 data（业务字段直接放 data，扁平写法）："
-            + "{\"op\":\"addNode\",\"ref\":\"http_1\",\"type\":\"http\",\"data\":{\"method\":\"POST\",\"url\":\"https://...\"}}；"
-            + "随后用 connect(from:\"$http_1\", to:\"end_1\") 接线（$ref 引用同批新节点)。"
-            + "改已有节点用 {\"op\":\"updateNode\",\"nodeId\":\"llm_1\",\"data\":{只传变更字段}}（深合并）。",
+            "增量修改工作流（会话草稿）。一次调用可同时传 addNodes/updateNodes/removeNodes/addEdges/removeEdges，"
+            + "各项独立生效：合法项立即应用，非法项跳过并在回执 skipped 里给逐项修复指引（只需重发被跳过的项）。"
+            + "已有工作流先 read_workflow（或传 workflowCode）同步为草稿，再改；改完用 run_workflow 验证，落版由用户在界面操作。"
+            + "新增节点必须带 type 和 data（业务字段直接放 data，扁平写法）："
+            + "{\"type\":\"http\",\"ref\":\"hook\",\"data\":{\"method\":\"POST\",\"url\":\"https://...\"}}；"
+            + "随后用 addEdges 的 {\"from\":\"llm_1\",\"to\":\"$hook\"} 接线（$ref 引用同批新节点)。"
+            + "修改已有节点用 updateNodes：{\"nodeId\":\"llm_1\",\"data\":{只传变更字段}}（深合并）。",
             obj(null, new JSONObject[]{
                 str("workflowCode", "目标工作流编码（可选；草稿未绑定时自动从该工作流当前版本同步）", null),
-                str("ops", "（形状一）操作数组，见 items 说明", null),
-                arrProp("addNodes", "（形状二·推荐）新增节点数组，元素同 write_workflow 的 nodes：{type, ref?, id?, title?, data?}，后续用 $ref 引用", obj(
+                arrProp("addNodes", "新增节点数组，元素同 write_workflow 的 nodes：{type, ref?, id?, title?, data?}，后续用 $ref 引用", obj(
                     new String[]{"type"}, new JSONObject[]{
-                        str("type", "节点类型（start/end/llm/code/http/condition/multi-condition/branches/loop/variable/string-format/assignee/comment）", null),
+                        str("type", "节点类型（start/end/llm/code/http/condition/branches/loop/variable/string-format/assignee/comment）", null),
                         str("ref", "本批引用名（后续 addEdges 的 from/to 用 $ref 引用）", null),
                         str("id", "节点ID（可选）", null),
                         str("title", "节点标题", null),
                         objProp("data", NODE_DATA_SCHEMA_HINT)
                     })),
-                arrProp("updateNodes", "修改变量数组：{nodeId, title?, data?}（data 深合并只传变更字段）", obj(
+                arrProp("updateNodes", "修改已有节点：{nodeId, title?, data?}（data 深合并只传变更字段；只传 nodeId 的空壳项会被跳过）", obj(
                     new String[]{"nodeId"}, new JSONObject[]{
                         str("nodeId", "目标节点ID", null),
                         str("title", "新标题（可选）", null),
@@ -759,20 +810,7 @@ public class AgentToolRegistry {
                     new String[]{"from", "to"}, new JSONObject[]{
                         str("from", "源节点ID", null),
                         str("to", "目标节点ID", null)
-                    })),
-                arrProp("ops", "操作数组（按顺序应用到草稿）", obj(new String[]{"op"}, new JSONObject[]{
-                    str("op", "操作类型", enumVal("addNode", "updateNode", "deleteNode", "connect", "disconnect", "autoLayout")),
-                    str("ref", "addNode 时可选：本批引用名，后续 op 用 $ref 引用它", null),
-                    str("type", "addNode：节点类型（" + nodeTypes + "）", null),
-                    str("id", "addNode：节点ID（可选，省略自动分配）", null),
-                    str("title", "addNode/updateNode：节点标题", null),
-                    objProp("data", NODE_DATA_SCHEMA_HINT),
-                    str("afterNodeId", "addNode：放在某节点之后（可选）", null),
-                    str("nodeId", "updateNode/deleteNode：目标节点ID（本批新节点可用 $ref）", null),
-                    str("from", "connect/disconnect：源节点ID", null),
-                    str("to", "connect/disconnect：目标节点ID", null),
-                    str("fromPort", "connect：源端口（条件/分支多出口时用）", null)
-                }))
+                    }))
             })));
 
         // ===== 执行层 =====
@@ -786,16 +824,14 @@ public class AgentToolRegistry {
 
         // ===== 落版层 =====
         tools.add(func("write_workflow",
-            "一次性写入完整工作流 DSL 并落为生效版本。【仅新建或推倒重来时用】——"
-            + "修改已有工作流请走 read_workflow → edit_workflow → save_workflow 增量链路。"
+            "整份 DSL 一次成型【写入会话草稿，不落版】。仅新建或推倒重来时用——"
+            + "修改已有工作流请走 read_workflow → edit_workflow 增量链路。"
             + "系统会自动规范化：补 id、缺坐标自动布局、扁平字段转嵌套结构、去重连线、缺 start/end 自动补齐。"
-            + "对已存在的工作流整写必须带 baseRevision（read_workflow 获取），否则拒绝。",
+            + "传 workflowCode 表示把草稿绑定到该工作流（推倒重来场景）。"
+            + "写入后用 run_workflow 试运行验证；落版由用户在界面「保存为版本」完成，你没有落版工具。",
             obj(new String[]{"nodes"}, new JSONObject[]{
-                str("workflowCode", "工作流编码。留空表示新建，系统自动生成", null),
-                str("workflowName", "工作流名称（新建时使用）", null),
-                str("workflowDesc", "工作流描述", null),
-                str("versionDesc", "版本描述", null),
-                num("baseRevision", "整写已有工作流时的 CAS 基准（read_workflow 返回的 revision）", null),
+                str("workflowCode", "工作流编码（可选）。传入=草稿绑定到该工作流（推倒重来）；留空=纯新草稿", null),
+                str("workflowName", "工作流名称（可选，仅作记录）", null),
                 arrProp("nodes", "节点数组。每项 {id?, type, title?, data?}；给 id 用语义化命名（如 llm_summarize），连线直接引用", obj(
                     new String[]{"type"}, new JSONObject[]{
                         str("type", "节点类型（" + nodeTypes + "）", null),
@@ -811,15 +847,6 @@ public class AgentToolRegistry {
                     }))
             })));
 
-        tools.add(func("save_workflow", "把当前会话草稿落为生效版本（edit_workflow 修改后的收口动作）。"
-            + "默认作用于当前绑定的工作流，无需重复传 workflowCode；revision 基准自动携带", obj(
-            null, new JSONObject[]{
-                str("workflowCode", "目标工作流编码（可选；默认用会话草稿绑定的）", null),
-                str("name", "工作流名称（可选，顺带改名）", null),
-                str("versionDesc", "版本描述（可选）", null),
-                num("baseRevision", "CAS 基准（可选；默认用草稿记录的 revision）", null)
-            })));
-
         tools.add(func("delete_workflow", "删除工作流（不可逆）。必须先向用户复述删除目标并征得明确同意，"
             + "然后携带 confirmed=true 调用", obj(
             new String[]{"workflowCode"}, new JSONObject[]{
@@ -827,6 +854,17 @@ public class AgentToolRegistry {
                 boolProp("confirmed", "用户明确同意后传 true；未确认时工具会拒绝执行", false)
             }
         )));
+
+        // ===== 记忆层 =====
+        tools.add(func("memory",
+            "长期记忆管理（跨会话生效）。remember：记住用户偏好（输出风格/命名习惯）、"
+                + "平台事实（哪个工作流是生产用的）、项目约定——下次会话自动生效。"
+                + "forget：按关键词删除。list：查看。不要记密钥/临时信息。",
+            obj(new String[]{"action"}, new JSONObject[]{
+                str("action", "动作", enumVal("remember", "forget", "list")),
+                str("content", "remember 时必填：要记住的一条事实/偏好（一句话，具体可执行）", null),
+                str("keyword", "forget 时必填：删除包含该关键词的记忆", null)
+            })));
 
         // ===== 元层 =====
         tools.add(func("todo_write", "写入/更新任务进度清单（3 步以上的任务先列清单，完成一项勾一项）。"
@@ -837,6 +875,16 @@ public class AgentToolRegistry {
                     str("content", "步骤内容（一句话）", null),
                     str("status", "状态", enumVal("pending", "in_progress", "completed", "blocked"))
                 }))
+            }
+        )));
+
+        tools.add(func("ask_user", "向用户提问并等待回答。提问会渲染成交互卡片（问题 + 选项按钮 + 自由输入框），"
+            + "用户作答后你会收到回答文本；5 分钟未答返回超时提示。需要用户选择/确认/补充信息时必须用这个工具，"
+            + "不要在正文里输出选项列表", obj(
+            new String[]{"question"}, new JSONObject[]{
+                str("question", "要问的问题（一句话，具体到用户能直接回答）", null),
+                arrProp("options", "候选答案（2-5 个，每条是用户可直接点选的完整语句）；开放性问题不传，让用户自由输入",
+                    new JSONObject().set("type", "string"))
             }
         )));
 

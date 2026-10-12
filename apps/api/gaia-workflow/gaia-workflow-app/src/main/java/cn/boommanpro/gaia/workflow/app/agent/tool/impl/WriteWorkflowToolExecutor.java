@@ -7,45 +7,45 @@ import cn.boommanpro.gaia.workflow.app.agent.tool.ToolErrorCode;
 import cn.boommanpro.gaia.workflow.app.agent.tool.ToolExecutor;
 import cn.boommanpro.gaia.workflow.app.agent.tool.ToolResult;
 import cn.boommanpro.gaia.workflow.app.service.AgentModelConfigService;
-import cn.boommanpro.gaia.workflow.app.service.WorkflowDslApplyService;
 import cn.boommanpro.gaia.workflow.app.service.WorkflowDslCanonicalizer;
 import cn.boommanpro.gaia.workflow.infra.manage.entity.GaiaWorkflow;
+import cn.boommanpro.gaia.workflow.infra.manage.entity.GaiaWorkflowVersion;
 import cn.boommanpro.gaia.workflow.infra.manage.service.GaiaWorkflowService;
+import cn.boommanpro.gaia.workflow.infra.manage.service.GaiaWorkflowVersionService;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
-import java.util.UUID;
-
 /**
- * write_workflow —— 整份 DSL 一次成型（原 applyWorkflow，dsh write 的对应物）。
+ * write_workflow —— 整份 DSL 一次成型，写入会话草稿（不落版）。
  *
- * <p>定位从「一切产出的首选」降级为「首次创建 / 大重构」：日常迭代走
- * edit_workflow + save_workflow。修改已存在的工作流时必须带 baseRevision
- * （CAS），防止基于陈旧读取的覆盖。</p>
+ * <p>2026-10-11 语义变更：AI 产出的工作流与对话绑定（会话草稿），不再自动产生版本；
+ * 持久化是用户动作——用户在界面点「保存为版本」时由前端调用落版端点。
+ * AI 的交付 = 草稿 + run_workflow 试运行验证通过。</p>
  *
- * <p>落版前先做无副作用语义校验（结构无法识别/致命问题/零连线直接回传模型修复，
- * 不产生任何半成品落版）。</p>
+ * <p>传 workflowCode 时若草稿未绑定/绑定了别的工作流，先从该工作流当前版本水化
+ * （记录 CAS 基准，供日后用户保存时做并发保护），再用本次 DSL 整体替换草稿。
+ * 校验拒绝时回执附带按提交节点类型生成的完整可抄结构（skeletonExample）——
+ * 空壳骨架策略靠它纠正，比让模型自己组装更可靠。</p>
  */
 @Slf4j
 @Component
 public class WriteWorkflowToolExecutor implements ToolExecutor {
 
-    private final WorkflowDslApplyService dslApplyService;
     private final SessionWorkflowDraftService draftService;
     private final GaiaWorkflowService workflowService;
+    private final GaiaWorkflowVersionService versionService;
     private final AgentModelConfigService modelConfigService;
 
-    public WriteWorkflowToolExecutor(WorkflowDslApplyService dslApplyService,
-                                     SessionWorkflowDraftService draftService,
+    public WriteWorkflowToolExecutor(SessionWorkflowDraftService draftService,
                                      GaiaWorkflowService workflowService,
+                                     GaiaWorkflowVersionService versionService,
                                      AgentModelConfigService modelConfigService) {
-        this.dslApplyService = dslApplyService;
         this.draftService = draftService;
         this.workflowService = workflowService;
+        this.versionService = versionService;
         this.modelConfigService = modelConfigService;
     }
 
@@ -61,10 +61,10 @@ public class WriteWorkflowToolExecutor implements ToolExecutor {
 
     @Override
     public String description() {
-        return "一次性写入完整工作流 DSL 并落为生效版本（新建/大重构用；日常修改用 edit_workflow）";
+        return "整份 DSL 一次成型写入会话草稿（不落版）。仅新建或推倒重来用；日常增量修改用 edit_workflow";
     }
 
-    /** 落版前语义校验：结构无法识别 / 致命问题 / 零连线直接回传模型（不产生半成品版本） */
+    /** 落草稿前语义校验：结构无法识别 / 致命问题 / 零连线直接回传模型修复（不写草稿） */
     private ToolResult validateSemantics(JSONObject args) {
         if (args.get("nodes") == null) {
             return ToolResult.fail("{\"error\":\"nodes is required\"}", "缺少 nodes 参数",
@@ -80,20 +80,28 @@ public class WriteWorkflowToolExecutor implements ToolExecutor {
                     "DSL 结构无法识别", ToolErrorCode.INVALID_ARGS);
             }
             if (!canonical.getFatalIssues().isEmpty()) {
-                return ToolResult.fail(
-                    new JSONObject().set("error", buildFatalError(canonical.getFatalIssues())).toString(),
-                    "落版校验未通过：" + String.join("；", canonical.getFatalIssues()),
-                    ToolErrorCode.INVALID_ARGS);
+                JSONObject example = skeletonExample(dsl);
+                JSONObject error = new JSONObject()
+                    .set("error", buildFatalError(canonical.getFatalIssues()))
+                    .set("completeExample", example);
+                // message 内联示例全文（模型对 message 的注意力远高于 payload 深层字段；
+                // 2026-10-11 实证：示例只放 payload.completeExample 时模型连续 8 次重发空壳）
+                return ToolResult.fail(error.toString(),
+                    "校验未通过：" + String.join("；", canonical.getFatalIssues())
+                        + "。【直接可抄】你提交的节点骨架补全后是（把 <占位> 换成真实业务值，"
+                        + "保持你原有的 edges 不变，原样重发 write_workflow）："
+                        + example.toString());
             }
-            JSONArray edges = cn.hutool.json.JSONUtil.parseObj(canonical.getJson()).getJSONArray("edges");
-            JSONArray nodesArr = cn.hutool.json.JSONUtil.parseObj(canonical.getJson()).getJSONArray("nodes");
+            JSONObject parsed = cn.hutool.json.JSONUtil.parseObj(canonical.getJson());
+            JSONArray edges = parsed.getJSONArray("edges");
+            JSONArray nodesArr = parsed.getJSONArray("nodes");
             if (nodesArr != null && nodesArr.size() >= 2 && (edges == null || edges.isEmpty())) {
                 return ToolResult.fail(
                     new JSONObject().set("error", "edges is empty: " + nodesArr.size()
-                        + " nodes but 0 edges. 提交的 DSL 缺少节点连线，落版后所有节点都是孤立的。"
+                        + " nodes but 0 edges. 提交的 DSL 缺少节点连线，所有节点都是孤立的。"
                         + "请补全 edges（start → ... → end 完整链路）后重新提交，"
                         + "或用 read_workflow 获取真实连线关系，不要凭记忆重构。").toString(),
-                    "落版校验未通过：" + nodesArr.size() + " 个节点但没有任何连线",
+                    "校验未通过：" + nodesArr.size() + " 个节点但没有任何连线",
                     ToolErrorCode.INVALID_ARGS);
             }
             return null;
@@ -109,116 +117,165 @@ public class WriteWorkflowToolExecutor implements ToolExecutor {
         if (invalid != null) {
             return invalid;
         }
-        Object nodes = args.get("nodes");
-        if (nodes == null) {
-            return ToolResult.fail("{\"error\":\"nodes is required\"}", "缺少 nodes 参数",
-                ToolErrorCode.INVALID_ARGS);
-        }
 
-        String workflowCode = resolveWorkflowCode(args);
-        Long baseRevision = args.getLong("baseRevision");
-
-        // CAS：改的是已存在的工作流却没有 baseRevision → 拒绝并引导先读
-        GaiaWorkflow existing = workflowService.getOne(
-            new QueryWrapper<GaiaWorkflow>().eq("workflow_code", workflowCode).last("LIMIT 1"));
-        if (existing != null && baseRevision == null) {
-            return ToolResult.fail(new JSONObject().set("error", new JSONObject()
-                .set("code", ToolErrorCode.INVALID_ARGS.name())
-                .set("message", "工作流 " + workflowCode + " 已存在，整写会覆盖现有内容。"
-                    + "请改用增量方式：read_workflow 水化 → edit_workflow 修改 → save_workflow 落版；"
-                    + "或确实要整写时，先 read_workflow 拿 revision 再带 baseRevision 提交")).toString(),
-                "修改已有工作流需要 baseRevision", ToolErrorCode.INVALID_ARGS);
+        String sessionKey = context.getSessionKey();
+        String workflowCode = args.getStr("workflowCode");
+        // 绑定：显式 workflowCode 且草稿没绑它 → 水化（记录 CAS 基准），再整写草稿
+        if (workflowCode != null && !workflowCode.trim().isEmpty()) {
+            String hydrateError = hydrateIfNeeded(sessionKey, workflowCode.trim());
+            if (hydrateError != null) {
+                return ToolResult.notFound(hydrateError);
+            }
         }
+        // replace 会重置 meta，先记下绑定与基准，替换后恢复
+        String boundCode = draftService.getBoundCode(sessionKey);
+        Long baseRevision = draftService.getBaseRevision(sessionKey);
 
         JSONObject dsl = buildDsl(args);
-        WorkflowDslApplyService.ApplyOptions options = new WorkflowDslApplyService.ApplyOptions();
-        options.setWorkflowName(args.getStr("workflowName"));
-        options.setWorkflowDesc(args.getStr("workflowDesc"));
-        options.setVersionDesc(args.getStr("versionDesc"));
-        options.setCreateIfMissing(true);
-        options.setExpectedRevision(baseRevision);
-
-        WorkflowDslApplyService.ApplyResult result = dslApplyService.apply(workflowCode, dsl, options);
-        if (!result.isSuccess()) {
-            if (result.isStaleRevision()) {
-                return ToolResult.staleRevision(workflowCode,
-                    result.getExpectedRevision(), result.getActualRevision());
-            }
-            return ToolResult.fail(
-                new JSONObject().set("error", result.getError()).toString(),
-                "落版失败：" + result.getError(), ToolErrorCode.INVALID_ARGS);
-        }
-
-        // 同步会话草稿（applied 收口）+ 广播
+        WorkflowDslCanonicalizer.Result canonical;
         try {
-            WorkflowDslCanonicalizer.Result canonicalized =
-                WorkflowDslCanonicalizer.canonicalize(dsl.toString(), platformLlmDefaults());
-            if (canonicalized != null && canonicalized.getJson() != null) {
-                draftService.replace(context.getSessionKey(),
-                    cn.hutool.json.JSONUtil.parseObj(canonicalized.getJson()),
-                    "applied", "已落版 " + result.getVersionNumber() + " · " + result.getNodeCount() + " 节点");
-                draftService.markApplied(context.getSessionKey(), workflowCode, result.getRevision());
-            }
-            draftService.emitDocument(context, context.getSessionKey());
+            canonical = WorkflowDslCanonicalizer.canonicalize(dsl.toString(), platformLlmDefaults());
         } catch (Exception e) {
-            log.warn("[tool:write_workflow] draft sync failed: {}", e.getMessage());
+            return ToolResult.fail(new JSONObject().set("error", "规范化失败: " + e.getMessage()).toString(),
+                "DSL 规范化失败", ToolErrorCode.INVALID_ARGS);
+        }
+        if (canonical == null || canonical.getJson() == null) {
+            return ToolResult.fail(new JSONObject().set("error", "dsl 结构无法识别").toString(),
+                "DSL 结构无法识别", ToolErrorCode.INVALID_ARGS);
         }
 
-        log.info("[tool:write_workflow] {} → {} ({} nodes)",
-            workflowCode, result.getVersionNumber(), result.getNodeCount());
+        JSONObject doc = cn.hutool.json.JSONUtil.parseObj(canonical.getJson());
+        int nodeCount = doc.getJSONArray("nodes") == null ? 0 : doc.getJSONArray("nodes").size();
+        draftService.replace(sessionKey, doc, "draft",
+            "AI 生成工作流草稿 · " + nodeCount + " 节点（未落版）");
+        if (boundCode != null && !boundCode.isEmpty()) {
+            draftService.rebind(sessionKey, boundCode, baseRevision);
+        }
+        draftService.emitDocument(context, sessionKey);
+
+        log.info("[tool:write_workflow] draft written ({} nodes, bound={})", nodeCount,
+            draftService.getBoundCode(sessionKey));
 
         JSONObject payload = new JSONObject()
             .set("success", true)
-            .set("workflowCode", workflowCode)
-            .set("versionNumber", result.getVersionNumber())
-            .set("revision", result.getRevision())
-            .set("nodeCount", result.getNodeCount())
-            .set("workflowCreated", result.isWorkflowCreated());
-        if (!result.getRepairs().isEmpty()) {
-            payload.set("repairs", result.getRepairs());
+            .set("nodeCount", nodeCount)
+            .set("edgeCount", doc.getJSONArray("edges") == null ? 0 : doc.getJSONArray("edges").size())
+            .set("boundCode", draftService.getBoundCode(sessionKey))
+            .set("persisted", false);
+        if (!canonical.getRepairs().isEmpty()) {
+            payload.set("repairs", canonical.getRepairs());
         }
-        if (!result.getWarnings().isEmpty()) {
-            payload.set("warnings", result.getWarnings());
+        if (!canonical.getWarnings().isEmpty()) {
+            payload.set("warnings", canonical.getWarnings());
         }
 
-        String hint = "已生成工作流 " + workflowCode + " 并落为版本 " + result.getVersionNumber();
-        if (!result.getRepairs().isEmpty()) {
-            hint = hint + "（系统已自动修补 " + result.getRepairs().size() + " 处不规范结构）";
-        }
-        if (!result.getWarnings().isEmpty()) {
-            hint = hint + "。注意：" + String.join("；", result.getWarnings()) + "。如与用户需求不符请主动修正";
+        String hint = "已写入会话草稿（" + nodeCount + " 节点，未落版）。"
+            + "用 run_workflow 试运行验证，全部通过后提醒用户在界面「保存为版本」——"
+            + "你没有落版工具，持久化由用户决定";
+        if (!canonical.getWarnings().isEmpty()) {
+            hint = hint + "。注意：" + String.join("；", canonical.getWarnings());
         }
         return ToolResult.ok(payload.toString(), hint);
     }
 
     // ---------------- 内部 ----------------
 
-    /** 复用同名空壳或生成新编码（不指定 workflowCode = 新建） */
-    private String resolveWorkflowCode(JSONObject args) {
-        String workflowCode = args.getStr("workflowCode");
-        if (workflowCode != null && !workflowCode.isEmpty()) {
-            return workflowCode;
+    /**
+     * 按模型提交的节点类型生成「最小完整 data」示例（2026-10-11：模型反复提交空壳骨架，
+     * 文档教学拦不住行为惯性 —— 直接把它要写的骨架补全成可抄结构，组装成本挪到服务端）。
+     */
+    static JSONObject skeletonExample(JSONObject dsl) {
+        JSONObject example = new JSONObject(true);
+        JSONArray nodes = dsl.getJSONArray("nodes");
+        if (nodes == null || nodes.isEmpty()) {
+            return example;
         }
-        String reused = findEmptyWorkflowToReuse(args.getStr("workflowName"));
-        return reused != null ? reused
-            : "wf_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+        boolean conditionDone = false;
+        String startId = "start_1";
+        for (int i = 0; i < nodes.size(); i++) {
+            JSONObject n = nodes.getJSONObject(i);
+            if (n == null) {
+                continue;
+            }
+            String type = n.getStr("type");
+            String id = n.getStr("id") != null ? n.getStr("id") : type + "_" + i;
+            JSONObject data = new JSONObject(true);
+            switch (type == null ? "" : type) {
+                case "start" -> {
+                    data.set("title", "开始");
+                    JSONObject props = new JSONObject();
+                    props.set("inputText", new JSONObject().set("type", "string")
+                        .set("title", "待检测字符串").set("default", ""));
+                    data.set("outputs", new JSONObject().set("type", "object").set("properties", props));
+                    startId = id;
+                }
+                case "condition" -> {
+                    data.set("title", "条件判断");
+                    JSONObject left = new JSONObject().set("type", "ref");
+                    JSONArray leftContent = new JSONArray();
+                    leftContent.add(startId);
+                    leftContent.add("inputText");
+                    left.set("content", leftContent);
+                    JSONObject value = new JSONObject().set("left", left)
+                        .set("operator", "contains")
+                        .set("right", new JSONObject().set("type", "constant").set("content", "<目标字符串>"));
+                    JSONArray conditions = new JSONArray();
+                    conditions.add(new JSONObject().set("key", "if_match").set("value", value));
+                    data.set("conditions", conditions);
+                    conditionDone = true;
+                }
+                case "end" -> {
+                    data.set("title", "结束");
+                    JSONArray resultRef = new JSONArray();
+                    resultRef.add(conditionDone ? "condition_1" : "<上游节点id>");
+                    resultRef.add("if_match");
+                    data.set("inputsValues", new JSONObject().set("result", new JSONObject()
+                        .set("type", "ref")
+                        .set("content", resultRef)));
+                    data.set("inputs", new JSONObject().set("type", "object")
+                        .set("properties", new JSONObject().set("result", new JSONObject().set("type", "boolean"))));
+                }
+                case "llm" -> data.set("prompt", "<从需求推导的提示词，可引用上游输出>");
+                case "http" -> data.set("method", "GET").set("url", "https://<真实地址>");
+                case "code" -> data.set("script", new JSONObject()
+                    .set("content", "({ result: text.indexOf(target) >= 0 })"));
+                case "variable" -> {
+                    JSONArray assign = new JSONArray();
+                    assign.add(new JSONObject().set("left", "result")
+                        .set("operator", "declare")
+                        .set("right", new JSONObject().set("type", "constant").set("content", "<值>")));
+                    data.set("assign", assign);
+                }
+                default -> data.set("title", n.getStr("title") != null ? n.getStr("title") : type);
+            }
+            example.set(id, data);
+        }
+        return example;
     }
 
-    private String findEmptyWorkflowToReuse(String workflowName) {
-        if (workflowName == null || workflowName.trim().isEmpty()) {
+    /** 草稿与目标工作流未绑定时从当前版本水化（记录 CAS 基准）；返回错误文案（null=成功） */
+    private String hydrateIfNeeded(String sessionKey, String workflowCode) {
+        if (workflowCode.equals(draftService.getBoundCode(sessionKey))) {
             return null;
         }
-        try {
-            GaiaWorkflow shell = workflowService.getOne(
-                new QueryWrapper<GaiaWorkflow>()
-                    .eq("workflow_name", workflowName.trim())
-                    .isNull("current_version_id")
-                    .eq("is_deleted", 0)
-                    .last("LIMIT 1"));
-            return shell != null ? shell.getWorkflowCode() : null;
-        } catch (Exception e) {
-            return null;
+        GaiaWorkflow workflow = workflowService.getOne(
+            new QueryWrapper<GaiaWorkflow>().eq("workflow_code", workflowCode).last("LIMIT 1"));
+        if (workflow == null) {
+            return "工作流 " + workflowCode;
         }
+        GaiaWorkflowVersion current = null;
+        if (workflow.getCurrentVersionId() != null) {
+            current = versionService.getById(workflow.getCurrentVersionId());
+        }
+        long revision = workflow.getRevision() != null ? workflow.getRevision() : 0L;
+        if (current != null && current.getWorkflowData() != null) {
+            draftService.bindFromVersion(sessionKey, workflowCode, revision,
+                cn.hutool.json.JSONUtil.parseObj(current.getWorkflowData()));
+        } else {
+            // 空壳工作流：绑定编码但不水化内容，草稿从零开始
+            draftService.bindFromVersion(sessionKey, workflowCode, revision, new JSONObject());
+        }
+        return null;
     }
 
     private JSONObject buildDsl(JSONObject args) {
@@ -235,14 +292,10 @@ public class WriteWorkflowToolExecutor implements ToolExecutor {
         return dsl;
     }
 
-    private String buildFatalError(List<String> fatalIssues) {
-        return "工作流存在不可执行的缺失，请补全后重新提交：" + String.join("；", fatalIssues)
-            + "。修复方法：给对应节点的 data 填上关键字段，例如 "
-            + "{\"type\":\"llm\",\"id\":\"llm_0\",\"data\":{\"prompt\":\"请总结以下文本：{{ start_0.text }}\"}}，"
-            + "http 节点填 {\"data\":{\"method\":\"GET\",\"url\":\"https://...\"}}，"
-            + "code 节点填 {\"data\":{\"script\":{\"language\":\"java\",\"content\":\"return ...;\"}}}。"
-            + "llm 节点无需填写 apiKey/apiHost/modelName，系统会自动使用平台默认模型。"
-            + "补全后用相同 workflowCode 重新提交。";
+    private String buildFatalError(java.util.List<String> fatalIssues) {
+        return "工作流存在不可执行的缺失，已拒绝写入：" + String.join("；", fatalIssues)
+            + "。llm 节点无需填写 apiKey/apiHost/modelName（系统自动填平台默认模型）。"
+            + "补全后重新提交；修改已有工作流用 edit_workflow 的 updateNodes 更省事。";
     }
 
     private WorkflowDslCanonicalizer.LlmDefaults platformLlmDefaults() {

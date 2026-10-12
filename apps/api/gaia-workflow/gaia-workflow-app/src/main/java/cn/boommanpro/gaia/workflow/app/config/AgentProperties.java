@@ -13,7 +13,6 @@ import org.springframework.stereotype.Component;
 public class AgentProperties {
 
     private Llm llm = new Llm();
-    private History history = new History();
     private Ark ark = new Ark();
     private Compaction compaction = new Compaction();
     private Spill spill = new Spill();
@@ -36,11 +35,6 @@ public class AgentProperties {
         private boolean scripted = false;
         /** 脚本化模型的轨迹脚本（classpath: 或文件路径） */
         private String scriptedResource = "classpath:agent/scripted-trajectory.json";
-    }
-
-    @Data
-    public static class History {
-        private int maxMessages = 20;
     }
 
     /**

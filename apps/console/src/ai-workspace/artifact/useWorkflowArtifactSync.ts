@@ -34,15 +34,25 @@ export function useWorkflowArtifactSync(): { appliedRepairs: string[] } {
     const candidate = findLatestWorkflow(messages);
 
     // 没有候选产物（新会话 / 清空对话）：归零，避免串到上一轮会话的产物。
-    // 只回收「AI 产出过的」内容 —— 从后端载入 / 导入的工作流不该被一次会话切换抹掉。
+    // 两条清空判据：
+    //   ① 显式归属：画布归属的是另一段会话 → 清（新建对话残留的根治路径）；
+    //   ② 兼容无归属标记的旧现场：AI 产出且最后一步变更确实来自 AI 才回收。
+    // 从后端载入 / 导入 / 用户手改过的页面级工作流（ownerSession 为空且非 AI 产出）
+    // 不该被一次会话切换抹掉。
     if (!candidate) {
-      if (appliedRef.current) {
+      const snapshotNow = workflowDocumentStore.getSnapshot();
+      const owner = snapshotNow.meta.ownerSession;
+      const foreignOwned = !snapshotNow.doc.isEmpty && owner != null && owner !== currentSessionKey;
+      const orphanAi = !!appliedRef.current &&
+        snapshotNow.meta.producedBy === 'ai' &&
+        !snapshotNow.doc.isEmpty &&
+        // lastChange 兜底：producedBy 可能是跨页面残留的旧标记，
+        // 只有最后一步变更确实来自 AI 才允许回收
+        snapshotNow.lastChange?.source === 'ai';
+      if (foreignOwned || orphanAi) {
         appliedRef.current = null;
         repairsRef.current = [];
-        const snapshot = workflowDocumentStore.getSnapshot();
-        if (snapshot.meta.producedBy === 'ai' && !snapshot.doc.isEmpty) {
-          workflowDocumentStore.clear();
-        }
+        workflowDocumentStore.clear();
       }
       failedRef.current.clear();
       return;
@@ -88,7 +98,8 @@ export function useWorkflowArtifactSync(): { appliedRepairs: string[] } {
       messageId: candidate.ownerMessageId,
       reason: hadContent ? 'ai-edit' : 'ai-generate',
     });
-    workflowDocumentStore.setMeta({ producedBy: 'ai' });
+    // 显式归属：这份产物归当前会话，切走后按归属清空（不再依赖 producedBy/lastChange 启发式）
+    workflowDocumentStore.setMeta({ producedBy: 'ai', ownerSession: currentSessionKey ?? null });
     // 工具带回落版信息时一并挂上，刷新页面后产物仍然「知道」自己属于哪个工作流，
     // 否则右侧主按钮会一直停在「在编辑器中精修（草稿）」而不是「打开工作流」。
     if (candidate.workflowCode) {
@@ -99,6 +110,7 @@ export function useWorkflowArtifactSync(): { appliedRepairs: string[] } {
       });
       workflowDocumentStore.setMeta({
         producedBy: 'ai',
+        ownerSession: currentSessionKey ?? null,
         workflowCode: candidate.workflowCode,
         workflowName: name,
       });

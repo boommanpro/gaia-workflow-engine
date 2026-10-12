@@ -24,6 +24,8 @@ public class SchemaMigrationInitializer implements CommandLineRunner {
         new String[]{"agent_message", "images", "TEXT"},
         new String[]{"agent_message", "parent_message_id", "VARCHAR(64)"},
         new String[]{"agent_message", "thinking", "TEXT"},
+        // 交错时间线（run 收尾持久化真实调用链路，刷新后原样还原对话过程）
+        new String[]{"agent_message", "timeline", "TEXT"},
         new String[]{"agent_knowledge_chunk", "language", "VARCHAR(10) DEFAULT 'zh'"},
         new String[]{"agent_session", "debug_data", "TEXT"},
         // 工作空间（Codex 风格三区）：旧库补充列
@@ -31,11 +33,10 @@ public class SchemaMigrationInitializer implements CommandLineRunner {
         new String[]{"agent_session", "folder_id", "BIGINT"},
         new String[]{"agent_session", "pinned", "TINYINT DEFAULT 0"},
         new String[]{"agent_session", "archived", "TINYINT DEFAULT 0"},
-        // 人工审查标记（旧库缺列会导致会话列表 500）
-        new String[]{"agent_session", "review_rating", "VARCHAR(16)"},
-        new String[]{"agent_session", "review_issue", "TEXT"},
-        new String[]{"agent_session", "review_status", "VARCHAR(32) DEFAULT 'pending'"},
-        new String[]{"agent_session", "review_fix_note", "TEXT"},
+        // 执行追踪（对标 OWB trace）：真实请求 JSON 落账，开发者可用日志原样复现模型调用
+        new String[]{"agent_llm_call_log", "request_json", "TEXT"},
+        // Trajectory 全量输出：流式组装后的完整响应 JSON（content+tool_calls+usage+finish_reason）
+        new String[]{"agent_llm_call_log", "response_json", "TEXT"},
         // 双引擎架构：local 自研 / ark 方舟托管的会话映射
         new String[]{"agent_session", "engine", "VARCHAR(16) DEFAULT 'local'"},
         new String[]{"agent_session", "remote_session_id", "VARCHAR(128)"},

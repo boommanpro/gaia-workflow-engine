@@ -10,6 +10,7 @@ import cn.boommanpro.gaia.workflow.app.agent.event.BusAgentEventSink;
 import cn.boommanpro.gaia.workflow.app.service.AgentProviderConfigService;
 import cn.boommanpro.gaia.workflow.infra.manage.entity.AgentSession;
 import cn.boommanpro.gaia.workflow.infra.manage.service.AgentSessionService;
+import cn.boommanpro.gaia.workflow.infra.manage.service.AgentToolCallLogService;
 import cn.hutool.json.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import lombok.extern.slf4j.Slf4j;
@@ -124,6 +125,7 @@ public class AgentSessionRunService {
     private final SessionEventBus eventBus;
     private final ConversationStore conversationStore;
     private final AgentSessionService sessionService;
+    private final AgentToolCallLogService toolCallLogService;
     private final AgentProviderConfigService providerConfigService;
     private final cn.boommanpro.gaia.workflow.infra.manage.service.AgentSessionEventService sessionEventService;
     private final SessionCompactionService compactionService;
@@ -145,7 +147,8 @@ public class AgentSessionRunService {
                                   AgentSessionService sessionService,
                                   AgentProviderConfigService providerConfigService,
                                   cn.boommanpro.gaia.workflow.infra.manage.service.AgentSessionEventService sessionEventService,
-                                  SessionCompactionService compactionService) {
+                                  SessionCompactionService compactionService,
+                                  cn.boommanpro.gaia.workflow.infra.manage.service.AgentToolCallLogService toolCallLogService) {
         this.executionRouter = executionRouter;
         this.eventBus = eventBus;
         this.conversationStore = conversationStore;
@@ -153,6 +156,7 @@ public class AgentSessionRunService {
         this.providerConfigService = providerConfigService;
         this.sessionEventService = sessionEventService;
         this.compactionService = compactionService;
+        this.toolCallLogService = toolCallLogService;
     }
 
     @PreDestroy
@@ -330,7 +334,13 @@ public class AgentSessionRunService {
             new BusAgentEventSink(sessionKey, eventBus, handle), sessionService,
             sessionEventService, handle.getRunId(), sessionKey, message);
         AgentRunResult result = null;
+        // run_end 是否已发（正常路径在 done 之前先发；finally 兜底 stop/异常路径）
+        boolean runEndEmitted = false;
         try {
+            // run 的触发输入随事件流落库（TrajectoryPanel 据此渲染用户输入行，
+            // 「任务输入（完整提示词）」与任务名回退；SSE 侧前端不认识该事件，自然忽略）
+            recorder.emit(cn.boommanpro.gaia.workflow.app.agent.event.AgentEvent.of(
+                "run_input", new JSONObject().set("content", message)));
             AgentRequest request = new AgentRequest(
                 sessionKey, message, locale != null ? locale : "zh-CN", pageContext,
                 agentId, ToolExecutionMode.BACKEND, 0, null, handle.getRunId());
@@ -368,6 +378,34 @@ public class AgentSessionRunService {
                     eventBus.publish(sessionKey, "error",
                         new JSONObject().set("message", errorText));
                 }
+                // 假绿裁定（owb task-verdict 思想）：改了工作流草稿却从未成功试运行 = 未经验证的交付。
+                // 不阻断收尾（那会死循环），但显式警告 + 归因链标记，用户和下一轮模型都看得见。
+                try {
+                    java.util.List<cn.boommanpro.gaia.workflow.infra.manage.entity.AgentToolCallLog> calls =
+                        toolCallLogService.list(new QueryWrapper<cn.boommanpro.gaia.workflow.infra.manage.entity.AgentToolCallLog>()
+                            .eq("run_id", handle.getRunId()));
+                    boolean mutated = calls.stream().anyMatch(c ->
+                        ("write_workflow".equals(c.getToolName()) || "edit_workflow".equals(c.getToolName()))
+                            && "SUCCESS".equals(c.getOutcome()));
+                    boolean runVerified = calls.stream().anyMatch(c ->
+                        "run_workflow".equals(c.getToolName()) && "SUCCESS".equals(c.getOutcome()));
+                    if (mutated && !runVerified) {
+                        String warn = "本轮修改了工作流草稿，但没有成功试运行过——交付未经验证。"
+                            + "请先 run_workflow 验证（正反两组输入），验证通过后提醒用户「保存为版本」。";
+                        eventBus.publish(sessionKey, "delivery_warning",
+                            new JSONObject().set("message", warn));
+                        if (result != null && result.getFailureChain() != null) {
+                            result.getFailureChain().add("unverified_delivery");
+                        }
+                        log.warn("[session-run] unverified delivery session={} (mutated without successful run)", sessionKey);
+                    }
+                } catch (Exception ex) {
+                    log.debug("[session-run] delivery check skipped: {}", ex.getMessage());
+                }
+
+                // run_end 必须先于 done 到达：前端 onRunEnd（时间账小结卡）若晚于 onDone
+                // （settleRun 摘 live 行），小结卡会插进不再渲染的时间线——正常路径在此先发
+                runEndEmitted = emitRunEnd(sessionKey, handle, result, recorder);
                 eventBus.publish(sessionKey, "done",
                     new JSONObject()
                         .set("turns", result.getTurns())
@@ -385,33 +423,24 @@ public class AgentSessionRunService {
         } finally {
             // run_end 终态事件（dsh 崩溃恢复依赖）：先落日志再收尾，
             // 启动归位组件据此区分「正常结束」与「进程死亡时仍在跑」。
-            // 载荷带结构化归因（失败链/时间账/token）—— 调试面板归因卡与时间账卡的数据源。
-            try {
-                String outcome = handle.isCancelled() ? "stopped"
-                    : (result != null && result.isError() ? "error" : "done");
-                JSONObject runEnd = new JSONObject()
-                    .set("outcome", outcome)
-                    .set("turns", result != null ? result.getTurns() : 0);
-                if (result != null) {
-                    runEnd.set("engine", result.getEngine())
-                        .set("durationMs", result.getDurationMs())
-                        .set("toolTimeMs", result.getToolTimeMs())
-                        .set("promptTokens", result.getPromptTokens())
-                        .set("completionTokens", result.getCompletionTokens())
-                        .set("llmRetries", result.getLlmRetries());
-                    if (result.getFailureChain() != null && !result.getFailureChain().isEmpty()) {
-                        cn.hutool.json.JSONArray chain = new cn.hutool.json.JSONArray();
-                        for (String item : result.getFailureChain()) {
-                            chain.add(item);
-                        }
-                        runEnd.set("failureChain", chain);
-                    }
-                }
-                recorder.emit(cn.boommanpro.gaia.workflow.app.agent.event.AgentEvent.of("run_end", runEnd));
-            } catch (Exception e) {
-                log.debug("[session-run] run_end emit failed: {}", e.getMessage());
+            // 正常路径已在 done 前发过；这里兜底覆盖 stop/异常路径（此时 done 已发，尽力补记）。
+            if (!runEndEmitted) {
+                emitRunEnd(sessionKey, handle, result, recorder);
             }
             recorder.flush(sessionKey);
+            // 交错时间线持久化（对标 dsh「快照即结构」）：把本次 run 的真实调用链路
+            // （思考 → 工具 → 思考 → … → 正文）附到本 run 的 assistant 行上 ——
+            // 刷新后前端按原样还原，不再退化成「合并思考+合并正文+工具链」。
+            // 取自事件总线快照，引擎无关（local/ark 通用）。
+            try {
+                cn.hutool.json.JSONArray timeline = eventBus.getState(sessionKey).getJSONArray("timeline");
+                if (timeline != null && !timeline.isEmpty()) {
+                    conversationStore.attachTimelineToLastAssistant(sessionKey,
+                        capTimelineForPersist(timeline).toString());
+                }
+            } catch (Exception e) {
+                log.debug("[session-run] attach timeline failed session={}: {}", sessionKey, e.getMessage());
+            }
             // 兜底收尾：任何路径离开 run 都不允许快照停留在 running，
             // 否则重启前订阅的新窗口会回放到僵尸 running 并注入旧内容
             JSONObject state = eventBus.getState(sessionKey);
@@ -427,9 +456,81 @@ public class AgentSessionRunService {
         }
     }
 
+    /**
+     * run_end 终态事件（SSE 与事件表各得一份）：结构化归因（失败链/时间账/token）——
+     * 调试面板归因卡、对话页 run 小结卡（token 用量）与执行追踪页的数据源。
+     *
+     * @return 是否成功发出（失败只记 debug，不影响主链路）
+     */
+    private boolean emitRunEnd(String sessionKey, RunHandle handle, AgentRunResult result,
+                               ToolLogRecorder recorder) {
+        try {
+            String outcome = handle.isCancelled() ? "stopped"
+                : (result != null && result.isError() ? "error" : "done");
+            JSONObject runEnd = new JSONObject()
+                .set("outcome", outcome)
+                .set("turns", result != null ? result.getTurns() : 0);
+            if (result != null) {
+                runEnd.set("engine", result.getEngine())
+                    .set("durationMs", result.getDurationMs())
+                    .set("toolTimeMs", result.getToolTimeMs())
+                    .set("promptTokens", result.getPromptTokens())
+                    .set("completionTokens", result.getCompletionTokens())
+                    .set("llmRetries", result.getLlmRetries());
+                if (result.getFailureChain() != null && !result.getFailureChain().isEmpty()) {
+                    cn.hutool.json.JSONArray chain = new cn.hutool.json.JSONArray();
+                    for (String item : result.getFailureChain()) {
+                        chain.add(item);
+                    }
+                    runEnd.set("failureChain", chain);
+                }
+            }
+            recorder.emit(cn.boommanpro.gaia.workflow.app.agent.event.AgentEvent.of("run_end", runEnd));
+            return true;
+        } catch (Exception e) {
+            log.debug("[session-run] run_end emit failed: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    /** 持久化时间线里单个工具结果/入参的截断上限（时间线只服务展示，明细以工具日志/追踪为准） */
+    private static final int TIMELINE_FIELD_CAP = 6000;
+
+    /**
+     * 时间线深拷贝 + 大字段截断：时间线里的工具条目与事件总线快照共享引用，
+     * 直接截断会污染快照本体；args/result 超限截断加省略号标记。
+     */
+    private static cn.hutool.json.JSONArray capTimelineForPersist(cn.hutool.json.JSONArray timeline) {
+        cn.hutool.json.JSONArray out = new cn.hutool.json.JSONArray();
+        for (Object item : timeline) {
+            if (!(item instanceof JSONObject)) {
+                continue;
+            }
+            JSONObject entry = cn.hutool.json.JSONUtil.parseObj(item);
+            JSONObject call = entry.getJSONObject("call");
+            if (call != null) {
+                capTimelineField(call, "result");
+                capTimelineField(call, "args");
+            }
+            out.add(entry);
+        }
+        return out;
+    }
+
+    /** 把 call 内指定字符串字段截断到上限（非字符串或超限 JSON 化后截断） */
+    private static void capTimelineField(JSONObject call, String field) {
+        Object value = call.get(field);
+        if (value == null) {
+            return;
+        }
+        String text = value instanceof String ? (String) value : value.toString();
+        if (text.length() > TIMELINE_FIELD_CAP) {
+            call.set(field, text.substring(0, TIMELINE_FIELD_CAP) + "…[已截断，明细见执行追踪]");
+        }
+    }
+
     /** 把收件箱残留消息链接成新 run（消息已入库，跳过重复持久化；后续消息由链接链继续处理） */
-    private void chainSteering(String sessionKey) {
-        if (handleIsActive(sessionKey)) {
+    private void chainSteering(String sessionKey) {        if (handleIsActive(sessionKey)) {
             return; // 新 run 已经抢先注册（极端竞态），收件箱归它消费
         }
         cn.boommanpro.gaia.workflow.app.agent.core.SteeringInbox inbox = steeringInboxes.get(sessionKey);

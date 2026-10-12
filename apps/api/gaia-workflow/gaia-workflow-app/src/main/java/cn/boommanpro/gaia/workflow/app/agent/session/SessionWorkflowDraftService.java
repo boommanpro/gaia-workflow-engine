@@ -396,20 +396,38 @@ public class SessionWorkflowDraftService {
         drafts.put(sessionKey, doc);
     }
 
-    /** 批处理结果：成功时带瘦身回执，失败时带 per-op 违规清单（整批未应用） */
+    /**
+     * 整份替换草稿后恢复绑定与 CAS 基准（replace 会重置 meta —— 2026-10-11
+     * write_workflow 去落版后靠它维持「草稿与对话/工作流的绑定 + 用户保存时的并发基准」）。
+     */
+    public void rebind(String sessionKey, String workflowCode, Long baseRevision) {
+        JSONObject doc = get(sessionKey);
+        doc.set(META_KEY, new JSONObject()
+            .set("boundCode", workflowCode)
+            .set("baseRevision", baseRevision != null ? baseRevision : 0L)
+            .set("draftRevision", nextDraftRevision(doc)));
+        drafts.put(sessionKey, doc);
+    }
+
+    /** 批处理结果：成功时带瘦身回执；全部 op 被跳过时带 violations，部分跳过时带 skipped */
     public static class OpsOutcome {
         public boolean ok;
+        /** 全部 op 都没通过校验时的完整修复指引（outcome.ok=false 时有效） */
         public java.util.List<cn.boommanpro.gaia.workflow.app.agent.tool.ToolArgsValidator.Violation> violations;
+        /** 部分应用时被跳过的 op（outcome.ok=true 时有效，含 path/issue/fix） */
+        public java.util.List<cn.boommanpro.gaia.workflow.app.agent.tool.ToolArgsValidator.Violation> skipped;
         public JSONObject summary;
     }
 
     /**
-     * 原子批处理：ops 数组一次性应用。任一 op 校验失败 → 整批拒绝（草稿不变）。
+     * 批处理（部分应用语义）：合法 op 立即生效，非法 op 逐项跳过并在回执记
+     * skipped（path/issue/fix）—— 进度永远向前，模型只需重发被跳过的项。
+     * 仅当全部 op 都没通过校验时才整批不生效（ok=false，violations 给完整指引）。
      *
-     * <p>支持两种入参形状（实测弱模型对 nodes 数组长板、对 op 短板，两者等价接入）：
+     * <p>支持两种入参形状（实测模型对 nodes 数组长板、对 op 短板，两者等价接入）：
      * 除 ops 外还可传声明式 delta —— addNodes[{type,ref?,id?,title?,data?}] / removeNodes[nodeId] /
      * updateNodes[{nodeId,title?,data?}] / addEdges[{from,to,fromPort?}] / removeEdges[{from,to}]，
-     * 由 {@link #normalizeOpsInput} 先翻译成 ops 再走同一套原子校验。</p>
+     * 由 {@link #normalizeOpsInput} 先翻译成 ops 再走同一套校验。</p>
      *
      * <p>op 语法：
      * {op:"addNode", ref?, type, id?, title?, data?, afterNodeId?, position?}
@@ -419,7 +437,7 @@ public class SessionWorkflowDraftService {
      * {op:"disconnect", from?, to?}
      * {op:"autoLayout"}
      * 同批内可用 "$ref" 引用本批 addNode(ref=...) 的节点（服务端确定性解析，取代跨轮次 $0/$1）。
-     * 容错：addNode 缺 type 时从 ref/id 前缀推断（http_1→http）；推断不出才拒绝。</p>
+     * 容错：addNode 缺 type 时从 ref/id 前缀推断（http_1→http）；缺 data 补默认骨架 + warning。</p>
      */
     public OpsOutcome applyOps(String sessionKey, JSONArray ops) {
         OpsOutcome outcome = new OpsOutcome();
@@ -431,12 +449,13 @@ public class SessionWorkflowDraftService {
                     "ops", "ops 不能为空", "至少提供一个操作"));
             return outcome;
         }
-        // 在深拷贝上先验证再应用：任何一步失败，真实草稿毫发无损
+        // 在深拷贝上先验证再应用：跳过的 op 不触碰真实草稿
         JSONObject doc = new JSONObject(get(sessionKey).toString());
         JSONArray nodes = doc.getJSONArray("nodes");
         JSONArray edges = doc.getJSONArray("edges");
-        java.util.List<cn.boommanpro.gaia.workflow.app.agent.tool.ToolArgsValidator.Violation> violations =
+        java.util.List<cn.boommanpro.gaia.workflow.app.agent.tool.ToolArgsValidator.Violation> skipped =
             new java.util.ArrayList<>();
+        java.util.List<JSONObject> validOps = new java.util.ArrayList<>();
         java.util.List<String> warnings = new java.util.ArrayList<>();
 
         // 第一遍：解析 addNode 的 ref → 实际 id（id 缺省时分配语义化 id）
@@ -468,127 +487,161 @@ public class SessionWorkflowDraftService {
             refToId.put(ref.startsWith("$") ? ref : "$" + ref, id);
         }
 
-        // 逐 op 验证（在演进的副本上模拟：同批 addNode 的 id 立即可被后续 op 引用）
+        // 逐 op 验证（在演进的副本上模拟：同批合法 addNode 的 id 立即可被后续 op 引用；
+        // 被跳过的 op 不改变模拟状态 —— 它不会生效）
         JSONObject counters = new JSONObject()
             .set("added", new JSONArray()).set("removed", 0).set("changed", 0)
             .set("edgesAdded", 0).set("edgesRemoved", 0);
         java.util.Set<String> knownIds = collectIds(nodes);
         java.util.Set<String> knownEdges = collectEdgeKeys(edges);
+        java.util.Set<String> skippedRefs = new java.util.HashSet<>();
         for (int i = 0; i < ops.size(); i++) {
             JSONObject op = ops.getJSONObject(i);
             String path = "ops[" + i + "]";
             String type = op != null ? op.getStr("op") : null;
             if (type == null || type.isEmpty()) {
-                violations.add(v(path, "缺少 op 类型", "op 取值：addNode/updateNode/deleteNode/connect/disconnect/autoLayout"));
+                skipped.add(v(path, "缺少 op 类型（已跳过）", "op 取值：addNode/updateNode/deleteNode/connect/disconnect/autoLayout"));
                 continue;
             }
             switch (type) {
                 case "addNode": {
                     String nodeType = op.getStr("type");
+                    String id = op.getStr("id");
                     if (nodeType == null || nodeType.isEmpty()) {
-                        violations.add(v(path + ".type", "addNode 缺少 type（且业务字段要直接放在 data 里，不要拆成后续 updateNode）",
+                        skipped.add(v(path + ".type", "addNode 缺少 type（已跳过；业务字段要直接放在 data 里，不要拆成后续 updateNode）",
                             "改成这种形状：{\"op\":\"addNode\",\"ref\":\"http_1\",\"type\":\"http\","
                                 + "\"title\":\"推送\",\"data\":{\"method\":\"POST\",\"url\":\"https://...\"}}"));
-                    } else if (!WorkflowDslCanonicalizer.isSupportedType(nodeType)) {
-                        violations.add(v(path + ".type", "不支持的节点类型 " + nodeType,
-                            "可用类型：" + String.join(",", sortedTypes())));
+                        skippedRefs.add(refKeyOf(op.getStr("ref"), id));
+                        continue;
                     }
-                    String id = op.getStr("id");
+                    if (!WorkflowDslCanonicalizer.isSupportedType(nodeType)) {
+                        skipped.add(v(path + ".type", "不支持的节点类型 " + nodeType + "（已跳过）",
+                            "可用类型：" + String.join(",", sortedTypes())));
+                        skippedRefs.add(refKeyOf(op.getStr("ref"), id));
+                        continue;
+                    }
                     if (id != null && knownIds.contains(id)) {
-                        violations.add(v(path + ".id", "节点 id 已存在：" + id, "换一个唯一 id，或省略 id 让系统分配"));
-                    } else if (id != null) {
-                        knownIds.add(id); // 同批后续 op 可引用
+                        skipped.add(v(path + ".id", "节点 id 已存在：" + id + "（已跳过）", "换一个唯一 id，或省略 id 让系统分配"));
+                        skippedRefs.add(refKeyOf(op.getStr("ref"), id));
+                        continue;
                     }
                     if (op.get("data") == null) {
-                        // 校验对称（实测教训）：创建时宽容占位壳 → 模型养成"先发壳再补 data"习惯，
-                        // 而后续 updateNode 是硬校验，弱模型在这个不对称里反复碰壁。
-                        // 统一为一次成型：addNode 必须带 data。
-                        violations.add(v(path, "addNode 必须带 data（一次成型，禁止先建壳再补）",
-                            "先用 get_node_schema(\"" + nodeType + "\") 查完整字段，再："
-                                + "{\"op\":\"addNode\",\"ref\":\"" + (op.getStr("ref") != null ? op.getStr("ref") : nodeType + "_1")
-                                + "\",\"type\":\"" + nodeType + "\",\"data\":{...完整配置...}}"));
+                        // 缺 data 的 addNode:一次成型地补最小默认 data 并以 warning 告知实际配置 ——
+                        // 进度永远向前,模型按 warning 里贴出的 JSON 用 updateNode 增量修正即可
+                        //（落版校验会拒绝空 url/prompt，空骨架节点过不了 save，不会带上生产）。
+                        JSONObject healed = defaultNodeData(nodeType, op);
+                        op.set("data", healed);
+                        warnings.add("ops[" + i + "] addNode 未带 data，已自动补默认配置（节点 "
+                            + (id != null ? id : op.getStr("ref")) + "）：" + healed.toString()
+                            + "。要调整就用 updateNode 增量修改字段，不要重建节点");
                     }
                     String after = op.getStr("afterNodeId");
                     if (after != null && !knownIds.contains(after)) {
-                        violations.add(v(path + ".afterNodeId", "afterNodeId 不存在：" + after,
+                        skipped.add(v(path + ".afterNodeId", "afterNodeId 不存在：" + after + "（已跳过）",
                             "用 read_workflow / read_node 核对节点 id"));
+                        skippedRefs.add(refKeyOf(op.getStr("ref"), id));
+                        continue;
                     }
+                    if (id != null) {
+                        knownIds.add(id); // 同批后续 op 可引用
+                    }
+                    validOps.add(op);
                     break;
                 }
                 case "updateNode": {
                     String nodeId = resolveNodeRef(op.getStr("nodeId"), refToId);
                     if (nodeId == null) {
-                        violations.add(v(path + ".nodeId", "updateNode 缺少 nodeId", "指定要更新的节点 id"));
-                    } else if (!knownIds.contains(nodeId)) {
-                        violations.add(v(path + ".nodeId", "节点不存在：" + nodeId
-                            + "（注意：本会话草稿里的节点，不是其它工作流的）", "先 read_workflow 水化草稿或核对 id"));
+                        skipped.add(v(path + ".nodeId", "updateNode 缺少 nodeId（已跳过）", "指定要更新的节点 id"));
+                        continue;
+                    }
+                    if (!knownIds.contains(nodeId)) {
+                        skipped.add(v(path + ".nodeId", "节点不存在：" + nodeId + "（已跳过；注意：本会话草稿里的节点，"
+                            + "不是其它工作流的）" + refSkippedNote(op.getStr("nodeId"), skippedRefs),
+                            "先 read_workflow 水化草稿或核对 id"));
+                        continue;
                     }
                     if (op.get("data") == null && op.get("title") == null) {
-                        // 空壳 updateNode 是弱模型复读病理的头号入口（2026-10-10 实测 31 连败）：
-                        // 把节点当前配置直接贴进 fix，模型抄下来改字段即可，不必再猜结构
-                        violations.add(v(path, "updateNode 缺少要修改的内容（title 或 data 至少其一）。"
-                                + "只传 nodeId 是无效操作——请明确说出要把这个节点改成什么",
+                        // 空壳 updateNode 是无效操作但不毒死整批：跳过并在 skipped 里带当前配置，
+                        // 模型抄下来改字段即可，不必再猜结构
+                        skipped.add(v(path, "updateNode 没有给出要修改的内容（title 或 data 至少其一），已跳过——这一项没有生效，其余操作不受影响",
                             "节点 " + nodeId + " 当前配置：" + currentNodeDataJson(nodes, nodeId)
                                 + "。要改字段就只传变更项，如 {\"op\":\"updateNode\",\"nodeId\":\"" + nodeId
                                 + "\",\"data\":{...变更字段...}}；想新增节点请用 addNodes 并直接带完整 data"));
+                        continue;
                     }
+                    validOps.add(op);
                     break;
                 }
                 case "deleteNode": {
                     String nodeId = resolveNodeRef(op.getStr("nodeId"), refToId);
                     if (nodeId == null) {
-                        violations.add(v(path + ".nodeId", "deleteNode 缺少 nodeId", "指定要删除的节点 id"));
-                    } else if (!knownIds.contains(nodeId)) {
-                        violations.add(v(path + ".nodeId", "节点不存在：" + nodeId, "核对节点 id"));
-                    } else {
-                        knownIds.remove(nodeId); // 同批后续 op 不能再引用已删节点
+                        skipped.add(v(path + ".nodeId", "deleteNode 缺少 nodeId（已跳过）", "指定要删除的节点 id"));
+                        continue;
                     }
+                    if (!knownIds.contains(nodeId)) {
+                        skipped.add(v(path + ".nodeId", "节点不存在：" + nodeId + "（已跳过）" + refSkippedNote(op.getStr("nodeId"), skippedRefs), "核对节点 id"));
+                        continue;
+                    }
+                    knownIds.remove(nodeId); // 同批后续 op 不能再引用已删节点
+                    validOps.add(op);
                     break;
                 }
                 case "connect": {
-                    String from = resolveNodeRef(op.getStr("from"), refToId);
-                    String to = resolveNodeRef(op.getStr("to"), refToId);
+                    String rawFrom = op.getStr("from");
+                    String rawTo = op.getStr("to");
+                    String from = resolveNodeRef(rawFrom, refToId);
+                    String to = resolveNodeRef(rawTo, refToId);
                     if (from == null || to == null) {
-                        violations.add(v(path, "connect 需要 from 和 to", "源/目标节点 id，本批新节点可用 $ref"));
-                    } else {
-                        if (!knownIds.contains(from)) {
-                            violations.add(v(path + ".from", "源节点不存在：" + from, "核对节点 id 或用 $ref"));
-                        }
-                        if (!knownIds.contains(to)) {
-                            violations.add(v(path + ".to", "目标节点不存在：" + to, "核对节点 id 或用 $ref"));
-                        }
-                        String key = from + "→" + to + (op.getStr("fromPort") != null ? "@" + op.getStr("fromPort") : "");
-                        if (knownEdges.contains(key)) {
-                            violations.add(v(path, "连线已存在：" + from + "→" + to, "无需重复连接"));
-                        } else {
-                            knownEdges.add(key);
-                        }
+                        skipped.add(v(path, "connect 需要 from 和 to（已跳过）", "源/目标节点 id，本批新节点可用 $ref"));
+                        continue;
                     }
+                    boolean bad = false;
+                    if (!knownIds.contains(from)) {
+                        skipped.add(v(path + ".from", "源节点不存在：" + from + "（已跳过）" + refSkippedNote(rawFrom, skippedRefs), "核对节点 id 或用 $ref"));
+                        bad = true;
+                    }
+                    if (!knownIds.contains(to)) {
+                        skipped.add(v(path + ".to", "目标节点不存在：" + to + "（已跳过）" + refSkippedNote(rawTo, skippedRefs), "核对节点 id 或用 $ref"));
+                        bad = true;
+                    }
+                    if (bad) {
+                        continue;
+                    }
+                    String key = from + "→" + to + (op.getStr("fromPort") != null ? "@" + op.getStr("fromPort") : "");
+                    if (knownEdges.contains(key)) {
+                        skipped.add(v(path, "连线已存在：" + from + "→" + to + "（已跳过）", "无需重复连接"));
+                        continue;
+                    }
+                    knownEdges.add(key);
+                    validOps.add(op);
                     break;
                 }
                 case "disconnect": {
                     if (op.getStr("from") == null && op.getStr("to") == null) {
-                        violations.add(v(path, "disconnect 需要 from 或 to 至少其一", "指定要断开的连线端点"));
+                        skipped.add(v(path, "disconnect 需要 from 或 to 至少其一（已跳过）", "指定要断开的连线端点"));
+                        continue;
                     }
+                    validOps.add(op);
                     break;
                 }
                 case "autoLayout":
+                    validOps.add(op);
                     break;
                 default:
-                    violations.add(v(path, "未知 op 类型：" + type,
+                    skipped.add(v(path, "未知 op 类型：" + type + "（已跳过）",
                         "op 取值：addNode/updateNode/deleteNode/connect/disconnect/autoLayout"));
             }
         }
 
-        if (!violations.isEmpty()) {
+        // 全部被跳过：没有任何 op 生效，按整批未通过处理（带完整修复指引）
+        if (validOps.isEmpty()) {
             outcome.ok = false;
-            outcome.violations = violations;
+            outcome.violations = skipped;
             return outcome;
         }
 
-        // 第二遍：全部合法，逐 op 应用到副本
-        for (int i = 0; i < ops.size(); i++) {
-            JSONObject op = ops.getJSONObject(i);
+        // 第二遍：合法 op 应用到副本
+        for (JSONObject op : validOps) {
             switch (op.getStr("op")) {
                 case "addNode": {
                     JSONObject node = buildNode(nodes, op);
@@ -675,8 +728,9 @@ public class SessionWorkflowDraftService {
         persistArtifact(sessionKey, "stable", null);
 
         outcome.ok = true;
-        outcome.summary = new JSONObject()
-            .set("applied", ops.size())
+        outcome.skipped = skipped;
+        JSONObject summary = new JSONObject()
+            .set("applied", validOps.size())
             .set("warnings", warnings)
             .set("nodes", new JSONObject()
                 .set("total", nodes.size())
@@ -690,12 +744,59 @@ public class SessionWorkflowDraftService {
             .set("draftRevision", meta.getInt("draftRevision"))
             .set("boundCode", meta.getStr("boundCode"))
             .set("baseRevision", meta.getLong("baseRevision"));
+        if (!skipped.isEmpty()) {
+            JSONArray skippedJson = new JSONArray();
+            for (cn.boommanpro.gaia.workflow.app.agent.tool.ToolArgsValidator.Violation s : skipped) {
+                skippedJson.add(new JSONObject()
+                    .set("path", s.getPath()).set("issue", s.getIssue()).set("fix", s.getFix()));
+            }
+            summary.set("skipped", skippedJson);
+        }
+        outcome.summary = summary;
         return outcome;
+    }
+
+    /** addNode 的 $ref 键（ref 缺省时用 id）—— 跳过时登记，供后续 op 的提示定位依赖失效 */
+    private static String refKeyOf(String ref, String id) {
+        String raw = ref != null && !ref.isEmpty() ? ref : id;
+        return raw == null ? "" : (raw.startsWith("$") ? raw : "$" + raw);
+    }
+
+    /** 引用的 $ref 是否指向本批被跳过的 addNode —— 是则提示先修那项 */
+    private static String refSkippedNote(String raw, java.util.Set<String> skippedRefs) {
+        if (raw == null || !raw.startsWith("$") || skippedRefs.isEmpty()) {
+            return "";
+        }
+        String key = raw.startsWith("$") ? raw : "$" + raw;
+        return skippedRefs.contains(key) ? "。注意：它引用的本批 addNode(" + raw + ") 没有通过校验、未创建——先按 skipped 修复那项再接线" : "";
     }
 
     private static final String META_KEY = "_meta";
 
-    /** 节点当前 data 的紧凑 JSON（空壳 updateNode 的 fix 用；超长截断防错误消息爆炸） */
+    /** 敏感键：模型可见文本（violations fix / read_node）中一律掩蔽，不进 LLM 上下文 */
+    private static final java.util.Set<String> SENSITIVE_KEYS = java.util.Set.of(
+        "apiKey", "apiHost", "api_key", "api_host", "token", "password", "authorization");
+
+    /** 节点配置的模型可见副本：递归掩蔽敏感键（→ <平台配置，已隐藏>），不改动原对象 */
+    public static JSONObject redactForModel(JSONObject data) {
+        if (data == null) {
+            return new JSONObject();
+        }
+        JSONObject copy = new JSONObject();
+        for (String key : data.keySet()) {
+            Object value = data.get(key);
+            if (SENSITIVE_KEYS.contains(key)) {
+                copy.set(key, "<平台配置，已隐藏>");
+            } else if (value instanceof JSONObject) {
+                copy.set(key, redactForModel((JSONObject) value));
+            } else {
+                copy.set(key, value);
+            }
+        }
+        return copy;
+    }
+
+    /** 节点当前 data 的紧凑 JSON（空壳 updateNode 的 fix 用；敏感键掩蔽 + 超长截断防错误消息爆炸） */
     private static String currentNodeDataJson(JSONArray nodes, String nodeId) {
         if (nodes == null || nodeId == null) {
             return "{}";
@@ -710,7 +811,7 @@ public class SessionWorkflowDraftService {
                 return "{}（该节点还没有任何配置）";
             }
             try {
-                String json = cn.hutool.json.JSONUtil.toJsonStr(data);
+                String json = cn.hutool.json.JSONUtil.toJsonStr(redactForModel(data));
                 return json.length() > 800 ? json.substring(0, 800) + "…（完整结构用 read_node(\""
                     + nodeId + "\") 查看）" : json;
             } catch (Exception e) {
@@ -883,8 +984,26 @@ public class SessionWorkflowDraftService {
     }
 
     /** 由 op 构建完整节点（与单节点 addNode 同语义：title 双写、扁平字段 normalize、默认坐标） */
-    private JSONObject buildNode(JSONArray nodes, JSONObject op) {
-        String type = op.getStr("type");
+    /**
+     * addNode 缺 data 时的最小默认配置（一次成型 + 归一化）。
+     * http/llm 运行期对 url/prompt 是硬依赖，补上扁平字段由 NodeDataNormalizer 包装；
+     * 其余类型空结构即可被归一化器补齐骨架。
+     */
+    private static JSONObject defaultNodeData(String type, JSONObject op) {
+        JSONObject data = new JSONObject();
+        if (op.getStr("title") != null) {
+            data.set("title", op.getStr("title"));
+        }
+        if ("http".equals(type)) {
+            data.set("method", "GET").set("url", "");
+        } else if ("llm".equals(type)) {
+            data.set("prompt", "");
+        }
+        NodeDataNormalizer.normalize(type, data);
+        return data;
+    }
+
+    private JSONObject buildNode(JSONArray nodes, JSONObject op) {        String type = op.getStr("type");
         String id = op.getStr("id") != null ? op.getStr("id")
             : uniqueNodeId(collectIds(nodes), type);
         JSONObject data = op.getJSONObject("data") != null

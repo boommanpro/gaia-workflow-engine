@@ -28,6 +28,13 @@ export interface WorkflowMeta {
   savedDsl?: WorkflowDsl;
   /** 这份产物是谁产出的 */
   producedBy?: 'ai' | 'user' | 'import';
+  /**
+   * 这份画布内容归属的会话 key。显式所有权是跨会话清空的唯一判据——
+   * producedBy/lastChange 启发式会被草稿恢复、版本定格等路径污染
+   * （2026-10-11「新建对话产物残留」根因）。编辑器/工作流库载入为页面级内容，
+   * 不设 ownerSession，任何会话切换都不会清掉它。
+   */
+  ownerSession?: string | null;
   updatedAt?: number;
 }
 
@@ -272,7 +279,10 @@ class WorkflowDocumentStore {
    */
   setScope(key: string | null): void {
     if (key === this.scope) return;
-    const carryDoc = this.state.doc.isEmpty ? null : this.state.doc;
+    // 只搬「页面级内容」（编辑器/库导入，无 ownerSession）。会话-owned 的画布
+    // 决不能跟着搬进另一段会话——那正是「新建对话产物残留」的搬运通道；
+    // 它由 AgentContext 的归属清空逻辑在切会话时清掉。
+    const carryDoc = this.state.doc.isEmpty || this.state.meta.ownerSession ? null : this.state.doc;
     this.scope = key;
 
     const restored = key ? this.loadPersisted(key) : null;

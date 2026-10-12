@@ -51,20 +51,11 @@ const initialize = () => {
   I18n.addLanguage(zhCN);
   I18n.addLanguage(enUS);
 
-  // Resolve initial language: saved preference → browser language → default zh
-  let initialLocale: string;
-  const saved = typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
-  if (saved === 'zh' || saved === 'en') {
-    initialLocale = LANG_TO_LOCALE[saved];
-  } else if (typeof navigator !== 'undefined') {
-    const browserLang = navigator.language;
-    initialLocale = browserLang.startsWith('zh') ? 'zh-CN' : 'en-US';
-  } else {
-    initialLocale = 'zh-CN';
-  }
-
-  currentLocale = initialLocale;
-  I18n.locale = initialLocale;
+  // 语言体系当前只打磨中文：无视浏览器语言与历史偏好，恒定中文。
+  // （切换入口已标「待实现」；若跟随浏览器语言/历史 en 偏好，用户会被锁死在
+  //   英文界面且无路可回 —— 实测踩坑。英文体系跟上后再恢复偏好解析。）
+  currentLocale = 'zh-CN';
+  I18n.locale = 'zh-CN';
 };
 
 initialize();

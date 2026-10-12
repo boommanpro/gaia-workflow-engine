@@ -120,7 +120,46 @@ export function useAgent(): AgentContextValue {
  *
  * 对话维度合并（DeepSeek 式单条回复）：后端按轮次落库（assistant 行 + tool 行），
  * 前端以 user 行为界把一次 run 的所有行合并成**一条**助手回复——
- * 多轮的正文拼接为正文，工具调用收进 toolSteps 在消息内折叠展示。 */
+ * 多轮的正文拼接为正文，工具调用收进 toolSteps 在消息内折叠展示。
+ *
+ * 交错还原优先级：assistant 行自带持久化时间线（run 收尾落库，对标 dsh「快照即结构」）
+ * > 按行顺序重建（旧行为，行粒度粗：思考/正文各合并成一块）。 */
+/** 持久化时间线条目 → 前端 TimelineItem（与 applySnapshot 同一映射口径；历史条目一律视为已收尾） */
+function mapPersistedTimeline(
+  entries: NonNullable<AgentMessage['timeline']> | null | undefined
+): import('./types').TimelineItem[] {
+  const raw: Array<{
+    kind?: string;
+    id?: string;
+    text?: string;
+    source?: string;
+    call?: { id?: string; name?: string; args?: any; result?: string };
+  }> = typeof entries === 'string'
+    ? (() => { try { const parsed = JSON.parse(entries); return Array.isArray(parsed) ? parsed : []; } catch { return []; } })()
+    : (entries || []);
+  const out: import('./types').TimelineItem[] = [];
+  for (const item of raw) {
+    if (!item || !item.kind) continue;
+    if (item.kind === 'tool') {
+      out.push({
+        kind: 'tool',
+        id: item.id || item.call?.id || `tl-tool-${out.length}`,
+        call: {
+          id: item.call?.id || item.id || '',
+          action: item.call?.name || 'unknown',
+          args: item.call?.args ?? {},
+          ...(item.call?.result ? { result: String(item.call.result) } : {}),
+        },
+      });
+    } else if (item.kind === 'notice') {
+      out.push({ kind: 'notice', id: item.id || `tl-notice-${out.length}`, text: item.text || '', source: item.source });
+    } else if (item.kind === 'text' || item.kind === 'thinking') {
+      out.push({ kind: item.kind, id: item.id || `tl-${item.kind}-${out.length}`, text: item.text || '', closed: true });
+    }
+  }
+  return out;
+}
+
 export function convertMessages(msgs: AgentMessage[]): DisplayMessage[] {
   // 先建立 tool_call_id → tool 结果 content 映射，用于回填工具步骤结果
   const toolResultMap = new Map<string, string>();
@@ -218,12 +257,18 @@ export function convertMessages(msgs: AgentMessage[]): DisplayMessage[] {
               id: tc.id,
               action: tc.function?.name || 'unknown',
               args,
-              result: toolResult !== undefined ? toolResult.substring(0, 600) : undefined,
+              result: toolResult,
             };
             group.steps.push(step);
             group.timeline.push({ kind: 'tool', id: tc.id, call: step });
           }
         } catch { /* ignore */ }
+      }
+      // 行自带持久化时间线（run 收尾落库）时整组替换：它才是真实调用链路，
+      // 上面按行重建的只是行粒度粗的兜底（思考/正文各合并成一块）
+      const persisted = mapPersistedTimeline(msg.timeline);
+      if (persisted.length > 0) {
+        group.timeline = persisted;
       }
       continue;
     }
@@ -293,8 +338,9 @@ function artifactCardId(artifact: AgentArtifactDto): string {
   return `artifact-${artifact.artifactKey}`;
 }
 
-/** 用产物事件 upsert 一张产物卡消息（test_report / release） */
+/** 用产物事件 upsert 一张产物卡消息（release；test_report 走工具行不单独成卡） */
 function upsertArtifactCard(prev: DisplayMessage[], artifact: AgentArtifactDto): DisplayMessage[] {
+  if (artifact.type !== 'release') return prev;
   const id = artifactCardId(artifact);
   const existingIdx = prev.findIndex((m) => m.id === id);
   if (existingIdx >= 0) {
@@ -306,14 +352,15 @@ function upsertArtifactCard(prev: DisplayMessage[], artifact: AgentArtifactDto):
 }
 
 /**
- * 历史消息重放时，把会话产物里的 test_report / release 卡按时间戳插回消息流
+ * 历史消息重放时，把会话产物里的 release 卡按时间戳插回消息流
  * （后端 artifact 没有直接挂 messageId，用「插在最后一条更早的消息后面」归位；
  * live 运行时的卡由 upsertArtifactCard 追加，两者通过同一消息 id 去重）。
+ * test_report（试运行）不进对话流：run_workflow 本身就是工具调用，IN/OUT 由工具行承载（dsh 同款）。
  */
 function placeArtifactCards(msgs: DisplayMessage[], artifacts: AgentArtifactDto[]): DisplayMessage[] {
   if (!artifacts || artifacts.length === 0) return msgs;
   const cardArts = artifacts.filter(
-    (a) => (a.type === 'test_report' || a.type === 'release') && !msgs.some((m) => m.id === artifactCardId(a))
+    (a) => a.type === 'release' && !msgs.some((m) => m.id === artifactCardId(a))
   );
   if (cardArts.length === 0) return msgs;
   let next = [...msgs];
@@ -334,6 +381,49 @@ function placeArtifactCards(msgs: DisplayMessage[], artifacts: AgentArtifactDto[
       timestamp: at,
     };
     next = [...next.slice(0, insertAt), card, ...next.slice(insertAt)];
+  }
+  return next;
+}
+
+/**
+ * runs（agent_session_event 派生，含 token 账）→ assistant 回复的 token 用量配对。
+ * run.startedAt 落在「触发消息之后、本轮首条 assistant 行之前」——按时间贪心推进即可
+ * 一一对应；live 占位行跳过（它的用量由 run 小结卡 live 承接）。
+ * turnUsage（/turn-usage 按 run 聚合的账本）补缓存命中与模型 —— run_end 事件没带这两项。
+ */
+function attachRunUsage(
+  msgs: DisplayMessage[],
+  runs: any[],
+  skipId?: string | null,
+  turnUsage?: Array<{ runId: string; cachedTokens: number; model?: string }>,
+): DisplayMessage[] {
+  const usageByRun = new Map((turnUsage ?? []).map((u) => [u.runId, u]));
+  const usable = (Array.isArray(runs) ? runs : []).filter(
+    (r) => Number(r?.promptTokens) > 0 || Number(r?.completionTokens) > 0
+  );
+  if (usable.length === 0) return msgs;
+  const asc = [...usable].sort((a, b) =>
+    String(a.startedAt || '').localeCompare(String(b.startedAt || '')));
+  const ts = (raw: unknown) => {
+    const t = new Date(String(raw || '')).getTime();
+    return Number.isFinite(t) ? t : 0;
+  };
+  const next = msgs.map((m) => ({ ...m }));
+  let ri = 0;
+  for (const m of next) {
+    if (m.role !== 'assistant' || m.id === skipId) continue;
+    while (ri < asc.length && ts(asc[ri].startedAt) <= m.timestamp) ri += 1;
+    const run = asc[ri - 1];
+    if (run) {
+      const agg = usageByRun.get(String(run.runId ?? ''));
+      m.tokenUsage = {
+        promptTokens: Number(run.promptTokens) || 0,
+        completionTokens: Number(run.completionTokens) || 0,
+        durationMs: run.durationMs != null ? Number(run.durationMs) : undefined,
+        cachedTokens: agg && agg.cachedTokens > 0 ? Number(agg.cachedTokens) : undefined,
+        model: agg?.model,
+      };
+    }
   }
   return next;
 }
@@ -497,9 +587,19 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     // 若旧会话 run 仍在进行，切回时订阅回放快照会重建 streaming 状态（关窗继续语义不变）。
     setQueueLength(0);
     setStreaming(false);
-    // 画布文档是模块级单例，切会话必须清空：否则上一段会话的工作流画布
-    // 会残留在产物面板里，误导用户以为是当前会话的产物
-    workflowDocumentStore.clear();
+    // 画布文档是模块级单例：切会话时只保留「不属于任何会话」的页面级内容
+    // （编辑器/工作流库载入，ownerSession 为空）。带归属的画布（AI 产出/草稿恢复）
+    // 若归属的不是这个会话，一律清空 —— 旧会话的产物不许漏进新会话的产物面板。
+    const canvasSnapshot = workflowDocumentStore.getSnapshot();
+    const canvasOwner = canvasSnapshot.meta.ownerSession;
+    const canvasForeign = !canvasSnapshot.doc.isEmpty && (
+      (canvasOwner != null && canvasOwner !== sessionKey) ||
+      // 兼容没有归属标记的旧现场：仅回收「AI 产出、此后没人动过」的内容
+      (canvasOwner == null && canvasSnapshot.meta.producedBy === 'ai')
+    );
+    if (canvasForeign) {
+      workflowDocumentStore.clear();
+    }
     agentApi.getMessages(sessionKey).then((msgs) => {
       // 竞态 guard：只有仍是当前会话的响应才允许落地
       if (currentSessionKeyRef.current !== sessionKey) return;
@@ -509,6 +609,15 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         const liveRow = liveId ? prev.find((m) => m.id === liveId) ?? null : null;
         return appendLiveRow(convertMessages(msgs || []), liveRow);
       });
+    }).catch(() => {});
+    // run 级 token 账：挂在各轮 assistant 回复尾部（dsh turn-usage 持久化对位物）；
+    // turn-usage 聚合补缓存命中/模型，两路任一失败不阻塞另一方
+    Promise.all([
+      agentApi.getSessionRuns(sessionKey).catch(() => []),
+      agentApi.getTurnUsage(sessionKey).catch(() => []),
+    ]).then(([runs, turnUsage]) => {
+      if (currentSessionKeyRef.current !== sessionKey) return;
+      setMessages((prev) => attachRunUsage(prev, runs, liveAssistantIdRef.current, turnUsage));
     }).catch(() => {});
     agentApi.getArtifacts(sessionKey).then((arts) => {
       if (currentSessionKeyRef.current !== sessionKey) return;
@@ -670,6 +779,15 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     }).catch(() => {
       // 重载失败：保留 live 现场（store.timeline 内容仍完整可见），不摘占位
     });
+    // run 级 token 账随历史一起收敛（run_end 先于 done，但 live 小结卡会随占位行退场——
+    // 持久化展示靠这里的回复尾部用量）
+    Promise.all([
+      agentApi.getSessionRuns(sessionKey).catch(() => []),
+      agentApi.getTurnUsage(sessionKey).catch(() => []),
+    ]).then(([runs, turnUsage]) => {
+      if (currentSessionKeyRef.current !== sessionKey) return;
+      setMessages((prev) => attachRunUsage(prev, runs, liveAssistantIdRef.current, turnUsage));
+    }).catch(() => {});
     agentApi.listSessions().then((list) => {
       if (currentSessionKeyRef.current === sessionKey) {
         setSessions(list || []);
@@ -821,6 +939,10 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
             source: 'ai',
             reason: 'ai-edit',
           });
+          // 显式归属：草稿恢复填进来的画布属于本会话 —— 切到别的会话（含新建对话）
+          // 时按归属清空。只靠 replace(source:'ai') 不写 meta，producedBy/lastChange
+          // 守卫全都看不到它，产物残留就是这么漏出去的
+          workflowDocumentStore.setMeta({ producedBy: 'ai', ownerSession: sessionKey });
         } catch { /* ignore */ }
       }
     }).catch(() => {});
@@ -872,7 +994,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
             for (const call of data.toolCalls || []) {
               if (!call?.id) continue;
               liveStreamStore.recordTool({ id: call.id, action: call.name, args: call.args ?? {} });
-              if (call.result) liveStreamStore.resolveTool(call.id, String(call.result).substring(0, 600));
+              if (call.result) liveStreamStore.resolveTool(call.id, String(call.result));
             }
           }
           // 快照里的产物列表（SessionEventBus 反哺）对齐 store（断线重连恢复现场）
@@ -961,7 +1083,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         if (disposed) return;
         liveStreamStore.flush();
         liveStreamStore.markTool(null);
-        liveStreamStore.resolveTool(data.toolCallId, (data.payload || '').substring(0, 600));
+        liveStreamStore.resolveTool(data.toolCallId, data.payload || '');
         const lid = liveAssistantIdRef.current;
         setMessages((prev) =>
           prev.map((m) => {
@@ -1002,6 +1124,8 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
               // 归因到当前流式助手消息：对话流里的画布快照卡才能挂到产出它的消息下
               messageId: liveAssistantIdRef.current ?? undefined,
             });
+            // 归属当前会话：切走后按归属清空（见草稿恢复处的注释）
+            workflowDocumentStore.setMeta({ producedBy: 'ai', ownerSession: sessionKey });
           }
         } catch { /* ignore */ }
       },
@@ -1010,8 +1134,8 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         if (data?.action === 'upsert' && data.artifact?.artifactKey) {
           const art = data.artifact;
           artifactStore.upsert(sessionKey, art);
-          // test_report / release 直接成为对话流里的产物卡
-          if (art.type === 'test_report' || art.type === 'release') {
+          // release 直接成为对话流里的产物卡（test_report 由 run_workflow 工具行承载）
+          if (art.type === 'release') {
             setMessages((prev) => upsertArtifactCard(prev, art));
           }
         } else if (data?.action === 'state' && data.artifactKey) {
@@ -1047,6 +1171,37 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         liveStreamStore.flush();
         void data;
       },
+      onAskRequest: (data) => {
+        if (disposed) return;
+        if (!data?.askId || currentSessionKeyRef.current !== sessionKey) return;
+        // ask_user 提问卡：独立消息行（id 稳定，ask_resolved 与重放快照都能幂等 upsert）
+        setMessages((prev) => {
+          const row: DisplayMessage = {
+            id: `ask-${data.askId}`,
+            role: 'assistant',
+            content: '',
+            timestamp: Date.now(),
+            ask: { askId: data.askId, question: data.question || '', options: data.options, answered: false },
+          };
+          const idx = prev.findIndex((m) => m.id === row.id);
+          if (idx >= 0) {
+            const next = [...prev];
+            next[idx] = row;
+            return next;
+          }
+          return [...prev, row];
+        });
+      },
+      onAskResolved: (data) => {
+        if (disposed) return;
+        if (!data?.askId) return;
+        // 本窗口作答的乐观收敛 + 其他窗口代答的同步收敛共用此路径
+        setMessages((prev) => prev.map((m) =>
+          m.ask && m.ask.askId === data.askId && !m.ask.answered
+            ? { ...m, ask: { ...m.ask, answered: true, answer: data.answer } }
+            : m
+        ));
+      },
       onDone: () => {
         if (disposed) return;
         workflowDocumentStore.captureAiRunSnapshot(liveAssistantIdRef.current ?? undefined);
@@ -1059,11 +1214,10 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       onError: (msg) => {
         if (disposed) return;
         workflowDocumentStore.captureAiRunSnapshot(liveAssistantIdRef.current ?? undefined);
+        // 失败原因由后端 persistRunError 落库（先落库再发 error 事件），
+        // settleRun 的 reload 会带回 —— 前端再追加一条 [错误] 行会与库里的
+        // 「⚠️ 本次执行失败」同时渲染，出现两个 AI 头像的重复错误行
         settleRun(sessionKey);
-        setMessages((prev) => [
-          ...prev,
-          { id: nanoid(), role: 'assistant', content: `[错误] ${msg}`, timestamp: Date.now() },
-        ]);
         setTimeout(() => refreshDebugData(sessionKey), 1200);
         setQueueLength(0);
       },

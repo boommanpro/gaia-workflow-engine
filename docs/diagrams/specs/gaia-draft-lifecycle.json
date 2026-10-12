@@ -1,0 +1,238 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "gaia AI 草稿生命周期：只写草稿，落版是用户动作",
+    "locale": "zh-CN",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    {
+      "id": "ai",
+      "label": "AI 操作"
+    },
+    {
+      "id": "guard",
+      "label": "校验与护栏",
+      "variant": "exception"
+    },
+    {
+      "id": "user",
+      "label": "用户动作"
+    }
+  ],
+  "phases": [
+    {
+      "id": "draft",
+      "label": "草稿",
+      "fromCol": 0,
+      "toCol": 1
+    },
+    {
+      "id": "verify",
+      "label": "验证",
+      "fromCol": 2,
+      "toCol": 2,
+      "variant": "emphasis"
+    },
+    {
+      "id": "publish",
+      "label": "落版",
+      "fromCol": 3,
+      "toCol": 4,
+      "variant": "dashed"
+    }
+  ],
+  "mainPath": [
+    "write",
+    "edit",
+    "run",
+    "save",
+    "version"
+  ],
+  "nodes": [
+    {
+      "id": "write",
+      "lane": "ai",
+      "col": 0,
+      "type": "backend",
+      "label": "write_workflow",
+      "sublabel": "只写草稿 · 不落版",
+      "width": 132
+    },
+    {
+      "id": "edit",
+      "lane": "ai",
+      "col": 1,
+      "type": "backend",
+      "label": "edit_workflow",
+      "sublabel": "applyOps 部分应用",
+      "tag": "CAS 基准",
+      "width": 132
+    },
+    {
+      "id": "run",
+      "lane": "ai",
+      "col": 2,
+      "type": "messagebus",
+      "label": "run_workflow",
+      "sublabel": "试运行 + 假成功检测",
+      "width": 132
+    },
+    {
+      "id": "save",
+      "lane": "user",
+      "col": 3,
+      "type": "security",
+      "label": "保存为版本",
+      "sublabel": "前端按钮 → save 端点",
+      "tag": "唯一落版入口",
+      "width": 132
+    },
+    {
+      "id": "version",
+      "lane": "user",
+      "col": 4,
+      "type": "database",
+      "label": "版本 vN",
+      "sublabel": "CAS 提交 + markApplied",
+      "width": 132
+    },
+    {
+      "id": "rejected",
+      "lane": "guard",
+      "col": 0,
+      "type": "security",
+      "label": "fatal 打回",
+      "sublabel": "skeletonExample 可抄",
+      "width": 132
+    },
+    {
+      "id": "unverified",
+      "lane": "guard",
+      "col": 2,
+      "type": "security",
+      "label": "假绿裁定",
+      "sublabel": "delivery_warning",
+      "width": 132
+    },
+    {
+      "id": "stale",
+      "lane": "guard",
+      "col": 3,
+      "type": "security",
+      "label": "CAS 冲突",
+      "sublabel": "staleRevision",
+      "width": 132
+    }
+  ],
+  "edges": [
+    {
+      "id": "g1",
+      "from": "write",
+      "to": "edit",
+      "label": "edit ops",
+      "variant": "emphasis"
+    },
+    {
+      "id": "g2",
+      "from": "edit",
+      "to": "run",
+      "label": "预检通过",
+      "variant": "emphasis"
+    },
+    {
+      "id": "g3",
+      "from": "run",
+      "to": "save",
+      "label": "用户显式保存",
+      "variant": "emphasis"
+    },
+    {
+      "id": "g4",
+      "from": "save",
+      "to": "version",
+      "label": "canonicalize + CAS",
+      "variant": "emphasis"
+    },
+    {
+      "id": "g5",
+      "from": "write",
+      "to": "rejected",
+      "label": "骨架 / 端口 fatal",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "id": "g6",
+      "from": "edit",
+      "to": "rejected",
+      "label": "业务字段 fatal",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "id": "g7",
+      "from": "rejected",
+      "to": "edit",
+      "label": "按示例重写",
+      "role": "return"
+    },
+    {
+      "id": "g8",
+      "from": "run",
+      "to": "unverified",
+      "label": "end 全 canceled / 输出空",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "id": "g9",
+      "from": "unverified",
+      "to": "edit",
+      "label": "警告点名 → 继续修",
+      "role": "return"
+    },
+    {
+      "id": "g10",
+      "from": "save",
+      "to": "stale",
+      "label": "revision 变动",
+      "variant": "dashed",
+      "role": "error"
+    },
+    {
+      "id": "g11",
+      "from": "stale",
+      "to": "save",
+      "label": "以服务端基准重试",
+      "role": "return"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "语义拍板",
+      "items": [
+        "AI 交付 = 草稿 + 试运行通过，绝不自动落版",
+        "save_workflow 已从工具集移除，仅剩 HTTP 端点由前端按钮触发"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "拦截与点名",
+      "items": [
+        "空壳骨架 / 端口非法 / 缺 key 出边升 fatal，回执带可抄修复 JSON",
+        "run 成功但 end 未执行 → 警告点名上游 ref（问题在上游不在 end）"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "并发安全",
+      "items": [
+        "draftRevision 自增，apply 以 expectedRevision 做 CAS",
+        "write 整份替换后 rebind 恢复绑定基准"
+      ]
+    }
+  ]
+}

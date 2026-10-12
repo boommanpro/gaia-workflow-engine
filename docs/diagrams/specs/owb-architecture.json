@@ -1,0 +1,316 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "owb 总体架构：Electron 桌面壳 + Express 单体 + 原生 JS 前端",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1140,
+      640
+    ]
+  },
+  "components": [
+    {
+      "id": "user",
+      "type": "external",
+      "label": "用户",
+      "sublabel": "桌面 / Web / IM / CLI",
+      "pos": [
+        40,
+        320
+      ],
+      "size": [
+        120,
+        60
+      ]
+    },
+    {
+      "id": "electron",
+      "type": "frontend",
+      "label": "Electron 壳",
+      "sublabel": "utilityProcess 隔离",
+      "pos": [
+        200,
+        320
+      ],
+      "size": [
+        140,
+        60
+      ],
+      "tag": "崩溃看护"
+    },
+    {
+      "id": "server",
+      "type": "backend",
+      "label": "server.js Express",
+      "sublabel": ":3800 默认 127.0.0.1",
+      "pos": [
+        420,
+        320
+      ],
+      "size": [
+        150,
+        60
+      ],
+      "tag": "9412 行单体"
+    },
+    {
+      "id": "trace",
+      "type": "database",
+      "label": "traces.jsonl",
+      "sublabel": "24MB×6 滚动 + Langfuse",
+      "pos": [
+        420,
+        170
+      ],
+      "size": [
+        150,
+        60
+      ]
+    },
+    {
+      "id": "agent",
+      "type": "backend",
+      "label": "agent.js runTask",
+      "sublabel": "步循环 25 × 续跑≤20",
+      "pos": [
+        650,
+        170
+      ],
+      "size": [
+        150,
+        60
+      ],
+      "tag": "主 Agent"
+    },
+    {
+      "id": "experts",
+      "type": "backend",
+      "label": "专家/专家团",
+      "sublabel": "32 专家 · 10 团递归",
+      "pos": [
+        890,
+        170
+      ],
+      "size": [
+        150,
+        60
+      ]
+    },
+    {
+      "id": "tools",
+      "type": "backend",
+      "label": "37 内置工具 + MCP",
+      "sublabel": "52 连接器 · 41 技能",
+      "pos": [
+        650,
+        320
+      ],
+      "size": [
+        150,
+        60
+      ]
+    },
+    {
+      "id": "engines",
+      "type": "cloud",
+      "label": "本机 CLI 引擎",
+      "sublabel": "claude -p / codex exec",
+      "pos": [
+        890,
+        320
+      ],
+      "size": [
+        150,
+        60
+      ],
+      "tag": "整层替换"
+    },
+    {
+      "id": "safety",
+      "type": "security",
+      "label": "安全中心",
+      "sublabel": "四档权限 + 审批 + 审计",
+      "pos": [
+        420,
+        470
+      ],
+      "size": [
+        150,
+        60
+      ]
+    },
+    {
+      "id": "model",
+      "type": "backend",
+      "label": "model/ 两层模型",
+      "sublabel": "渠道→条目压平",
+      "pos": [
+        650,
+        470
+      ],
+      "size": [
+        150,
+        60
+      ]
+    },
+    {
+      "id": "llm",
+      "type": "cloud",
+      "label": "多协议 LLM",
+      "sublabel": "OpenAI/Anthropic/Gemini/Ollama",
+      "pos": [
+        890,
+        470
+      ],
+      "size": [
+        150,
+        60
+      ]
+    },
+    {
+      "id": "data",
+      "type": "database",
+      "label": "data/ JSON 文件",
+      "sublabel": "sessions/users/audit",
+      "pos": [
+        200,
+        470
+      ],
+      "size": [
+        140,
+        60
+      ],
+      "tag": "无数据库"
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "桌面壳（electron-main 1738 行）",
+      "wraps": [
+        "electron"
+      ],
+      "pad": 18
+    },
+    {
+      "kind": "region",
+      "label": "Node 服务（src/ 七层，test/layers.js AST 强制）",
+      "wraps": [
+        "server",
+        "trace",
+        "agent",
+        "experts",
+        "tools",
+        "engines",
+        "safety",
+        "model"
+      ],
+      "pad": 24
+    }
+  ],
+  "connections": [
+    {
+      "from": "user",
+      "to": "electron",
+      "label": "桌面",
+      "variant": "emphasis"
+    },
+    {
+      "from": "electron",
+      "to": "server",
+      "label": "fork 隔离",
+      "variant": "emphasis"
+    },
+    {
+      "from": "server",
+      "to": "agent",
+      "label": "runTask",
+      "variant": "emphasis",
+      "labelAt": [
+        610,
+        280
+      ]
+    },
+    {
+      "from": "agent",
+      "to": "experts",
+      "label": "委派"
+    },
+    {
+      "from": "agent",
+      "to": "tools",
+      "label": "工具分发",
+      "labelAt": [
+        725,
+        275
+      ]
+    },
+    {
+      "from": "agent",
+      "to": "engines",
+      "label": "引擎分岔",
+      "variant": "dashed"
+    },
+    {
+      "from": "model",
+      "to": "llm",
+      "label": "5 档映射",
+      "variant": "emphasis"
+    },
+    {
+      "from": "tools",
+      "to": "safety",
+      "label": "审批",
+      "variant": "security"
+    },
+    {
+      "from": "agent",
+      "to": "trace",
+      "label": "span",
+      "variant": "dashed"
+    },
+    {
+      "from": "server",
+      "to": "data",
+      "label": "原子写"
+    },
+    {
+      "from": "server",
+      "to": "safety",
+      "label": "鉴权",
+      "variant": "security",
+      "labelAt": [
+        495,
+        424
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "文件交付型 Agent",
+      "items": [
+        "给你的是能打开的文件，不是一段聊天记录",
+        "产物落盘核验后才算交付（PPT/Word/Excel）"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "零框架工程",
+      "items": [
+        "运行时依赖仅 13 个：无数据库驱动、无前端框架、无 Langfuse SDK",
+        "前端 28 个原生 JS 文件 4 万行，脚本序号分层共享全局"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "双引擎形态",
+      "items": [
+        "内置 runTask 循环 + 本机 Claude Code/Codex 整层替换（图中「覆盖」= llmOverride 整树共享）",
+        "专家递归委派共享同一工作目录（depth>0 禁止再委派）"
+      ]
+    }
+  ]
+}

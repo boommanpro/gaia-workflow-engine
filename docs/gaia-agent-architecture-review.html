@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gaia 自研 Agent 引擎 · 架构与全流程 Review（对标 dsh / owb）</title>
+<style>
+  :root{
+    --ink:#18181b; --ink2:#3f3f46; --mut:#71717a; --mut2:#a1a1aa;
+    --line:#e4e4e7; --line2:#f4f4f5; --bg:#ffffff; --soft:#fafafa;
+    --blue:#2563eb; --blue-bg:#eff6ff; --green:#059669; --green-bg:#ecfdf5;
+    --amber:#d97706; --amber-bg:#fffbeb; --red:#dc2626; --red-bg:#fef2f2;
+    --violet:#7c3aed; --violet-bg:#f5f3ff;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro SC","PingFang SC","Noto Sans SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    font-size:15px;line-height:1.75;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 32px 120px}
+  a{color:var(--blue);text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  /* ---------- hero ---------- */
+  .hero{padding:72px 0 36px;border-bottom:1px solid var(--line)}
+  .hero .kicker{font-size:12px;letter-spacing:.18em;color:var(--mut);text-transform:uppercase;margin-bottom:14px}
+  .hero h1{font-size:34px;line-height:1.3;font-weight:700;margin:0 0 14px;letter-spacing:-.01em}
+  .hero p.sub{font-size:16px;color:var(--mut);max-width:820px;margin:0}
+  .hero .meta{margin-top:22px;font-size:12.5px;color:var(--mut2);font-family:var(--mono)}
+
+  /* ---------- toc ---------- */
+  .toc{display:flex;flex-wrap:wrap;gap:6px 22px;padding:18px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .toc a{color:var(--ink2)}
+  .toc a b{color:var(--mut2);font-weight:500;font-family:var(--mono);margin-right:4px}
+
+  /* ---------- sections ---------- */
+  section{padding:52px 0 8px}
+  .sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:8px}
+  .sec-head .no{font-family:var(--mono);font-size:13px;color:var(--mut2);min-width:34px}
+  .sec-head h2{font-size:23px;font-weight:650;margin:0;letter-spacing:-.01em}
+  .sec-desc{color:var(--mut);font-size:14px;max-width:860px;margin:0 0 26px 48px}
+  h3{font-size:16.5px;font-weight:650;margin:34px 0 12px}
+  p{margin:0 0 14px}
+  .mut{color:var(--mut)}
+  .small{font-size:13px}
+  code{font-family:var(--mono);font-size:.86em;background:var(--line2);border-radius:5px;padding:1.5px 6px;color:var(--ink2)}
+  .fqn{font-family:var(--mono);font-size:12px;color:var(--ink2);word-break:break-all}
+  .loc{font-family:var(--mono);font-size:11.5px;color:var(--mut2);white-space:nowrap}
+
+  /* ---------- cards / chips ---------- */
+  .card{border:1px solid var(--line);border-radius:12px;padding:20px 22px;background:var(--bg)}
+  .grid{display:grid;gap:14px}
+  .g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:1fr 1fr 1fr}.g4{grid-template-columns:repeat(4,1fr)}
+  @media(max-width:900px){.g2,.g3,.g4{grid-template-columns:1fr}}
+  .tag{display:inline-block;font-size:11px;font-family:var(--mono);border-radius:99px;padding:1px 10px;margin:0 6px 6px 0;border:1px solid var(--line);color:var(--ink2);background:var(--soft)}
+  .tag.b{color:var(--blue);border-color:#bfdbfe;background:var(--blue-bg)}
+  .tag.g{color:var(--green);border-color:#a7f3d0;background:var(--green-bg)}
+  .tag.a{color:var(--amber);border-color:#fde68a;background:var(--amber-bg)}
+  .tag.r{color:var(--red);border-color:#fecaca;background:var(--red-bg)}
+  .tag.v{color:var(--violet);border-color:#ddd6fe;background:var(--violet-bg)}
+
+  /* ---------- layered architecture ---------- */
+  .arch{display:flex;flex-direction:column;gap:0;margin:8px 0 6px}
+  .layer{border:1px solid var(--line);border-radius:12px;padding:14px 18px;background:var(--bg)}
+  .layer .lt{display:flex;align-items:baseline;gap:10px;margin-bottom:8px}
+  .layer .lt b{font-size:13.5px}
+  .layer .lt span{font-family:var(--mono);font-size:11px;color:var(--mut2)}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{font-size:12px;font-family:var(--mono);background:var(--soft);border:1px solid var(--line);border-radius:7px;padding:3px 9px;color:var(--ink2)}
+  .chip.em{background:var(--blue-bg);border-color:#bfdbfe;color:var(--blue)}
+  .chip.gn{background:var(--green-bg);border-color:#a7f3d0;color:var(--green)}
+  .varrow{display:flex;justify-content:center;gap:120px;color:var(--mut2);font-size:12px;padding:2px 0}
+  .varrow span{text-align:center;font-family:var(--mono)}
+  .varrow i{display:block;font-style:normal;font-size:14px;line-height:1}
+
+  /* ---------- flow (vertical chain) ---------- */
+  .flow{display:flex;flex-direction:column;align-items:center;margin:10px 0}
+  .fnode{width:100%;max-width:720px;border:1px solid var(--line);border-radius:10px;padding:11px 18px;background:var(--bg);font-size:13.5px;text-align:center}
+  .fnode b{font-weight:650}
+  .fnode .fn{font-family:var(--mono);font-size:11px;color:var(--mut2);display:block;margin-top:2px}
+  .fnode.pill{border-radius:99px;background:var(--soft)}
+  .fnode.blue{border-color:#bfdbfe;background:var(--blue-bg)}
+  .fnode.green{border-color:#a7f3d0;background:var(--green-bg)}
+  .fnode.amber{border-color:#fde68a;background:var(--amber-bg)}
+  .fnode.red{border-color:#fecaca;background:var(--red-bg)}
+  .fnode.violet{border-color:#ddd6fe;background:var(--violet-bg)}
+  .farrow{color:var(--mut2);font-size:15px;line-height:1.5;padding:1px 0}
+  .fbranch{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;width:100%;max-width:1000px;margin:2px 0}
+  @media(max-width:900px){.fbranch{grid-template-columns:1fr}}
+  .fcol{border:1px solid var(--line);border-radius:10px;padding:0 0 12px;overflow:hidden}
+  .fcol .fh{font-size:12px;font-weight:650;padding:6px 14px;letter-spacing:.05em}
+  .fcol .fb{font-size:12.5px;padding:8px 14px 0;color:var(--ink2);text-align:left}
+  .fcol.c-red .fh{background:var(--red-bg);color:var(--red)}
+  .fcol.c-amber .fh{background:var(--amber-bg);color:var(--amber)}
+  .fcol.c-violet .fh{background:var(--violet-bg);color:var(--violet)}
+  .fcol.c-blue .fh{background:var(--blue-bg);color:var(--blue)}
+  .fcol.c-green .fh{background:var(--green-bg);color:var(--green)}
+
+  /* ---------- pipeline (numbered) ---------- */
+  .pipe{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:8px 0}
+  @media(max-width:900px){.pipe{grid-template-columns:1fr}}
+  .pstep{border:1px solid var(--line);border-radius:10px;padding:12px 14px;position:relative;background:var(--bg)}
+  .pstep .pn{font-family:var(--mono);font-size:11px;color:#fff;background:var(--ink);border-radius:6px;padding:1px 7px;margin-right:8px}
+  .pstep h4{display:inline;font-size:13.5px;font-weight:650;margin:0}
+  .pstep p{font-size:12.5px;color:var(--mut);margin:7px 0 0}
+
+  /* ---------- statechain (horizontal) ---------- */
+  .schain{display:flex;align-items:stretch;gap:0;flex-wrap:wrap;margin:10px 0}
+  .snode{flex:1;min-width:170px;border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--bg);position:relative}
+  .snode + .snode{margin-left:26px}
+  .snode + .snode::before{content:"→";position:absolute;left:-22px;top:50%;transform:translateY(-50%);color:var(--mut2);font-size:16px}
+  .snode b{display:block;font-size:13px;margin-bottom:3px}
+  .snode span{font-size:12px;color:var(--mut);display:block}
+  .snode .st{font-family:var(--mono);font-size:10.5px;color:var(--mut2)}
+
+  /* ---------- tables ---------- */
+  table{width:100%;border-collapse:collapse;font-size:13px;margin:10px 0 18px}
+  th{background:var(--soft);text-align:left;font-weight:650;font-size:12.5px;color:var(--ink2);padding:8px 12px;border:1px solid var(--line);white-space:nowrap}
+  td{padding:8px 12px;border:1px solid var(--line);vertical-align:top;color:var(--ink2)}
+  td:first-child{color:var(--ink);font-weight:550}
+  .tbl-scroll{overflow-x:auto}
+  .tbl-scroll table{min-width:860px}
+  td .fqn{font-size:11px}
+  tr.hl td{background:var(--blue-bg)}
+
+  /* ---------- sequence svg ---------- */
+  .svg-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px;padding:14px 8px;background:#fff;margin:8px 0 4px}
+  svg{display:block;min-width:1080px;width:100%;height:auto}
+  svg .lh-head{fill:var(--soft);stroke:var(--line)}
+  svg .lh-role{font:600 12.5px -apple-system,'PingFang SC','Noto Sans SC',sans-serif;fill:var(--ink);text-anchor:middle}
+  svg .lh-fqn{font:9.5px ui-monospace,Menlo,monospace;fill:var(--mut);text-anchor:middle}
+  svg .lifeline{stroke:#d4d4d8;stroke-width:1;stroke-dasharray:3 4}
+  svg .msglabel{font:11.5px -apple-system,'PingFang SC','Noto Sans SC',sans-serif;paint-order:stroke;stroke:#fff;stroke-width:4px;fill:var(--ink2);text-anchor:middle}
+  svg .notebox{fill:var(--soft);stroke:var(--line);rx:8}
+  svg .notetext{font:10.5px -apple-system,'PingFang SC',sans-serif;fill:var(--mut);paint-order:stroke;stroke:#fff;stroke-width:3px}
+  svg .looplabel{font:600 11px -apple-system,'PingFang SC',sans-serif;fill:var(--mut);paint-order:stroke;stroke:#fff;stroke-width:4px}
+
+  /* ---------- misc ---------- */
+  .callout{border-left:3px solid var(--blue);background:var(--blue-bg);border-radius:0 10px 10px 0;padding:12px 18px;font-size:13.5px;margin:16px 0;color:var(--ink2)}
+  .callout.g{border-color:var(--green);background:var(--green-bg)}
+  .callout.a{border-color:var(--amber);background:var(--amber-bg)}
+  .callout.r{border-color:var(--red);background:var(--red-bg)}
+  .callout b{color:var(--ink)}
+  .kbd{font-family:var(--mono);font-size:11.5px;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:0 5px;background:var(--soft)}
+  .prio{font-family:var(--mono);font-size:11px;font-weight:700;border-radius:6px;padding:2px 8px;margin-right:8px}
+  .p0{background:var(--red-bg);color:var(--red);border:1px solid #fecaca}
+  .p1{background:var(--amber-bg);color:var(--amber);border:1px solid #fde68a}
+  .p2{background:var(--soft);color:var(--mut);border:1px solid var(--line)}
+  footer{margin-top:70px;padding-top:24px;border-top:1px solid var(--line);color:var(--mut2);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ================= HERO ================= -->
+<header class="hero">
+  <div class="kicker">Architecture &amp; Flow Review</div>
+  <h1>Gaia 自研 Agent 引擎 · 架构与全流程 Review</h1>
+  <p class="sub">基于 AgentScope Java 换核后的会话型 Agent 全链路梳理：前端渲染管线 ⇄ SSE 事件协议 ⇄ 会话服务 ⇄ 引擎内核 ⇄ 工具链 ⇄ 三账本观测。核心流程全部绘制成图（全限定名 + 逻辑 + 动作），并逐机制对标 deepseek-harness（dsh）与 openworkbuddy（owb），给出领先点与可优化点。</p>
+  <div class="meta">生成于 2026-10-11 · 基于 main@ffd73e2d 工作区 · 后端 apps/api/gaia-workflow/gaia-workflow-app · 前端 apps/console</div>
+</header>
+
+<nav class="toc">
+  <a href="#s0"><b>00</b>摘要</a>
+  <a href="#s1"><b>01</b>总体架构</a>
+  <a href="#s2"><b>02</b>端到端时序图</a>
+  <a href="#s3"><b>03</b>引擎内核</a>
+  <a href="#s4"><b>04</b>工具管道</a>
+  <a href="#s5"><b>05</b>防呆体系</a>
+  <a href="#s6"><b>06</b>草稿状态机</a>
+  <a href="#s7"><b>07</b>事件与观测</a>
+  <a href="#s8"><b>08</b>前端渲染管线</a>
+  <a href="#s9"><b>09</b>关键类速查</a>
+  <a href="#s10"><b>10</b>对标 dsh/owb</a>
+  <a href="#s11"><b>11</b>领先点</a>
+  <a href="#s12"><b>12</b>可优化点</a>
+  <a href="#s13"><b>13</b>附录</a>
+</nav>
+
+<!-- ================= 00 摘要 ================= -->
+<section id="s0">
+  <div class="sec-head"><span class="no">00</span><h2>摘要 · TL;DR</h2></div>
+  <p class="sec-desc">先给结论。这套引擎的骨架是「事件与传输彻底解耦」：引擎只管往事件总线发事件，谁订阅、几个窗口订阅、断没断线都不关它的事——这让多窗口、断线重连、崩溃恢复、轨迹回放都变成同一套数据的不同视图。</p>
+  <div class="grid g2">
+    <div class="card">
+      <h3 style="margin:0 0 10px;font-size:15px">整体判断</h3>
+      <p class="small">换核到 AgentScope Java 之后，<b>ReAct 循环、模型重试、run 内压缩交给了框架</b>；自研部分收敛到四件真正有差异的事：<b>会话事件总线（关窗继续）、三账本观测（可复现落账）、实证驱动的防呆体系（RepeatToolGuard/WrapUpGuard/假成功检测）、服务端画布草稿 CAS 状态机</b>。这四件事恰好都是 dsh / owb 没有或做得更薄的地方。</p>
+      <p class="small" style="margin-bottom:0">主要短板集中在<b>工程化收尾</b>：运行态全在单机内存、stop 对阻塞工具无效、配置面与实现漂移、前端重连无退避。都属于 P0/P1 可修，不动架构。</p>
+    </div>
+    <div class="card">
+      <h3 style="margin:0 0 10px;font-size:15px">一句话对标</h3>
+      <p class="small" style="margin-bottom:8px"><b>vs dsh</b>：dsh 的「一切皆持久台账 + 纯投影」在概念纯度上仍是天花板；gaia 在服务化形态、防呆粒度、可复现落账上反超，但 steering 持久化与中断语义完整性要向它补课。</p>
+      <p class="small" style="margin-bottom:0"><b>vs owb</b>：gaia 的执行追踪页复刻了它的读侧合成与「语言诚实」原则，并补上了它没有的实时跟随；owb 的 trace 体积工程（$msgs 编号去重、滚动账本）与「target 行 / 耗时归一化条」仍值得抄。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 01 总体架构 ================= -->
+<section id="s1">
+  <div class="sec-head"><span class="no">01</span><h2>总体架构总览</h2></div>
+  <p class="sec-desc">六层结构：前端只认 SSE 协议与 REST，服务端草稿让「前端仅展示数据」成立；引擎可热切换（自研 AgentScope 内核 / 火山方舟托管），但工具层、会话层、观测层完全共享。</p>
+
+  <div class="arch">
+    <div class="layer">
+      <div class="lt"><b>① 前端 Console（React + TS）</b><span>apps/console/src/agent · document · chat</span></div>
+      <div class="chips">
+        <span class="chip em">AgentContext.tsx 编排</span><span class="chip">live-stream-store（rAF 合帧）</span><span class="chip">sse-client / sse-protocol</span><span class="chip">LiveAssistantMessage</span><span class="chip">TraceView</span><span class="chip">TrajectoryPanel</span><span class="chip">document/store + canvas-sync</span><span class="chip">AskCard · PlanCard · ArtifactCards</span>
+      </div>
+    </div>
+    <div class="varrow"><span>REST /api/agent/**<i>↓↑</i>SSE /agent/session/{key}/events<i>20s 心跳 · 快照回放</i></span></div>
+    <div class="layer">
+      <div class="lt"><b>② 控制器层</b><span>cn.boommanpro.gaia.workflow.app.controller</span></div>
+      <div class="chips">
+        <span class="chip">api.AgentSessionRunController（run/events/stop/ask/compact/document/artifacts）</span><span class="chip">system.AgentSessionController（会话 CRUD/messages/debug）</span><span class="chip">api.ManagedAgentController（无头运行）</span>
+      </div>
+    </div>
+    <div class="varrow"><span><i>↓↑</i></span></div>
+    <div class="layer">
+      <div class="lt"><b>③ 会话服务层（状态与韧性）</b><span>…app.agent.session</span></div>
+      <div class="chips">
+        <span class="chip em">AgentSessionRunService</span><span class="chip em">SessionEventBus（缓冲500+快照）</span><span class="chip">SessionWorkflowDraftService</span><span class="chip">SessionCompactionService</span><span class="chip">AskUserPendingStore</span><span class="chip">SessionArtifactStore</span><span class="chip">ToolLogRecorder</span><span class="chip">AgentStartupRecovery</span>
+      </div>
+    </div>
+    <div class="varrow"><span><i>↓↑</i></span></div>
+    <div class="layer">
+      <div class="lt"><b>④ 引擎层（可切换）</b><span>…app.agent.engine + runtime + core</span></div>
+      <div class="chips">
+        <span class="chip">AgentExecutionRouter</span><span class="chip em">AgentScopeExecutionEngine（默认）</span><span class="chip">ArkManagedExecutionEngine（方舟托管）</span><span class="chip">RecordingModel</span><span class="chip">RepeatToolGuard / WrapUpGuard</span><span class="chip">AgentRegistry · AgentDefinition</span><span class="chip">SteeringInbox</span>
+      </div>
+    </div>
+    <div class="varrow"><span><i>↓↑</i></span></div>
+    <div class="layer">
+      <div class="lt"><b>⑤ 工具层（两引擎共享）</b><span>…app.agent.tool</span></div>
+      <div class="chips">
+        <span class="chip em">ToolExecutorRegistry</span><span class="chip">AgentScopeToolAdapter</span><span class="chip">ToolArgsValidator</span><span class="chip">14 × ToolExecutor（write/edit/save/read/read_node/schema/list×4/run/search/delete/ask_user/todo）</span>
+      </div>
+    </div>
+    <div class="varrow"><span><i>↓↑</i></span></div>
+    <div class="layer">
+      <div class="lt"><b>⑥ 持久层（SQLite · 三账本）</b><span>…infra.manage.entity + store.DatabaseConversationStore</span></div>
+      <div class="chips">
+        <span class="chip gn">agent_session / agent_message</span><span class="chip gn">agent_session_event（事件账）</span><span class="chip gn">agent_llm_call_log（LLM 账）</span><span class="chip gn">agent_tool_call_log（工具账）</span><span class="chip gn">agent_artifact（产物+草稿）</span><span class="chip">SessionEventFileRecorder（可选 ndjson）</span>
+      </div>
+    </div>
+    <div class="varrow"><span><i>↓↑</i></span></div>
+    <div class="layer">
+      <div class="lt"><b>⑦ 外部</b></div>
+      <div class="chips">
+        <span class="chip">LLM（OpenAI 兼容 · config.llm）</span><span class="chip">火山方舟 Managed Agents（engine=ark）</span><span class="chip">ScriptedChatModel（测试回放，零 LLM）</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout"><b>引擎切换的两层开关：</b>① 逐 Agent 靠 <code>AgentDefinition.engine</code> 字段（<span class="loc">agent/core/AgentDefinition.java:80</span>），<code>AgentExecutionRouter.resolve</code> 按 <code>supports()</code> 选引擎（<span class="loc">engine/AgentExecutionRouter.java:55-62</span>）；② 会话默认引擎靠 DB <code>agent_config</code> 的「默认执行引擎」，由 <code>AgentSessionRunService.resolveDefaultAgentId</code>（:240-253）消费。切的是「谁驱动 ReAct 循环」，工具与观测层不变。</div>
+</section>
+
+<!-- ================= 02 时序图 ================= -->
+<section id="s2">
+  <div class="sec-head"><span class="no">02</span><h2>端到端主流程 · 时序图</h2></div>
+  <p class="sec-desc">一条用户消息的完整生命周期：REST 触达即返回（后台线程跑循环）→ 引擎重建历史 → ReAct 循环 → 事件经总线扇出到 SSE → 前端合帧渲染 → 终态收敛。注意两个时序契约：<b>run_end 必须先于 done</b>（前端小结卡依赖）；<b>tool_result 的 payload 全量不截断</b>（model-visible ⟺ logged）。</p>
+  <div class="svg-scroll">
+  <svg viewBox="0 0 1240 916" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="端到端时序图">
+    <defs>
+      <marker id="a-ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#27272a"/></marker>
+      <marker id="a-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/></marker>
+      <marker id="a-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#059669"/></marker>
+      <marker id="a-amber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#d97706"/></marker>
+    </defs>
+
+    <!-- headers -->
+    <g>
+      <rect x="0"    y="14" width="150" height="50" rx="8" class="lh-head"/><text x="75"  y="34" class="lh-role">前端 Console</text><text x="75"  y="52" class="lh-fqn">AgentContext · live-stream-store</text>
+      <rect x="153"  y="14" width="150" height="50" rx="8" class="lh-head"/><text x="228" y="34" class="lh-role">Controller</text><text x="228" y="52" class="lh-fqn">api.AgentSessionRunController</text>
+      <rect x="310"  y="14" width="150" height="50" rx="8" class="lh-head"/><text x="385" y="34" class="lh-role">会话服务</text><text x="385" y="52" class="lh-fqn">session.AgentSessionRunService</text>
+      <rect x="465"  y="14" width="150" height="50" rx="8" class="lh-head"/><text x="540" y="34" class="lh-role">事件总线</text><text x="540" y="52" class="lh-fqn">session.SessionEventBus</text>
+      <rect x="625"  y="14" width="150" height="50" rx="8" class="lh-head"/><text x="700" y="34" class="lh-role">引擎</text><text x="700" y="52" class="lh-fqn">engine.AgentScopeExecutionEngine</text>
+      <rect x="787"  y="14" width="150" height="50" rx="8" class="lh-head"/><text x="862" y="34" class="lh-role">ReAct 内核</text><text x="862" y="52" class="lh-fqn">HarnessAgent · RecordingModel</text>
+      <rect x="940"  y="14" width="150" height="50" rx="8" class="lh-head"/><text x="1015" y="34" class="lh-role">工具层</text><text x="1015" y="52" class="lh-fqn">tool.ToolExecutorRegistry</text>
+      <rect x="1080" y="14" width="150" height="50" rx="8" class="lh-head"/><text x="1155" y="34" class="lh-role">持久层</text><text x="1155" y="52" class="lh-fqn">SQLite agent_* 表</text>
+    </g>
+
+    <!-- lifelines -->
+    <g>
+      <line x1="75" y1="64" x2="75" y2="800" class="lifeline"/><line x1="228" y1="64" x2="228" y2="800" class="lifeline"/>
+      <line x1="385" y1="64" x2="385" y2="800" class="lifeline"/><line x1="540" y1="64" x2="540" y2="800" class="lifeline"/>
+      <line x1="700" y1="64" x2="700" y2="800" class="lifeline"/><line x1="862" y1="64" x2="862" y2="800" class="lifeline"/>
+      <line x1="1015" y1="64" x2="1015" y2="800" class="lifeline"/><line x1="1155" y1="64" x2="1155" y2="800" class="lifeline"/>
+    </g>
+
+    <!-- messages -->
+    <g stroke-linecap="round">
+      <line x1="75" y1="96" x2="222" y2="96" stroke="#27272a" stroke-width="1.3" marker-end="url(#a-ink)"/>
+      <text x="151" y="89" class="msglabel">① POST /{sessionKey}/run</text>
+
+      <line x1="228" y1="124" x2="379" y2="124" stroke="#27272a" stroke-width="1.3" marker-end="url(#a-ink)"/>
+      <text x="306" y="117" class="msglabel">② startRun: ensureSession → saveMessage(user)</text>
+
+      <rect x="298" y="140" width="262" height="26" rx="8" class="notebox"/>
+      <text x="429" y="157" class="notetext" text-anchor="middle">③ 线程池 runAsync（每会话并发 = 1 run）</text>
+
+      <line x1="385" y1="192" x2="694" y2="192" stroke="#27272a" stroke-width="1.3" marker-end="url(#a-ink)"/>
+      <text x="542" y="185" class="msglabel">④ pre-run 压缩检查 → executionRouter.run()</text>
+
+      <line x1="700" y1="220" x2="1149" y2="220" stroke="#059669" stroke-width="1.2" marker-end="url(#a-green)"/>
+      <text x="927" y="213" class="msglabel">⑤ loadHistory → replayHistory（tool_call_id 配对）</text>
+
+      <line x1="700" y1="248" x2="856" y2="248" stroke="#27272a" stroke-width="1.3" marker-end="url(#a-ink)"/>
+      <text x="781" y="241" class="msglabel">⑥ drainSteering → streamEvents(maxIters=38)</text>
+
+      <line x1="862" y1="276" x2="1149" y2="276" stroke="#059669" stroke-width="1.2" marker-end="url(#a-green)"/>
+      <text x="1008" y="269" class="msglabel">⑦ request_json / response_json 全量落账（原封不动）</text>
+
+      <line x1="862" y1="304" x2="706" y2="304" stroke="#7c3aed" stroke-width="1.2" stroke-dasharray="5 3" marker-end="url(#a-amber)"/>
+      <text x="781" y="297" class="msglabel">⑧ 框架事件流 Flux（TEXT_DELTA / MODEL_CALL_END…）</text>
+
+      <line x1="700" y1="332" x2="546" y2="332" stroke="#2563eb" stroke-width="1.2" marker-end="url(#a-blue)"/>
+      <text x="620" y="325" class="msglabel">⑨ translateEvent → publish(token/thinking/llm_end…)</text>
+
+      <line x1="540" y1="360" x2="81" y2="360" stroke="#2563eb" stroke-width="1.2" marker-end="url(#a-blue)"/>
+      <text x="307" y="353" class="msglabel">⑩ SSE 推送（20s 心跳喂前端 60s 看门狗）</text>
+
+      <rect x="90" y="374" width="330" height="26" rx="8" class="notebox"/>
+      <text x="255" y="391" class="notetext" text-anchor="middle">⑪ 三重 rAF 合帧 ≈20fps → TimelineView</text>
+
+      <!-- loop box -->
+      <rect x="505" y="412" width="725" height="176" rx="10" fill="none" stroke="#a1a1aa" stroke-dasharray="6 4"/>
+      <text x="517" y="430" class="looplabel">loop · 每轮工具调用（turn）</text>
+
+      <line x1="700" y1="448" x2="546" y2="448" stroke="#2563eb" stroke-width="1.2" marker-end="url(#a-blue)"/>
+      <text x="620" y="441" class="msglabel">tool_call {id,name,args}</text>
+
+      <line x1="700" y1="476" x2="1009" y2="476" stroke="#27272a" stroke-width="1.3" marker-end="url(#a-ink)"/>
+      <text x="857" y="469" class="msglabel">Validator → executor.execute（九步管道）</text>
+
+      <line x1="1015" y1="504" x2="1149" y2="504" stroke="#059669" stroke-width="1.2" marker-end="url(#a-green)"/>
+      <text x="1085" y="497" class="msglabel">tool 消息 + agent_tool_call_log</text>
+
+      <line x1="700" y1="532" x2="546" y2="532" stroke="#2563eb" stroke-width="1.2" marker-end="url(#a-blue)"/>
+      <text x="620" y="525" class="msglabel">tool_result（payload 全量不截断）</text>
+
+      <line x1="540" y1="562" x2="81" y2="562" stroke="#2563eb" stroke-width="1.2" marker-end="url(#a-blue)"/>
+      <text x="307" y="555" class="msglabel">SSE</text>
+
+      <line x1="75" y1="618" x2="379" y2="618" stroke="#d97706" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#a-amber)"/>
+      <text x="230" y="611" class="msglabel">运行中再来一条消息 → SteeringInbox.offer（不起新 run）</text>
+
+      <line x1="700" y1="650" x2="1149" y2="650" stroke="#059669" stroke-width="1.2" marker-end="url(#a-green)"/>
+      <text x="927" y="643" class="msglabel">assistant 消息（带 toolCalls JSON）落库 · timeline 附着</text>
+
+      <line x1="700" y1="678" x2="546" y2="678" stroke="#2563eb" stroke-width="1.2" marker-end="url(#a-blue)"/>
+      <text x="620" y="671" class="msglabel">run_end（outcome/turns/tokens）— 必须先于 done</text>
+
+      <line x1="540" y1="702" x2="81" y2="702" stroke="#2563eb" stroke-width="1.2" marker-end="url(#a-blue)"/>
+      <text x="307" y="695" class="msglabel">SSE</text>
+
+      <line x1="700" y1="726" x2="546" y2="726" stroke="#2563eb" stroke-width="1.2" marker-end="url(#a-blue)"/>
+      <text x="620" y="719" class="msglabel">done</text>
+
+      <line x1="540" y1="750" x2="81" y2="750" stroke="#2563eb" stroke-width="1.2" marker-end="url(#a-blue)"/>
+      <text x="307" y="743" class="msglabel">SSE</text>
+
+      <line x1="75" y1="778" x2="222" y2="778" stroke="#27272a" stroke-width="1.3" marker-end="url(#a-ink)"/>
+      <text x="151" y="771" class="msglabel">settleRun: GET messages/runs/artifacts</text>
+    </g>
+
+    <!-- bottom note -->
+    <g>
+      <rect x="55" y="814" width="1130" height="84" rx="10" class="notebox"/>
+      <text x="75" y="840" class="notetext">韧性收尾（finally，AgentSessionRunService.runAsync :394-427）：emitRunEnd 兜底 → recorder.flush → 僵尸 running 快照归位 → chainSteering（收件箱残留 → 链接式新 run）</text>
+      <text x="75" y="862" class="notetext">stop / 异常路径：persistRunError 把失败原因落成 assistant 消息 → error 事件；中断时引擎侧 persistInterruptedRun 保留部分正文 + ⏹ 标记</text>
+      <text x="75" y="884" class="notetext">崩溃恢复：AgentStartupRecovery.recoverInterruptedRuns 按 epoch 补写 run_interrupted（:33-67），首启不回溯历史</text>
+    </g>
+  </svg>
+  </div>
+  <p class="small mut" style="margin-top:10px">图例：<span style="color:#27272a">■ 黑</span> = 请求/调用链 · <span style="color:#2563eb">■ 蓝</span> = 事件/SSE · <span style="color:#059669">■ 绿</span> = 落库 · <span style="color:#d97706">■ 橙虚线</span> = steering / 框架回调。</p>
+</section>
+
+<!-- ================= 03 引擎内核 ================= -->
+<section id="s3">
+  <div class="sec-head"><span class="no">03</span><h2>引擎内核 · AgentScopeExecutionEngine</h2></div>
+  <p class="sec-desc">全限定名 <span class="fqn">cn.boommanpro.gaia.workflow.app.agent.engine.AgentScopeExecutionEngine</span>。框架（HarnessAgent）管 ReAct 循环/自然停止/模型级重试/run 内压缩；自研管事件翻译、历史回放合法性、防呆与落库。核心方法是 <code>streamRun</code>（:476-596）。</p>
+
+  <div class="flow">
+    <div class="fnode pill"><b>run(request, sink)</b><span class="fn">:152-234 · 组装 OpenAIChatModel → RecordingModel 包装 → RepeatToolGuard / WrapUpGuard → buildToolkit</span></div>
+    <div class="farrow">↓</div>
+    <div class="fnode"><b>buildMessages</b>：loadHistory 全量 → <b>replayHistory</b>（:818-867）按 tool_call_id 重建 assistant(tool_use)→tool_result 配对；孤儿结果丢弃、中断缺口补占位<span class="fn">协议合法性是回放出来的，不是存出来的</span></div>
+    <div class="farrow">↓</div>
+    <div class="fnode"><b>insertPageContextSnapshot</b>（:682-699）页面上下文作为 user 快照插在本轮消息前，不进 system prompt、不落库 &nbsp;·&nbsp; <b>drainSteeringInto</b>（:702-712）排空收件箱注入为 user 消息 + <code>user_message{steering:true}</code> 事件</div>
+    <div class="farrow">↓</div>
+    <div class="fnode violet"><b>for attempt ≤ 3：new HarnessAgent</b>（RuntimeContext.sessionId = session:runId:attempt 一次性，不留第二份会话）<span class="fn">maxIters = runawayTurnCeiling(30) + 8 收尾余量 · Compaction 触发 80% 窗口 · 模型重试 5 次指数退避 500ms→10s（:336-352）</span></div>
+    <div class="farrow">↓</div>
+    <div class="fnode"><b>agent.streamEvents(msgs).takeWhile(!interrupted &amp;&amp; !softStop)</b>，10min 超时（:511-516）<span class="fn">translateEvent（:732-790）：TEXT_DELTA→token · THINKING→thinking · MODEL_CALL_END→usage 累计 + WrapUpGuard.onModelTurn · AGENT_RESULT→回显守卫（与历史逐字相同的“结果”不采纳）</span></div>
+    <div class="farrow">↓ 结算判定</div>
+    <div class="fbranch">
+      <div class="fcol c-red">
+        <div class="fh">中断路径（用户点停止）</div>
+        <div class="fb">persistInterruptedRun：已收到的部分正文 + ⏹ 标记落库（:646-657）→ <code>interrupted</code> 事件 → finishedResult(interrupted=true)</div>
+      </div>
+      <div class="fcol c-amber">
+        <div class="fh">护栏路径（软停）</div>
+        <div class="fb">RepeatToolGuard STOP 熔断 / WrapUpGuard（轮次≥30 或连续 8 轮无进展）→ requestSoftStop → 收尾文案落库 → <code>wrap_up</code> 事件 → settled。EXCEED_MAX_ITERS 追加「已达轮次上限」文案，记入 failureChain</div>
+      </div>
+      <div class="fcol c-violet">
+        <div class="fh">重试路径（空响应）</div>
+        <div class="fb">content 空但调过模型且 attempt≤2 → <code>llm_retry</code> 事件（先落库再等）→ sleep 500ms×attempt → ↔回到上方换新 HarnessAgent 重跑；耗尽仍空 → failureChain <code>empty_response_unrecovered</code>（:558-591）</div>
+      </div>
+    </div>
+    <div class="farrow">↓ 正常</div>
+    <div class="fnode green"><b>正常收尾</b>：assistant 消息<b>必须带 toolCalls JSON</b> 落库（:659-675，纯工具轮也落，否则下轮回放全是孤儿 tool 结果——2026-10-10 edit 31 连败的根因）→ emitSettled（toolCalls/token 账）→ finishedResult<span class="fn">运行统计：turns / durationMs / toolTimeMs / promptTokens / llmRetries / failureChain（:619-637）</span></div>
+  </div>
+
+  <h3>RecordingModel · 让「模型可见 = 已落账」</h3>
+  <p class="small">全限定名 <span class="fqn">…agent.engine.RecordingModel</span>，实现 AgentScope 的 <code>Model</code> 接口做装饰器——只有 <code>Model.stream()</code> 能看到真实入参，所以在这一层埋点（:67-122）：<b>buildRequestJson</b>（:141-232）把 Msg 列表还原成 OpenAI Chat Completions 同构请求（tool_calls/tool_call_id 配对 + tools schema），<b>全量不截断</b>——拿着日志即可 curl 复现；<b>ResponseAssembler</b>（:267-367）把流式碎片按 tool_call id 键控归并成完整响应 JSON。落 <code>agent_llm_call_log</code> 时 request_json <b>原封不动存全量</b>（2026-10-11 拍板：保真优先于存储；曾实现的 seq&gt;1 增量形态已移除，历史增量行由前端 Trajectory 按同规则拼回，兼容读取）。工具结果的序列化按「内容块」判定（ToolResultBlock 可能在 ToolResultMessage，也可能在 role=TOOL 的普通 Msg 里——只判子类会丢 tool content，2026-10-11 实证）。</p>
+</section>
+
+<!-- ================= 04 工具管道 ================= -->
+<section id="s4">
+  <div class="sec-head"><span class="no">04</span><h2>工具调用 · 九步管道</h2></div>
+  <p class="sec-desc">入口 <span class="fqn">…agent.engine.AgentScopeExecutionEngine#invokeTool</span>（:922-1008）。每个工具调用都走同一条流水线，门禁在执行前、记账在执行后、防呆在管道末端。工具契约 <span class="fqn">…agent.tool.ToolExecutor</span>（name/surface/enabled/execute/<b>concurrencySafe</b>——连续可并发的调用进并行池，独占工具成顺序栅栏）。</p>
+  <div class="pipe">
+    <div class="pstep"><span class="pn">1</span><h4>登记与轮次</h4><p>nextTurn 计数 → executedToolCalls 同步清单登记（assistant 落库与回放配对的关键，:931-935）</p></div>
+    <div class="pstep"><span class="pn">2</span><h4>收尾拒绝门</h4><p>WrapUpGuard 已触发 → 直接返回 <code>ToolResult.rejected</code>：「收走工具」而非砍 run（:937-939）</p></div>
+    <div class="pstep"><span class="pn">3</span><h4>tool_call 事件</h4><p><code>{id,name,args}</code> 广播，前端 StepRow 进入 shimmer</p></div>
+    <div class="pstep"><span class="pn">4</span><h4>参数校验</h4><p>ToolArgsValidator：JSON Schema 子集，违规带 <code>{path, issue, fix}</code> 清单；宽容转换数字字符串（:17-218）→ 失败即短路，错误码 INVALID_ARGS</p></div>
+    <div class="pstep"><span class="pn">5</span><h4>执行</h4><p>executor.execute（异常统一转 EXEC_ERROR）；适配层 AgentScopeToolAdapter 用 boundedElastic 线程池，不占 reactor 事件线程</p></div>
+    <div class="pstep"><span class="pn">6</span><h4>会话真相源落库</h4><p>tool 消息写 agent_message（:966-971）——崩溃后 replayHistory 靠它重建</p></div>
+    <div class="pstep"><span class="pn">7</span><h4>工具账本</h4><p>recordMetric → agent_tool_call_log（turn/toolName/outcome/errorCode/durationMs/argsDigest，:1025-1046）</p></div>
+    <div class="pstep"><span class="pn">8</span><h4>tool_result 事件</h4><p>payload <b>全量不截断</b>（model-visible ⟺ logged，:978-984），前端 IoCard OUT 区同样全量展示</p></div>
+    <div class="pstep"><span class="pn">9</span><h4>防呆挂账</h4><p>WrapUpGuard.onToolResult → RepeatToolGuard.record（提醒附加 appendGuardNote / 触发软停）→ stats.addToolInterval</p></div>
+  </div>
+
+  <h3>14 个工具执行器（<span class="fqn">…agent.tool.impl.*</span>）</h3>
+  <div class="tbl-scroll"><table>
+    <tr><th>工具</th><th>执行器</th><th>逻辑要点</th></tr>
+    <tr><td>write_workflow</td><td class="fqn">WriteWorkflowToolExecutor</td><td>整份 DSL 一次成型；validateSemantics（:68-104）拒绝零连线/致命问题，不产半成品；改已有工作流<b>必须 baseRevision（CAS）</b>；落版后 draftService.replace + markApplied + document 事件</td></tr>
+    <tr><td>edit_workflow</td><td class="fqn">EditWorkflowToolExecutor</td><td>增量修改主力；hydrateIfNeeded（:127-147）未绑定草稿先从当前版本水化；ops 数组/声明式 delta → applyOps 部分应用 → 广播 document</td></tr>
+    <tr><td>save_workflow</td><td class="fqn">SaveWorkflowToolExecutor</td><td>草稿落版收口；workflowCode/baseRevision 三级解析（显式 &gt; 草稿 meta &gt; 当前值）</td></tr>
+    <tr><td>read_workflow</td><td class="fqn">ReadWorkflowToolExecutor</td><td>完整 DSL+revision（CAS 基准）；DSL&gt;6000 字符降级为 structuralView 骨架，引导 read_node 钻取</td></tr>
+    <tr><td>read_node</td><td class="fqn">ReadNodeToolExecutor</td><td>单节点详情 + availableVariables；redactForModel 掩蔽 apiKey/token</td></tr>
+    <tr><td>get_node_schema</td><td class="fqn">GetNodeSchemaToolExecutor</td><td>节点类型结构文档（配合「系统提示词只带目录」的瘦身策略）</td></tr>
+    <tr><td>run_workflow</td><td class="fqn">RunWorkflowToolExecutor</td><td>业务字段毫秒级预检 → 跑草稿 → 轮询至终态（180s）；<b>假成功双重检测</b>：end 未达连坐 canceled + end 声明字段缺值顺 ref 点名上游节点（:172-303）；失败回执首行自足</td></tr>
+    <tr><td>list_workflows / list_templates / list_runs</td><td class="fqn">List*ToolExecutor</td><td>目录类，concurrencySafe，LIMIT 50/20</td></tr>
+    <tr><td>search_knowledge</td><td class="fqn">SearchKnowledgeToolExecutor</td><td>知识按需拉取，每次检索发 knowledge_retrieved 事件做使用归因</td></tr>
+    <tr><td>delete_workflow</td><td class="fqn">DeleteWorkflowToolExecutor</td><td>不可逆删除：无 <code>confirmed=true</code> 返回 confirmation_required</td></tr>
+    <tr><td>ask_user</td><td class="fqn">AskUserToolExecutor</td><td>AskUserPendingStore.create → ask_request 卡片 → <b>阻塞 future.get(5, MINUTES)</b>（:82）；超时返回「请基于已有信息继续」</td></tr>
+    <tr><td>todo_write</td><td class="fqn">TodoWriteToolExecutor</td><td>纯展示进度清单 → plan 产物 upsert + plan 事件（前端 PlanCard 零改动）</td></tr>
+  </table></div>
+</section>
+
+<!-- ================= 05 防呆 ================= -->
+<section id="s5">
+  <div class="sec-head"><span class="no">05</span><h2>防呆体系 · 弱模型对抗的实战结晶</h2></div>
+  <p class="sec-desc">两条防线：<b>RepeatToolGuard</b>（<span class="fqn">…agent.runtime.RepeatToolGuard</span>，判定键 = 工具名 + 键排序规范化参数）管「复读与空转」；<b>WrapUpGuard</b>（<span class="fqn">…agent.runtime.WrapUpGuard</span>）管「系统性失控」——两者都只软停收尾，绝不砍 run。</p>
+  <div class="tbl-scroll"><table>
+    <tr><th style="width:150px">检测线</th><th>触发条件</th><th>升级动作</th></tr>
+    <tr><td>同参失败复读</td><td>同 key 连续失败；失败链<b>不被中间其他调用清零</b>，仅同 key 成功清零（:93-99）</td><td>INVALID_ARGS 第 2 次 → 附加提醒；<b>第 3 次硬熔断 STOP</b>（:102-110）。其他错误 3/5/8 次阶梯提醒</td></tr>
+    <tr><td>同参成功空转</td><td>同参数连续成功 ≥3 次（语法成功≠语义进展）</td><td>APPEND 提醒「已重复成功，请检查语义目标」（:73-86）</td></tr>
+    <tr><td>交替空转</td><td>最近 8 个 key 出现 k1,k2,k1,k2 模式（典型：edit→run 互相甩锅，:130-146）</td><td>下一次 record 带循环警报文案（:157-161）——<b>dsh/owb 均无此检测</b></td></tr>
+    <tr><td>系统性失控</td><td>WrapUpGuard：连续 N 轮「有工具调用但全失败」计 noProgressStreak；轮次≥30 或无进展≥8（:34-46）</td><td>wrappedUp → invokeTool 全部 rejected + 收尾指令 advisory，让模型用手写正文收尾（:66-79）</td></tr>
+  </table></div>
+  <div class="callout a"><b>设计取向：</b>所有防呆都遵循「先提醒（appendGuardNote 进 tool_result payload，模型看得见）→ 再软停（收走工具）→ 从不中途杀死 run」。配合 RunWorkflow 的假成功检测（end 未达 = canceled 连坐；end 字段缺值顺 ref 点名上游），构成了 2026-10 高失败率诊断后的 P0-P3 修复闭环。</div>
+</section>
+
+<!-- ================= 06 草稿状态机 ================= -->
+<section id="s6">
+  <div class="sec-head"><span class="no">06</span><h2>服务端画布草稿 · CAS 状态机</h2></div>
+  <p class="sec-desc">全限定名 <span class="fqn">…agent.session.SessionWorkflowDraftService</span>（:31-1133）。「前端仅展示数据」原则的支点：草稿形态与前端 WorkflowDocument 一致，但真相源在服务端，持久化复用 agent_artifact（重启不丢）。</p>
+
+  <div class="schain">
+    <div class="snode"><b>自由草稿</b><span>内存 drafts + artifact 兜底</span><span class="st">_meta = null</span></div>
+    <div class="snode"><b>绑定水化</b><span>read_workflow / edit 指定 code 触发 bindFromVersion（:370-387）</span><span class="st">boundCode · baseRevision · draftRevision=1</span></div>
+    <div class="snode"><b>稳定迭代</b><span>applyOps 批处理两遍法（:429-744）：副本上逐 op 校验 → 部分应用 + skipped{path,issue,fix} → $ref 解析到本批真实 id → 缺 data 自动补骨架</span><span class="st">draftRevision++</span></div>
+    <div class="snode"><b>落版 applied</b><span>save_workflow / write_workflow → markApplied（:390-397）</span><span class="st">baseRevision 前移（新 CAS 基准）→ 可再迭代</span></div>
+  </div>
+
+  <div class="grid g2" style="margin-top:16px">
+    <div class="card">
+      <h3 style="margin:0 0 8px;font-size:14.5px">CAS 并发语义</h3>
+      <p class="small" style="margin-bottom:0">写落版类工具必须携带 <code>baseRevision</code>，与当前 revision 不符返回 <code>ToolResult.staleRevision</code>（带 expected/actual + 补救指引「先 read_workflow 再重放」），模型拿到结构化错误码后自行重读——这是把乐观锁做成了<b>模型可自修的协议</b>。_meta 三元组随 artifact 持久化，重启后 CAS 基准不丢。</p>
+    </div>
+    <div class="card">
+      <h3 style="margin:0 0 8px;font-size:14.5px">前端侧同步链</h3>
+      <p class="small" style="margin-bottom:0">SSE <code>document</code> 事件 → AgentContext.onDocument（:1096-1114，编辑器路由直接 return 保画布主位）→ <span class="fqn">document/store.ts</span> replace(source:'ai') → <span class="fqn">document/canvas-sync.ts</span> pushToCanvas：changeRatio&gt;0.6 且有删节点 → 整份重建+fitView，否则逐条补丁；AI 变更对 touched 节点<b>高亮</b>。版本按 <b>run 粒度</b>定格（pendingAiChange → captureAiRunSnapshot），失败轮 captureFailure 不写画布、只出红色「已保护」卡；rollbackTo 游标回退、历史一条不删。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 07 事件与观测 ================= -->
+<section id="s7">
+  <div class="sec-head"><span class="no">07</span><h2>事件体系与三账本观测</h2></div>
+  <p class="sec-desc">事件只有 <code>{type, data}</code>（<span class="fqn">…agent.event.AgentEvent</span>），type 是自由字符串，全集 30 种（见附录）。传输与持久是两条旁路：总线管「活人看」，账本管「死后查」，<span class="fqn">…agent.trace.AgentTraceService</span> 零自建存储、纯读三张表合成 trace。</p>
+
+  <div class="flow">
+    <div class="fnode"><b>引擎/服务层 emit(type, data)</b><span class="fn">28 种事件 · ToolLogRecorder 包住 BusAgentEventSink 双写</span></div>
+    <div class="farrow">↓ 扇出</div>
+    <div class="fbranch">
+      <div class="fcol c-blue">
+        <div class="fh">活路 · SessionEventBus</div>
+        <div class="fb">每会话一个 Channel：CopyOnWriteArrayList 订阅者 + buffer（上限 500，FIFO 丢头）+ <b>latestState 快照</b>（applyToSnapshot :202-362 反哺：assistantContent/toolCalls/timeline/artifacts，timeline 上限 200）。<b>subscribe 只推 run_state 快照、不重放 token 流</b>（:150-161）——新窗口/重连窗口直接拿到当前画面。broadcast 在调用线程同步 send，失败即摘除。</div>
+      </div>
+      <div class="fcol c-green">
+        <div class="fh">死路 · 三账本落库</div>
+        <div class="fb">① <b>agent_session_event</b>：ToolLogRecorder.persistEvent（:98-121）synchronized 保 seq，跳过 token/thinking 高频事件；② <b>agent_llm_call_log</b>：RecordingModel 全量 request/response JSON；③ <b>agent_tool_call_log</b>：invokeTool 第 7 步。另有可选 SessionEventFileRecorder 按 ndjson 落盘（与前端回放 fixture 同构）。</div>
+      </div>
+      <div class="fcol c-amber">
+        <div class="fh">合成 · AgentTraceService</div>
+        <div class="fb">span = tool_call/tool_result 按 toolCallId 配对（时间戳差算耗时）；generation = llm_call_log 行（增量 request_json 由前端拼回全量）；状态推导（:383-394）：有错 &gt; stopped→interrupted &gt; 有 run_end→completed &gt; <b>无收尾超 30min→interrupted</b> &gt; running。预算：事件 6000 条 / LLM 行 4000（:52-54）。</div>
+      </div>
+    </div>
+    <div class="farrow">↓</div>
+    <div class="fnode pill">消费端：TraceView（run 列表 + LLM 账本 + 事件台账）· TrajectoryPanel（三泳道时间线 + 台账表 + 详情，4s 轮询跟随运行中）</div>
+  </div>
+
+  <div class="grid g3" style="margin-top:14px">
+    <div class="card"><h3 style="margin:0 0 6px;font-size:14px">跨 run 压缩（SessionCompactionService）</h3><p class="small" style="margin-bottom:0">未压缩消息 ≥6 <b>且</b> 估算 token ≥ 窗口 50%（:31,49）才触发；切分点取<b>中点后第一条 user 消息</b>——user 边界保证不切断 tool_use/result 配对（:71-78）；摘要 temp 0.3 / max 500；失败降级为不压缩。1M 窗口下基本不触发，治理靠 run 内框架 80% 兜底。loadHistory 过滤 compacted=1——<b>阈值替换，不做条数滑窗</b>。</p></div>
+    <div class="card"><h3 style="margin:0 0 6px;font-size:14px">ask_user 挂起-恢复</h3><p class="small" style="margin-bottom:0"><span class="fqn">…session.AskUserPendingStore</span> 存 <code>PendingAsk{sessionKey, CompletableFuture&lt;String&gt;}</code>；工具线程阻塞 get(5min)；任意窗口 POST /ask/{id}/answer → resolve 校验归属 → complete 唤醒 + 广播 <code>ask_resolved</code> 让多窗口卡片同步收敛。超时返回「请基于已有信息继续」，run 不死。</p></div>
+    <div class="card"><h3 style="margin:0 0 6px;font-size:14px">崩溃恢复与启动</h3><p class="small" style="margin-bottom:0"><span class="fqn">…session.AgentStartupRecovery</span>：ApplicationReady 时对有事件日志的会话查最新 runId，无 run_end/run_interrupted 终态 → 补写 run_interrupted + assistant 说明；<b>epoch 机制</b>（:73-86）首启不回溯历史，避免把老版本正常完成的 run 全标成中断。</p></div>
+  </div>
+</section>
+
+<!-- ================= 08 前端管线 ================= -->
+<section id="s8">
+  <div class="sec-head"><span class="no">08</span><h2>前端渲染管线 · 从字节到像素</h2></div>
+  <p class="sec-desc">设计目标：长回复流式时<b>每帧只有「正在生长的那一条」重渲染</b>。三个关键决定：token 不进 React state；回放与线上共用同一个分发器；终态收敛协议消灭闪烁竞态。</p>
+  <div class="flow">
+    <div class="fnode pill"><b>sse-client.ts：fetch + ReadableStream 手动解析</b>（不用 EventSource）<span class="fn">readSseStream 按 \n 切行 · 双层 AbortController（外层管订阅生命周期 / 内层管单次连接）</span></div>
+    <div class="farrow">↓</div>
+    <div class="fnode amber"><b>60s 空闲看门狗</b>（SSE_IDLE_TIMEOUT_MS，:16,35-43）：每次 read() 成功重新武装；60s 无任何字节 → cancel + abort → 重连<span class="fn">专治半开连接（休眠/切网/代理断链）上 read() 永不返回导致的「运行中卡死不报错」</span></div>
+    <div class="farrow">↓</div>
+    <div class="fnode"><b>sse-protocol.handleEvent：唯一分发点</b>（:7-133）——真实流与 replay fixture 走同一函数，保证回放与线上一致</div>
+    <div class="farrow">↓ 分流</div>
+    <div class="fbranch">
+      <div class="fcol c-blue">
+        <div class="fh">高频 token / thinking</div>
+        <div class="fb">只写 live-stream-store 缓冲（pendingContent）→ <b>三重 rAF 合帧</b> ≈20fps（:90-114，后台标签页 240ms 定时器兜底）→ LiveAssistantContent 用 useSyncExternalStore 只重渲染 live 行；条目全 React.memo + 活动尾块 Markdown 200ms 节流重解析</div>
+      </div>
+      <div class="fcol c-green">
+        <div class="fh">结构性事件</div>
+        <div class="fb">tool_call/tool_result/turn/plan/document/artifact/ask_* → 先 flush() 立即发布缓冲，再进 React messages state 或对应 store；document 事件驱动画布 diff；tool_result 回填后 StepRow 摘 shimmer</div>
+      </div>
+      <div class="fcol c-amber">
+        <div class="fh">护栏/韧性 notice</div>
+        <div class="fb">repeat_reminder / wrap_up / llm_retry（带 delayMs 线性倒计时条）/ interrupted / compaction → onGuardNotice 统一折叠为时间线 notice；&gt;90s 无事件 StreamStatusBar 显示「疑似卡住」</div>
+      </div>
+    </div>
+    <div class="farrow">↓ 终态</div>
+    <div class="fnode green"><b>settleRun 收敛协议</b>（AgentContext :792）：endRun（store 内关闭全部打开条目——任何终态漏发事件也不遗留闪烁块）→ reload messages/runs/artifacts → convertMessages 以 user 行为界合并历史 → <b>appendLiveRow 幂等合并</b>（历史整表替换不得抹掉 live 占位行）→ 落位后才摘 live 行<span class="fn">系统性消灭「done 后闪一帧空回复」；重连时 run_state 快照经 applySnapshot 按交错顺序重建现场</span></div>
+  </div>
+  <p class="small mut">重连循环在 AgentContext.connect()（:1212-1227）：正常断开 1500ms、异常 2000ms 后重连——<b>无退避上限、无 jitter</b>（见 §12 P1）。</p>
+</section>
+
+<!-- ================= 09 关键类速查 ================= -->
+<section id="s9">
+  <div class="sec-head"><span class="no">09</span><h2>关键类速查 · 全限定名</h2></div>
+  <p class="sec-desc">后端包根 <span class="fqn">cn.boommanpro.gaia.workflow.app</span>（表实体在 <span class="fqn">cn.boommanpro.gaia.workflow.infra.manage.entity</span>）；前端根 <span class="fqn">apps/console/src</span>。</p>
+  <h3>后端</h3>
+  <div class="tbl-scroll"><table>
+    <tr><th style="width:290px">全限定名（类）</th><th>职责</th></tr>
+    <tr><td class="fqn">…controller.api.AgentSessionRunController</td><td>SSE/REST 入口：run / events(20s 心跳) / stop / ask answer / compact / document / artifacts / seed-draft</td></tr>
+    <tr><td class="fqn">…controller.system.AgentSessionController</td><td>会话元数据 CRUD、messages、debug 数据</td></tr>
+    <tr><td class="fqn">…agent.session.AgentSessionRunService</td><td>运行编排核心：每会话 1 run 并发、steering 收件箱、pre-run 压缩、finally 兜底收尾、chainSteering 链接式新 run</td></tr>
+    <tr><td class="fqn">…agent.session.SessionEventBus</td><td>多窗口基石：Channel{订阅者, buffer 500, latestState 快照}；subscribe 推 run_state 不重放 token</td></tr>
+    <tr class="hl"><td class="fqn">…agent.engine.AgentScopeExecutionEngine</td><td>默认引擎：HarnessAgent 组装、streamRun 主循环、translateEvent、replayHistory、invokeTool 九步管道、persistLlmCall 增量压缩</td></tr>
+    <tr class="hl"><td class="fqn">…agent.engine.RecordingModel</td><td>Model 装饰器：OpenAI 同构 request_json 全量 + 流式响应归并 response_json → agent_llm_call_log</td></tr>
+    <tr><td class="fqn">…agent.engine.AgentExecutionRouter</td><td>按 AgentDefinition.engine 选引擎，无匹配回退首个</td></tr>
+    <tr><td class="fqn">…agent.ark.ArkManagedExecutionEngine</td><td>engine=ark：推理循环托管火山方舟；ArkEventTranslator 把远端事件翻译进同一协议，custom_tool 回本地执行</td></tr>
+    <tr><td class="fqn">…agent.runtime.RepeatToolGuard / WrapUpGuard</td><td>复读三重检测（同参失败/成功空转/交替空转）· 失控安全网（30 轮 / 8 轮无进展 → 收走工具软停）</td></tr>
+    <tr><td class="fqn">…agent.core.SteeringInbox</td><td>run 中新消息收件箱（ConcurrentLinkedQueue），run 启动前与 turn 边界排空注入</td></tr>
+    <tr><td class="fqn">…agent.tool.ToolExecutor / ToolExecutorRegistry / AgentScopeToolAdapter</td><td>工具契约（含 concurrencySafe 并发语义）/ 注册表（AgentAssembly 自动发现 Bean）/ → AgentScope ToolBase 桥接</td></tr>
+    <tr><td class="fqn">…agent.tool.ToolArgsValidator / ToolErrorCode / ToolResult</td><td>Schema 子集校验带 {path,issue,fix} · 8 个结构化错误码 · payload 恒 JSON 工厂</td></tr>
+    <tr><td class="fqn">…agent.session.SessionWorkflowDraftService</td><td>服务端画布草稿：_meta CAS 状态机、applyOps 两遍法部分应用、单步画布操作、redactForModel</td></tr>
+    <tr><td class="fqn">…agent.session.SessionCompactionService</td><td>跨 run 压缩：≥6 条且 ≥50% 窗口，中点后 user 边界切分，摘要失败降级不压缩</td></tr>
+    <tr><td class="fqn">…agent.session.AskUserPendingStore / SessionArtifactStore</td><td>ask 挂起-恢复（CompletableFuture）/ 产物一等实体（会话级 upsert + 追加式两类生命周期）</td></tr>
+    <tr><td class="fqn">…agent.session.ToolLogRecorder / SessionEventFileRecorder</td><td>debug_data + agent_session_event 双写（跳过 token/thinking）/ 可选 ndjson 落盘（回放 fixture）</td></tr>
+    <tr><td class="fqn">…agent.session.AgentStartupRecovery</td><td>启动恢复：按 epoch 补写 run_interrupted，不回溯历史</td></tr>
+    <tr><td class="fqn">…agent.event.BusAgentEventSink / CompositeAgentEventSink / HeadlessAgentEventSink / SseAgentEventSink</td><td>四种事件出口：入总线 / 扇出隔离 / 无头（丢 token 留工具日志）/ 旧直连（遗留）</td></tr>
+    <tr><td class="fqn">…agent.core.ConversationStore / …store.DatabaseConversationStore</td><td>出向端口（引擎不依赖 MyBatis）/ 唯一生产实现：loadHistory 过滤 compacted、saveSummary、attachTimelineToLastAssistant</td></tr>
+    <tr><td class="fqn">…agent.trace.AgentTraceService</td><td>纯读三账本合成 trace：span/generation/状态推导（30min stale 判中断）/预算控制</td></tr>
+    <tr><td class="fqn">…agent.runtime.AgentAssembly / ManagedAgentService</td><td>装配器（自动注册工具 Bean + 4 内置 Agent + 13 工具白名单）/ 无头运行门面</td></tr>
+    <tr><td class="fqn">…config.AgentProperties / AgentSchemaMigrator / AgentDataSeeder</td><td>配置面（Compaction/Spill 组当前无消费者，见 §12）/ SQLite 补列 + 提示词哈希同步</td></tr>
+    <tr><td class="fqn">…infra.manage.entity.AgentSession / AgentMessage / AgentSessionEvent / AgentArtifact / AgentLlmCallLog / AgentToolCallLog</td><td>six 表实体；注意：<b>无 agent / agent_run 实体</b>——run 是贯穿事件与账本的逻辑概念，Agent 定义在内存注册表</td></tr>
+  </table></div>
+  <h3>前端</h3>
+  <div class="tbl-scroll"><table>
+    <tr><th style="width:250px">文件</th><th>职责</th></tr>
+    <tr class="hl"><td class="fqn">src/agent/AgentContext.tsx</td><td>数据编排核心：sendMessage / SSE handlers / settleRun 终态收敛 / convertMessages 合并 / appendLiveRow 幂等 / 会话切换竞态守卫</td></tr>
+    <tr class="hl"><td class="fqn">src/agent/live-stream-store.ts</td><td>流式现场单例 store（useSyncExternalStore）：交错 timeline + closed 收敛纪律 + 三重 rAF 合帧 + applySnapshot 快照重建</td></tr>
+    <tr><td class="fqn">src/agent/sse-client.ts / sse-protocol.ts</td><td>fetch 手动 SSE 解析 + 双层 AbortController + 60s 看门狗 / 唯一事件分发器（线上与回放共用）</td></tr>
+    <tr><td class="fqn">src/agent/LiveAssistantMessage.tsx / MessageList.tsx</td><td>TimelineView（交错渲染，条目自身 closed 标志驱动 shimmer）/ Dock 消息流、GroupedToolCard</td></tr>
+    <tr><td class="fqn">src/agent/AskCard.tsx / PlanCard.tsx / SubagentCard.tsx / ArtifactCards.tsx / CanvasSnapshotCard.tsx</td><td>ask 选项卡（作答即唤醒后端挂起工具）/ 计划卡 / 子代理时间线 / 试运行证据+发布收口+活画布 / SVG 缩略拓扑+回滚+失败保护卡</td></tr>
+    <tr><td class="fqn">src/agent/TraceView.tsx / ai-workspace/components/TrajectoryPanel.tsx</td><td>调试追踪：run 列表+事件/LLM 台账 / 三泳道时间线+台账表+详情面板（对标 dsh ui-trajectory，4s 跟随）</td></tr>
+    <tr><td class="fqn">src/agent/artifact-store.ts / agent-run-bridge.ts</td><td>产物 store（useSyncExternalStore）/ agent→画布请求总线（带 pending replay 防挂载竞态）</td></tr>
+    <tr><td class="fqn">src/agent/EditorCanvasBridge.tsx / document/store.ts / document/canvas-sync.ts</td><td>画布上下文与选中桥 / headless DSL 单一事实源（run 粒度快照、rollbackTo、ownerSession 所有权）/ diff 引擎（changeRatio 阈值决定补丁 vs 重建）</td></tr>
+    <tr><td class="fqn">src/agent/Markdown.tsx / src/chat/ToolSteps.tsx / src/chat/ContextCapacity.tsx</td><td>零依赖 Markdown（先转义再替换）/ dsh 规格 24px 工具步骤行 / 上下文容量（取真实 LLM 调用规模而非估算）</td></tr>
+    <tr><td class="fqn">src/agent/replay/replay-driver.ts</td><td>离线 UI 回放：?replay=fixture，ndjson 同构，REST 按路径路由到 fixture</td></tr>
+  </table></div>
+</section>
+
+<!-- ================= 10 对标矩阵 ================= -->
+<section id="s10">
+  <div class="sec-head"><span class="no">10</span><h2>对标矩阵 · gaia vs dsh vs owb</h2></div>
+  <p class="sec-desc">dsh（TypeScript + 自研 Cordis 框架，本地优先）是概念纯度基准；owb（Electron 三进程，单机实用主义）是执行追踪与体积工程基准。加粗 = 该维度三家中的最强者。</p>
+  <div class="tbl-scroll"><table>
+    <tr><th style="width:120px">维度</th><th>gaia（Java + Spring + React）</th><th>dsh（Node monorepo · ~60 包）</th><th>owb（Electron + Express + 原生 JS）</th></tr>
+    <tr><td>形态</td><td>服务化后端 + Web 控制台，多窗口/多用户就绪（多实例未做）</td><td>单进程 Host + React，会话写句柄进程独占（SessionAlreadyOwnedError）</td><td>主进程/服务进程/渲染进程三分离（utilityProcess fork + 看护重启），单机</td></tr>
+    <tr><td>事件台账</td><td>SQLite 三账本（事件/LLM/工具）+ agent_session_event，DB 为真相源</td><td class="hl">append-only JSONL，turn/step/消息/工具/收件箱/重试/压缩<b>一切皆投影</b>，seq 无缺口校验</td><td>单工作空间一本 jsonl，start/end 双行，24MB rename 滚动留 6 本</td></tr>
+    <tr><td>可复现落账</td><td class="hl">RecordingModel：OpenAI 同构 request_json <b>全量可 curl 复现</b>，seq&gt;1 增量压缩</td><td>deriveMessages() 运行时从台账重建，不落请求体</td><td>$msgs 编号去重（服务 trace 体积，非复现口径）</td></tr>
+    <tr><td>中断</td><td>协作式 BooleanSupplier + takeWhile；启动 epoch 恢复补 run_interrupted；<b>阻塞型工具不响应 stop（弱点）</b></td><td class="hl">AbortController 全链路每个 await 点 throwIfAborted；部分输出结算 interrupted；未启动工具补合成错误结果保配对；崩溃后 interruptedTurnClosers 合成闭合</td><td>closeDanglingCalls 补半截工具对（只补结果不重放）</td></tr>
+    <tr><td>上下文压缩</td><td>双层：跨 run（≥6 条且 ≥50% 窗口，user 边界切分）+ run 内框架 80%/keep 窗口/5</td><td class="hl">KV-cache 友好摘要（重放真前缀，指令放最后一条 user）；阈值 0.8/保留 0.16 按 model 路由；<b>溢出错误码驱动的压缩后自动 retry</b></td><td>compactHistory 智能摘要 + spill 工具结果落盘 + trimHistory 盲截兜底</td></tr>
+    <tr><td>Steering</td><td>内存 SteeringInbox + chainSteering 链接式新 run</td><td class="hl"><b>持久化 splice 事件收件箱</b>：重启不丢排队指令，UI 可 edit/remove/升级 steer</td><td>—</td></tr>
+    <tr><td>ask_user</td><td>CompletableFuture 阻塞 5min + ask_resolved 多窗口收敛广播</td><td class="hl">timed 模式 120s 返回 pending（不阻塞死等）；迟到答案经 <b>steer 注入</b>；子代理禁问防永久阻塞</td><td>—</td></tr>
+    <tr><td>防呆/熔断</td><td class="hl">RepeatToolGuard 三重检测（含<b>交替空转</b>）+ INVALID_ARGS 3 次硬熔断 + WrapUpGuard 软停 + run_workflow 假成功双重检测</td><td>无 turn 上限、无循环检测，靠 concludesTurn 与外部 hook</td><td>deadLoop 同参 4 次熔断 + 备用渠道换道 + done 钩子打回 ≤2 次</td></tr>
+    <tr><td>LLM 重试</td><td>框架 5 次指数退避（500ms→10s）+ 空响应换新 HarnessAgent 有界重试 ≤2；先发事件再等待</td><td class="hl"><b>重试意图先落盘后等待</b>，计数从投影恢复（重启不重置）；尊重 Retry-After；失败尝试留 assistant/attempt</td><td>备用渠道换道 + max_tokens 截断续写（丢最后半个工具调用）</td></tr>
+    <tr><td>追踪 UI</td><td>TraceView（账本）+ TrajectoryPanel（三泳道+台账+详情，<b>4s 轮询实时跟随</b>）；增量 request_json 前端拼回全量</td><td class="hl">ui-trajectory：绝对时间轴 overview（拖选/缩放/平移）+ 虚拟化台账 + inspector（TTFT/吞吐），视图纯投影</td><td>树形时间线 + 七格摘要（工具 vs 模型耗时、最慢一步）+ target 行；<b>无实时跟随</b></td></tr>
+    <tr><td>独有能力</td><td class="hl">服务端画布草稿 CAS 状态机 · 双引擎热切换共享工具层 · 画布 run 粒度版本轴与失败保护卡 · ScriptedChatModel 全链路零 LLM 测试 + ndjson fixture 离线回放</td><td>fork/委派深度持久化预算 · 多 subagent provider 统一接缝 · zstd 分代格式迁移链</td><td>文件 sha256 检查点回退 · trace 开工即发链接 · 「没记到账留 null 不写 0」的数据诚实</td></tr>
+  </table></div>
+</section>
+
+<!-- ================= 11 领先点 ================= -->
+<section id="s11">
+  <div class="sec-head"><span class="no">11</span><h2>gaia 领先的点</h2></div>
+  <p class="sec-desc">八条，每条附代码证据。共同主题：不只是「有这个功能」，而是<b>把它做成了可被测试钉死、可被多窗口共享、可被模型自修的协议</b>。</p>
+  <div class="grid g2">
+    <div class="card"><b>1. 「关窗继续」的多窗口会话架构</b><p class="small" style="margin:6px 0 0">SessionEventBus 快照 + 500 缓冲 + subscribe 只推 run_state（SessionEventBus.java:150-161）；前端 applySnapshot 重建现场。dsh/owb 都是单机单窗口会话语义——这是服务化形态带来的代际差异。</p></div>
+    <div class="card"><b>2. 可 curl 复现的 LLM 落账</b><p class="small" style="margin:6px 0 0">RecordingModel 把每次调用还原成 OpenAI 同构请求<b>原封不动全量落库</b>（2026-10-11 起不再做增量压缩）；TrajectoryPanel 对历史增量行自动拼回并标注口径。排查「模型当时到底看到了什么」时，gaia 是拿日志直接重放，dsh 要在运行时重建，owb 只服务体积。</p></div>
+    <div class="card"><b>3. 实证驱动的防呆粒度</b><p class="small" style="margin:6px 0 0">交替空转 k1,k2,k1,k2 检测、INVALID_ARGS 3 次硬熔断、run_workflow 假成功双重检测（end 未达连坐 + 字段缺值顺 ref 点名上游）——每条都带 2026-10 实测案例注释。dsh 无 turn 上限与循环检测，owb 只有同参 4 次熔断。</p></div>
+    <div class="card"><b>4. 服务端画布草稿 CAS 状态机</b><p class="small" style="margin:6px 0 0">_meta{boundCode, baseRevision, draftRevision} 随 artifact 持久化；applyOps 两遍法（副本校验 → 部分应用 + skipped{path,issue,fix}）；staleRevision 错误码带补救指引，模型可自修。三家独有。</p></div>
+    <div class="card"><b>5. 双引擎热切换、工具层共享</b><p class="small" style="margin:6px 0 0">AgentExecutionRouter 按 AgentDefinition.engine 路由；方舟引擎只换「谁驱动循环」，ArkEventTranslator 把远端事件翻译进同一 SSE 协议、custom_tool 回本地执行器——A/B 一个开关的事。</p></div>
+    <div class="card"><b>6. 前端性能模型被测试钉死</b><p class="small" style="margin:6px 0 0">三重 rAF 合帧 ≈20fps + 条目 memo + 尾块 200ms 节流：长流式只有「正在生长的一条」重渲染；closed 标志收敛语义、appendLiveRow 幂等合并各有回归测试（live-timeline.render.test.tsx / session-merge.test.ts）。</p></div>
+    <div class="card"><b>7. 回放 = 线上同一条代码路径</b><p class="small" style="margin:6px 0 0">handleEvent 是唯一分发器，SessionEventFileRecorder 的 ndjson 包一层就是前端 fixture——离线 UI 回放具备逐字节一致的可信度，且测试零 LLM 依赖（ScriptedChatModel）。</p></div>
+    <div class="card"><b>8. 三账本分账记 + 纯合成 trace</b><p class="small" style="margin:6px 0 0">事件/LLM/工具三张表各司其职，AgentTraceService 零自建存储合成 span/generation/状态（30min stale 判中断——与 owb 同一血泪结论）。账本查询成本远低于 dsh 的全量台账扫描模型。</p></div>
+  </div>
+</section>
+
+<!-- ================= 12 可优化点 ================= -->
+<section id="s12">
+  <div class="sec-head"><span class="no">12</span><h2>可优化点 · 按优先级</h2></div>
+  <p class="sec-desc">每条注明问题证据与可借鉴来源（<b>借鉴 dsh/owb</b> = 对方已有成熟做法可直接搬机制）。P0 影响正确性/可扩展性，P1 影响韧性与成本，P2 是打磨。</p>
+
+  <h3><span class="prio p0">P0</span>正确性与可扩展性</h3>
+  <div class="grid g2">
+    <div class="card"><b>1. 运行态全在单机内存，多实例部署即失效</b><p class="small" style="margin:6px 0 0">AgentSessionRunService.runs、SessionWorkflowDraftService.drafts、AskUserPendingStore.pending、SteeringInbox 全是进程内 Map；get→读改写非原子，run_workflow 读草稿与 applyOps 并发可能互相覆盖。<br><b>方向：</b>粘性路由 + 显式所有权（借鉴 dsh SessionAlreadyOwnedError 的「写句柄进程独占」语义），或状态外移 Redis / DB。</p></div>
+    <div class="card"><b>2. stop 对阻塞型工具无效</b><p class="small" style="margin:6px 0 0">stop() 只置 cancelled 标志，而 ask_user 阻塞 future.get(5min)、run_workflow 轮询 180s 都不检查 interrupt——用户点停止后 run 线程仍被占住；agent-session-run 还是无界 cachedThreadPool。<br><b>方向：</b>两执行器循环内加 isInterrupted() 检查（引擎已把 interrupt 协件放进 variables）；<b>借鉴 dsh</b>：每个 await 点 throwIfAborted。</p></div>
+    <div class="card"><b>3. 配置面与实现漂移</b><p class="small" style="margin:6px 0 0">AgentProperties.Compaction（triggerRatio=0.7 等）与 Spill 整组<b>没有消费者</b>；实际是 SessionCompactionService 硬编码 50%/6 条 + 框架 80% 双轨并存，运维照配置调参必然无效。<br><b>方向：</b>要么接线要么删除，压缩阈值统一从配置读。</p></div>
+  </div>
+
+  <h3><span class="prio p1">P1</span>韧性与成本</h3>
+  <div class="grid g2">
+    <div class="card"><b>4. SSE 重连无退避上限、无 jitter</b><p class="small" style="margin:6px 0 0">前端 connect() 固定 1500/2000ms 无限循环（AgentContext.tsx:1212-1227）；会话被删/后端 404 时每 2s 空打一次。<br><b>借鉴 dsh</b>：backoff 500ms ×2 → 10s 封顶 + 握手超时。</p></div>
+    <div class="card"><b>5. request_json 全量落 SQLite 单列，1M 窗口未设防</b><p class="small" style="margin:6px 0 0">长会话单行可达 MB 级。<b>2026-10-11 已拍板全量保真</b>（曾实现的 seq&gt;1 增量形态因调试口径不可信被移除）；体量大之后可再考虑 owb 的 $msgs 编号去重或滚动归档，历史增量行前端兼容读取。</p></div>
+    <div class="card"><b>6. 事件落库在热路径同步执行</b><p class="small" style="margin:6px 0 0">ToolLogRecorder.persistEvent 每事件同步写 SQLite（单写者），document/plan 等大 payload 高频循环下是吞吐瓶颈；attachTimelineToLastAssistant 按「最后一条 assistant」定位，链接式 steering 连续两 run 可能附错行。<br><b>方向：</b>异步批量 flush + timeline 按 runId 归属。</p></div>
+    <div class="card"><b>7. Steering 收件箱不持久</b><p class="small" style="margin:6px 0 0">运行中排队的新消息在重启后丢失。<br><b>借鉴 dsh</b>：inbox 变更即持久化 splice 事件（gaia 可落 agent_session_event 再折叠恢复）。</p></div>
+    <div class="card"><b>8. 前端死代码与双实现清理</b><p class="small" style="margin:6px 0 0">MessageList.GroupedToolCard 与 chat/ToolSteps 两套工具卡并存；AgentContext.onToolResult（:1071-1090）失效双路写放大；tokenUsage.estimated 恒 0 导致 Dock 进度条不可达；activePlan 在自治模式下恒 null 的执行计划区块不可达；SessionList 删除会话<b>无确认</b>（与其文件头注释自相矛盾）。</p></div>
+    <div class="card"><b>9. 事件契约无编译期防护</b><p class="small" style="margin:6px 0 0">AgentEvent.type 是自由字符串，前后端 30 种事件靠约定对齐；AgentRequest.maxTurns(@Deprecated)、SseAgentEventSink、ToolExecutionMode.FRONTEND 默认值等旧链路残留。<br><b>方向：</b>后端枚举 + 前端 union type 从同一 schema 生成。</p></div>
+  </div>
+
+  <h3><span class="prio p2">P2</span>打磨</h3>
+  <div class="grid g2">
+    <div class="card"><b>10. 压缩的 KV-cache 友好化</b><p class="small" style="margin:6px 0 0"><b>借鉴 dsh</b>：摘要辅助调用重放会话真实前缀、只把压缩指令放最后一条 user 消息，复用 provider 前缀缓存而非使其失效；gaia 当前摘要独立拼 prompt，长会话下每次压缩都全价。</p></div>
+    <div class="card"><b>11. LLM 重试状态不持久</b><p class="small" style="margin:6px 0 0"><b>借鉴 dsh</b>：llm/retry 意图先落盘再等待、计数从投影恢复；gaia 重启后重试计数清零，可能对同一抖动重复整轮退避。</p></div>
+    <div class="card"><b>12. 大工具结果 spill 未接</b><p class="small" style="margin:6px 0 0"><b>借鉴 owb</b> spillToolResult（&gt;2 万字落盘、上下文只留头尾+路径）/ <b>dsh</b> compaction-tool-result-pruner；gaia 的 AgentProperties.Spill 参数写好了却没有消费者（同 P0-3）。</p></div>
+    <div class="card"><b>13. 追踪详情页信息密度</b><p class="small" style="margin:6px 0 0"><b>借鉴 owb</b>：每步 target 行（从参数自动提取动了哪个文件/跑了什么命令）、耗时按全 trace 最慢步归一化的横条、「工具耗时 vs 模型耗时 / 最慢一步」七格摘要；gaia 已有 4s 跟随（owb 没有），补上这三件就全面反超。</p></div>
+  </div>
+</section>
+
+<!-- ================= 13 附录 ================= -->
+<section id="s13">
+  <div class="sec-head"><span class="no">13</span><h2>附录</h2></div>
+
+  <h3>A · SSE 事件类型全集（30 种，前后端字符串约定）</h3>
+  <div>
+    <span class="tag b">token</span><span class="tag b">thinking</span><span class="tag b">usage</span>
+    <span class="tag b">turn</span><span class="tag b">run_state</span><span class="tag b">run_input</span><span class="tag b">run_end</span><span class="tag b">assistant_settled</span><span class="tag b">done</span><span class="tag r">error</span><span class="tag r">interrupted</span><span class="tag r">run_interrupted</span>
+    <span class="tag b">llm_request</span><span class="tag b">llm_end</span><span class="tag v">llm_retry</span>
+    <span class="tag">tool_call</span><span class="tag">tool_result</span>
+    <span class="tag g">document</span><span class="tag g">plan</span><span class="tag g">artifact</span><span class="tag g">knowledge_retrieved</span>
+    <span class="tag a">ask_request</span><span class="tag a">ask_resolved</span><span class="tag a">confirm_request</span><span class="tag a">confirm_resolved</span>
+    <span class="tag a">repeat_reminder</span><span class="tag a">wrap_up</span><span class="tag a">steering_queued</span><span class="tag a">user_message</span><span class="tag a">compaction</span>
+  </div>
+
+  <h3>B · REST 端点（前端 api.ts 全量）</h3>
+  <div class="tbl-scroll"><table>
+    <tr><th style="width:110px">组</th><th>端点</th></tr>
+    <tr><td>会话</td><td class="small">GET /agent/session/list · POST create · PUT rename · PUT {key}/flags · DELETE {key} · GET {key}/messages · PUT|GET {key}/debug · GET /agent/workspace/folders(+) · PUT session/{key}/folder</td></tr>
+    <tr><td>运行</td><td class="small">POST {key}/run · POST {key}/stop · POST {key}/ask/{askId}/answer · GET {key}/status · GET {key}/document · GET {key}/artifacts · POST {key}/compact · POST {key}/seed-draft · SSE GET {key}/events · GET /subagent/run</td></tr>
+    <tr><td>观测</td><td class="small">GET /agent/traces(+/{key}/{runId}, DELETE) · GET /agent/metrics/sessions/{key}/runs · /events · /llm-calls · /context-stats</td></tr>
+    <tr><td>配置/知识/工具</td><td class="small">/agent/config/list|save|{key}|history|revert|export|import|generate · /agent/knowledge/* · /agent/tool-definition/*</td></tr>
+  </table></div>
+
+  <h3>C · 数据表（SQLite，schema.sql + AgentSchemaMigrator）</h3>
+  <p class="small">agent_session（engine/remoteSessionId/debug_data/tokenUsage）· agent_message（toolCalls/thinking/timeline/<b>compacted</b>/images）· agent_session_event（runId+seq）· agent_tool_call_log · agent_llm_call_log（requestJson/responseJson/status）· agent_artifact（workflow/plan/test_report/release，草稿持久化宿主）· agent_config(+history) · agent_work_folder · agent_knowledge_chunk · agent_tool_definition · gaia_workflow(revision)。<b>无 agent / agent_run 表</b>。</p>
+
+  <h3>D · 对标项目参考路径</h3>
+  <p class="small">
+    <b>dsh</b>（/Users/boommanpro/trae_project/deepseek-harness/deepseek-harness）：主循环 packages/core/agent-loop/src/agent.ts（ReactLoopAgent）· 工具管道 packages/core/agent-loop/src/tool-calls.ts · 压缩 packages/compaction/compaction-basic/src/index.ts · 收件箱 packages/core/agent-loop/src/inbox.ts · ask packages/interaction/tool-ask-user + user-questions · 轨迹 packages/client/ui-trajectory · 崩溃修复 packages/core/session/src/repair.ts<br>
+    <b>owb</b>（/Users/boommanpro/trae_project/openworkbuddy）：trace 账本 src/core/obs/trace.js · trace UI public/js/app-05.js（renderTracePage）· 主循环 src/agent/agent.js（runTask）· 服务进程看护 src/desktop/server-supervisor.js · 检查点 src/agent/checkpoints.js
+  </p>
+
+  <footer>Gaia Agent Architecture Review · 生成于 2026-10-11 · 深读范围：后端 agent 子系统 ~70 文件 / 前端 agent+document+chat / dsh ~60 包 / owb 关键链路 · 白色简约版式 · 零外部依赖单文件</footer>
+</section>
+
+</div>
+</body>
+</html>

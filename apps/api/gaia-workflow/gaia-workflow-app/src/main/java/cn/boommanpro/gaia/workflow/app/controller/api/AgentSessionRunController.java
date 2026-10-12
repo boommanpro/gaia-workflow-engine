@@ -1,9 +1,11 @@
 package cn.boommanpro.gaia.workflow.app.controller.api;
 
 import cn.boommanpro.gaia.workflow.app.agent.session.AgentSessionRunService;
+import cn.boommanpro.gaia.workflow.app.agent.session.AskUserPendingStore;
 import cn.boommanpro.gaia.workflow.app.agent.session.SessionArtifactStore;
 import cn.boommanpro.gaia.workflow.app.agent.session.SessionCompactionService;
 import cn.boommanpro.gaia.workflow.app.agent.session.SessionEventBus;
+import cn.boommanpro.gaia.workflow.app.agent.session.SessionDraftPublishService;
 import cn.boommanpro.gaia.workflow.app.agent.session.SessionWorkflowDraftService;
 import cn.boommanpro.gaia.workflow.infra.manage.entity.GaiaWorkflow;
 import cn.boommanpro.gaia.workflow.infra.manage.entity.GaiaWorkflowVersion;
@@ -49,6 +51,8 @@ public class AgentSessionRunController {
     private final GaiaWorkflowService workflowService;
     private final GaiaWorkflowVersionService workflowVersionService;
     private final SessionEventBus eventBus;
+    private final AskUserPendingStore askUserPendingStore;
+    private final SessionDraftPublishService publishService;
 
     public AgentSessionRunController(AgentSessionRunService runService,
                                      SessionWorkflowDraftService draftService,
@@ -56,7 +60,9 @@ public class AgentSessionRunController {
                                      SessionArtifactStore artifactStore,
                                      GaiaWorkflowService workflowService,
                                      GaiaWorkflowVersionService workflowVersionService,
-                                     SessionEventBus eventBus) {
+                                     SessionEventBus eventBus,
+                                     AskUserPendingStore askUserPendingStore,
+                                     SessionDraftPublishService publishService) {
         this.runService = runService;
         this.draftService = draftService;
         this.compactionService = compactionService;
@@ -64,6 +70,22 @@ public class AgentSessionRunController {
         this.workflowService = workflowService;
         this.workflowVersionService = workflowVersionService;
         this.eventBus = eventBus;
+        this.askUserPendingStore = askUserPendingStore;
+        this.publishService = publishService;
+    }
+
+    /** 用户回答 ask_user 提问：唤醒挂起的工具调用并广播收敛 */
+    @PostMapping("/{sessionKey}/ask/{askId}/answer")
+    public org.springframework.http.ResponseEntity<JSONObject> answerAsk(@PathVariable String sessionKey,
+                                                @PathVariable String askId,
+                                                @RequestBody java.util.Map<String, Object> body) {
+        String answer = body != null && body.get("answer") != null ? String.valueOf(body.get("answer")) : "";
+        boolean ok = askUserPendingStore.resolve(sessionKey, askId, answer);
+        if (!ok) {
+            return org.springframework.http.ResponseEntity.status(404).body(new JSONObject()
+                .set("ok", false).set("error", "提问不存在或已超时"));
+        }
+        return org.springframework.http.ResponseEntity.ok(new JSONObject().set("ok", true));
     }
 
     /** 触发一次后端自治运行 */
@@ -95,18 +117,45 @@ public class AgentSessionRunController {
         return result.toJson();
     }
 
-    /** 订阅会话事件流（SSE，支持断线重连回放） */
+    /** SSE 心跳调度器（单线程足够：send 很快，慢客户端由 complete 兜底） */
+    private static final java.util.concurrent.ScheduledExecutorService SSE_HEARTBEAT =
+        java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "sse-heartbeat");
+            t.setDaemon(true);
+            return t;
+        });
+
+    /**
+     * 订阅会话事件流（SSE，支持断线重连回放）
+     */
     @GetMapping("/{sessionKey}/events")
     public SseEmitter events(@PathVariable String sessionKey) {
         SseEmitter emitter = new SseEmitter(0L);
         AtomicReference<Runnable> unsubscribeRef = new AtomicReference<>(() -> { });
+        // SSE 心跳：20s 一条 comment。作用①防代理/负载均衡掐断空闲长连接；
+        // ②喂前端空闲看门狗（60s 无字节自动断开重连，根治「运行中卡死不报错」）。
+        // comment 帧不会触发前端任何事件处理，零成本。
+        java.util.concurrent.ScheduledFuture<?> heartbeat = SSE_HEARTBEAT.scheduleAtFixedRate(() -> {
+            try {
+                emitter.send(SseEmitter.event().comment("ping"));
+            } catch (Exception e) {
+                // 发送失败（连接已死）：complete 触发 onCompletion → 退订 + 心跳取消
+                try {
+                    emitter.complete();
+                } catch (Exception ignored) {
+                    // ignore
+                }
+            }
+        }, 20, 20, java.util.concurrent.TimeUnit.SECONDS);
         emitter.onCompletion(() -> {
+            heartbeat.cancel(false);
             Runnable unsub = unsubscribeRef.get();
             if (unsub != null) {
                 unsub.run();
             }
         });
         emitter.onTimeout(() -> {
+            heartbeat.cancel(false);
             Runnable unsub = unsubscribeRef.get();
             if (unsub != null) {
                 unsub.run();
@@ -141,6 +190,32 @@ public class AgentSessionRunController {
         runService.stop(sessionKey);
         JSONObject result = new JSONObject().set("success", true);
         return result;
+    }
+
+    /**
+     * 保存为版本（用户动作）：把当前会话草稿落为工作流版本。
+     * AI 没有 save_workflow 工具——持久化只能由用户在界面触发。
+     */
+    @PostMapping("/{sessionKey}/save")
+    public Map<String, Object> saveDraft(@PathVariable String sessionKey,
+                                         @RequestBody(required = false) Map<String, Object> body) {
+        String workflowCode = body != null && body.get("workflowCode") != null
+            ? String.valueOf(body.get("workflowCode")) : null;
+        String name = body != null && body.get("name") != null ? String.valueOf(body.get("name")) : null;
+        String versionDesc = body != null && body.get("versionDesc") != null
+            ? String.valueOf(body.get("versionDesc")) : null;
+        Long baseRevision = body != null && body.get("baseRevision") instanceof Number
+            ? ((Number) body.get("baseRevision")).longValue() : null;
+        SessionDraftPublishService.PublishResult result =
+            publishService.publish(sessionKey, workflowCode, name, versionDesc, baseRevision);
+        JSONObject response = new JSONObject().set("success", result.success);
+        if (result.success) {
+            response.set("message", result.message);
+            response.putAll(result.payload);
+        } else {
+            response.set("error", result.error);
+        }
+        return response;
     }
 
     /** 当前服务端画布草稿 */

@@ -183,17 +183,35 @@ function normalizeEndNode(data: Record<string, any>): void {
 }
 
 /**
- * Convert ref shorthand {ref: "a.b"} to flowgram format {type: "ref", content: "a.b"}.
- * Also handles {ref: ["a.b", "c.d"]} → {type: "ref", content: ["a.b", "c.d"]}.
+ * Normalize a ref content value to the engine's expected [nodeId, field] array form.
+ * The engine (ParameterParseUtils) reads content as a JSON array; string "a.b" fails to
+ * parse and the ref silently resolves to null (2026-10-11 editor-run regression).
+ */
+function toRefContent(value: unknown): unknown {
+  if (typeof value === 'string') {
+    const dot = value.indexOf('.');
+    if (dot > 0) return [value.slice(0, dot), value.slice(dot + 1)];
+    return [value];
+  }
+  if (Array.isArray(value)) return value;
+  return [value];
+}
+
+/**
+ * Convert ref shorthand {ref: "a.b"} to engine form {type: "ref", content: ["a","b"]}.
+ * Also handles {ref: ["a.b", "c.d"]} → array passthrough.
  * Recursively scans inputsValues and other fields.
  */
 function normalizeRefShorthand(data: Record<string, any>): void {
   if (!data.inputsValues) return;
   for (const key of Object.keys(data.inputsValues)) {
     const val = data.inputsValues[key];
+    if (val && typeof val === 'object' && val.type === 'ref' && typeof val.content === 'string') {
+      val.content = toRefContent(val.content);
+    }
     if (val && typeof val === 'object' && val.ref !== undefined && !val.type) {
       val.type = 'ref';
-      val.content = val.ref;
+      val.content = toRefContent(val.ref);
       delete val.ref;
     }
   }
@@ -219,12 +237,12 @@ function normalizeRefShorthand(data: Record<string, any>): void {
 function normalizeConditionRef(cond: Record<string, any>): void {
   if (cond.left && typeof cond.left === 'object' && cond.left.ref !== undefined && !cond.left.type) {
     cond.left.type = 'ref';
-    cond.left.content = cond.left.ref;
+    cond.left.content = toRefContent(cond.left.ref);
     delete cond.left.ref;
   }
   if (cond.right && typeof cond.right === 'object' && cond.right.ref !== undefined && !cond.right.type) {
     cond.right.type = 'ref';
-    cond.right.content = cond.right.ref;
+    cond.right.content = toRefContent(cond.right.ref);
     delete cond.right.ref;
   }
 }

@@ -1,0 +1,174 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "dsh 日志即真相：durable 事件 → 投影 → UI",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1080,
+      680
+    ]
+  },
+  "stages": [
+    {
+      "label": "产生"
+    },
+    {
+      "label": "持久账本"
+    },
+    {
+      "label": "投影"
+    },
+    {
+      "label": "网关"
+    },
+    {
+      "label": "消费"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "loop",
+      "type": "backend",
+      "label": "agent-loop step",
+      "sublabel": "assistant / tool-calls",
+      "stage": 0,
+      "row": 0
+    },
+    {
+      "id": "guards",
+      "type": "backend",
+      "label": "重试 / 中断 / 审批",
+      "sublabel": "先落事件再等待",
+      "stage": 0,
+      "row": 2
+    },
+    {
+      "id": "jsonl",
+      "type": "database",
+      "label": "session.vN.jsonl.zstd",
+      "sublabel": "append-only · v0→v4 迁移",
+      "stage": 1,
+      "row": 1,
+      "width": 150
+    },
+    {
+      "id": "proj",
+      "type": "backend",
+      "label": "session projection",
+      "sublabel": "snapshot() + 增量折叠",
+      "stage": 2,
+      "row": 0
+    },
+    {
+      "id": "fts",
+      "type": "database",
+      "label": "SQLite FTS5",
+      "sublabel": "全文搜索（默认关）",
+      "stage": 2,
+      "row": 2
+    },
+    {
+      "id": "snap",
+      "type": "external",
+      "label": "快照回放测试",
+      "sublabel": "JSONL 即期望输出",
+      "stage": 2,
+      "row": 3
+    },
+    {
+      "id": "gw",
+      "type": "backend",
+      "label": "Typert Gateway",
+      "sublabel": "HTTP /api + remote.mux",
+      "stage": 3,
+      "row": 1
+    },
+    {
+      "id": "chat",
+      "type": "frontend",
+      "label": "Chat 视图",
+      "sublabel": "纯投影",
+      "stage": 4,
+      "row": 0
+    },
+    {
+      "id": "traj",
+      "type": "frontend",
+      "label": "Trajectory 视图",
+      "sublabel": "三泳道 + 台账",
+      "stage": 4,
+      "row": 2
+    }
+  ],
+  "flows": [
+    {
+      "from": "loop",
+      "to": "jsonl",
+      "label": "durable append",
+      "variant": "emphasis"
+    },
+    {
+      "from": "guards",
+      "to": "jsonl",
+      "label": "llm/retry · approval/*",
+      "variant": "dashed"
+    },
+    {
+      "from": "jsonl",
+      "to": "proj",
+      "label": "fold 投影",
+      "variant": "emphasis"
+    },
+    {
+      "from": "jsonl",
+      "to": "fts",
+      "label": "索引",
+      "variant": "dashed",
+      "channelX": 500
+    },
+    {
+      "from": "jsonl",
+      "to": "snap",
+      "label": "回放",
+      "variant": "dashed",
+      "route": "bottom-channel"
+    },
+    {
+      "from": "proj",
+      "to": "gw",
+      "label": "snapshot / 增量",
+      "variant": "emphasis"
+    },
+    {
+      "from": "gw",
+      "to": "chat",
+      "label": "Remote 流",
+      "variant": "emphasis"
+    },
+    {
+      "from": "gw",
+      "to": "traj",
+      "label": "Contribution"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "事件溯源",
+      "items": [
+        "61 种持久事件；每会话一个 append-only JSONL，代际不可变",
+        "Chat 与 Trajectory 都从投影组装"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "测试即回放",
+      "items": [
+        "提交的 JSONL 既是回放输入又是期望输出",
+        "被测进程必须经 dsh CLI + 出厂 profile 启动"
+      ]
+    }
+  ]
+}

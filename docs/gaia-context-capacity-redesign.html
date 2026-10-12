@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>上下文容量 · 前端展示重设计方案（对标 dsh / owb / 业界）</title>
+<style>
+  /* ===== gaia 设计 token（照搬 apps/console/src/index.css） ===== */
+  :root {
+    --g-bg: #ffffff; --g-bg-app: #ffffff; --g-bg-sunken: #f9f9f9; --g-bg-raised: #ffffff; --g-bg-hover: #f4f4f4;
+    --g-line: #ececec; --g-line-soft: #f2f2f2;
+    --g-text: #0d0d0d; --g-text-body: #303030; --g-text-sub: #5d5d5d; --g-text-muted: #8f8f8f; --g-text-faint: #b8b8b8;
+    --g-accent: #0d0d0d; --g-accent-hover: #262626; --g-accent-fg: #ffffff; --g-accent-soft: #f0f0f0; --g-accent-border: #e3e3e3;
+    --g-success: #1a7f37; --g-success-soft: #e8f5ec;
+    --g-danger: #d1242f; --g-danger-soft: #fdeced;
+    --g-warn: #9a6700; --g-warn-soft: #fdf6e3;
+    --g-link: #2563eb;
+    --g-panel-shadow: 0 8px 24px rgba(15, 15, 20, 0.12);
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  [data-theme="dark"] {
+    --g-bg: #212121; --g-bg-app: #171717; --g-bg-sunken: #171717; --g-bg-raised: #2f2f2f; --g-bg-hover: #2a2a2a;
+    --g-line: #333333; --g-line-soft: #2a2a2a;
+    --g-text: #f5f5f5; --g-text-body: #d9d9d9; --g-text-sub: #b4b4b4; --g-text-muted: #8f8f8f; --g-text-faint: #6b6b6b;
+    --g-accent: #ffffff; --g-accent-hover: #e5e5e5; --g-accent-fg: #0d0d0d; --g-accent-soft: #2a2a2a; --g-accent-border: #3a3a3a;
+    --g-success: #3fb950; --g-success-soft: #17291c;
+    --g-danger: #f85149; --g-danger-soft: #2d1a1b;
+    --g-warn: #d29922; --g-warn-soft: #2a2416;
+    --g-link: #6ea8fe;
+    --g-panel-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--g-bg-app); color: var(--g-text);
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", "Microsoft YaHei", sans-serif;
+    font-size: 14px; line-height: 1.65; -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: var(--mono); }
+
+  /* ===== 文档骨架 ===== */
+  .doc { max-width: 980px; margin: 0 auto; padding: 0 28px 120px; }
+  header.top {
+    position: sticky; top: 0; z-index: 100; background: color-mix(in srgb, var(--g-bg-app) 88%, transparent);
+    backdrop-filter: blur(10px); border-bottom: 1px solid var(--g-line);
+  }
+  .top-inner { max-width: 980px; margin: 0 auto; padding: 12px 28px; display: flex; align-items: center; gap: 14px; }
+  .top-inner h1 { font-size: 14.5px; font-weight: 600; }
+  .top-inner .sub { font-size: 12px; color: var(--g-text-muted); }
+  .theme-toggle {
+    margin-left: auto; height: 28px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--g-line);
+    background: var(--g-bg); color: var(--g-text-sub); font-size: 12px; cursor: pointer; font-family: inherit;
+  }
+  .theme-toggle:hover { background: var(--g-bg-hover); color: var(--g-text); }
+
+  h2.sec {
+    font-size: 19px; font-weight: 700; margin: 64px 0 6px; padding-top: 8px;
+    display: flex; align-items: baseline; gap: 10px;
+  }
+  h2.sec .no { font-family: var(--mono); font-size: 13px; color: var(--g-text-faint); font-weight: 500; }
+  .sec-desc { color: var(--g-text-sub); font-size: 13.5px; margin-bottom: 20px; }
+  h3 { font-size: 14.5px; font-weight: 600; margin: 28px 0 10px; }
+  p { margin-bottom: 10px; }
+  .lede {
+    margin: 40px 0 0; font-size: 15px; color: var(--g-text-body);
+  }
+  .kicker { font-family: var(--mono); font-size: 12px; color: var(--g-text-faint); margin-top: 48px; }
+
+  /* ===== 通用卡片/表格 ===== */
+  .card { border: 1px solid var(--g-line); border-radius: 14px; background: var(--g-bg); padding: 20px 22px; margin-bottom: 16px; }
+  .card h4 { font-size: 13.5px; font-weight: 600; margin-bottom: 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--g-line-soft); vertical-align: top; }
+  th { color: var(--g-text-muted); font-weight: 500; font-size: 12px; white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  td.dim { color: var(--g-text-sub); white-space: nowrap; }
+  .tag { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--g-line); color: var(--g-text-sub); margin-left: 8px; vertical-align: 1px; }
+  .tag.rec { background: var(--g-accent-soft); border-color: var(--g-accent-border); color: var(--g-text); font-weight: 600; }
+  .good { color: var(--g-success); } .bad { color: var(--g-danger); } .warnC { color: var(--g-warn); }
+  ul.plain { padding-left: 18px; } ul.plain li { margin-bottom: 6px; }
+  code { font-family: var(--mono); font-size: 12px; background: var(--g-bg-sunken); border: 1px solid var(--g-line-soft); border-radius: 5px; padding: 1px 5px; }
+
+  /* ============ 聊天模拟画布 ============ */
+  .stage {
+    border: 1px solid var(--g-line); border-radius: 16px; background: var(--g-bg-app);
+    padding: 26px 0 0; overflow: hidden; margin-bottom: 14px; position: relative;
+  }
+  .stage-label {
+    position: absolute; top: 10px; left: 14px; z-index: 5; font-family: var(--mono); font-size: 11px;
+    color: var(--g-text-faint); letter-spacing: .3px;
+  }
+  .col { max-width: 748px; margin: 0 auto; padding: 0 24px; }
+
+  /* 消息区示意 */
+  .msg-user { align-self: flex-end; background: var(--g-user-bubble); color: var(--g-user-bubble-text); border-radius: 16px; padding: 8px 14px; font-size: 13.5px; max-width: 70%; }
+  .msg-ai { font-size: 13.5px; color: var(--g-text-body); }
+  .chatlines { display: flex; flex-direction: column; gap: 14px; padding-bottom: 18px; }
+  .fade-tail { color: var(--g-text-faint); font-size: 13px; }
+
+  /* 单轮用量 meta（方案 A 消息流内） */
+  .turn-meta { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--g-text-faint); cursor: pointer; border-radius: 7px; padding: 2px 7px; margin-top: 6px; transition: background .14s, color .14s; }
+  .turn-meta:hover { background: var(--g-bg-hover); color: var(--g-text-sub); }
+  .turn-meta svg { flex-shrink: 0; }
+  .turn-meta .mono { font-size: 11px; }
+
+  /* 压缩注记卡（方案 A 消息流内，dsh CompactionItem 皮肤） */
+  .compaction-row {
+    display: flex; align-items: center; gap: 9px; width: 100%; text-align: left;
+    border: none; background: none; padding: 5px 8px; margin: 2px -8px; border-radius: 9px; cursor: pointer; font-family: inherit;
+  }
+  .compaction-row:hover { background: var(--g-bg-hover); }
+  .compaction-ic {
+    width: 22px; height: 22px; border-radius: 7px; background: var(--g-accent-soft); border: 1px solid var(--g-accent-border);
+    display: inline-flex; align-items: center; justify-content: center; color: var(--g-text-sub); flex-shrink: 0;
+  }
+  .compaction-title { font-size: 12.5px; font-weight: 600; color: var(--g-text); flex-shrink: 0; }
+  .compaction-sep { flex: 0 1 26px; height: 1px; background: var(--g-line); }
+  .compaction-sum { font-size: 12px; color: var(--g-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .compaction-chev { color: var(--g-text-faint); flex-shrink: 0; display: inline-flex; }
+
+  /* ===== Composer 卡片（各方案共用） ===== */
+  .composer-zone { padding-bottom: 22px; }
+  .composer {
+    background: var(--g-bg); border: 1px solid var(--g-line); border-radius: 16px;
+    box-shadow: 0 2px 10px rgba(15,15,20,.05);
+  }
+  .composer-input { padding: 13px 16px 4px; font-size: 13.5px; color: var(--g-text-faint); }
+  .composer-toolbar { display: flex; align-items: center; gap: 6px; padding: 6px 10px 9px; position: relative; }
+  .toolbar-spacer { flex: 1; }
+  .tool-pill {
+    display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 9px;
+    border: none; background: transparent; color: var(--g-text-muted); font-size: 12px; cursor: pointer; font-family: inherit;
+    transition: background .14s, color .14s;
+  }
+  .tool-pill:hover { background: var(--g-bg-hover); color: var(--g-text); }
+  .tool-pill .mono { font-size: 11.5px; }
+  .tool-pill.static { cursor: default; }
+  .send-btn {
+    width: 30px; height: 30px; border-radius: 9px; border: none; background: var(--g-accent); color: var(--g-accent-fg);
+    display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
+  }
+  .model-pill { border: 1px solid var(--g-line); }
+
+  /* ===== 弹出明细卡（stat dialog，dsh 皮肤） ===== */
+  .stat-dialog {
+    position: absolute; z-index: 30; background: var(--g-bg-raised); border: 1px solid var(--g-line);
+    border-radius: 12px; box-shadow: var(--g-panel-shadow); padding: 13px 16px 14px;
+    animation: pop .16s ease;
+  }
+  @keyframes pop { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  .stat-dialog .dlg-title { display: flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; color: var(--g-text); }
+  .stat-dialog .dlg-title .right { margin-left: auto; font-weight: 500; font-family: var(--mono); font-size: 11.5px; color: var(--g-text-sub); }
+  .stat-dialog .dlg-rule { height: 1px; background: var(--g-line-soft); margin: 10px 0 11px; }
+  .stat-dialog dl { display: grid; grid-template-columns: auto 1fr; row-gap: 7px; column-gap: 18px; font-size: 12px; }
+  .stat-dialog dt { color: var(--g-text-muted); }
+  .stat-dialog dd { color: var(--g-text-body); text-align: right; font-family: var(--mono); font-size: 11.5px; }
+  .stat-dialog dd .note { font-family: inherit; color: var(--g-text-faint); font-size: 11px; margin-left: 6px; }
+
+  /* 分段容量条（明细卡内） */
+  .seg-bar { display: flex; gap: 2px; height: 8px; border-radius: 4px; overflow: hidden; margin: 2px 0 10px; }
+  .seg-bar i { display: block; height: 100%; }
+  .seg-free { background: var(--g-bg-sunken); border: 1px solid var(--g-line-soft); border-top: none; border-bottom: none; }
+  .legend { display: flex; flex-direction: column; gap: 5px; font-size: 12px; }
+  .legend-row { display: flex; align-items: center; gap: 8px; color: var(--g-text-sub); }
+  .legend-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .legend-row .mono { margin-left: auto; font-size: 11px; color: var(--g-text-sub); }
+  .legend-row .pct { width: 52px; text-align: right; font-size: 11px; color: var(--g-text-faint); font-family: var(--mono); }
+  .dlg-hint {
+    margin-top: 11px; padding-top: 9px; border-top: 1px solid var(--g-line-soft);
+    font-size: 11.5px; color: var(--g-text-muted); display: flex; gap: 6px; align-items: flex-start;
+  }
+  .dlg-hint.warn { color: var(--g-warn); }
+  .dlg-hint.danger { color: var(--g-danger); }
+
+  /* 药丸状态色 */
+  .pill-warn { color: var(--g-warn) !important; }
+  .pill-warn:hover { background: var(--g-warn-soft) !important; }
+  .pill-danger { color: var(--g-danger) !important; }
+  .pill-danger:hover { background: var(--g-danger-soft) !important; }
+
+  /* ===== 方案 B：安静容量条 ===== */
+  .ctxbar {
+    display: flex; align-items: center; gap: 10px; padding: 0 2px 7px; font-size: 12px; color: var(--g-text-muted);
+  }
+  .ctxbar .track { flex: 0 0 96px; height: 4px; border-radius: 999px; background: var(--g-bg-hover); overflow: hidden; }
+  .ctxbar .fill { display: block; height: 100%; border-radius: 999px; background: var(--g-text-muted); transition: width .3s ease; }
+  .ctxbar.warn { color: var(--g-warn); }
+  .ctxbar.warn .fill { background: var(--g-warn); }
+  .ctxbar .mono { font-size: 11.5px; }
+  .ctxbar .hint { color: var(--g-text-faint); font-size: 11.5px; }
+  .ctxbar.clickable { cursor: pointer; border-radius: 8px; transition: background .14s; }
+  .ctxbar.clickable:hover { background: var(--g-bg-hover); }
+
+  /* ===== 方案 C：分段迷你图药丸 ===== */
+  .mini-seg { display: inline-flex; gap: 1.5px; width: 22px; height: 8px; border-radius: 2.5px; overflow: hidden; align-items: stretch; }
+  .mini-seg i { display: block; height: 100%; }
+  .mini-seg em { display: block; height: 100%; background: var(--g-bg-hover); }
+
+  /* 展示区注释 */
+  .stage-note { font-size: 12px; color: var(--g-text-faint); padding: 0 24px 16px; max-width: 748px; margin: 0 auto; }
+  .stage-note b { color: var(--g-text-sub); font-weight: 600; }
+
+  /* 布局小工具 */
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 860px) { .row2 { grid-template-columns: 1fr; } }
+  .callout {
+    border: 1px solid var(--g-accent-border); background: var(--g-accent-soft); border-radius: 14px;
+    padding: 18px 22px; margin: 22px 0;
+  }
+  .callout h4 { font-size: 13.5px; margin-bottom: 8px; }
+  .callout p, .callout li { font-size: 13px; color: var(--g-text-body); }
+  .hidden-note { font-family: var(--mono); font-size: 11px; color: var(--g-text-faint); padding: 2px 0 7px; }
+
+  /* 打开弹窗的模拟：stage 内 dialog 需要定位参照 */
+  .dlg-anchor { position: relative; }
+</style>
+</head>
+<body>
+<div class="top-inner" style="position:sticky;top:0;">
+  <div class="top-inner" style="padding:0; flex:1;">
+    <h1>上下文容量 · 前端展示重设计方案</h1>
+    <span class="sub">对标 dsh / owb / 业界惯例 · 2026-10-11</span>
+    <button class="theme-toggle" onclick="toggleTheme()">切换明暗主题</button>
+  </div>
+</div>
+
+<div class="doc">
+
+  <p class="kicker">GAIA · AI-WORKSPACE · CONTEXT CAPACITY</p>
+  <p class="lede">
+    现状是「输入框工具栏里一颗 <code>12.3k / 32.8k</code> + 26px 短进度条的药丸，点开浮出一张纯列表明细卡」。
+    本文档给出三套重设计方案：每套都附可直接感受的交互 mockup（点药丸/条可以真的展开明细），
+    最后一节是对比与推荐。所有 mockup 使用 gaia 真实设计 token，可切明暗主题验证。
+  </p>
+
+  <!-- ================= 1. 现状问题 ================= -->
+  <h2 class="sec"><span class="no">01</span>现状复刻与问题诊断</h2>
+  <p class="sec-desc">先复刻现在的样子（点药丸可展开现行明细卡），再列它为什么显得丑。</p>
+
+  <div class="stage">
+    <span class="stage-label">现状 · ContextCapacity variant="pill"</span>
+    <div class="col">
+      <div class="chatlines">
+        <div class="msg-user">把规则引擎的执行链路画成流程图</div>
+        <div class="msg-ai">好的，我先读取当前画布上的节点结构……<span class="fade-tail">（正文省略）</span></div>
+      </div>
+    </div>
+    <div class="composer-zone">
+      <div class="col">
+        <div class="composer">
+          <div class="composer-input">输入消息，@ 引用节点…</div>
+          <div class="composer-toolbar">
+            <!-- 现状药丸 -->
+            <div class="dlg-anchor">
+              <button class="tool-pill" onclick="toggleDlg('cur-dlg', this)">
+                <span class="mono" style="color:var(--g-text-sub)">12.3k / 32.8k</span>
+                <span style="width:26px;height:3px;border-radius:2px;background:var(--g-bg-hover);overflow:hidden;display:inline-block">
+                  <span style="display:block;height:100%;width:37.5%;background:var(--g-accent)"></span>
+                </span>
+              </button>
+              <div class="stat-dialog" id="cur-dlg" style="display:none; bottom:38px; left:0; width:320px;">
+                <div class="dlg-title">上下文容量 <span class="right">12,288 / 32,768（37.5%）~</span></div>
+                <div class="dlg-rule"></div>
+                <div style="height:5px;border-radius:3px;background:var(--g-bg-hover);overflow:hidden;margin-bottom:10px">
+                  <div style="height:100%;width:37.5%;background:var(--g-accent)"></div>
+                </div>
+                <div class="legend">
+                  <div class="legend-row"><span class="legend-dot" style="background:var(--g-accent)"></span>消息<span class="mono">8.1k tok</span><span class="pct">65.9%</span></div>
+                  <div class="legend-row"><span class="legend-dot" style="background:#d97706"></span>工具<span class="mono">3.2k tok</span><span class="pct">26.0%</span></div>
+                  <div class="legend-row"><span class="legend-dot" style="background:var(--g-success)"></span>系统提示词<span class="mono">0.9k tok</span><span class="pct">7.3%</span></div>
+                </div>
+                <div class="dlg-hint">缓存命中 <b class="mono" style="color:var(--g-text-sub)">86.4%</b><span style="color:var(--g-text-faint)">· 最近 12 次调用</span></div>
+              </div>
+            </div>
+            <span class="toolbar-spacer"></span>
+            <button class="tool-pill model-pill static">GLM-4.7 ▾</button>
+            <button class="send-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h4>问题清单</h4>
+    <ul class="plain">
+      <li><b>比例失衡</b>：药丸里等宽字体数字 + 一根 26px 小短棒，两件东西互相打架，看起来像调试组件而不是产品组件。</li>
+      <li><b>低占用常驻 = 噪音</b>：1M 窗口下日常占用 5~15%，一根 6% 的常驻条看久了等于没有（owb 源码注释原话）。真正该出现的时机（接近压缩阈值）反而没有任何升级提示。</li>
+      <li><b>明细卡层级平</b>：一根 5px 单色条 + 四行圆点列表，没有「分类占窗口多少、还剩多少」的一眼可读性；浮层左对齐 320px，和窄栏构图脱节。</li>
+      <li><b>没有压缩语境</b>：条上不解释「什么时候会压缩、压缩后会发生什么」，用户不知道该在什么时候另开会话。</li>
+      <li><b>口径隐患</b>：limit 兜底 32768，与真实模型窗口（1M）不一致时数字整条失真；<code>estimated ~</code> 标记只有 title 提示，浮层里才有。</li>
+    </ul>
+  </div>
+
+  <!-- ================= 2. 对标结论 ================= -->
+  <h2 class="sec"><span class="no">02</span>对标结论：dsh / owb / 业界怎么做</h2>
+  <p class="sec-desc">三个来源指向同一个共识：<b>容量条本身不该是常驻主角，明细才是；占用要过阈值才升级存在感</b>。</p>
+
+  <div class="row2">
+    <div class="card">
+      <h4>dsh（deepseek-harness）— 统计药丸派</h4>
+      <ul class="plain">
+        <li>Composer 工具栏放两颗<b>统计药丸</b>：<code>活动 N 轮 · 42 tok/s</code>、<code>用量 128.4k · 缓存 86%</code>，点击弹出<b>portal 对话框</b>（上锚定、视口夹紧、Esc/外点关闭）。</li>
+        <li>对话框是统一皮肤：标题行（icon + 名称 + 右对齐精确值）→ 分隔线 → <code>dl</code> 键值行。没有进度条，dsh 把 token 当「账本」而非「水位」。</li>
+        <li>每条完成的助手回合尾部有 <code>已消耗 12.3k</code> 小药丸，点开单轮明细（输入/缓存读/缓存写/输出/推理/模型路由）。</li>
+        <li>压缩在时间线里是一行<b>可折叠注记</b>：icon + 「上下文压缩」+ 「已将 N 条 / X tokens 压成摘要」，展开看摘要正文。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>owb（openworkbuddy）— 安静水位线派</h4>
+      <ul class="plain">
+        <li>输入框正上方一根 <b>90×4px 迷你条</b> + <code>上下文 87%（120k / 200k）</code> 灰字。</li>
+        <li><b>默认隐藏</b>：占用 &lt; 45% 完全不渲染（源码注释：日常挂一根 12% 的条等于没有）。</li>
+        <li><b>过压缩阈值（60%）变色 + 换文案</b>：「下一轮开跑前会自动压一次，想留全文就另开会话」——条上的线就是后端真会触发压缩的那条线。</li>
+        <li>压缩过程「开始/结束共用一行、只报等待秒数」，明确不画假进度条；单轮用量收在回复操作条的小字 + hover tooltip。</li>
+      </ul>
+    </div>
+  </div>
+  <div class="card">
+    <h4>业界惯例（Claude Code / Cursor / Cline）</h4>
+    <ul class="plain">
+      <li><b>Claude Code</b>：状态行常驻低调数字 <code>161.3k / 200.0k tokens (81%)</code>；<code>/context</code> 打开按类目分块的占用图（系统提示词 / 工具 / 消息 / 空闲），接近上限时颜色升级并提示 auto-compact。</li>
+      <li><b>Cursor</b>：composer 内联「用量 / 窗口 (百分比)」读数，点开明细；<b>Cline</b>：任务头部一根带百分比的进度条 + 阈值 auto-compact，其 issue 区大量吐槽「前端估算与 API 口径不一致」——<b>数字必须来自后端真账本</b>是公认教训。</li>
+      <li>共识公式：<b>百分比 + 绝对值双色阶（正常→警告→危险）+ 点击展开分类明细 + 压缩触发点明示</b>。</li>
+    </ul>
+  </div>
+
+  <!-- ================= 3. 方案 A ================= -->
+  <h2 class="sec"><span class="no">03</span>方案 A · 统计药丸 + 过阈值容量告警<span class="tag rec">推荐</span></h2>
+  <p class="sec-desc">
+    dsh 的形态 + owb 的显隐哲学：工具栏平时只有「用量」一颗安静药丸（token 是账本，不是水位）；
+    占用跨过压缩阈值后，第二颗「容量」药丸才出现并随危险度升级。明细一律点开统一的对话框皮肤。
+  </p>
+
+  <div class="stage">
+    <span class="stage-label">方案 A · 状态一：占用 37%（容量药丸不渲染）</span>
+    <div class="col">
+      <div class="chatlines">
+        <div class="msg-user">把规则引擎的执行链路画成流程图</div>
+        <div style="display:flex;flex-direction:column;align-items:flex-start;position:relative;">
+          <div class="msg-ai">好的，我先读取当前画布上的节点结构……<span class="fade-tail">（正文省略）</span></div>
+          <button class="turn-meta" onclick="toggleDlg('a-turn-dlg', this)">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>
+            已消耗 <span class="mono">12.3k</span> · 缓存 <span class="mono">91%</span>
+          </button>
+          <div class="stat-dialog" id="a-turn-dlg" style="display:none; bottom:30px; left:0; width:300px;">
+            <div class="dlg-title">本轮用量 <span class="right">12,288 tokens</span></div>
+            <div class="dlg-rule"></div>
+            <dl>
+              <dt>输入（未命中）</dt><dd>1,102</dd>
+              <dt>缓存读</dt><dd>10,051</dd>
+              <dt>输出</dt><dd>1,135<span class="note">含推理 402</span></dd>
+              <dt>耗时 / 速度</dt><dd>18.2s · 62 tok/s</dd>
+              <dt>模型</dt><dd>glm-4.7</dd>
+            </dl>
+          </div>
+        </div>
+        <!-- 压缩注记 -->
+        <button class="compaction-row" style="max-width:520px">
+          <span class="compaction-ic"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8h16M4 16h16"/><path d="M9 4l-3 4 3 4M15 12l3 4-3 4" opacity="0"/></svg></span>
+          <span class="compaction-title">上下文压缩</span>
+          <span class="compaction-sep"></span>
+          <span class="compaction-sum">已把早前 24 条消息压成摘要（512k tokens）</span>
+          <span class="compaction-chev"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg></span>
+        </button>
+      </div>
+    </div>
+    <div class="composer-zone">
+      <div class="col">
+        <div class="composer">
+          <div class="composer-input">输入消息，@ 引用节点…</div>
+          <div class="composer-toolbar">
+            <button class="tool-pill" onclick="this.querySelector('.lp').textContent = this.querySelector('.lp').textContent === '用量 128.4k · 缓存 86%' ? '3 轮 · 42 tok/s' : '用量 128.4k · 缓存 86%'">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>
+              <span class="lp">用量 128.4k · 缓存 86%</span>
+            </button>
+            <span style="font-size:11px;color:var(--g-text-faint);margin-left:2px">← 占用 &lt; 60% 时只有这一颗（示意：可点击切换文案预览两态）</span>
+            <span class="toolbar-spacer"></span>
+            <button class="tool-pill model-pill">GLM-4.7 ▾</button>
+            <button class="send-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <span class="stage-label">方案 A · 状态二：占用 63% —— 容量药丸出现（警告色），点开容量明细</span>
+    <div class="col">
+      <div class="chatlines"><div class="msg-ai fade-tail">……（消息区同上，省略）</div></div>
+    </div>
+    <div class="composer-zone">
+      <div class="col">
+        <div class="composer">
+          <div class="composer-input">输入消息，@ 引用节点…</div>
+          <div class="composer-toolbar">
+            <button class="tool-pill">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>
+              用量 631.2k · 缓存 86%
+            </button>
+            <div class="dlg-anchor">
+              <button class="tool-pill pill-warn" onclick="toggleDlg('a-cap-dlg', this)">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/></svg>
+                上下文 63%
+              </button>
+              <div class="stat-dialog" id="a-cap-dlg" style="display:none; bottom:38px; left:0; width:400px;">
+                <div class="dlg-title">上下文容量 · glm-4.7 <span class="right">631,201 / 1,000,000 · 63.1%</span></div>
+                <div class="dlg-rule"></div>
+                <div class="seg-bar">
+                  <i style="width:1.2%;background:var(--g-success)"></i>
+                  <i style="width:6.9%;background:#d97706"></i>
+                  <i style="width:54.1%;background:var(--g-accent)"></i>
+                  <i style="width:0.9%;background:var(--g-text-faint)"></i>
+                  <i class="seg-free" style="flex:1"></i>
+                </div>
+                <div class="legend">
+                  <div class="legend-row"><span class="legend-dot" style="background:var(--g-success)"></span>系统提示词<span class="mono">12.4k</span><span class="pct">1.2%</span></div>
+                  <div class="legend-row"><span class="legend-dot" style="background:#d97706"></span>工具定义<span class="mono">68.9k</span><span class="pct">6.9%</span></div>
+                  <div class="legend-row"><span class="legend-dot" style="background:var(--g-accent)"></span>消息<span class="mono">541.3k</span><span class="pct">54.1%</span></div>
+                  <div class="legend-row"><span class="legend-dot" style="background:var(--g-text-faint)"></span>其他<span class="mono">8.6k</span><span class="pct">0.9%</span></div>
+                  <div class="legend-row"><span class="legend-dot" style="background:var(--g-bg-hover);border:1px solid var(--g-line)"></span>空闲<span class="mono">368.8k</span><span class="pct">36.9%</span></div>
+                </div>
+                <div class="dlg-hint">缓存命中 <b class="mono" style="color:var(--g-text-sub)">86.4%</b><span style="color:var(--g-text-faint)">· 最近 12 次调用</span></div>
+                <div class="dlg-hint warn">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:2px"><path d="M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg>
+                  已过压缩阈值（60%）· 下一轮开跑前会自动压缩一次，想保留全文可另开会话
+                </div>
+              </div>
+            </div>
+            <span class="toolbar-spacer"></span>
+            <button class="tool-pill model-pill">GLM-4.7 ▾</button>
+            <button class="send-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h4>方案 A 规格要点</h4>
+    <ul class="plain">
+      <li><b>用量药丸</b>（常驻，有账目才渲染）：icon + <code>用量 128.4k · 缓存 86%</code>；点击弹「会话用量」账本（缓存命中 / 输入未命中 / 缓存读 / 缓存写 / 输出，右栏精确值）。整段口径取自 <code>agent_llm_call_log</code> 全会话聚合，与压缩决策无关、不受压缩影响。</li>
+      <li><b>容量药丸</b>（条件渲染）：占用 ≥ 60%（= 后端压缩阈值）才出现；60–80% 灰字、80–92% 警告色、≥92% 危险色；点击弹「上下文容量」卡（分段条 + 分类占比 + 压缩提示文案）。比例色阶沿用现状三档语义。</li>
+      <li><b>单轮用量</b>：每条完成的助手回合尾部挂 <code>已消耗 12.3k · 缓存 91%</code> 小字，点开单轮账本（需后端新增按 turn 聚合的小接口，数据已在 llm_call_log 里）。</li>
+      <li><b>压缩注记</b>：沿用现有 compaction 系统注记的数据，统一成 dsh CompactionItem 皮肤（icon + 标题 + 一行摘要 + 可展开正文）。</li>
+      <li>所有弹窗走统一 stat-dialog 皮肤：上锚定 portal、视口夹紧、Esc / 点外关闭、淡入动画。</li>
+    </ul>
+  </div>
+
+  <!-- ================= 4. 方案 B ================= -->
+  <h2 class="sec"><span class="no">04</span>方案 B · owb 式安静水位条</h2>
+  <p class="sec-desc">
+    保留「输入框上方一根条」的形态，但按 owb 的哲学重做：<b>低占用完全隐藏、过压缩阈值才变色并开口说话</b>。
+    它是三个方案里最安静的——代价是平时完全看不到 token 去向。
+  </p>
+
+  <div class="stage">
+    <span class="stage-label">方案 B · 三态一行看全（低占用隐藏 → 常态 52% → 警告 63%）</span>
+    <div class="col">
+      <div style="padding-top:6px"></div>
+      <div class="hidden-note">// 占用 37% (&lt; 45%)：整条不渲染，工具栏左侧只有模型按钮</div>
+      <div class="composer" style="margin-bottom:18px">
+        <div class="composer-input">输入消息，@ 引用节点…</div>
+        <div class="composer-toolbar">
+          <span style="font-size:11px;color:var(--g-text-faint)">（无任何用量组件）</span>
+          <span class="toolbar-spacer"></span>
+          <button class="tool-pill model-pill static">GLM-4.7 ▾</button>
+          <button class="send-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+        </div>
+      </div>
+
+      <div class="ctxbar clickable">
+        <span>上下文</span>
+        <span class="mono">52%</span>
+        <span class="hint">520,331 / 1,000,000</span>
+        <span class="track"><span class="fill" style="width:52%"></span></span>
+      </div>
+      <div class="composer" style="margin-bottom:18px">
+        <div class="composer-input">输入消息，@ 引用节点…</div>
+        <div class="composer-toolbar">
+          <span class="toolbar-spacer"></span>
+          <button class="tool-pill model-pill static">GLM-4.7 ▾</button>
+          <button class="send-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+        </div>
+      </div>
+
+      <div class="ctxbar warn clickable">
+        <span>上下文 63%</span>
+        <span class="track"><span class="fill" style="width:63%"></span></span>
+        <span class="hint" style="color:var(--g-warn)">下一轮开跑前会自动压缩一次，想保留全文可另开会话</span>
+      </div>
+      <div class="composer">
+        <div class="composer-input">输入消息，@ 引用节点…</div>
+        <div class="composer-toolbar">
+          <span class="toolbar-spacer"></span>
+          <button class="tool-pill model-pill static">GLM-4.7 ▾</button>
+          <button class="send-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h4>方案 B 规格要点</h4>
+    <ul class="plain">
+      <li>条体：12px 灰字 + 96×4px 圆角轨道；<b>显示线 = max(30%, 压缩阈值 − 15%)</b>，压缩阈值由后端随 <code>context-stats</code> 一并下发（后端把真触发线播给 UI，前端不算数）。</li>
+      <li>过阈值：整条转警告色，文案从数字切换为<b>行动提示</b>；自动压缩关闭时换成「将达到窗口上限，历史最旧内容将被丢弃」一类如实描述。</li>
+      <li>点击任意处弹出与方案 A 相同的「上下文容量」明细卡（分段条版）。</li>
+      <li>无单轮用量、无会话账本药丸——「钱花哪了」要去 Trajectory 看。最安静，信息也最少。</li>
+    </ul>
+  </div>
+
+  <!-- ================= 5. 方案 C ================= -->
+  <h2 class="sec"><span class="no">05</span>方案 C · Claude Code /context 式分段容量图</h2>
+  <p class="sec-desc">
+    容量是一等公民：药丸常驻（内嵌一枚迷你分段图），点开一张信息最全的大卡——
+    分段条直接表达「每类占窗口多少 + 还剩多少」。视觉最重，也最「仪表盘」。
+  </p>
+
+  <div class="stage">
+    <span class="stage-label">方案 C · 常驻分段药丸 + 大明细卡</span>
+    <div class="col">
+      <div class="chatlines"><div class="msg-ai fade-tail">……（消息区同上，省略）</div></div>
+    </div>
+    <div class="composer-zone">
+      <div class="col">
+        <div class="composer">
+          <div class="composer-input">输入消息，@ 引用节点…</div>
+          <div class="composer-toolbar">
+            <div class="dlg-anchor">
+              <button class="tool-pill" onclick="toggleDlg('c-dlg', this)">
+                <span class="mini-seg">
+                  <i style="width:8%;background:var(--g-success)"></i>
+                  <i style="width:24%;background:#d97706"></i>
+                  <i style="flex:1;background:var(--g-accent)"></i>
+                  <em style="width:46%"></em>
+                </span>
+                <span class="mono">52%</span>
+              </button>
+              <div class="stat-dialog" id="c-dlg" style="display:none; bottom:38px; left:0; width:440px;">
+                <div class="dlg-title">上下文容量 · glm-4.7 <span class="right">520,331 / 1,000,000 · 52.0% <span title="估算值">~</span></span></div>
+                <div class="dlg-rule"></div>
+                <div class="seg-bar" style="height:10px">
+                  <i style="width:1.2%;background:var(--g-success)"></i>
+                  <i style="width:6.9%;background:#d97706"></i>
+                  <i style="width:43.9%;background:var(--g-accent)"></i>
+                  <i style="width:0.9%;background:var(--g-text-faint)"></i>
+                  <i class="seg-free" style="flex:1"></i>
+                </div>
+                <div class="legend">
+                  <div class="legend-row"><span class="legend-dot" style="background:var(--g-success)"></span>系统提示词<span class="mono">12.4k</span><span class="pct">1.2%</span></div>
+                  <div class="legend-row"><span class="legend-dot" style="background:#d97706"></span>工具定义<span class="mono">68.9k</span><span class="pct">6.9%</span></div>
+                  <div class="legend-row"><span class="legend-dot" style="background:var(--g-accent)"></span>消息<span class="mono">437.1k</span><span class="pct">43.7%</span></div>
+                  <div class="legend-row"><span class="legend-dot" style="background:var(--g-text-faint)"></span>其他<span class="mono">1.9k</span><span class="pct">0.2%</span></div>
+                  <div class="legend-row"><span class="legend-dot" style="background:var(--g-bg-hover);border:1px solid var(--g-line)"></span>空闲<span class="mono">479.7k</span><span class="pct">48.0%</span></div>
+                </div>
+                <div class="dlg-hint">缓存命中 <b class="mono" style="color:var(--g-text-sub)">86.4%</b><span style="color:var(--g-text-faint)">· 估算值以最近一次真实调用为准</span></div>
+              </div>
+            </div>
+            <button class="tool-pill">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>
+              用量 631.2k
+            </button>
+            <span class="toolbar-spacer"></span>
+            <button class="tool-pill model-pill">GLM-4.7 ▾</button>
+            <button class="send-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h4>方案 C 规格要点</h4>
+    <ul class="plain">
+      <li>药丸内嵌 22×8px 迷你分段图 + 百分比，<b>常驻</b>（不分阈值）；明细卡 440px 宽，分段条加高到 10px，段间留 2px 间隙，含「空闲」段。</li>
+      <li>颜色语义与现状一致：系统提示词绿 / 工具橙 / 消息黑（accent）/ 其他浅灰 / 空闲轨道色，跨方案统一，形成分类色记忆。</li>
+      <li>药丸自身也按三档色阶升级（80%/92% 警告、危险）。</li>
+      <li>优点：一眼全貌、最好看；缺点：1M 窗口日常 96% 空闲时分段条近乎纯轨道色，常驻的信息量低、视觉重量最高。</li>
+    </ul>
+  </div>
+
+  <!-- ================= 6. 对比与推荐 ================= -->
+  <h2 class="sec"><span class="no">06</span>对比、推荐与实施清单</h2>
+
+  <div class="card" style="padding:8px 10px">
+    <table>
+      <tr><th style="width:150px">维度</th><th>方案 A · 药丸+阈值告警</th><th>方案 B · 安静水位条</th><th>方案 C · 分段容量图</th></tr>
+      <tr><td class="dim">常驻视觉重量</td><td class="good">低（1–2 颗小药丸）</td><td class="good">零（低占用隐藏）</td><td class="warnC">中（常驻分段药丸）</td></tr>
+      <tr><td class="dim">低占用信息噪音</td><td class="good">无（容量不渲染）</td><td class="good">无（整条隐藏）</td><td class="bad">有（96% 空闲的条常驻）</td></tr>
+      <tr><td class="dim">接近阈值时的感知</td><td class="good">强（新药丸出现+变色+文案）</td><td class="good">强（变色+行动文案）</td><td class="warnC">弱（只变色）</td></tr>
+      <tr><td class="dim">明细可达性</td><td class="good">会话账本+单轮账本+容量</td><td class="warnC">仅容量</td><td class="good">容量最全，无账本</td></tr>
+      <tr><td class="dim">与 dsh 视觉基调一致性</td><td class="good">完全一致（药丸+stat-dialog）</td><td class="warnC">异质（独立条形态）</td><td class="warnC">部分（弹窗一致，药丸异质）</td></tr>
+      <tr><td class="dim">后端改动</td><td>小（+压缩阈值下发、单轮聚合接口）</td><td class="good">最小（+阈值下发）</td><td class="good">最小（+阈值下发）</td></tr>
+      <tr><td class="dim">预估前端工作量</td><td>2–2.5 天</td><td class="good">1–1.5 天</td><td>1.5–2 天</td></tr>
+    </table>
+  </div>
+
+  <div class="callout">
+    <h4>推荐：方案 A 为主体，吸收 B 的显隐哲学，C 的分段条只活在弹窗里</h4>
+    <ul class="plain">
+      <li>gaia 对话层视觉基调本来就是 dsh（窄栏、折叠、系统注记卡），药丸 + stat-dialog 是同一套语言，不会突兀。</li>
+      <li>产品约束是 <b>1M 窗口 + 阈值压缩</b>：低占用水位条/分段图是纯噪音，<b>「过阈值才出现、越线就升级」</b>（A 容量药丸 / B 显隐）才是对的时机模型。</li>
+      <li>分段条信息密度高，但那是「点开才看」的信息——放进弹窗（A/C 共用同一张明细卡皮肤）而不是常驻。</li>
+      <li>单轮用量下放到消息流（A）承接了 owb 「回复操作条小字」的角色，回答「这轮花了多少」，比任何常驻条都更贴近用户的真实疑问。</li>
+      <li>若你更想要「输入框上方有一根可见的条」的安全感 → 选 B；若你想让容量成为面板主角、不在乎低占用噪音 → 选 C。</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h4>实施清单（无论选哪套，公共部分相同）</h4>
+    <ul class="plain">
+      <li><b>前端</b>：重写 <code>ContextCapacity.tsx</code> → <code>StatsPills.tsx</code>（UsagePill / CapacityPill 条件渲染）+ 抽取统一 <code>stat-dialog</code>（portal 上锚定 / Esc / 外点关闭）；<code>ChatMessageList.tsx</code> 回合尾部加单轮用量 meta；compaction 注记卡统一 dsh 皮肤；删除 strip 死代码形态。</li>
+      <li><b>后端</b>：<code>/agent/metrics/sessions/…/context-stats</code> 增加 <code>compactThreshold</code> 字段（与压缩决策同一来源）；新增按 turn 聚合的单轮用量小接口（数据已在 <code>agent_llm_call_log</code>）；核对 <code>tokenUsage.limit</code> 口径（当前兜底 32768 与真实模型窗口不一致的风险）。</li>
+      <li><b>口径纪律</b>（业界教训）：所有数字必须来自后端真账本；估算值标 <code>~</code> 并在弹窗内明示「以最近一次真实调用为准」；避免 Cline 式「UI 50% vs API 口径不一」的信任崩塌。</li>
+      <li><b>验证</b>：明暗双主题、窄栏 748px 与侧栏形态、超长会话（压缩前后）三种数据态各过一遍视觉验收。</li>
+    </ul>
+  </div>
+
+</div>
+
+<script>
+  function toggleDlg(id, btn) {
+    const dlg = document.getElementById(id);
+    if (!dlg) return;
+    const show = dlg.style.display === 'none';
+    // 同一 stage 内互斥
+    dlg.parentElement.querySelectorAll(':scope > .stat-dialog').forEach(d => d.style.display = 'none');
+    dlg.style.display = show ? 'block' : 'none';
+  }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.stat-dialog').forEach(d => d.style.display = 'none'); });
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.stat-dialog') && !e.target.closest('[onclick*="toggleDlg"]')) {
+      document.querySelectorAll('.stat-dialog').forEach(d => d.style.display = 'none');
+    }
+  });
+  function toggleTheme() {
+    const html = document.documentElement;
+    html.dataset.theme = html.dataset.theme === 'dark' ? 'light' : 'dark';
+  }
+  // 截图/评审辅助：?theme=dark 直接暗色；?dialogs=open 展开全部明细卡且不裁剪
+  (function () {
+    const q = new URLSearchParams(location.search);
+    if (q.get('theme') === 'dark') document.documentElement.dataset.theme = 'dark';
+    if (q.get('dialogs') === 'open') {
+      const s = document.createElement('style');
+      s.textContent = [
+        '.stage{overflow:visible;display:flex;flex-direction:column}',
+        '.stage .composer-zone{margin-top:auto}',
+        // 截图稳定：禁用入场动画（避免评审逮到半透明中间帧）
+        '*{animation:none !important;transition:none !important}',
+        // 含大明细卡的 stage 给足高度，弹窗留在本 stage 内
+        '.stage:has(#cur-dlg){min-height:480px}',
+        '.stage:has(#a-turn-dlg){min-height:600px}',
+        '.stage:has(#a-cap-dlg){min-height:680px}',
+        '.stage:has(#c-dlg){min-height:700px}',
+        // 单轮账本卡收进画布：贴列右上、落在压缩注记行下方，四边都不压内容
+        '#a-turn-dlg{left:auto !important; right:6px; top:112px; bottom:auto !important}',
+      ].join('\n');
+      document.head.appendChild(s);
+      document.querySelectorAll('.stat-dialog').forEach(d => d.style.display = 'block');
+    }
+  })();
+</script>
+</body>
+</html>

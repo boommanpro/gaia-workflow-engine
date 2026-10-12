@@ -143,7 +143,7 @@ function parseResult(result?: string): {
     }
     return { kind: 'plain', text: JSON.stringify(parsed, null, 2) };
   } catch {
-    // 截断 JSON：宽容提取
+    // 非 JSON 纯文本：宽容提取错误标记（结果不再被截断，此分支只剩真正的非 JSON 结果）
     const codeMatch = result.match(/"code"\s*:\s*"([^"]+)"/);
     const msgMatch = result.match(/"message"\s*:\s*"([^"]{0,120})/);
     if (codeMatch || /"error"/.test(result)) {
@@ -157,7 +157,7 @@ function parseResult(result?: string): {
           firstLine: vIssue?.[1] || vPath?.[1], text: result,
         };
       }
-      return { kind: 'error', code: codeMatch?.[1], message: msgMatch?.[1] || '…(结果被截断)', firstLine: msgMatch?.[1] || 'error', text: result };
+      return { kind: 'error', code: codeMatch?.[1], message: msgMatch?.[1] || 'error', firstLine: msgMatch?.[1] || 'error', text: result };
     }
     return { kind: 'plain', text: result };
   }
@@ -169,13 +169,14 @@ function isFailure(result?: string): boolean {
   return lower.includes('"error"') || lower.includes('"success":false') || lower.includes('error:');
 }
 
-function resultText(result?: string, limit = 600): string {
+/** OUT 全量展示（可 JSON 美化则美化）：排障第一现场不做截断，超长由容器的 maxHeight 滚动承接 */
+function resultText(result?: string): string {
   if (!result) return '';
-  let text = result;
   try {
-    text = JSON.stringify(JSON.parse(result), null, 2);
-  } catch { /* 原样 */ }
-  return text.length > limit ? `${text.slice(0, limit)}\n…` : text;
+    return JSON.stringify(JSON.parse(result), null, 2);
+  } catch {
+    return result;
+  }
 }
 
 const Mono: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -283,7 +284,7 @@ const IoCard: React.FC<{ args: Record<string, unknown>; result?: string; failed:
               columnGap: 14,
               alignItems: 'baseline',
               padding: '10px 14px',
-              maxHeight: 180,
+              maxHeight: 360,
               overflowY: 'auto',
             }}
           >

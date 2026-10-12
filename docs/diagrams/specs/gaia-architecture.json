@@ -1,0 +1,298 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "gaia 总体架构：Spring Boot 单体 + AgentScope 换核",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1240,
+      680
+    ]
+  },
+  "components": [
+    {
+      "id": "user",
+      "type": "external",
+      "label": "用户浏览器",
+      "sublabel": "多窗口 · 关窗继续",
+      "pos": [
+        40,
+        320
+      ],
+      "size": [
+        132,
+        62
+      ]
+    },
+    {
+      "id": "console",
+      "type": "frontend",
+      "label": "apps/console",
+      "sublabel": "React + rsbuild + Semi UI",
+      "pos": [
+        230,
+        320
+      ],
+      "size": [
+        152,
+        62
+      ],
+      "tag": "FlowGram 画布"
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "gaia-workflow-app",
+      "sublabel": "Spring Boot :48080",
+      "pos": [
+        470,
+        320
+      ],
+      "size": [
+        152,
+        62
+      ],
+      "tag": "约 90 个端点"
+    },
+    {
+      "id": "agentscope",
+      "type": "backend",
+      "label": "AgentScope 内核",
+      "sublabel": "HarnessAgent 2.0.3",
+      "pos": [
+        700,
+        140
+      ],
+      "size": [
+        152,
+        62
+      ],
+      "tag": "ReAct 循环"
+    },
+    {
+      "id": "ark",
+      "type": "cloud",
+      "label": "方舟托管引擎",
+      "sublabel": "ArkManagedExecutionEngine",
+      "pos": [
+        700,
+        320
+      ],
+      "size": [
+        152,
+        62
+      ],
+      "tag": "engine=ark"
+    },
+    {
+      "id": "llm",
+      "type": "cloud",
+      "label": "LLM 提供商",
+      "sublabel": "OpenAI 兼容流式",
+      "pos": [
+        960,
+        140
+      ],
+      "size": [
+        144,
+        62
+      ]
+    },
+    {
+      "id": "tools",
+      "type": "backend",
+      "label": "共享工具层",
+      "sublabel": "13 个 ToolExecutor",
+      "pos": [
+        960,
+        320
+      ],
+      "size": [
+        144,
+        62
+      ],
+      "tag": "双引擎共用"
+    },
+    {
+      "id": "dsl",
+      "type": "backend",
+      "label": "自研 DSL 引擎",
+      "sublabel": "base+infra · Chain/SpEL",
+      "pos": [
+        960,
+        500
+      ],
+      "size": [
+        144,
+        62
+      ]
+    },
+    {
+      "id": "db",
+      "type": "database",
+      "label": "SQLite 19 表",
+      "sublabel": "会话/三账本/草稿/模型",
+      "pos": [
+        300,
+        500
+      ],
+      "size": [
+        152,
+        62
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "apps/console 浏览器端",
+      "wraps": [
+        "console"
+      ],
+      "pad": 18
+    },
+    {
+      "kind": "region",
+      "label": "gaia-workflow 服务端（三模块 Maven）",
+      "wraps": [
+        "api",
+        "agentscope",
+        "ark",
+        "tools",
+        "dsl",
+        "db"
+      ],
+      "pad": 24
+    }
+  ],
+  "connections": [
+    {
+      "from": "user",
+      "to": "console",
+      "label": "HTTPS",
+      "variant": "emphasis"
+    },
+    {
+      "from": "console",
+      "to": "api",
+      "label": "REST + SSE",
+      "variant": "emphasis"
+    },
+    {
+      "from": "api",
+      "to": "agentscope",
+      "label": "默认引擎",
+      "variant": "emphasis",
+      "fromSide": "top",
+      "toSide": "left",
+      "via": [
+        [
+          546,
+          171
+        ]
+      ],
+      "labelAt": [
+        620,
+        171
+      ]
+    },
+    {
+      "from": "api",
+      "to": "ark",
+      "label": "托管",
+      "variant": "dashed",
+      "labelAt": [
+        661,
+        351
+      ]
+    },
+    {
+      "from": "agentscope",
+      "to": "llm",
+      "label": "落账",
+      "variant": "emphasis"
+    },
+    {
+      "from": "agentscope",
+      "to": "tools",
+      "label": "适配",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "via": [
+        [
+          776,
+          261
+        ],
+        [
+          1032,
+          261
+        ]
+      ],
+      "labelAt": [
+        900,
+        261
+      ]
+    },
+    {
+      "from": "ark",
+      "to": "tools",
+      "label": "回传",
+      "variant": "dashed"
+    },
+    {
+      "from": "api",
+      "to": "dsl",
+      "label": "run_workflow",
+      "labelAt": [
+        800,
+        610
+      ],
+      "fromSide": "bottom",
+      "toSide": "bottom",
+      "via": [
+        [
+          546,
+          610
+        ],
+        [
+          1032,
+          610
+        ]
+      ]
+    },
+    {
+      "from": "api",
+      "to": "db",
+      "label": "SQL",
+      "labelDy": 34
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "换核架构",
+      "items": [
+        "AgentScope 负责 ReAct 循环/流式/模型重试/框架内压缩",
+        "自研保留 13 工具执行器 + 会话草稿 + 三账本持久化",
+        "RecordingModel 装饰 Model.stream：全量请求/响应落账（图中「落账」）"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "双引擎共享工具层",
+      "items": [
+        "本地 AgentScope 经 Toolkit 适配、方舟经 custom_tool 回传",
+        "共用同一 ToolExecutorRegistry：工具/草稿/产物/日志引擎无关"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "三账本全量口径",
+      "items": [
+        "agent_llm_call_log：request_json/response_json 不截断",
+        "agent_session_event + agent_tool_call_log：模型可见即已落账"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,260 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "owb runTask 主循环：引擎分岔 → 步循环 → 闸口 → 交付",
+    "locale": "zh-CN",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    {
+      "id": "entry",
+      "label": "入口 / 出口"
+    },
+    {
+      "id": "loop",
+      "label": "Agent 运行时"
+    },
+    {
+      "id": "gates",
+      "label": "判断与防呆",
+      "variant": "exception"
+    },
+    {
+      "id": "evidence",
+      "label": "工具与证据"
+    }
+  ],
+  "phases": [
+    {
+      "id": "intake",
+      "label": "受理",
+      "fromCol": 0,
+      "toCol": 1
+    },
+    {
+      "id": "reasoning",
+      "label": "推理与闸口",
+      "fromCol": 2,
+      "toCol": 3,
+      "variant": "emphasis"
+    },
+    {
+      "id": "execution",
+      "label": "执行与交付",
+      "fromCol": 4,
+      "toCol": 5,
+      "variant": "dashed"
+    }
+  ],
+  "mainPath": [
+    "task",
+    "resolve",
+    "prompt",
+    "steploop",
+    "tools",
+    "deliver",
+    "done"
+  ],
+  "nodes": [
+    {
+      "id": "task",
+      "lane": "entry",
+      "col": 0,
+      "type": "external",
+      "label": "用户任务",
+      "sublabel": "Web / CLI / IM",
+      "width": 132
+    },
+    {
+      "id": "resolve",
+      "lane": "loop",
+      "col": 1,
+      "type": "backend",
+      "label": "引擎分岔",
+      "sublabel": "内置 / 本机 CLI 引擎",
+      "width": 132
+    },
+    {
+      "id": "prompt",
+      "lane": "loop",
+      "col": 2,
+      "type": "backend",
+      "label": "提示词两段拼装",
+      "sublabel": "稳定段+易变段",
+      "width": 132
+    },
+    {
+      "id": "steploop",
+      "lane": "loop",
+      "col": 3,
+      "type": "backend",
+      "label": "步循环",
+      "sublabel": "25 步 × 续跑≤20",
+      "tag": "deadline/token 闸",
+      "width": 132
+    },
+    {
+      "id": "gate",
+      "lane": "gates",
+      "col": 3,
+      "type": "security",
+      "label": "判断闸 ×4",
+      "sublabel": "四道闸 + Jev 裁决",
+      "width": 132
+    },
+    {
+      "id": "guard",
+      "lane": "gates",
+      "col": 4,
+      "type": "security",
+      "label": "防呆三件套",
+      "sublabel": "3 提醒 / 5 拦截",
+      "width": 132
+    },
+    {
+      "id": "tools",
+      "lane": "evidence",
+      "col": 4,
+      "type": "messagebus",
+      "label": "工具执行",
+      "sublabel": "37 工具 + 52 连接器",
+      "width": 132
+    },
+    {
+      "id": "trace",
+      "lane": "evidence",
+      "col": 3,
+      "type": "database",
+      "label": "trace.jsonl",
+      "sublabel": "start/end 合成 span 树",
+      "width": 132
+    },
+    {
+      "id": "deliver",
+      "lane": "evidence",
+      "col": 5,
+      "type": "database",
+      "label": "成果文件落盘",
+      "sublabel": "工作目录交付",
+      "width": 132
+    },
+    {
+      "id": "done",
+      "lane": "entry",
+      "col": 5,
+      "type": "backend",
+      "label": "SSE 回放 / stdout",
+      "sublabel": "回答与进度分离",
+      "width": 132
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "task",
+      "to": "resolve",
+      "variant": "emphasis"
+    },
+    {
+      "id": "e2",
+      "from": "resolve",
+      "to": "prompt",
+      "label": "depth=0 选内核",
+      "variant": "emphasis"
+    },
+    {
+      "id": "e3",
+      "from": "prompt",
+      "to": "steploop"
+    },
+    {
+      "id": "e4",
+      "from": "steploop",
+      "to": "gate",
+      "label": "每步闸口",
+      "variant": "security"
+    },
+    {
+      "id": "e5",
+      "from": "gate",
+      "to": "steploop",
+      "label": "通过 / 续跑判断",
+      "role": "return"
+    },
+    {
+      "id": "e6",
+      "from": "steploop",
+      "to": "guard",
+      "label": "同参 / 转圈检测",
+      "variant": "security"
+    },
+    {
+      "id": "e7",
+      "from": "guard",
+      "to": "steploop",
+      "label": "提醒 / 拦截",
+      "role": "error"
+    },
+    {
+      "id": "e8",
+      "from": "steploop",
+      "to": "tools",
+      "label": "工具调用",
+      "variant": "emphasis"
+    },
+    {
+      "id": "e9",
+      "from": "tools",
+      "to": "trace",
+      "label": "span 落账",
+      "variant": "dashed",
+      "role": "async"
+    },
+    {
+      "id": "e10",
+      "from": "prompt",
+      "to": "trace",
+      "label": "全文记一次",
+      "variant": "dashed"
+    },
+    {
+      "id": "e11",
+      "from": "tools",
+      "to": "deliver",
+      "label": "产物文件",
+      "variant": "emphasis"
+    },
+    {
+      "id": "e12",
+      "from": "deliver",
+      "to": "done"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "两层循环",
+      "items": [
+        "内层 max_steps=25 步，外层 auto_continue ≤20 轮",
+        "卡壳超时按「连续 N ms 无数据块」判定，不是总时长"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "闸口与防呆",
+      "items": [
+        "四道判断闸由纯判据 + Jev 裁决模型驱动",
+        "同参复读 3 连提醒 5 连拦截，A→B→A 转圈有指纹"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "证据链",
+      "items": [
+        "提示词全文只记一次，之后记 $msgs 编号去重",
+        "外部引擎整层一条 span 并注明黑盒"
+      ]
+    }
+  ]
+}

@@ -48,7 +48,11 @@ public class RepeatToolGuard {
         }
     }
 
-    private final Map<String, Integer> counts = new HashMap<>();
+    /** 失败复读计数：同参数组合的累计失败次数（只有同 key 成功才清零） */
+    private final Map<String, Integer> failCounts = new HashMap<>();
+
+    /** 成功复读计数：同参数组合的连续成功次数（检测语法成功但语义空转） */
+    private final Map<String, Integer> successCounts = new HashMap<>();
 
     /**
      * 登记一次调用及其结果。
@@ -58,22 +62,89 @@ public class RepeatToolGuard {
      * @param success   执行是否成功
      * @param errorCode 失败错误码（成功时为 null）
      */
+    /** 同工具连续调用提醒阈值（不看参数：todo_write 变参循环 2026-10-11 实证绕过同参护栏） */
+    private static final int SAME_TOOL_STREAK_REMIND_AT = 4;
+
+    /** 同工具连续调用硬熔断阈值（微变参循环无视提醒时终止：write 空壳复读实证） */
+    private static final int SAME_TOOL_STREAK_HARD_STOP_AT = 6;
+
+    private String lastToolName;
+    private int sameToolStreak;
+
     public Verdict record(String toolName, JSONObject args, boolean success, ToolErrorCode errorCode) {
         String key = toolName + "|" + canonicalArgs(args);
+        recordKey(key);
+        // 同工具连续调用（参数可变）：todo_write 这类全量重写工具每次参数都不同，
+        // 同参护栏抓不住；连续 N 次同一工具就该提醒换路
+        boolean streakTriggered = false;
+        boolean streakHardStop = false;
+        if (toolName.equals(lastToolName)) {
+            sameToolStreak++;
+            if (sameToolStreak == SAME_TOOL_STREAK_REMIND_AT) {
+                streakTriggered = true;
+            }
+            if (sameToolStreak >= SAME_TOOL_STREAK_HARD_STOP_AT) {
+                streakHardStop = true;
+            }
+        } else {
+            lastToolName = toolName;
+            sameToolStreak = 1;
+        }
         if (success) {
-            // 成功即打破重复链：这组参数已经生效，后续同名调用是新的意图
-            counts.remove(key);
-            if (key.equals(lastKey)) {
-                lastKey = null;
+            // 成功不再无条件打破重复链（2026-10-11 实证：模型同参 edit 成功 8 次——
+            // 语法成功不等于语义进展，连环空转由 alternating-loop 检测兜住）。
+            // 成功计数独立起算（前序失败链不并入成功复读的次数）。
+            int count;
+            if (key.equals(lastKey) && lastWasSuccess) {
+                count = successCounts.getOrDefault(key, 0) + 1;
+            } else {
+                count = 1;
+            }
+            successCounts.put(key, count);
+            failCounts.remove(key); // 该参数组合已成功：失败链清零
+            lastKey = key;
+            lastWasSuccess = true;
+            if (count >= SUCCESS_REPEAT_REMIND_AT) {
+                return new Verdict(Action.APPEND, "你已连续第 " + count + " 次用完全相同的参数成功调用 "
+                    + toolName + "，结果不会有任何变化。请先 read_workflow / read_node 核实现状，"
+                    + "换一种修改或直接向用户说明。");
+            }
+            if (streakHardStop) {
+                return new Verdict(Action.STOP,
+                    "⚠️ 系统护栏：你已连续 " + sameToolStreak + " 次成功调用 " + toolName
+                        + "（参数反复微调）而没有推进任务，本轮执行已被终止。"
+                        + "请核对当前状态后用正文总结进度与下一步。");
+            }
+            if (streakTriggered) {
+                return new Verdict(Action.APPEND,
+                    "你已连续 " + sameToolStreak + " 次调用 " + toolName
+                        + "（参数各不相同）。如果是清单类工具（todo_write）这是不必要的反复重写——"
+                        + "清单一次写全，然后去执行清单里的步骤；如果是查询类，连续查询说明你在绕圈，"
+                        + "停下来用 read_workflow/read_node 看现状或换一种做法。");
+            }
+            if (alternatingLoopJustTriggered) {
+                alternatingLoopJustTriggered = false;
+                return new Verdict(Action.APPEND, ALTERNATING_LOOP_MESSAGE);
             }
             return Verdict.none();
         }
-        boolean sameAsLast = key.equals(lastKey);
+        // 失败计数不再被「中间夹的其他调用」重置（2026-10-11 三轮实证：write 失败 →
+        // edit/read 失败 → write 同参复读，复读链被 edit/read 清零，第 2/3 次阶梯提醒
+        // 全部失位）。同 key 失败累计，只有该 key 成功才清零。
         lastKey = key;
-        int count = sameAsLast ? counts.getOrDefault(key, 0) + 1 : 1;
-        counts.put(key, count);
+        lastWasSuccess = false;
+        int count = failCounts.getOrDefault(key, 0) + 1;
+        failCounts.put(key, count);
 
         boolean invalidArgs = errorCode == ToolErrorCode.INVALID_ARGS;
+        if (streakHardStop) {
+            return new Verdict(Action.STOP,
+                "⚠️ 系统护栏：你已连续 " + sameToolStreak + " 次调用 " + toolName
+                    + "（参数反复微调）且一直失败，本轮执行已被终止以避免空转。\n\n"
+                    + "已生效的改动保持有效。继续推进请换一种方式：先用 read_workflow / read_node "
+                    + "核对现状，或把回执里的可抄示例逐字段比对后一次性修正重发；"
+                    + "若仍无法修正，直接说明你需要用户提供什么。");
+        }
         if (invalidArgs && count >= INVALID_ARGS_HARD_STOP_AT) {
             return new Verdict(Action.STOP, hardStopMessage(toolName, count));
         }
@@ -90,8 +161,50 @@ public class RepeatToolGuard {
                 }
             }
         }
+        if (alternatingLoopJustTriggered) {
+            alternatingLoopJustTriggered = false;
+            return new Verdict(Action.APPEND, ALTERNATING_LOOP_MESSAGE);
+        }
         return Verdict.none();
     }
+
+    /**
+     * 记录调用序列并识别 edit→run 交替空转：修改+验证循环里结果没有任何变化
+     * （2026-10-11 二轮实证：模型 edit end_1 → run 交替 8 轮，每次 edit 参数略有
+     * 不同所以按 key 检测抓不住，只有序列模式能识别）。末尾 k1,k2,k1,k2 即触发。
+     */
+    private void recordKey(String key) {
+        recentKeys.addLast(key);
+        while (recentKeys.size() > 8) {
+            recentKeys.removeFirst();
+        }
+        if (alternatingLoopJustTriggered) {
+            return;
+        }
+        int n = recentKeys.size();
+        if (n >= 4) {
+            String[] arr = recentKeys.toArray(new String[0]);
+            String k1 = arr[n - 4], k2 = arr[n - 3], k3 = arr[n - 2], k4 = arr[n - 1];
+            if (!k1.equals(k2) && k1.equals(k3) && k2.equals(k4)) {
+                alternatingLoopJustTriggered = true;
+            }
+        }
+    }
+
+    /** 交替空转提醒是否待附加（检测到后在下一次 record 结果上带出） */
+    private boolean alternatingLoopJustTriggered;
+
+    /** 最近调用 key 序列（含成功调用），交替空转检测用 */
+    private final java.util.ArrayDeque<String> recentKeys = new java.util.ArrayDeque<>();
+
+    /** 同参数成功复读的提醒阈值 */
+    private static final int SUCCESS_REPEAT_REMIND_AT = 3;
+
+    /** 交替空转提醒文案 */
+    public static final String ALTERNATING_LOOP_MESSAGE =
+        "循环警报：你已陷入「修改→运行」的交替循环且运行结果没有变化，继续这样调用不会有进展。"
+            + "请停下来：read_workflow 查看当前完整配置，对照运行回执里的 warnings 定位真正没生效的"
+            + "节点/字段（warnings 会点名字段和上游），只修那一处；或换一种节点结构；或直接向用户说明困难。";
 
     /** 非参数错误复读的升级提醒（dsh 同款文案结构） */
     private static String reminder(String toolName, int count) {
@@ -130,4 +243,7 @@ public class RepeatToolGuard {
     }
 
     private String lastKey;
+
+    /** 上一次调用是否成功（成功/失败复读链分开计数） */
+    private boolean lastWasSuccess;
 }

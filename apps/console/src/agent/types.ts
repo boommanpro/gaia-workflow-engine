@@ -14,11 +14,6 @@ export interface AgentSession {
   folderId?: number | null;
   pinned?: number;     // 0/1
   archived?: number;   // 0/1
-  // 人工审查标记
-  reviewRating?: string | null;   // good / bad / null
-  reviewIssue?: string | null;
-  reviewStatus?: string;          // pending / analyzing / fixed / ignored
-  reviewFixNote?: string | null;
   // 双引擎架构：local（自研编排，默认）/ ark（火山方舟 Managed Agents 托管）
   engine?: string;
   remoteSessionId?: string | null;
@@ -45,6 +40,12 @@ export interface AgentMessage {
   toolCalls?: string;
   /** 思考过程（assistant 消息持久化的 reasoning 输出，回放折叠展示） */
   thinking?: string;
+  /**
+   * 交错时间线（assistant 消息持久化的 run 真实调用链路：思考→工具→…→正文）。
+   * 后端存 TEXT 列，接口返回 JSON 字符串；存在时刷新还原按它渲染原样过程，
+   * 不再退化成合并视图。
+   */
+  timeline?: string | TimelineItem[];
   toolCallId?: string;
   pageContext?: string;
   /** 多模态图片（JSON 字符串数组，仅 user 消息） */
@@ -108,8 +109,7 @@ export interface AgentArtifactDto {
 }
 
 /** 前端展示的消息（含 plan 卡片等扩展） */
-export interface DisplayMessage {
-  id: string;
+export interface DisplayMessage {  id: string;
   role: 'user' | 'assistant' | 'tool';
   content: string;
   toolCall?: ToolCallEvent;
@@ -129,8 +129,25 @@ export interface DisplayMessage {
    * 一次 run 的所有 tool_call 不再各自成卡，而是折进这条助手消息里按序折叠展示。
    */
   toolSteps?: ToolCallEvent[];
+  /** ask_user 提问卡：run 进行中由 ask_request 事件 upsert，回答后收敛为已答状态 */
+  ask?: {
+    askId: string;
+    question: string;
+    options?: string[];
+    answered?: boolean;
+    answer?: string;
+  };
   // 关联的调试条目 ID，用于点击消息跳转调试面板
   debugEntryId?: string;
+  /** 本轮 run 的 token 用量（dsh turn-usage 同位：挂在回复尾部持久展示；来自 run_end/runs + turn-usage 聚合） */
+  tokenUsage?: {
+    promptTokens: number;
+    completionTokens: number;
+    durationMs?: number;
+    /** 缓存命中 tokens（turn-usage 聚合，未上报时缺省） */
+    cachedTokens?: number;
+    model?: string;
+  };
   // New: for subagent
   subagentSteps?: Array<{
     action: string;
@@ -268,6 +285,10 @@ export interface SseHandlers {
     thinkingLength?: number;
     toolCalls?: Array<{ id: string; name: string; arguments?: string }>;
   }) => void;
+  /** ask_user 提问到达：渲染交互卡片并等待用户作答 */
+  onAskRequest?: (data: { askId: string; question: string; options?: string[] }) => void;
+  /** ask_user 已作答（可能是其他窗口答的）：卡片收敛为已答状态 */
+  onAskResolved?: (data: { askId: string; answer: string }) => void;
   /** 模型请求用量（方舟托管引擎的 span.model_request_end 聚合） */
   onUsage?: (data: {
     last?: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number };

@@ -109,6 +109,8 @@ class AgentScopeTrajectoryReplayTest {
 
         AgentModelConfigService modelConfigService = mock(AgentModelConfigService.class);
         when(modelConfigService.getLlmConfig()).thenReturn(mock(AgentModelConfigService.LlmConfig.class));
+        when(modelConfigService.getLlmConfig(org.mockito.ArgumentMatchers.anyString()))
+            .thenReturn(mock(AgentModelConfigService.LlmConfig.class));
 
         engine = new AgentScopeExecutionEngine(agentRegistry, executorRegistry, schemaRegistry,
             promptResolver, conversationStore, modelConfigService,

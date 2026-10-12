@@ -117,8 +117,9 @@ public class AgentAssembly {
         tools.add("run_workflow");
         // 落版 / 生命周期
         tools.add("write_workflow");
-        tools.add("save_workflow");
         tools.add("delete_workflow");
+        // 记忆（双层记忆：remember/forget/list）
+        tools.add("memory");
         // 元
         tools.add("todo_write");
         return tools;

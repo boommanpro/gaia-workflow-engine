@@ -71,29 +71,15 @@ public class AgentSession {
     @TableField("archived")
     private Integer archived;
 
-    // ===== 人工审查标记（用于会话质量分析和 event loop） =====
-
-    /** 质量评分：good / bad / null（未标记） */
-    @TableField("review_rating")
-    private String reviewRating;
-
-    /** 问题描述（人工填写，哪里不好） */
-    @TableField("review_issue")
-    private String reviewIssue;
-
-    /** 状态标签：pending（默认）/ analyzing / fixed / ignored */
-    @TableField("review_status")
-    private String reviewStatus;
-
-    /** 修复建议（给 coding agent 的指令） */
-    @TableField("review_fix_note")
-    private String reviewFixNote;
-
     // ===== 执行引擎与会话映射（双引擎架构） =====
 
     /** 执行引擎：local（自研编排，默认）/ ark（火山方舟 Managed Agents 托管） */
     @TableField("engine")
     private String engine;
+
+    /** 会话级模型绑定（llm_model.id，NULL=跟随全局默认；2026-10-11 owb 式多模型） */
+    @TableField("model_id")
+    private Long modelId;
 
     /** 方舟 Session ID（形如 sesn-...），engine=ark 时与 session_key 双向绑定 */
     @TableField("remote_session_id")

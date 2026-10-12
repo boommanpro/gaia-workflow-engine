@@ -39,8 +39,8 @@ function latestCompletedFirstLine(text: string): string {
   return '';
 }
 
-/** 思考行：思考图标 + 首行摘要（流式 shimmer），展开完整正文（dsh ReasoningRow） */
-const ThinkingItem: React.FC<{ text: string; live?: boolean }> = React.memo(({ text, live }) => {
+/** 思考行：思考图标 + 首行摘要（流式 shimmer），展开完整正文（dsh ReasoningRow）；历史消息的独立思考块也复用 */
+export const ThinkingItem: React.FC<{ text: string; live?: boolean }> = React.memo(({ text, live }) => {
   const [open, setOpen] = useState(false);
   const summary = live ? latestCompletedFirstLine(text) : (text.split('\n')[0] || '').split('**').join('');
   return (
@@ -244,13 +244,23 @@ const RetryNotice: React.FC<{ text: string; delayMs: number }> = ({ text, delayM
   );
 };
 
-/** run 时间账小结卡：失败链徽标 + 「执行追踪」入口（OWB 收尾时间账对标） */
+/** token 数缩写（dsh token-format 同款观感）：12345 → 12.3k */
+function fmtTokens(n?: number): string {
+  const v = Number(n) || 0;
+  if (v <= 0) return '-';
+  return v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v);
+}
+
+/** run 时间账小结卡：token 用量（dsh TurnUsagePanel 式）+ 失败链徽标 + 「执行追踪」入口 */
 const RunSummaryCard: React.FC<{ text: string; meta: Record<string, any> }> = ({ text, meta }) => {
   const chain: string[] = Array.isArray(meta.failureChain) ? meta.failureChain : [];
   const failed = meta.outcome === 'error' || chain.some((c) => !c.startsWith('wrap_up'));
   const slowest: Array<{ name: string; durationMs: number }> = Array.isArray(meta.slowestTools)
     ? meta.slowestTools
     : [];
+  const inTok = Number(meta.promptTokens) || 0;
+  const outTok = Number(meta.completionTokens) || 0;
+  const hasUsage = inTok + outTok > 0;
   return (
     <div
       style={{
@@ -296,6 +306,33 @@ const RunSummaryCard: React.FC<{ text: string; meta: Record<string, any> }> = ({
           执行追踪 →
         </button>
       </div>
+      {hasUsage && (
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 7,
+            marginTop: 4,
+            padding: '2px 9px',
+            borderRadius: 999,
+            fontSize: 11.5,
+            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+            color: CHAT.textSub,
+            background: 'var(--g-bg-sunken, rgba(148, 163, 184, 0.1))',
+            border: `0.5px solid ${CHAT.line}`,
+          }}
+          title={`本轮累计模型用量（计费口径，${Number(meta.turns) || '-'} 次模型调用合计）：输入 ${inTok.toLocaleString()} tok / 输出 ${outTok.toLocaleString()} tok。每轮调用都会重发全部历史，所以它远大于下方「上下文容量」显示的当前上下文占用`}
+        >
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>⚡</span>
+          <b style={{ color: CHAT.text, fontWeight: 600 }}>{fmtTokens(inTok + outTok)} tok</b>
+          <span>in {fmtTokens(inTok)} / out {fmtTokens(outTok)}</span>
+          {(Number(meta.turns) || 0) > 0 && (
+            <span title="本轮 run 的模型调用次数（累计用量 = 每次调用的输入输出之和）">
+              · {Number(meta.turns)} 次调用
+            </span>
+          )}
+        </div>
+      )}
       {slowest.length > 0 && (
         <div style={{ marginTop: 2, color: CHAT.textFaint }}>
           最慢：{slowest.map((s) => `${s.name} ${(s.durationMs / 1000).toFixed(1)}s`).join(' · ')}
@@ -377,16 +414,13 @@ const StreamStatusBar: React.FC = () => {
               flexShrink: 0,
             }}
           />
-          {state.maxTurns > 0 ? (
-            <span>{t('chat.streamTurn', { turn: state.turn, max: state.maxTurns })}</span>
-          ) : (
-            <span title="当前上下文 token 估算（超过阈值会自动压缩）">
-              {t('chat.streamTurnOnly', { turn: state.turn })}
-              {state.contextTokens > 0 && ` · ≈${state.contextTokens} tok`}
-            </span>
-          )}
           {state.currentTool && (
             <span style={{ color: CHAT.accent, fontWeight: 500 }}>{state.currentTool}</span>
+          )}
+          {state.contextTokens > 0 && (
+            <span title="当前上下文 token 估算（超过阈值会自动压缩）">
+              ≈{state.contextTokens} tok
+            </span>
           )}
         </>
       )}

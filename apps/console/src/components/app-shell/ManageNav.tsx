@@ -1,7 +1,7 @@
 /**
  * ManageNav —— Manage 模式左栏导航。
  *
- * 管理端的四块内容：工作流管理 / 模板管理 / Agent 配置中心 / 会话审查。
+ * 管理端的四块内容：工作流管理 / 模板管理 / Agent 配置中心 / 执行追踪。
  * 与 Chat 模式的会话列表互斥：左栏同一时刻只呈现当前模式的内容。
  */
 import React from 'react';
@@ -10,7 +10,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { CHAT } from '../../chat/theme';
 import { useLanguage, t } from '../../i18n';
 
-export type ManageSection = 'workflows' | 'templates' | 'agentConfig' | 'sessions';
+export type ManageSection = 'workflows' | 'templates' | 'agentConfig';
 
 const stroke = {
   width: 18,
@@ -46,24 +46,16 @@ const IconConfig = () => (
   </svg>
 );
 
-const IconSession = () => (
-  <svg {...stroke}>
-    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-  </svg>
-);
-
 const ITEMS: Array<{ key: ManageSection; labelKey: string; path: string; icon: React.ReactNode }> = [
   { key: 'workflows', labelKey: 'admin.workflows', path: '/manage/workflows', icon: <IconWorkflow /> },
   { key: 'templates', labelKey: 'admin.templates', path: '/manage/templates', icon: <IconTemplate /> },
   { key: 'agentConfig', labelKey: 'agent.config.title', path: '/manage/agent-config', icon: <IconConfig /> },
-  { key: 'sessions', labelKey: 'admin.sessions', path: '/manage/sessions', icon: <IconSession /> },
 ];
 
 /** 从当前路径推导激活的管理分区 */
 export const manageSectionFromPath = (pathname: string): ManageSection => {
   if (pathname.startsWith('/manage/templates')) return 'templates';
   if (pathname.startsWith('/manage/agent-config')) return 'agentConfig';
-  if (pathname.startsWith('/manage/sessions')) return 'sessions';
   return 'workflows';
 };
 

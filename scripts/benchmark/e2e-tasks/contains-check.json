@@ -1,0 +1,15 @@
+{
+  "name": "contains-check",
+  "description": "字符串包含判断（2026-10-11 全部事故的回归锚点）：condition contains + end 布尔输出，双向验证",
+  "message": "帮我做一个判断入参是否包含特定字符串，包含的话则返回true，不包含则返回false的工作流",
+  "limits": { "maxToolCalls": 30 },
+  "structure": [
+    { "check": "noEmptyNodes" },
+    { "check": "endHasInputs" },
+    { "check": "edgeFromPortIn", "ports": ["if_match", "else", "if_oPDeK", null] }
+  ],
+  "expectOutputs": [
+    { "result": true },
+    { "result": false }
+  ]
+}

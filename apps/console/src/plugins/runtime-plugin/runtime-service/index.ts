@@ -259,16 +259,28 @@ export class WorkflowRuntimeService {
     if (workflowStatus.terminated) {
       clearInterval(this.syncTaskReportIntervalID);
       this.taskID = undefined;
-      if (outputs && Object.keys(outputs).length > 0) {
-        const result = { inputs, outputs };
-        this.resultEmitter.fire({ result });
-        this.saveResult(result, report);
-      } else {
-        const errors = messages?.error?.map((message) =>
-          message.nodeID ? `${message.nodeID}: ${message.message}` : message.message
+      const hasOutputs = outputs && Object.keys(outputs).length > 0;
+      const errors = messages?.error
+        ?.filter((message) => message.message)
+        .map((message) =>
+          message.nodeID && message.nodeID !== 'undefined'
+            ? `${message.nodeID}: ${message.message}`
+            : message.message
         );
+      if (hasOutputs) {
+        const result = { inputs, outputs };
+        this.resultEmitter.fire({ result, errors: errors && errors.length ? errors : undefined });
+        this.saveResult(result, report);
+      } else if (errors && errors.length > 0) {
         this.resultEmitter.fire({ errors });
-        this.saveError(errors || ['Unknown error']);
+        this.saveError(errors);
+      } else {
+        // 运行成功但没有产出：明确提示去查 end 的引用，而不是伪装成 Unknown error
+        const notes = [
+          '工作流运行成功，但没有产出结果：请检查 end 节点的 inputsValues 是否引用了上游输出字段（ref 的 [节点id, 字段名] 必须真实存在）',
+        ];
+        this.resultEmitter.fire({ result: { inputs, outputs: outputs || {} }, errors: notes });
+        this.saveResult({ inputs, outputs: outputs || {} }, report);
       }
     }
     this.updateReport(report);
@@ -294,6 +306,9 @@ export class WorkflowRuntimeService {
         const nodeID = node.id;
         const nodeReport = reports[nodeID];
         if (!nodeReport) {
+          if (Object.keys(reports).length > 0) {
+            console.debug('[runtime] report has no entry for node', nodeID, '— canvas ids may diverge from run schema');
+          }
           return;
         }
 

@@ -28,6 +28,7 @@ import { workflowApi } from '../../services/workflow-api';
 import { useAgent } from '../../agent/AgentContext';
 import { useArtifactState } from '../../agent/artifact-store';
 import type { AgentArtifactDto } from '../../agent/types';
+import { agentApi } from '../../agent/api';
 import { CHAT } from '../../chat/theme';
 import { IconPanelRight } from '../../components/app-shell/icons';
 import { ReadonlyCanvas } from './ReadonlyCanvas';
@@ -99,27 +100,46 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
   }, [artifactState, currentSessionKey]);
 
   const handleSave = useCallback(async () => {
-    if (!workflowCode.trim()) {
-      Toast.warning(t('workspace.needCode'));
-      return;
-    }
     setSaving(true);
     try {
-      await workflowApi.applyDsl(workflowCode.trim(), dsl, {
-        workflowName: meta.workflowName || workflowCode.trim(),
-        versionDesc,
-        createIfMissing: true,
-      });
-      workflowDocumentStore.markSaved({ workflowCode: workflowCode.trim(), savedDsl: dsl });
-      workflowDocumentStore.setMeta({ workflowCode: workflowCode.trim() });
-      Toast.success(t('workspace.saveSuccess'));
+      if (currentSessionKey) {
+        // 会话场景：服务端会话草稿是权威数据（AI 经 SSE 单向同步给画布，本地只读），
+        // 走专用端点落版并收口草稿绑定/CAS 基准；workflowCode 留空 = 用草稿绑定的编码
+        const res = await agentApi.saveDraftAsVersion(currentSessionKey, {
+          workflowCode: workflowCode.trim() || undefined,
+          name: meta.workflowName || workflowCode.trim() || undefined,
+          versionDesc,
+        });
+        if (!res.success) {
+          throw new Error(res.error || 'save failed');
+        }
+        if (res.workflowCode) {
+          workflowDocumentStore.markSaved({ workflowCode: res.workflowCode, workflowName: meta.workflowName });
+          workflowDocumentStore.setMeta({ workflowCode: res.workflowCode });
+        }
+        Toast.success(res.message || t('workspace.saveSuccess'));
+      } else {
+        // 编辑器独立打开（无会话）：直接落当前画布
+        if (!workflowCode.trim()) {
+          Toast.warning(t('workspace.needCode'));
+          return;
+        }
+        await workflowApi.applyDsl(workflowCode.trim(), dsl, {
+          workflowName: meta.workflowName || workflowCode.trim(),
+          versionDesc,
+          createIfMissing: true,
+        });
+        workflowDocumentStore.markSaved({ workflowCode: workflowCode.trim(), savedDsl: dsl });
+        workflowDocumentStore.setMeta({ workflowCode: workflowCode.trim() });
+        Toast.success(t('workspace.saveSuccess'));
+      }
       setSaveVisible(false);
     } catch (error) {
       Toast.error(`${t('workspace.saveFailed')}: ${(error as Error).message}`);
     } finally {
       setSaving(false);
     }
-  }, [dsl, meta.workflowName, versionDesc, workflowCode]);
+  }, [currentSessionKey, dsl, meta.workflowName, versionDesc, workflowCode]);
 
   const handleRefine = useCallback(() => {
     // 同标签页跳转，而不是新开一个标签：

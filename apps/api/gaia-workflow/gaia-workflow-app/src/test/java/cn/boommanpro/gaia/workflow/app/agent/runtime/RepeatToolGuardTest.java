@@ -44,15 +44,16 @@ class RepeatToolGuardTest {
     }
 
     @Test
-    @DisplayName("换参数 = 重置链：不同参数打断连续链，旧参数重新计数")
+    @DisplayName("换参不打断失败累计：同参失败跨其他调用累计到熔断（仅同 key 成功清零）")
     void differentArgsResetsChain() {
         RepeatToolGuard guard = new RepeatToolGuard();
         assertEquals(RepeatToolGuard.Action.NONE, call(guard, "{\"a\":1}").action);
         assertEquals(RepeatToolGuard.Action.NONE, call(guard, "{\"a\":2}").action);
-        // {"a":1} 的链被 {"a":2} 打断，回到计数 1
-        assertEquals(RepeatToolGuard.Action.NONE, call(guard, "{\"a\":1}").action);
-        // 连续第 2 次同参 → 提醒；第 3 次 → 熔断
+        // 2026-10-11 三轮实证：write 失败 → edit/read 失败 → write 同参复读，
+        // 复读链曾被中间调用清零导致阶梯提醒失位。现在失败按 key 持久累计：
+        // {"a":1} 第 2 次失败（虽然中间夹了 {"a":2}）→ 提醒
         assertEquals(RepeatToolGuard.Action.APPEND, call(guard, "{\"a\":1}").action);
+        // 第 3 次同参失败 → 熔断
         assertEquals(RepeatToolGuard.Action.STOP, call(guard, "{\"a\":1}").action);
     }
 
@@ -86,10 +87,27 @@ class RepeatToolGuardTest {
         // 第 5 次
         assertEquals(RepeatToolGuard.Action.APPEND,
             guard.record("read_workflow", args("{\"workflowCode\":\"wf\"}"), false, ToolErrorCode.NOT_FOUND).action);
-        // 成功一次即重置
-        assertNull(guard.record("read_workflow", args("{\"workflowCode\":\"wf\"}"), true, null).message);
-        assertEquals(RepeatToolGuard.Action.NONE,
-            guard.record("read_workflow", args("{\"workflowCode\":\"wf\"}"), false, ToolErrorCode.NOT_FOUND).action);
+        // 成功不再无条件重置（2026-10-11 实证：同参成功复读 8 次原地空转）：
+        // 此处已是第 6 次连续同工具调用（前面 5 次失败 + 本次成功），同工具硬熔断生效
+        RepeatToolGuard.Verdict sixth = guard.record("read_workflow", args("{\"workflowCode\":\"wf\"}"), true, null);
+        assertEquals(RepeatToolGuard.Action.STOP, sixth.action);
+        assertTrue(sixth.message.contains("护栏"));
+    }
+
+    @Test
+    @DisplayName("edit→run 交替循环触发循环警报")
+    void alternatingLoopDetected() {
+        RepeatToolGuard guard = new RepeatToolGuard();
+        String edit = "{\"updateNodes\":[{\"nodeId\":\"end_1\"}]}";
+        String run = "{\"inputs\":{\"q\":\"x\"}}";
+        RepeatToolGuard.Verdict v = RepeatToolGuard.Verdict.none();
+        for (int i = 0; i < 4 && v.action != RepeatToolGuard.Action.APPEND; i++) {
+            v = guard.record("edit_workflow", args(edit), true, null);
+            if (v.action == RepeatToolGuard.Action.APPEND) { break; }
+            v = guard.record("run_workflow", args(run), true, null);
+        }
+        assertEquals(RepeatToolGuard.Action.APPEND, v.action);
+        assertTrue(v.message.contains("循环警报"));
     }
 
     @Test

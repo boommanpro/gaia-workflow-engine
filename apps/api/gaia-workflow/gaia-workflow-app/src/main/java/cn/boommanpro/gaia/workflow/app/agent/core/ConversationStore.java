@@ -62,4 +62,13 @@ public interface ConversationStore {
         saveMessage(sessionKey, "user", content, null, null);
         return null;
     }
+
+    /**
+     * 把一次 run 的交错时间线 JSON 附到该会话最后一条 assistant 消息上
+     * （run 收尾时调用）。时间线只服务前端刷新还原，不参与模型上下文。
+     * 默认空实现：内存实现/测试假实现无需支持。
+     */
+    default void attachTimelineToLastAssistant(String sessionKey, String timelineJson) {
+        // no-op
+    }
 }

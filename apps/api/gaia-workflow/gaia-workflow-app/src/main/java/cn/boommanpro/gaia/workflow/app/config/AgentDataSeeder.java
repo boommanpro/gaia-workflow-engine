@@ -185,15 +185,13 @@ public class AgentDataSeeder implements ApplicationRunner {
      * 灌入节点知识文档到 agent_config
      * 中文版 configKey=node_{nodeType}，英文版 configKey=node_{nodeType}.en
      *
-     * @return 灌入条数（0 表示已存在跳过）
+     * <p>按 configKey 逐条同步（存在则更新 title/content）：知识是平台教材而非用户数据，
+     * seed 修订必须能进现有库——旧的「非空即跳过」曾让过时教学（canvas/createPlan 等
+     * 已删除的工具）永远留在 DB 里误导模型。</p>
+     *
+     * @return 灌入条数
      */
     private int seedNodeKnowledge() {
-        long existing = configService.count(
-                new QueryWrapper<AgentConfig>().eq("config_type", NODE_KNOWLEDGE_TYPE));
-        if (existing > 0) {
-            log.debug("Node knowledge configs already exist ({}), skip.", existing);
-            return 0;
-        }
         String now = LocalDateTime.now().toString();
         int count = 0;
         count += seedNodeKnowledgeLang(NODE_KNOWLEDGE_ZH_PATH, false, now);
@@ -221,6 +219,19 @@ public class AgentDataSeeder implements ApplicationRunner {
                 continue;
             }
             String configKey = "node_" + nodeType + (isEn ? ".en" : "");
+            AgentConfig existing = configService.getOne(
+                    new QueryWrapper<AgentConfig>().eq("config_key", configKey).last("LIMIT 1"));
+            if (existing != null) {
+                // 内容没变不写库，避免每次启动都动 updated_at
+                if (!content.equals(existing.getContent()) || !title.equals(existing.getTitle())) {
+                    existing.setTitle(title);
+                    existing.setContent(content);
+                    existing.setUpdatedAt(now);
+                    configService.updateById(existing);
+                    count++;
+                }
+                continue;
+            }
             AgentConfig config = new AgentConfig();
             config.setConfigKey(configKey);
             config.setConfigType(NODE_KNOWLEDGE_TYPE);
@@ -242,14 +253,9 @@ public class AgentDataSeeder implements ApplicationRunner {
      * 灌入 RAG 知识库到 agent_knowledge_chunk（关键词检索）
      * 同时灌入中英文两个版本，language 字段区分语言
      *
-     * @return 灌入条数（0 表示已存在跳过）
+     * @return 灌入条数
      */
     private int seedRagKnowledge() {
-        long existing = knowledgeChunkService.count(new QueryWrapper<>());
-        if (existing > 0) {
-            log.debug("RAG knowledge chunks already exist ({}), skip.", existing);
-            return 0;
-        }
         String now = LocalDateTime.now().toString();
         int count = 0;
         count += seedRagKnowledgeLang(RAG_KNOWLEDGE_ZH_PATH, "zh", now);
@@ -259,7 +265,8 @@ public class AgentDataSeeder implements ApplicationRunner {
     }
 
     /**
-     * 灌入单语言的 RAG 知识库
+     * 灌入单语言的 RAG 知识库，按 title+language 同步（seed 是检索教材的事实源，
+     * 内容修订要能进现有库，否则过时教学永远误导模型）
      */
     private int seedRagKnowledgeLang(String path, String lang, String now) {
         JSONArray array = readJsonArray(path);
@@ -273,6 +280,18 @@ public class AgentDataSeeder implements ApplicationRunner {
             String title = item.getStr("title");
             String content = item.getStr("content");
             if (title == null || content == null) {
+                continue;
+            }
+            AgentKnowledgeChunk existing = knowledgeChunkService.getOne(
+                    new QueryWrapper<AgentKnowledgeChunk>()
+                        .eq("title", title).eq("language", lang).last("LIMIT 1"));
+            if (existing != null) {
+                if (!content.equals(existing.getContent())) {
+                    existing.setContent(content);
+                    existing.setUpdatedAt(now);
+                    knowledgeChunkService.updateById(existing);
+                    count++;
+                }
                 continue;
             }
             AgentKnowledgeChunk chunk = new AgentKnowledgeChunk();

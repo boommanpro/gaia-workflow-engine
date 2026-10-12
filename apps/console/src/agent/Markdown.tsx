@@ -189,7 +189,9 @@ function markdownToHtml(md: string): string {
       i++;
     }
     if (para.length > 0) {
-      html.push(`<p class="md-p">${renderInline(para.join('<br/>'))}</p>`);
+      // 软换行先转义再落 <br>：若直接 join('<br/>')，分隔符会被 escapeHtml 转成字面 &lt;br/&gt;
+      const rendered = renderInline(para.join('\n')).replace(/\n/g, '<br>');
+      html.push(`<p class="md-p">${rendered}</p>`);
     }
   }
 
@@ -217,7 +219,10 @@ export const Markdown: React.FC<MarkdownProps> = ({
   optionsDisabled,
   optionsRetired,
 }) => {
-  const { text, options } = useMemo(() => parseOptions(content), [content]);
+  // 弱模型偶尔输出 <br/> 而不是换行 —— 统一归一成换行再走解析，
+  // 否则正文里会看到字面 <br/> 标签
+  const normalized = useMemo(() => content.replace(/<br\s*\/?>/gi, '\n'), [content]);
+  const { text, options } = useMemo(() => parseOptions(normalized), [normalized]);
   const html = useMemo(() => markdownToHtml(text), [text]);
 
   const handleOption = useCallback(

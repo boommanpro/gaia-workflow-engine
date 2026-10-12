@@ -77,12 +77,6 @@ function notify(): void {
   listeners.forEach((l) => l());
 }
 
-/** token 数缩写：3456 → 3.5k */
-function fmtTokens(n?: number): string {
-  if (!n) return '-';
-  return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
-}
-
 /** 关闭尾部打开的 text/thinking 条目（无打开条目时返回原数组引用，避免无谓拷贝） */
 function closeOpenTail(timeline: TimelineItem[]): TimelineItem[] {
   const last = timeline[timeline.length - 1];
@@ -221,7 +215,7 @@ export const liveStreamStore = {
             id: item.call?.id || item.id || '',
             action: item.call?.name || 'unknown',
             args: item.call?.args ?? {},
-            ...(item.call?.result ? { result: String(item.call.result).substring(0, 600) } : {}),
+            ...(item.call?.result ? { result: String(item.call.result) } : {}),
           },
         });
       } else if (item.kind === 'notice') {
@@ -293,12 +287,10 @@ export const liveStreamStore = {
     if (secs) parts.push(`共 ${secs}s`);
     if (toolSecs) parts.push(`工具 ${toolSecs}s`);
     if (runEnd.turns) parts.push(`模型 ${runEnd.turns} 轮`);
-    if (runEnd.promptTokens || runEnd.completionTokens) {
-      parts.push(`tokens ${fmtTokens(runEnd.promptTokens)}→${fmtTokens(runEnd.completionTokens)}`);
-    }
     if (runEnd.llmRetries) parts.push(`重试 ${runEnd.llmRetries} 次`);
-    if (!parts.length) return;
+    if (!parts.length && !(runEnd.promptTokens || runEnd.completionTokens)) return;
     const text = `⏱ 本轮时间账：${parts.join(' · ')}`;
+    // token 用量不进文本：RunSummaryCard 用独立药丸展示（dsh TurnUsagePanel 式），结构化数据走 meta
     state = {
       ...state,
       timeline: [

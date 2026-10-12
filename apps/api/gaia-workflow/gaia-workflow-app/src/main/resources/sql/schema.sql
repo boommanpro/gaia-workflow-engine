@@ -85,11 +85,6 @@ CREATE TABLE IF NOT EXISTS agent_session (
     folder_id BIGINT,               -- 所属工作文件夹（agent_work_folder.id），null=未归入文件夹
     pinned TINYINT DEFAULT 0,       -- 置顶 0/1
     archived TINYINT DEFAULT 0,     -- 归档 0/1
-    -- 人工审查标记（用于会话质量分析和 event loop）
-    review_rating VARCHAR(16),      -- good / bad / null
-    review_issue TEXT,              -- 问题描述（哪里不好）
-    review_status VARCHAR(32) DEFAULT 'pending', -- pending / analyzing / fixed / ignored
-    review_fix_note TEXT,           -- 修复建议（给 coding agent 的指令）
     -- 执行引擎与会话映射（双引擎架构：local 自研 / ark 方舟托管）
     engine VARCHAR(16) DEFAULT 'local',          -- local | ark
     remote_session_id VARCHAR(128),              -- 方舟 sesn-*（engine=ark 时绑定）
@@ -116,6 +111,7 @@ CREATE TABLE IF NOT EXISTS agent_message (
     content TEXT,
     tool_calls TEXT,
     thinking TEXT,
+    timeline TEXT,
     tool_call_id VARCHAR(64),
     page_context TEXT,
     created_at TEXT,
@@ -240,6 +236,8 @@ CREATE TABLE IF NOT EXISTS agent_llm_call_log (
     tools_count INTEGER,
     prompt_digest TEXT,
     output_digest TEXT,
+    request_json TEXT,               -- 真实请求（OpenAI 同构 messages+tools+options，首条全量/后续增量）——复现证据
+    response_json TEXT,              -- 真实响应（流式组装后的完整输出：content+tool_calls+usage+finish_reason）
     prompt_tokens INTEGER,
     completion_tokens INTEGER,
     cached_tokens INTEGER,

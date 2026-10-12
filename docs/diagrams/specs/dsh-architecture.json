@@ -1,0 +1,369 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "dsh 总体架构：everything-is-a-plugin 的 Cordis 插件树",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1300,
+      800
+    ]
+  },
+  "components": [
+    {
+      "id": "dev",
+      "type": "external",
+      "label": "开发者",
+      "sublabel": "终端 / 浏览器",
+      "pos": [
+        40,
+        350
+      ],
+      "size": [
+        120,
+        60
+      ]
+    },
+    {
+      "id": "cli",
+      "type": "backend",
+      "label": "dsh CLI",
+      "sublabel": "web/headless/sdk/acp",
+      "pos": [
+        210,
+        350
+      ],
+      "size": [
+        150,
+        60
+      ],
+      "tag": "唯一启动器"
+    },
+    {
+      "id": "sdk",
+      "type": "external",
+      "label": "Python SDK",
+      "sublabel": "JSON-RPC stdio",
+      "pos": [
+        210,
+        530
+      ],
+      "size": [
+        150,
+        60
+      ]
+    },
+    {
+      "id": "loop",
+      "type": "backend",
+      "label": "agent-loop",
+      "sublabel": "ReactLoopAgent",
+      "pos": [
+        420,
+        350
+      ],
+      "size": [
+        150,
+        60
+      ],
+      "tag": "turn/step"
+    },
+    {
+      "id": "llm",
+      "type": "cloud",
+      "label": "llm-deepseek / pi-ai",
+      "sublabel": "+ llm-retry 退避",
+      "pos": [
+        640,
+        170
+      ],
+      "size": [
+        150,
+        60
+      ]
+    },
+    {
+      "id": "tools",
+      "type": "backend",
+      "label": "ToolRuntime",
+      "sublabel": "三段 waterfall 守卫",
+      "pos": [
+        640,
+        350
+      ],
+      "size": [
+        150,
+        60
+      ]
+    },
+    {
+      "id": "compact",
+      "type": "backend",
+      "label": "compaction-basic",
+      "sublabel": "0.8 阈值 / 0.16 保留",
+      "pos": [
+        860,
+        530
+      ],
+      "size": [
+        150,
+        60
+      ]
+    },
+    {
+      "id": "gateway",
+      "type": "backend",
+      "label": "Typert Gateway",
+      "sublabel": "HTTP /api + remote.mux",
+      "pos": [
+        860,
+        350
+      ],
+      "size": [
+        150,
+        60
+      ]
+    },
+    {
+      "id": "session",
+      "type": "database",
+      "label": "session JSONL",
+      "sublabel": "append-only zstd v0→v4",
+      "pos": [
+        640,
+        530
+      ],
+      "size": [
+        150,
+        60
+      ]
+    },
+    {
+      "id": "sqlite",
+      "type": "database",
+      "label": "storage-sqlite",
+      "sublabel": "非会话域 + FTS5",
+      "pos": [
+        860,
+        680
+      ],
+      "size": [
+        150,
+        60
+      ]
+    },
+    {
+      "id": "ws",
+      "type": "messagebus",
+      "label": "/api/remote.mux",
+      "sublabel": "WebSocket 多路复用",
+      "pos": [
+        1080,
+        170
+      ],
+      "size": [
+        150,
+        60
+      ]
+    },
+    {
+      "id": "web",
+      "type": "frontend",
+      "label": "Web 客户端",
+      "sublabel": "React 18 · 浏览器插件树",
+      "pos": [
+        1080,
+        380
+      ],
+      "size": [
+        150,
+        60
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Node.js Host（319 个 workspace 包的 Cordis 插件树）",
+      "wraps": [
+        "cli",
+        "loop",
+        "llm",
+        "tools",
+        "compact",
+        "gateway",
+        "session",
+        "sqlite"
+      ],
+      "pad": 26
+    },
+    {
+      "kind": "region",
+      "label": "浏览器端（dsh-client-web）",
+      "wraps": [
+        "ws",
+        "web"
+      ],
+      "pad": 18
+    }
+  ],
+  "connections": [
+    {
+      "from": "dev",
+      "to": "cli",
+      "label": "启动",
+      "variant": "emphasis"
+    },
+    {
+      "from": "sdk",
+      "to": "cli",
+      "label": "JSON-RPC",
+      "variant": "dashed"
+    },
+    {
+      "from": "cli",
+      "to": "loop",
+      "label": "装配",
+      "variant": "emphasis"
+    },
+    {
+      "from": "loop",
+      "to": "llm",
+      "label": "流式",
+      "labelAt": [
+        560,
+        200
+      ],
+      "fromSide": "top",
+      "toSide": "left",
+      "via": [
+        [
+          495,
+          200
+        ]
+      ]
+    },
+    {
+      "from": "loop",
+      "to": "tools",
+      "label": "守卫管线",
+      "variant": "emphasis"
+    },
+    {
+      "from": "loop",
+      "to": "compact",
+      "label": "压缩",
+      "fromSide": "bottom",
+      "toSide": "bottom",
+      "via": [
+        [
+          495,
+          650
+        ],
+        [
+          935,
+          650
+        ]
+      ],
+      "labelAt": [
+        700,
+        650
+      ]
+    },
+    {
+      "from": "loop",
+      "to": "session",
+      "label": "事件 append",
+      "variant": "emphasis",
+      "labelAt": [
+        650,
+        470
+      ],
+      "fromSide": "right",
+      "toSide": "top",
+      "via": [
+        [
+          600,
+          380
+        ],
+        [
+          600,
+          470
+        ],
+        [
+          715,
+          470
+        ]
+      ]
+    },
+    {
+      "from": "gateway",
+      "to": "sqlite",
+      "label": "FTS5",
+      "variant": "dashed",
+      "fromSide": "right",
+      "toSide": "right",
+      "via": [
+        [
+          1030,
+          380
+        ],
+        [
+          1030,
+          710
+        ]
+      ],
+      "labelAt": [
+        1030,
+        600
+      ]
+    },
+    {
+      "from": "web",
+      "to": "gateway",
+      "label": "REST",
+      "variant": "emphasis",
+      "labelAt": [
+        1055,
+        395
+      ]
+    },
+    {
+      "from": "web",
+      "to": "ws",
+      "label": "WS"
+    },
+    {
+      "from": "ws",
+      "to": "gateway",
+      "label": "多路复用"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "日志即真相",
+      "items": [
+        "每一步（含重试/中断前缀）先落 durable 事件再驱动 UI",
+        "Chat 与 Trajectory 都是对会话日志的纯投影"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "插件化粒度",
+      "items": [
+        "韧性四件套各自独立成包：llm-retry / compaction-basic / tool-result-pruner / timeout-policy",
+        "子代理 5 种 provider（fork/spawn/dsh-sdk/claude-code/codex）"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "会话真值在 Host",
+      "items": [
+        "每会话一个 append-only JSONL（zstd，格式代际 v0→v4）",
+        "浏览器端只存 UI 状态，不落数据库"
+      ]
+    }
+  ]
+}

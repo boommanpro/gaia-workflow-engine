@@ -9,7 +9,7 @@ import { AdminLayout } from './pages/admin/AdminLayout';
 import { WorkflowManagement } from './pages/admin/WorkflowManagement';
 import { TemplateManagement } from './pages/admin/TemplateManagement';
 import { AgentConfigManagement } from './pages/admin/AgentConfigManagement';
-import { SessionReview } from './pages/admin/SessionReview';
+import { ModelManagement } from './pages/admin/ModelManagement';
 import { AgentProvider } from './agent';
 import { AiWorkspace } from './ai-workspace';
 import ScrollPage from './components/ScrollPage';
@@ -93,7 +93,7 @@ const LegacyAdminRedirect = () => {
  *
  *   /chat,  /chat/:sessionKey    Chat   · 纯对话
  *   /work,  /work/c/:sessionKey  Work   · 工作空间（文件夹分组的对话）
- *   /manage/*                    Manage · 管理端（工作流 / 模板 / Agent 配置 / 会话审查）
+ *   /manage/*                    Manage · 管理端（工作流 / 模板 / Agent 配置 / 执行追踪）
  *
  *   /                    产品首页（对话即 API 入口）
  *   /releases            版本记录
@@ -134,7 +134,7 @@ function App() {
             <Route path="workflows" element={<WorkflowManagement />} />
             <Route path="templates" element={<TemplateManagement />} />
             <Route path="agent-config" element={<AgentConfigManagement />} />
-            <Route path="sessions" element={<SessionReview />} />
+            <Route path="models" element={<ModelManagement />} />
           </Route>
 
           {/* 专家模式 */}

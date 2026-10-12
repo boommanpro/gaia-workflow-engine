@@ -1,0 +1,202 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "gaia 上下文容量治理：双轨压缩 + 回灌剪枝 + 容量观测",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1080,
+      660
+    ]
+  },
+  "stages": [
+    {
+      "label": "消息存储"
+    },
+    {
+      "label": "run 前治理"
+    },
+    {
+      "label": "run 内压缩"
+    },
+    {
+      "label": "回灌与请求"
+    },
+    {
+      "label": "观测回流"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "msgs",
+      "type": "database",
+      "label": "agent_message",
+      "sublabel": "全量历史 · 无滑窗",
+      "stage": 0,
+      "row": 0
+    },
+    {
+      "id": "pre",
+      "type": "backend",
+      "label": "跨 run 压缩 50%",
+      "sublabel": "50% 阈值 · 中文 1.5/字",
+      "stage": 1,
+      "row": 1
+    },
+    {
+      "id": "summ",
+      "type": "database",
+      "label": "[前情摘要]",
+      "sublabel": "compacted=1",
+      "stage": 1,
+      "row": 2
+    },
+    {
+      "id": "fw",
+      "type": "backend",
+      "label": "框架压缩 80%",
+      "sublabel": "HarnessAgent · keep 1/5",
+      "stage": 2,
+      "row": 1
+    },
+    {
+      "id": "replay",
+      "type": "backend",
+      "label": "replayHistory",
+      "sublabel": "tool_call_id 重建配对",
+      "stage": 3,
+      "row": 0
+    },
+    {
+      "id": "prune",
+      "type": "backend",
+      "label": "60k 回灌剪枝",
+      "sublabel": "head 30k + tail 15k",
+      "stage": 3,
+      "row": 1
+    },
+    {
+      "id": "llm",
+      "type": "cloud",
+      "label": "LLM 请求",
+      "sublabel": "全量入账",
+      "stage": 3,
+      "row": 2
+    },
+    {
+      "id": "stats",
+      "type": "backend",
+      "label": "context-stats",
+      "sublabel": "旁路剔除 + 增量拼回",
+      "stage": 4,
+      "row": 0
+    },
+    {
+      "id": "pill",
+      "type": "frontend",
+      "label": "ContextCapacity",
+      "sublabel": "容量 pill / 明细卡",
+      "stage": 4,
+      "row": 1
+    }
+  ],
+  "flows": [
+    {
+      "from": "pre",
+      "to": "summ",
+      "label": "摘要归档",
+      "labelAt": [
+        315,
+        328
+      ]
+    },
+    {
+      "from": "msgs",
+      "to": "fw",
+      "label": "compacted 过滤加载",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "via": [
+        [
+          100,
+          220
+        ],
+        [
+          530,
+          220
+        ]
+      ],
+      "labelAt": [
+        300,
+        220
+      ]
+    },
+    {
+      "from": "summ",
+      "to": "fw",
+      "label": "摘要注入"
+    },
+    {
+      "from": "fw",
+      "to": "replay",
+      "label": "事件消费"
+    },
+    {
+      "from": "replay",
+      "to": "prune",
+      "label": "超长截断",
+      "route": "straight",
+      "labelAt": [
+        745,
+        214
+      ]
+    },
+    {
+      "from": "prune",
+      "to": "llm",
+      "label": "构建 messages",
+      "variant": "emphasis",
+      "route": "straight",
+      "labelAt": [
+        745,
+        328
+      ]
+    },
+    {
+      "from": "llm",
+      "to": "stats",
+      "label": "llm_call_log",
+      "variant": "dashed"
+    },
+    {
+      "from": "stats",
+      "to": "pill",
+      "label": "GET 容量",
+      "variant": "emphasis",
+      "labelAt": [
+        960,
+        214
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "双轨压缩",
+      "items": [
+        "跨 run 50% 预摘要（自研）+ run 内框架 80% 兜底",
+        "回灌按 tool_call_id 重建配对，超 60k 剪枝"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "观测口径",
+      "items": [
+        "旁路调用按「无 tools 且非增量」判别剔除",
+        "增量行按 sharedMessages 拼回全量再分摊"
+      ]
+    }
+  ]
+}

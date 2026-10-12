@@ -1,0 +1,225 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "gaia 一次 run 全链路：受理 → ReAct → 三账本 → 收尾裁定",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "column_fit": "spread",
+    "viewBox": [
+      1085,
+      690
+    ]
+  },
+  "participants": [
+    {
+      "id": "user",
+      "type": "external",
+      "label": "用户",
+      "sublabel": "浏览器"
+    },
+    {
+      "id": "fe",
+      "type": "frontend",
+      "label": "AgentContext",
+      "sublabel": "前端会话态"
+    },
+    {
+      "id": "run",
+      "type": "backend",
+      "label": "RunService",
+      "sublabel": "运行编排"
+    },
+    {
+      "id": "engine",
+      "type": "backend",
+      "label": "AgentScope",
+      "sublabel": "streamRun"
+    },
+    {
+      "id": "tool",
+      "type": "backend",
+      "label": "工具管道",
+      "sublabel": "13 执行器"
+    },
+    {
+      "id": "db",
+      "type": "database",
+      "label": "SQLite",
+      "sublabel": "三账本"
+    }
+  ],
+  "segments": [
+    {
+      "from": 152,
+      "to": 320,
+      "label": "受理与装配"
+    },
+    {
+      "from": 325,
+      "to": 558,
+      "label": "ReAct 循环"
+    },
+    {
+      "from": 562,
+      "to": 606,
+      "label": "收尾与裁定"
+    }
+  ],
+  "messages": [
+    {
+      "from": "user",
+      "to": "fe",
+      "y": 162,
+      "label": "发送消息",
+      "variant": "emphasis"
+    },
+    {
+      "from": "fe",
+      "to": "run",
+      "y": 192,
+      "label": "POST /run 受理",
+      "variant": "emphasis"
+    },
+    {
+      "from": "fe",
+      "to": "run",
+      "y": 222,
+      "label": "运行中再发 = steering",
+      "variant": "dashed"
+    },
+    {
+      "from": "run",
+      "to": "db",
+      "y": 252,
+      "label": "落库 + run_input"
+    },
+    {
+      "from": "run",
+      "to": "db",
+      "y": 282,
+      "label": "pre-run 压缩 ≥50%",
+      "variant": "dashed"
+    },
+    {
+      "from": "run",
+      "to": "engine",
+      "y": 312,
+      "label": "streamRun",
+      "variant": "emphasis"
+    },
+    {
+      "from": "engine",
+      "to": "db",
+      "y": 342,
+      "label": "LLM 流式 + 全量落账",
+      "variant": "dashed",
+      "note": "RecordingModel 装饰 stream：request/response 全量"
+    },
+    {
+      "from": "engine",
+      "to": "tool",
+      "y": 372,
+      "label": "工具管道 9 步",
+      "variant": "emphasis"
+    },
+    {
+      "from": "tool",
+      "to": "db",
+      "y": 402,
+      "label": "tool 消息 + 调用账本"
+    },
+    {
+      "from": "tool",
+      "to": "fe",
+      "y": 432,
+      "label": "tool_result 全量（SSE）",
+      "variant": "dashed"
+    },
+    {
+      "from": "tool",
+      "to": "fe",
+      "y": 462,
+      "label": "ask_request ≤5min",
+      "variant": "security"
+    },
+    {
+      "from": "fe",
+      "to": "tool",
+      "y": 492,
+      "label": "answer 唤醒",
+      "variant": "security"
+    },
+    {
+      "from": "engine",
+      "to": "run",
+      "y": 522,
+      "label": "run_end 用量/轮次",
+      "variant": "emphasis"
+    },
+    {
+      "from": "run",
+      "to": "fe",
+      "y": 552,
+      "label": "假绿裁定 → done",
+      "variant": "security"
+    },
+    {
+      "from": "fe",
+      "to": "user",
+      "y": 582,
+      "label": "settleRun + 小结卡",
+      "variant": "return"
+    }
+  ],
+  "activations": [
+    {
+      "participant": "fe",
+      "from": 156,
+      "to": 590,
+      "type": "frontend"
+    },
+    {
+      "participant": "run",
+      "from": 190,
+      "to": 556,
+      "type": "backend"
+    },
+    {
+      "participant": "engine",
+      "from": 326,
+      "to": 520,
+      "type": "backend"
+    },
+    {
+      "participant": "tool",
+      "from": 396,
+      "to": 490,
+      "type": "backend"
+    },
+    {
+      "participant": "db",
+      "from": 258,
+      "to": 410,
+      "type": "database"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "全量落账口径",
+      "items": [
+        "RecordingModel 装饰模型流：request_json / response_json 不截断，可 curl 复现",
+        "三账本：模型可见即已落账"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "护栏与收尾",
+      "items": [
+        "工具管道 9 步 + 重试 5 次 + 空响应 2 次 + 同参熔断",
+        "run_end 先于 done；write/edit 成功而无成功 run → 假绿裁定"
+      ]
+    }
+  ]
+}

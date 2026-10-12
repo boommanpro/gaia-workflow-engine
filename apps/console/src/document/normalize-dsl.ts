@@ -134,6 +134,37 @@ export function normalizeWorkflowDsl(raw: unknown, options: NormalizeOptions = {
     return { dsl: { nodes: [], edges: [] }, repairs };
   }
 
+  // ---- 引用重写：节点改名后同步 data 里的 ref（否则引擎解析落空，outputs 为空）----
+  if (idMap.size > 0) {
+    let rewritten = 0;
+    const rewriteRefs = (value: unknown): unknown => {
+      if (Array.isArray(value)) return value.map(rewriteRefs);
+      if (value && typeof value === 'object') {
+        const obj = value as Record<string, unknown>;
+        const next: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(obj)) next[k] = rewriteRefs(v);
+        const content = next.content;
+        if (Array.isArray(content) && content.length >= 1 && typeof content[0] === 'string') {
+          const mapped = idMap.get(content[0]);
+          if (mapped && mapped !== content[0]) {
+            next.content = [mapped, ...content.slice(1)];
+            rewritten += 1;
+          }
+        }
+        return next;
+      }
+      return value;
+    };
+    for (const node of nodes) {
+      if (node.data && typeof node.data === 'object') {
+        node.data = rewriteRefs(node.data) as typeof node.data;
+      }
+    }
+    if (rewritten > 0) {
+      repairs.push(`节点改名后已同步修正 ${rewritten} 处变量引用`);
+    }
+  }
+
   // ---- 边 ----
   const nodeIds = new Set(nodes.map((n) => n.id));
   const edges: DslEdge[] = [];

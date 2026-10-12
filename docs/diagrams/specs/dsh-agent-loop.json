@@ -1,0 +1,48 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "dsh ReactLoopAgent：turn/step 流转与恢复路径",
+    "locale": "zh-CN",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    { "id": "main", "label": "相位流转" },
+    { "id": "side", "label": "维护与恢复", "variant": "exception" },
+    { "id": "terminal", "label": "终态" }
+  ],
+  "phases": [
+    { "id": "p1", "label": "待命", "fromCol": 0, "toCol": 0 },
+    { "id": "p2", "label": "turn 循环", "fromCol": 1, "toCol": 2, "variant": "emphasis" },
+    { "id": "p3", "label": "退出", "fromCol": 3, "toCol": 5, "variant": "dashed" }
+  ],
+  "mainPath": ["idle", "running", "completed"],
+  "nodes": [
+    { "id": "idle", "lane": "main", "col": 0, "type": "external", "label": "Idle", "sublabel": "等待输入", "width": 128 },
+    { "id": "running", "lane": "main", "col": 1, "type": "backend", "label": "Running", "sublabel": "turn：preStep → step", "tag": "可中断", "width": 128 },
+    { "id": "completed", "lane": "main", "col": 2, "type": "messagebus", "label": "Completed", "sublabel": "无 tool-call 自然停止", "width": 128 },
+    { "id": "steer", "lane": "side", "col": 0, "type": "frontend", "label": "Inbox", "sublabel": "steer / next-step", "width": 128 },
+    { "id": "maintenance", "lane": "side", "col": 1, "type": "backend", "label": "Maintenance", "sublabel": "压缩 0.8 / 保留 0.16", "width": 128 },
+    { "id": "retry", "lane": "side", "col": 2, "type": "backend", "label": "Retry", "sublabel": "退避 + Retry-After", "width": 128 },
+    { "id": "aborted", "lane": "terminal", "col": 3, "type": "security", "label": "Aborted", "sublabel": "cancel(user|parent|hook)", "width": 128 },
+    { "id": "maxtok", "lane": "terminal", "col": 4, "type": "security", "label": "MaxTokens", "sublabel": "粘性 · 不降级", "width": 128 },
+    { "id": "errored", "lane": "terminal", "col": 5, "type": "security", "label": "Error", "sublabel": "ToolCallRecovery 补齐", "width": 128 }
+  ],
+  "edges": [
+    { "id": "w1", "from": "idle", "to": "running", "label": "kick()", "variant": "emphasis" },
+    { "id": "w2", "from": "running", "to": "completed", "label": "finish 正常", "variant": "emphasis" },
+    { "id": "w3", "from": "steer", "to": "running", "label": "step 边界 claim", "variant": "emphasis" },
+    { "id": "w4", "from": "running", "to": "maintenance", "label": "token 压力 / overflow" },
+    { "id": "w5", "from": "maintenance", "to": "running", "label": "压缩后续跑", "role": "return" },
+    { "id": "w6", "from": "running", "to": "retry", "label": "模型失败", "variant": "security", "role": "error" },
+    { "id": "w7", "from": "retry", "to": "running", "label": "退避重试", "role": "return" },
+    { "id": "w8", "from": "running", "to": "aborted", "label": "cancel(cause)", "variant": "security", "role": "error" },
+    { "id": "w9", "from": "running", "to": "maxtok", "label": "max-tokens", "variant": "security", "role": "error" },
+    { "id": "w10", "from": "running", "to": "errored", "label": "step 异常", "variant": "security", "role": "error" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "日志即真相", "items": ["重试等待前先写 durable llm/retry 事件，跨恢复可复现", "中断的部分正文以 interrupted=true 落盘，未启动工具写合成中止结果"] },
+    { "dot": "rose", "title": "终态语义", "items": ["本步 finish 正常且无 tool-call 即自然完成", "max-tokens 粘性：后续正常 step 不把 turn 降级为成功"] },
+    { "dot": "emerald", "title": "压缩纪律", "items": ["非滑窗：旧历史替换为 summary 消息，近期保留", "context-overflow 错误后压缩并重试，不耗 provider 重试预算"] }
+  ]
+}

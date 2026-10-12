@@ -1,0 +1,211 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "owb 模型管理数据流：渠道/条目两层 → 会话解析 → thinking 映射",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1080,
+      640
+    ]
+  },
+  "stages": [
+    {
+      "label": "配置录入"
+    },
+    {
+      "label": "两层规整"
+    },
+    {
+      "label": "会话解析"
+    },
+    {
+      "label": "运行"
+    },
+    {
+      "label": "观测"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "ui",
+      "type": "frontend",
+      "label": "设置中心",
+      "sublabel": "15 类设置",
+      "stage": 0,
+      "row": 1
+    },
+    {
+      "id": "prov",
+      "type": "database",
+      "label": "llm_provider",
+      "sublabel": "渠道 · 16 种 kind",
+      "stage": 0,
+      "row": 0
+    },
+    {
+      "id": "model",
+      "type": "database",
+      "label": "llm_model",
+      "sublabel": "条目 · channel 引用",
+      "stage": 0,
+      "row": 2
+    },
+    {
+      "id": "flat",
+      "type": "backend",
+      "label": "压平回条目",
+      "sublabel": "base_url/api_key 零改动",
+      "stage": 1,
+      "row": 1
+    },
+    {
+      "id": "sess",
+      "type": "database",
+      "label": "sess.model",
+      "sublabel": "会话级绑定",
+      "stage": 1,
+      "row": 2
+    },
+    {
+      "id": "res",
+      "type": "backend",
+      "label": "llmForSession",
+      "sublabel": "被删 → 报错桩",
+      "stage": 2,
+      "row": 1
+    },
+    {
+      "id": "think",
+      "type": "backend",
+      "label": "thinking.planFor",
+      "sublabel": "5 档 → 厂商参数",
+      "stage": 2,
+      "row": 0
+    },
+    {
+      "id": "ping",
+      "type": "backend",
+      "label": "测活探针",
+      "sublabel": "max_tokens=8",
+      "stage": 2,
+      "row": 2
+    },
+    {
+      "id": "llm",
+      "type": "cloud",
+      "label": "5 协议调用",
+      "sublabel": "429/5xx 重试 2/5/10s",
+      "stage": 3,
+      "row": 1
+    },
+    {
+      "id": "health",
+      "type": "database",
+      "label": "model_health.json",
+      "sublabel": "近 20 次滚动",
+      "stage": 4,
+      "row": 0
+    },
+    {
+      "id": "hcol",
+      "type": "frontend",
+      "label": "健康列 / 熔断",
+      "sublabel": "硬错即断 · 软错 3 次",
+      "stage": 4,
+      "row": 2
+    }
+  ],
+  "flows": [
+    {
+      "from": "ui",
+      "to": "prov",
+      "label": "渠道 CRUD"
+    },
+    {
+      "from": "ui",
+      "to": "model",
+      "label": "条目 CRUD",
+      "labelDy": 22
+    },
+    {
+      "from": "prov",
+      "to": "flat",
+      "label": "认领合并"
+    },
+    {
+      "from": "model",
+      "to": "flat",
+      "label": "规整"
+    },
+    {
+      "from": "flat",
+      "to": "res",
+      "label": "构造 LLM",
+      "route": "straight"
+    },
+    {
+      "from": "sess",
+      "to": "res",
+      "label": "会话优先",
+      "variant": "emphasis"
+    },
+    {
+      "from": "res",
+      "to": "think",
+      "label": "档位"
+    },
+    {
+      "from": "think",
+      "to": "llm",
+      "label": "认不出不发",
+      "variant": "emphasis"
+    },
+    {
+      "from": "res",
+      "to": "llm",
+      "label": "override",
+      "labelAt": [
+        706,
+        236
+      ]
+    },
+    {
+      "from": "ping",
+      "to": "llm",
+      "label": "探活",
+      "variant": "dashed"
+    },
+    {
+      "from": "llm",
+      "to": "health",
+      "label": "每次调用记录"
+    },
+    {
+      "from": "health",
+      "to": "hcol",
+      "label": "成功率 / 延迟",
+      "variant": "emphasis",
+      "labelDy": 70
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "两层模型",
+      "items": [
+        "渠道管协议/地址/Key，条目引用渠道，压平回条目零改动",
+        "thinking 三红线：auto 不发 / 认不出不发 / 关不到零如实说"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "可观测",
+      "items": [
+        "model_health.json 滚动近 20 次成败供选型",
+        "被删模型会话返回报错桩，绝不静默回退"
+      ]
+    }
+  ]
+}

@@ -21,10 +21,10 @@ export interface AdminOutletContext {
 }
 
 const getPageTitle = (pathname: string): string => {
+  if (pathname.startsWith('/manage/models')) return t('admin.models');
   if (pathname.startsWith('/manage/workflows')) return t('admin.workflows');
   if (pathname.startsWith('/manage/templates')) return t('admin.templates');
   if (pathname.startsWith('/manage/agent-config')) return t('agent.config.title');
-  if (pathname.startsWith('/manage/sessions')) return t('sessionReview.title');
   return t('admin.title.default');
 };
 

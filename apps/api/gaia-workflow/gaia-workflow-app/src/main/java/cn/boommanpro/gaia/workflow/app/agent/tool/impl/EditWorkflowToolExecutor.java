@@ -83,7 +83,7 @@ public class EditWorkflowToolExecutor implements ToolExecutor {
             SessionWorkflowDraftService.OpsOutcome outcome = draftService.applyOps(sessionKey, ops);
             if (!outcome.ok) {
                 return ToolResult.invalidArgs(outcome.violations,
-                    "ops 批处理校验未通过，整批未生效。按 violations 修正后整批重发");
+                    "没有任何操作通过校验，整批未生效。按 violations 逐项修复后重发");
             }
 
             // 广播文档（订阅窗口实时渲染）
@@ -96,11 +96,26 @@ public class EditWorkflowToolExecutor implements ToolExecutor {
                 .set("edges", summary.getJSONObject("edges"))
                 .set("draftRevision", summary.getInt("draftRevision"))
                 .set("boundCode", summary.getStr("boundCode"))
-                .set("baseRevision", summary.getLong("baseRevision"))
-                .set("hint", "草稿已更新。需要生效到线上版本时调用 save_workflow"
-                    + (summary.getStr("boundCode") != null
-                        ? "（baseRevision 用 " + summary.getLong("baseRevision") + "）" : ""));
-            return ToolResult.ok(payload.toString(), "已应用 " + summary.getInt("applied") + " 个操作");
+                .set("baseRevision", summary.getLong("baseRevision"));
+            if (summary.containsKey("warnings")) {
+                payload.set("warnings", summary.get("warnings"));
+            }
+            int skippedCount = 0;
+            if (summary.containsKey("skipped")) {
+                payload.set("skipped", summary.get("skipped"));
+                skippedCount = summary.getJSONArray("skipped").size();
+            }
+            String hint;
+            if (skippedCount > 0) {
+                hint = "已应用 " + summary.getInt("applied") + " 个操作，跳过 " + skippedCount
+                    + " 个（见 skipped 的 path/fix，只重发被跳过的项即可）";
+            } else {
+                hint = "已应用 " + summary.getInt("applied") + " 个操作";
+            }
+            hint += "。需要生效到线上版本时调用 save_workflow"
+                + (summary.getStr("boundCode") != null
+                    ? "（baseRevision 用 " + summary.getLong("baseRevision") + "）" : "");
+            return ToolResult.ok(payload.toString(), hint);
         } catch (Exception e) {
             log.warn("[tool:edit_workflow] failed: {}", e.getMessage());
             return ToolResult.fail(new JSONObject().set("error", e.getMessage()).toString(),

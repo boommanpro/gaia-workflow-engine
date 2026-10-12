@@ -1,10 +1,5 @@
 [
   {
-    "title": "Flowgram 工作流编排总览",
-    "content": "Flowgram 是一个可视化的工作流编排引擎，支持通过拖拽节点来构建复杂业务流程。\n\n## 核心概念\n- 节点（Node）：工作流的基本执行单元，每个节点完成一类任务\n- 边（Edge）：节点之间的连接，定义执行顺序和数据流向\n- 变量引用：节点间通过 ${node_id.field} 语法传递数据\n- 工作流（Workflow）：由节点和边组成的有向无环图（DAG）\n\n## 节点类型分类\n- 流程控制：start、end、condition、multi-condition、branches、loop、break、continue\n- 数据处理：variable、string-format、code\n- 集成调用：http、llm、workflow\n- 人工参与：assignee\n- 组织辅助：comment、group、block-start、block-end\n\n## 编排原则\n1. 每个工作流必须有且仅有一个 start 节点\n2. 至少一个 end 节点接收最终输出\n3. 节点间的数据通过变量引用传递\n4. 复杂逻辑建议拆分为多个小节点而非单个大节点\n5. 循环和条件分支应避免死循环和不可达路径",
-    "source": "flowgram-doc"
-  },
-  {
     "title": "HTTP 节点使用指南",
     "content": "HTTP 节点用于在工作流中发起 HTTP 请求，集成外部 API。\n\n## 配置字段\n- method：HTTP 方法（GET/POST/PUT/DELETE/PATCH）\n- url：请求地址，支持变量引用，如 https://api.example.com/users/${start.input.userId}\n- headers：请求头键值对，常用于 Authorization、Content-Type\n- params：URL query 参数\n- body：请求体（POST/PUT 使用），可为 JSON 字符串\n- timeout：超时时间（毫秒），默认 30000\n\n## 输出\n- status：HTTP 状态码（如 200、404、500）\n- response：响应体（已解析的 JSON 对象或字符串）\n- headers：响应头\n\n## 常见用法\n1. 调用 RESTful API 获取数据：GET https://api.example.com/users\n2. 提交数据：POST https://api.example.com/orders，body 为订单 JSON\n3. 鉴权：headers 中添加 Authorization: Bearer ${start.input.token}\n\n## 注意事项\n- 建议设置合理 timeout 防止长时间阻塞\n- 大响应体注意内存占用\n- 错误处理：通过 condition 节点判断 status 决定后续流程",
     "source": "flowgram-doc"

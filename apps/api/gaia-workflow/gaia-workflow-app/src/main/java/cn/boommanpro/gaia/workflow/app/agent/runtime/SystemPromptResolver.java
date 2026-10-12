@@ -48,7 +48,8 @@ public class SystemPromptResolver {
         if (definition.getSystemPromptConfigKey() != null && !definition.getSystemPromptConfigKey().isEmpty()) {
             String byKey = loadFromConfig(definition.getSystemPromptConfigKey(), locale);
             if (byKey != null) {
-                return byKey;
+                // DB 提示词也要注入知识目录（skill 目录等价物）—— 否则默认 agent 看不到知识清单
+                return toolSchemaRegistry.injectMemory(toolSchemaRegistry.injectKnowledgeCatalog(byKey));
             }
         }
         return defaultPrompt(definition.getToolNames(), locale);

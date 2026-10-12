@@ -10,7 +10,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 
-import { useLanguage, setLanguage, t } from '../../i18n';
+import { useLanguage, t } from '../../i18n';
 import { CHAT, useThemeMode, setThemeMode, type ThemeMode } from '../../chat/theme';
 import avatarUrl from '../../assets/boommanpro.png';
 
@@ -212,10 +212,6 @@ export const UserMenu: React.FC = () => {
 
   const name = t('shell.userName');
 
-  const langOptions: Array<{ value: 'zh' | 'en'; label: string }> = [
-    { value: 'zh', label: t('shell.languageZh') },
-    { value: 'en', label: t('shell.languageEn') },
-  ];
   const themeOptions: Array<{ value: ThemeMode; label: string }> = [
     { value: 'light', label: t('shell.themeLight') },
     { value: 'dark', label: t('shell.themeDark') },
@@ -310,28 +306,18 @@ export const UserMenu: React.FC = () => {
 
             {openSub === 'language' && (
               <div style={submenuStyle}>
-                {langOptions.map((item) => {
-                  const selected = item.value === lang;
-                  return (
-                    <HoverRow
-                      key={item.value}
-                      onClick={() => {
-                        setLanguage(item.value);
-                        setOpen(false);
-                        setOpenSub(null);
-                      }}
-                    >
-                      <span style={{ flex: 1, color: selected ? CHAT.text : CHAT.textBody, fontWeight: selected ? 600 : 400 }}>
-                        {item.label}
-                      </span>
-                      {selected && (
-                        <span style={{ display: 'flex', color: CHAT.accent }}>
-                          <Check />
-                        </span>
-                      )}
-                    </HoverRow>
-                  );
-                })}
+                {/* 语言切换暂缓开放：先把中文体验打磨稳定，两套文案的维护成本之后再说 */}
+                <div
+                  style={{
+                    padding: '10px 14px',
+                    color: CHAT.textMuted,
+                    fontSize: 12,
+                    lineHeight: 1.6,
+                    whiteSpace: 'pre-line',
+                  }}
+                >
+                  {t('shell.langPendingNote')}
+                </div>
               </div>
             )}
           </div>

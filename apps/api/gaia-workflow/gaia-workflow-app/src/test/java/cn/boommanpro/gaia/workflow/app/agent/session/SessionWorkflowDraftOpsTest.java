@@ -99,21 +99,52 @@ class SessionWorkflowDraftOpsTest {
     }
 
     @Test
-    @DisplayName("原子性：任一 op 非法整批拒绝，草稿不变")
-    void atomicRejection() {
+    @DisplayName("部分应用：合法 op 生效、非法 op 跳过（不毒死整批），skipped 带 path/fix")
+    void partialApplySkipsInvalidOps() {
         service.bindFromVersion("s1", "wf_a", 3L, JSONUtil.parseObj(START_DOC));
-        JSONObject before = new JSONObject(service.get("s1").toString());
 
         SessionWorkflowDraftService.OpsOutcome outcome = service.applyOps("s1",
             ops(
                 "{\"op\":\"addNode\",\"type\":\"http\",\"data\":{\"url\":\"https://x\"}}",
                 "{\"op\":\"connect\",\"from\":\"start_0\",\"to\":\"不存在的节点\"}"
             ).getJSONArray("ops"));
-        assertFalse(outcome.ok);
-        assertEquals(1, outcome.violations.size());
-        assertTrue(outcome.violations.get(0).getPath().startsWith("ops[1]"));
-        // 第一个合法 op 也没有被应用（原子）
-        assertEquals(before.toString(), service.get("s1").toString());
+        assertTrue(outcome.ok, "有合法 op 就必须生效（部分应用），不再整批拒绝");
+        assertEquals(1, outcome.summary.getInt("applied"));
+        assertEquals(1, outcome.summary.getJSONArray("skipped").size());
+        assertTrue(outcome.summary.getJSONArray("skipped").getJSONObject(0).getStr("path").startsWith("ops[1]"));
+        // 合法 op 确实生效：http 节点已进草稿
+        JSONObject doc = service.publicDoc("s1");
+        boolean httpAdded = false;
+        for (int i = 0; i < doc.getJSONArray("nodes").size(); i++) {
+            if ("http".equals(doc.getJSONArray("nodes").getJSONObject(i).getStr("type"))) {
+                httpAdded = true;
+            }
+        }
+        assertTrue(httpAdded, "合法的 addNode 必须已应用");
+    }
+
+    @Test
+    @DisplayName("空壳 updateNode 只跳过自身，不毒死整批（毒批病理的根治）")
+    void emptyShellUpdateNodeSkipsOnlyItself() {
+        service.bindFromVersion("s1", "wf_a", 3L, JSONUtil.parseObj(START_DOC));
+        service.applyOps("s1", ops(
+            "{\"op\":\"addNode\",\"type\":\"llm\",\"id\":\"llm_1\",\"data\":{\"prompt\":\"v1\"}}"
+        ).getJSONArray("ops"));
+
+        SessionWorkflowDraftService.OpsOutcome outcome = service.applyOps("s1",
+            ops(
+                "{\"op\":\"updateNode\",\"nodeId\":\"start_0\"}",
+                "{\"op\":\"updateNode\",\"nodeId\":\"llm_1\",\"data\":{\"prompt\":\"v2\"}}"
+            ).getJSONArray("ops"));
+        assertTrue(outcome.ok, "空壳 op 跳过即可，合法 op 必须生效");
+        assertEquals(1, outcome.summary.getInt("applied"));
+        assertEquals(1, outcome.summary.getJSONArray("skipped").size());
+        // 合法 op 生效
+        assertTrue(service.getNode("s1", "llm_1").getJSONObject("data").toString().contains("v2"));
+        // 空壳项的 fix 附节点当前配置（模型自修复依据）
+        String fix = outcome.summary.getJSONArray("skipped").getJSONObject(0).getStr("fix");
+        assertTrue(fix.contains("start_0"), "fix 应点名节点：" + fix);
+        assertTrue(fix.contains("updateNode"), "fix 应给可拷贝的目标形状：" + fix);
     }
 
     @Test
@@ -193,6 +224,28 @@ class SessionWorkflowDraftOpsTest {
             }
         }
         assertTrue(hasHttp, "http 类型应从 ref 推断出来");
+    }
+
+    @Test
+    @DisplayName("addNode 缺 data 自动补默认配置并给 warning（不再硬拒拒绝，消灭同参重发死循环）")
+    void addNodeWithoutDataAutoHeals() {
+        service.bindFromVersion("s1", "wf_a", 3L, JSONUtil.parseObj(START_DOC));
+        SessionWorkflowDraftService.OpsOutcome outcome = service.applyOps("s1",
+            ops("{\"op\":\"addNode\",\"type\":\"variable\",\"ref\":\"var_merge\",\"id\":\"var_merge_1\"}")
+                .getJSONArray("ops"));
+        assertTrue(outcome.ok, "缺 data 应自动补默认而不是拒绝: " + outcome.violations);
+        assertEquals(1, outcome.summary.getJSONArray("warnings").size());
+        assertTrue(outcome.summary.getJSONArray("warnings").getStr(0).contains("var_merge_1"));
+        JSONObject node = service.getNode("s1", "var_merge_1");
+        assertNotNull(node, "节点应已创建");
+        assertNotNull(node.get("data"), "默认 data 应已生成");
+
+        // http 类型补 method/url 扁平字段（运行期硬依赖），且可被后续 updateNode 修正
+        outcome = service.applyOps("s1",
+            ops("{\"op\":\"addNode\",\"type\":\"http\",\"id\":\"http_9\"}").getJSONArray("ops"));
+        assertTrue(outcome.ok, String.valueOf(outcome.violations));
+        JSONObject httpData = service.getNode("s1", "http_9").getJSONObject("data");
+        assertEquals("GET", httpData.getJSONObject("inputsValues").getJSONObject("method").getStr("content"));
     }
 
     @Test

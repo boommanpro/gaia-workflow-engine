@@ -77,8 +77,8 @@ class AgentScopeEngineObservabilityTest {
     }
 
     @Test
-    @DisplayName("历史超过阈值 → 发 compaction(prune) 事件，带前后条数")
-    void pruneEmitsCompactionEvent() {
+    @DisplayName("历史全量透传（滑窗已删除）：长历史不剪枝、不发 compaction 事件")
+    void fullHistoryPassesThroughWithoutPrune() {
         List<LlmMessage> history = new ArrayList<>();
         history.add(msg("user", "第一条"));
         for (int i = 0; i < 45; i++) {
@@ -90,22 +90,16 @@ class AgentScopeEngineObservabilityTest {
         AgentRunContext ctx = contextOf("s-prune");
         List<io.agentscope.core.message.Msg> msgs = engine.buildMessages(ctx, "s-prune", COLLECTING_SINK, null);
 
-        // 剪枝后只保留最近窗口
-        assertEquals(30, msgs.size(), "45×2+1 条历史应剪到 HISTORY_KEEP=30");
-        long compactionEvents = events.stream()
-            .filter(e -> "compaction".equals(e.getType()))
-            .filter(e -> "prune".equals(e.getData().getStr("kind")))
-            .count();
-        assertEquals(1, compactionEvents, "剪枝必须外发一条 compaction 事件");
-        AgentEvent event = events.stream().filter(e -> "compaction".equals(e.getType())).findFirst().orElseThrow();
-        assertEquals(91, event.getData().getInt("before"));
-        assertEquals(30, event.getData().getInt("after"));
-        assertEquals(61, event.getData().getInt("dropped"));
+        // 上下文治理只走阈值压缩（SessionCompactionService / 框架 CompactionMiddleware），
+        // buildMessages 不做条数滑窗
+        assertEquals(91, msgs.size(), "91 条历史应全量透传，不剪枝");
+        assertFalse(events.stream().anyMatch(e -> "compaction".equals(e.getType())),
+            "无滑窗后不应有 compaction(prune) 事件");
     }
 
     @Test
-    @DisplayName("历史未超阈值 → 不发 compaction 事件")
-    void noPruneEventBelowThreshold() {
+    @DisplayName("短历史 → 不发 compaction 事件")
+    void noCompactionEventForShortHistory() {
         List<LlmMessage> history = List.of(msg("user", "你好"), msg("assistant", "你好！"));
         when(conversationStore.loadHistory("s-small", 0)).thenReturn(history);
 

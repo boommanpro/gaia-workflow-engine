@@ -30,8 +30,6 @@ agent:
     api-key: sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
     model: qwen/qwen3-4b-2507
     temperature: 0.5
-  history:
-    max-messages: 20
   # 火山方舟 Managed Agents（engine=ark 的 Agent 使用；DB provider_config:ark 可在线覆盖）
   ark:
     base-url: https://ark.cn-beijing.volces.com/api/v3

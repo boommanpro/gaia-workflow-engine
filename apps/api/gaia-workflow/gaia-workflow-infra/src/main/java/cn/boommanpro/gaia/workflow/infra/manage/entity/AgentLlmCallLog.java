@@ -46,6 +46,21 @@ public class AgentLlmCallLog {
     @TableField("output_digest")
     private String outputDigest;
 
+    /**
+     * 真实请求 JSON（OpenAI 同构：messages/tool_calls/tool_call_id 配对 + tools + options）。
+     * 首个调用存全量，后续调用增量（{@code sharedMessages} 前缀共用 + 只存新增尾部）——
+     * 问题复现的第一手证据：拿它即可原样 curl 重放这次模型调用。
+     */
+    @TableField("request_json")
+    private String requestJson;
+
+    /**
+     * 真实响应 JSON（流式块组装后的完整输出：choices[0].message.content/tool_calls + usage +
+     * finish_reason）——messages 内容与 arguments 全量不截断，Trajectory/执行追踪据此展示。
+     */
+    @TableField("response_json")
+    private String responseJson;
+
     @TableField("prompt_tokens")
     private Integer promptTokens;
 

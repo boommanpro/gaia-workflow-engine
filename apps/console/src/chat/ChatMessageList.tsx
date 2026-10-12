@@ -1,9 +1,10 @@
 /**
  * ChatMessageList —— 对话正文的渲染层（通用模式与专家模式共用）。
  *
- * 与旧实现的差别，就是「用户视角」这个字：
- *   · AI 的正文不套气泡，直接排版；只有用户消息是气泡（右对齐）
- *   · 工具调用 / 计划 / 子代理全部走折叠视图，不把过程糊在脸上
+ * 排版基调对齐 ZCode/Claude Code 式对话流：
+ *   · AI 的正文不套气泡、不带头像，直接排版 —— 正文松、过程紧
+ *   · 用户消息是左对齐的浅灰圆角气泡，与 AI 正文同列起头
+ *   · 工具调用 / 思考 / 计划全部走极简折叠行，不把过程糊在脸上
  *   · 复制、调试这类动作收成 hover 才出现的小图标
  *   · 对话居中成一条窄栏，宽屏不会拉成一整行
  */
@@ -12,13 +13,14 @@ import { Tooltip, Toast } from '@douyinfe/semi-ui';
 import {
   IconCopy,
   IconChevronDown,
+  IconChevronRight,
   IconTerminal,
 } from '@douyinfe/semi-icons';
 
 import { useAgent } from '../agent/AgentContext';
 import type { DisplayMessage } from '../agent/types';
 import Markdown from '../agent/Markdown';
-import { LiveAssistantContent, TimelineView } from '../agent/LiveAssistantMessage';
+import { LiveAssistantContent, TimelineView, ThinkingItem } from '../agent/LiveAssistantMessage';
 import { liveStreamStore } from '../agent/live-stream-store';
 import { useSyncExternalStore } from 'react';
 import SubagentCard from '../agent/SubagentCard';
@@ -29,39 +31,256 @@ import type { CanvasSnapshot } from '../document';
 import { useLatestArtifact } from '../agent/artifact-store';
 import { CHAT, CHAT_COLUMN_WIDTH, ChatStyles } from './theme';
 import { ToolSteps } from './ToolSteps';
+import { ProcessFold } from './ProcessFold';
 import { CanvasSnapshotCard } from './CanvasSnapshotCard';
+import { AskCard } from './AskCard';
 import {
   LiveCanvasCard,
   ReleaseCard,
-  TestReportCard,
 } from './ArtifactCards';
 
-/** AI 头像用的四角星，比通用图标更能指向「这是模型说的话」 */
-const Spark: React.FC<{ size?: number }> = ({ size = 14 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-    <path d="M12 1.8l1.9 5.9 5.9 1.9-5.9 1.9L12 17.4l-1.9-5.9L4.2 9.6l5.9-1.9L12 1.8z" />
-    <path d="M18.6 14.4l.9 2.9 2.9.9-2.9.9-.9 2.9-.9-2.9-2.9-.9 2.9-.9.9-2.9z" opacity=".65" />
-  </svg>
-);
+/** token 数缩写（dsh token-format 观感）：12345 → 12.3k */
+const fmtTok = (n: number): string =>
+  n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
 
-const Avatar: React.FC = () => (
-  <div
-    style={{
-      width: 26,
-      height: 26,
-      borderRadius: 9,
-      flexShrink: 0,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      color: 'var(--g-bg-raised)',
-      background: `linear-gradient(135deg, ${CHAT.accent} 0%, var(--g-accent-hover) 100%)`,
-      boxShadow: '0 2px 6px rgba(77,83,232,0.24)',
-    }}
-  >
-    <Spark />
-  </div>
-);
+const MONO: React.CSSProperties = { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' };
+
+/**
+ * 回复尾部的本轮用量（dsh TurnUsagePanel 同位）：小字持久展示，点击弹单轮账本卡
+ * （输入/缓存/输出拆分 + 耗时/速度 + 模型）。账目来自 run_end + /turn-usage 聚合。
+ */
+const TokenUsagePill: React.FC<{
+  usage: { promptTokens: number; completionTokens: number; durationMs?: number; cachedTokens?: number; model?: string };
+}> = ({ usage }) => {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLSpanElement | null>(null);
+  const total = usage.promptTokens + usage.completionTokens;
+  if (total <= 0) return null;
+
+  const hasCache = usage.cachedTokens != null && usage.cachedTokens > 0 && usage.promptTokens > usage.cachedTokens;
+  const cachePct = hasCache ? (usage.cachedTokens! / usage.promptTokens) * 100 : null;
+  const secs = usage.durationMs != null && usage.durationMs > 0 ? (usage.durationMs / 1000).toFixed(1) : null;
+  const speed = secs && usage.completionTokens > 0
+    ? Math.round(usage.completionTokens / (usage.durationMs! / 1000))
+    : null;
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent): void => { if (e.key === 'Escape') setOpen(false); };
+    const onClick = (e: MouseEvent): void => {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('mousedown', onClick, true);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('mousedown', onClick, true);
+    };
+  }, [open]);
+
+  return (
+    <span ref={rootRef} style={{ position: 'relative', display: 'inline-flex' }}>
+      <button
+        type="button"
+        aria-expanded={open}
+        title={t('chat.turnUsageTitle')}
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 5,
+          padding: '1px 8px',
+          borderRadius: 999,
+          fontSize: 11,
+          border: 'none',
+          background: 'transparent',
+          color: CHAT.textFaint,
+          cursor: 'pointer',
+          whiteSpace: 'nowrap',
+          transition: 'background .14s, color .14s',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = CHAT.hover;
+          e.currentTarget.style.color = CHAT.textSub;
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'transparent';
+          e.currentTarget.style.color = CHAT.textFaint;
+        }}
+      >
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <ellipse cx="12" cy="5" rx="8" ry="3" />
+          <path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5" />
+          <path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" />
+        </svg>
+        {t('chat.turnUsageConsumed')} <b style={{ ...MONO, fontWeight: 600 }}>{fmtTok(total)}</b>
+        {cachePct != null && (
+          <>
+            {' · '}
+            {t('chat.usageCacheShort')} <b style={{ ...MONO, fontWeight: 600 }}>{Math.round(cachePct)}%</b>
+          </>
+        )}
+      </button>
+      {open && (
+        <div
+          className="chat-fade"
+          style={{
+            position: 'absolute',
+            bottom: 'calc(100% + 8px)',
+            left: 0,
+            width: 300,
+            background: 'var(--g-bg-raised)',
+            border: `1px solid ${CHAT.line}`,
+            borderRadius: 12,
+            boxShadow: 'var(--g-panel-shadow, 0 6px 24px rgba(20,20,40,0.12))',
+            padding: '13px 16px 14px',
+            zIndex: 40,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12.5, fontWeight: 600, color: CHAT.text }}>
+            {t('chat.turnUsageTitle')}
+            <span style={{ marginLeft: 'auto', fontWeight: 500, ...MONO, fontSize: 11.5, color: CHAT.textSub }}>
+              {total.toLocaleString()} tokens
+            </span>
+          </div>
+          <div style={{ height: 1, background: CHAT.lineSoft, margin: '10px 0 11px' }} />
+          <dl style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', rowGap: 7, columnGap: 18, fontSize: 12, margin: 0 }}>
+            <dt style={{ color: CHAT.textMuted, fontWeight: 400 }}>{t('chat.usageInput')}</dt>
+            <dd style={{ margin: 0, textAlign: 'right', ...MONO, fontSize: 11.5, color: CHAT.textBody }}>
+              {(usage.promptTokens - (hasCache ? usage.cachedTokens! : 0)).toLocaleString()}
+            </dd>
+            {hasCache && (
+              <>
+                <dt style={{ color: CHAT.textMuted, fontWeight: 400 }}>{t('chat.usageCached')}</dt>
+                <dd style={{ margin: 0, textAlign: 'right', ...MONO, fontSize: 11.5, color: CHAT.textBody }}>
+                  {usage.cachedTokens!.toLocaleString()}
+                </dd>
+              </>
+            )}
+            <dt style={{ color: CHAT.textMuted, fontWeight: 400 }}>{t('chat.usageOutput')}</dt>
+            <dd style={{ margin: 0, textAlign: 'right', ...MONO, fontSize: 11.5, color: CHAT.textBody }}>
+              {usage.completionTokens.toLocaleString()}
+            </dd>
+            {(secs || speed) && (
+              <>
+                <dt style={{ color: CHAT.textMuted, fontWeight: 400 }}>{t('chat.turnUsageTimeSpeed')}</dt>
+                <dd style={{ margin: 0, textAlign: 'right', ...MONO, fontSize: 11.5, color: CHAT.textBody }}>
+                  {secs ?? '—'}{speed ? ` · ${speed} tok/s` : ''}
+                </dd>
+              </>
+            )}
+            {usage.model && (
+              <>
+                <dt style={{ color: CHAT.textMuted, fontWeight: 400 }}>{t('chat.usageModel')}</dt>
+                <dd style={{ margin: 0, textAlign: 'right', ...MONO, fontSize: 11.5, color: CHAT.textBody }}>{usage.model}</dd>
+              </>
+            )}
+          </dl>
+          <div style={{ marginTop: 10, paddingTop: 8, borderTop: `1px solid ${CHAT.lineSoft}`, fontSize: 11, color: CHAT.textFaint }}>
+            {t('chat.turnUsageNote')}
+          </div>
+        </div>
+      )}
+    </span>
+  );
+};
+
+/**
+ * 上下文压缩注记（dsh CompactionItem 皮肤）：icon 芯片 + 标题 + 一行摘要，
+ * 可展开看摘要正文。数据仍是后端 compaction 产物的【前情摘要】消息。
+ */
+const CompactionCard: React.FC<{ content: string; compact?: boolean }> = ({ content, compact }) => {
+  const [open, setOpen] = useState(false);
+  const lines = content.split('\n');
+  const summary = (lines[0] || '').replace(/^【前情摘要】\s*/, '');
+  const body = lines.slice(1).join('\n').trim();
+  const expandable = body.length > 0;
+  return (
+    <div className="chat-fade" style={{ display: 'flex', justifyContent: 'center', padding: '6px 0' }}>
+      <div style={{ maxWidth: '86%', minWidth: 0 }}>
+        <button
+          type="button"
+          aria-expanded={expandable ? open : undefined}
+          onClick={() => expandable && setOpen((v) => !v)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 9,
+            width: '100%',
+            textAlign: 'left',
+            border: 'none',
+            background: 'none',
+            padding: '5px 8px',
+            margin: 0,
+            marginLeft: -8,
+            borderRadius: 9,
+            cursor: expandable ? 'pointer' : 'default',
+            fontFamily: 'inherit',
+          }}
+          onMouseEnter={(e) => {
+            if (expandable) e.currentTarget.style.background = CHAT.hover;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'transparent';
+          }}
+        >
+          <span
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: 7,
+              background: CHAT.accentSoft,
+              border: `1px solid ${CHAT.accentBorder}`,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: CHAT.textSub,
+              flexShrink: 0,
+            }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M4 8h16M4 16h10" />
+            </svg>
+          </span>
+          <span style={{ fontSize: compact ? 12 : 12.5, fontWeight: 600, color: CHAT.text, flexShrink: 0 }}>
+            {t('chat.compactionTitle')}
+          </span>
+          <span style={{ flex: '0 1 26px', height: 1, background: CHAT.line }} />
+          <span
+            style={{
+              fontSize: compact ? 11.5 : 12,
+              color: CHAT.textMuted,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {summary}
+          </span>
+          {expandable && (
+            <span style={{ color: CHAT.textFaint, flexShrink: 0, display: 'inline-flex' }}>
+              {open ? <IconChevronDown size="small" /> : <IconChevronRight size="small" />}
+            </span>
+          )}
+        </button>
+        {open && expandable && (
+          <div
+            style={{
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              padding: '8px 10px 2px',
+              lineHeight: 1.6,
+              fontSize: compact ? 12 : 12.5,
+              color: CHAT.textSub,
+            }}
+          >
+            {body}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const IconButton: React.FC<{
   title: string;
@@ -101,23 +320,20 @@ const IconButton: React.FC<{
 );
 
 const TypingIndicator: React.FC = () => (
-  <div className="chat-fade" style={{ display: 'flex', gap: 10, padding: '6px 0' }}>
-    <Avatar />
-    <div style={{ display: 'flex', alignItems: 'center', gap: 4, paddingTop: 7 }}>
-      {[0, 1, 2].map((i) => (
-        <span
-          key={i}
-          style={{
-            width: 6,
-            height: 6,
-            borderRadius: '50%',
-            background: CHAT.textFaint,
-            display: 'inline-block',
-            animation: `chat-typing 1.2s ${i * 0.16}s infinite ease-in-out`,
-          }}
-        />
-      ))}
-    </div>
+  <div className="chat-fade" style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 0 2px' }}>
+    {[0, 1, 2].map((i) => (
+      <span
+        key={i}
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: '50%',
+          background: CHAT.textFaint,
+          display: 'inline-block',
+          animation: `chat-typing 1.2s ${i * 0.16}s infinite ease-in-out`,
+        }}
+      />
+    ))}
   </div>
 );
 
@@ -235,14 +451,44 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
     [snapshotsByMessage, currentSnapshotId, compact, onSnapshotView, sendMessage]
   );
 
+  /** 历史窗口（owb TURN_WINDOW 对标）：默认只渲染最近 10 个用户轮次，更早的收在按钮里 */
+  const [turnsWindow, setTurnsWindow] = useState(10);
+
   /** 把连续的工具消息切成一「组」，交给 ToolSteps 折叠渲染 */
   const items = useMemo(() => {
     const nodes: React.ReactNode[] = [];
+    // 轮次起点（每个 user 消息开启一轮）：默认只保留最近 turnsWindow 轮
+    const userIdx: number[] = [];
+    messages.forEach((mm, idx) => { if (mm.role === 'user') userIdx.push(idx); });
+    const firstVisibleIdx = userIdx.length > turnsWindow ? userIdx[userIdx.length - turnsWindow] : 0;
+    const hiddenCount = firstVisibleIdx > 0 ? firstVisibleIdx : 0;
     let i = 0;
+    if (hiddenCount > 0) {
+      i = hiddenCount;
+      nodes.push(
+        <div key="older-turns" style={{ textAlign: 'center', padding: '6px 0' }}>
+          <button
+            type="button"
+            onClick={() => setTurnsWindow((w) => w + 10)}
+            style={{
+              border: `1px solid ${CHAT.line || '#eee'}`,
+              background: 'transparent',
+              borderRadius: 8,
+              padding: '4px 14px',
+              fontSize: 12,
+              color: CHAT.textSub,
+              cursor: 'pointer',
+            }}
+          >
+            显示更早的 {hiddenCount} 条消息
+          </button>
+        </div>,
+      );
+    }
     while (i < messages.length) {
       const m = messages[i];
 
-      if (m.role === 'assistant' && m.id !== liveMessageId && !m.content && !m.thinking && !m.subagentSteps && !m.subagentResult && !m.planSteps && !m.toolSteps) {
+      if (m.role === 'assistant' && m.id !== liveMessageId && !m.content && !m.thinking && !m.subagentSteps && !m.subagentResult && !m.planSteps && !m.toolSteps && !m.ask) {
         // 空的助手占位消息不渲染正文，但它的画布快照卡仍需渲染
         //（AI 工具在第一轮就写入了快照，mid 指向这个占位消息）
         nodes.push(...cardsFor(m.id));
@@ -256,6 +502,13 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
         continue;
       }
 
+      // ask_user 提问卡：流式期间也可交互（工具正挂起等待这个回答）
+      if (m.ask) {
+        nodes.push(<AskCard key={`ask-${m.id}`} ask={m.ask} sessionKey={currentSessionKey || undefined} />);
+        i += 1;
+        continue;
+      }
+
       if (m.role === 'tool') {
         if (m.planSteps && m.planSteps.length > 0) {
           nodes.push(<PlanCard key={m.id} steps={m.planSteps} />);
@@ -263,9 +516,9 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
           continue;
         }
         if (m.artifact) {
-          if (m.artifact.type === 'test_report') {
-            nodes.push(<TestReportCard key={m.id} artifact={m.artifact} />);
-          } else if (m.artifact.type === 'release') {
+          // 试运行（test_report）不再单独渲染卡：run_workflow 本身就是一次工具调用，
+          // IN/OUT 由工具行承载（dsh 同款语义）；发布（release）仍保留收口卡
+          if (m.artifact.type === 'release') {
             nodes.push(<ReleaseCard key={m.id} artifact={m.artifact} />);
           }
           i += 1;
@@ -291,45 +544,21 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
       }
 
       if (m.role === 'user') {
-        // 上下文摘要（后端 compaction 产物）：渲染为居中的系统注记卡，不占用户气泡
+        // 上下文摘要（后端 compaction 产物）：dsh CompactionItem 皮肤的系统注记卡，不占用户气泡
         if (m.content && m.content.startsWith('【前情摘要】')) {
-          nodes.push(
-            <div
-              key={m.id}
-              className="chat-fade"
-              style={{ display: 'flex', justifyContent: 'center', padding: '6px 0' }}
-            >
-              <details
-                style={{
-                  maxWidth: '86%',
-                  border: `1px dashed ${CHAT.line}`,
-                  borderRadius: 12,
-                  padding: '6px 14px',
-                  fontSize: compact ? 12 : 13,
-                  color: CHAT.textSub,
-                  background: 'transparent',
-                }}
-              >
-                <summary style={{ cursor: 'pointer', userSelect: 'none', listStyle: 'none' }}>
-                  🗂 {m.content.split('\n')[0]}
-                </summary>
-                <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', paddingTop: 6, lineHeight: 1.6, color: CHAT.textSub }}>
-                  {m.content.split('\n').slice(1).join('\n')}
-                </div>
-              </details>
-            </div>
-          );
+          nodes.push(<CompactionCard key={m.id} content={m.content} compact={compact} />);
           i += 1;
           continue;
         }
+        // 用户新开一轮对话块：与上一轮之间留呼吸感（首条消息顶部留白由容器 padding 承担）
         nodes.push(
-          <div key={m.id} className="chat-fade" style={{ display: 'flex', justifyContent: 'flex-end', padding: '6px 0' }}>
-            <div style={{ maxWidth: compact ? '88%' : '70.2%', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+          <div key={m.id} className="chat-fade" style={{ display: 'flex', justifyContent: 'flex-start', padding: '2px 0', marginTop: 22 }}>
+            <div style={{ maxWidth: compact ? '88%' : '78%', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
               {m.content && (
                 <div
                   style={{
-                    padding: '10px 16px',
-                    borderRadius: '20px 20px 6px 20px',
+                    padding: '9px 14px',
+                    borderRadius: 16,
                     background: CHAT.userBubble,
                     color: CHAT.userBubbleText,
                     fontSize: compact ? 13 : 14,
@@ -342,7 +571,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
                 </div>
               )}
               {m.images && m.images.length > 0 && (
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-start' }}>
                   {m.images.map((img, index) => (
                     <img
                       key={index}
@@ -367,45 +596,38 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
         continue;
       }
 
-      // assistant：一次 run 合并为一条回复 —— 工具步骤与计划在前（折叠），正文在后
+      // assistant：一次 run 合并为一条回复 —— 无头像无气泡，过程行在前（折叠），正文在后
       nodes.push(
         <div
           key={m.id}
           className="chat-msg chat-fade"
-          style={{ display: 'flex', gap: compact ? 8 : 10, padding: '6px 0', alignItems: 'flex-start' }}
+          style={{ padding: '4px 0' }}
         >
-          <Avatar />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            {!m.timeline?.length && m.thinking && (
-              <details
-                style={{
-                  marginBottom: 6,
-                  padding: '6px 10px',
-                  borderRadius: 8,
-                  border: `1px dashed ${CHAT.line}`,
-                  background: 'var(--g-bg-raised, transparent)',
-                  fontSize: 12,
-                  color: CHAT.textMuted,
-                }}
-              >
-                <summary style={{ cursor: 'pointer', userSelect: 'none' }}>思考过程</summary>
-                <div style={{ whiteSpace: 'pre-wrap', marginTop: 6, lineHeight: 1.6 }}>{m.thinking}</div>
-              </details>
-            )}
+          <div style={{ minWidth: 0 }}>
+            {!m.timeline?.length && m.thinking && <ThinkingItem text={m.thinking} />}
             {m.planSteps && m.planSteps.length > 0 && <PlanCard key={`plan-${m.id}`} steps={m.planSteps} />}
             {/* live 行的工具只从 store 时间线渲染（LiveAssistantContent 内），
                 toolSteps 双路渲染已被移除 —— 同一工具卡出现两次即本条件回归 */}
             {m.id !== liveMessageId && !m.timeline?.length && m.toolSteps && m.toolSteps.length > 0 && (
-              <ToolSteps
-                messages={m.toolSteps.map((ts) => ({
-                  id: `ts-${ts.id}`,
-                  role: 'tool' as const,
-                  content: '',
-                  toolCall: ts,
-                  timestamp: m.timestamp,
+              <ProcessFold
+                steps={m.toolSteps.map((ts) => ({
+                  id: ts.id,
+                  tool: ts.action || '工具',
+                  error: !!ts.result && /失败|error|INVALID|EXEC_ERROR/i.test(ts.result.slice(0, 200)),
                 }))}
-                compact={compact}
-              />
+                footerNote={m.content ? '含结论' : undefined}
+              >
+                <ToolSteps
+                  messages={m.toolSteps.map((ts) => ({
+                    id: `ts-${ts.id}`,
+                    role: 'tool' as const,
+                    content: '',
+                    toolCall: ts,
+                    timestamp: m.timestamp,
+                  }))}
+                  compact={compact}
+                />
+              </ProcessFold>
             )}
             {/* live 行渲染体不要求 streaming=true：done→reload 交接期（streaming 已落定、
                 历史重载未返回）store.timeline 仍持有完整内容，避免闪一帧空回复 */}
@@ -433,6 +655,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
                   <IconTerminal size="small" />
                 </IconButton>
               )}
+              {m.tokenUsage && m.id !== liveMessageId && <TokenUsagePill usage={m.tokenUsage} />}
             </div>
           </div>
         </div>
@@ -444,8 +667,10 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   }, [messages, compact, streaming, liveMessageId, lastAssistantId, handleOptionClick, copyMessage, openDebug, cardsFor]);
 
   const lastMsg = messages[messages.length - 1];
-  // 正文已入 store（state.content 流式期间恒为空），打字点由 store 判空
+  // 打字点只兜「无 live 占位行」的空窗（历史末条是 assistant 且非 live，如重连间隙）；
+  // live 行自身已带 WaitingDots + 状态行，再渲染 TypingIndicator 会出现两个 AI 头像
   const showTyping = streaming && !!lastMsg && lastMsg.role === 'assistant'
+    && lastMsg.id !== liveMessageId
     && !streamState.content && !streamState.thinking && streamState.timeline.length === 0;
 
   // 画布活卡只在「这一轮真的动过画布」时出现：streaming 开始时记下当前产物版本，

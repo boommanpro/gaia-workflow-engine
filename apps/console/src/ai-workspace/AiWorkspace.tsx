@@ -32,6 +32,9 @@ import { HeadlessCanvasBridge } from './HeadlessCanvasBridge';
 import { WorkspaceToolExecutor } from './WorkspaceToolExecutor';
 import { CanvasHistoryPopover } from './components/CanvasHistoryPopover';
 import { WorkToolsPanel } from './components/WorkToolsPanel';
+import { TrajectoryPanel } from './components/TrajectoryPanel';
+import { ModelPicker } from './components/ModelPicker';
+import { StatsPills } from '../chat/StatsPills';
 
 /** 右栏 Inspector 当前展示的视图（Agent 设置只在管理端配置中心，不在此处重复） */
 type InspectorView = 'artifact' | 'tools';
@@ -65,6 +68,8 @@ export const AiWorkspace: React.FC = () => {
 
   const [inspectorView, setInspectorView] = useState<InspectorView | null>(hasArtifact ? 'artifact' : null);
   const userToggledRef = useRef(false);
+  /** 对话区视图（dsh 式：对话 | Trajectory），切会话不重置 —— Trajectory 是查看视角不是会话状态 */
+  const [chatView, setChatView] = useState<'chat' | 'trajectory'>('chat');
   /** 刚点了「新对话」：等新会话 key 落地后把 URL 跟上去 */
   const pendingNewRef = useRef(false);
 
@@ -172,6 +177,13 @@ export const AiWorkspace: React.FC = () => {
   );
 
   const showWelcome = messages.length === 0 && !streaming;
+  // 上下文容量：run 落定（streaming→false）后 bump，触发容量条重取最新调用规模
+  const [capacityTick, setCapacityTick] = useState(0);
+  const wasStreamingRef = useRef(false);
+  useEffect(() => {
+    if (wasStreamingRef.current && !streaming) setCapacityTick((v) => v + 1);
+    wasStreamingRef.current = streaming;
+  }, [streaming]);
   const closeInspector = () => {
     userToggledRef.current = true;
     setInspectorView(null);
@@ -334,32 +346,80 @@ export const AiWorkspace: React.FC = () => {
         inspectorOpen={inspectorView !== null}
         onToggleInspector={toggleInspectorFromShell}
       >
-        {/* 消息区 */}
-        <div style={{ flex: 1, minHeight: 0 }}>
-          {showWelcome ? (
-            <div className="chat-scroll" style={{ height: '100%', overflowY: 'auto' }}>
-              <ChatWelcome
-                title={t('workspace.greeting')}
-                description={t('workspace.greetingDesc')}
-                suggestions={suggestions}
-                onPick={(text) => void sendMessage(text)}
-                disabled={streaming || !currentSessionKey}
+        {/* 消息区：dsh 式视图标签（对话 | Trajectory）——同一会话的两种投影，互斥切换 */}
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+          <div className="ws-view-tabs" role="tablist">
+            <style>{`
+              .ws-view-tabs { display: flex; gap: 28px; padding: 4px 20px 0; border-bottom: 1px solid var(--g-line); }
+              .ws-view-tab {
+                position: relative; padding: 4px 2px 8px; border: none; background: none;
+                font-size: 13px; font-weight: 500; font-family: inherit; cursor: pointer;
+                color: var(--g-text-muted); transition: color .14s;
+              }
+              .ws-view-tab::after {
+                content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
+                border-radius: 2px; background: transparent;
+              }
+              .ws-view-tab:hover { color: var(--g-text-sub); }
+              .ws-view-tab.on { color: var(--g-text); }
+              .ws-view-tab.on::after { background: var(--g-text); }
+            `}</style>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={chatView === 'chat'}
+              className={`ws-view-tab${chatView === 'chat' ? ' on' : ''}`}
+              onClick={() => setChatView('chat')}
+            >
+              {t('trace.view.chat')}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={chatView === 'trajectory'}
+              className={`ws-view-tab${chatView === 'trajectory' ? ' on' : ''}`}
+              onClick={() => setChatView('trajectory')}
+            >
+              {t('trace.view.trajectory')}
+            </button>
+          </div>
+          <div style={{ flex: 1, minHeight: 0 }}>
+            {chatView === 'trajectory' ? (
+              <TrajectoryPanel sessionKey={currentSessionKey || undefined} streaming={streaming} />
+            ) : showWelcome ? (
+              <div className="chat-scroll" style={{ height: '100%', overflowY: 'auto' }}>
+                <ChatWelcome
+                  title={t('workspace.greeting')}
+                  description={t('workspace.greetingDesc')}
+                  suggestions={suggestions}
+                  onPick={(text) => void sendMessage(text)}
+                  disabled={streaming || !currentSessionKey}
+                />
+              </div>
+            ) : (
+              <ChatMessageList
+                onSnapshotView={() => {
+                  userToggledRef.current = false;
+                  setInspectorView('artifact');
+                }}
               />
-            </div>
-          ) : (
-            <ChatMessageList
-              onSnapshotView={() => {
-                userToggledRef.current = false;
-                setInspectorView('artifact');
-              }}
-            />
-          )}
+            )}
+          </div>
         </div>
 
         <ChatComposer
           disabled={!currentSessionKey}
           placeholder={t('workspace.inputPlaceholder')}
           hint={t('workspace.inputHint')}
+          toolbarSlot={
+            <>
+              <StatsPills
+                sessionKey={currentSessionKey || undefined}
+                refreshTick={capacityTick}
+              />
+              <ModelPicker />
+            </>
+          }
         />
       </AppShell>
     </>

@@ -103,6 +103,9 @@ export const Editor = () => {
   // 专家模式同样要接住「AI 在对话里产出的工作流」——不接的话，侧边栏说改了、画布却没动。
   useWorkflowArtifactSync();
   const [workflowData, setWorkflowData] = useState<any>(() => resolveInitialData(workflowCode, cameFromWorkspace));
+  /** 供 store 订阅在挂载竞态时读到「当前 provider 正在用的数据」 */
+  const workflowDataRef = useRef<any>(null);
+  workflowDataRef.current = workflowData;
   // 内存里已有承接数据就不必再 loading，避免画布闪一下
   const [loading, setLoading] = useState(
     () => !!workflowCode && workflowCode !== DRAFT_CODE && !readCarriedDsl(workflowCode, cameFromWorkspace)
@@ -141,7 +144,10 @@ export const Editor = () => {
         ...(nextCode ? { workflowCode: nextCode } : {}),
         ...(name ? { workflowName: name } : {}),
       });
-      if (name) workflowDocumentStore.setMeta({ workflowName: name });
+      // 落版加载的工作流不是「AI 产物」：必须重置 producedBy。store 是跨页面单例，
+      // 若残留上次 /chat 会话的 'ai' 标记，切会话（如打开 AI 对话自动建新会话）时
+      // 产物回收逻辑会误判「画布是 AI 的旧产物」而把整份正式数据清空。
+      workflowDocumentStore.setMeta({ producedBy: 'import', ...(name ? { workflowName: name } : {}) });
     } catch { /* 忽略无法序列化的数据 */ }
   }, []);
 
@@ -225,12 +231,50 @@ export const Editor = () => {
       // 承接的最后一环：回写 store，AI 侧边栏从此刻起就活在这份数据上
       adoptIntoStore(nextData, workflowCode, workflow.workflowName);
       setLoading(false);
-      if (!firstRun) setRemountKey((k) => k + 1);
+      // 始终重挂：首挂时 provider 以空 initialData 启动，而运行时 fromJSON
+      // 不会触发渲染层（实体事件在 lock 期被吞），重挂是唯一可靠的首灌路径
+      setRemountKey((k) => k + 1);
 
       // Load version list
       loadVersions(workflowCode);
     }).catch(() => setLoading(false));
   }, [workflowCode, loadVersions, adoptIntoStore]);
+
+  // store 侧的结构变更（AI 增删节点/连线、回滚、落版加载）→ 以 store 为准重挂画布。
+  // 运行时往 flowgram 塞实体不会走渲染层（实测 model 有节点而 DOM 零实体），
+  // provider 以 initialData 重新挂载是本应用里唯一被验证可靠的整份刷新路径。
+  // 用户在画布上的直接操作不重挂（画布自己就是渲染方，回滚除外——它由 store 发起）。
+  useEffect(() => {
+    const structureKeyOf = (dsl: any): string => {
+      if (!dsl || !Array.isArray(dsl.nodes)) return 'empty';
+      const nodes = dsl.nodes.map((n: any) => n.id).sort().join(',');
+      const edges = Array.isArray(dsl.edges)
+        ? dsl.edges.map((e: any) => `${e.sourceNodeID}->${e.targetNodeID}`).sort().join(',')
+        : '';
+      return `${nodes}|${edges}`;
+    };
+    let lastKey = structureKeyOf(workflowDocumentStore.getSnapshot().doc.toJSON());
+    const syncFromStore = (key: string) => {
+      lastKey = key;
+      const dsl = workflowDocumentStore.getSnapshot().doc.toJSON();
+      setWorkflowData(dsl);
+      setRemountKey((k) => k + 1);
+    };
+    // 订阅建立时 store 可能已经先一步拿到了数据（后端加载竞态）：补一次对齐
+    const currentKey = structureKeyOf(workflowDataRef.current);
+    if (currentKey !== lastKey && lastKey !== 'empty') {
+      syncFromStore(lastKey);
+    }
+    return workflowDocumentStore.subscribe(() => {
+      const snap = workflowDocumentStore.getSnapshot();
+      const change = snap.lastChange;
+      if (change && change.source === 'user' && change.reason !== 'rollback') return;
+      const nextKey = structureKeyOf(snap.doc.toJSON());
+      if (nextKey === lastKey) return;
+      syncFromStore(nextKey);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSwitchVersion = useCallback(async (versionId: number) => {
     try {

@@ -23,6 +23,8 @@ import {
 import type { ColumnProps } from '@douyinfe/semi-ui/lib/es/table';
 import { IconHelpCircle } from '@douyinfe/semi-icons';
 import { agentApi } from '../../agent/api';
+import { ModelManagement } from './ModelManagement';
+import { MemoryTab } from './MemoryTab';
 import { t, useLanguage } from '../../i18n';
 
 const ACCENT = 'var(--g-accent)';
@@ -433,24 +435,6 @@ const ToolDefinitionTab: React.FC = () => {
  * ModelConfigTab — LLM 模型配置（apiHost / apiKey / model 等）
  * ================================================================ */
 
-interface ModelConfigForm {
-  apiHost: string;
-  apiKey: string;
-  model: string;
-  temperature: number;
-  maxTokens: number;
-  contextWindow: number;
-}
-
-const DEFAULT_MODEL_CONFIG: ModelConfigForm = {
-  apiHost: '',
-  apiKey: '',
-  model: '',
-  temperature: 0.7,
-  maxTokens: 4096,
-  contextWindow: 8192,
-};
-
 /** 方舟托管（Managed Agents）连接配置：provider_config:ark */
 interface ArkConfigForm {
   baseUrl: string;
@@ -481,8 +465,6 @@ const DEFAULT_ENGINE_CONFIG: EngineConfigForm = { mode: 'local' };
 const ModelConfigTab: React.FC = () => {
   useLanguage();
   const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState<ModelConfigForm>(DEFAULT_MODEL_CONFIG);
   const [arkForm, setArkForm] = useState<ArkConfigForm>(DEFAULT_ARK_CONFIG);
   const [savingArk, setSavingArk] = useState(false);
   const [engineForm, setEngineForm] = useState<EngineConfigForm>(DEFAULT_ENGINE_CONFIG);
@@ -491,23 +473,10 @@ const ModelConfigTab: React.FC = () => {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [llmData, arkData, engineData] = await Promise.all([
-        agentApi.listConfigs('llm_config'),
+      const [arkData, engineData] = await Promise.all([
         agentApi.listConfigs('provider_config'),
         agentApi.listConfigs('engine_config'),
       ]);
-      const llmItem = (llmData || [])[0];
-      if (llmItem) {
-        const parsed = tryParseJson(llmItem.configData) || {};
-        setForm({
-          apiHost: parsed.apiHost ?? '',
-          apiKey: parsed.apiKey ?? '',
-          model: parsed.model ?? '',
-          temperature: typeof parsed.temperature === 'number' ? parsed.temperature : 0.7,
-          maxTokens: typeof parsed.maxTokens === 'number' ? parsed.maxTokens : 4096,
-          contextWindow: typeof parsed.contextWindow === 'number' ? parsed.contextWindow : 8192,
-        });
-      }
       const arkItem = (arkData || []).find((c: any) => c.configKey === ARK_CONFIG_KEY);
       if (arkItem) {
         const parsed = tryParseJson(arkItem.configData) || {};
@@ -534,26 +503,6 @@ const ModelConfigTab: React.FC = () => {
   useEffect(() => {
     void load();
   }, [load]);
-
-  const handleSave = useCallback(async () => {
-    setSaving(true);
-    try {
-      await agentApi.saveConfig(
-        {
-          configKey: 'llm_config',
-          configType: 'llm_config',
-          title: 'LLM 模型配置',
-          configData: JSON.stringify(form),
-        },
-        true,
-      );
-      Toast.success('保存成功');
-    } catch (e) {
-      Toast.error(`保存失败: ${(e as Error).message}`);
-    } finally {
-      setSaving(false);
-    }
-  }, [form]);
 
   /** 方舟配置校验：走自动同步（defaultAgentId 为空）时，defaultModelId 必填 —— 方舟创建 Agent 必须指定模型 */
   const validateArkModelRequired = useCallback((): boolean => {
@@ -657,7 +606,7 @@ const ModelConfigTab: React.FC = () => {
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <Typography.Text strong style={{ fontSize: 13 }}>自研引擎</Typography.Text>
               <Typography.Text type="tertiary" style={{ fontSize: 11 }}>
-                需配置 OpenAI 兼容端点（apiHost / apiKey / 模型）
+                模型在下方「模型条目管理」配置；无条目时用服务端内置默认模型
               </Typography.Text>
             </div>
           </Radio>
@@ -694,86 +643,8 @@ const ModelConfigTab: React.FC = () => {
         </div>
       </div>
 
-      {engineForm.mode === 'local' && (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 4 }}>
-        <Typography.Title heading={5} style={{ marginBottom: 0 }}>
-          自研引擎（本地模型）
-        </Typography.Title>
-        <Typography.Text type="tertiary" style={{ fontSize: 11 }}>
-          OpenAI 兼容端点直连：推理循环与工具执行都在本地服务。
-        </Typography.Text>
-        <div>
-          <Typography.Text strong style={{ fontSize: 13 }}>{t('agent.config.modelHost')}</Typography.Text>
-          <Input
-            value={form.apiHost}
-            onChange={(v) => setForm({ ...form, apiHost: v })}
-            placeholder="https://api.openai.com/v1"
-            style={{ marginTop: 6 }}
-          />
-        </div>
-        <div>
-          <Typography.Text strong style={{ fontSize: 13 }}>{t('agent.config.modelKey')}</Typography.Text>
-          <Input
-            value={form.apiKey}
-            onChange={(v) => setForm({ ...form, apiKey: v })}
-            placeholder="sk-..."
-            style={{ marginTop: 6 }}
-          />
-        </div>
-        <div>
-          <Typography.Text strong style={{ fontSize: 13 }}>{t('agent.config.modelName')}</Typography.Text>
-          <Input
-            value={form.model}
-            onChange={(v) => setForm({ ...form, model: v })}
-            placeholder="gpt-4o / claude-3-opus / ..."
-            style={{ marginTop: 6 }}
-          />
-        </div>
-        <div style={{ display: 'flex', gap: 16 }}>
-          <div style={{ flex: 1 }}>
-            <Typography.Text strong style={{ fontSize: 13 }}>{t('agent.config.modelTemp')}</Typography.Text>
-            <Input
-              value={String(form.temperature)}
-              onChange={(v) => setForm({ ...form, temperature: Number(v) || 0 })}
-              style={{ marginTop: 6 }}
-            />
-          </div>
-          <div style={{ flex: 1 }}>
-            <Typography.Text strong style={{ fontSize: 13 }}>{t('agent.config.modelMaxTokens')}</Typography.Text>
-            <Input
-              value={String(form.maxTokens)}
-              onChange={(v) => setForm({ ...form, maxTokens: Number(v) || 0 })}
-              style={{ marginTop: 6 }}
-            />
-          </div>
-        </div>
-        <div>
-          <Typography.Text strong style={{ fontSize: 13 }}>{t('agent.config.modelContextWindow')}</Typography.Text>
-          <Input
-            value={String(form.contextWindow)}
-            onChange={(v) => setForm({ ...form, contextWindow: Number(v) || 0 })}
-            style={{ marginTop: 6 }}
-          />
-        </div>
-        <div
-          style={{
-            padding: 12,
-            background: '#fff7e6',
-            border: '1px solid #ffd591',
-            borderRadius: 8,
-            fontSize: 12,
-            color: '#d46b08',
-          }}
-        >
-          {t('agent.config.modelNote')}
-        </div>
-        <div>
-          <Button theme="solid" style={{ background: ACCENT }} loading={saving} onClick={handleSave}>
-            {t('agent.config.modelSave')}
-          </Button>
-        </div>
-      </div>
-      )}
+      {/* 自研引擎的连接配置由「模型条目管理」承载（条目缺失时服务端用内置默认模型兜底），
+          不再提供独立单模型表单（2026-10-11 移除冗余层） */}
 
       {/* 方舟托管（Managed Agents）配置分区：仅选中方舟引擎时显示 */}
       {engineForm.mode === 'ark' && (
@@ -1828,7 +1699,7 @@ export const AgentConfigManagement: React.FC = () => {
         }
       >
         <TabPane tab={t('agent.config.tabModel')} itemKey="model">
-          <ModelConfigTab />
+          <ModelTabContent />
         </TabPane>
         <TabPane tab={t('agent.config.tabPrompt')} itemKey="prompts">
           <PromptEditorTab />
@@ -1836,8 +1707,58 @@ export const AgentConfigManagement: React.FC = () => {
         <TabPane tab={t('agent.config.tabTools')} itemKey="tools">
           <ToolDefinitionTab />
         </TabPane>
+        <TabPane tab="长期记忆" itemKey="memory">
+          <MemoryTab />
+        </TabPane>
       </Tabs>
     </div>
+  );
+};
+
+/**
+ * 模型配置 tab 内容：引擎选择先行（自研/方舟），只有自研引擎才有多模型条目管理。
+ * 方舟托管的模型由远端 Agent 管理，本地条目对其无效 —— 不显示管理界面避免误导。
+ */
+const ModelTabContent: React.FC = () => {
+  const [engineMode, setEngineMode] = useState<'local' | 'ark'>('local');
+
+  useEffect(() => {
+    let cancelled = false;
+    agentApi.listModels()
+      .then((r) => { if (!cancelled) setEngineMode(r.engineMode === 'ark' ? 'ark' : 'local'); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  return (
+    <>
+      {/* 引擎选择 + 该引擎所需的连接配置（llm 兜底 / 方舟三要素） */}
+      <ModelConfigTab />
+      {engineMode === 'local' ? (
+        <div style={{ marginTop: 24 }}>
+          <div style={{
+            fontSize: 13, fontWeight: 600, color: '#1a1a1a',
+            borderTop: '1px solid #ececf1', paddingTop: 16, marginBottom: 4,
+          }}>
+            模型条目管理
+          </div>
+          <div style={{ fontSize: 12, color: '#888', marginBottom: 12 }}>
+            自研引擎的模型在这里配置：多模型条目 + 会话级选择 + 思考档位 + 测活与健康账本。
+            未配置任何条目时使用服务端内置默认模型。
+          </div>
+          <ModelManagement />
+        </div>
+      ) : (
+        <div style={{
+          marginTop: 20, padding: '14px 16px', background: '#f7f8fa',
+          border: '1px solid #ececf1', borderRadius: 10,
+          fontSize: 12.5, color: '#888', textAlign: 'center',
+        }}>
+          当前为方舟托管引擎：模型由远端 Agent 管理，本地模型条目不生效。
+          如需多模型管理，请先在上方切换为「自研引擎」。
+        </div>
+      )}
+    </>
   );
 };
 

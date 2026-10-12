@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>gaia · dsh · owb 三方全景对比：功能与技术方案（模块级细粒度）</title>
+<style>
+  :root{
+    --ink:#18181b; --ink2:#3f3f46; --mut:#71717a; --mut2:#a1a1aa;
+    --line:#e4e4e7; --line2:#f4f4f5; --bg:#ffffff; --soft:#fafafa;
+    --blue:#2563eb; --blue-bg:#eff6ff; --green:#059669; --green-bg:#ecfdf5;
+    --amber:#d97706; --amber-bg:#fffbeb; --red:#dc2626; --red-bg:#fef2f2;
+    --violet:#7c3aed; --violet-bg:#f5f3ff;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro SC","PingFang SC","Noto Sans SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    font-size:15px;line-height:1.75;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1240px;margin:0 auto;padding:0 32px 120px}
+  a{color:var(--blue);text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  .hero{padding:72px 0 36px;border-bottom:1px solid var(--line)}
+  .hero .kicker{font-size:12px;letter-spacing:.18em;color:var(--mut);text-transform:uppercase;margin-bottom:14px}
+  .hero h1{font-size:34px;line-height:1.3;font-weight:700;margin:0 0 14px;letter-spacing:-.01em}
+  .hero p.sub{font-size:16px;color:var(--mut);max-width:880px;margin:0}
+  .hero .meta{margin-top:22px;font-size:12.5px;color:var(--mut2);font-family:var(--mono)}
+
+  .toc{display:flex;flex-wrap:wrap;gap:6px 20px;padding:18px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .toc a{color:var(--ink2)}
+  .toc a b{color:var(--mut2);font-weight:500;font-family:var(--mono);margin-right:4px}
+
+  section{padding:52px 0 8px}
+  .sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:8px}
+  .sec-head .no{font-family:var(--mono);font-size:13px;color:var(--mut2);min-width:34px}
+  .sec-head h2{font-size:23px;font-weight:650;margin:0;letter-spacing:-.01em}
+  .sec-desc{color:var(--mut);font-size:14px;max-width:900px;margin:0 0 26px 48px}
+  h3{font-size:16.5px;font-weight:650;margin:34px 0 12px}
+  h4{font-size:14.5px;font-weight:650;margin:24px 0 8px}
+  p{margin:0 0 14px}
+  .mut{color:var(--mut)}
+  .small{font-size:13px}
+  code{font-family:var(--mono);font-size:.86em;background:var(--line2);border-radius:5px;padding:1.5px 6px;color:var(--ink2)}
+  .loc{font-family:var(--mono);font-size:11.5px;color:var(--mut2);white-space:nowrap}
+
+  .card{border:1px solid var(--line);border-radius:12px;padding:20px 22px;background:var(--bg)}
+  .grid{display:grid;gap:14px}
+  .g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:1fr 1fr 1fr}
+  @media(max-width:900px){.g2,.g3{grid-template-columns:1fr}}
+  .tag{display:inline-block;font-size:11px;font-family:var(--mono);border-radius:99px;padding:1px 10px;margin:0 6px 6px 0;border:1px solid var(--line);color:var(--ink2);background:var(--soft)}
+  .tag.b{color:var(--blue);border-color:#bfdbfe;background:var(--blue-bg)}
+  .tag.g{color:var(--green);border-color:#a7f3d0;background:var(--green-bg)}
+  .tag.a{color:var(--amber);border-color:#fde68a;background:var(--amber-bg)}
+  .tag.r{color:var(--red);border-color:#fecaca;background:var(--red-bg)}
+  .tag.v{color:var(--violet);border-color:#ddd6fe;background:var(--violet-bg)}
+
+  /* ---------- 对比表 ---------- */
+  .tw{overflow-x:auto;margin:14px 0 20px;border:1px solid var(--line);border-radius:12px}
+  table.cmp{width:100%;border-collapse:collapse;font-size:13px;min-width:860px}
+  .cmp th,.cmp td{padding:10px 14px;vertical-align:top;border-bottom:1px solid var(--line2);text-align:left;line-height:1.65;overflow-wrap:anywhere;word-break:break-word}
+  .cmp thead th{background:var(--soft);font-size:12.5px;color:var(--ink2);position:sticky;top:0;white-space:nowrap;border-bottom:1px solid var(--line)}
+  .cmp tbody tr:last-child td{border-bottom:none}
+  .cmp td:first-child{font-weight:600;width:172px;background:var(--soft);color:var(--ink)}
+  .cmp .dim{color:var(--mut)}
+  .pdot{display:inline-block;width:8px;height:8px;border-radius:3px;margin-right:7px;vertical-align:1px}
+  .pdot.gaia{background:var(--blue)} .pdot.dsh{background:var(--green)} .pdot.owb{background:var(--amber)}
+  .cmp .win{color:var(--green);font-weight:600}
+  .cmp .lose{color:var(--red)}
+  .cmp .mid{color:var(--amber)}
+  .klist{margin:0;padding-left:18px}
+  .klist li{margin:2px 0}
+
+  /* ---------- 交互式图表 ---------- */
+  .fig{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:18px 0 26px;background:var(--bg)}
+  .fig .figbar{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line);font-size:12.5px;background:var(--soft)}
+  .fig .figbar b{font-weight:650}
+  .fig .figbar .kind{font-family:var(--mono);font-size:11px;color:var(--mut2)}
+  .fig iframe{width:100%;height:860px;border:0;display:block;background:#fff}
+  .fig.narrow iframe{height:900px}
+  .figlink{font-size:12px;color:var(--mut)}
+
+  /* ---------- 结论块 ---------- */
+  .verdict{border-left:3px solid var(--blue);background:var(--blue-bg);border-radius:0 10px 10px 0;padding:12px 18px;margin:16px 0;font-size:13.5px}
+  .verdict.g{border-color:var(--green);background:var(--green-bg)}
+  .verdict.a{border-color:var(--amber);background:var(--amber-bg)}
+  .verdict.r{border-color:var(--red);background:var(--red-bg)}
+  .verdict b{font-weight:650}
+
+  footer{border-top:1px solid var(--line);margin-top:64px;padding-top:24px;font-size:12.5px;color:var(--mut)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ================= HERO ================= -->
+<div class="hero">
+  <div class="kicker">Gaia Engineering · Comparative Study</div>
+  <h1>gaia · dsh · owb 三方全景对比</h1>
+  <p class="sub">功能与技术方案的模块级细粒度对比：覆盖产品定位、总体架构、Agent 运行循环、韧性机制、工具体系、模型管理、可观测性、会话存储、前端工程、工作流画布、多智能体、安全权限、评测体系、部署运维与规模数字。技术流程配 10 张 Archify 交互式图（点击图内元素可聚焦/追踪关系）。</p>
+  <div class="meta">生成于 2026-10-11 · gaia = 本仓库 flowgram-ai-rule-engine（apps/api/gaia-workflow + apps/console）· dsh = deepseek-harness @ 5badb150 (v0.2.1-alpha.1) · owb = openworkbuddy v0.13.1 · 所有结论均给出源码锚点（文件:行号），行号对应调研当日工作区</div>
+</div>
+
+<div class="toc">
+  <a href="#s1"><b>01</b>总览速读</a>
+  <a href="#s2"><b>02</b>产品定位与形态</a>
+  <a href="#s3"><b>03</b>总体架构</a>
+  <a href="#s4"><b>04</b>Agent 运行循环</a>
+  <a href="#s5"><b>05</b>运行时韧性</a>
+  <a href="#s6"><b>06</b>工具体系</a>
+  <a href="#s7"><b>07</b>模型管理</a>
+  <a href="#s8"><b>08</b>可观测性</a>
+  <a href="#s9"><b>09</b>会话与存储</a>
+  <a href="#s10"><b>10</b>前端工程</a>
+  <a href="#s11"><b>11</b>工作流与画布</a>
+  <a href="#s12"><b>12</b>多智能体</a>
+  <a href="#s13"><b>13</b>安全与权限</a>
+  <a href="#s14"><b>14</b>评测与质量</a>
+  <a href="#s15"><b>15</b>部署与运维</a>
+  <a href="#s16"><b>16</b>规模数字</a>
+  <a href="#s17"><b>17</b>结论与启示</a>
+  <a href="#s18"><b>18</b>附录</a>
+</div>
+
+<!-- ================= 01 总览 ================= -->
+<section id="s1">
+  <div class="sec-head"><span class="no">01</span><h2>总览速读</h2></div>
+  <p class="sec-desc">三句话定位 + 一张关键数字表。细节全部在后续章节展开。</p>
+
+  <div class="grid g3">
+    <div class="card">
+      <span class="tag b">gaia</span>
+      <p style="font-size:13.5px;margin:8px 0 0"><b>AI 工作流平台</b>：对话式 Agent 在画布上生成/编辑/试运行工作流 DSL，落版与 API 发布由用户显式完成；Spring Boot 单体 + AgentScope 换核 + FlowGram 画布。</p>
+    </div>
+    <div class="card">
+      <span class="tag g">dsh</span>
+      <p style="font-size:13.5px;margin:8px 0 0"><b>DeepSeek 官方 Agent Harness</b>：everything-is-a-plugin 的 Cordis 插件树，日志即真相（append-only JSONL），为开发者提供 Web/桌面/headless/SDK 四形态运行时。</p>
+    </div>
+    <div class="card">
+      <span class="tag a">owb</span>
+      <p style="font-size:13.5px;margin:8px 0 0"><b>文件交付型办公 Agent 工作台</b>：Electron + Express 单体 + 原生 JS 前端，主 Agent 委派专家团递归执行，交付可打开的文件而非聊天记录。</p>
+    </div>
+  </div>
+
+  <div class="tw"><table class="cmp">
+    <thead><tr>
+      <th style="width:172px">维度</th>
+      <th><span class="pdot gaia"></span>gaia</th>
+      <th><span class="pdot dsh"></span>dsh</th>
+      <th><span class="pdot owb"></span>owb</th>
+    </tr></thead>
+    <tbody>
+      <tr><td>技术栈</td><td>Java 17 · Spring Boot 2.7.18 · MyBatis-Plus · SQLite · React 18 + rsbuild + Semi UI + FlowGram 1.0.12</td><td>TypeScript 6.0.3（strict）· Node ≥22 · pnpm monorepo（319 包）· React 18 + Vite · Cordis 插件框架（vendor）</td><td>JavaScript（CommonJS）· Electron 43 · Express · 原生 JS 前端（零构建）· 全 JSON 文件存储</td></tr>
+      <tr><td>Agent 内核</td><td>AgentScope harness 2.0.3（ReAct 循环外包给框架）+ 自研工具/持久化层</td><td>自研 agent-loop（ReactLoopAgent，2,305 行）</td><td>自研 runTask 步循环（agent.js 4,887 行）+ 本机 Claude Code/Codex 整层替换</td></tr>
+      <tr><td>主代码规模</td><td>后端 333 文件 / 33,031 行；前端 364 ts/tsx / 47,845 行</td><td>~5,246 TS 文件 / 约 112 万行（含 client/apps/scripts）</td><td>src 185 文件；public 前端 28 文件 40,622 行；仓库 JS 总计约 26.1 万行</td></tr>
+      <tr><td>存储</td><td>单文件 SQLite（19 张表）</td><td>会话 = 每会话 append-only JSONL(zstd)；其余 = JSON / SQLite(FTS5)</td><td>无数据库，全部 JSON 文件（原子写 + .bak）</td></tr>
+      <tr><td>可观测</td><td>三账本（LLM 全量请求/响应 + 事件 + 工具调用）+ Trajectory 三泳道视图</td><td>61 种 durable 事件，UI 是日志的纯投影；Trajectory 台账 + 三泳道时间线</td><td>trace.jsonl（24MB×6 滚动）+ 可选 Langfuse 双写；执行时间线树</td></tr>
+      <tr><td>部署形态</td><td>本机 Java 进程 :48080 + 前端 dev :3456（rsbuild）</td><td>dsh CLI 唯一启动器：web :3080 / headless / sdk(stdio) / acp</td><td>Electron 壳 + utilityProcess 服务 :3800（默认 127.0.0.1）· Docker/Caddy</td></tr>
+      <tr><td>测试</td><td>后端 27 类 / 155 用例；前端 vitest 5 文件 + Playwright 4 场景</td><td>2,190 个 spec/bench 文件；逐文件 100% 覆盖门禁；快照回放</td><td>146 个测试文件（test/all.js）</td></tr>
+      <tr><td>评测体系</td><td>三层：静态 gate → golden 组装 → 行为回放（8-10 任务）<span class="loc">scripts/benchmark/</span></td><td>性能基准 7 套件 + 快照回放测试（会话 JSONL 即期望）</td><td>eval v3：真实模型跑批 + 机器判分 + pass@1/pass^k + AI 评委 + baseline 回归</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="verdict"><b>阅读方式</b>：每个对比表都按「机制 → 三方实现 → 源码锚点」组织；带 <span class="loc">路径:行号</span> 的灰字可直接点击跳转源码位置（IDE 打开仓库时）。图表均可交互：滚轮缩放、点击节点聚焦、悬停追踪关系、明暗主题切换、PNG/SVG 导出。</div>
+</section>
+<!-- ================= 02 定位 ================= -->
+<section id="s2">
+  <div class="sec-head"><span class="no">02</span><h2>产品定位与形态</h2></div>
+  <p class="sec-desc">三家服务的目标用户、交付物与产品边界完全不同，这是理解一切实现差异的前提。</p>
+
+  <div class="tw"><table class="cmp">
+    <thead><tr><th style="width:172px">维度</th><th><span class="pdot gaia"></span>gaia</th><th><span class="pdot dsh"></span>dsh</th><th><span class="pdot owb"></span>owb</th></tr></thead>
+    <tbody>
+      <tr><td>一句话定位</td><td>AI Workflow Editor：自然语言 → 可视化工作流 → 发布为 API</td><td>"An open-source agent harness developed by DeepSeek AI"<span class="loc"> dsh/README.md:5</span></td><td>"AI Agent 办公工作台……给你的是能打开的文件，不是一段聊天记录"<span class="loc"> owb/README.md:8</span></td></tr>
+      <tr><td>目标用户</td><td>需要搭建/维护业务工作流的工程师与运营（中文优先）</td><td>终端开发者 / agent 使用者（developer preview，明示会有破坏性变更<span class="loc"> README.md:11-13</span>）</td><td>个人办公 / 团队（多租户 RBAC、企业后台）</td></tr>
+      <tr><td>核心交付物</td><td>画布工作流（版本化）+ HTTP API（apiKey 发布）</td><td>会话（任务执行轨迹）+ 程序化 SDK/ACP 接入</td><td>落盘成果文件（PPT/Word/Excel/图/视频）</td></tr>
+      <tr><td>产品形态</td><td>Web（对话页 + 画布编辑器 + 管理后台）</td><td>Web GUI / Electron 桌面 / headless 一次性 / JSON-RPC SDK / ACP<span class="loc"> README.md:24-27</span></td><td>Electron 桌面 + 本地 Web + CLI + IM 远程指挥（飞书/企微/QQ）</td></tr>
+      <tr><td>多 agent 叙事</td><td>单主 Agent + 方舟托管引擎切换（无递归委派）</td><td>subagent 5 种 provider（fork/spawn/dsh-sdk/claude-code/codex）</td><td>32 专家 / 10 专家团，主 Agent 用工具递归委派，共享工作目录<span class="loc"> experts.json:2</span></td></tr>
+      <tr><td>商业模式</td><td>内部平台</td><td>MIT 开源</td><td>PolyForm-NC + 商业授权；企业版 RBAC/多租户<span class="loc"> package.json:73</span></td></tr>
+      <tr><td>工作流/画布</td><td><b>核心功能</b>：FlowGram 自由画布 19 种节点 + 版本树 + API 发布</td><td>无画布；有 plan/todo/goal 与 workflow 工具（禁用态）</td><td>无限画布 + 短剧制作 DAG（app-07-canvas-*.js，8 个文件）</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ================= 03 架构 ================= -->
+<section id="s3">
+  <div class="sec-head"><span class="no">03</span><h2>总体架构</h2></div>
+  <p class="sec-desc">三张总体架构图（交互式）+ 架构风格逐项对比。</p>
+
+  <h3>3.1 gaia：Spring Boot 单体 + AgentScope 换核</h3>
+  <div class="fig narrow">
+    <div class="figbar"><b>gaia 总体架构</b><span class="kind">architecture · 交互式</span></div>
+    <iframe loading="lazy" src="diagrams/gaia-architecture.html" title="gaia 总体架构"></iframe>
+  </div>
+  <p class="small mut">要点：Maven 三模块——<code>gaia-workflow-base</code>（43 类，自研 DSL 引擎内核 Chain/SpEL/事件）· <code>gaia-workflow-infra</code>（141 类，MyBatis-Plus 19 表 + 15 种节点解析器）· <code>gaia-workflow-app</code>（149 类，agent 运行时 + 19 控制器约 90 端点）。引擎策略接口 <code>AgentExecutionEngine</code> 走 Spring 注入顺序路由（<span class="loc">AgentExecutionRouter.java:55-62</span>），本地 AgentScope 与方舟托管共用同一 ToolExecutorRegistry。</p>
+
+  <h3>3.2 dsh：everything-is-a-plugin 的 Cordis 插件树</h3>
+  <div class="fig narrow">
+    <div class="figbar"><b>dsh 总体架构</b><span class="kind">architecture · 交互式</span></div>
+    <iframe loading="lazy" src="diagrams/dsh-architecture.html" title="dsh 总体架构"></iframe>
+  </div>
+  <p class="small mut">要点：319 个 workspace 包按域分组（core/llm/compaction/shell/fs/session/interaction/subagent/api/host/client/bundle/boot…），依赖方向强制 harness 包对 cordis 只放 peerDependencies（<span class="loc">AGENTS.md:130</span>）；客户端本身也是一棵跑在浏览器里的 Cordis 插件树，由 Host 注入 <code>window.__DSH_BOOT__</code> 模块表两段式启动。</p>
+
+  <h3>3.3 owb：Electron 壳 + Express 单体 + 原生 JS 前端</h3>
+  <div class="fig narrow">
+    <div class="figbar"><b>owb 总体架构</b><span class="kind">architecture · 交互式</span></div>
+    <iframe loading="lazy" src="diagrams/owb-architecture.html" title="owb 总体架构"></iframe>
+  </div>
+  <p class="small mut">要点：server.js 9,412 行 Express 单体 + src/ 七层架构（platform→core→domains→agent/engines→server→im/cli/desktop），层间只许 require 同层或更低层，由 <span class="loc">test/layers.js</span> 用语法树强制；桌面壳把服务挪进 utilityProcess 子进程隔离（<span class="loc">server-host.js:5-13</span>），主进程 p99 显著下降。</p>
+
+  <h3>3.4 架构风格对比</h3>
+  <div class="tw"><table class="cmp">
+    <thead><tr><th style="width:172px">维度</th><th><span class="pdot gaia"></span>gaia</th><th><span class="pdot dsh"></span>dsh</th><th><span class="pdot owb"></span>owb</th></tr></thead>
+    <tbody>
+      <tr><td>模块化单元</td><td>Maven 模块 + Spring Bean（包分层）</td><td><b>npm 包即插件</b>：每个能力一个 workspace 包，运行时以 Cordis 插件树组装</td><td>文件级分区：7 层目录 + 巨型单体的区块注释</td></tr>
+      <tr><td>组装方式</td><td>Spring @PostConstruct 自动注册（AgentAssembly 4 内置 agent + 14 工具执行器 <span class="loc">AgentAssembly.java:54-72</span>）</td><td>bundle patch（6 种 profile 捆包）→ profile cordis.patch.yml → home 级 → --patch 逐层叠加<span class="loc">architecture.md:27</span></td><td>require 静态组装 + experts.json 声明式专家</td></tr>
+      <tr><td>引擎可替换性</td><td>引擎策略接口 + Router；方舟托管为第二实现；旧 local 引擎类已删（仅存 javadoc 通道）</td><td>LLM provider / 子代理 / 压缩 / 审批全部是 seam 接口，可整包替换</td><td>depth=0 时按账号偏好整层切换本机 CLI 引擎<span class="loc">agent.js:3016-3053</span></td></tr>
+      <tr><td>状态归属</td><td>SQLite 单库（服务端权威）</td><td>Host 侧 append-only JSONL（服务端权威），浏览器零业务存储</td><td>data/ JSON 文件（磁盘权威，内存 Map 只是缓存，靠 mtime+size 防覆盖<span class="loc">server.js:768-777</span>）</td></tr>
+      <tr><td>前端架构</td><td>React SPA + 4 个模块级外部 store（useSyncExternalStore）+ FlowGram 画布引擎</td><td>浏览器内 Cordis 插件树 + CSS Modules（212 个）+ locale 门禁</td><td>无框架：脚本序号分层共享全局，renderXxx 拼 innerHTML</td></tr>
+      <tr><td>多实例扩展</td><td><span class="lose">单机内存态（runs/drafts/pendingAsk）</span>，多实例即失效（已知 P0）</td><td>Host 单进程但状态全落盘，重连即恢复</td><td>单进程，但全 JSON 落盘 + CLI/Web 共享同一会话目录</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="verdict g"><b>架构结论</b>：dsh 的「包即插件 + 日志即真相」是三者中扩展性与可恢复性最强的形态；gaia 的「换核 + 共享工具层」以最小代码量换来了双引擎能力；owb 证明零框架、零依赖也能撑起复杂 agent 产品（运行时依赖仅 13 个），代价是单文件巨型化（server.js 9,412 行）。</div>
+</section>
+<!-- ================= 04 运行循环 ================= -->
+<section id="s4">
+  <div class="sec-head"><span class="no">04</span><h2>Agent 运行循环</h2></div>
+  <p class="sec-desc">三方「一步」是怎么走的：gaia 把循环外包给 AgentScope、自己管工具管道与账本；dsh 与 owb 自研循环但事件模型截然不同（dsh 先落事件再驱动 UI，owb 步循环 + 判断闸）。</p>
+
+  <h3>4.1 gaia：一次 run 的全链路时序</h3>
+  <div class="fig narrow">
+    <div class="figbar"><b>gaia 一次 run 全链路（受理 → ReAct → 三账本 → 收尾裁定）</b><span class="kind">sequence · 交互式</span></div>
+    <iframe loading="lazy" src="diagrams/gaia-agent-run.html" title="gaia 一次 run 全链路"></iframe>
+  </div>
+  <p class="small mut">循环本体在 AgentScope <code>HarnessAgent</code>：gaia 负责 run 编排（<span class="loc">AgentSessionRunService.java:330-457</span>）、装配（模型/提示词/护栏，<span class="loc">AgentScopeExecutionEngine.java:151-241</span>）、事件翻译（<span class="loc">:704-762</span>）与三账本落库。关键自研点：RecordingModel 装饰 <code>Model.stream()</code> 才能看到真实请求（框架 MODEL_CALL_* 事件不带请求内容，<span class="loc">RecordingModel.java:22-29</span>）。</p>
+
+  <h3>4.2 dsh：turn/step 流转与恢复路径</h3>
+  <div class="fig narrow">
+    <div class="figbar"><b>dsh ReactLoopAgent 相位流转</b><span class="kind">workflow · 交互式</span></div>
+    <iframe loading="lazy" src="diagrams/dsh-agent-loop.html" title="dsh agent loop"></iframe>
+  </div>
+  <p class="small mut">主循环 <code>kick() → while(await turn())</code>（<span class="loc">agent-loop/src/agent.ts:252-265</span>），每步 preStep（claim inbox → 组装提示词 → agent/pre-step waterfall）→ step（prepareRequest → 流式消费 → 结算 assistant/message → executeToolCalls）。turn 结束原因五态：<code>blocked | completed | max-tokens | aborted | error</code>（<span class="loc">agent.ts:318-385</span>）。</p>
+
+  <h3>4.3 owb：runTask 主循环</h3>
+  <div class="fig narrow">
+    <div class="figbar"><b>owb runTask：引擎分岔 → 步循环 → 闸口 → 交付</b><span class="kind">workflow · 交互式</span></div>
+    <iframe loading="lazy" src="diagrams/owb-agent-loop.html" title="owb runTask"></iframe>
+  </div>
+  <p class="small mut">外层自动续跑 ≤20 轮 × 内层 <code>max_steps=25</code>（<span class="loc">agent.js:3340-3342</span>）；每步：停机检查 → 插队消息注入 → deadline/token 闸（80% 提醒）→ compactHistory → 流式调用。系统提示词拆「稳定段 + 易变段」两段拼，打 Anthropic 缓存断点（<span class="loc">agent.js:3056-3062</span>）。</p>
+
+  <h3>4.4 循环机制逐项对比</h3>
+  <div class="tw"><table class="cmp">
+    <thead><tr><th style="width:172px">机制</th><th><span class="pdot gaia"></span>gaia</th><th><span class="pdot dsh"></span>dsh</th><th><span class="pdot owb"></span>owb</th></tr></thead>
+    <tbody>
+      <tr><td>循环归属</td><td>AgentScope HarnessAgent（maxIters = runawayTurnCeiling+8）</td><td>自研 ReactLoopAgent（Phase: idle/maintenance/running）</td><td>自研 runTask（双层数循环）</td></tr>
+      <tr><td>步进事件模型</td><td>框架事件翻译为 32 种 SSE 事件<span class="loc"> sse-protocol.ts:7-136</span></td><td><b>61 种 durable session 事件</b>，先落盘再驱动 UI<span class="loc"> known-event-types.ts</span></td><td>进程内回调 + SSE 推送（transcript 单独存界面回放）</td></tr>
+      <tr><td>自然停止判定</td><td>AgentScope ExceedMaxIters / 正常 finish；回显守卫防旧消息当终稿<span class="loc"> AgentScopeExecutionEngine.java:704-762</span></td><td>finish 正常且<b>无 tool-call</b> → completed；max-tokens 粘性不降级<span class="loc"> agent.ts:512-533</span></td><td>步循环耗尽后 continue-gate（Jev）决定是否续跑</td></tr>
+      <tr><td>流式输出</td><td>SSE：token/thinking 增量 + 前端 live-stream-store 合帧<span class="loc"> live-stream-store.ts</span></td><td>agent/assistant-stream 进程内 live 事件 + durable 侧 compact timed stream<span class="loc"> architecture.md:123</span></td><td>卡壳超时=连续 N ms 无数据块（非总时长）<span class="loc"> agent.js:3396-3405</span></td></tr>
+      <tr><td>工具调度并行</td><td>顺序执行（ToolExecutor.concurrencySafe 默认 false，未覆写）</td><td>互斥调用为 barrier；并行进有界滚动池 maxParallelToolCalls<span class="loc"> tool-calls.ts:132</span></td><td>顺序执行</td></tr>
+      <tr><td>用户中途插话</td><td>steering 收件箱：run 中新消息入库 + turn 边界注入<span class="loc"> AgentSessionRunService.java:186-198</span></td><td>steer()/inject()/followup() 三档 inbox（next-step/next-turn/不唤醒）<span class="loc"> agent.ts:163-173</span></td><td>interject 插队消息在步边界注入</td></tr>
+      <tr><td>页面上下文注入</td><td>pageContext 作为 user 快照消息插在本次消息前（不落库）<span class="loc"> AgentScopeExecutionEngine.java:654-671</span></td><td>workspace 上下文经 system-prompt 组装</td><td>volatileSystemBlock（记忆召回/项目/品牌/媒体熔断）<span class="loc"> agent.js:3056-3062</span></td></tr>
+      <tr><td>工具结果回灌口径</td><td>全链路不截断；仅回灌历史 >60k 字符剪枝（head30k+tail15k+hint）<span class="loc"> AgentScopeExecutionEngine.java:1014-1033</span></td><td>tool-result-pruner：&gt;8192 → head4096+marker+tail1024（可配置）</td><td>trimHistory 只截工具输出、对话轮永不清理<span class="loc"> agent.js:738</span></td></tr>
+      <tr><td>纯工具轮落库</td><td>assistant 必落（content 空 + toolCalls），防孤儿 tool 结果<span class="loc"> AgentScopeExecutionEngine.java:553-565</span></td><td>assistant/message 与 tool/call|result 都是必然 durable 事件</td><td>closeDanglingCalls 修复半截 tool_call 对子<span class="loc"> agent.js:2969</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="verdict"><b>循环结论</b>：dsh 的「事件先行」使一切（重试/中断/审批）天然可复现、可回放，是三者中循环工程化程度最高的；gaia 用最小自研面积拿到框架级韧性，但并发工具与停机粒度弱于 dsh；owb 的双层循环 + 判断闸把「何时问人、何时续跑」做成了显式决策点，是最贴合办公场景的设计。</div>
+</section>
+
+<!-- ================= 05 韧性 ================= -->
+<section id="s5">
+  <div class="sec-head"><span class="no">05</span><h2>运行时韧性</h2></div>
+  <p class="sec-desc">逐机制对比：中断、压缩、重试、护栏、崩溃恢复。这是 gaia 第二轮迭代（对标 dsh）的主战场，也是三方差异最细的地方。</p>
+
+  <h3>5.1 gaia：AI 草稿生命周期（韧性之外的交付安全）</h3>
+  <div class="fig narrow">
+    <div class="figbar"><b>gaia AI 草稿生命周期：只写草稿，落版是用户动作</b><span class="kind">workflow · 交互式</span></div>
+    <iframe loading="lazy" src="diagrams/gaia-draft-lifecycle.html" title="gaia 草稿生命周期"></iframe>
+  </div>
+  <p class="small mut">「AI 交付 = 草稿 + 试运行通过」是用户拍板的产品语义：save_workflow 已从工具集删除，落版只经 <code>POST /api/agent/session/{key}/save</code> 由前端按钮触发（<span class="loc">SessionDraftPublishService.java:14-19</span>）；write 整份替换后 rebind 恢复 CAS 基准（<span class="loc">SessionWorkflowDraftService.java:400-410</span>）。</p>
+
+  <h3>5.2 韧性机制矩阵</h3>
+  <div class="tw"><table class="cmp">
+    <thead><tr><th style="width:172px">机制</th><th><span class="pdot gaia"></span>gaia</th><th><span class="pdot dsh"></span>dsh</th><th><span class="pdot owb"></span>owb</th></tr></thead>
+    <tbody>
+      <tr><td>用户中断 / stop</td><td>协作式中断：BooleanSupplier 轮询 + takeWhile 剪断事件流；已流出正文 + 中断 marker 落库，emit interrupted<span class="loc"> AgentScopeExecutionEngine.java:492-501</span></td><td>cancel(cause) 清 inbox + AbortController；已启动工具 drain 按序提交，未启动写合成 TOOL_ABORTED_BEFORE_DISPATCH<span class="loc"> tool-calls.ts:238-260</span></td><td>stopSignal 贯穿整棵任务树（含专家子任务）</td></tr>
+      <tr><td>上下文压缩触发</td><td><b>双轨</b>：跨 run 自研 50% 阈值（SessionCompactionService，中点后首条 user 切分）+ run 内框架 CompactionMiddleware 80%<span class="loc"> AgentScopeExecutionEngine.java:765-769</span></td><td>单轨 compaction-basic：thresholdRatio 0.8 / retainRatio 0.16 / headroom 65536，step 间压力 + overflow 错误后压缩重试<span class="loc"> compaction-basic/config.ts:20-23</span></td><td>compactHistory 阈值 = 上下文窗口 60%，压缩归档到 data/compact-archive<span class="loc"> agent.js:2324</span></td></tr>
+      <tr><td>压缩策略</td><td>非滑窗：旧消息 compacted=1 置位 + <code>[前情摘要]</code> user 消息；滑窗已按用户拍板删除</td><td>非滑窗：旧历史替换为 summary 消息，被遮蔽内容留在日志保证确定性 replay<span class="loc"> compaction/README</span></td><td>老步骤浓缩成接手摘要；对话轮永不清理</td></tr>
+      <tr><td>压缩溢出恢复</td><td>token 估算启发式（中文 1.5/字 +10%）可能偏差；无 overflow 专用路径</td><td><b>context-overflow 错误后自动压缩并重试</b>（监听 agent/request-error）；图片卸载 IMAGE_OFFLOAD_REQUIRED 后替换重试且不耗重试预算<span class="loc"> compaction-basic/index.ts:144-232</span></td><td>超限后下一轮 compactHistory 收敛</td></tr>
+      <tr><td>LLM 重试</td><td>ExecutionConfig maxAttempts=5、initialBackoff 500ms→max 10s、multiplier 2.0（注释实锤框架默认 2 次太薄）<span class="loc"> AgentScopeExecutionEngine.java:225-235</span>；空响应另加重试 ×2（可中断睡眠）</td><td>dsh-llm-retry：normal/always 两模式，指数退避 ×(1±jitter)，优先 Retry-After；<b>每次等待先写 durable llm/retry 事件</b>，重试计数跨恢复可折叠<span class="loc"> llm-retry/index.ts:188-191</span></td><td>RETRY_DELAYS=[2s,5s,10s] 仅对 429/5xx/网络错<span class="loc"> llm.js:823-826</span></td></tr>
+      <tr><td>复读 / 空转护栏</td><td><b>RepeatToolGuard</b>：INVALID_ARGS 同参 3 次硬熔断；失败 3/5/8 阶梯提醒；成功复读 ≥3 提醒；edit→run 交替循环指纹（k1,k2,k1,k2）<span class="loc"> RepeatToolGuard.java:130-146</span></td><td>repeat-tool-reminder：advisory 只注入提醒不改写，阈值 [3,5,8]，参数预览 500 字符<span class="loc"> guard/repeat-tool-reminder/src:33-50</span></td><td>防呆三件套：同参 3 连提醒 5 连拦截、错误连击、A→B→A 转圈指纹<span class="loc"> agent.js:3226-3236</span></td></tr>
+      <tr><td>失控轮次护栏</td><td><b>WrapUpGuard</b>：turns≥30 或连续 8 轮无进展 → 不砍 run 而「收走工具」让模型正文收尾<span class="loc"> WrapUpGuard.java</span></td><td>maxIters 语义在 turn 层；无独立 wrap-up 机制</td><td>外层 auto_continue ≤20 轮 + continue-gate 判断是否值得续跑</td></tr>
+      <tr><td>工具超时</td><td>ask_user future.get 5min；run_workflow 轮询 180s（最大 600s）</td><td><b>timeout-policy 按工具声明 timeoutMs 挂 deadline</b>，超时替换结构化 TOOL_TIMEOUT<span class="loc"> guard/timeout-policy/src:55-81</span></td><td>卡壳超时（流级）+ deadline/token 预算闸</td></tr>
+      <tr><td>崩溃恢复</td><td>AgentStartupRecovery：按 recovery epoch 补写 run_interrupted 事件 + assistant 消息<span class="loc"> AgentStartupRecovery.java:33-67</span></td><td>重启后从 JSONL 重放（代际不可变）；重试/审批状态可从日志折叠复原</td><td>data/running.json + sweepInterruptedRuns 给回放补「应用被关闭」错误事件<span class="loc"> server.js:445-467</span></td></tr>
+      <tr><td>SSE / 连接韧性</td><td>20s 心跳喂前端 60s 空闲看门狗；重连回放 run_state 快照（关窗继续 / 多窗口）<span class="loc"> sse-client.ts:13-43</span></td><td>单条 WebSocket 多路复用 + 50%-100% 抖动退避（500ms→10s 阶梯）+ Host 2s ping</td><td>SSE 流 + CDP 活跃判定；Electron 崩溃看护 attachCrashGuard<span class="loc"> electron-main.js:992</span></td></tr>
+      <tr><td>交付安全（特有）</td><td><b>假绿裁定</b>：run 收尾查 tool_call_log，write/edit 成功而无成功 run → delivery_warning + failureChain.unverified_delivery<span class="loc"> AgentSessionRunService.java:381-404</span></td><td>present 工具 + deliverables 域</td><td>产物落盘核验后才算交付</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="verdict g"><b>韧性结论</b>：dsh 在「溢出恢复、重试可复现、按工具超时」三处仍是标杆；gaia 的差异化在<b>护栏密度</b>（复读熔断/交替循环指纹/wrap-up 收工具/假绿裁定——多数来自真实事故的反向设计）与<b>交付语义</b>（草稿 CAS + 用户落版）；owb 的 continue-gate 把「要不要继续花钱」交给裁判模型，是成本视角独有的韧性。</div>
+</section>
+<!-- ================= 06 工具 ================= -->
+<section id="s6">
+  <div class="sec-head"><span class="no">06</span><h2>工具体系</h2></div>
+  <p class="sec-desc">工具清单、契约校验、审批管线与结果治理的逐项对比。</p>
+
+  <div class="tw"><table class="cmp">
+    <thead><tr><th style="width:172px">维度</th><th><span class="pdot gaia"></span>gaia（13 个）</th><th><span class="pdot dsh"></span>dsh（40+ 内置）</th><th><span class="pdot owb"></span>owb（37 内置 + 52 MCP）</th></tr></thead>
+    <tbody>
+      <tr><td>清单（按域）</td>
+        <td><b>读</b>：list_workflows / read_workflow / read_node / list_runs / list_templates / search_knowledge / get_node_schema<br><b>编辑</b>：edit_workflow（声明式五类 op）<br><b>执行</b>：run_workflow / delete_workflow<br><b>落版</b>：write_workflow（只写草稿）<br><b>元</b>：memory / todo_write / ask_user<span class="loc"> AgentToolRegistry.java:719-892</span></td>
+        <td><b>执行</b>：bash/pwsh（+持久版）、terminal 六件套、run_code（PTC 模式可切）<br><b>文件</b>：read / read_image / write / edit / glob / grep（打包 ripgrep）/ str_replace_editor<br><b>代码智能</b>：lsp<br><b>网络</b>：web_search / web_fetch（deepseek/exa/perplexity 可换）<br><b>交互</b>：ask_user_question / exit_plan_mode / todo_write<br><b>交付</b>：present / skill<br><b>子代理</b>：subagent / subagent_fork / send_message / interrupt_agent…<br><b>自省</b>：session_search / session_trace / session_event_*<span class="loc"> docs/tool-catalog.md:18-47</span></td>
+        <td><b>文件</b>：run_node/run_shell/write_file/edit_file/read_file/read_document/search_files/multi_edit/shell_output/shell_kill<br><b>网络</b>：fetch_url/web_search/chrome_cdp/check_page<br><b>媒体</b>：generate_image/generate_video/look_at_image/html_to_image/render_motion/tts/compose_video/transcribe/gen_diagram<br><b>记忆/技能</b>：remember/forget/use_skill/save_skill/install_skill<br><b>画布</b>：canvas_manage<br><b>委派</b>：delegate_to_expert / delegate_to_team<span class="loc"> tools.js:249-857</span></td></tr>
+      <tr><td>schema 来源</td><td>DB-first（agent_tool_definition 表）+ 硬编码种子双保险，启动 seedMissingTools 增量补齐<span class="loc"> AgentToolRegistry.java:323-376</span></td><td>每插件自带；gen-tool-catalog 会真实 boot 每个插件读 ctx.tools.schemas() 生成文档<span class="loc"> tool-catalog.md:8</span></td><td>TOOL_DEFS 单表集中声明（5,432 行）</td></tr>
+      <tr><td>入参校验</td><td>ToolArgsValidator：JSON Schema 子集（type/required/enum/minItems…），违规带 path+issue+fix<span class="loc"> ToolArgsValidator.java</span></td><td>zod 4 / schemastery 每插件自校 + 守卫管线统一拦截</td><td>无统一 schema 校验层，工具内各自解析</td></tr>
+      <tr><td>执行管线</td><td><b>9 步管道</b>：登记→wrapUp 拒绝→emit tool_call→schema 校验→<b>skill-gate</b>（写画布前必须先查知识）→execute→落库→metrics→tool_result→护栏裁决→prune<span class="loc"> AgentScopeExecutionEngine.java:857-1033</span></td><td><b>三段 waterfall</b>：tools/pre-execute（审批）→ tools/execute → tools/post-execute；每次调用必然产生 durable tool/call + tool/result<span class="loc"> core/tools/src/index.ts:807</span></td><td>四道判断闸（ask/continue/memory/skill，纯判据 + Jev 裁决模型）+ 安全中心按档拦截</td></tr>
+      <tr><td>权限 / 审批</td><td>PermissionContextState.mode=BYPASS（工具全放行，语义校验内联在执行器）</td><td>user-approval seam：ask（默认）/ never（CI fail-closed）；审批一次有效；approval/asked|decided 审计事件<span class="loc"> user-approval README</span></td><td>四档 PERMISSION_MODES（plan/ask/auto/full）+ 文件黑名单任何档都拦 + 审批队列 120s 超时按拒绝<span class="loc"> security.js:37-60</span></td></tr>
+      <tr><td>MCP</td><td>无</td><td>MCP 包 + 资源三工具（experimental 里另有 stagehand 浏览器/电脑操控）</td><td>自写 JSON-RPC 客户端（协议 2025-06-18），stdio/streamable-http 双传输，工具名 <code>mcp__&lt;server&gt;__&lt;tool&gt;</code>，预置目录 52 条<span class="loc"> mcp.js:6-19</span></td></tr>
+      <tr><td>沙箱</td><td>无进程级沙箱（单机可信环境）</td><td>ctx.sandbox seam：Linux Landlock（native node-addon）+ Windows ACL；permission-presets 打包命名预设</td><td>Windows SB + build-sandbox.js；net-guard 防 AI 打到服务自身</td></tr>
+      <tr><td>工具调用台账</td><td>agent_tool_call_log 每调用一行（args 摘要 &gt;2000 截断——三表中唯一截断点）</td><td>durable tool/call + tool/result 事件（result.meta 存 UI 呈现 payload）</td><td>审计环形 1000 条 + trace span + 成果目录三路</td></tr>
+      <tr><td>防呆联动</td><td>RepeatToolGuard 在工具管道第 8 步裁决（APPEND / STOP）</td><td>repeat-tool-reminder 挂 post-execute；timeout-policy 包装 execute</td><td>loopHist 同参检测在步循环层</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="verdict a"><b>工具结论</b>：dsh 的守卫管线 + 沙箱 + 权限预设是工程完备度天花板；gaia 的特色是把<b>领域校验前置到工具层</b>（schema 校验、skill-gate、DSL fatal 预检、skeletonExample 自愈提示），本质是在给弱工具契约的模型「修路」；owb 的工具广度（媒体五路 + 浏览器 CDP）面向交付场景独一档。</div>
+</section>
+
+<!-- ================= 07 模型管理 ================= -->
+<section id="s7">
+  <div class="sec-head"><span class="no">07</span><h2>模型管理</h2></div>
+  <p class="sec-desc">gaia 的模型管理（批 C）直接对标 owb 设计：渠道/条目两层、thinking 五档映射、会话级绑定、测活与健康账本。</p>
+
+  <div class="fig narrow">
+    <div class="figbar"><b>owb 模型管理数据流（gaia 批 C 的对标蓝本）</b><span class="kind">dataflow · 交互式</span></div>
+    <iframe loading="lazy" src="diagrams/owb-model-config.html" title="owb 模型管理数据流"></iframe>
+  </div>
+
+  <div class="tw"><table class="cmp">
+    <thead><tr><th style="width:172px">维度</th><th><span class="pdot gaia"></span>gaia</th><th><span class="pdot dsh"></span>dsh</th><th><span class="pdot owb"></span>owb</th></tr></thead>
+    <tbody>
+      <tr><td>配置结构</td><td><code>llm_model</code> 表（display_name/vendor/base_url/api_key/model_id/thinking_override/max_tokens/extra_body）+ <code>agent_session.model_id</code> 会话绑定列<span class="loc"> AgentSchemaMigrator.java:70-85</span></td><td>插件即配置：llm-deepseek-api-key（DEEPSEEK_API_KEY + reasoningEffort off/low/high/max）/ llm-deepseek-account（OAuth）/ llm-pi-ai（providers 字典多网关）<span class="loc"> llm-pi-ai README</span></td><td><b>渠道 llm_provider + 条目 llm_model 两层</b>；每次规整把渠道地址/Key 压平回条目，读侧十余处零改动<span class="loc"> chat-models.js:5-33</span></td></tr>
+      <tr><td>解析优先级</td><td>会话绑定 → 全局 active → 旧 llm_config → application.yml 兜底<span class="loc"> AgentModelConfigService.java:47-69</span></td><td>路由（per-call model 参数）→ provider 默认；settings 变更下一请求生效</td><td>sess.model 会话绑定 → 全局 active_model；<b>被删模型返回报错桩，绝不静默回退</b><span class="loc"> server.js:311-325</span></td></tr>
+      <tr><td>thinking 映射</td><td>ThinkingParamPlanner 五档（auto/off/low/medium/high；low=4096/med=10240/high=24576 budget）；三红线：auto 一个参数不发、认不出厂商不发、关不到零如实说；映射到 AgentScope GenerateOptions 原生 thinkingBudget/reasoningEffort<span class="loc"> ThinkingParamPlanner.java:71-112</span></td><td>DeepSeek reasoningEffort off/low/high/max + wire 扩展文档；pi-ai 多 provider 各自 effort 语义</td><td>planFor 按厂商产出真实参数：Anthropic budget_tokens 4k/10k/24k、OpenRouter reasoning.effort、通义 enable_thinking+budget、智谱 thinking.type、DeepSeek V4 三档（只认官方域名）<span class="loc"> thinking.js:70-136</span>；<code>/api/thinking</code> 逐档试算给用户看</td></tr>
+      <tr><td>多协议</td><td>OpenAI 兼容（AgentScope openai 扩展）</td><td>DeepSeek 官方 + pi-ai 多 provider 适配（patched）</td><td><b>5 种格式</b>：OpenAI Chat / OpenAI Responses / Anthropic Messages / Gemini / Ollama 原生<span class="loc"> media-models.js:72-78</span></td></tr>
+      <tr><td>测活</td><td>POST /models/test：max_tokens=1 "ping"，返回 latencyMs<span class="loc"> ModelConfigController.java</span></td><td>—（凭据失败在调用层暴露）</td><td>pingRequest 每格式拼 max_tokens=8 探针；/api/provider-test、/api/model-test<span class="loc"> llm.js:1414-1437</span></td></tr>
+      <tr><td>健康账本</td><td>GET /models/health：agent_llm_call_log 按模型滑窗近 20 次成败/延迟</td><td>—</td><td>data/model_health.json 滚动近 20 次 + fail_streak<span class="loc"> server.js:359-380</span>；媒体渠道另有熔断（硬错即断、软错 3 次断 5 分钟）<span class="loc"> media-health.js:7-47</span></td></tr>
+      <tr><td>多模态</td><td>前端图片 base64 直传消息（≤4 张）</td><td>compaction-image-offload（图片卸载重试）</td><td>五路媒体模型（vision/image/video/tts/asr）+ 视频规格表 + 嵌入模型探针<span class="loc"> media-models.js:22-19</span></td></tr>
+      <tr><td>逃生口</td><td>extra_body 字段覆盖一切推导参数（厂商私有参数兜底）</td><td>patch yml 任意改插件配置（!!js 表达式）</td><td>typesafe/newapi/custom 三种自定义渠道 kind</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="verdict"><b>模型管理结论</b>：owb 是三者中唯一把「多厂商 × 多协议 × thinking 档位 × 健康账本 × 媒体熔断」做成完整闭环的；gaia 已复刻其主干（两层结构、五档映射、测活、健康账本），差距在多协议适配与媒体模型；dsh 的模型层刻意薄——把复杂性留给了 pi-ai 适配器插件。</div>
+</section>
+
+<!-- ================= 08 可观测 ================= -->
+<section id="s8">
+  <div class="sec-head"><span class="no">08</span><h2>可观测性</h2></div>
+  <p class="sec-desc">三方可观测的哲学差异：gaia「全量账本可复现」、dsh「日志即真相」、owb「本地 trace + 云端副本」。</p>
+
+  <div class="fig narrow">
+    <div class="figbar"><b>dsh 日志即真相：durable 事件 → 投影 → UI</b><span class="kind">dataflow · 交互式</span></div>
+    <iframe loading="lazy" src="diagrams/dsh-event-ledger.html" title="dsh 事件台账"></iframe>
+  </div>
+  <div class="fig narrow">
+    <div class="figbar"><b>gaia 上下文容量治理：双轨压缩 + 回灌剪枝 + 容量观测</b><span class="kind">dataflow · 交互式</span></div>
+    <iframe loading="lazy" src="diagrams/gaia-context.html" title="gaia 上下文治理"></iframe>
+  </div>
+
+  <h3>8.1 账本与事件</h3>
+  <div class="tw"><table class="cmp">
+    <thead><tr><th style="width:172px">维度</th><th><span class="pdot gaia"></span>gaia</th><th><span class="pdot dsh"></span>dsh</th><th><span class="pdot owb"></span>owb</th></tr></thead>
+    <tbody>
+      <tr><td>主账本</td><td>三张表：agent_llm_call_log（request_json/response_json <b>全量不截断</b>、usage 三列）/ agent_session_event（token/thinking 之外的事件全量）/ agent_tool_call_log<span class="loc"> ToolLogRecorder.java:98-121</span></td><td>每会话一个 append-only JSONL（zstd 校验帧），61 种事件类型，已提交代际永不改名/删除/覆盖<span class="loc"> architecture.md:125</span></td><td>traces.jsonl：<code>{schema,traceId,parentId,kind,phase,input,output,usage,error}</code>，24MB×6 滚动归档<span class="loc"> trace.js:48-64</span></td></tr>
+      <tr><td>口径承诺</td><td><b>"model-visible ⟺ logged"</b>：模型可见即已落账；用户硬要求「以开发者角度可通过日志复现问题」</td><td>同一句话写进仓库宪法（AGENTS.md:136）</td><td>提示词全文记一次 + 之后只记 $msgs 编号去重<span class="loc"> trace.js:226-232</span>（省存储，牺牲直读）</td></tr>
+      <tr><td>LLM 请求/响应</td><td>RecordingModel 装饰 stream：ResponseAssembler 按内容块分发归并碎块（id 空块归并到最后一个调用）+ usage max 回填<span class="loc"> RecordingModel.java:287-387</span>；同 run 增量行前端按 sharedMessages 拼回全量</td><td>generation 事件 + provider adapter；重试等待先写 llm/retry 事件再 delay（可复现）</td><td>generation 事件（input/output 全量，Langfuse 副本截 8000 字）</td></tr>
+      <tr><td>旁路调用治理</td><td>记忆/压缩的 LLM 调用混入账本 → context-stats 用「无 tools 且非增量」判别式剔除<span class="loc"> AgentObservabilityController.java:213-362</span></td><td>压缩是普通插件事件（compaction/start|summary|end|prune），天然可区分</td><td>压缩摘要不进 trace 生成（走 LlmCompletionService）</td></tr>
+      <tr><td>查询端点</td><td>AgentObservabilityController 7 端点：tools 聚合 / runs / events / llm-calls / context-stats / turn-usage<span class="loc"> AgentObservabilityController.java</span></td><td>session-query（SQLite FTS5 全文搜索）+ session_trace/session_event_* 工具（agent 可自省）</td><td>GET /api/traces(:id) 列表/详情/清空 + /api/trace/test</td></tr>
+      <tr><td>云端/外部导出</td><td>无（本地 SQLite）</td><td>session-log-export 包；telemetry-otel（product-telemetry）</td><td><b>Langfuse 可选双写</b>：批队列 2s/30 条 flush、单条截 8000 字、三红线（不搞挂任务/热路径不等网络/不吞错）<span class="loc"> trace.js:316-324</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>8.2 执行视图（Trajectory 三方对照）</h3>
+  <div class="tw"><table class="cmp">
+    <thead><tr><th style="width:172px">维度</th><th><span class="pdot gaia"></span>gaia TrajectoryPanel（980 行）</th><th><span class="pdot dsh"></span>dsh ui-trajectory（~9.4k 行）</th><th><span class="pdot owb"></span>owb trace UI（app-05.js）</th></tr></thead>
+    <tbody>
+      <tr><td>入口形态</td><td>对话页 <code>对话 | Trajectory</code> 视图标签（执行追踪独立页已删）</td><td>与 Chat 平级的 view ring 标签页（持久化偏好）<span class="loc"> ui-conversation/README:50</span></td><td>设置中心内嵌页 + /manage/traces 式独立页</td></tr>
+      <tr><td>结构</td><td>工具栏（真实耗时/等宽、轮次折叠、调用折叠、搜索）+ 三泳道时间线（输入/模型/工具，点 span 联动台账）+ 双列表格台账（类型标签配色、轮次轨道线、行内「→ 结果」预览）+ 右侧详情 aside（概要/请求/响应/用量 tabs）<span class="loc"> TrajectoryPanel.tsx:1-16</span></td><td>工具栏（实际/等宽 + wall-clock/空闲压缩切换）+ <b>三泳道</b> laneFor()（system/user/context | assistant | tool/subtool）+ 虚拟化 &lt;table&gt; 台账（3,513 行单文件）+ 拖选区间聚焦 + TTFT/decoding 拆分<span class="loc"> timeline.ts:51-55</span></td><td>统计卡（总耗时/花在工具/花在模型/最慢一步）+ 嵌套 details 执行时间线树（--trace-depth 缩进）</td></tr>
+      <tr><td>数据契约</td><td>agent_session_event + agent_llm_call_log；<b>运行中每 4s 轮询</b><span class="loc"> TrajectoryPanel.tsx:414</span></td><td>Conversation 目标快照的 TrajectoryContribution 投影（8 种 kind），不直接消费 SSE<span class="loc"> trajectory-contract.ts:18-53</span></td><td>GET /api/traces JSONL 聚合（start/end 合成，status 含 interrupted 30min 判定）</td></tr>
+      <tr><td>回放口径标注</td><td>「拼回全量 / 原始存储 / 截断摘要」口径标注条（增量账本拼接可视化）<span class="loc"> trajectory-records.ts</span></td><td>被遮蔽内容留在日志，replay 天然确定性</td><td>—</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="verdict"><b>可观测结论</b>：三家在「模型可见即已落账」上罕见地一致（dsh 写进了仓库宪法）。深度上 dsh 最高（事件溯源 + agent 可自省工具 + FTS 搜索）；gaia 的差异化是<b>上下文容量观测</b>（context-stats 四类分摊 + 缓存命中率 + 压缩阈值可视化）与口径标注条；owb 胜在轻量与 Langfuse 生态。gaia TrajectoryPanel 是 dsh ui-trajectory 的忠实复刻（含三泳道/台账/详情三段式），但数据侧仍是轮询而非投影。</div>
+</section>
+<!-- ================= 09 会话与存储 ================= -->
+<section id="s9">
+  <div class="sec-head"><span class="no">09</span><h2>会话与存储</h2></div>
+  <p class="sec-desc">持久化介质、格式演进、并发与崩溃恢复的对比。</p>
+
+  <div class="tw"><table class="cmp">
+    <thead><tr><th style="width:172px">维度</th><th><span class="pdot gaia"></span>gaia</th><th><span class="pdot dsh"></span>dsh</th><th><span class="pdot owb"></span>owb</th></tr></thead>
+    <tbody>
+      <tr><td>存储介质</td><td>SQLite 单文件 <code>gaia_workflow.db</code>（schema.sql mode=always + AgentSchemaMigrator PRAGMA 补列）</td><td>会话 JSONL（zstd）+ storage-json/storage-sqlite（node:sqlite）按域分库</td><td>全 JSON 文件 + writeJsonAtomic（原子 + .bak + 权限收紧 0600）<span class="loc"> platform/store.js</span></td></tr>
+      <tr><td>会话结构</td><td>agent_session（scope chat|work / folder / pinned / archived / engine / model_id / token_usage）+ agent_message（role/content/tool_calls/thinking/timeline/page_context/compacted）</td><td>每会话一个 <code>session.vN.jsonl.zstd</code>；格式 v0→v4 由 5 个相邻迁移包一次一步组合<span class="loc"> session-format-v*</span></td><td>data/sessions/&lt;id&gt;.json：<code>{history(供LLM), transcript(界面回放), title, updated_at}</code><span class="loc"> server.js:411-412</span></td></tr>
+      <tr><td>历史口径</td><td>loadHistory 只取 compacted IS NULL，正序<b>不滑窗</b>（用户拍板：1M 上下文 + 阈值压缩）<span class="loc"> DatabaseConversationStore.java:42-52</span></td><td>全量日志；模型可见内容由 compaction 投影决定</td><td>trimHistory 只截工具输出，对话轮永不清理</td></tr>
+      <tr><td>并发写保护</td><td>会话草稿 CAS（draftRevision / expectedRevision → staleRevision）<span class="loc"> WorkflowDslApplyService.java:102-115</span></td><td>JSONL 排他发布（provider 负责物理帧/代际选择）</td><td>磁盘 mtime+size 比对发现 CLI 改动即重读（防覆盖）<span class="loc"> server.js:768-777</span>；硬链接 .bak + 排班后台写</td></tr>
+      <tr><td>多窗口</td><td>SSE 订阅即回放 run_state 快照（交错时间线/工具/产物）——「关窗继续」<span class="loc"> AgentContext.tsx:1209-1227</span></td><td>多标签页共用 Host 投影 + 增量事件；重连抖动退避</td><td>Electron 子窗口 + Web 多标签 SSE；CLI 与 Web 同目录共享会话</td></tr>
+      <tr><td>全文搜索</td><td>—（仅知识库 LIKE 检索）</td><td><b>SQLite FTS5</b> 派生库（Web 出厂 :memory: 默认关）<span class="loc"> cordis.patch.yml:27-30</span></td><td>session-search 模块（内存搜索）</td></tr>
+      <tr><td>审计 / 副产物</td><td>agent_config_history（配置历史 + 回滚 + 导出导入）</td><td>approval/* 审计事件；session-stats；telemetry-otel 可选</td><td>audit.json 环形 1000 条 + audit-bridge.jsonl；usage-store 计费账本；backups/ 一键打包恢复</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="verdict"><b>存储结论</b>：dsh 的「append-only + 代际迁移 + 排他发布」是会话存储的教科书形态（crash-safe 且可回放）；gaia 的关系型选择换来了 metrics 聚合的便利（7 个观测端点全是 SQL group by）；owb 的纯 JSON 在单机规模下完全够用且零运维。</div>
+</section>
+
+<!-- ================= 10 前端工程 ================= -->
+<section id="s10">
+  <div class="sec-head"><span class="no">10</span><h2>前端工程</h2></div>
+  <p class="sec-desc">框架选型、状态管理、与服务端通信、i18n 与测试的对比。</p>
+
+  <div class="tw"><table class="cmp">
+    <thead><tr><th style="width:172px">维度</th><th><span class="pdot gaia"></span>gaia（apps/console）</th><th><span class="pdot dsh"></span>dsh（client 包族）</th><th><span class="pdot owb"></span>owb（public/）</th></tr></thead>
+    <tbody>
+      <tr><td>框架 / 构建</td><td>React 18 + rsbuild（dev :3456）+ Semi UI + styled-components + Tailwind + monaco</td><td>React 18 + Vite；客户端本身是浏览器内 Cordis 插件树（boot 页逐条显示插件加载）<span class="loc"> client/web/README</span></td><td>无框架零构建：28 个 JS 文件 40,622 行按序号分层（app-01 基础 6,477 行 …）</td></tr>
+      <tr><td>规模</td><td>398 文件 / 49,709 行（含样式）；最大单文件 AgentConfigManagement 1,853 行</td><td>client 包族 ~50 包（ui-chat/ui-trajectory/ui-approval/ui-settings…），TrajectoryTable 单文件 3,513 行</td><td>index.html 3,206 行 + ui.css 1,580 行；i18n.js 3,593 行</td></tr>
+      <tr><td>状态管理</td><td>4 个模块级单例外部 store（workflowDocumentStore / artifactStore / liveStreamStore / canvasSelectionStore，useSyncExternalStore 接入）+ AgentContext<span class="loc"> document/store.ts:475</span></td><td>Cordis 上下文 + session projection snapshot()/增量（客户端不落业务数据）</td><td>全局函数 + DOM 重绘（renderXxx + ic() 图标 + esc() 转义）</td></tr>
+      <tr><td>服务端通信</td><td>fetch + ReadableStream 手解 SSE（EventSource 不支持 POST/自定义头）<span class="loc"> sse-client.ts:2-3</span>；32 种事件归一；重连回放快照</td><td>HTTP POST JSON（Typert 校验）+ 单条 WebSocket /api/remote.mux 多路复用；握手 3s 慢警告 / 15s 超时</td><td>EventSource SSE（GET /api/chat/stream/:id）+ fetch POST</td></tr>
+      <tr><td>认证</td><td>无（本机单用户）+ ApiKeyAuthInterceptor（API 发布侧）</td><td>启动 token 仅在 GET / 兑换为签名 Cookie（HttpOnly/SameSite=Strict/30d）；loopback Host-Origin 校验防 DNS rebinding<span class="loc"> connection README</span></td><td>scrypt 密码 + 自实现 TOTP 2FA（RFC 4226/6238）+ 会话令牌 + 多租户 tenantScopeMw<span class="loc"> account.js:378-459</span></td></tr>
+      <tr><td>i18n</td><td>@flowgram.ai/i18n 绕过点号 scope 用 flat 字典；zh/en 各 691 key；当前恒定中文</td><td>locale 词典 + verify-client-ui-i18n 门禁强制每文案走词典</td><td>i18n.js DOM 遍历替换（3,593 行词典）</td></tr>
+      <tr><td>测试</td><td>vitest 5 单测 + Playwright e2e 4 场景（replay fixture 驱动：thinking-boundary/snapshot-race/interrupted/long-echo）<span class="loc"> e2e/replay.spec.ts</span></td><td>2,190 spec 文件；逐文件 100% 覆盖门禁；快照回放 + 59 个 verify-* 静态门禁</td><td>test/all.js 聚合 146 文件（含 layers.js AST 架构测试）</td></tr>
+      <tr><td>特色组件</td><td>ProcessFold 执行过程折叠（轨迹徽章条同名合并 ×N）、CanvasSnapshotCard 画布快照回滚、ContextCapacity 容量 pill、ModelPicker 思考档下拉</td><td>PlanReviewPanel（exit_plan_mode 审批卡）、user-questions 选项卡（草稿 localStorage 跨刷新恢复）</td><td>桌面宠物窗口、注意力提醒、六种主题 skin（data-skin）</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ================= 11 工作流画布 ================= -->
+<section id="s11">
+  <div class="sec-head"><span class="no">11</span><h2>工作流与画布</h2></div>
+  <p class="sec-desc">gaia 的主场，也是与另两家差异最大的域。</p>
+
+  <div class="tw"><table class="cmp">
+    <thead><tr><th style="width:172px">维度</th><th><span class="pdot gaia"></span>gaia</th><th><span class="pdot dsh"></span>dsh</th><th><span class="pdot owb"></span>owb</th></tr></thead>
+    <tbody>
+      <tr><td>画布引擎</td><td>FlowGram 1.0.12 全家桶 12 包（free-layout-editor/form-materials/container/group/lines/snap/minimap/panel-manager…）<span class="loc"> use-editor-props.tsx:315-449</span></td><td>无</td><td>@joint/core + @dagrejs/dagre + viz-js（短剧 DAG / 无限画布）</td></tr>
+      <tr><td>节点类型</td><td>前端注册 19 种（start/end/llm/http/code/variable/condition/multi-condition/branches/loop/block-start/block-end/continue/break/string-format/workflow/comment/note/assignee）<span class="loc"> nodes/constants.ts:6-27</span>；DSL 校验白名单 12 种（multi-condition 无运行时解析器，不在内）；运行时解析器 15 种</td><td>—（workflow 工具 + ralph 禁用）</td><td>—</td></tr>
+      <tr><td>DSL 校验</td><td><b>WorkflowDslCanonicalizer 1,001 行</b>：修复类（别名/缺 type 降级/重名改名+ref 重写/自动补 start-end/自动布局/LLM 默认模型）+ fatal（llm 无 prompt、http 无 url、code 无 script、start 无 outputs、end 无引用、condition 空 conditions、<b>出边 fromPort ∉ {key}∪{else}</b>、分支无出边）+ warning（缺 else 兜边、占位提示词）——每条 fatal 带可抄修复 JSON<span class="loc"> WorkflowDslCanonicalizer.java:610-712</span></td><td>—</td><td>—</td></tr>
+      <tr><td>AI → 画布通道</td><td>双桥接：EditorCanvasBridge（真实画布，updateNodeData 必须走 FlowNodeFormData）+ HeadlessCanvasBridge（headless DSL，画布不再是 AI 前置依赖）<span class="loc"> HeadlessCanvasBridge.tsx:1-10</span>；__draft__ 通道进编辑器精修（双保险：location.state + sessionStorage）</td><td>—</td><td>画布工具 canvas_manage（AI 可直接操作画布）</td></tr>
+      <tr><td>版本与发布</td><td>版本树（version_number UNIQUE + diff_json + set-current）+ API 发布（api_path/api_key/status/request_schema + 调用统计）<span class="loc"> services/workflow-api.ts:178-207</span></td><td>—</td><td>—（产物即文件）</td></tr>
+      <tr><td>试运行</td><td>runtime-plugin server 模式（后端执行）：500ms 轮询 task report；结果面板空 outputs 不再伪装 Unknown error 而是提示 end 节点 ref 检查<span class="loc"> runtime-service/index.ts:278-284</span>；单节点测试 SingleNodeExecutor</td><td>—</td><td>tool/run 直调 + estimate 批量报价（产物级预估）</td></tr>
+      <tr><td>引擎语义</td><td>Chain：Phaser 并行 + SpEL 出边条件（<code>memory["节点.端口"]</code> 布尔）+ suspend/resume + 100ms 进度定时器；code 节点 Groovy/Java/Js 内存编译<span class="loc"> Chain.java:95-122</span></td><td>—</td><td>—</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="verdict g"><b>画布结论</b>：这是 gaia 独有的能力域。最深的护城河在<b>校验-反馈闭环</b>：canonicalizer 的 fatal 文案带可抄 JSON、run 回执按节点点名（「问题在上游不在 end」）、write 拒绝时按提交节点类型生成 skeletonExample——这些全部来自真实事故的反向工程（E2E 五轮迭代史）。</div>
+</section>
+
+<!-- ================= 12 多智能体 ================= -->
+<section id="s12">
+  <div class="sec-head"><span class="no">12</span><h2>多智能体</h2></div>
+  <p class="sec-desc">三方对「多 agent」的三种完全不同的回答。</p>
+
+  <div class="tw"><table class="cmp">
+    <thead><tr><th style="width:172px">维度</th><th><span class="pdot gaia"></span>gaia</th><th><span class="pdot dsh"></span>dsh</th><th><span class="pdot owb"></span>owb</th></tr></thead>
+    <tbody>
+      <tr><td>形态</td><td><b>引擎级切换</b>：本地 AgentScope ↔ 方舟托管（ArkManagedExecutionEngine @Order(2)，会话映射 local key↔sesn-*，ArkEventTranslator 翻译 8 类事件，自定义工具经 custom_tool 协议回传同一 ToolExecutorRegistry）<span class="loc"> ArkManagedExecutionEngine.java:59-69</span></td><td><b>子代理即工具</b>：subagent / subagent_fork + 5 种 provider（fork-in-process / spawn-in-process / dsh-sdk / claude-code / codex）；list_subagent_models、send_message、interrupt_agent 全套控制工具</td><td><b>专家递归委派</b>：delegate_to_expert 起 depth+1 递归 runTask（继承 runToken/deadline/llmOverride/traceNode）；delegate_to_team 按成员顺序接力，每人看「原始任务+前面同事汇报」<span class="loc"> agent.js:2045-2130</span>；depth&gt;0 禁止再委派</td></tr>
+      <tr><td>上下文隔离</td><td>子代理流 GET /subagent/run 独立会话（前端 SubagentCard 呈现）</td><td>子代理独立会话/独立 Agent 实例；live 子代理禁 ask_user</td><td>共享工作目录 + 共享 trace 树（委派 span 挂父节点）；上下文不共享</td></tr>
+      <tr><td>编排抽象</td><td>AgentRegistry 三级路由（显式指定 → supports → sortOrder）+ 4 个内置 agent（default-assistant / workspace-backend / workflow-architect / ark-assistant）<span class="loc"> AgentAssembly.java:54-72</span></td><td>agent-team（experimental 九工具）；AgentRegistry 校验 runtime root 身份（子代理不能发起人机交互）</td><td>experts.json 声明式专家团（头像/说明/绑定技能/默认提示词）</td></tr>
+      <tr><td>前端呈现</td><td>SubagentCard + PlanCard</td><td>ui-subagent / ui-workflow-run / ui-jobs 全套视图</td><td>专家头像 + 委派过程进 trace 时间线树</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="verdict"><b>多智能体结论</b>：dsh 的「子代理是工具」最通用（可把 claude-code/codex 都当子代理 provider）；owb 的「专家团」最贴近组织隐喻且强约束（不共享上下文、禁递归）；gaia 的多 agent 实质是<b>多引擎</b>而非多智能体协作——若要补齐，dsh 的 fork-in-process 模式是最近的参照。</div>
+</section>
+<!-- ================= 13 安全 ================= -->
+<section id="s13">
+  <div class="sec-head"><span class="no">13</span><h2>安全与权限</h2></div>
+
+  <div class="tw"><table class="cmp">
+    <thead><tr><th style="width:172px">维度</th><th><span class="pdot gaia"></span>gaia</th><th><span class="pdot dsh"></span>dsh</th><th><span class="pdot owb"></span>owb</th></tr></thead>
+    <tbody>
+      <tr><td>进程隔离</td><td>无沙箱（单机可信）；redactForModel 掩蔽 apiKey/apiHost/token/password 进模型上下文<span class="loc"> SessionWorkflowDraftService.java:776-797</span></td><td><b>Landlock（native node-addon）+ Windows ACL</b>；workspace-write / danger-full-access 命名预设；read-before-write 由 fs-observation-policy 门控</td><td>Windows SB；net-guard（服务绑端口后自我登记，AI 打不到自己）；cmd-risk 命令风险分级</td></tr>
+      <tr><td>权限模型</td><td>Agent 层 BYPASS；API 发布侧 apiKey 鉴权</td><td>user-approval：ask（默认）/ never（无头 CI 立拒）<b>fail-closed</b>；审批一次有效 + 审计事件</td><td>四档 plan/ask/auto/full（auto 默认：工作目录随便改 + 命令按名单）；文件黑名单任何档都拦；外部引擎映射 --permission-mode / sandbox_mode<span class="loc"> security.js:63-70</span></td></tr>
+      <tr><td>人工审批</td><td>—</td><td>answerer waterfall + PlanReviewPanel（plan-review 意图为唯一内建呈现意图，BAD_INTENT 拒绝非法组合）</td><td>approvals Map + watchers，POST /api/security/approvals/:id，超时 120s 按拒绝</td></tr>
+      <tr><td>账号体系</td><td>单用户（本机）</td><td>$DSH_HOME/.credentials.yaml（本机单用户 + URL token 兑换）</td><td>多租户：users.json / orgs.json / RBAC / TOTP 2FA / 平台属主专属设置（7 类）<span class="loc"> app-05.js:685</span></td></tr>
+      <tr><td>审计</td><td>agent_tool_call_log（工具级）+ config_history（配置级）</td><td>approval/asked|decided|policy 事件（durable）</td><td>audit.json 环形 1000 + /api/security/audit 导出</td></tr>
+      <tr><td>计费 / 配额</td><td>—</td><td>token-meter 包</td><td>billing 域：budget/pricing/quota/run-spend/usage-store + tool/estimate 批量报价</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ================= 14 评测 ================= -->
+<section id="s14">
+  <div class="sec-head"><span class="no">14</span><h2>评测与质量保障</h2></div>
+  <p class="sec-desc">三家对「怎么证明 agent 变好了」的三种回答，方法论差异极大。</p>
+
+  <div class="tw"><table class="cmp">
+    <thead><tr><th style="width:172px">维度</th><th><span class="pdot gaia"></span>gaia</th><th><span class="pdot dsh"></span>dsh</th><th><span class="pdot owb"></span>owb</th></tr></thead>
+    <tbody>
+      <tr><td>评测对象</td><td><b>提示词与知识库</b>（作为带 golden 的回归资产，不做 LLM 打分）</td><td><b>性能与行为</b>（基准是门禁，快照是行为测试）</td><td><b>端到端任务成功率</b>（真实模型全量跑）</td></tr>
+      <tr><td>三层结构</td><td>① 静态 gate：knowledge-gate.py（知识结构/字数预算/提示词-vs-schema-vs-知识一致性 lint，黑名单全部来自实证事故）→ ② golden 组装：agent_llm_call_log.request_json 作数据源 + .expected.md → ③ 行为回放：8-10 个典型任务脚本驱动 POST /run，断言轮次/警告数/工作流 JSON 结构/run outputs 语义<span class="loc"> scripts/benchmark/README</span></td><td>① 7 个性能套件（vitest.bench：流式重连 125ms 预算、100 turn 续跑、240-turn 会话浏览器加载、1000/3000 会话语料……固定合成输入、每样本新鲜子进程）<span class="loc"> benchmarks/AGENTS.md</span> → ② snapshots/：提交的会话 JSONL 既是回放输入又是期望输出，被测进程必须经 dsh CLI + 出厂 profile 启动（禁旁路入口）</td><td>eval/run.js v3：--model/--task/--repeat/--concurrency/--judge；机器判分 + pass@1/pass^k 稳定性 + AI 评委逐维二元判定 + baseline 回归对比；评测数据经 OPENWORKBUDDY_DATA_DIR 隔离防污染真记忆<span class="loc"> eval/run.js:4-47</span>；界面版 /api/eval/start + 评测页</td></tr>
+      <tr><td>回归防线</td><td>改提示词必跑对比基线；gate 首跑即抓到 en 版 condition 旧教学（实证有效）</td><td>逐文件 100% 覆盖门禁 + 59 个 verify-*（i18n/词预算/catalog 一致性/入口白名单）+ 16 个 gen-* 生成器</td><td>baseline.json 回归对比 + 评测方法论文档（docs/评测方法论.md）</td></tr>
+      <tr><td>E2E 迭代实践</td><td>五轮 E2E 迭代史（R1 fromPort 假成功 → R5 全达标）沉淀出「反馈闭环比预写教学更重要」的方法论<span class="loc"> gaia reliability diagnosis</span></td><td>long-session-browser 用 Chromium 打真实页面 paced 打字（性能即体验）</td><td>单轮/多轮/带记忆三种题面 + 判断模型复核</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="verdict a"><b>评测结论</b>：dsh 把质量做成了<b>工程门禁</b>（性能预算 + 100% 覆盖 + 快照回放），owb 做成了<b>产品功能</b>（界面版评测页），gaia 目前是三层脚本——已经踩中「静态 gate 抓旧教学」的实战价值，下一步的自然延伸是 owb 式 baseline 回归与 dsh 式「回放即期望」。</div>
+</section>
+
+<!-- ================= 15 部署 ================= -->
+<section id="s15">
+  <div class="sec-head"><span class="no">15</span><h2>部署与运维</h2></div>
+
+  <div class="tw"><table class="cmp">
+    <thead><tr><th style="width:172px">维度</th><th><span class="pdot gaia"></span>gaia</th><th><span class="pdot dsh"></span>dsh</th><th><span class="pdot owb"></span>owb</th></tr></thead>
+    <tbody>
+      <tr><td>启动方式</td><td>mvn spring-boot:run / boot jar（:48080）+ rsbuild dev --port 3456</td><td><b>唯一入口 dsh CLI</b>：web / --profile headless "task" / sdk（stdio JSON-RPC）/ acp；profile 目录 $DSH_HOME/profiles/&lt;name&gt;<span class="loc"> apps/cli/README</span></td><td>Electron 桌面（双击）/ npm start（:3800，EADDRINUSE 自动 +1 试 10 口）/ cli.js REPL / install.sh / install-mac.sh</td></tr>
+      <tr><td>容器化</td><td>—</td><td>—（profiles 即分发单元；python/sdk-runtime 打单文件 exe）</td><td>Dockerfile（node:20-slim + CJK 字体）+ docker-compose（可选 caddy 自动 HTTPS）+ deploy.sh --domain/--update</td></tr>
+      <tr><td>配置</td><td>application.yml + agent_config 表（配置中心：历史/回滚/AI 补全/导入导出）</td><td>Cordis patch 叠加 + HMR 热重载 + --dump-config 检查组合树</td><td>config.json + settings API + 15 类设置中心（onboarding 首次引导）</td></tr>
+      <tr><td>数据迁移</td><td>AgentSchemaMigrator：PRAGMA 查列缺列 ALTER + 提示词哈希比对同步（agent.prompt.imported_hash，DB 未手工改则跟随 classpath）<span class="loc"> AgentSchemaMigrator.java:113-153</span></td><td>session-format v0→v4 五段迁移包 + snapshot.yml 声明代际</td><td>启动迁移函数（渠道压平等）+ /api/backup 一键打包恢复</td></tr>
+      <tr><td>观测运维</td><td>—（本机日志）</td><td>product-telemetry-otel 可选</td><td>/api/ops 日志/指标/prom 端点 + 健康检查 /api/auth/state（Dockerfile HEALTHCHECK）</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ================= 16 规模 ================= -->
+<section id="s16">
+  <div class="sec-head"><span class="no">16</span><h2>规模数字总表</h2></div>
+  <p class="sec-desc">量化体感三方体量与工程密度。</p>
+
+  <div class="tw"><table class="cmp">
+    <thead><tr><th style="width:220px">指标</th><th><span class="pdot gaia"></span>gaia</th><th><span class="pdot dsh"></span>dsh</th><th><span class="pdot owb"></span>owb</th></tr></thead>
+    <tbody>
+      <tr><td>主代码行数</td><td>后端 33,031 + 前端 49,709 ≈ <b>8.3 万</b></td><td>TS 约 <b>112 万</b>（4,343 文件在 packages/）</td><td>JS 约 <b>26.1 万</b>（含测试）</td></tr>
+      <tr><td>包/模块数</td><td>Maven 3 模块 + 前端 22 个 src 目录</td><td><b>319</b> workspace 包 + 4 apps + vendor 9</td><td>src 七层 185 文件</td></tr>
+      <tr><td>运行时依赖</td><td>约 20 个（AgentScope×2 / Boot / MyBatis-Plus / SQLite / hutool / graalvm-js / groovy…）</td><td>React / Vite / Electron / pi-ai / ripgrep / zstd…（依赖被拆进各插件包）</td><td><b>13 个</b>（express / 三个 office 文档库 / echarts / mermaid / joint / dagre / viz / nodemailer / 飞书 SDK / qrcode）</td></tr>
+      <tr><td>测试规模</td><td>27 类 155 用例 + vitest 5 + Playwright 4 场景</td><td><b>2,190</b> spec 文件 + 快照回放</td><td>146 测试文件</td></tr>
+      <tr><td>文档</td><td>docs/ 若干 HTML 专题 + README</td><td><b>4,344 个 md</b>：每包 README 三语（en/zh/i18n.yaml 配对脚本校验）+ 128 个 subsystem 页</td><td>30+ 篇中文文档 + docs/stats.json 统计</td></tr>
+      <tr><td>i18n</td><td>zh/en 各 691 key</td><td>全 locale 词典 + 门禁</td><td>i18n.js 3,593 行词典</td></tr>
+      <tr><td>最大单文件</td><td>AgentConfigManagement.tsx 1,853 行 / AgentScopeExecutionEngine.java 1,121 行</td><td>TrajectoryTable.tsx 3,513 行</td><td>server.js 9,412 行</td></tr>
+      <tr><td>Agent 循环代码</td><td>≈0（框架）+ 管道 ~300 行</td><td>agent-loop 2,305 行</td><td>agent.js 4,887 行</td></tr>
+    </tbody>
+  </table></div>
+</section>
+<!-- ================= 17 结论 ================= -->
+<section id="s17">
+  <div class="sec-head"><span class="no">17</span><h2>差异化结论与对 gaia 的启示</h2></div>
+  <p class="sec-desc">每家的领先点、跟随点与短板，以及对 gaia 下一步最有杠杆的参照。</p>
+
+  <div class="grid g3">
+    <div class="card">
+      <span class="tag b">gaia</span>
+      <h4 style="margin-top:10px">领先点</h4>
+      <ul class="klist small">
+        <li>工作流画布 + DSL 校验-反馈闭环（fatal 带可抄 JSON / skeletonExample / run 回执点名上游）——三家中独有</li>
+        <li>交付语义：AI 只交草稿、用户显式落版 + 假绿裁定 + CAS</li>
+        <li>上下文容量观测（context-stats 四类分摊 + 缓存命中率 + 双轨压缩可视化）</li>
+        <li>护栏密度：RepeatToolGuard 交替循环指纹、WrapUpGuard 收工具不砍 run</li>
+        <li>双引擎共享工具层（本地 AgentScope / 方舟托管零成本切换）</li>
+      </ul>
+      <h4>短板</h4>
+      <ul class="klist small">
+        <li>运行态单机内存（多实例 P0）、无并行工具、无进程级沙箱</li>
+        <li>可观测数据靠轮询（Trajectory 4s），非投影/推送</li>
+        <li>评测仍是脚本层，缺 baseline 回归自动化</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="tag g">dsh</span>
+      <h4 style="margin-top:10px">领先点</h4>
+      <ul class="klist small">
+        <li>日志即真相：61 种 durable 事件，UI/重试/审批/压缩全可复现可回放</li>
+        <li>韧性包件化：llm-retry（durable 计数 + Retry-After）、compaction（overflow 自愈 + 图片卸载）、timeout-policy、repeat-reminder 各自独立成包</li>
+        <li>工程密度：319 包 + 100% 覆盖门禁 + 三语文档门禁 + 性能预算</li>
+        <li>子代理 5 provider + 沙箱（Landlock/ACL）+ 审批 fail-closed</li>
+      </ul>
+      <h4>相对弱处</h4>
+      <ul class="klist small">
+        <li>面向开发者而非业务场景；无模型管理面板/健康账本；developer preview 破坏性变更频繁</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="tag a">owb</span>
+      <h4 style="margin-top:10px">领先点</h4>
+      <ul class="klist small">
+        <li>模型管理闭环：渠道/条目两层 + 5 协议 + thinking 厂商映射 + 测活 + 健康账本 + 媒体熔断（gaia 批 C 蓝本）</li>
+        <li>文件交付验收 + 计费配额 + 批量报价</li>
+        <li>专家团递归委派（继承 runToken/deadline/llmOverride，trace 树与界面一致）</li>
+        <li>判断模型 Jev 驱动四道闸（ask/continue/memory/skill）——把「要不要问人/要不要续跑」显式化</li>
+        <li>零框架工程（运行时依赖 13 个）+ 七层架构 AST 强制</li>
+      </ul>
+      <h4>相对弱处</h4>
+      <ul class="klist small">
+        <li>server.js 9,412 行单体；无 schema 校验层；无进程沙箱（Windows SB 除外）</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>对 gaia 的启示（按杠杆排序）</h3>
+  <div class="tw"><table class="cmp">
+    <thead><tr><th style="width:60px">优先级</th><th style="width:300px">方向</th><th>参照与落点</th></tr></thead>
+    <tbody>
+      <tr><td class="win">P0</td><td>运行态出内存</td><td>runs/drafts/pendingAsk/steeringInbox 落 SQLite 或复用 agent_session_event 派生（dsh 证明「事件溯源天然多实例」；owb 证明 mtime+size 磁盘权威也可行）</td></tr>
+      <tr><td class="win">P1</td><td>溢出自愈</td><td>补 dsh 式 context-overflow 错误捕获 → 压缩 → 重试路径（当前只有阈值预压缩，估算偏差无兜底）</td></tr>
+      <tr><td class="win">P1</td><td>Trajectory 推送化</td><td>把 4s 轮询换成 SSE 事件增量（dsh 的 TrajectoryContribution 投影契约是现成参照）</td></tr>
+      <tr><td class="mid">P2</td><td>并行工具</td><td>dsh 有界滚动池（barrier 互斥 + maxParallelToolCalls）；先对只读工具开（list_*/read_*/search_knowledge）</td></tr>
+      <tr><td class="mid">P2</td><td>baseline 回归自动化</td><td>owb baseline.json 对比机制 + gaia 已有三层脚本，接到 CI</td></tr>
+      <tr><td class="mid">P2</td><td>工具超时策略</td><td>dsh timeout-policy：按工具声明 timeoutMs 挂 deadline，超时返回结构化 TOOL_TIMEOUT（替代 ask_user 硬 5min）</td></tr>
+      <tr><td class="dim">P3</td><td>子代理 provider 化</td><td>dsh fork-in-process 是最小实现路径</td></tr>
+      <tr><td class="dim">P3</td><td>评测界面化</td><td>owb /api/eval/start + 评测页形态</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ================= 18 附录 ================= -->
+<section id="s18">
+  <div class="sec-head"><span class="no">18</span><h2>附录</h2></div>
+
+  <h3>18.1 图表索引（docs/diagrams/，全部 Archify showcase 级校验通过）</h3>
+  <div class="tw"><table class="cmp">
+    <thead><tr><th style="width:260px">文件</th><th style="width:110px">类型</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td><code>gaia-architecture.html</code></td><td>architecture</td><td>Spring Boot 单体 + AgentScope 换核 + 双引擎共享工具层</td></tr>
+      <tr><td><code>dsh-architecture.html</code></td><td>architecture</td><td>Cordis 插件树 + 会话 JSONL + Typert 网关</td></tr>
+      <tr><td><code>owb-architecture.html</code></td><td>architecture</td><td>Electron 壳 + Express 单体 + 七层 src</td></tr>
+      <tr><td><code>gaia-agent-run.html</code></td><td>sequence</td><td>一次 run 全链路：受理 → ReAct → 三账本 → 假绿裁定</td></tr>
+      <tr><td><code>dsh-agent-loop.html</code></td><td>workflow</td><td>ReactLoopAgent turn/step 流转与恢复路径</td></tr>
+      <tr><td><code>owb-agent-loop.html</code></td><td>workflow</td><td>runTask：引擎分岔 → 步循环 → 闸口 → 交付</td></tr>
+      <tr><td><code>gaia-draft-lifecycle.html</code></td><td>workflow</td><td>AI 草稿生命周期：只写草稿，落版是用户动作</td></tr>
+      <tr><td><code>gaia-context.html</code></td><td>dataflow</td><td>双轨压缩 + 60k 回灌剪枝 + 容量观测</td></tr>
+      <tr><td><code>dsh-event-ledger.html</code></td><td>dataflow</td><td>日志即真相：durable 事件 → 投影 → UI</td></tr>
+      <tr><td><code>owb-model-config.html</code></td><td>dataflow</td><td>渠道/条目两层 → 会话解析 → thinking 映射</td></tr>
+    </tbody>
+  </table></div>
+  <p class="small mut">规格源文件在 <code>docs/diagrams/specs/*.json</code>（archify validate/deliver 均有 SHA-256 回执，visual-check 已在 1440×900 / 1600×1000 / 1920×1080 / 2048×1320 四档视口通过）。</p>
+
+  <h3>18.2 术语表</h3>
+  <div class="tw"><table class="cmp">
+    <thead><tr><th style="width:200px">术语</th><th>含义</th></tr></thead>
+    <tbody>
+      <tr><td>换核</td><td>gaia 把 ReAct 循环外包给 AgentScope harness、自研层只保留工具/持久化/护栏的架构决策</td></tr>
+      <tr><td>三账本</td><td>gaia 的 agent_llm_call_log + agent_session_event + agent_tool_call_log</td></tr>
+      <tr><td>日志即真相</td><td>dsh 原则：每步先落 durable 事件再驱动 UI，一切状态可从日志折叠复原（AGENTS.md:136）</td></tr>
+      <tr><td>假绿裁定</td><td>gaia 收尾检查：write/edit 成功但无成功 run_workflow → delivery_warning（交付未被验证）</td></tr>
+      <tr><td>skill-gate</td><td>gaia 工具管道闸：写画布前必须先触碰知识（查 schema/读知识），否则拒绝</td></tr>
+      <tr><td>steering</td><td>运行中用户插话：进收件箱、在 turn/step 边界被吸收</td></tr>
+      <tr><td>PTC</td><td>dsh run_code 的 programmatic tool calling 模式（代码内子调用重新进守卫管线）</td></tr>
+      <tr><td>Jev</td><td>owb 的判断模型：只回选项 + 确定度，驱动四道闸</td></tr>
+      <tr><td>CAS / draftRevision</td><td>gaia 会话草稿的乐观并发控制：apply 以 expectedRevision 为基准，不符报 staleRevision</td></tr>
+      <tr><td>压平</td><td>owb 把渠道的 base_url/api_key 合并回模型条目的规整动作（读侧零改动）</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>18.3 关键源码速查</h3>
+  <div class="tw"><table class="cmp">
+    <thead><tr><th style="width:150px">主题</th><th><span class="pdot gaia"></span>gaia</th><th><span class="pdot dsh"></span>dsh</th><th><span class="pdot owb"></span>owb</th></tr></thead>
+    <tbody>
+      <tr><td>主循环</td><td><code>agent/engine/AgentScopeExecutionEngine.java</code>（1,121 行）</td><td><code>packages/core/agent-loop/src/agent.ts</code>（2,305 行）</td><td><code>src/agent/agent.js</code> runTask（4,887 行）</td></tr>
+      <tr><td>工具层</td><td><code>agent/tool/impl/*</code> 13 执行器 + <code>service/AgentToolRegistry.java</code>（964 行）</td><td><code>packages/core/tools/src/index.ts</code>（1,985 行）</td><td><code>src/agent/tools.js</code>（5,432 行）</td></tr>
+      <tr><td>压缩</td><td><code>agent/session/SessionCompactionService.java</code>（50%）</td><td><code>packages/compaction/compaction-basic/src/index.ts</code>（80%）</td><td><code>agent.js</code> compactHistory（60%）</td></tr>
+      <tr><td>账本</td><td><code>agent/session/ToolLogRecorder.java</code> + <code>RecordingModel.java</code></td><td><code>packages/core/session/src/known-event-types.ts</code></td><td><code>src/core/obs/trace.js</code>（773 行）</td></tr>
+      <tr><td>模型管理</td><td><code>service/AgentModelConfigService.java</code> + <code>ThinkingParamPlanner.java</code></td><td><code>packages/llm/llm-deepseek-api-key</code> / <code>llm-pi-ai</code></td><td><code>src/core/model/{chat-models,llm,thinking,media-models}.js</code></td></tr>
+      <tr><td>Trajectory</td><td><code>ai-workspace/components/TrajectoryPanel.tsx</code>（980 行）</td><td><code>packages/client/ui-trajectory/src/client/</code>（~9.4k 行）</td><td><code>public/js/app-05.js</code> renderTracePage</td></tr>
+      <tr><td>会话存储</td><td><code>agent/store/DatabaseConversationStore.java</code></td><td><code>packages/session/session-persistence-jsonl</code></td><td><code>server.js</code> sessFile/sessWriter</td></tr>
+      <tr><td>DSL 校验</td><td><code>service/WorkflowDslCanonicalizer.java</code>（1,001 行）</td><td>—</td><td>—</td></tr>
+    </tbody>
+  </table></div>
+
+  <footer>
+    <p>方法论说明：本文由四路并行源码调研汇总而成（gaia 后端 / gaia 前端 / dsh / owb 各一份细粒度事实报告），所有机制描述与行号锚点以调研当日工作区为准；对比中标注的「已知 P0」等结论沿用 <code>docs/gaia-agent-architecture-review.html</code> 的 review 结论。图表由 Archify（结构化 JSON + 确定性渲染引擎）生成，规格与渲染回执见 docs/diagrams/specs/。</p>
+  </footer>
+</section>
+
+</div>
+</body>
+</html>

@@ -256,7 +256,8 @@ public class SessionEventBus {
                         }
                     }
                 }
-                // 时间线里的工具条目同步回填结果（快照恢复时工具卡才有终态）
+                // 时间线里的工具条目同步回填结果（快照恢复时工具卡才有终态）——
+                // 全量不截断：半截 JSON 会让前端解析落入「结果被截断」兜底，排障失真
                 JSONArray timeline = state.getJSONArray("timeline");
                 if (timeline != null) {
                     for (int i = timeline.size() - 1; i >= 0; i--) {
@@ -265,8 +266,7 @@ public class SessionEventBus {
                             && toolCallId.equals(item.getStr("id"))) {
                             JSONObject call = item.getJSONObject("call");
                             if (call != null) {
-                                call.set("result", payload != null && payload.length() > 600
-                                    ? payload.substring(0, 600) : payload);
+                                call.set("result", payload != null ? payload : "");
                             }
                             break;
                         }

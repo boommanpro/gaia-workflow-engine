@@ -54,8 +54,13 @@ public class ReadNodeToolExecutor implements ToolExecutor {
                 + "（会话草稿中无此节点；如要查看其它工作流请先 read_workflow 水化）");
         }
         JSONArray variables = draftService.availableVariables(context.getSessionKey());
+        // 模型可见副本：data 里的 apiKey/apiHost（平台注入的默认模型配置）掩蔽后再返回
+        JSONObject modelVisibleNode = new JSONObject(node);
+        if (node.getJSONObject("data") != null) {
+            modelVisibleNode.set("data", SessionWorkflowDraftService.redactForModel(node.getJSONObject("data")));
+        }
         JSONObject payload = new JSONObject()
-            .set("node", node)
+            .set("node", modelVisibleNode)
             .set("availableVariables", variables);
         return ToolResult.ok(payload.toString(), "已返回节点 " + nodeId + " 与可用变量");
     }
