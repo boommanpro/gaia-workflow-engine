@@ -7,19 +7,26 @@ import cn.boommanpro.gaia.workflow.app.executor.WorkflowExecutor;
 import cn.boommanpro.gaia.workflow.infra.manage.service.GaiaWorkflowLogService;
 import cn.boommanpro.gaia.workflow.infra.manage.service.GaiaWorkflowService;
 import cn.boommanpro.gaia.workflow.infra.manage.service.GaiaWorkflowVersionService;
+import cn.boommanpro.gaia.workflow.app.service.WorkflowDslValidator;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("api")
 public class GaiaWorkflowExecuteController {
+
+    /** 执行前预检开关：生效版本先过统一校验器，error 级问题毫秒级拒绝而不是跑一半才炸 */
+    @Value("${workflow.execute.pre-validate:true}")
+    private boolean executePreValidate;
 
     @Autowired
     private GaiaWorkflowService workflowService;
@@ -69,6 +76,25 @@ public class GaiaWorkflowExecuteController {
             result.put("success", false);
             result.put("message", "工作流版本不存在: " + workflowCode);
             return result;
+        }
+
+        // 执行前预检（2026-10-16 起）：生效版本必须是机器证明可执行的 schema。
+        // 直接 POST /api/execute 的调用方此前连「事后补偿」都没有，坏 schema 只会在引擎深处炸。
+        if (executePreValidate) {
+            java.util.List<WorkflowDslValidator.Issue> issues =
+                WorkflowDslValidator.validate(workflowVersion.getWorkflowData());
+            if (WorkflowDslValidator.hasErrors(issues)) {
+                String message = "工作流校验未通过，拒绝执行：" + WorkflowDslValidator.errorSummary(issues)
+                    + "（可用 workflow.execute.pre-validate=false 临时关闭预检）";
+                recordWorkflowLog(workflowCode, workflowVersion.getVersionNumber(), executionId,
+                    startTime, inputs, null, message, "FAILED");
+
+                Map<String, Object> result = new HashMap<>();
+                result.put("success", false);
+                result.put("message", message);
+                result.put("issues", issues);
+                return result;
+            }
         }
 
         // 执行工作流

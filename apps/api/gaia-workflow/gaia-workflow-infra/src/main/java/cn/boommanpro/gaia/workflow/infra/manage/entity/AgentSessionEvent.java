@@ -7,7 +7,7 @@ import lombok.Data;
  * Agent 会话持久事件日志（追加只写）。
  *
  * <p>对齐 deepseek-harness 的 durable session event log 思想：
- * 「模型可见即已记录」—— run 期间的 turn/llm_end/tool_call/tool_result/knowledge_retrieved/
+ * 「模型可见即已记录」—— run 期间的 turn/llm_end/tool_call/tool_result/skill_loaded/
  * confirm 等事件按序落表，供回放调试、审查与指标统计。超长 payload 截断保留。</p>
  */
 @Data
@@ -27,7 +27,7 @@ public class AgentSessionEvent {
     @TableField("seq")
     private Integer seq;
 
-    /** 事件类型：turn / llm_end / tool_call / tool_result / knowledge_retrieved / confirm_request / confirm_resolved / document / plan / error */
+    /** 事件类型：turn / llm_end / tool_call / tool_result / skill_loaded / confirm_request / confirm_resolved / document / plan / error */
     @TableField("event_type")
     private String eventType;
 

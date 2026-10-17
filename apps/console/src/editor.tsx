@@ -22,11 +22,11 @@ import { useEditorProps } from './hooks';
 import { DemoTools } from './components/tools';
 import { workflowApi, GaiaWorkflowVersion, GaiaWorkflowTemplate, GaiaApiMeta } from './services/workflow-api';
 import { getApiBaseUrl } from './utils/apiConfig';
+import { TestCaseSheetButton } from './components/test-case-panel';
 import { useLanguage, t } from './i18n';
 import { LanguageToggle } from './components/language-toggle';
 import { EditorCanvasBridge } from './agent';
 import { WorkflowDocument, workflowDocumentStore, useWorkflowDocumentState } from './document';
-import { WorkspaceToolExecutor } from './ai-workspace/WorkspaceToolExecutor';
 import { getSessionKeyForWorkflow } from './ai-workspace/session-scope';
 import { useWorkflowArtifactSync } from './ai-workspace/artifact/useWorkflowArtifactSync';
 import { CopilotSidebar } from './ai-workspace/components/CopilotSidebar';
@@ -273,7 +273,6 @@ export const Editor = () => {
       if (nextKey === lastKey) return;
       syncFromStore(nextKey);
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSwitchVersion = useCallback(async (versionId: number) => {
@@ -330,8 +329,6 @@ export const Editor = () => {
       >
         <FreeLayoutEditorProvider {...editorProps} key={remountKey}>
           <EditorCanvasBridge />
-          {/* 专家模式同样不渲染 AgentDock，需要自己挂工具执行器 */}
-          <WorkspaceToolExecutor />
           <EditorHeader
             workflowCode={effectiveCode}
             workflowName={workflowInfo ? workflowInfo.workflowName : t('editor.newWorkflow')}
@@ -586,6 +583,24 @@ const EditorHeader = ({
           >
             {t('apiDocs.publish')}
           </button>
+        )}
+
+        {/* 测试用例面板入口（2026-10-17 期3）：与 agent 的 test_case / run(target=tests) 同一数据面 */}
+        {workflowCode && (
+          <TestCaseSheetButton
+            workflowCode={workflowCode}
+            getCanvasJson={() => {
+              try { return ctx?.document ? ctx.document.toJSON() : null; } catch { return null; }
+            }}
+            getNodes={() => {
+              try {
+                const json = ctx?.document ? ctx.document.toJSON() : { nodes: [] };
+                return (json.nodes || []).map((n: any) => ({
+                  id: n.id, type: n.type, title: n.data?.title || n.type,
+                }));
+              } catch { return []; }
+            }}
+          />
         )}
 
         {/* Save button */}

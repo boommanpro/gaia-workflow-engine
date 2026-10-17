@@ -14,8 +14,7 @@ public class AgentProperties {
 
     private Llm llm = new Llm();
     private Ark ark = new Ark();
-    private Compaction compaction = new Compaction();
-    private Spill spill = new Spill();
+    private AsService asService = new AsService();
     private Run run = new Run();
 
     @Data
@@ -38,28 +37,7 @@ public class AgentProperties {
     }
 
     /**
-     * 上下文压缩（对齐 dsh compaction：确定性剪枝 → 模型摘要，配对完整性保持）。
-     * 触发条件：估算上下文 token &gt; contextWindow × triggerRatio。
-     */
-    @Data
-    public static class Compaction {
-        private boolean enabled = true;
-        /** 触发比例（相对 contextWindow） */
-        private double triggerRatio = 0.7;
-        /** 摘要后至少保留的最近消息条数（不参与摘要） */
-        private int keepRecentMessages = 8;
-        /** 触发摘要所需的最小消息数（太短的对话不值得摘要） */
-        private int minMessagesToSummarize = 12;
-        /** 老工具结果超过此字符数即剪枝（保留最近 keepRecentToolResults 条完整） */
-        private int pruneToolResultChars = 1200;
-        /** 保持完整的老工具结果条数 */
-        private int keepRecentToolResults = 6;
-        /** 摘要请求的最大输出 token */
-        private int summaryMaxTokens = 600;
-    }
-
-    /**
-     * 失控防护（自然停止的安全网，区别于旧版 maxTurns 硬截断）：
+     * 失控防护（自然停止的安全网，区别于旧版轮次硬截断）：
      * 弱模型实测会以略微不同的参数绕过复读护栏无限循环（2026-10-10 实测 105 轮）。
      * 触发条件后不砍 run，而是收走工具清单 + 指令模型用正文收尾（收尾轮）。
      */
@@ -69,21 +47,6 @@ public class AgentProperties {
         private int runawayTurnCeiling = 30;
         /** 连续无进展轮护栏：连续 N 轮没有任何工具成功即收尾 */
         private int noProgressTurnLimit = 8;
-    }
-
-    /**
-     * 大结果 spill（对齐 dsh spill-policy）：工具结果超过 inline 上限时，
-     * 模型只看 head/tail 预览 + 取回指引，完整内容留在事件日志与会话历史里。
-     */
-    @Data
-    public static class Spill {
-        private boolean enabled = true;
-        /** 进入模型上下文的单条工具结果上限（字符） */
-        private int maxInlineChars = 12000;
-        /** 预览保留的头部字符数 */
-        private int headChars = 8000;
-        /** 预览保留的尾部字符数 */
-        private int tailChars = 2000;
     }
 
     /**
@@ -106,5 +69,34 @@ public class AgentProperties {
         private String defaultAgentId = "";
         private int connectTimeoutMs = 10000;
         private int readTimeoutMs = 300000;
+    }
+
+    /**
+     * AgentScope Service（自托管）接入配置（application.yml 兜底，可被 agent_config 的
+     * provider_config:as-service 覆盖）。engine=as-service 的 Agent 运行时从这里取连接参数。
+     */
+    @Data
+    public static class AsService {
+        /** Service 网关地址（控制台同端口） */
+        private String baseUrl = "http://localhost:18080";
+        /** 数据面凭据：Application API Key（X-API-Key，targets 需覆盖所用 Agent） */
+        private String apiKey = "";
+        /**
+         * 数据面鉴权方式：admin（默认，用管理面身份 Bearer，自动覆盖按会话新建的 Agent）
+         * 或 apiKey（应用凭据 X-API-Key，targets 需显式授权每个 Agent）
+         */
+        private String authMode = "admin";
+        /** 托管 Agent 资源（管理面）登录账号，用于按会话自动同步托管 Agent */
+        private String adminUsername = "admin";
+        private String adminPassword = "";
+        /** 租户 / 命名空间（Service 多租户头） */
+        private String tenant = "default";
+        private String namespace = "default";
+        /** 数据面可见的 Gaia MCP 端点基址（托管 Agent 按会话回连 {@code <mcpPublicUrl>/mcp/gaia/{sessionKey}}） */
+        private String mcpPublicUrl = "http://host.docker.internal:48080";
+        /** ModelRegistry 模型串（默认走 dataplane 的 DashScope 扩展，可指向协议适配器/官方端点） */
+        private String model = "dashscope:qwen-max";
+        private int connectTimeoutMs = 10000;
+        private int readTimeoutMs = 60000;
     }
 }

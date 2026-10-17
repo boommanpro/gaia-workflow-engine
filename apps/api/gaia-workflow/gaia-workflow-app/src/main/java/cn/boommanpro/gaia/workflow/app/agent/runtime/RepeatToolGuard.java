@@ -106,7 +106,7 @@ public class RepeatToolGuard {
             lastWasSuccess = true;
             if (count >= SUCCESS_REPEAT_REMIND_AT) {
                 return new Verdict(Action.APPEND, "你已连续第 " + count + " 次用完全相同的参数成功调用 "
-                    + toolName + "，结果不会有任何变化。请先 read_workflow / read_node 核实现状，"
+                    + toolName + "，结果不会有任何变化。请先 get(target=canvas) / get(target=variables) 核实现状，"
                     + "换一种修改或直接向用户说明。");
             }
             if (streakHardStop) {
@@ -120,7 +120,7 @@ public class RepeatToolGuard {
                     "你已连续 " + sameToolStreak + " 次调用 " + toolName
                         + "（参数各不相同）。如果是清单类工具（todo_write）这是不必要的反复重写——"
                         + "清单一次写全，然后去执行清单里的步骤；如果是查询类，连续查询说明你在绕圈，"
-                        + "停下来用 read_workflow/read_node 看现状或换一种做法。");
+                        + "停下来用 get(target=canvas) 看现状或换一种做法。");
             }
             if (alternatingLoopJustTriggered) {
                 alternatingLoopJustTriggered = false;
@@ -141,7 +141,7 @@ public class RepeatToolGuard {
             return new Verdict(Action.STOP,
                 "⚠️ 系统护栏：你已连续 " + sameToolStreak + " 次调用 " + toolName
                     + "（参数反复微调）且一直失败，本轮执行已被终止以避免空转。\n\n"
-                    + "已生效的改动保持有效。继续推进请换一种方式：先用 read_workflow / read_node "
+                    + "已生效的改动保持有效。继续推进请换一种方式：先用 get(target=canvas) / get(target=variables) "
                     + "核对现状，或把回执里的可抄示例逐字段比对后一次性修正重发；"
                     + "若仍无法修正，直接说明你需要用户提供什么。");
         }
@@ -152,7 +152,7 @@ public class RepeatToolGuard {
             return new Verdict(Action.APPEND,
                 "你已第 2 次用完全相同的参数调用 " + toolName + " 并得到同样的 INVALID_ARGS。"
                     + "同样的输入只会得到同样的输出：请先读懂 error.violations 里每一项的 fix，"
-                    + "改完参数再调用；改不动就用 read_workflow / read_node 查看现状，或直接向用户提问。");
+                    + "改完参数再调用；改不动就用 get(target=canvas) 查看现状，或直接向用户提问。");
         }
         if (!invalidArgs) {
             for (int threshold : REMINDER_AT) {
@@ -203,7 +203,7 @@ public class RepeatToolGuard {
     /** 交替空转提醒文案 */
     public static final String ALTERNATING_LOOP_MESSAGE =
         "循环警报：你已陷入「修改→运行」的交替循环且运行结果没有变化，继续这样调用不会有进展。"
-            + "请停下来：read_workflow 查看当前完整配置，对照运行回执里的 warnings 定位真正没生效的"
+            + "请停下来：get(target=canvas) 查看当前结构，对照运行回执里的 warnings 定位真正没生效的"
             + "节点/字段（warnings 会点名字段和上游），只修那一处；或换一种节点结构；或直接向用户说明困难。";
 
     /** 非参数错误复读的升级提醒（dsh 同款文案结构） */
@@ -219,7 +219,7 @@ public class RepeatToolGuard {
         return "⚠️ 系统护栏：你已连续 " + count + " 次用完全相同的参数调用 " + toolName
             + " 并得到 INVALID_ARGS，本轮执行已被终止以避免空转。\n\n"
             + "已生效的改动保持有效（成功的工具调用不会回滚）。继续推进请换一种方式："
-            + "先用 read_workflow / read_node / get_node_schema 核对现状，"
+            + "先用 get(target=canvas / variables / knowledge) 核对现状，"
             + "按最近一次 error.violations 的 fix 逐项修正参数后重试；"
             + "若仍无法修正，直接说明你需要用户提供什么。";
     }

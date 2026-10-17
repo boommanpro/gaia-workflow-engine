@@ -25,7 +25,7 @@ import java.util.Map;
  *   <li><b>debug_data</b>（旧行为保留）：run 结束后合并写入 {@code agent_session.debug_data}，
  *       与前端调试面板的 DebugEntry 结构兼容；</li>
  *   <li><b>agent_session_event</b>（v2 新增，对齐 dsh durable session log）：结构化事件
- *       （turn/llm_end/tool_call/tool_result/confirm/document/plan/knowledge_retrieved/error）
+ *       （turn/llm_end/tool_call/tool_result/confirm/document/plan/skill_loaded/error）
  *       按序落表，追加只写，供回放调试与指标统计。token/thinking 等高频流事件不入表。</li>
  * </ol>
  *

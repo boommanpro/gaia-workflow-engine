@@ -1,0 +1,78 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://gaia.workflow/schemas/node/http",
+  "title": "http",
+  "type": "object",
+  "description": "HTTP 请求节点。规范形状：method/url 在 data.api（引擎 HttpNodeParser 只读 api/headersValues/paramsValues/body/timeout）。",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "api": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "method": {
+          "type": "string"
+        },
+        "url": {}
+      },
+      "required": [
+        "method",
+        "url"
+      ]
+    },
+    "headersValues": {
+      "type": "object"
+    },
+    "paramsValues": {
+      "type": "object"
+    },
+    "body": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "bodyType": {
+          "type": "string"
+        },
+        "json": {}
+      }
+    },
+    "timeout": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "timeout": {
+          "type": "integer"
+        },
+        "retryTimes": {
+          "type": "integer"
+        }
+      }
+    },
+    "inputs": {
+      "type": "object"
+    },
+    "outputs": {
+      "type": "object"
+    },
+    "inputsValues": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "api"
+  ],
+  "additionalProperties": true,
+  "x-gaia-outputs": [
+    "body",
+    "headers",
+    "statusCode"
+  ]
+}

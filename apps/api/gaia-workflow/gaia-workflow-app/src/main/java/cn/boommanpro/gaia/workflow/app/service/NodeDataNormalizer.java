@@ -6,10 +6,10 @@ import cn.hutool.json.JSONObject;
 /**
  * 节点数据归一化器 —— 把模型产出的「简化扁平字段」转成执行引擎认识的结构。
  *
- * <p>与前端 {@code node-templates/normalize.ts} 一一对应。旧链路里这份转换只在前端做，
- * 后端 applyWorkflow / canvas 直接落库扁平字段，导致 LLM/HTTP 节点执行时报
- * 「url is null」——因为解析器只读 {@code data.inputsValues}。这里把转换搬回后端，
- * 使「纯后端自治」产出的工作流同样可直接运行。</p>
+ * <p>与前端 {@code node-templates/normalize.ts} 一一对应。规范形状以「画布 UI + 执行引擎」
+ * 的一致口径为准：llm 写 {@code data.inputsValues}，http 写 {@code data.api} / {@code headersValues}
+ * / {@code data.body} / {@code data.timeout}。归一化必须与引擎真实读取路径对齐，
+ * 否则会出现「校验放行、执行必坏」的形状分裂。</p>
  */
 public final class NodeDataNormalizer {
 
@@ -52,15 +52,184 @@ public final class NodeDataNormalizer {
         }
     }
 
-    /** HTTP 节点：method/url/headers/body/timeout 扁平字段 → inputsValues */
+    /**
+     * HTTP 节点归一化：统一为执行引擎（HttpNodeParser）实际读取的规范形状——
+     * {@code data.api.{method,url}}、{@code data.headersValues}、{@code data.paramsValues}、
+     * {@code data.body.{bodyType,json}}、{@code data.timeout.{timeout,retryTimes}}。
+     *
+     * <p>历史教训：旧版归一化把扁平字段收进 {@code inputsValues}，而引擎从不读它——
+     * 画布 UI 和引擎都写/读 {@code data.api}，结果 agent 产的 http 节点能过校验、
+     * 试运行必报「HTTP节点缺少有效的 api 配置」。规范形状以画布+引擎的一致口径为准，
+     * 这里同时兼容迁移：扁平字段（agent 简写）与旧版 inputsValues 包装（历史落库数据）。</p>
+     */
     private static void normalizeHttp(JSONObject data) {
-        JSONObject iv = ensureInputsValues(data);
+        JSONObject api = asObjectOrNew(data, "api");
+        migrateIntoApi(api, data, "method");
+        migrateIntoApi(api, data, "url");
 
-        moveToConstant(iv, data, "method");
-        moveToConstant(iv, data, "url");
-        moveToConstant(iv, data, "headers");
-        moveToConstant(iv, data, "body");
-        moveToConstant(iv, data, "timeout");
+        JSONObject headers = extractLooseMap(data, "headers");
+        mergeWrappedInto(asObjectOrNew(data, "headersValues"), headers);
+        JSONObject params = extractLooseMap(data, "params");
+        mergeWrappedInto(asObjectOrNew(data, "paramsValues"), params);
+
+        normalizeHttpBody(data);
+        normalizeHttpTimeout(data);
+    }
+
+    /** method/url：data.api 优先，其次扁平字段，最后旧版 inputsValues 包装，取到后清掉残留 */
+    private static void migrateIntoApi(JSONObject api, JSONObject data, String key) {
+        if (api.containsKey(key) && api.get(key) != null) {
+            removeLoose(data, key);
+            return;
+        }
+        Object flat = removeLoose(data, key);
+        if (flat != null) {
+            api.set(key, "method".equals(key) ? String.valueOf(flat).toUpperCase() : flat);
+            return;
+        }
+        Object legacy = takeFromInputsValues(data, key);
+        if (legacy != null) {
+            api.set(key, unwrapConstantToString(legacy));
+        }
+    }
+
+    /** 把散落的 headers/params 收成 Map：扁平字段优先，其次旧版 inputsValues 包装的 content */
+    private static JSONObject extractLooseMap(JSONObject data, String key) {
+        Object flat = removeLoose(data, key);
+        if (flat instanceof JSONObject) {
+            return (JSONObject) flat;
+        }
+        Object legacy = takeFromInputsValues(data, key);
+        if (legacy instanceof JSONObject) {
+            Object content = ((JSONObject) legacy).get("content");
+            if (content instanceof JSONObject) {
+                return (JSONObject) content;
+            }
+        }
+        return null;
+    }
+
+    /** {k: 原始值} → {k: {type:"constant", content:原始值}}（引擎 parseValue 只认包装形状） */
+    private static void mergeWrappedInto(JSONObject target, JSONObject source) {
+        if (source == null) {
+            return;
+        }
+        for (String key : source.keySet()) {
+            if (!target.containsKey(key)) {
+                target.set(key, constantWrapper(source.get(key)));
+            }
+        }
+    }
+
+    private static void normalizeHttpBody(JSONObject data) {
+        if (data.get("body") instanceof JSONObject && data.getJSONObject("body").containsKey("bodyType")) {
+            removeLegacyInputsValue(data, "body");
+            return;
+        }
+        Object body = removeLoose(data, "body");
+        if (body == null) {
+            body = takeFromInputsValues(data, "body");
+        }
+        if (body == null) {
+            return;
+        }
+        if (body instanceof JSONObject) {
+            Object content = ((JSONObject) body).get("content");
+            if (content != null && !(content instanceof JSONObject)) {
+                body = content;
+            } else if (content instanceof JSONObject) {
+                body = ((JSONObject) content).get("content");
+            }
+        }
+        if (body instanceof JSONObject && ((JSONObject) body).containsKey("bodyType")) {
+            data.set("body", body);
+            return;
+        }
+        if (body != null) {
+            // 纯文本请求体统一走 template 包装：SpEL 模板对无 {{}} 的文本原样渲染
+            data.set("body", new JSONObject()
+                .set("bodyType", "JSON")
+                .set("json", new JSONObject().set("type", "template").set("content", String.valueOf(body))));
+        }
+    }
+
+    private static void normalizeHttpTimeout(JSONObject data) {
+        if (data.get("timeout") instanceof JSONObject && data.getJSONObject("timeout").containsKey("timeout")) {
+            removeLegacyInputsValue(data, "timeout");
+            return;
+        }
+        Object timeout = removeLoose(data, "timeout");
+        if (timeout == null) {
+            timeout = takeFromInputsValues(data, "timeout");
+        }
+        if (timeout instanceof JSONObject) {
+            timeout = ((JSONObject) timeout).get("content");
+        }
+        if (timeout instanceof Number) {
+            data.set("timeout", new JSONObject().set("timeout", ((Number) timeout).intValue()));
+        } else if (timeout instanceof String && !((String) timeout).trim().isEmpty()) {
+            try {
+                data.set("timeout", new JSONObject().set("timeout", Integer.parseInt(((String) timeout).trim())));
+            } catch (NumberFormatException ignored) {
+                // 非数字超时配置丢弃，引擎按默认 10s
+            }
+        }
+    }
+
+    /** 从 data 移除字段并返回原值；不存在返回 null */
+    private static Object removeLoose(JSONObject data, String key) {
+        Object value = data.get(key);
+        if (value != null) {
+            data.remove(key);
+        }
+        return value;
+    }
+
+    /** 从 inputsValues 取出并移除指定键的包装值（无 inputsValues 或无该键返回 null） */
+    private static Object takeFromInputsValues(JSONObject data, String key) {
+        Object iv = data.get("inputsValues");
+        if (!(iv instanceof JSONObject)) {
+            return null;
+        }
+        JSONObject inputsValues = (JSONObject) iv;
+        Object value = inputsValues.get(key);
+        if (value != null) {
+            inputsValues.remove(key);
+        }
+        return value;
+    }
+
+    private static void removeLegacyInputsValue(JSONObject data, String key) {
+        Object iv = data.get("inputsValues");
+        if (iv instanceof JSONObject) {
+            ((JSONObject) iv).remove(key);
+        }
+    }
+
+    private static JSONObject asObjectOrNew(JSONObject data, String key) {
+        Object value = data.get(key);
+        if (value instanceof JSONObject) {
+            return (JSONObject) value;
+        }
+        JSONObject created = new JSONObject();
+        data.set(key, created);
+        return created;
+    }
+
+    private static JSONObject constantWrapper(Object content) {
+        JSONObject wrapper = new JSONObject().set("type", "constant").set("content", content);
+        if (content instanceof String) {
+            wrapper.set("schema", new JSONObject().set("type", "string"));
+        }
+        return wrapper;
+    }
+
+    /** {type:constant, content:x} → x；其他原样返回 */
+    private static Object unwrapConstantToString(Object wrapper) {
+        if (wrapper instanceof JSONObject && "constant".equals(((JSONObject) wrapper).getStr("type"))) {
+            return ((JSONObject) wrapper).get("content");
+        }
+        return wrapper;
     }
 
     /** LLM 节点：prompt/systemPrompt/temperature/modelName/apiKey/apiHost 扁平字段 → inputsValues */

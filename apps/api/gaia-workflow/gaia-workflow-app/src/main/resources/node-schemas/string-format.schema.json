@@ -1,0 +1,41 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://gaia.workflow/schemas/node/string-format",
+  "title": "string-format",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "script": {
+      "type": [
+        "object",
+        "string"
+      ],
+      "properties": {
+        "language": {
+          "type": "string"
+        },
+        "content": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "content"
+      ]
+    },
+    "inputsValues": {
+      "type": "object"
+    },
+    "outputs": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "script"
+  ],
+  "additionalProperties": true,
+  "x-gaia-outputs": [
+    "formatStringResult"
+  ]
+}

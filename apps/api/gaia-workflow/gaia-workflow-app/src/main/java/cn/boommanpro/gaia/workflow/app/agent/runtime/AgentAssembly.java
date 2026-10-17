@@ -34,6 +34,7 @@ public class AgentAssembly {
 
     /** 方舟托管 Agent 的内置定义 ID（与 provider_config:ark 的 defaultAgentId 呼应） */
     public static final String ARK_ASSISTANT_ID = "ark-assistant";
+    public static final String AS_SERVICE_ASSISTANT_ID = "as-service-assistant";
 
     private final ToolExecutorRegistry toolExecutorRegistry;
     private final AgentRegistry agentRegistry;
@@ -66,6 +67,7 @@ public class AgentAssembly {
         registerAgent(workflowArchitectDefinition());
         registerAgent(workspaceBackendDefinition());
         registerAgent(arkAssistantDefinition());
+        registerAgent(asServiceAssistantDefinition());
 
         log.info("[agent-assembly] ready: {} agents, {} tools",
             agentRegistry.size(), toolExecutorRegistry.size());
@@ -95,35 +97,14 @@ public class AgentAssembly {
             .source("builtin")
             // 必须显式收敛到 v2 工具集：未设名单时会把 DB 里全部 enabled 的工具
             // （含历史遗留的 v1 前端工具）灌给模型
-            .toolNames(v2Tools())
             .executionMode(ToolExecutionMode.BACKEND)
             .sortOrder(10)
             .build();
     }
 
-    /** v2 工具全集（dsh 命名：读 7 + edit + run + 落版 3 + todo） */
-    private Set<String> v2Tools() {
-        Set<String> tools = new LinkedHashSet<>();
-        // 读
-        tools.add("list_workflows");
-        tools.add("read_workflow");
-        tools.add("read_node");
-        tools.add("list_runs");
-        tools.add("list_templates");
-        tools.add("search_knowledge");
-        tools.add("get_node_schema");
-        // 编辑 / 执行
-        tools.add("edit_workflow");
-        tools.add("run_workflow");
-        // 落版 / 生命周期
-        tools.add("write_workflow");
-        tools.add("delete_workflow");
-        // 记忆（双层记忆：remember/forget/list）
-        tools.add("memory");
-        // 元
-        tools.add("todo_write");
-        return tools;
-    }
+    // 2026-10-17 工具体系重构：内置 agent 不再钉工具白名单（v2Tools 已删）——
+    // toolNames 为空 = 全量跟随 AgentToolRegistry 活工具面（单一事实源），
+    // 白名单是旧工具面在引擎侧漏接的根因（重构后 15 工具全被过滤，模型零工具可用）。
 
     /**
      * 工作流架构师：自治模式下的主力。
@@ -136,7 +117,6 @@ public class AgentAssembly {
             .description("不依赖浏览器，直接把需求变成已落版的工作流")
             .source("builtin")
             .systemPromptConfigKey(ARCHITECT_PROMPT_KEY)
-            .toolNames(v2Tools())
             .executionMode(ToolExecutionMode.BACKEND)
             .sortOrder(20)
             .build();
@@ -153,7 +133,6 @@ public class AgentAssembly {
             .name("工作区助手（后端自治）")
             .description("前端仅展示、后端自治的通用助手：对话循环与工具执行都在服务端")
             .source("builtin")
-            .toolNames(v2Tools())
             .executionMode(ToolExecutionMode.BACKEND)
             .sortOrder(5)
             .build();
@@ -184,7 +163,28 @@ public class AgentAssembly {
             .source("builtin")
             .engine("ark")
             .arkAgentId(remoteAgentId)
-            .toolNames(v2Tools())
+            .executionMode(ToolExecutionMode.BACKEND)
+            .sortOrder(50)
+            .build();
+    }
+
+    /**
+     * AgentScope Service 托管助手：对话循环托管给自托管 AgentScope Service（engine=as-service）。
+     *
+     * <p>连接参数来自 {@code provider_config:as-service}（baseUrl / apiKey / adminPassword）。
+     * v2 工具经 MCP（{@code /mcp/gaia/{sessionKey}}）暴露给托管 Agent，数据面按会话回连执行。</p>
+     *
+     * <p>sortOrder 给大（50）：不参与隐式路由，仅当默认引擎切到 as-service（或显式指定
+     * agentId）时被选中。</p>
+     */
+    private AgentDefinition asServiceAssistantDefinition() {
+        return AgentDefinition.builder()
+            .id(AS_SERVICE_ASSISTANT_ID)
+            .name("AgentScope Service 托管助手")
+            .description("对话循环托管给自托管 AgentScope Service：模型编排/会话/用量统计在 Service 侧，"
+                + "工具经 MCP 回连本地执行，本地负责会话映射与事件翻译")
+            .source("builtin")
+            .engine("as-service")
             .executionMode(ToolExecutionMode.BACKEND)
             .sortOrder(50)
             .build();

@@ -73,18 +73,6 @@ public class ToolResult {
             what + " 不存在", ToolErrorCode.NOT_FOUND);
     }
 
-    /** CAS 冲突：携带双方 revision 与补救指引 */
-    public static ToolResult staleRevision(String workflowCode, long expected, long actual) {
-        return fail(new JSONObject().set("error", new JSONObject()
-            .set("code", ToolErrorCode.STALE_REVISION.name())
-            .set("message", "工作流 " + workflowCode + " 已被并发修改（你基于 revision " + expected
-                + "，当前已是 " + actual + "）。请重新 read_workflow 获取最新状态和 revision，"
-                + "再把你的改动重新应用到新状态上"))
-            .set("expectedRevision", expected)
-            .set("actualRevision", actual).toString(),
-            "工作流已被并发修改，需重读后重放", ToolErrorCode.STALE_REVISION);
-    }
-
     public static ToolResult rejected(String message) {
         return new ToolResult(false,
             new JSONObject().set("error", new JSONObject()

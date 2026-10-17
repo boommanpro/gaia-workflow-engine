@@ -238,9 +238,14 @@ export const ModelManagement: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16, gap: 12 }}>
-        <h2 style={{ margin: 0, fontSize: 20, flex: 1 }}>模型管理</h2>
+    <div>
+      <div style={{ display: 'flex', alignItems: 'flex-end', marginBottom: 16, gap: 12 }}>
+        <div style={{ flex: 1 }}>
+          <h2 style={{ margin: 0, fontSize: 16 }}>模型管理</h2>
+          <div style={{ fontSize: 12.5, color: '#888', marginTop: 4 }}>
+            自研引擎的模型条目：多模型条目 + 会话级选择 + 思考档位 + 测活与健康账本；未配置任何条目时使用服务端内置默认模型。
+          </div>
+        </div>
         <Button
           icon={<IconRefresh />}
           theme="borderless"
@@ -284,7 +289,16 @@ export const ModelManagement: React.FC = () => {
         rowKey="id"
         loading={loading}
         pagination={false}
-        empty="还没有模型条目，点右上角「新建模型」"
+        empty={
+          <div style={{ padding: '28px 0', textAlign: 'center' }}>
+            <div style={{ fontSize: 13, color: '#888', marginBottom: 12 }}>
+              还没有模型条目，未配置时使用服务端内置默认模型
+            </div>
+            <Button size="small" icon={<IconPlus />} theme="solid" style={{ background: ACCENT }} onClick={openCreate}>
+              新建模型
+            </Button>
+          </div>
+        }
       />
 
       {/* 新建/编辑抽屉 */}

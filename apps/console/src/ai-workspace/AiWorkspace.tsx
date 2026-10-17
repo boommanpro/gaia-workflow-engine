@@ -18,6 +18,7 @@ import { useAgent } from '../agent/AgentContext';
 import { SessionList } from '../agent/SessionList';
 import { useLanguage, t } from '../i18n';
 import { useWorkflowDocumentState } from '../document';
+import { TodoCard, extractLatestTodoSteps } from './components/TodoCard';
 import {
   CHAT,
   ChatComposer,
@@ -29,7 +30,6 @@ import { AppShell, WorkRail, type SectionMode } from '../components/app-shell';
 import { ArtifactPanel } from './artifact/ArtifactPanel';
 import { useWorkflowArtifactSync } from './artifact/useWorkflowArtifactSync';
 import { HeadlessCanvasBridge } from './HeadlessCanvasBridge';
-import { WorkspaceToolExecutor } from './WorkspaceToolExecutor';
 import { CanvasHistoryPopover } from './components/CanvasHistoryPopover';
 import { WorkToolsPanel } from './components/WorkToolsPanel';
 import { TrajectoryPanel } from './components/TrajectoryPanel';
@@ -215,8 +215,6 @@ export const AiWorkspace: React.FC = () => {
       <ChatStyles />
       {/* AI 的画布类工具在 headless DSL 上执行，不依赖真实画布 */}
       <HeadlessCanvasBridge />
-      {/* 工作区不渲染 AgentDock，需要自己挂载工具执行器与确认弹窗 */}
-      <WorkspaceToolExecutor />
 
       <AppShell
         mode={mode}
@@ -397,12 +395,19 @@ export const AiWorkspace: React.FC = () => {
                 />
               </div>
             ) : (
-              <ChatMessageList
-                onSnapshotView={() => {
-                  userToggledRef.current = false;
-                  setInspectorView('artifact');
-                }}
-              />
+              <div style={{ height: '100%', overflowY: 'auto', position: 'relative' }}>
+                {/* 任务清单：右上角悬浮，不占对话流空间，默认折叠只展示最新事件 */}
+                <div style={{ position: 'absolute', top: 10, right: 16, zIndex: 20 }}>
+                  <TodoCardInline messages={messages} />
+                </div>
+                <ChatMessageList
+                  hidePlanCards
+                  onSnapshotView={() => {
+                    userToggledRef.current = false;
+                    setInspectorView('artifact');
+                  }}
+                />
+              </div>
             )}
           </div>
         </div>
@@ -427,3 +432,10 @@ export const AiWorkspace: React.FC = () => {
 };
 
 export default AiWorkspace;
+
+/** TodoCard 桥接：从 agent 消息流提取最新任务清单（2026-10-17 反馈1） */
+const TodoCardInline: React.FC<{ messages: any[] }> = ({ messages }) => {
+  const steps = extractLatestTodoSteps(messages);
+  if (!steps || steps.length === 0) return null;
+  return <TodoCard steps={steps} />;
+};

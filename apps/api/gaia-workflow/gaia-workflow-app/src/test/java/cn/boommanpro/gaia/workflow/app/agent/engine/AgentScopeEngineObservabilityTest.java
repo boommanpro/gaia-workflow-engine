@@ -68,7 +68,7 @@ class AgentScopeEngineObservabilityTest {
 
     private AgentRunContext contextOf(String sessionKey) {
         AgentRequest request = new AgentRequest("r-" + sessionKey, "继续", "zh-CN", null, null,
-            ToolExecutionMode.BACKEND, 0, null, null);
+            ToolExecutionMode.BACKEND, null, null);
         return new AgentRunContext(request, new AgentDefinition(), ToolExecutionMode.BACKEND);
     }
 

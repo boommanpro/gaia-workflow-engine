@@ -24,6 +24,14 @@ public interface ToolExecutor {
     String name();
 
     /**
+     * 工具分组（2026-10-17 工具体系重构）：公共工具 vs 工作流工具。
+     * 默认工作流组；ask_user/todo_write 等公共能力显式返回 COMMON。
+     */
+    default ToolGroup group() {
+        return ToolGroup.WORKFLOW;
+    }
+
+    /**
      * 执行面。默认 {@link ExecutionSurface#ANY}：
      * 纯后端能力不需要改，依赖 UI 的能力请显式声明 FRONTEND_ONLY。
      */

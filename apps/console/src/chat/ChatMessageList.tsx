@@ -31,7 +31,7 @@ import type { CanvasSnapshot } from '../document';
 import { useLatestArtifact } from '../agent/artifact-store';
 import { CHAT, CHAT_COLUMN_WIDTH, ChatStyles } from './theme';
 import { ToolSteps } from './ToolSteps';
-import { ProcessFold } from './ProcessFold';
+import { TaskCollapse } from './TaskCollapse';
 import { CanvasSnapshotCard } from './CanvasSnapshotCard';
 import { AskCard } from './AskCard';
 import {
@@ -44,6 +44,76 @@ const fmtTok = (n: number): string =>
   n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
 
 const MONO: React.CSSProperties = { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' };
+
+/** 时间戳 → HH:mm（无效值返回空串，不占位） */
+const fmtTime = (ts?: number): string => {
+  if (!ts) return '';
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
+
+/** 本轮耗时（ms → 秒，向上取整）；无数据返回 undefined，折叠行退化为「执行过程」 */
+const durMsToSec = (ms?: number): number | undefined =>
+  ms != null && ms > 0 ? Math.round(ms / 1000) : undefined;
+
+/** 历史时间线渲染体：过程项（思考/工具/播报）折叠进「任务耗时」，正文文本块直接渲染 */
+const HistoryTimeline: React.FC<{
+  timeline: NonNullable<DisplayMessage['timeline']>;
+  elapsedSec?: number;
+}> = ({ timeline, elapsedSec }) => {
+  const processItems = timeline.filter((i) => i.kind !== 'text');
+  const textItems = timeline.filter((i) => i.kind === 'text');
+  return (
+    <>
+      {processItems.length > 0 && (
+        <TaskCollapse elapsedSec={elapsedSec}>
+          <TimelineView timeline={processItems} streaming={false} />
+        </TaskCollapse>
+      )}
+      {textItems.length > 0 && <TimelineView timeline={textItems} streaming={false} />}
+    </>
+  );
+};
+
+/** 助手头像：品牌色圆角方块 + 黑白版 G logo（public/logo.svg 的节点连线 G，currentColor 跟随主题反转） */
+const AssistantAvatar: React.FC = () => (
+  <span
+    aria-hidden
+    style={{
+      width: 30, height: 30, borderRadius: 9, flexShrink: 0,
+      background: CHAT.accent, color: CHAT.accentFg,
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+    }}
+  >
+    {/* 黑白版 logo：结构与 public/logo.svg 一致，渐变/彩色圆点统一替换为 currentColor；
+        viewBox 相比原版做了居中裁边（26 42 185 185），否则 G 在 256 画布里只占六成，头像内显得空 */}
+    <svg width="24" height="24" viewBox="26 42 185 185" fill="none">
+      <path
+        d="M188 86 Q128 55, 86 97 Q55 138, 86 180 Q128 222, 188 190 L188 149 L133 149"
+        stroke="currentColor"
+        strokeWidth="16"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="188" cy="86" r="13" fill="currentColor" />
+      <circle cx="86" cy="97" r="11" fill="currentColor" />
+      <circle cx="55" cy="138" r="11" fill="currentColor" />
+      <circle cx="86" cy="180" r="11" fill="currentColor" />
+      <circle cx="188" cy="190" r="13" fill="currentColor" />
+      <circle cx="188" cy="149" r="11" fill="currentColor" />
+      <circle cx="133" cy="149" r="13" fill="currentColor" />
+    </svg>
+  </span>
+);
+
+/** 消息头：名称 + 时间（助手消息的身份行） */
+const MessageTitle: React.FC<{ ts?: number }> = ({ ts }) => (
+  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
+    <span style={{ fontSize: 13, fontWeight: 600, color: CHAT.text }}>{t('workspace.brand')}</span>
+    {ts ? <span style={{ fontSize: 11, color: CHAT.textFaint }}>{fmtTime(ts)}</span> : null}
+  </div>
+);
 
 /**
  * 回复尾部的本轮用量（dsh TurnUsagePanel 同位）：小字持久展示，点击弹单轮账本卡
@@ -347,11 +417,14 @@ interface ChatMessageListProps {
    * 专家模式用来把视线拉回画布。不传则只做回滚，不做跳转。
    */
   onSnapshotView?: (snapshot: CanvasSnapshot) => void;
-}
+  /** 2026-10-17：todo 改由顶部 TodoCard 固定渲染，消息流不再内嵌计划卡 */
+  hidePlanCards?: boolean;
+  }
 
 export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   compact = false,
   dense = false,
+  hidePlanCards = false,
   onSnapshotView,
 }) => {
   const { messages, streaming, liveMessageId, sendMessage, queueLength, currentSessionKey } = useAgent();
@@ -502,21 +575,28 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
         continue;
       }
 
-      // ask_user 提问卡：流式期间也可交互（工具正挂起等待这个回答）
+      // ask_user 提问卡：流式期间也可交互（工具正挂起等待这个回答）；与助手消息同栏位，视觉上同属 AI 发起
       if (m.ask) {
-        nodes.push(<AskCard key={`ask-${m.id}`} ask={m.ask} sessionKey={currentSessionKey || undefined} />);
+        nodes.push(
+          <div key={`ask-${m.id}`} className="chat-fade" style={{ display: 'flex', gap: 12, padding: '4px 0' }}>
+            <AssistantAvatar />
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <AskCard ask={m.ask} sessionKey={currentSessionKey || undefined} />
+            </div>
+          </div>
+        );
         i += 1;
         continue;
       }
 
       if (m.role === 'tool') {
-        if (m.planSteps && m.planSteps.length > 0) {
+        if (m.planSteps && m.planSteps.length > 0 && !hidePlanCards) {
           nodes.push(<PlanCard key={m.id} steps={m.planSteps} />);
           i += 1;
           continue;
         }
         if (m.artifact) {
-          // 试运行（test_report）不再单独渲染卡：run_workflow 本身就是一次工具调用，
+          // 试运行（test_report）不再单独渲染卡：run 本身就是一次工具调用，
           // IN/OUT 由工具行承载（dsh 同款语义）；发布（release）仍保留收口卡
           if (m.artifact.type === 'release') {
             nodes.push(<ReleaseCard key={m.id} artifact={m.artifact} />);
@@ -550,10 +630,10 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
           i += 1;
           continue;
         }
-        // 用户新开一轮对话块：与上一轮之间留呼吸感（首条消息顶部留白由容器 padding 承担）
+        // 用户新开一轮对话块：右对齐气泡 + 头像，与上一轮之间留呼吸感（首条消息顶部留白由容器 padding 承担）
         nodes.push(
-          <div key={m.id} className="chat-fade" style={{ display: 'flex', justifyContent: 'flex-start', padding: '2px 0', marginTop: 22 }}>
-            <div style={{ maxWidth: compact ? '88%' : '78%', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
+          <div key={m.id} className="chat-fade" style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, padding: '2px 0', marginTop: 22 }}>
+            <div style={{ maxWidth: compact ? '88%' : '78%', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, minWidth: 0 }}>
               {m.content && (
                 <div
                   style={{
@@ -571,7 +651,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
                 </div>
               )}
               {m.images && m.images.length > 0 && (
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-start' }}>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                   {m.images.map((img, index) => (
                     <img
                       key={index}
@@ -596,45 +676,43 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
         continue;
       }
 
-      // assistant：一次 run 合并为一条回复 —— 无头像无气泡，过程行在前（折叠），正文在后
+      // assistant：一次 run 合并为一条回复 —— 头像 + 身份行在前，过程行折叠，正文在后
       nodes.push(
         <div
           key={m.id}
           className="chat-msg chat-fade"
-          style={{ padding: '4px 0' }}
+          style={{ display: 'flex', gap: 12, padding: '4px 0' }}
         >
-          <div style={{ minWidth: 0 }}>
-            {!m.timeline?.length && m.thinking && <ThinkingItem text={m.thinking} />}
-            {m.planSteps && m.planSteps.length > 0 && <PlanCard key={`plan-${m.id}`} steps={m.planSteps} />}
-            {/* live 行的工具只从 store 时间线渲染（LiveAssistantContent 内），
-                toolSteps 双路渲染已被移除 —— 同一工具卡出现两次即本条件回归 */}
-            {m.id !== liveMessageId && !m.timeline?.length && m.toolSteps && m.toolSteps.length > 0 && (
-              <ProcessFold
-                steps={m.toolSteps.map((ts) => ({
-                  id: ts.id,
-                  tool: ts.action || '工具',
-                  error: !!ts.result && /失败|error|INVALID|EXEC_ERROR/i.test(ts.result.slice(0, 200)),
-                }))}
-                footerNote={m.content ? '含结论' : undefined}
-              >
-                <ToolSteps
-                  messages={m.toolSteps.map((ts) => ({
-                    id: `ts-${ts.id}`,
-                    role: 'tool' as const,
-                    content: '',
-                    toolCall: ts,
-                    timestamp: m.timestamp,
-                  }))}
-                  compact={compact}
-                />
-              </ProcessFold>
+          <AssistantAvatar />
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <MessageTitle ts={m.timestamp} />
+            {/* TRAE 式极简（2026-10-17 二次反馈）：思考 + 工具过程默认收进「任务耗时」一行，
+                点击才展开。live 行的过程由 store 时间线渲染（LiveAssistantContent 内），
+                此处只管历史消息 —— 条件里排除 liveMessageId 防止双路重复 */}
+            {!m.timeline?.length && m.id !== liveMessageId && (m.thinking || (m.toolSteps && m.toolSteps.length > 0)) && (
+              <TaskCollapse elapsedSec={durMsToSec(m.tokenUsage?.durationMs)}>
+                {m.thinking && <ThinkingItem text={m.thinking} />}
+                {m.toolSteps && m.toolSteps.length > 0 && (
+                  <ToolSteps
+                    messages={m.toolSteps.map((ts) => ({
+                      id: `ts-${ts.id}`,
+                      role: 'tool' as const,
+                      content: '',
+                      toolCall: ts,
+                      timestamp: m.timestamp,
+                    }))}
+                    compact={compact}
+                  />
+                )}
+              </TaskCollapse>
             )}
+            {m.planSteps && m.planSteps.length > 0 && !hidePlanCards && <PlanCard key={`plan-${m.id}`} steps={m.planSteps} />}
             {/* live 行渲染体不要求 streaming=true：done→reload 交接期（streaming 已落定、
                 历史重载未返回）store.timeline 仍持有完整内容，避免闪一帧空回复 */}
             {m.id === liveMessageId ? (
               <LiveAssistantContent />
             ) : m.timeline && m.timeline.length > 0 ? (
-              <TimelineView timeline={m.timeline} streaming={false} />
+              <HistoryTimeline timeline={m.timeline} elapsedSec={durMsToSec(m.tokenUsage?.durationMs)} />
             ) : (
               <Markdown
                 content={m.content}

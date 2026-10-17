@@ -1,203 +1,32 @@
 /**
  * AgentConfigManagement — Agent 配置中心
- * 3 个 Tab：模型配置 / 提示词 & 知识库 / 工具定义
+ * 4 个 Tab：模型配置 / Agent 指令 / 技能库 / 工具定义
  */
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   Tabs,
   TabPane,
-  Table,
   Button,
-  Modal,
   Input,
   TextArea,
   Select,
+  Table,
+  Modal,
+  Switch,
   Tag,
   Spin,
   Toast,
-  Switch,
   Typography,
   Radio,
-  RadioGroup,
+  MarkdownRender,
 } from '@douyinfe/semi-ui';
 import type { ColumnProps } from '@douyinfe/semi-ui/lib/es/table';
-import { IconHelpCircle } from '@douyinfe/semi-icons';
+import { IconHelpCircle, IconInfoCircle } from '@douyinfe/semi-icons';
 import { agentApi } from '../../agent/api';
 import { ModelManagement } from './ModelManagement';
-import { MemoryTab } from './MemoryTab';
 import { t, useLanguage } from '../../i18n';
-
-const ACCENT = 'var(--g-accent)';
-
-/* ---------------- Helpers ---------------- */
-
-const formatDateTime = (iso?: string | number): string => {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return '—';
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-};
-
-const tryParseJson = (raw?: string): any => {
-  if (!raw) return null;
-  try {
-    return typeof raw === 'string' ? JSON.parse(raw) : raw;
-  } catch {
-    return null;
-  }
-};
-
-const jsonStringify = (val: any): string => {
-  if (val === null || val === undefined) return '';
-  if (typeof val === 'string') return val;
-  try {
-    return JSON.stringify(val, null, 2);
-  } catch {
-    return String(val);
-  }
-};
-
-/**
- * AI 生成：调用配置中心一次性 LLM 补全端点，返回生成的内容文本。
- */
-async function generateWithAI(prompt: string): Promise<string> {
-  const result = await agentApi.generateContent(prompt);
-  return result?.content || '';
-}
-
-/* ---------------- Shared AI generation modal ---------------- */
-
-interface AiGenModalProps {
-  visible: boolean;
-  onClose: () => void;
-  defaultPrompt: string;
-  onApply: (content: string) => void;
-}
-
-const AiGenModal: React.FC<AiGenModalProps> = ({ visible, onClose, defaultPrompt, onApply }) => {
-  const [prompt, setPrompt] = useState(defaultPrompt);
-  const [generating, setGenerating] = useState(false);
-  const [result, setResult] = useState('');
-
-  useEffect(() => {
-    if (visible) {
-      setPrompt(defaultPrompt);
-      setResult('');
-      setGenerating(false);
-    }
-  }, [visible, defaultPrompt]);
-
-  const handleGenerate = useCallback(async () => {
-    if (!prompt.trim()) {
-      Toast.warning('请输入生成提示词');
-      return;
-    }
-    setGenerating(true);
-    setResult('');
-    try {
-      const content = await generateWithAI(prompt);
-      setResult(content);
-      if (!content) {
-        Toast.warning('生成内容为空');
-      }
-    } catch (e) {
-      Toast.error(`生成失败: ${(e as Error).message}`);
-    } finally {
-      setGenerating(false);
-    }
-  }, [prompt]);
-
-  const handleApply = useCallback(() => {
-    if (!result.trim()) {
-      Toast.warning('没有可应用的内容');
-      return;
-    }
-    onApply(result);
-    onClose();
-  }, [result, onApply, onClose]);
-
-  return (
-    <Modal
-      title="AI 生成"
-      visible={visible}
-      onCancel={onClose}
-      footer={null}
-      width={680}
-    >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div>
-          <Typography.Text strong style={{ fontSize: 13 }}>{t('agent.config.generatePrompt')}</Typography.Text>
-          <TextArea
-            value={prompt}
-            onChange={(v) => setPrompt(v)}
-            autosize={{ minRows: 3, maxRows: 6 }}
-            placeholder="描述你希望生成的内容…"
-            style={{ marginTop: 6 }}
-          />
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Button
-            theme="solid"
-            style={{ background: ACCENT }}
-            loading={generating}
-            onClick={handleGenerate}
-          >
-            生成
-          </Button>
-          <Button onClick={onClose}>{t('common.cancel')}</Button>
-        </div>
-        {generating && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#888', fontSize: 13 }}>
-            <Spin /> {t('agent.config.generating')}
-          </div>
-        )}
-        {result && (
-          <div>
-            <Typography.Text strong style={{ fontSize: 13 }}>{t('agent.config.generateResult')}</Typography.Text>
-            <TextArea
-              value={result}
-              onChange={(v) => setResult(v)}
-              autosize={{ minRows: 6, maxRows: 16 }}
-              style={{ marginTop: 6, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}
-            />
-          </div>
-        )}
-        {result && (
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <Button theme="solid" style={{ background: ACCENT }} onClick={handleApply}>
-              应用到表单
-            </Button>
-          </div>
-        )}
-      </div>
-    </Modal>
-  );
-};
-
-/* ================================================================
- * ConfigItem — 配置项共享类型（被 PromptEditorTab 等使用）
- * ================================================================ */
-
-interface ConfigItem {
-  id?: number;
-  configKey: string;
-  configType?: string;
-  title?: string;
-  content?: string;
-  description?: string;
-  version?: number;
-  createdAt?: string;
-  updatedAt?: string;
-  /** RAG 知识块专用字段 */
-  source?: string;
-  metadata?: any;
-  language?: string;
-}
-
-/* ================================================================
- * ToolDefinitionTab — 工具定义（系统内置，仅展示与按分组过滤，支持编辑策略/启用）
- * ================================================================ */
+import { getApiBaseUrl } from '../../utils/apiConfig';
+import { SkillLibraryEditor } from './SkillLibraryEditor';
 
 interface ToolDefItem {
   id?: number;
@@ -205,12 +34,17 @@ interface ToolDefItem {
   toolGroup?: string;
   description?: string;
   parameters?: any;
-  pageContexts?: any;
   enabled?: boolean;
   sortOrder?: number;
   createdAt?: string;
   updatedAt?: string;
 }
+
+const jsonStringify = (val: any): string => {
+  if (val === null || val === undefined) return '';
+  if (typeof val === 'string') return val;
+  try { return JSON.stringify(val, null, 2); } catch { return String(val); }
+};
 
 const ToolDefinitionTab: React.FC = () => {
   useLanguage();
@@ -223,7 +57,6 @@ const ToolDefinitionTab: React.FC = () => {
     toolGroup: '',
     description: '',
     parameters: '',
-    pageContexts: '',
     enabled: true,
     sortOrder: 0,
   });
@@ -264,7 +97,6 @@ const ToolDefinitionTab: React.FC = () => {
     setForm({
       ...item,
       parameters: jsonStringify(item.parameters),
-      pageContexts: jsonStringify(item.pageContexts),
     });
     setModalVisible(true);
   };
@@ -279,17 +111,11 @@ const ToolDefinitionTab: React.FC = () => {
       Toast.error('parameters 不是合法的 JSON');
       return;
     }
-    const parsedContexts = tryParseJson(form.pageContexts as any);
-    if (form.pageContexts && parsedContexts === null) {
-      Toast.error('pageContexts 不是合法的 JSON 数组');
-      return;
-    }
     setSaving(true);
     try {
       await agentApi.saveToolDefinition({
         ...form,
         parameters: parsedParams || {},
-        pageContexts: Array.isArray(parsedContexts) ? parsedContexts : [],
       });
       Toast.success('保存成功');
       setModalVisible(false);
@@ -395,15 +221,6 @@ const ToolDefinitionTab: React.FC = () => {
               style={{ marginTop: 6, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}
             />
           </div>
-          <div>
-            <Typography.Text strong style={{ fontSize: 13 }}>PageContexts (JSON array)</Typography.Text>
-            <TextArea
-              value={form.pageContexts as any}
-              onChange={(v) => setForm({ ...form, pageContexts: v })}
-              autosize={{ minRows: 2, maxRows: 6 }}
-              style={{ marginTop: 6, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}
-            />
-          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Typography.Text strong style={{ fontSize: 13 }}>{t('common.enabled')}</Typography.Text>
             <Switch
@@ -431,6 +248,40 @@ const ToolDefinitionTab: React.FC = () => {
   );
 };
 
+const ACCENT = 'var(--g-accent)';
+
+/* ---------------- Helpers ---------------- */
+
+
+const tryParseJson = (raw?: string): any => {
+  if (!raw) return null;
+  try {
+    return typeof raw === 'string' ? JSON.parse(raw) : raw;
+  } catch {
+    return null;
+  }
+};
+
+
+/**
+ * AI 生成：调用配置中心一次性 LLM 补全端点，返回生成的内容文本。
+ */
+
+/* ---------------- Shared AI generation modal ---------------- */
+
+
+
+/* ================================================================
+ * ConfigItem — 配置项共享类型（被 PromptEditorTab 等使用）
+ * ================================================================ */
+
+
+/* ================================================================
+ * ToolDefinitionTab — 工具定义（系统内置，仅展示与按分组过滤，支持编辑策略/启用）
+ * ================================================================ */
+
+
+
 /* ================================================================
  * ModelConfigTab — LLM 模型配置（apiHost / apiKey / model 等）
  * ================================================================ */
@@ -453,27 +304,108 @@ const DEFAULT_ARK_CONFIG: ArkConfigForm = {
 };
 
 const ARK_CONFIG_KEY = 'provider_config:ark';
+const AS_SERVICE_CONFIG_KEY = 'provider_config:as-service';
 /** 默认执行引擎配置键（与后端 AgentProviderConfigService.DEFAULT_ENGINE_CONFIG_KEY 对应） */
 const ENGINE_CONFIG_KEY = 'agent.engine.default';
 
 interface EngineConfigForm {
-  mode: 'local' | 'ark';
+  mode: 'local' | 'ark' | 'as-service';
 }
 
 const DEFAULT_ENGINE_CONFIG: EngineConfigForm = { mode: 'local' };
 
-const ModelConfigTab: React.FC = () => {
+interface AsServiceConfigForm {
+  baseUrl: string;
+  apiKey: string;
+  adminUsername: string;
+  adminPassword: string;
+  tenant: string;
+  namespace: string;
+  mcpPublicUrl: string;
+  model: string;
+}
+
+const DEFAULT_AS_SERVICE_CONFIG: AsServiceConfigForm = {
+  baseUrl: 'http://localhost:18080',
+  apiKey: '',
+  adminUsername: 'admin',
+  adminPassword: '',
+  tenant: 'default',
+  namespace: 'default',
+  mcpPublicUrl: 'http://host.docker.internal:48080',
+  model: 'dashscope:qwen-max',
+};
+
+type EngineMode = 'local' | 'ark' | 'as-service';
+
+/** 引擎卡片元信息：名称 / 定位标签 / 描述 / 文档链接（2026-10-17 布局优化） */
+interface EngineCardMeta {
+  mode: EngineMode;
+  name: string;
+  tag: string;
+  tagColor: 'violet' | 'blue' | 'teal';
+  desc: string;
+  hint?: string;
+  link?: { href: string; label: string };
+}
+
+const ENGINE_CARDS: EngineCardMeta[] = [
+  {
+    mode: 'local',
+    name: '自研引擎',
+    tag: '本地编排',
+    tagColor: 'violet',
+    desc: '内置 Harness ReAct 循环在本地编排；模型条目在下方「模型管理」配置，支持多模型、会话级切换、思考档位与健康账本，无需外部依赖。',
+    hint: '模型在下方「模型管理」维护',
+  },
+  {
+    mode: 'ark',
+    name: '火山方舟托管',
+    tag: '云端托管',
+    tagColor: 'blue',
+    desc: '对话循环由火山方舟 Managed Agents 托管；首次运行自动创建远端 Agent，并把本地 8 个工具同步为 Custom Tool。',
+    link: { href: 'https://docs.volcengine.com/docs/ark/quick-start?lang=zh', label: '方舟官方文档' },
+  },
+  {
+    mode: 'as-service',
+    name: 'AgentScope Service',
+    tag: '自托管',
+    tagColor: 'teal',
+    desc: '对话循环由自托管 AgentScope Runtime Service 托管；工具经 MCP 端点回连本地执行，画布变更实时推送前端。',
+    link: { href: 'https://runtime.agentscope.io', label: 'AgentScope 文档' },
+  },
+];
+
+interface ModelConfigTabProps {
+  /** 已保存生效的引擎（来自 listModels().engineMode），用于「当前生效」标记 */
+  savedEngine: EngineMode;
+  /** 引擎切换保存成功后回调，父组件据此刷新生效引擎 */
+  onEngineSaved?: () => void;
+  /** 前端点选（草稿）变化回调：模型管理区跟随点选即时显隐 */
+  onDraftModeChange?: (mode: EngineMode) => void;
+}
+
+const ModelConfigTab: React.FC<ModelConfigTabProps> = ({ savedEngine, onEngineSaved, onDraftModeChange }) => {
   useLanguage();
   const [loading, setLoading] = useState(false);
   const [arkForm, setArkForm] = useState<ArkConfigForm>(DEFAULT_ARK_CONFIG);
   const [savingArk, setSavingArk] = useState(false);
+  const [asServiceForm, setAsServiceForm] = useState<AsServiceConfigForm>(DEFAULT_AS_SERVICE_CONFIG);
+  const [savingAsService, setSavingAsService] = useState(false);
   const [engineForm, setEngineForm] = useState<EngineConfigForm>(DEFAULT_ENGINE_CONFIG);
   const [savingEngine, setSavingEngine] = useState(false);
+
+  /** 点选/回填引擎草稿的唯一入口：同步通知父组件，联动下方模型管理区显隐 */
+  const applyMode = useCallback((mode: EngineMode) => {
+    setEngineForm({ mode });
+    onDraftModeChange?.(mode);
+  }, [onDraftModeChange]);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [arkData, engineData] = await Promise.all([
+      const [arkData, asServiceData, engineData] = await Promise.all([
+        agentApi.listConfigs('provider_config'),
         agentApi.listConfigs('provider_config'),
         agentApi.listConfigs('engine_config'),
       ]);
@@ -488,17 +420,31 @@ const ModelConfigTab: React.FC = () => {
           defaultModelId: parsed.defaultModelId ?? '',
         });
       }
+      const asServiceItem = (asServiceData || []).find((c: any) => c.configKey === AS_SERVICE_CONFIG_KEY);
+      if (asServiceItem) {
+        const parsed = tryParseJson(asServiceItem.configData) || {};
+        setAsServiceForm({
+          baseUrl: parsed.baseUrl ?? DEFAULT_AS_SERVICE_CONFIG.baseUrl,
+          apiKey: parsed.apiKey ?? '',
+          adminUsername: parsed.adminUsername ?? DEFAULT_AS_SERVICE_CONFIG.adminUsername,
+          adminPassword: parsed.adminPassword ?? '',
+          tenant: parsed.tenant ?? DEFAULT_AS_SERVICE_CONFIG.tenant,
+          namespace: parsed.namespace ?? DEFAULT_AS_SERVICE_CONFIG.namespace,
+          mcpPublicUrl: parsed.mcpPublicUrl ?? DEFAULT_AS_SERVICE_CONFIG.mcpPublicUrl,
+          model: parsed.model ?? DEFAULT_AS_SERVICE_CONFIG.model,
+        });
+      }
       const engineItem = (engineData || []).find((c: any) => c.configKey === ENGINE_CONFIG_KEY);
       if (engineItem) {
         const parsed = tryParseJson(engineItem.configData) || {};
-        setEngineForm({ mode: parsed.mode === 'ark' ? 'ark' : 'local' });
+        applyMode(parsed.mode === 'ark' ? 'ark' : parsed.mode === 'as-service' ? 'as-service' : 'local');
       }
     } catch (e) {
       Toast.error(`加载失败: ${(e as Error).message}`);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [applyMode]);
 
   useEffect(() => {
     void load();
@@ -539,6 +485,33 @@ const ModelConfigTab: React.FC = () => {
     }
   }, [arkForm]);
 
+  const handleSaveAsService = useCallback(async () => {
+    if (!asServiceForm.apiKey || !asServiceForm.adminPassword) {
+      Toast.warning({
+        content: '请填写应用 API Key（数据面凭据）与管理面密码（按会话自动同步托管 Agent 用）',
+        duration: 5,
+      });
+      return;
+    }
+    setSavingAsService(true);
+    try {
+      await agentApi.saveConfig(
+        {
+          configKey: AS_SERVICE_CONFIG_KEY,
+          configType: 'provider_config',
+          title: 'AgentScope Service 自托管连接配置',
+          configData: JSON.stringify(asServiceForm),
+        },
+        true,
+      );
+      Toast.success('保存成功，AgentScope Service 配置即时生效');
+    } catch (e) {
+      Toast.error(`保存失败: ${(e as Error).message}`);
+    } finally {
+      setSavingAsService(false);
+    }
+  }, [asServiceForm]);
+
   const handleSaveEngine = useCallback(async () => {
     if (engineForm.mode === 'ark' && (!arkForm.apiKey || !arkForm.environmentId)) {
       Toast.warning({
@@ -548,6 +521,13 @@ const ModelConfigTab: React.FC = () => {
       return;
     }
     if (engineForm.mode === 'ark' && !validateArkModelRequired()) return;
+    if (engineForm.mode === 'as-service' && (!asServiceForm.apiKey || !asServiceForm.adminPassword)) {
+      Toast.warning({
+        content: '请先完善下方「AgentScope Service」的 API Key 与管理面密码，再切换默认引擎',
+        duration: 5,
+      });
+      return;
+    }
     setSavingEngine(true);
     try {
       await agentApi.saveConfig(
@@ -562,14 +542,17 @@ const ModelConfigTab: React.FC = () => {
       Toast.success(
         engineForm.mode === 'ark'
           ? '已切换为方舟托管：新会话将走火山方舟（存量会话保持原引擎）'
-          : '已切换为自研引擎：新会话将走本地编排',
+          : engineForm.mode === 'as-service'
+            ? '已切换为 AgentScope Service 托管：新会话将走自托管 Service（存量会话保持原引擎）'
+            : '已切换为自研引擎：新会话将走本地编排',
       );
+      onEngineSaved?.();
     } catch (e) {
       Toast.error(`保存失败: ${(e as Error).message}`);
     } finally {
       setSavingEngine(false);
     }
-  }, [engineForm, arkForm.apiKey, arkForm.environmentId, validateArkModelRequired]);
+  }, [engineForm, arkForm.apiKey, arkForm.environmentId, validateArkModelRequired, asServiceForm.apiKey, asServiceForm.adminPassword, onEngineSaved]);
 
   if (loading) {
     return (
@@ -580,71 +563,189 @@ const ModelConfigTab: React.FC = () => {
   }
 
   return (
-    <div style={{ maxWidth: 640 }}>
-      {/* 默认执行引擎切换（管理端全局开关：自研 / 方舟托管） */}
+    <div>
+      {/* 默认执行引擎：三列卡片选择，描述与文档链接直接可见（2026-10-17 布局优化） */}
+      <Typography.Title heading={5} style={{ marginBottom: 4 }}>
+        默认执行引擎
+      </Typography.Title>
+      <Typography.Text type="tertiary" style={{ fontSize: 12.5, display: 'block' }}>
+        为新会话选择执行引擎，保存即时生效；存量会话保持创建时的引擎
+      </Typography.Text>
       <div
-        style={{
-          padding: 14,
-          border: '1px solid #e8e8ea',
-          borderRadius: 8,
-          marginBottom: 20,
-        }}
+        role="radiogroup"
+        aria-label="默认执行引擎"
+        style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12, marginTop: 14 }}
       >
-        <Typography.Title heading={5} style={{ marginBottom: 2 }}>
-          默认执行引擎
-        </Typography.Title>
-        <Typography.Text type="tertiary" style={{ fontSize: 11 }}>
-          先选择引擎，下方只显示该引擎需要的配置；保存即时生效，存量会话保持创建时的引擎。
-        </Typography.Text>
-        <RadioGroup
-          type="card"
-          value={engineForm.mode}
-          onChange={(e) => setEngineForm({ mode: e.target.value as 'local' | 'ark' })}
-          style={{ marginTop: 12, width: '100%' }}
-        >
-          <Radio value="local" style={{ width: '50%' }}>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <Typography.Text strong style={{ fontSize: 13 }}>自研引擎</Typography.Text>
-              <Typography.Text type="tertiary" style={{ fontSize: 11 }}>
-                模型在下方「模型条目管理」配置；无条目时用服务端内置默认模型
-              </Typography.Text>
+        {ENGINE_CARDS.map((card) => {
+          const selected = engineForm.mode === card.mode;
+          return (
+            <div
+              key={card.mode}
+              role="radio"
+              aria-checked={selected}
+              tabIndex={0}
+              onClick={() => applyMode(card.mode)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  applyMode(card.mode);
+                }
+              }}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+                padding: '14px 16px 12px',
+                background: selected ? 'rgba(77, 83, 232, 0.04)' : 'transparent',
+                border: selected ? '1px solid var(--g-accent, #4d53e8)' : '1px solid #e8e8ea',
+                borderRadius: 10,
+                boxShadow: selected ? 'inset 0 0 0 1px var(--g-accent, #4d53e8)' : 'none',
+                cursor: 'pointer',
+                outline: 'none',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span
+                  style={{
+                    flexShrink: 0,
+                    width: 14,
+                    height: 14,
+                    borderRadius: '50%',
+                    border: selected ? '1.5px solid var(--g-accent, #4d53e8)' : '1.5px solid #c6c9d0',
+                    background: '#fff',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {selected && (
+                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--g-accent, #4d53e8)' }} />
+                  )}
+                </span>
+                <Typography.Text strong style={{ fontSize: 14 }}>
+                  {card.name}
+                </Typography.Text>
+                <Tag size="small" color={card.tagColor}>
+                  {card.tag}
+                </Tag>
+                {savedEngine === card.mode && (
+                  <span
+                    style={{
+                      marginLeft: 'auto',
+                      flexShrink: 0,
+                      fontSize: 11,
+                      lineHeight: '18px',
+                      padding: '0 8px',
+                      borderRadius: 999,
+                      color: 'var(--g-accent, #4d53e8)',
+                      background: 'rgba(77, 83, 232, 0.07)',
+                      border: '1px solid rgba(77, 83, 232, 0.28)',
+                    }}
+                  >
+                    当前生效
+                  </span>
+                )}
+              </div>
+              <div style={{ flex: 1, fontSize: 12.5, lineHeight: 1.7, color: '#5c6168' }}>{card.desc}</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 20 }}>
+                {card.hint ? (
+                  <Typography.Text type="quaternary" style={{ fontSize: 12 }}>
+                    {card.hint}
+                  </Typography.Text>
+                ) : (
+                  <span />
+                )}
+                {card.link && (
+                  <a
+                    href={card.link.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      fontSize: 12.5,
+                      fontWeight: 600,
+                      color: 'var(--g-accent, #4d53e8)',
+                      textDecoration: 'none',
+                      flexShrink: 0,
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none'; }}
+                  >
+                    <IconHelpCircle size="small" />
+                    {card.link.label}
+                  </a>
+                )}
+              </div>
             </div>
-          </Radio>
-          <Radio value="ark" style={{ width: '50%' }}>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <Typography.Text strong style={{ fontSize: 13 }}>方舟托管</Typography.Text>
-              <Typography.Text type="tertiary" style={{ fontSize: 11 }}>
-                需配置火山方舟 apiKey / environmentId；首次运行自动创建远端 Agent 并同步工具
-              </Typography.Text>
-            </div>
-          </Radio>
-        </RadioGroup>
-        {engineForm.mode === 'ark' && (!arkForm.apiKey || !arkForm.environmentId || (!arkForm.defaultModelId && !arkForm.defaultAgentId)) && (
-          <div
-            style={{
-              marginTop: 10,
-              padding: 10,
-              background: '#fff7e6',
-              border: '1px solid #ffd591',
-              borderRadius: 6,
-              fontSize: 12,
-              color: '#d46b08',
-            }}
-          >
-            方舟配置未完整：{!arkForm.apiKey || !arkForm.environmentId ? 'apiKey / environmentId ' : ''}
-            {!arkForm.defaultModelId && !arkForm.defaultAgentId ? '默认模型 ID' : ''} 缺失，
-            请在下方「火山方舟托管」分区补全后再切换。
-          </div>
-        )}
-        <div style={{ marginTop: 12 }}>
-          <Button theme="solid" style={{ background: ACCENT }} loading={savingEngine} onClick={handleSaveEngine}>
-            保存引擎切换
-          </Button>
-        </div>
+          );
+        })}
       </div>
 
-      {/* 自研引擎的连接配置由「模型条目管理」承载（条目缺失时服务端用内置默认模型兜底），
-          不再提供独立单模型表单（2026-10-11 移除冗余层） */}
+      {engineForm.mode === 'ark' && (!arkForm.apiKey || !arkForm.environmentId || (!arkForm.defaultModelId && !arkForm.defaultAgentId)) && (
+        <div
+          style={{
+            marginTop: 12,
+            padding: '10px 13px',
+            background: '#fff7e6',
+            border: '1px solid #ffd591',
+            borderRadius: 8,
+            fontSize: 12.5,
+            color: '#d46b08',
+          }}
+        >
+          方舟配置未完整：{!arkForm.apiKey || !arkForm.environmentId ? 'apiKey / environmentId ' : ''}
+          {!arkForm.defaultModelId && !arkForm.defaultAgentId ? '默认模型 ID' : ''} 缺失，
+          请在下方「火山方舟托管」分区补全后再切换。
+        </div>
+      )}
+      {engineForm.mode === 'as-service' && (!asServiceForm.apiKey || !asServiceForm.adminPassword) && (
+        <div
+          style={{
+            marginTop: 12,
+            padding: '10px 13px',
+            background: '#fff7e6',
+            border: '1px solid #ffd591',
+            borderRadius: 8,
+            fontSize: 12.5,
+            color: '#d46b08',
+          }}
+        >
+          AgentScope Service 配置未完整：{!asServiceForm.apiKey ? '应用 API Key ' : ''}
+          {!asServiceForm.adminPassword ? '管理面密码 ' : ''}缺失，
+          请在下方「AgentScope Service」分区补全后再切换。
+        </div>
+      )}
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14 }}>
+        <Button theme="solid" style={{ background: ACCENT }} loading={savingEngine} onClick={handleSaveEngine}>
+          保存引擎切换
+        </Button>
+      </div>
+
+      {/* 自研引擎无需连接配置：模型条目由下方「模型管理」承载（条目缺失时服务端用内置默认模型兜底） */}
+      {engineForm.mode === 'local' && (
+        <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px dashed #e8e8ea' }}>
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '10px 13px',
+              background: '#f7f8fa',
+              border: '1px solid #ececf1',
+              borderRadius: 8,
+              fontSize: 12.5,
+              color: '#6b7078',
+            }}
+          >
+            <IconInfoCircle size="small" style={{ color: 'var(--g-accent, #4d53e8)', flexShrink: 0 }} />
+            <span>自研引擎无需连接配置：模型条目在下方「模型管理」维护，未配置时使用内置默认模型。</span>
+          </div>
+        </div>
+      )}
 
       {/* 方舟托管（Managed Agents）配置分区：仅选中方舟引擎时显示 */}
       {engineForm.mode === 'ark' && (
@@ -653,7 +754,6 @@ const ModelConfigTab: React.FC = () => {
           marginTop: 24,
           paddingTop: 20,
           borderTop: '1px dashed #e8e8ea',
-          maxWidth: 640,
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
@@ -682,10 +782,10 @@ const ModelConfigTab: React.FC = () => {
             方舟托管帮助文档
           </a>
         </div>
-        <Typography.Text type="tertiary" style={{ fontSize: 11 }}>
+        <Typography.Text type="tertiary" style={{ fontSize: 12.5, display: 'block' }}>
           engine=ark 的 Agent（内置 ark-assistant）由方舟托管对话循环；配置完整并保存引擎切换后，新会话走方舟托管。
         </Typography.Text>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 12 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 16, maxWidth: 660 }}>
           <div>
             <Typography.Text strong style={{ fontSize: 13 }}>Base URL</Typography.Text>
             <Input
@@ -704,23 +804,25 @@ const ModelConfigTab: React.FC = () => {
               style={{ marginTop: 6 }}
             />
           </div>
-          <div>
-            <Typography.Text strong style={{ fontSize: 13 }}>Environment ID</Typography.Text>
-            <Input
-              value={arkForm.environmentId}
-              onChange={(v) => setArkForm({ ...arkForm, environmentId: v })}
-              placeholder="env-2026...-xxxx（方舟控制台 → Environments）"
-              style={{ marginTop: 6 }}
-            />
-          </div>
-          <div>
-            <Typography.Text strong style={{ fontSize: 13 }}>默认方舟 Agent ID</Typography.Text>
-            <Input
-              value={arkForm.defaultAgentId}
-              onChange={(v) => setArkForm({ ...arkForm, defaultAgentId: v })}
-              placeholder="agent-2026...-xxxx（留空则不启用方舟默认引擎）"
-              style={{ marginTop: 6 }}
-            />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <Typography.Text strong style={{ fontSize: 13 }}>Environment ID</Typography.Text>
+              <Input
+                value={arkForm.environmentId}
+                onChange={(v) => setArkForm({ ...arkForm, environmentId: v })}
+                placeholder="env-2026...-xxxx（方舟控制台 → Environments）"
+                style={{ marginTop: 6 }}
+              />
+            </div>
+            <div>
+              <Typography.Text strong style={{ fontSize: 13 }}>默认方舟 Agent ID</Typography.Text>
+              <Input
+                value={arkForm.defaultAgentId}
+                onChange={(v) => setArkForm({ ...arkForm, defaultAgentId: v })}
+                placeholder="agent-2026...-xxxx（留空 = 自动创建远端 Agent）"
+                style={{ marginTop: 6 }}
+              />
+            </div>
           </div>
           <div>
             <Typography.Text strong style={{ fontSize: 13 }}>
@@ -750,7 +852,7 @@ const ModelConfigTab: React.FC = () => {
             }}
           >
             无需在方舟控制台手动创建 Agent：engine=ark 的 Agent 首次运行时会自动在方舟创建远端资源，
-            并把本地 13 个 v2 工具（读 / edit_workflow / run_workflow / 落版三件套 / todo_write）声明为 Custom Tool，
+            并把本地 8 个工具（get / node / edge / run / test_case / skill / ask_user / todo_write）声明为 Custom Tool，
             定义变更时自动带版本号同步。若你在「默认方舟 Agent ID」填入自己创建的 agent-...，则视为手动绑定，系统不再改动它。
           </div>
           <div>
@@ -761,849 +863,139 @@ const ModelConfigTab: React.FC = () => {
         </div>
       </div>
       )}
-    </div>
-  );
-};
 
-/* ================================================================
- * PromptEditorTab — 提示词 & 知识库（VSCode 风格编辑器）
- * ================================================================ */
-
-const PROMPT_EDITOR_BG = '#1e1e2e';
-const PROMPT_EDITOR_SIDEBAR_BG = '#252526';
-const PROMPT_EDITOR_TEXT = '#cccccc';
-const PROMPT_EDITOR_ACTIVE_BG = '#37373d';
-
-const SidebarGroup: React.FC<{
-  title: string;
-  items: ConfigItem[];
-  selectedKey: string;
-  onSelect: (item: ConfigItem) => void;
-  onCreate?: () => void;
-  onRename?: (item: ConfigItem) => void;
-  onDelete?: (item: ConfigItem) => void;
-}> = ({ title, items, selectedKey, onSelect, onCreate, onRename, onDelete }) => {
-  return (
-    <div>
+      {/* AgentScope Service（自托管）配置分区：仅选中 as-service 引擎时显示 */}
+      {engineForm.mode === 'as-service' && (
       <div
         style={{
-          padding: '8px 12px 4px',
-          fontSize: 11,
-          color: '#888',
-          letterSpacing: '0.4px',
-          textTransform: 'uppercase',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
+          marginTop: 24,
+          paddingTop: 20,
+          borderTop: '1px dashed #e8e8ea',
         }}
       >
-        <span>📁 {title}</span>
-        {onCreate && (
-          <button
-            onClick={onCreate}
-            title="新建"
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+          <div>
+            <Typography.Title heading={5} style={{ marginBottom: 4 }}>
+              AgentScope Service（自托管）
+            </Typography.Title>
+            <Typography.Text type="tertiary" style={{ fontSize: 12.5, display: 'block' }}>
+              engine=as-service 的 Agent（内置 as-service-assistant）由自托管 Service 托管对话循环；
+              模型走 dataplane 的 DashScope 协议扩展（可指向官方端点或协议适配器）。
+            </Typography.Text>
+          </div>
+          <a
+            href="https://runtime.agentscope.io"
+            target="_blank"
+            rel="noreferrer"
+            title="AgentScope Runtime 官方文档"
             style={{
-              background: 'transparent',
-              border: 'none',
-              color: '#888',
-              cursor: 'pointer',
-              fontSize: 14,
-              padding: '0 4px',
-              lineHeight: 1,
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = '#fff'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = '#888'; }}
-          >
-            +
-          </button>
-        )}
-      </div>
-      {items.length === 0 ? (
-        <div style={{ padding: '4px 12px 8px 24px', fontSize: 12, color: '#666', fontStyle: 'italic' }}>
-          （空）
-        </div>
-      ) : (
-        items.map((item) => {
-          const active = item.configKey === selectedKey;
-          return (
-            <div
-              key={item.configKey}
-              onClick={() => onSelect(item)}
-              title={item.configKey}
-              style={{
-                padding: '6px 12px 6px 24px',
-                fontSize: 13,
-                cursor: 'pointer',
-                background: active ? PROMPT_EDITOR_ACTIVE_BG : 'transparent',
-                color: active ? '#fff' : PROMPT_EDITOR_TEXT,
-                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                borderLeft: active ? '2px solid #4d53e8' : '2px solid transparent',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-            >
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
-                {item.title || item.configKey}
-              </span>
-              {item.configKey?.endsWith('.en') && (
-                <span style={{ fontSize: 9, color: '#4d53e8', flexShrink: 0, marginLeft: 2 }}>
-                  EN
-                </span>
-              )}
-              {active && (onRename || onDelete) && (
-                <span style={{ display: 'flex', gap: 4, flexShrink: 0, marginLeft: 4 }}>
-                  {onRename && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onRename(item); }}
-                      title="重命名"
-                      style={{
-                        background: 'transparent', border: 'none', color: '#888',
-                        cursor: 'pointer', fontSize: 11, padding: '0 2px',
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.color = '#fff'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.color = '#888'; }}
-                    >
-                      ✎
-                    </button>
-                  )}
-                  {onDelete && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onDelete(item); }}
-                      title="删除"
-                      style={{
-                        background: 'transparent', border: 'none', color: '#888',
-                        cursor: 'pointer', fontSize: 11, padding: '0 2px',
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.color = '#ff6b6b'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.color = '#888'; }}
-                    >
-                      ✕
-                    </button>
-                  )}
-                </span>
-              )}
-            </div>
-          );
-        })
-      )}
-    </div>
-  );
-};
-
-const PromptEditorTab: React.FC = () => {
-  const lang = useLanguage();
-  const [loading, setLoading] = useState(false);
-  const [promptList, setPromptList] = useState<ConfigItem[]>([]);
-  const [knowledgeList, setKnowledgeList] = useState<ConfigItem[]>([]);
-  const [ragList, setRagList] = useState<ConfigItem[]>([]);
-  const [selectedKey, setSelectedKey] = useState<string>('');
-  const [editContent, setEditContent] = useState<string>('');
-  const [saving, setSaving] = useState(false);
-  const [historyVisible, setHistoryVisible] = useState(false);
-  const [historyLoading, setHistoryLoading] = useState(false);
-  const [historyList, setHistoryList] = useState<any[]>([]);
-  const [historyKey, setHistoryKey] = useState('');
-  const lineNumbersRef = useRef<HTMLDivElement | null>(null);
-  // RAG 工具栏状态
-  const [aiVisible, setAiVisible] = useState(false);
-  const [searchVisible, setSearchVisible] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searching, setSearching] = useState(false);
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [prompts, knowledge, rags] = await Promise.all([
-        agentApi.listConfigs('system_prompt'),
-        agentApi.listConfigs('node_knowledge'),
-        agentApi.listKnowledge(),
-      ]);
-      setPromptList(prompts || []);
-      setKnowledgeList(knowledge || []);
-      // 将 RAG 知识块转换为 ConfigItem 格式以便统一管理
-      const ragItems: ConfigItem[] = (rags || []).map((r: any) => ({
-        id: r.id,
-        configKey: `rag_${r.id}`,
-        configType: 'rag_chunk',
-        title: r.title,
-        content: r.content,
-        source: r.source,
-        metadata: r.metadata,
-        language: r.language || 'zh',
-      }));
-      setRagList(ragItems);
-    } catch (e) {
-      Toast.error(`加载失败: ${(e as Error).message}`);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  // 按当前系统语言过滤：en 显示 .en 后缀的条目，zh 显示无后缀的条目
-  const filteredPrompts = useMemo(() => {
-    return promptList.filter((item) =>
-      lang === 'en' ? item.configKey?.endsWith('.en') : !item.configKey?.endsWith('.en')
-    );
-  }, [promptList, lang]);
-
-  const filteredKnowledge = useMemo(() => {
-    return knowledgeList.filter((item) =>
-      lang === 'en' ? item.configKey?.endsWith('.en') : !item.configKey?.endsWith('.en')
-    );
-  }, [knowledgeList, lang]);
-
-  // RAG 知识块按 language 字段过滤
-  const filteredRag = useMemo(() => {
-    const langCode = lang === 'en' ? 'en' : 'zh';
-    return ragList.filter((item) => (item.language || 'zh') === langCode);
-  }, [ragList, lang]);
-
-  // 语言切换时，如果当前选中的条目不属于当前语言，自动选中第一个匹配条目
-  useEffect(() => {
-    const allFiltered = [...filteredPrompts, ...filteredKnowledge, ...filteredRag];
-    if (allFiltered.length === 0) {
-      setSelectedKey('');
-      setEditContent('');
-      return;
-    }
-    const currentBelongsToLang = allFiltered.some((item) => item.configKey === selectedKey);
-    if (!currentBelongsToLang) {
-      const first = filteredPrompts[0] || filteredKnowledge[0] || filteredRag[0];
-      if (first) {
-        setSelectedKey(first.configKey);
-        setEditContent(first.content || '');
-      }
-    }
-  }, [lang, filteredPrompts, filteredKnowledge, filteredRag, selectedKey]);
-
-  // 列表加载完成后，自动选中第一个项目
-  useEffect(() => {
-    if (!selectedKey && (filteredPrompts.length > 0 || filteredKnowledge.length > 0 || filteredRag.length > 0)) {
-      const first = filteredPrompts[0] || filteredKnowledge[0] || filteredRag[0];
-      if (first) {
-        setSelectedKey(first.configKey);
-        setEditContent(first.content || '');
-      }
-    }
-  }, [selectedKey, filteredPrompts, filteredKnowledge, filteredRag]);
-
-  const selectedItem = useMemo(() => {
-    return [...filteredPrompts, ...filteredKnowledge, ...filteredRag].find((item) => item.configKey === selectedKey);
-  }, [filteredPrompts, filteredKnowledge, filteredRag, selectedKey]);
-
-  const handleSelect = useCallback((item: ConfigItem) => {
-    setSelectedKey(item.configKey);
-    setEditContent(item.content || '');
-  }, []);
-
-  const handleSave = useCallback(async () => {
-    if (!selectedItem) return;
-    setSaving(true);
-    try {
-      if (selectedItem.configType === 'rag_chunk') {
-        // RAG 知识块走 knowledge API
-        await agentApi.saveKnowledge({
-          id: selectedItem.id,
-          title: selectedItem.title || '',
-          content: editContent,
-          source: selectedItem.source || '',
-          metadata: selectedItem.metadata || {},
-          language: selectedItem.language || (lang === 'en' ? 'en' : 'zh'),
-        });
-        Toast.success('保存成功');
-      } else {
-        await agentApi.saveConfig({
-          ...selectedItem,
-          content: editContent,
-        });
-        Toast.success(t('agent.config.savedAsVersion'));
-      }
-      void load();
-    } catch (e) {
-      Toast.error(`保存失败: ${(e as Error).message}`);
-    } finally {
-      setSaving(false);
-    }
-  }, [selectedItem, editContent, load, lang]);
-
-  const openHistory = useCallback(async () => {
-    if (!selectedItem) return;
-    setHistoryKey(selectedItem.configKey);
-    setHistoryVisible(true);
-    setHistoryLoading(true);
-    setHistoryList([]);
-    try {
-      const data = await agentApi.getConfigHistory(selectedItem.configKey);
-      setHistoryList(data || []);
-    } catch (e) {
-      Toast.error(`加载历史失败: ${(e as Error).message}`);
-    } finally {
-      setHistoryLoading(false);
-    }
-  }, [selectedItem]);
-
-  const handleRevert = useCallback(async (version: number) => {
-    try {
-      await agentApi.revertConfig(historyKey, version);
-      Toast.success(t('agent.config.appliedEffective'));
-      setHistoryVisible(false);
-      void load();
-    } catch (e) {
-      Toast.error(`${t('agent.config.applyFailed')}: ${(e as Error).message}`);
-    }
-  }, [historyKey, load, t]);
-
-  // 新建配置项
-  const [createModalVisible, setCreateModalVisible] = useState(false);
-  const [createType, setCreateType] = useState<'system_prompt' | 'node_knowledge' | 'rag_chunk'>('system_prompt');
-  const [createForm, setCreateForm] = useState({ configKey: '', title: '', content: '' });
-
-  const openCreate = useCallback((type: 'system_prompt' | 'node_knowledge' | 'rag_chunk') => {
-    setCreateType(type);
-    setCreateForm({ configKey: '', title: '', content: '' });
-    setCreateModalVisible(true);
-  }, []);
-
-  const handleCreate = useCallback(async () => {
-    if (createType === 'rag_chunk') {
-      if (!createForm.title) {
-        Toast.warning('请填写标题');
-        return;
-      }
-      try {
-        await agentApi.saveKnowledge({
-          title: createForm.title,
-          content: createForm.content,
-          source: 'manual',
-          metadata: {},
-          language: lang === 'en' ? 'en' : 'zh',
-        });
-        Toast.success('创建成功');
-        setCreateModalVisible(false);
-        void load();
-      } catch (e) {
-        Toast.error(`创建失败: ${(e as Error).message}`);
-      }
-      return;
-    }
-    if (!createForm.configKey) {
-      Toast.warning('请填写 configKey');
-      return;
-    }
-    try {
-      await agentApi.saveConfig({
-        configKey: createForm.configKey,
-        configType: createType,
-        title: createForm.title || createForm.configKey,
-        content: createForm.content,
-      });
-      Toast.success('创建成功');
-      setCreateModalVisible(false);
-      void load();
-      setSelectedKey(createForm.configKey);
-    } catch (e) {
-      Toast.error(`创建失败: ${(e as Error).message}`);
-    }
-  }, [createForm, createType, load, lang]);
-
-  // 重命名
-  const [renameVisible, setRenameVisible] = useState(false);
-  const [renameItem, setRenameItem] = useState<ConfigItem | null>(null);
-  const [renameTitle, setRenameTitle] = useState('');
-
-  const openRename = useCallback((item: ConfigItem) => {
-    setRenameItem(item);
-    setRenameTitle(item.title || '');
-    setRenameVisible(true);
-  }, []);
-
-  const handleRename = useCallback(async () => {
-    if (!renameItem) return;
-    try {
-      if (renameItem.configType === 'rag_chunk') {
-        await agentApi.saveKnowledge({
-          id: renameItem.id,
-          title: renameTitle,
-          content: renameItem.content,
-          source: renameItem.source || '',
-          metadata: renameItem.metadata || {},
-          language: renameItem.language || (lang === 'en' ? 'en' : 'zh'),
-        });
-      } else {
-        await agentApi.saveConfig(
-          {
-            ...renameItem,
-            title: renameTitle,
-          },
-          true,
-        );
-      }
-      Toast.success('重命名成功');
-      setRenameVisible(false);
-      void load();
-    } catch (e) {
-      Toast.error(`重命名失败: ${(e as Error).message}`);
-    }
-  }, [renameItem, renameTitle, load, lang]);
-
-  // 删除
-  const handleDelete = useCallback((item: ConfigItem) => {
-    Modal.confirm({
-      title: '确认删除',
-      content: `确定删除「${item.title || item.configKey}」吗？此操作不可恢复。`,
-      onOk: async () => {
-        try {
-          if (item.configType === 'rag_chunk' && item.id) {
-            await agentApi.deleteKnowledge(item.id);
-          } else {
-            await agentApi.deleteConfig(item.configKey);
-          }
-          Toast.success('删除成功');
-          if (selectedKey === item.configKey) {
-            setSelectedKey('');
-            setEditContent('');
-          }
-          void load();
-        } catch (e) {
-          Toast.error(`删除失败: ${(e as Error).message}`);
-        }
-      },
-    });
-  }, [selectedKey, load]);
-
-  const handleEditorScroll = useCallback((e: React.UIEvent<HTMLTextAreaElement>) => {
-    if (lineNumbersRef.current) {
-      lineNumbersRef.current.scrollTop = e.currentTarget.scrollTop;
-    }
-  }, []);
-
-  const lineCount = useMemo(() => Math.max(editContent.split('\n').length, 1), [editContent]);
-
-  // RAG: 检索预览
-  const handleSearch = useCallback(async () => {
-    if (!searchQuery.trim()) {
-      Toast.warning('请输入检索内容');
-      return;
-    }
-    setSearching(true);
-    setSearchResults([]);
-    try {
-      const data = await agentApi.searchKnowledge(searchQuery, 5, lang === 'en' ? 'en' : 'zh');
-      setSearchResults(data || []);
-    } catch (e) {
-      Toast.error(`检索失败: ${(e as Error).message}`);
-    } finally {
-      setSearching(false);
-    }
-  }, [searchQuery, lang]);
-
-  const totalCount = promptList.length + knowledgeList.length + ragList.length;
-
-  return (
-    <div>
-      {/* 顶部工具栏：AI 生成 / 检索预览 / 刷新 */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' }}>
-        <Button theme="solid" style={{ background: ACCENT }} onClick={() => setAiVisible(true)}>
-          {t('agent.config.aiGenerate')}
-        </Button>
-        <Button onClick={() => setSearchVisible(true)}>{t('agent.config.retrievalPreview')}</Button>
-        <Button onClick={() => void load()}>{t('agent.config.refresh')}</Button>
-        <span style={{ fontSize: 12, color: '#aaa', marginLeft: 'auto' }}>
-          {t('agent.config.promptGroup')}: {filteredPrompts.length} / {t('agent.config.knowledgeGroup')}: {filteredKnowledge.length} / {t('agent.config.ragKnowledgeGroup')}: {filteredRag.length}
-        </span>
-      </div>
-
-      {loading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
-          <Spin />
-        </div>
-      ) : totalCount === 0 ? (
-        <div style={{ color: '#999', padding: 24, textAlign: 'center' }}>
-          暂无配置项，请先创建 system_prompt、node_knowledge 或 RAG 知识块
-        </div>
-      ) : (
-        <div
-          style={{
-            display: 'flex',
-            height: 'calc(100vh - 300px)',
-            minHeight: 440,
-            border: '1px solid #333',
-            borderRadius: 6,
-            overflow: 'hidden',
-          }}
-        >
-          {/* 左侧文件树 */}
-          <div
-            style={{
-              width: 220,
-              background: PROMPT_EDITOR_SIDEBAR_BG,
-              color: PROMPT_EDITOR_TEXT,
-              overflowY: 'auto',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              fontSize: 12.5,
+              fontWeight: 600,
+              color: 'var(--g-accent, #4d53e8)',
+              textDecoration: 'none',
               flexShrink: 0,
             }}
+            onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none'; }}
           >
-            <SidebarGroup
-              title={t('agent.config.promptGroup')}
-              items={filteredPrompts}
-              selectedKey={selectedKey}
-              onSelect={handleSelect}
-              onCreate={() => openCreate('system_prompt')}
-              onRename={openRename}
-              onDelete={handleDelete}
-            />
-            <SidebarGroup
-              title={t('agent.config.knowledgeGroup')}
-              items={filteredKnowledge}
-              selectedKey={selectedKey}
-              onSelect={handleSelect}
-              onCreate={() => openCreate('node_knowledge')}
-              onRename={openRename}
-              onDelete={handleDelete}
-            />
-            <SidebarGroup
-              title={t('agent.config.ragKnowledgeGroup')}
-              items={filteredRag}
-              selectedKey={selectedKey}
-              onSelect={handleSelect}
-              onCreate={() => openCreate('rag_chunk')}
-              onRename={openRename}
-              onDelete={handleDelete}
-            />
-          </div>
-
-          {/* 右侧编辑器 */}
-          <div
-            style={{
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              background: PROMPT_EDITOR_BG,
-              minWidth: 0,
-            }}
-          >
-            {/* 顶部条 */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                padding: '8px 12px',
-                borderBottom: '1px solid #333',
-                background: PROMPT_EDITOR_SIDEBAR_BG,
-                gap: 8,
-              }}
-            >
-              <span style={{ color: PROMPT_EDITOR_TEXT, fontSize: 13, fontWeight: 500 }}>
-                {selectedItem?.title || selectedItem?.configKey || '—'}
-              </span>
-              {selectedItem?.configType && (
-                <Tag size="small" color="blue">
-                  {selectedItem.configType}
-                </Tag>
-              )}
-              {/* 语言标识（跟随系统语言，无需手动切换） */}
-              <span
-                style={{
-                  marginLeft: 'auto',
-                  fontSize: 12,
-                  color: '#888',
-                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                }}
-              >
-                {lang === 'en' ? 'en-US' : 'zh-CN'}
-              </span>
-              <Button
-                theme="solid"
-                size="small"
-                style={{ background: ACCENT }}
-                loading={saving}
-                onClick={handleSave}
-                disabled={!selectedItem}
-              >
-                {t('agent.config.save')}
-              </Button>
-            </div>
-
-            {/* 编辑器主体 */}
-            <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-              {/* 行号 */}
-              <div
-                ref={lineNumbersRef}
-                style={{
-                  padding: '12px 8px',
-                  color: '#6e7681',
-                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                  fontSize: 13,
-                  lineHeight: '1.5',
-                  textAlign: 'right',
-                  userSelect: 'none',
-                  background: PROMPT_EDITOR_BG,
-                  overflow: 'hidden',
-                  whiteSpace: 'pre',
-                  minWidth: 48,
-                }}
-              >
-                {Array.from({ length: lineCount }, (_, i) => i + 1).join('\n')}
-              </div>
-              {/* 文本编辑区 */}
-              <textarea
-                value={editContent}
-                onChange={(e) => setEditContent(e.target.value)}
-                onScroll={handleEditorScroll}
-                spellCheck={false}
-                style={{
-                  flex: 1,
-                  background: PROMPT_EDITOR_BG,
-                  color: '#d4d4d4',
-                  border: 'none',
-                  outline: 'none',
-                  resize: 'none',
-                  padding: '12px',
-                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                  fontSize: 13,
-                  lineHeight: '1.5',
-                  overflow: 'auto',
-                }}
-              />
-            </div>
-
-            {/* 底部操作栏 */}
-            <div
-              style={{
-                display: 'flex',
-                gap: 8,
-                padding: '8px 12px',
-                borderTop: '1px solid #333',
-                background: PROMPT_EDITOR_SIDEBAR_BG,
-              }}
-            >
-              <Button
-                theme="solid"
-                style={{ background: ACCENT }}
-                loading={saving}
-                onClick={handleSave}
-                disabled={!selectedItem}
-              >
-                {t('agent.config.save')}
-              </Button>
-              <Button onClick={openHistory} disabled={!selectedItem}>
-                {t('agent.config.history')}
-              </Button>
-            </div>
-          </div>
+            <IconHelpCircle size="small" />
+            AgentScope Runtime 文档
+          </a>
         </div>
-      )}
-
-      {/* 版本管理 modal */}
-      <Modal
-        title={`${t('agent.config.versionManage')} — ${historyKey}`}
-        visible={historyVisible}
-        onCancel={() => setHistoryVisible(false)}
-        footer={null}
-        width={680}
-      >
-        <Typography.Text type="tertiary" style={{ display: 'block', marginBottom: 12, fontSize: 12 }}>
-          {t('agent.config.versionManageTip')}
-        </Typography.Text>
-        {historyLoading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}>
-            <Spin />
-          </div>
-        ) : historyList.length === 0 ? (
-          <div style={{ color: '#999', padding: 16, textAlign: 'center' }}>{t('agent.config.noHistory')}</div>
-        ) : (
-          <Table
-            columns={[
-              { title: t('agent.config.versionCol'), dataIndex: 'version', key: 'version', width: 80 },
-              { title: t('common.title'), dataIndex: 'title', key: 'title', width: 160 },
-              {
-                title: t('agent.config.createdAt'),
-                dataIndex: 'createdAt',
-                key: 'createdAt',
-                width: 170,
-                render: (text: string) => formatDateTime(text),
-              },
-              {
-                title: t('common.action'),
-                key: 'action',
-                width: 130,
-                render: (_t: any, record: any) => (
-                  <Button
-                    size="small"
-                    theme="borderless"
-                    style={{ color: ACCENT }}
-                    onClick={() => handleRevert(record.version)}
-                  >
-                    {t('agent.config.applyEffective')}
-                  </Button>
-                ),
-              },
-            ]}
-            dataSource={historyList}
-            rowKey="version"
-            pagination={false}
-          />
-        )}
-      </Modal>
-
-      {/* 新建配置项 modal */}
-      <Modal
-        title={`新建 — ${createType === 'system_prompt' ? '系统提示词' : createType === 'node_knowledge' ? '节点知识库' : 'RAG 知识块'}`}
-        visible={createModalVisible}
-        onCancel={() => setCreateModalVisible(false)}
-        footer={null}
-        width={520}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {createType !== 'rag_chunk' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 16, maxWidth: 660 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
-              <Typography.Text strong style={{ fontSize: 13 }}>{t('agent.config.configKey')}</Typography.Text>
+              <Typography.Text strong style={{ fontSize: 13 }}>Base URL</Typography.Text>
               <Input
-                value={createForm.configKey}
-                onChange={(v) => setCreateForm({ ...createForm, configKey: v })}
-                placeholder={createType === 'system_prompt' ? '如 system_prompt.custom' : '如 node_custom'}
+                value={asServiceForm.baseUrl}
+                onChange={(v) => setAsServiceForm({ ...asServiceForm, baseUrl: v })}
+                placeholder="http://localhost:18080"
                 style={{ marginTop: 6 }}
               />
             </div>
-          )}
-          <div>
-            <Typography.Text strong style={{ fontSize: 13 }}>{t('common.title')}</Typography.Text>
-            <Input
-              value={createForm.title}
-              onChange={(v) => setCreateForm({ ...createForm, title: v })}
-              placeholder="显示名称"
-              style={{ marginTop: 6 }}
-            />
+            <div>
+              <Typography.Text strong style={{ fontSize: 13 }}>应用 API Key</Typography.Text>
+              <Input
+                value={asServiceForm.apiKey}
+                onChange={(v) => setAsServiceForm({ ...asServiceForm, apiKey: v })}
+                placeholder="ass_...（scopes 含 invoke/read/interact）"
+                style={{ marginTop: 6 }}
+              />
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <Typography.Text strong style={{ fontSize: 13 }}>管理面账号</Typography.Text>
+              <Input
+                value={asServiceForm.adminUsername}
+                onChange={(v) => setAsServiceForm({ ...asServiceForm, adminUsername: v })}
+                placeholder="admin"
+                style={{ marginTop: 6 }}
+              />
+            </div>
+            <div>
+              <Typography.Text strong style={{ fontSize: 13 }}>管理面密码</Typography.Text>
+              <Input
+                value={asServiceForm.adminPassword}
+                onChange={(v) => setAsServiceForm({ ...asServiceForm, adminPassword: v })}
+                placeholder="Service 控制台 admin 密码（.env CONTROL_PLANE_BOOTSTRAP_PASSWORD）"
+                style={{ marginTop: 6 }}
+              />
+              <Typography.Text type="tertiary" style={{ fontSize: 11 }}>
+                用于按会话自动在 Service 创建托管 Agent，无需手工建 Agent。
+              </Typography.Text>
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <Typography.Text strong style={{ fontSize: 13 }}>MCP 回连基址</Typography.Text>
+              <Input
+                value={asServiceForm.mcpPublicUrl}
+                onChange={(v) => setAsServiceForm({ ...asServiceForm, mcpPublicUrl: v })}
+                placeholder="http://host.docker.internal:48080"
+                style={{ marginTop: 6 }}
+              />
+              <Typography.Text type="tertiary" style={{ fontSize: 11 }}>
+                Service 数据面容器回连本服务 MCP 端点的地址（Docker Desktop 用 host.docker.internal）。
+              </Typography.Text>
+            </div>
+            <div>
+              <Typography.Text strong style={{ fontSize: 13 }}>模型（ModelRegistry 串）</Typography.Text>
+              <Input
+                value={asServiceForm.model}
+                onChange={(v) => setAsServiceForm({ ...asServiceForm, model: v })}
+                placeholder="dashscope:qwen-max"
+                style={{ marginTop: 6 }}
+              />
+              <Typography.Text type="tertiary" style={{ fontSize: 11 }}>
+                provider:model 形态；base URL 由 Service .env 的 DASHSCOPE_BASE_URL 决定。
+              </Typography.Text>
+            </div>
+          </div>
+          <div
+            style={{
+              padding: 12,
+              background: '#f9f0ff',
+              border: '1px solid #d3adf7',
+              borderRadius: 8,
+              fontSize: 12,
+              color: '#531dab',
+            }}
+          >
+            无需在 Service 控制台手动创建 Agent：engine=as-service 的会话首次运行时会按会话自动创建
+            托管 Agent（工具经 MCP 端点 /mcp/gaia/&#123;sessionKey&#125; 回连本地执行，画布变更实时推前端）。
           </div>
           <div>
-            <Typography.Text strong style={{ fontSize: 13 }}>{t('common.content')}</Typography.Text>
-            <TextArea
-              value={createForm.content}
-              onChange={(v) => setCreateForm({ ...createForm, content: v })}
-              autosize={{ minRows: 4, maxRows: 12 }}
-              placeholder="提示词或知识文档内容…"
-              style={{ marginTop: 6, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}
-            />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-            <Button onClick={() => setCreateModalVisible(false)}>{t('common.cancel')}</Button>
-            <Button theme="solid" style={{ background: ACCENT }} onClick={handleCreate}>
-              创建
+            <Button theme="solid" style={{ background: ACCENT }} loading={savingAsService} onClick={handleSaveAsService}>
+              保存 AgentScope Service 配置
             </Button>
           </div>
         </div>
-      </Modal>
-
-      {/* 重命名 modal */}
-      <Modal
-        title="重命名"
-        visible={renameVisible}
-        onCancel={() => setRenameVisible(false)}
-        footer={null}
-        width={420}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div>
-            <Typography.Text strong style={{ fontSize: 13 }}>
-              {renameItem?.configType === 'rag_chunk' ? t('common.title') : 'ConfigKey'}
-            </Typography.Text>
-            <Input
-              value={renameItem?.configType === 'rag_chunk' ? (renameItem?.title || '') : (renameItem?.configKey || '')}
-              disabled
-              style={{ marginTop: 6 }}
-            />
-          </div>
-          <div>
-            <Typography.Text strong style={{ fontSize: 13 }}>{t('agent.config.newTitle')}</Typography.Text>
-            <Input
-              value={renameTitle}
-              onChange={(v) => setRenameTitle(v)}
-              style={{ marginTop: 6 }}
-              onEnterPress={() => void handleRename()}
-            />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-            <Button onClick={() => setRenameVisible(false)}>{t('common.cancel')}</Button>
-            <Button theme="solid" style={{ background: ACCENT }} onClick={handleRename}>
-              确认
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* AI 生成 modal */}
-      <AiGenModal
-        visible={aiVisible}
-        onClose={() => setAiVisible(false)}
-        defaultPrompt="请生成一段 Agent 知识库文档内容，用于辅助工作流编辑器中的用户。内容应清晰、结构化，涵盖常见场景与最佳实践。"
-        onApply={(content) => {
-          // 生成完成后，打开新建 RAG 知识块弹窗并预填内容
-          setCreateType('rag_chunk');
-          setCreateForm({ configKey: '', title: '', content });
-          setCreateModalVisible(true);
-        }}
-      />
-
-      {/* 检索预览 modal */}
-      <Modal
-        title="检索预览"
-        visible={searchVisible}
-        onCancel={() => setSearchVisible(false)}
-        footer={null}
-        width={720}
-      >
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-          <Input
-            value={searchQuery}
-            onChange={(v) => setSearchQuery(v)}
-            placeholder="输入检索内容…"
-            style={{ flex: 1 }}
-            onEnterPress={() => void handleSearch()}
-          />
-          <Button theme="solid" style={{ background: ACCENT }} loading={searching} onClick={() => void handleSearch()}>
-            检索
-          </Button>
-        </div>
-        {searching ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}>
-            <Spin />
-          </div>
-        ) : searchResults.length === 0 ? (
-          <div style={{ color: '#999', padding: 16, textAlign: 'center' }}>{t('agent.config.noResult')}</div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {searchResults.map((r, idx) => (
-              <div
-                key={r.id ?? idx}
-                style={{
-                  border: '1px solid #eee',
-                  borderRadius: 8,
-                  padding: 10,
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ fontWeight: 600, fontSize: 13 }}>{r.title || `#${idx + 1}`}</span>
-                  {r.score !== undefined && (
-                    <Tag color="blue" size="small">score: {Number(r.score).toFixed(3)}</Tag>
-                  )}
-                </div>
-                <div style={{ fontSize: 12, color: '#666', whiteSpace: 'pre-wrap' }}>
-                  {(r.content || '').slice(0, 300)}
-                  {(r.content || '').length > 300 ? '…' : ''}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Modal>
+      </div>
+      )}
     </div>
   );
 };
@@ -1701,14 +1093,14 @@ export const AgentConfigManagement: React.FC = () => {
         <TabPane tab={t('agent.config.tabModel')} itemKey="model">
           <ModelTabContent />
         </TabPane>
-        <TabPane tab={t('agent.config.tabPrompt')} itemKey="prompts">
-          <PromptEditorTab />
+        <TabPane tab="Agent 指令" itemKey="persona">
+          <PersonaTabContent />
         </TabPane>
-        <TabPane tab={t('agent.config.tabTools')} itemKey="tools">
+        <TabPane tab="技能库" itemKey="skills">
+          <SkillLibraryEditor />
+        </TabPane>
+        <TabPane tab="工具定义" itemKey="tools">
           <ToolDefinitionTab />
-        </TabPane>
-        <TabPane tab="长期记忆" itemKey="memory">
-          <MemoryTab />
         </TabPane>
       </Tabs>
     </div>
@@ -1716,46 +1108,37 @@ export const AgentConfigManagement: React.FC = () => {
 };
 
 /**
- * 模型配置 tab 内容：引擎选择先行（自研/方舟），只有自研引擎才有多模型条目管理。
- * 方舟托管的模型由远端 Agent 管理，本地条目对其无效 —— 不显示管理界面避免误导。
+ * 模型配置 tab 内容：引擎选择先行（自研/方舟/AgentScope Service）。
+ * 模型管理区跟随「前端点选」的引擎即时显隐：选中自研引擎才渲染；
+ * 方舟/Service 的模型由远端管理，不渲染任何占位（2026-10-17 反馈）。
  */
 const ModelTabContent: React.FC = () => {
-  const [engineMode, setEngineMode] = useState<'local' | 'ark'>('local');
+  const [engineMode, setEngineMode] = useState<'local' | 'ark' | 'as-service'>('local');
+  /** 前端点选的引擎草稿（未保存也即时联动模型管理区） */
+  const [draftMode, setDraftMode] = useState<'local' | 'ark' | 'as-service'>('local');
 
-  useEffect(() => {
-    let cancelled = false;
-    agentApi.listModels()
-      .then((r) => { if (!cancelled) setEngineMode(r.engineMode === 'ark' ? 'ark' : 'local'); })
-      .catch(() => {});
-    return () => { cancelled = true; };
+  const reloadEngine = useCallback(async () => {
+    try {
+      const r = await agentApi.listModels();
+      setEngineMode(r.engineMode === 'ark' ? 'ark' : r.engineMode === 'as-service' ? 'as-service' : 'local');
+    } catch {
+      // 拉取失败保持当前值，避免「当前生效」标记闪烁
+    }
   }, []);
+
+  useEffect(() => { void reloadEngine(); }, [reloadEngine]);
 
   return (
     <>
-      {/* 引擎选择 + 该引擎所需的连接配置（llm 兜底 / 方舟三要素） */}
-      <ModelConfigTab />
-      {engineMode === 'local' ? (
-        <div style={{ marginTop: 24 }}>
-          <div style={{
-            fontSize: 13, fontWeight: 600, color: '#1a1a1a',
-            borderTop: '1px solid #ececf1', paddingTop: 16, marginBottom: 4,
-          }}>
-            模型条目管理
-          </div>
-          <div style={{ fontSize: 12, color: '#888', marginBottom: 12 }}>
-            自研引擎的模型在这里配置：多模型条目 + 会话级选择 + 思考档位 + 测活与健康账本。
-            未配置任何条目时使用服务端内置默认模型。
-          </div>
+      {/* 引擎选择 + 该引擎所需的连接配置（llm 兜底 / 方舟三要素 / Service 连接） */}
+      <ModelConfigTab
+        savedEngine={engineMode}
+        onEngineSaved={() => void reloadEngine()}
+        onDraftModeChange={setDraftMode}
+      />
+      {draftMode === 'local' && (
+        <div style={{ marginTop: 28, borderTop: '1px solid #ececf1', paddingTop: 22 }}>
           <ModelManagement />
-        </div>
-      ) : (
-        <div style={{
-          marginTop: 20, padding: '14px 16px', background: '#f7f8fa',
-          border: '1px solid #ececf1', borderRadius: 10,
-          fontSize: 12.5, color: '#888', textAlign: 'center',
-        }}>
-          当前为方舟托管引擎：模型由远端 Agent 管理，本地模型条目不生效。
-          如需多模型管理，请先在上方切换为「自研引擎」。
         </div>
       )}
     </>
@@ -1763,3 +1146,203 @@ const ModelTabContent: React.FC = () => {
 };
 
 export default AgentConfigManagement;
+
+
+/**
+ * Agent 指令 tab（2026-10-17 期4）：IDENTITY / SOUL / AGENTS / COMPACTION 四个配置文件的编辑。
+ * 数据面 /api/admin/agent-config/prompt；保存即版本自增，清空内容=恢复 classpath 默认。
+ *
+ * 布局（2026-10-17 展示优化）：
+ * - 去掉状态行与「xxx.md」文件名标题栏，元信息收敛进工具栏（覆盖时显示「自定义 vN」Tag）。
+ * - 左右两栏共享同一个外层滚动容器：预览与 autosize 编辑器各自铺满内容自然高度，
+ *   一根滚动条同时滚两边（修复 Semi TextArea 被 wrapper 包裹导致 flex:1 失效、
+ *   内容只显示 rows=4 的截断问题）。
+ * - 未保存保护：dirty 检测（保存按钮 disabled 联动）、切换/恢复默认前弹确认。
+ */
+const PersonaTabContent: React.FC = () => {
+  useLanguage();
+  const [configs, setConfigs] = useState<Record<string, { key: string; title: string; content: string; overridden: boolean; version: number }>>({});
+  const [activeKey, setActiveKey] = useState<string>('identity');
+  const [draft, setDraft] = useState<string>('');
+  const [loaded, setLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [showPreview, setShowPreview] = useState(true);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const editorBoxRef = useRef<HTMLDivElement | null>(null);
+
+  const stripComments = (text: string) => text.replace(/<!--[\s\S]*?-->\n?/g, '');
+
+  /** 编辑器撑高到内容自然高度（Semi 自带 autosize 测高偏小，这里手动保证 scrollHeight 全展示） */
+  const fitEditorHeight = useCallback(() => {
+    const el = editorBoxRef.current?.querySelector('textarea');
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, []);
+
+  // 无依赖数组：外层 Semi Tabs 的隐藏面板（display:none）里量高为 0，
+  // 每次提交后重算才能在面板激活时得到正确高度；输入草稿变化也靠它触发
+  useEffect(() => {
+    fitEditorHeight();
+  });
+
+  useEffect(() => {
+    const el = editorBoxRef.current?.querySelector('textarea');
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => fitEditorHeight());
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [fitEditorHeight]);
+
+  const fetchConfigs = useCallback(async () => {
+    const res = await fetch(`${getApiBaseUrl()}/admin/agent-config/prompt`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await fetchConfigs();
+        if (cancelled) return;
+        setConfigs(data);
+        setDraft(stripComments(data['identity']?.content || ''));
+        setLoaded(true);
+      } catch (e) {
+        Toast.error(`加载失败: ${(e as Error).message}`);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [fetchConfigs]);
+
+  const current = configs[activeKey];
+  /** 草稿相对服务端内容有无改动（初始加载完成前视为无改动） */
+  const dirty = loaded && draft !== stripComments(current?.content ?? '');
+
+  /** 只提交内容到服务端；不触碰本地草稿 */
+  const persist = useCallback(async (content: string): Promise<boolean> => {
+    setSaving(true);
+    try {
+      const res = await fetch(`${getApiBaseUrl()}/admin/agent-config/prompt`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: activeKey, content }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (!data.success) { Toast.error(data.error || '保存失败'); return false; }
+      return true;
+    } catch (e) { Toast.error(`保存失败: ${(e as Error).message}`); return false; }
+    finally { setSaving(false); }
+  }, [activeKey]);
+
+  const handleSave = useCallback(async () => {
+    if (!dirty || !(await persist(draft))) return;
+    Toast.success('已保存，全部引擎即时生效');
+    try { setConfigs(await fetchConfigs()); } catch { /* 版本号刷新失败不影响保存结果 */ }
+  }, [dirty, draft, persist, fetchConfigs]);
+
+  const handleRestoreDefault = useCallback(() => {
+    Modal.confirm({
+      title: '恢复系统默认？',
+      content: '当前自定义内容将被清除，恢复为内置默认提示词。',
+      okText: '恢复默认',
+      onOk: async () => {
+        // 必须显式提交空串：setDraft 是异步的，不能依赖闭包里的 draft
+        if (await persist('')) {
+          try {
+            const data = await fetchConfigs();
+            setConfigs(data);
+            setDraft(stripComments(data[activeKey]?.content || ''));
+            Toast.success('已恢复系统默认');
+          } catch (e) { Toast.error(`刷新失败: ${(e as Error).message}`); }
+        }
+      },
+    });
+  }, [persist, fetchConfigs, activeKey]);
+
+  const doSwitch = useCallback((key: string) => {
+    setActiveKey(key);
+    setDraft(stripComments(configs[key]?.content || ''));
+    scrollRef.current?.scrollTo({ top: 0 });
+  }, [configs]);
+
+  const switchKey = useCallback((key: string) => {
+    if (key === activeKey) return;
+    if (dirty) {
+      Modal.confirm({
+        title: '有未保存的修改',
+        content: '切换后将丢弃当前未保存的修改。',
+        okText: '丢弃并切换',
+        onOk: () => doSwitch(key),
+      });
+    } else {
+      doSwitch(key);
+    }
+  }, [activeKey, dirty, doSwitch]);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 176px)', minHeight: 480 }}>
+      {/* 工具栏：radio + 状态 Tag + 操作按钮，一行 */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 0 10px 0', flexShrink: 0 }}>
+        <Radio.Group type='button' buttonSize='small' value={activeKey} onChange={e => switchKey(e.target.value)}>
+          <Radio value="identity">IDENTITY</Radio>
+          <Radio value="soul">SOUL</Radio>
+          <Radio value="agents">AGENTS</Radio>
+          <Radio value="compaction">COMPACTION</Radio>
+        </Radio.Group>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {current?.overridden && (
+            <Tag size="small" color="amber">自定义 v{current.version}</Tag>
+          )}
+          <Button size="small" theme="light" onClick={() => setShowPreview(v => !v)}>
+            {showPreview ? '纯编辑' : '双栏'}
+          </Button>
+          {current?.overridden && (
+            <Button size="small" onClick={handleRestoreDefault}>恢复默认</Button>
+          )}
+          <Button
+            size="small"
+            theme="solid"
+            disabled={!dirty}
+            loading={saving}
+            // 仅 dirty 时给主题色：disabled 阶段不能带内联背景，否则盖住 Semi 的置灰样式、看起来像可点
+            style={dirty ? { background: ACCENT } : undefined}
+            onClick={() => void handleSave()}
+          >
+            保存
+          </Button>
+        </div>
+      </div>
+      {/* 双栏共享外层滚动：一根滚动条同时滚预览与编辑器，两侧内容始终完整展示。
+          必须 flex-start：stretch 会把两栏压成容器高度，长内容会溢出/被裁剪 */}
+      <div
+        ref={scrollRef}
+        style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', gap: 12, alignItems: 'flex-start' }}
+      >
+        {showPreview && (
+          <div style={{
+            flex: 1, minWidth: 0,
+            border: '1px solid #e0e0ee', borderRadius: 8, padding: '16px 20px', background: '#fafbfc',
+          }}>
+            <MarkdownRender raw={draft} />
+          </div>
+        )}
+        <div ref={editorBoxRef} style={{
+          flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column',
+          border: '1px solid #d8d8ea', borderRadius: 8, overflow: 'hidden',
+        }}>
+          <TextArea
+            style={{
+              border: 'none', borderRadius: 0, resize: 'none', overflow: 'hidden',
+              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, monospace',
+              fontSize: 12.5, lineHeight: 1.65, padding: 12,
+            }}
+            value={draft}
+            onChange={setDraft}
+          />
+        </div>
+      </div>
+    </div>
+  );
+};

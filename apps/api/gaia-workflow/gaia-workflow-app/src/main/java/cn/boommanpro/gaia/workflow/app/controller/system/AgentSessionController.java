@@ -1,5 +1,7 @@
 package cn.boommanpro.gaia.workflow.app.controller.system;
 
+import cn.boommanpro.gaia.workflow.app.agent.ass.AgentServiceSessionService;
+import cn.boommanpro.gaia.workflow.app.agent.session.SessionWorkflowStore;
 import cn.boommanpro.gaia.workflow.app.domain.agent.input.SessionCreateInput;
 import cn.boommanpro.gaia.workflow.app.domain.agent.input.SessionFlagInput;
 import cn.boommanpro.gaia.workflow.app.domain.agent.input.SessionRenameInput;
@@ -28,13 +30,19 @@ public class AgentSessionController {
     private final AgentSessionService sessionService;
     private final AgentMessageService messageService;
     private final AgentWorkFolderService folderService;
+    private final AgentServiceSessionService asServiceSessionService;
+    private final SessionWorkflowStore sessionWorkflowStore;
 
     public AgentSessionController(AgentSessionService sessionService,
                                   AgentMessageService messageService,
-                                  AgentWorkFolderService folderService) {
+                                  AgentWorkFolderService folderService,
+                                  AgentServiceSessionService asServiceSessionService,
+                                  SessionWorkflowStore sessionWorkflowStore) {
         this.sessionService = sessionService;
         this.messageService = messageService;
         this.folderService = folderService;
+        this.asServiceSessionService = asServiceSessionService;
+        this.sessionWorkflowStore = sessionWorkflowStore;
     }
 
     @GetMapping("/list")
@@ -153,6 +161,9 @@ public class AgentSessionController {
 
     @DeleteMapping("/{sessionKey}")
     public boolean deleteSession(@PathVariable String sessionKey) {
+        // as-service 会话先回收远端托管 Agent（按会话建 Agent 的配套清理），再删本地行
+        asServiceSessionService.archiveRemoteAgentForSession(sessionKey);
+        sessionWorkflowStore.dropSession(sessionKey);
         return sessionService.remove(
             new QueryWrapper<AgentSession>().eq("session_key", sessionKey));
     }

@@ -1,0 +1,94 @@
+{
+  "nodes": [
+    {
+      "id": "start_0",
+      "type": "start",
+      "meta": { "position": { "x": 180, "y": 180 } },
+      "data": {
+        "title": "开始",
+        "outputs": {
+          "type": "object",
+          "properties": {
+            "query": { "type": "string", "default": "Gaia Flow" }
+          }
+        }
+      }
+    },
+    {
+      "id": "branches_0",
+      "type": "branches",
+      "meta": { "position": { "x": 460, "y": 180 } },
+      "data": {
+        "title": "分支",
+        "branches": [
+          {
+            "id": "if_flow",
+            "title": "包含Flow",
+            "logic": "and",
+            "conditions": [
+              {
+                "key": "c1",
+                "value": {
+                  "left": { "type": "ref", "content": ["start_0", "query"] },
+                  "operator": "contains",
+                  "right": { "type": "constant", "content": "Flow" }
+                }
+              }
+            ]
+          },
+          {
+            "id": "if_gaia",
+            "title": "等于Gaia",
+            "logic": "and",
+            "conditions": [
+              {
+                "key": "c2",
+                "value": {
+                  "left": { "type": "ref", "content": ["start_0", "query"] },
+                  "operator": "eq",
+                  "right": { "type": "constant", "content": "Gaia" }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "end_flow",
+      "type": "end",
+      "meta": { "position": { "x": 760, "y": 80 } },
+      "data": {
+        "title": "Flow分支结束",
+        "inputsValues": { "output": { "type": "constant", "content": "flow-branch" } },
+        "inputs": { "type": "object", "properties": { "output": { "type": "string" } } }
+      }
+    },
+    {
+      "id": "end_gaia",
+      "type": "end",
+      "meta": { "position": { "x": 760, "y": 280 } },
+      "data": {
+        "title": "Gaia分支结束",
+        "inputsValues": { "output": { "type": "constant", "content": "gaia-branch" } },
+        "inputs": { "type": "object", "properties": { "output": { "type": "string" } } }
+      }
+    },
+    {
+      "id": "end_else",
+      "type": "end",
+      "meta": { "position": { "x": 760, "y": 480 } },
+      "data": {
+        "title": "兜底结束",
+        "inputsValues": { "output": { "type": "constant", "content": "else-branch" } },
+        "inputs": { "type": "object", "properties": { "output": { "type": "string" } } }
+      }
+    }
+  ],
+  "edges": [
+    { "sourceNodeID": "start_0", "targetNodeID": "branches_0" },
+    { "sourceNodeID": "branches_0", "targetNodeID": "end_flow", "sourcePortID": "if_flow" },
+    { "sourceNodeID": "branches_0", "targetNodeID": "end_gaia", "sourcePortID": "if_gaia" },
+    { "sourceNodeID": "branches_0", "targetNodeID": "end_else", "sourcePortID": "else" }
+  ]
+}

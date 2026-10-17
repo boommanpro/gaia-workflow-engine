@@ -52,6 +52,12 @@ public class GaiaWorkflow {
     private String templateCode;
 
     /**
+     * 来源：user=用户工作流（默认）；session=会话草稿工作流（draft_&lt;sessionKey&gt;，随对话实时同步，不进工作流列表）
+     */
+    @TableField("source")
+    private String source;
+
+    /**
      * 创建时间
      */
     @TableField(value = "created_at", fill = FieldFill.INSERT)

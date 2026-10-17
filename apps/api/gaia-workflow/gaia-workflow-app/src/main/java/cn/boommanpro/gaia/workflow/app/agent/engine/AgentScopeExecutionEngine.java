@@ -322,6 +322,29 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
                 .timeout(Duration.ofMinutes(5))
                 .retryOn(ExecutionConfig.RETRYABLE_ERRORS)
                 .build())
+            // harness 平台能力默认全开（注册空壳工具 schema、注入技能/记忆提示词段、
+            // 工作区旁路落盘 MEMORY.md/sessions），与"模型可见工具 ≡ AgentDefinition 白名单"
+            // 的不变量冲突，这里逐项显式关停。后续要启用某能力：删掉对应 disable，
+            // 并确认其工具名能过 stripForeignTools 白名单（框架工具默认进不来）。
+            // build 后仍需 stripForeignTools 兜底：2.0.3 对 wait_async_results/web_fetch/
+            // web_search 无注册开关，仅能事后剥离（schema 不进模型上下文）；
+            // 且部分中间件工具在运行期才可见——开关与剥离各盖一半盲区
+            // （2026-10-17 load_skill_through_path 实测漏网）。
+            .disableSubagents()
+            .disableDynamicSubagents()
+            .disableMemoryTools()
+            .disableMemoryHooks()
+            .skillsEnabled(false)
+            .disableDynamicSkills()
+            .disableDefaultWorkspaceSkills()
+            .disableFilesystemTools()
+            .disableShellTool()
+            .disableWorkspaceContext()
+            .disableSessionPersistence()
+            .disableTranscript()
+            .enableTaskList(false)
+            .disableAtPathExpansion()
+            .disableToolsConfig()
             .build();
         // build() 会把 harness 默认工具合并进 agent 自己的 toolkit（传入的实例上不可见），
         // 剥离必须作用在 agent.getToolkit() 返回的真实工具集上 —— 否则模型仍能看到
@@ -926,15 +949,14 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
                 result = ToolResult.invalidArgs(violations, null);
             }
         }
-        // 1.5 skill-gate（owb skill-gate 对标，2026-10-11）：写工作流前必须先触碰过知识
-        //（查结构文档/检索知识/读现状）—— 盲写是空壳骨架与端口错配的事故源头。
-        // 知识类工具成功执行后登记触碰标记，write/edit 首次调用时检查。
-        if (("write_workflow".equals(toolName) || "edit_workflow".equals(toolName))
+        // 1.5 skill-gate（owb skill-gate 对标，2026-10-11）：改画布前必须先触碰过知识
+        //（加载技能 / 查画布现状 / 查节点契约）—— 盲写是空壳骨架与端口错配的事故源头。
+        // 知识类工具（skill / get）成功执行后登记触碰标记，node / edge 首次调用时检查。
+        if (("node".equals(toolName) || "edge".equals(toolName))
             && !"1".equals(context.getAttributes().get("knowledge.touched"))) {
             return ToolResult.fail(
-                "{\"error\":\"写工作流前先查知识：知识目录已在系统提示词里（含各节点结构说明与工作流编排模式）。"
-                    + "先调用 get_node_schema(nodeType) 查你要用的节点结构，或 search_knowledge 检索编排模式"
-                    + "（推荐先看 workflow-pattern 的双分支完整示例），再创建/修改工作流。\"}",
+                "{\"error\":\"改画布前先查知识：先 skill(\\\"gaia-workflow-assistant\\\") 加载搭建手册，"
+                    + "再 get(target=canvas) 看现状、get(target=knowledge, nodeType) 查要用的节点契约，然后再增删节点/连线。\"}",
                 "skill-gate：先查知识再动手（避免盲写踩结构坑）", ToolErrorCode.INVALID_ARGS);
         }
 
@@ -973,9 +995,7 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
         wrapUpGuard.onToolResult(result.isSuccess());
 
         // 7.5 skill-gate 触碰登记：知识类工具成功执行即视为「已了解知识」
-        if (result.isSuccess() && (toolName.startsWith("get_node_schema") || toolName.startsWith("search_knowledge")
-            || toolName.startsWith("read_workflow") || toolName.startsWith("read_node")
-            || toolName.startsWith("list_templates"))) {
+        if (result.isSuccess() && ("skill".equals(toolName) || "get".equals(toolName))) {
             context.getAttributes().put("knowledge.touched", "1");
         }
 
@@ -1026,8 +1046,8 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
         pruned.set("head", payload.substring(0, MODEL_PAYLOAD_LIMIT / 2));
         pruned.set("tail", payload.substring(payload.length() - MODEL_PAYLOAD_LIMIT / 4));
         pruned.set("hint", "结果过长已截断（模型上下文保护）。需要完整内容用更窄的查询："
-            + "run_workflow 看 outputs/failedNodes（reports 全量已在界面时间线）；"
-            + "read_node(nodeId) 看单节点；read_workflow 看结构。不要原样重试同样的全量调用");
+            + "run(target=node, nodeId) 看单节点输出；get(target=canvas) 看结构；"
+            + "get(target=variables, nodeId) 看可引用字段。不要原样重试同样的全量调用");
         return new ToolResult(result.isSuccess(), pruned.toString(), result.isRejected(),
             result.getMessage(), result.getErrorCode());
     }

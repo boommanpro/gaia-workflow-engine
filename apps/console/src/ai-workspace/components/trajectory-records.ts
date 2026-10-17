@@ -42,6 +42,8 @@ export interface TrajectoryRecord {
   isRunning?: boolean;
   /** 详情载荷 */
   content?: string;
+  /** 消息行的思考过程全文（assistant_settled.thinking，as-service 等托管引擎提供） */
+  thinking?: string;
   args?: unknown;
   result?: unknown;
   request?: unknown;
@@ -216,15 +218,16 @@ export function buildRecords(events: any[], llmCalls: any[]): TrajectoryRecord[]
         id: `a-${ev.id}`, kind: 'message', run: runIndex(runKey), runId: runKey, at,
         text: firstLine(String(data.content || ''), 120),
         content: String(data.content || ''),
+        thinking: data.thinking ? String(data.thinking) : undefined,
         usage: { promptTokens: data.promptTokens, completionTokens: data.completionTokens },
-        search: `message ${data.content || ''}`,
+        search: `message ${data.content || ''} ${data.thinking || ''}`.slice(0, 4000),
       }, runKey);
-    } else if (type === 'compaction' || type === 'knowledge_retrieved') {
+    } else if (type === 'compaction' || type === 'skill_loaded') {
       push({
         id: `c-${ev.id}`, kind: 'context', run: runIndex(runKey), runId: runKey, at,
         text: type === 'compaction'
           ? `历史压缩：${data.before ?? '?'} → ${data.after ?? '?'} 条`
-          : `知识检索：${firstLine(String(data.query || ''), 60)}`,
+          : `技能加载：${firstLine(String(data.name || ''), 80)}`,
         args: data,
         search: `${type} ${JSON.stringify(data).slice(0, 500)}`,
       }, runKey);

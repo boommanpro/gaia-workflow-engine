@@ -193,6 +193,7 @@ const DetailPanel: React.FC<{
         return [
           { id: 'overview', label: '概要' },
           { id: 'content', label: '原文' },
+          ...(record.thinking ? [{ id: 'thinking', label: '思考' } as DetailTab] : []),
         ];
       case 'system':
         return [
@@ -358,6 +359,7 @@ const DetailPanel: React.FC<{
         {tab === 'args' && (record.args != null ? <JsonBody value={record.args} /> : <p className="tjp-nopayload">无参数</p>)}
         {tab === 'result' && (record.result != null ? <JsonBody value={record.result} /> : <p className="tjp-nopayload">无结果</p>)}
         {tab === 'content' && <TextBody value={record.content} />}
+        {tab === 'thinking' && <TextBody value={record.thinking} />}
       </div>
     </aside>
   );
@@ -382,6 +384,37 @@ export const TrajectoryPanel: React.FC<{ sessionKey?: string; streaming?: boolea
   const [detailsWidth, setDetailsWidth] = useState<number | null>(null);
   const tablePaneRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
+  /** Service 对话视图（as-service 引擎的远端会话过程，经后端代理） */
+  const [serviceView, setServiceView] = useState(false);
+  const [serviceData, setServiceData] = useState<{
+    linked: boolean;
+    remoteSessionId?: string;
+    remoteAgentId?: string;
+    snapshot?: {
+      items?: Array<{
+        created_at?: number;
+        data?: {
+          item?: {
+            type?: string;
+            role?: string;
+            status?: string;
+            content?: Array<{
+              type?: string;
+              text?: string;
+              name?: string;
+              input?: unknown;
+              output?: Array<{ text?: string }>;
+              state?: string;
+            }>;
+          };
+        };
+      }>;
+      session?: { status?: string };
+    };
+    snapshotError?: string;
+  } | null>(null);
+  const [serviceLoading, setServiceLoading] = useState(false);
+  const [serviceError, setServiceError] = useState('');
 
   const load = useCallback(async () => {
     if (!sessionKey || sessionKey.startsWith('draft-')) {
@@ -408,6 +441,32 @@ export const TrajectoryPanel: React.FC<{ sessionKey?: string; streaming?: boolea
     void load();
   }, [load]);
 
+  // Service 对话视图：开关时拉取，运行中随 4s 轮询跟随
+  const loadService = useCallback(async () => {
+    if (!sessionKey || sessionKey.startsWith('draft-')) return;
+    setServiceLoading(true);
+    try {
+      const data = await agentApi.getAsServiceSession(sessionKey);
+      setServiceData(data);
+      setServiceError('');
+    } catch (e) {
+      setServiceError((e as Error).message || '拉取 Service 会话失败');
+    } finally {
+      setServiceLoading(false);
+    }
+  }, [sessionKey]);
+
+  useEffect(() => {
+    if (serviceView) void loadService();
+  }, [serviceView, loadService]);
+
+  useEffect(() => {
+    if (serviceView && streaming) {
+      const timer = setInterval(() => void loadService(), 4000);
+      return () => clearInterval(timer);
+    }
+  }, [serviceView, streaming, loadService]);
+
   // 运行中每 4s 跟随（事件流是追加只写，重拉即增量）
   useEffect(() => {
     if (!streaming) return;
@@ -423,6 +482,13 @@ export const TrajectoryPanel: React.FC<{ sessionKey?: string; streaming?: boolea
     const row = pane.querySelector(`tr[data-record-id="${CSS.escape(selectedId)}"]`);
     row?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }, [selectedId]);
+
+  // 切换会话时重置 Service 对话视图
+  useEffect(() => {
+    setServiceView(false);
+    setServiceData(null);
+    setServiceError('');
+  }, [sessionKey]);
 
   /** 折叠/搜索派生出的展示记录 */
   const view = useMemo(() => {
@@ -595,6 +661,16 @@ export const TrajectoryPanel: React.FC<{ sessionKey?: string; streaming?: boolea
             <span aria-hidden="true">{toolsCollapsed ? '⊞' : '⊟'}</span>
             调用
           </button>
+          <button
+            type="button"
+            className={serviceView ? 'tjp-toggle on' : 'tjp-toggle'}
+            aria-pressed={serviceView}
+            title="查看 AgentScope Service 侧的完整对话过程（远端托管视角）"
+            onClick={() => setServiceView((v) => !v)}
+          >
+            <span aria-hidden="true">⇄</span>
+            Service 对话
+          </button>
           <span className="tjp-counts">
             {records.length} 条 · 模型 {counts.model} / 工具 {counts.tool}
             {counts.failed ? ` / 失败 ${counts.failed}` : ''}
@@ -611,9 +687,24 @@ export const TrajectoryPanel: React.FC<{ sessionKey?: string; streaming?: boolea
           />
         </div>
         {streaming ? <span className="tjp-run"><i />跟随中</span> : null}
-        <button type="button" className="tjp-refresh" onClick={load} disabled={loading}>刷新</button>
+        <button
+          type="button"
+          className="tjp-refresh"
+          onClick={() => (serviceView ? void loadService() : load)}
+          disabled={loading || serviceLoading}
+        >
+          刷新
+        </button>
       </div>
 
+      {serviceView ? (
+        <ServiceConversationView
+          loading={serviceLoading}
+          error={serviceError}
+          data={serviceData}
+        />
+      ) : (
+      <>
       {view.length ? (
         <TrajectoryTimeline
           records={view}
@@ -745,6 +836,8 @@ export const TrajectoryPanel: React.FC<{ sessionKey?: string; streaming?: boolea
           </>
         )}
       </div>
+      </>
+      )}
 
       <style>{`
         .tjp { display: flex; flex-direction: column; height: 100%; min-height: 0; background: var(--g-bg); }
@@ -972,7 +1065,190 @@ export const TrajectoryPanel: React.FC<{ sessionKey?: string; streaming?: boolea
         }
 
         .tjp-empty { padding: 40px 16px; color: var(--g-text-muted); font-size: 13px; text-align: center; }
+
+        /* ---------------- Service 对话视图（as-service 远端会话） ---------------- */
+        .tjp-svc { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 16px; }
+        .tjp-svc-head {
+          display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+          padding: 8px 10px; margin-bottom: 12px;
+          border: 1px solid var(--g-line); border-radius: 8px; background: var(--g-bg-raised);
+          font-size: 12px; color: var(--g-text-sub);
+        }
+        .tjp-svc-head code { font-family: var(--g-mono, monospace); font-size: 11px; color: var(--g-text-muted); }
+        .tjp-svc-head .is-badge {
+          padding: 1px 8px; border-radius: 999px; border: 1px solid var(--g-line);
+          font-size: 11px; color: var(--g-text-sub); background: var(--g-bg-sunken);
+        }
+        .tjp-svc-msg { display: flex; flex-direction: column; gap: 3px; margin-bottom: 14px; }
+        .tjp-svc-role { font-size: 11px; font-weight: 600; color: var(--g-text-muted); letter-spacing: .4px; }
+        .tjp-svc-role.is-user { color: var(--g-link); }
+        .tjp-svc-bubble {
+          padding: 8px 11px; border: 1px solid var(--g-line); border-radius: 8px;
+          background: var(--g-bg-raised); font-size: 12.5px; line-height: 1.65; color: var(--g-text);
+          white-space: pre-wrap; word-break: break-word;
+        }
+        .tjp-svc-bubble.is-user { background: var(--g-bg-sunken); }
+        .tjp-svc-tool {
+          padding: 7px 10px; border: 1px dashed var(--g-line); border-radius: 7px;
+          background: var(--g-bg); font-size: 12px; color: var(--g-text-sub);
+        }
+        .tjp-svc-tool b { color: var(--g-text); font-weight: 600; }
+        .tjp-svc-tool pre {
+          margin: 5px 0 0; padding: 6px 8px; border-radius: 5px; background: var(--g-bg-sunken);
+          font-size: 11px; font-family: var(--g-mono, monospace); color: var(--g-text-sub);
+          white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow-y: auto;
+        }
+        .tjp-svc-note { padding: 14px; color: var(--g-text-muted); font-size: 13px; text-align: center; }
+        .tjp-svc-think {
+          padding: 6px 10px; border: 1px dashed var(--g-line); border-radius: 7px;
+          background: var(--g-bg); font-size: 12px; color: var(--g-text-faint);
+        }
+        .tjp-svc-think summary { cursor: pointer; user-select: none; }
+        .tjp-svc-think pre {
+          margin: 6px 0 2px; padding: 6px 8px; border-radius: 5px; background: var(--g-bg-sunken);
+          font-size: 11px; font-family: var(--g-mono, monospace); white-space: pre-wrap; word-break: break-word;
+          max-height: 260px; overflow-y: auto;
+        }
+        .tjp-svc-error {
+          margin-bottom: 12px; padding: 10px 12px; border: 1px solid var(--g-danger);
+          border-radius: 8px; color: var(--g-danger); font-size: 12.5px; background: color-mix(in srgb, var(--g-danger) 6%, transparent);
+        }
       `}</style>
+    </div>
+  );
+};
+
+/** Service 对话视图 —— 渲染 AgentScope Service 快照的完整消息流（用户/助手/工具块） */
+const ServiceConversationView: React.FC<{
+  loading: boolean;
+  error: string;
+  data: {
+    linked: boolean;
+    remoteSessionId?: string;
+    remoteAgentId?: string;
+    snapshot?: {
+      items?: Array<{
+        created_at?: number;
+        data?: {
+          item?: {
+            type?: string;
+            role?: string;
+            status?: string;
+            content?: Array<{
+              type?: string;
+              text?: string;
+              name?: string;
+              input?: unknown;
+              output?: Array<{ text?: string }>;
+              state?: string;
+            }>;
+          };
+        };
+      }>;
+      session?: { status?: string };
+    };
+    snapshotError?: string;
+  } | null;
+}> = ({ loading, error, data }) => {
+  if (loading && !data) return <div className="tjp-svc"><div className="tjp-note">加载 Service 会话中…</div></div>;
+  if (error) return <div className="tjp-svc"><div className="tjp-svc-error">{error}</div></div>;
+  if (!data) return null;
+  if (!data.linked) {
+    return (
+      <div className="tjp-svc">
+        <div className="tjp-svc-note">该会话未通过 AgentScope Service（as-service 引擎）托管运行，没有远端对话。</div>
+      </div>
+    );
+  }
+  if (data.snapshotError) {
+    return (
+      <div className="tjp-svc">
+        <div className="tjp-svc-error">拉取 Service 快照失败：{data.snapshotError}</div>
+      </div>
+    );
+  }
+
+  const items = [...(data.snapshot?.items || [])].sort((a, b) => (a.created_at || 0) - (b.created_at || 0));
+  const prettyArgs = (v: unknown) => {
+    try {
+      return typeof v === 'string' ? JSON.stringify(JSON.parse(v), null, 2) : JSON.stringify(v, null, 2);
+    } catch {
+      return String(v);
+    }
+  };
+
+  return (
+    <div className="tjp-svc">
+      <div className="tjp-svc-head">
+        <span className="is-badge">{data.snapshot?.session?.status || 'unknown'}</span>
+        <span>远端会话</span>
+        <code>{data.remoteSessionId}</code>
+        <span>·</span>
+        <span>托管 Agent</span>
+        <code>{data.remoteAgentId}</code>
+        <span style={{ marginLeft: 'auto', color: 'var(--g-text-faint)' }}>
+          数据来源：AgentScope Service（Session API 快照）
+        </span>
+      </div>
+      {items.length === 0 ? (
+        <div className="tjp-svc-note">Service 侧暂无消息条目（会话可能尚未运行或快照投影中）。</div>
+      ) : (
+        items.map((it, idx) => {
+          const item = it.data?.item;
+          if (!item || item.type !== 'message') return null;
+          const role = (item.role || '').toUpperCase();
+          const isUser = role === 'USER';
+          return (
+            <div className="tjp-svc-msg" key={idx}>
+              <span className={`tjp-svc-role${isUser ? ' is-user' : ''}`}>
+                {isUser ? '用户' : '助手'}
+                {item.status && item.status !== 'completed' ? ` · ${item.status}` : ''}
+              </span>
+              {(item.content || []).map((part, pi) => {
+                if (part.type === 'tool_use') {
+                  return (
+                    <div className="tjp-svc-tool" key={pi}>
+                      <b>🛠 工具调用 · {part.name || '?'}</b>
+                      <pre>{prettyArgs(part.input)}</pre>
+                    </div>
+                  );
+                }
+                if (part.type === 'tool_result') {
+                  const out = (part.output || []).map((o) => o.text || '').join('\n');
+                  return (
+                    <div className="tjp-svc-tool" key={pi}>
+                      <b>↳ 工具结果 · {part.name || '?'}{part.state ? `（${part.state}）` : ''}</b>
+                      {out ? <pre>{out}</pre> : null}
+                    </div>
+                  );
+                }
+                if (part.text) {
+                  // Service 侧正文带 shim 写入的 <think> 段：拆成折叠的思考过程 + 干净正文
+                  const match = part.text.match(/<think>\n?([\s\S]*?)<\/think>\n?/);
+                  const thinkText = match?.[1]?.trim();
+                  const bodyText = match
+                    ? part.text.replace(/<think>\n?[\s\S]*?<\/think>\n?/, '').trim()
+                    : part.text;
+                  return (
+                    <React.Fragment key={pi}>
+                      {thinkText ? (
+                        <details className="tjp-svc-think">
+                          <summary>💭 思考过程</summary>
+                          <pre>{thinkText}</pre>
+                        </details>
+                      ) : null}
+                      {bodyText ? (
+                        <div className={`tjp-svc-bubble${isUser ? ' is-user' : ''}`}>{bodyText}</div>
+                      ) : null}
+                    </React.Fragment>
+                  );
+                }
+                return null;
+              })}
+            </div>
+          );
+        })
+      )}
     </div>
   );
 };

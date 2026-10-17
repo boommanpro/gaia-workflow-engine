@@ -84,7 +84,7 @@ public class WorkflowDslApplyService {
             result.setError("工作流存在不可执行的缺失，请补全后重新提交：" + String.join("；", canonical.getFatalIssues())
                 + "。修复方法：给对应节点的 data 填上关键字段，例如 "
                 + "{\"type\":\"llm\",\"id\":\"llm_0\",\"data\":{\"prompt\":\"请总结以下文本：{{ start_0.text }}\",\"modelName\":\"qwen/qwen3-4b-2507\"}}，"
-                + "http 节点填 {\"data\":{\"method\":\"GET\",\"url\":\"https://...\"}}，"
+                + "http 节点填 {\"data\":{\"api\":{\"method\":\"GET\",\"url\":\"https://...\"}}}，"
                 + "code 节点填 {\"data\":{\"script\":{\"language\":\"java\",\"content\":\"return ...;\"}}}。"
                 + "补全后用相同 workflowCode 重新调用 applyWorkflow。");
             result.setFatalIssues(canonical.getFatalIssues());
@@ -112,6 +112,19 @@ public class WorkflowDslApplyService {
                         + " but current is " + actual + "，工作流已被并发修改，请重新读取后再提交");
                     return result;
                 }
+            }
+
+            // 统一校验门禁：canonicalize 修好的结构再过一遍机器证明（环 / 悬空边 / 未知类型 /
+            // 引用悬空 / 可达性）。放在 CAS 预检之后——注定提交不上的陈旧快照不值得校验。
+            java.util.List<WorkflowDslValidator.Issue> validationIssues =
+                WorkflowDslValidator.validate(workflowData);
+            if (WorkflowDslValidator.hasErrors(validationIssues)) {
+                result.setSuccess(false);
+                result.setError("工作流校验未通过：" + WorkflowDslValidator.errorSummary(validationIssues)
+                    + "。修复后用相同 workflowCode 重新提交");
+                result.setFatalIssues(validationIssues.stream().map(Object::toString)
+                    .collect(java.util.stream.Collectors.toList()));
+                return result;
             }
 
             // 上一版数据（diff 基准）

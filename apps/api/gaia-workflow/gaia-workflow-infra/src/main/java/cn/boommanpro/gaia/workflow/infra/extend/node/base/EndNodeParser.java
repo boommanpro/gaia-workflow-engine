@@ -2,11 +2,9 @@ package cn.boommanpro.gaia.workflow.infra.extend.node.base;
 
 import cn.boommanpro.gaia.workflow.base.GaiaWorkflow;
 import cn.boommanpro.gaia.workflow.base.tools.ParameterParseUtils;
-import cn.boommanpro.gaia.workflow.base.model.Parameter;
 import cn.boommanpro.gaia.workflow.infra.extend.node.BaseNodeParser;
 import cn.hutool.json.JSONObject;
 
-import java.util.List;
 
 /**
  * EndNode解析器
@@ -30,18 +28,5 @@ public class EndNodeParser extends BaseNodeParser<EndNode> {
         endNode.setOutputParameters(ParameterParseUtils.parseEndNodeInputs(inputsSchema, inputsValues));
 
         return endNode;
-    }
-
-    /**
-     * 解析EndNode参数（保留向后兼容性）
-     *
-     * @param schemaObject 参数schema对象
-     * @param valueMapObject 参数值映射对象
-     * @return 解析后的参数列表
-     * @deprecated 使用 {@link ParameterParseUtils#parseEndNodeInputs(JSONObject, JSONObject)} 替代
-     */
-    @Deprecated
-    public static List<Parameter> parseStartNodeParameters(JSONObject schemaObject, JSONObject valueMapObject) {
-        return ParameterParseUtils.parseEndNodeInputs(schemaObject, valueMapObject);
     }
 }

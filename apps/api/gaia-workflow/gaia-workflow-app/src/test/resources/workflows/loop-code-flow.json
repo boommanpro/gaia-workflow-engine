@@ -1,0 +1,190 @@
+{
+  "nodes": [
+    {
+      "id": "start_0",
+      "type": "start",
+      "meta": {
+        "position": {
+          "x": 180,
+          "y": 180
+        }
+      },
+      "data": {
+        "title": "开始",
+        "outputs": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": [
+                "apple",
+                "banana",
+                "cherry"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "loop_0",
+      "type": "loop",
+      "meta": {
+        "position": {
+          "x": 460,
+          "y": 180
+        }
+      },
+      "data": {
+        "title": "循环",
+        "loopFor": {
+          "type": "ref",
+          "content": [
+            "start_0",
+            "items"
+          ]
+        },
+        "loopOutputs": {
+          "processed": {
+            "type": "ref",
+            "content": [
+              "code_1",
+              "result"
+            ]
+          }
+        },
+        "outputs": {
+          "type": "object",
+          "required": [],
+          "properties": {
+            "processed": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "blocks": [
+        {
+          "id": "block_start_1",
+          "type": "block-start",
+          "meta": {
+            "position": {
+              "x": 32,
+              "y": 190
+            }
+          },
+          "data": {}
+        },
+        {
+          "id": "code_1",
+          "type": "code",
+          "meta": {
+            "position": {
+              "x": 344,
+              "y": 190
+            }
+          },
+          "data": {
+            "title": "加工",
+            "script": {
+              "language": "javascript",
+              "content": "var raw = item == null ? \"\" : item.toString();\n({ result: raw.toUpperCase() })"
+            },
+            "inputsValues": {
+              "item": {
+                "type": "ref",
+                "content": [
+                  "loop_0_locals",
+                  "item"
+                ]
+              }
+            },
+            "outputs": {
+              "type": "object",
+              "properties": {
+                "result": {
+                  "type": "string"
+                }
+              }
+            },
+            "inputs": {
+              "type": "object",
+              "properties": {
+                "item": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        {
+          "id": "block_end_1",
+          "type": "block-end",
+          "meta": {
+            "position": {
+              "x": 656,
+              "y": 190
+            }
+          },
+          "data": {}
+        }
+      ],
+      "edges": [
+        {
+          "sourceNodeID": "block_start_1",
+          "targetNodeID": "code_1"
+        },
+        {
+          "sourceNodeID": "code_1",
+          "targetNodeID": "block_end_1"
+        }
+      ]
+    },
+    {
+      "id": "end_0",
+      "type": "end",
+      "meta": {
+        "position": {
+          "x": 760,
+          "y": 180
+        }
+      },
+      "data": {
+        "title": "结束",
+        "inputsValues": {
+          "output": {
+            "type": "ref",
+            "content": [
+              "loop_0",
+              "processed"
+            ]
+          }
+        },
+        "inputs": {
+          "type": "object",
+          "properties": {
+            "output": {
+              "type": "array"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "sourceNodeID": "start_0",
+      "targetNodeID": "loop_0"
+    },
+    {
+      "sourceNodeID": "loop_0",
+      "targetNodeID": "end_0"
+    }
+  ]
+}

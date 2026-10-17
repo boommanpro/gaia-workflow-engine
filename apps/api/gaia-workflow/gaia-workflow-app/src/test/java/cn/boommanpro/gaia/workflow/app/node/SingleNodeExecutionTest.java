@@ -128,13 +128,13 @@ class SingleNodeExecutionTest extends AbstractNodeTest {
     }
 
     @Test
-    @DisplayName("SingleNodeExecutor.isSupported: 控制流节点不支持单测")
+    @DisplayName("SingleNodeExecutor.isSupported: 仅非执行节点不支持单测（2026-10-17 全量放开，见 NodeExecutionL2Test）")
     void unsupportedControlFlowTypes() {
-        assertFalse(executor.isSupported("loop"));
-        assertFalse(executor.isSupported("branches"));
-        assertFalse(executor.isSupported("break"));
-        assertFalse(executor.isSupported("continue"));
-        assertFalse(executor.isSupported("workflow"));
+        assertFalse(executor.isSupported("group"));
+        assertFalse(executor.isSupported("note"));
+        assertFalse(executor.isSupported("comment"));
+        assertFalse(executor.isSupported("assignee"));
+        assertFalse(executor.isSupported("multi-condition"));
     }
 
     @Test
@@ -146,8 +146,15 @@ class SingleNodeExecutionTest extends AbstractNodeTest {
         assertTrue(executor.isSupported("string-format"));
         assertTrue(executor.isSupported("variable"));
         assertTrue(executor.isSupported("condition"));
+        assertTrue(executor.isSupported("branches"));
         assertTrue(executor.isSupported("http"));
         assertTrue(executor.isSupported("llm"));
+        assertTrue(executor.isSupported("loop"));
+        assertTrue(executor.isSupported("workflow"));
+        assertTrue(executor.isSupported("break"));
+        assertTrue(executor.isSupported("continue"));
+        assertTrue(executor.isSupported("block-start"));
+        assertTrue(executor.isSupported("block-end"));
     }
 
     // ==================== 辅助方法 ====================

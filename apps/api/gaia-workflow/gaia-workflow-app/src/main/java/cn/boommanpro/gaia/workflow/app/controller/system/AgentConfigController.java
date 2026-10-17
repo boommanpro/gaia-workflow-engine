@@ -2,11 +2,9 @@ package cn.boommanpro.gaia.workflow.app.controller.system;
 
 import cn.boommanpro.gaia.workflow.infra.manage.entity.AgentConfig;
 import cn.boommanpro.gaia.workflow.infra.manage.entity.AgentConfigHistory;
-import cn.boommanpro.gaia.workflow.infra.manage.entity.AgentKnowledgeChunk;
 import cn.boommanpro.gaia.workflow.infra.manage.entity.AgentToolDefinition;
 import cn.boommanpro.gaia.workflow.infra.manage.service.AgentConfigHistoryService;
 import cn.boommanpro.gaia.workflow.infra.manage.service.AgentConfigService;
-import cn.boommanpro.gaia.workflow.infra.manage.service.AgentKnowledgeChunkService;
 import cn.boommanpro.gaia.workflow.infra.manage.service.AgentToolDefinitionService;
 import cn.boommanpro.gaia.workflow.app.service.LlmCompletionService;
 import cn.hutool.json.JSONArray;
@@ -24,7 +22,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Agent 配置中心：在线管理 Prompt / 节点知识文档 / LLM 参数
+ * Agent 配置中心：在线管理 agent_config 通用配置项（LLM 参数 / 渠道 / 引擎 / architect 人设）与工具定义的导入导出
  */
 @Slf4j
 @RestController
@@ -33,18 +31,15 @@ public class AgentConfigController {
 
     private final AgentConfigService configService;
     private final AgentConfigHistoryService historyService;
-    private final AgentKnowledgeChunkService knowledgeChunkService;
     private final AgentToolDefinitionService toolDefinitionService;
     private final LlmCompletionService completionService;
 
     public AgentConfigController(AgentConfigService configService,
                                  AgentConfigHistoryService historyService,
-                                 AgentKnowledgeChunkService knowledgeChunkService,
                                  AgentToolDefinitionService toolDefinitionService,
                                  LlmCompletionService completionService) {
         this.configService = configService;
         this.historyService = historyService;
-        this.knowledgeChunkService = knowledgeChunkService;
         this.toolDefinitionService = toolDefinitionService;
         this.completionService = completionService;
     }
@@ -208,14 +203,12 @@ public class AgentConfigController {
     // ==================== Export / Import ====================
 
     /**
-     * 导出所有 Agent 配置（configs / knowledgeChunks / toolDefinitions），以 JSON 文件附件形式下载
+     * 导出所有 Agent 配置（configs / toolDefinitions），以 JSON 文件附件形式下载
      */
     @GetMapping("/export")
     public ResponseEntity<String> exportAll() {
         JSONObject payload = new JSONObject()
             .set("configs", configService.list(new QueryWrapper<AgentConfig>().orderByAsc("id")))
-            .set("knowledgeChunks", knowledgeChunkService.list(
-                new QueryWrapper<AgentKnowledgeChunk>().orderByAsc("id")))
             .set("toolDefinitions", toolDefinitionService.list(
                 new QueryWrapper<AgentToolDefinition>().orderByAsc("id")));
 
@@ -227,19 +220,17 @@ public class AgentConfigController {
     }
 
     /**
-     * 导入 Agent 配置（与导出格式一致），按 key/title 做 upsert，不删除已有数据。
-     * 返回导入统计 { configs, knowledge, tools }
+     * 导入 Agent 配置（与导出格式一致），按 key 做 upsert，不删除已有数据。
+     * 返回导入统计 { configs, tools }
      */
     @PostMapping("/import")
     public JSONObject importAll(@RequestBody String body) {
         JSONObject payload = JSONUtil.parseObj(body);
         int configs = importConfigs(payload.getJSONArray("configs"));
-        int knowledge = importKnowledgeChunks(payload.getJSONArray("knowledgeChunks"));
         int tools = importToolDefinitions(payload.getJSONArray("toolDefinitions"));
-        log.info("Agent config import: configs={}, knowledge={}, tools={}", configs, knowledge, tools);
+        log.info("Agent config import: configs={}, tools={}", configs, tools);
         return new JSONObject()
             .set("configs", configs)
-            .set("knowledge", knowledge)
             .set("tools", tools);
     }
 
@@ -277,42 +268,6 @@ public class AgentConfigController {
         }
         return count;
     }
-
-    /**
-     * 按 title upsert（agent_knowledge_chunk 无业务唯一键）
-     */
-    private int importKnowledgeChunks(JSONArray array) {
-        if (array == null || array.isEmpty()) {
-            return 0;
-        }
-        String now = LocalDateTime.now().toString();
-        int count = 0;
-        for (int i = 0; i < array.size(); i++) {
-            JSONObject item = array.getJSONObject(i);
-            String title = item.getStr("title");
-            if (title == null || title.isEmpty()) {
-                continue;
-            }
-            AgentKnowledgeChunk existing = knowledgeChunkService.getOne(
-                new QueryWrapper<AgentKnowledgeChunk>().eq("title", title).last("LIMIT 1"));
-            AgentKnowledgeChunk chunk = JSONUtil.toBean(item, AgentKnowledgeChunk.class);
-            if (existing != null) {
-                chunk.setId(existing.getId());
-                chunk.setCreatedAt(existing.getCreatedAt());
-                chunk.setUpdatedAt(now);
-                knowledgeChunkService.updateById(chunk);
-            } else {
-                chunk.setId(null);
-                chunk.setCreatedAt(now);
-                chunk.setUpdatedAt(now);
-                knowledgeChunkService.save(chunk);
-            }
-            count++;
-        }
-        return count;
-    }
-
-
 
     /**
      * 按 toolName upsert

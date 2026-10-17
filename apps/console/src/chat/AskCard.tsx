@@ -36,15 +36,37 @@ export const AskCard: React.FC<{
       className="chat-fade"
       style={{
         margin: '6px 0',
-        padding: '12px 14px',
-        borderRadius: 12,
+        padding: '13px 15px',
+        borderRadius: 14,
         border: `1px solid ${answered ? CHAT.line : CHAT.accentBorder}`,
         background: 'var(--g-bg-raised)',
+        boxShadow: '0 1px 3px rgba(20, 20, 40, 0.05)',
         maxWidth: 560,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: answered ? 8 : 10 }}>
-        <span style={{ fontSize: 13, lineHeight: '20px' }}>🙋</span>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9, marginBottom: answered ? 8 : 11 }}>
+        <span
+          aria-hidden
+          style={{
+            width: 22,
+            height: 22,
+            borderRadius: 7,
+            flexShrink: 0,
+            marginTop: 1,
+            background: CHAT.accentSoft,
+            border: `1px solid ${CHAT.accentBorder}`,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: CHAT.textSub,
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22z" />
+            <path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3" />
+            <path d="M12 17h.01" />
+          </svg>
+        </span>
         <div style={{ fontSize: 13.5, lineHeight: 1.65, color: CHAT.textBody, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
           {ask.question}
         </div>

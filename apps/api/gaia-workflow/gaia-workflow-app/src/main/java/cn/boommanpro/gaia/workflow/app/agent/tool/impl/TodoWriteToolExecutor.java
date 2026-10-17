@@ -5,6 +5,7 @@ import cn.boommanpro.gaia.workflow.app.agent.core.ExecutionSurface;
 import cn.boommanpro.gaia.workflow.app.agent.session.SessionArtifactStore;
 import cn.boommanpro.gaia.workflow.app.agent.tool.ToolErrorCode;
 import cn.boommanpro.gaia.workflow.app.agent.tool.ToolExecutor;
+import cn.boommanpro.gaia.workflow.app.agent.tool.ToolGroup;
 import cn.boommanpro.gaia.workflow.app.agent.tool.ToolResult;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
@@ -29,6 +30,11 @@ public class TodoWriteToolExecutor implements ToolExecutor {
 
     public TodoWriteToolExecutor(SessionArtifactStore artifactStore) {
         this.artifactStore = artifactStore;
+    }
+
+    @Override
+    public ToolGroup group() {
+        return ToolGroup.COMMON;
     }
 
     @Override

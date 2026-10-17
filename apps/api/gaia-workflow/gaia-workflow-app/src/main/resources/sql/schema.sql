@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS gaia_workflow (
     current_version_id INTEGER,
     revision INTEGER DEFAULT 0,
     template_code VARCHAR(64),
+    source VARCHAR(16) DEFAULT 'user',   -- user=用户工作流 / session=会话草稿工作流（draft_<sessionKey>，不进列表）
     created_at TEXT,
     updated_at TEXT,
     is_deleted TINYINT DEFAULT 0
@@ -90,7 +91,8 @@ CREATE TABLE IF NOT EXISTS agent_session (
     remote_session_id VARCHAR(128),              -- 方舟 sesn-*（engine=ark 时绑定）
     remote_agent_id VARCHAR(128),                -- 运行时绑定的方舟 agent-* 快照
     remote_agent_version INTEGER,                -- 绑定的方舟 Agent 版本
-    token_usage TEXT                -- 累计用量 JSON：{input_tokens, output_tokens, cache_read_input_tokens}
+    token_usage TEXT,               -- 累计用量 JSON：{input_tokens, output_tokens, cache_read_input_tokens}
+    model_id INTEGER                -- 会话绑定的模型条目（llm_model.id），NULL=跟随全局默认
 );
 
 -- 工作空间文件夹表（Work 模式：按文件夹分组的对话）
@@ -115,7 +117,9 @@ CREATE TABLE IF NOT EXISTS agent_message (
     tool_call_id VARCHAR(64),
     page_context TEXT,
     created_at TEXT,
-    compacted INTEGER DEFAULT 0
+    compacted INTEGER DEFAULT 0,    -- 1=已被上下文摘要取代，不再进入模型上下文
+    images TEXT,                    -- 多模态图片（JSON 数组，base64）
+    parent_message_id VARCHAR(64)   -- 父消息 ID（线程引用）
 );
 CREATE INDEX IF NOT EXISTS idx_agent_message_session ON agent_message(session_key, id);
 
@@ -141,7 +145,8 @@ CREATE TABLE IF NOT EXISTS agent_artifact (
 );
 CREATE INDEX IF NOT EXISTS idx_agent_artifact_session ON agent_artifact(session_key, updated_at);
 
--- Agent 配置中心：在线管理 Prompt / 节点知识文档 / LLM 参数
+-- Agent 配置中心：LLM 参数 / 渠道配置 / 引擎选择 / workflow-architect 人设提示词 / 迁移标记
+-- （默认系统提示词已迁 agent_prompt_config；节点知识已迁 agent_skill_file）
 CREATE TABLE IF NOT EXISTS agent_config (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     config_key VARCHAR(128) NOT NULL UNIQUE,
@@ -169,19 +174,23 @@ CREATE TABLE IF NOT EXISTS agent_config_history (
 );
 CREATE INDEX IF NOT EXISTS idx_agent_config_history_key ON agent_config_history(config_key, version);
 
--- Agent RAG 知识库分块（关键词检索）
-CREATE TABLE IF NOT EXISTS agent_knowledge_chunk (
+-- 模型条目（owb 式「渠道+条目」的条目层）：用户可配多个模型，会话经 agent_session.model_id 绑定其一
+CREATE TABLE IF NOT EXISTS llm_model (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title VARCHAR(256) NOT NULL,
-    content TEXT NOT NULL,
-    source VARCHAR(128),
-    metadata TEXT,
-    language VARCHAR(10) DEFAULT 'zh',
+    display_name VARCHAR(128) NOT NULL,   -- 用户可见唯一名
+    vendor VARCHAR(32),                   -- openai/qwen/glm/anthropic/deepseek/openrouter/ollama/custom
+    base_url VARCHAR(256),
+    api_key VARCHAR(256),
+    model_id VARCHAR(128),                -- 上游模型 ID
+    thinking_override VARCHAR(16),        -- auto/off/low/medium/high；空=跟随全局
+    max_tokens INTEGER,
+    temperature DOUBLE,
+    extra_body TEXT,                      -- 厂商私有参数（JSON）
+    enabled INTEGER DEFAULT 1,
+    sort_order INTEGER DEFAULT 0,
     created_at TEXT,
-    updated_at TEXT,
-    is_deleted TINYINT DEFAULT 0
+    updated_at TEXT
 );
-
 
 -- Agent 工具定义（动态管理）
 CREATE TABLE IF NOT EXISTS agent_tool_definition (
@@ -249,9 +258,94 @@ CREATE TABLE IF NOT EXISTS agent_llm_call_log (
 CREATE INDEX IF NOT EXISTS idx_agent_llm_call_log ON agent_llm_call_log(session_key, run_id);
 -- ---------------------------------------------------------------------------
 -- 已下线功能的存量清理（幂等）：知识图谱 / 权限体系（2026-10 简体重构）
+--                              / RAG 知识库 / 双层记忆（2026-10-17 工具体系重构）
 -- spring.sql.init.mode=always，每次启动执行；新库无这些表时为空操作。
 -- ---------------------------------------------------------------------------
 DROP TABLE IF EXISTS agent_graph_node;
 DROP TABLE IF EXISTS agent_graph_edge;
 DROP TABLE IF EXISTS agent_permission;
 DROP TABLE IF EXISTS agent_global_permission;
+DROP TABLE IF EXISTS agent_knowledge_chunk;
+DROP TABLE IF EXISTS agent_memory;
+
+
+-- 工作流测试用例（2026-10-17 工具体系重构期3）：节点级（node_id 非空）/ 工作流级（node_id 为空）
+CREATE TABLE IF NOT EXISTS workflow_test_case (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    workflow_code VARCHAR(128) NOT NULL,
+    node_id VARCHAR(128),
+    name VARCHAR(256) NOT NULL,
+    description TEXT,
+    inputs_json TEXT,
+    expected_json TEXT NOT NULL,
+    created_by VARCHAR(64) DEFAULT 'user',
+    enabled TINYINT DEFAULT 1,
+    created_at TEXT,
+    updated_at TEXT,
+    is_deleted TINYINT DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_workflow_test_case_code ON workflow_test_case(workflow_code, node_id);
+
+-- 测试用例运行记录
+CREATE TABLE IF NOT EXISTS workflow_test_run (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    case_id INTEGER NOT NULL,
+    status VARCHAR(16) NOT NULL,
+    actual_json TEXT,
+    assert_results_json TEXT,
+    error TEXT,
+    duration_ms INTEGER,
+    source VARCHAR(16) DEFAULT 'manual',
+    executed_at TEXT,
+    is_deleted TINYINT DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_workflow_test_run_case ON workflow_test_run(case_id, executed_at);
+
+-- Agent 人设/规范/压缩提示词配置（2026-10-17 期4）：IDENTITY/SOUL/AGENTS/COMPACTION
+CREATE TABLE IF NOT EXISTS agent_prompt_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    config_key VARCHAR(64) NOT NULL UNIQUE,
+    content TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 1,
+    scope VARCHAR(32) NOT NULL DEFAULT 'global',
+    updated_by VARCHAR(64),
+    updated_at TEXT,
+    is_deleted TINYINT DEFAULT 0
+);
+
+-- Agent 技能元数据（2026-10-17 期4）：原 node_knowledge 重构而来。正文不在此表，见 agent_skill_file
+CREATE TABLE IF NOT EXISTS agent_skill (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name VARCHAR(128) NOT NULL UNIQUE,
+    description VARCHAR(512),
+    kind VARCHAR(32) NOT NULL DEFAULT 'general',
+    enabled TINYINT DEFAULT 1,
+    source VARCHAR(16) DEFAULT 'user',
+    updated_at TEXT,
+    is_deleted TINYINT DEFAULT 0
+);
+
+
+-- Agent 技能文件（2026-10-17 期4 多文件版）：技能 = 目录，SKILL.md 为入口
+CREATE TABLE IF NOT EXISTS agent_skill_file (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    skill_name VARCHAR(128) NOT NULL,
+    file_path VARCHAR(512) NOT NULL,
+    content TEXT NOT NULL DEFAULT '',
+    is_deleted TINYINT DEFAULT 0,
+    created_at TEXT,
+    updated_at TEXT,
+    UNIQUE(skill_name, file_path)
+);
+CREATE INDEX IF NOT EXISTS idx_agent_skill_file_name ON agent_skill_file(skill_name, is_deleted);
+
+-- 技能版本历史（技能级快照：所有文件的 JSON 拷贝）
+CREATE TABLE IF NOT EXISTS agent_skill_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    skill_name VARCHAR(128) NOT NULL,
+    version INTEGER NOT NULL,
+    files_json TEXT NOT NULL,
+    changed_by VARCHAR(64),
+    created_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_agent_skill_history_name ON agent_skill_history(skill_name, version);

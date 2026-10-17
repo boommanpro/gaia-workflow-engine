@@ -23,15 +23,16 @@ interface ToolStepsProps {
 type GlyphKind = 'read' | 'edit' | 'run' | 'commit' | 'delete' | 'know' | 'todo' | 'tool' | 'alert';
 
 function glyphOf(action?: string): GlyphKind {
-  const name = action || '';
-  if (name.startsWith('read_') || name.startsWith('list_')) return 'read';
-  if (name.startsWith('edit_')) return 'edit';
-  if (name.startsWith('run_')) return 'run';
-  if (name === 'write_workflow' || name === 'save_workflow') return 'commit';
-  if (name === 'delete_workflow') return 'delete';
-  if (name.startsWith('search_knowledge') || name.startsWith('get_node_schema')) return 'know';
-  if (name === 'todo_write') return 'todo';
-  return 'tool';
+  switch (action) {
+    case 'get': return 'read';
+    case 'skill': return 'know';
+    case 'node':
+    case 'edge': return 'edit';
+    case 'run': return 'run';
+    case 'test_case': return 'commit';
+    case 'todo_write': return 'todo';
+    default: return 'tool';
+  }
 }
 
 const Glyph: React.FC<{ kind: GlyphKind; size?: number }> = ({ kind, size = 16 }) => {

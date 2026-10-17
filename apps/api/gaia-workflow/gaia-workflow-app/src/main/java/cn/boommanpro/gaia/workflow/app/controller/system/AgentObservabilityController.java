@@ -1,7 +1,10 @@
 package cn.boommanpro.gaia.workflow.app.controller.system;
 
+import cn.boommanpro.gaia.workflow.app.agent.ass.AgentServiceClient;
+import cn.boommanpro.gaia.workflow.app.agent.ass.AgentServiceSessionService;
 import cn.boommanpro.gaia.workflow.app.agent.session.SessionCompactionService;
 import cn.boommanpro.gaia.workflow.app.service.AgentModelConfigService;
+import cn.boommanpro.gaia.workflow.app.service.AgentProviderConfigService;
 import cn.boommanpro.gaia.workflow.infra.manage.entity.AgentLlmCallLog;
 import cn.boommanpro.gaia.workflow.infra.manage.entity.AgentSessionEvent;
 import cn.boommanpro.gaia.workflow.infra.manage.entity.AgentToolCallLog;
@@ -31,7 +34,10 @@ import java.util.Map;
  *   <li>{@code GET /api/agent/metrics/tools} — 按 工具×结局 聚合的调用量与耗时，
  *       含一次通过率（SUCCESS / 总数），金丝雀回归的数据口径；</li>
  *   <li>{@code GET /api/agent/metrics/sessions/{sessionKey}/runs/{runId}} — 单次 run 的事件回放
- *       （agent_session_event 按序），排查「模型当时看到了什么」。</li>
+ *       （agent_session_event 按序），排查「模型当时看到了什么」；</li>
+ *   <li>{@code GET /api/agent/metrics/sessions/{sessionKey}/as-service} — AgentScope Service
+ *       远端会话快照代理（Service 控制台对应用创建的会话无浏览 UI，由本端点代理给
+ *       Gaia Trajectory 的「Service 对话」视图）。</li>
  * </ul>
  */
 @Slf4j
@@ -43,15 +49,24 @@ public class AgentObservabilityController {
     private final AgentSessionEventService sessionEventService;
     private final AgentLlmCallLogService llmCallLogService;
     private final AgentModelConfigService modelConfigService;
+    private final AgentServiceSessionService asServiceSessionService;
+    private final AgentServiceClient asServiceClient;
+    private final AgentProviderConfigService providerConfigService;
 
     public AgentObservabilityController(AgentToolCallLogService toolCallLogService,
                                         AgentSessionEventService sessionEventService,
                                         AgentLlmCallLogService llmCallLogService,
-                                        AgentModelConfigService modelConfigService) {
+                                        AgentModelConfigService modelConfigService,
+                                        AgentServiceSessionService asServiceSessionService,
+                                        AgentServiceClient asServiceClient,
+                                        AgentProviderConfigService providerConfigService) {
         this.toolCallLogService = toolCallLogService;
         this.sessionEventService = sessionEventService;
         this.llmCallLogService = llmCallLogService;
         this.modelConfigService = modelConfigService;
+        this.asServiceSessionService = asServiceSessionService;
+        this.asServiceClient = asServiceClient;
+        this.providerConfigService = providerConfigService;
     }
 
     /** 工具×结局 聚合（可选 days 限定最近 N 天，默认 7） */
@@ -430,5 +445,36 @@ public class AgentObservabilityController {
 
     private static long nz(Integer v) {
         return v != null && v > 0 ? v : 0L;
+    }
+
+    /**
+     * AgentScope Service 远端会话快照（代理）。
+     * 返回 {linked, remoteSessionId, remoteAgentId, snapshot|snapshotError}；
+     * linked=false 表示该会话不是 as-service 引擎（或尚未绑定远端会话）。
+     */
+    @GetMapping("/sessions/{sessionKey}/as-service")
+    public Map<String, Object> asServiceSession(@PathVariable String sessionKey) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        cn.boommanpro.gaia.workflow.infra.manage.entity.AgentSession row =
+            asServiceSessionService.findByKey(sessionKey);
+        if (row == null
+            || !"as-service".equals(row.getEngine())
+            || row.getRemoteSessionId() == null || row.getRemoteSessionId().isEmpty()) {
+            result.put("linked", false);
+            return result;
+        }
+        result.put("linked", true);
+        result.put("remoteSessionId", row.getRemoteSessionId());
+        result.put("remoteAgentId", row.getRemoteAgentId());
+        try {
+            AgentProviderConfigService.AsServiceConfig cfg = providerConfigService.getAsServiceConfig();
+            // hutool 的 JSONNull 会让 Jackson 序列化失败：转成 JSON 文本再解析为纯 Map（null 归 null）
+            String snapText = asServiceClient.getSessionSnapshot(cfg, row.getRemoteSessionId()).toString();
+            result.put("snapshot", new com.fasterxml.jackson.databind.ObjectMapper().readValue(snapText, Map.class));
+        } catch (Exception e) {
+            log.warn("[observability] 拉取 Service 会话快照失败 session={}: {}", sessionKey, e.getMessage());
+            result.put("snapshotError", e.getMessage());
+        }
+        return result;
     }
 }

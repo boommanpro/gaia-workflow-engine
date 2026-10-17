@@ -99,9 +99,6 @@ export const agentApi = {
       `/agent/session/${encodeURIComponent(sessionKey)}/ask/${encodeURIComponent(askId)}/answer`,
       { method: 'POST', body: JSON.stringify({ answer }) }
     ),
-  /** 当前运行快照 */
-  getRunStatus: (sessionKey: string) =>
-    request<any>(`/agent/session/${sessionKey}/status`),
   /** 当前服务端画布草稿（会话切换时恢复产物渲染） */
   getSessionDocument: (sessionKey: string) =>
     request<any>(`/agent/session/${sessionKey}/document`),
@@ -114,16 +111,6 @@ export const agentApi = {
       `/agent/session/${encodeURIComponent(sessionKey)}/compact`,
       { method: 'POST' },
     ),
-
-  // ===== 双层记忆（owb memory 对标）=====
-  getMemory: () =>
-    request<{ manual: string; items: { id: number; content: string; source: string; updatedAt?: string }[] }>(
-      '/agent/memory'),
-  saveMemoryManual: (content: string) =>
-    request<{ success: boolean }>('/agent/memory/manual',
-      { method: 'PUT', body: JSON.stringify({ content }) }),
-  deleteMemoryEntry: (id: number) =>
-    request<{ success: boolean }>(`/agent/memory/${id}`, { method: 'DELETE' }),
 
   // ===== 模型配置（owb 式多模型）=====
   listModels: () => request<{ items: any[]; activeModelId: number | null; globalThinking: string; engineMode?: string }>(
@@ -198,13 +185,43 @@ export const agentApi = {
     }
   },
 
-  // ===== 会话级观测 API（调试面板 TraceView 数据源）=====
+  // ===== 会话级观测 API（轨迹回放数据源）=====
   /** 会话的 run 列表（从 agent_session_event 派生：终态/失败链/时间账） */
   getSessionRuns: (sessionKey: string) =>
     request<any[]>(`/agent/metrics/sessions/${sessionKey}/runs?limit=100`),
   /** 会话事件流（跨 run，追加只写） */
   getSessionEvents: (sessionKey: string, limit = 500) =>
     request<any[]>(`/agent/metrics/sessions/${sessionKey}/events?limit=${limit}`),
+  /** AgentScope Service 远端会话快照（as-service 引擎；Trajectory「Service 对话」视图数据源） */
+  getAsServiceSession: (sessionKey: string) =>
+    request<{
+      linked: boolean;
+      remoteSessionId?: string;
+      remoteAgentId?: string;
+      snapshot?: {
+        items?: Array<{
+          created_at?: number;
+          data?: {
+            item?: {
+              type?: string;
+              role?: string;
+              status?: string;
+              content?: Array<{
+                type?: string;
+                text?: string;
+                name?: string;
+                input?: unknown;
+                output?: Array<{ text?: string }>;
+                state?: string;
+              }>;
+            };
+          };
+        }>;
+        session?: { status?: string };
+        usage?: Record<string, unknown>;
+      };
+      snapshotError?: string;
+    }>(`/agent/metrics/sessions/${sessionKey}/as-service`),
   /** LLM 调用账本（generation 级：prompt/输出摘要、usage、耗时、结局；limit 上限 1000） */
   getRunLlmCalls: (sessionKey: string, runId?: string, limit = 200) =>
     request<any[]>(
@@ -265,50 +282,17 @@ export const agentApi = {
   // Agent 配置
   listConfigs: (configType?: string) =>
     request<any[]>(`/agent/config/list${configType ? `?configType=${configType}` : ''}`),
-  getConfig: (configKey: string) =>
-    request<any>(`/agent/config/${configKey}`),
   saveConfig: (config: any, applyImmediately = false) =>
     request<any>(`/agent/config/save${applyImmediately ? '?applyImmediately=true' : ''}`, {
       method: 'POST',
       body: JSON.stringify(config),
     }),
-  deleteConfig: (configKey: string) =>
-    request<boolean>(`/agent/config/${configKey}`, { method: 'DELETE' }),
-  getConfigHistory: (configKey: string) =>
-    request<any[]>(`/agent/config/${configKey}/history`),
-  revertConfig: (configKey: string, version: number) =>
-    request<any>(`/agent/config/${configKey}/revert/${version}`, { method: 'POST' }),
-
-  // 配置中心 AI 生成（一次性 LLM 补全）
-  generateContent: (prompt: string, maxTokens?: number) =>
-    request<{ content: string }>('/agent/config/generate', {
-      method: 'POST',
-      body: JSON.stringify({ prompt, maxTokens }),
-    }),
-
-  // 知识库
-  listKnowledge: (keyword?: string) =>
-    request<any[]>(`/agent/knowledge/list${keyword ? `?keyword=${encodeURIComponent(keyword)}` : ''}`),
-  getKnowledge: (id: number) =>
-    request<any>(`/agent/knowledge/${id}`),
-  saveKnowledge: (chunk: any) =>
-    request<any>('/agent/knowledge/save', { method: 'POST', body: JSON.stringify(chunk) }),
-  deleteKnowledge: (id: number) =>
-    request<boolean>(`/agent/knowledge/${id}`, { method: 'DELETE' }),
-  searchKnowledge: (query: string, topK?: number, lang?: string) =>
-    request<any[]>('/agent/knowledge/search', { method: 'POST', body: JSON.stringify({ query, topK: topK || 5, lang }) }),
 
   // 工具定义
   listToolDefinitions: (toolGroup?: string) =>
     request<any[]>(`/agent/tool-definition/list${toolGroup ? `?toolGroup=${toolGroup}` : ''}`),
-  getToolDefinition: (toolName: string) =>
-    request<any>(`/agent/tool-definition/${toolName}`),
   saveToolDefinition: (def: any) =>
     request<any>('/agent/tool-definition/save', { method: 'POST', body: JSON.stringify(def) }),
-  deleteToolDefinition: (toolName: string) =>
-    request<boolean>(`/agent/tool-definition/${toolName}`, { method: 'DELETE' }),
-  refreshTools: () =>
-    request<any>('/agent/tool-definition/refresh', { method: 'POST' }),
 
   // 配置导出/导入（用于线上升级迁移）
   exportConfig: async (): Promise<string> => {

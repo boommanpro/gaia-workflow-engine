@@ -1,6 +1,6 @@
 /**
  * Markdown - 轻量 Markdown 渲染 + 选项块解析
- * 零依赖，覆盖 assistant 常见输出：标题/段落/列表/加粗/行内代码/代码块/链接/引用/分隔线
+ * 零依赖，覆盖 assistant 常见输出：标题/段落/列表/加粗/行内代码/代码块/链接/引用/表格/分隔线
  * 同时解析 ::options 选项块，渲染为可点击按钮
  */
 import React, { useMemo, useCallback } from 'react';
@@ -50,6 +50,17 @@ function escapeHtml(s: string): string {
     .replace(/'/g, '&#39;');
 }
 
+/**
+ * 中文模型输出表格常用全角竖线「｜」，GFM 解析只认 ASCII 管道。
+ * 行内出现 ≥2 个全角竖线即视作表格行，整行归一成 ASCII 管道。
+ */
+function normalizeTablePipes(line: string): string {
+  return (line.match(/｜/g) || []).length >= 2 ? line.replace(/｜/g, '|') : line;
+}
+
+/** 复制按钮里的小图标（dangerouslySetInnerHTML 场景用不了 React 组件，只能内联 SVG 字符串） */
+const COPY_SVG = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>';
+
 /** 行内格式：加粗、行内代码、链接 */
 function renderInline(text: string): string {
   let s = escapeHtml(text);
@@ -68,6 +79,20 @@ function renderInline(text: string): string {
   return s;
 }
 
+/** GFM 分隔行（如 |------|------|）：表格第二行的判定依据 */
+const TABLE_SEP_RE = /^\s*\|?[\s:|-]*-[\s:|-]*\|?\s*$/;
+
+/** 第 i 行是否为表格起始（含 | 且下一行是分隔行） */
+function looksLikeTableStart(lines: string[], i: number): boolean {
+  return (
+    lines[i].includes('|') &&
+    i + 1 < lines.length &&
+    TABLE_SEP_RE.test(lines[i + 1]) &&
+    lines[i + 1].includes('-') &&
+    lines[i + 1].includes('|')
+  );
+}
+
 /** 将 markdown 文本解析为 HTML 字符串 */
 function markdownToHtml(md: string): string {
   if (!md) return '';
@@ -78,7 +103,7 @@ function markdownToHtml(md: string): string {
   while (i < lines.length) {
     const line = lines[i];
 
-    // 代码块 ```
+    // 代码块 ```（带头部：语言标识 + 复制按钮，复制走容器级事件委托）
     if (line.trim().startsWith('```')) {
       const lang = line.trim().slice(3).trim();
       const code: string[] = [];
@@ -88,10 +113,13 @@ function markdownToHtml(md: string): string {
         i++;
       }
       i++; // 跳过结束 ```
+      const copyLabel = t('chat.copyCode');
       html.push(
-        `<pre class="md-code-block"><code${lang ? ` class="lang-${escapeHtml(lang)}"` : ''}>${escapeHtml(
-          code.join('\n')
-        )}</code></pre>`
+        `<div class="md-codeblock">` +
+          `<div class="md-codeblock-head"><span class="md-code-lang">${escapeHtml(lang || 'text')}</span>` +
+          `<button type="button" class="md-cb-copy">${COPY_SVG}<span>${escapeHtml(copyLabel)}</span></button></div>` +
+          `<pre><code>${escapeHtml(code.join('\n'))}</code></pre>` +
+        `</div>`
       );
       continue;
     }
@@ -113,7 +141,7 @@ function markdownToHtml(md: string): string {
     }
 
     // GFM 表格（当前行含 | 且下一行是分隔线）
-    if (line.includes('|') && i + 1 < lines.length && /^\s*\|?[\s:|-]*-[\s:|-]*\|?\s*$/.test(lines[i + 1]) && lines[i + 1].includes('-') && lines[i + 1].includes('|')) {
+    if (looksLikeTableStart(lines, i)) {
       const parseRow = (row: string): string[] =>
         row.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim());
 
@@ -173,7 +201,7 @@ function markdownToHtml(md: string): string {
       continue;
     }
 
-    // 段落（连续非空非特殊行合并）
+    // 段落（连续非空非特殊行合并；模型输出表格常不带前置空行，合并须在表格起始行断开）
     const para: string[] = [];
     while (
       i < lines.length &&
@@ -183,7 +211,8 @@ function markdownToHtml(md: string): string {
       !/^(-{3,}|\*{3,}|_{3,})\s*$/.test(lines[i]) &&
       !lines[i].trim().startsWith('>') &&
       !/^\s*[-*+]\s+/.test(lines[i]) &&
-      !/^\s*\d+\.\s+/.test(lines[i])
+      !/^\s*\d+\.\s+/.test(lines[i]) &&
+      !looksLikeTableStart(lines, i)
     ) {
       para.push(lines[i]);
       i++;
@@ -220,8 +249,11 @@ export const Markdown: React.FC<MarkdownProps> = ({
   optionsRetired,
 }) => {
   // 弱模型偶尔输出 <br/> 而不是换行 —— 统一归一成换行再走解析，
-  // 否则正文里会看到字面 <br/> 标签
-  const normalized = useMemo(() => content.replace(/<br\s*\/?>/gi, '\n'), [content]);
+  // 否则正文里会看到字面 <br/> 标签；全角管道表格行同步归一成 ASCII 管道
+  const normalized = useMemo(
+    () => content.replace(/<br\s*\/?>/gi, '\n').split('\n').map(normalizeTablePipes).join('\n'),
+    [content]
+  );
   const { text, options } = useMemo(() => parseOptions(normalized), [normalized]);
   const html = useMemo(() => markdownToHtml(text), [text]);
 
@@ -232,9 +264,27 @@ export const Markdown: React.FC<MarkdownProps> = ({
     [optionsDisabled, optionsRetired, onOptionClick]
   );
 
+  /** 代码块复制：事件委托到 .md-cb-copy，取同块 <pre><code> 的文本。
+   *  行内改写按钮文案做反馈（不引 Toast —— live 时间线测试环境禁不起 semi-ui 全量包）。 */
+  const handleHtmlClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const btn = (e.target as HTMLElement).closest?.('.md-cb-copy') as HTMLElement | null;
+    if (!btn) return;
+    const codeEl = btn.closest('.md-codeblock')?.querySelector('pre code');
+    const value = codeEl?.textContent ?? '';
+    const labelEl = btn.querySelector('span');
+    const restore = () => { if (labelEl) labelEl.textContent = t('chat.copyCode'); };
+    void navigator.clipboard.writeText(value).then(() => {
+      if (labelEl) labelEl.textContent = t('chat.copied');
+      setTimeout(restore, 1200);
+    }, () => {
+      if (labelEl) labelEl.textContent = t('chat.copyFailed');
+      setTimeout(restore, 1600);
+    });
+  }, []);
+
   return (
     <div className="md-body">
-      {html && <div className="md-html" dangerouslySetInnerHTML={{ __html: html }} />}
+      {html && <div className="md-html" onClick={handleHtmlClick} dangerouslySetInnerHTML={{ __html: html }} />}
       {options.length > 0 && optionsRetired && (
         <div
           style={{

@@ -1,0 +1,14 @@
+{
+  "nodes": [
+    {"id":"start_1","type":"start","meta":{"position":{"x":0,"y":0}},"data":{"title":"开始","outputs":{"type":"object","properties":{"input_text":{"type":"string","default":"hello gaia"}}}}},
+    {"id":"condition_2","type":"condition","meta":{"position":{"x":1,"y":0}},"data":{"title":"条件判断","conditions":[{"key":"if_match","value":{"left":{"type":"ref","content":["start_1","input_text"]},"operator":"contains","right":{"type":"constant","content":"gaia"}}}]}},
+    {"id":"code_3","type":"code","meta":{"position":{"x":2,"y":0}},"data":{"title":"结果赋值","inputsValues":{"if_match":{"type":"ref","content":["condition_2","if_match"]}},"inputs":{"type":"object","properties":{"if_match":{"type":"boolean"}}},"outputs":{"type":"object","properties":{"result":{"type":"string"}}},"script":{"content":"var m = if_match;\n({ result: m ? '命中' : '未命中' })"}}},
+    {"id":"end_4","type":"end","meta":{"position":{"x":3,"y":0}},"data":{"title":"结束","inputsValues":{"result":{"type":"ref","content":["code_3","result"]}},"inputs":{"type":"object","properties":{"result":{"type":"string"}}}}}
+  ],
+  "edges": [
+    {"sourceNodeID":"start_1","targetNodeID":"condition_2"},
+    {"sourceNodeID":"condition_2","targetNodeID":"code_3","sourcePortID":"if_match"},
+    {"sourceNodeID":"code_3","targetNodeID":"end_4"},
+    {"sourceNodeID":"condition_2","targetNodeID":"code_3","sourcePortID":"else"}
+  ]
+}

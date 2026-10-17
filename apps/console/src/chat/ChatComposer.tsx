@@ -182,8 +182,8 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
       ? CHAT.accentBorder
       : CHAT.line;
   const boxShadow = focused
-    ? '0 0 0 3px rgba(77,83,232,0.10)'
-    : '0 1px 3px rgba(20,20,40,0.05)';
+    ? '0 0 0 3px rgba(13, 13, 13, 0.06)'
+    : '0 1px 3px rgba(20, 20, 40, 0.05)';
 
   const hintText = useMemo(
     () => hint ?? t('chat.inputHint'),
@@ -219,7 +219,7 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
         {/* 顶部插槽：引用条 / 本轮改动条 */}
         {headerSlot}
 
-        {/* 图片预览 */}
+        {/* 附件 chip 行：缩略图 + 名称 + 移除 */}
         {images.length > 0 && (
           <div
             style={{
@@ -233,34 +233,40 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
               <div
                 key={index}
                 style={{
-                  position: 'relative',
-                  width: compact ? 52 : 60,
-                  height: compact ? 52 : 60,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 7,
+                  padding: '4px 8px 4px 4px',
                   borderRadius: 10,
-                  overflow: 'hidden',
                   border: `1px solid ${CHAT.line}`,
+                  background: CHAT.bgSunken,
                 }}
               >
-                <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                <img
+                  src={src}
+                  alt=""
+                  style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 7, display: 'block' }}
+                />
+                <span style={{ fontSize: 12, color: CHAT.textSub, whiteSpace: 'nowrap' }}>
+                  {t('chat.imageName', { n: index + 1 })}
+                </span>
                 <button
                   type="button"
                   title={t('chat.removeImage')}
                   onClick={() => setImages((prev) => prev.filter((_, i) => i !== index))}
                   style={{
-                    position: 'absolute',
-                    top: 2,
-                    right: 2,
                     width: 18,
                     height: 18,
                     borderRadius: '50%',
                     border: 'none',
-                    background: 'rgba(0,0,0,0.55)',
-                    color: 'var(--g-bg-raised)',
+                    background: CHAT.hover,
+                    color: CHAT.textMuted,
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     padding: 0,
+                    flexShrink: 0,
                   }}
                 >
                   <IconClose size="extra-small" />
@@ -307,6 +313,7 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
             padding: compact ? '4px 8px 8px' : '6px 10px 10px',
           }}
         >
+          {/* 左侧：「加东西」入口 + 模型 / 上下文等配置插槽 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
             <input
               ref={fileRef}
@@ -349,22 +356,22 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
                 <IconImage />
               </button>
             </Tooltip>
-            <span
-              style={{
-                fontSize: 11.5,
-                color: CHAT.textFaint,
-                paddingLeft: 2,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {disabled ? t('chat.noSessionHint') : hintText}
-            </span>
+            {toolbarSlot}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto', flexShrink: 0 }}>
-            {toolbarSlot}
+          {/* 右侧：完整快捷键提示 + 发送 / 停止 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto', flexShrink: 0 }}>
+            {!compact && (
+              <span
+                style={{
+                  fontSize: 11.5,
+                  color: CHAT.textFaint,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {disabled ? t('chat.noSessionHint') : hintText}
+              </span>
+            )}
             {streaming ? (
             <button
               type="button"

@@ -3,6 +3,7 @@ package cn.boommanpro.gaia.workflow.app.agent.session;
 import cn.boommanpro.gaia.workflow.app.service.WorkflowDslApplyService;
 import cn.boommanpro.gaia.workflow.infra.manage.entity.GaiaWorkflow;
 import cn.boommanpro.gaia.workflow.infra.manage.service.GaiaWorkflowService;
+import cn.boommanpro.gaia.workflow.infra.manage.service.WorkflowTestCaseService;
 import cn.hutool.json.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import lombok.extern.slf4j.Slf4j;
@@ -24,13 +25,16 @@ public class SessionDraftPublishService {
     private final SessionWorkflowDraftService draftService;
     private final WorkflowDslApplyService dslApplyService;
     private final GaiaWorkflowService workflowService;
+    private final WorkflowTestCaseService testCaseService;
 
     public SessionDraftPublishService(SessionWorkflowDraftService draftService,
                                       WorkflowDslApplyService dslApplyService,
-                                      GaiaWorkflowService workflowService) {
+                                      GaiaWorkflowService workflowService,
+                                      WorkflowTestCaseService testCaseService) {
         this.draftService = draftService;
         this.dslApplyService = dslApplyService;
         this.workflowService = workflowService;
+        this.testCaseService = testCaseService;
     }
 
     /** 落版结果（message 给前端 toast/卡片用） */
@@ -104,6 +108,14 @@ public class SessionDraftPublishService {
             log.debug("[draft-publish] artifact status update failed: {}", e.getMessage());
         }
 
+        // 落版成功后，把 agent 期间沉淀的测试用例从草稿码迁移到正式工作流码
+        // （agent 建用例时绑定的是会话草稿码 draft_<sessionKey>，不迁移则用例跟着草稿走）
+        try {
+            migrateDraftTestCases(sessionKey, code);
+        } catch (Exception e) {
+            log.warn("[draft-publish] test case migration failed: {}", e.getMessage());
+        }
+
         log.info("[draft-publish] {} → {} ({} nodes)", code, apply.getVersionNumber(), apply.getNodeCount());
         result.success = true;
         result.payload
@@ -115,5 +127,22 @@ public class SessionDraftPublishService {
         result.message = "已保存 " + code + " " + apply.getVersionNumber()
             + (isNew ? "（新建工作流）" : "");
         return result;
+    }
+
+    /**
+     * 把绑定在草稿码（draft_<sessionKey>）上的测试用例迁移到正式工作流码。
+     * 幂等：只迁移仍指向草稿码的行。
+     */
+    private void migrateDraftTestCases(String sessionKey, String workflowCode) {
+        String draftCode = SessionWorkflowStore.sessionCode(sessionKey);
+        boolean migrated = testCaseService.update(
+            new com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper<
+                cn.boommanpro.gaia.workflow.infra.manage.entity.WorkflowTestCase>()
+                .eq("workflow_code", draftCode)
+                .eq("is_deleted", 0)
+                .set("workflow_code", workflowCode));
+        if (migrated) {
+            log.info("[draft-publish] migrated test case(s) from {} to {}", draftCode, workflowCode);
+        }
     }
 }

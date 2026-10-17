@@ -1,57 +1,38 @@
 package cn.boommanpro.gaia.workflow.app.config;
 
 import cn.boommanpro.gaia.workflow.infra.manage.entity.AgentConfig;
-import cn.boommanpro.gaia.workflow.infra.manage.entity.AgentKnowledgeChunk;
 import cn.boommanpro.gaia.workflow.infra.manage.service.AgentConfigService;
-import cn.boommanpro.gaia.workflow.infra.manage.service.AgentKnowledgeChunkService;
 import cn.boommanpro.gaia.workflow.app.service.AgentToolRegistry;
-import cn.hutool.core.io.IoUtil;
-import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
-import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 
 /**
  * Agent 静态种子数据初始化器
  *
- * <p>应用启动后幂等灌入内置的系统提示词、节点知识与 RAG 知识库数据。
- * 每个分区独立检查数据是否已存在，缺失时才灌入，实现自愈能力：
- * 即使某次启动时数据被误删，下次启动会自动补齐。
+ * <p>应用启动后幂等灌入 LLM 模型配置并确保工具定义已播种，同时清理已下线功能遗留的配置行。
  * 使用 {@link ApplicationRunner} 保证在 Spring 完全启动（schema.sql 已执行）后运行。</p>
+ *
+ * <p>系统提示词走 agent_prompt_config（AgentPromptComposer），节点知识走 agent_skill_file
+ * （AgentSkillCatalog），都不再经过本类。</p>
  */
 @Slf4j
 @Component
 public class AgentDataSeeder implements ApplicationRunner {
 
-    private static final String NODE_KNOWLEDGE_TYPE = "node_knowledge";
-    private static final String SYSTEM_PROMPT_TYPE = "system_prompt";
-
-    private static final String SYSTEM_PROMPT_ZH_PATH = "agent/prompt-zh.md";
-    private static final String SYSTEM_PROMPT_EN_PATH = "agent/prompt-en.md";
-    private static final String NODE_KNOWLEDGE_ZH_PATH = "seed/node-knowledge.json";
-    private static final String NODE_KNOWLEDGE_EN_PATH = "seed/node-knowledge-en.json";
-    private static final String RAG_KNOWLEDGE_ZH_PATH = "seed/rag-knowledge.json";
-    private static final String RAG_KNOWLEDGE_EN_PATH = "seed/rag-knowledge-en.json";
-
     private final AgentConfigService configService;
-    private final AgentKnowledgeChunkService knowledgeChunkService;
     private final AgentToolRegistry toolRegistry;
     private final AgentProperties properties;
 
     public AgentDataSeeder(AgentConfigService configService,
-                           AgentKnowledgeChunkService knowledgeChunkService,
                            AgentToolRegistry toolRegistry,
                            AgentProperties properties) {
         this.configService = configService;
-        this.knowledgeChunkService = knowledgeChunkService;
         this.toolRegistry = toolRegistry;
         this.properties = properties;
     }
@@ -61,32 +42,42 @@ public class AgentDataSeeder implements ApplicationRunner {
         try {
             cleanupRetiredConfigKeys();
             int modelCount = seedModelConfig();
-            int promptCount = seedSystemPrompt();
-            int configCount = seedNodeKnowledge();
-            int ragCount = seedRagKnowledge();
             // 确保工具定义已播种（@PostConstruct 时机可能早于 schema.sql 执行）
             toolRegistry.ensureSeeded();
-            log.info("Agent seed data check complete: modelConfig={}, systemPrompt={}, nodeKnowledge={}, rag={}",
-                    modelCount, promptCount, configCount, ragCount);
+            log.info("Agent seed data check complete: modelConfig={}", modelCount);
         } catch (Exception e) {
             log.warn("Agent seed data initialization failed: {}", e.getMessage(), e);
         }
     }
 
-    /** 已下线功能的配置清理（幂等，无则空过）：权限策略 + embedding 向量检索 */
+    /**
+     * 已下线功能的配置清理（幂等，无则空过）：
+     * 权限策略 / embedding 向量检索 / 默认系统提示词的 agent_config 副本（已迁 agent_prompt_config）
+     * / 节点知识文档（已迁 agent_skill_file）。
+     */
     private void cleanupRetiredConfigKeys() {
-        String[] retired = {
-            "agent.policy.confirm_mode", "agent.policy.apply_confirm_mode", "embedding_config"};
-        int deleted = 0;
-        for (String key : retired) {
-            long cnt = configService.count(new QueryWrapper<AgentConfig>().eq("config_key", key));
+        String[] retiredKeys = {
+            "agent.policy.confirm_mode", "agent.policy.apply_confirm_mode", "embedding_config",
+            "system_prompt.default", "system_prompt.default.en",
+            "agent.prompt.imported_hash.system_prompt.default",
+            "agent.prompt.imported_hash.system_prompt.default.en"};
+        long deleted = 0;
+        for (String key : retiredKeys) {
+            QueryWrapper<AgentConfig> byKey = new QueryWrapper<AgentConfig>().eq("config_key", key);
+            long cnt = configService.count(byKey);
             if (cnt > 0) {
-                configService.remove(new QueryWrapper<AgentConfig>().eq("config_key", key));
+                configService.remove(byKey);
                 deleted += cnt;
             }
         }
+        QueryWrapper<AgentConfig> nodeKnowledge = new QueryWrapper<AgentConfig>().eq("config_type", "node_knowledge");
+        long nodeKnowledgeCount = configService.count(nodeKnowledge);
+        if (nodeKnowledgeCount > 0) {
+            configService.remove(nodeKnowledge);
+            deleted += nodeKnowledgeCount;
+        }
         if (deleted > 0) {
-            log.info("Cleaned up {} retired agent.policy.* config entries", deleted);
+            log.info("Cleaned up {} retired agent_config entries", deleted);
         }
     }
 
@@ -123,216 +114,5 @@ public class AgentDataSeeder implements ApplicationRunner {
         configService.save(config);
         log.info("Seeded LLM model config: model={}", properties.getLlm().getModel());
         return 1;
-    }
-
-    /**
-     * 灌入系统提示词到 agent_config，configKey=system_prompt.default，configType=system_prompt
-     *
-     * @return 灌入条数（0 表示已存在跳过）
-     */
-    private int seedSystemPrompt() {
-        int count = 0;
-        String now = LocalDateTime.now().toString();
-
-        // 中文版 system_prompt.default
-        long zhExisting = configService.count(
-                new QueryWrapper<AgentConfig>()
-                        .eq("config_type", SYSTEM_PROMPT_TYPE)
-                        .eq("config_key", "system_prompt.default"));
-        if (zhExisting == 0) {
-            String content = readResource(SYSTEM_PROMPT_ZH_PATH);
-            if (content != null && !content.isEmpty()) {
-                AgentConfig config = new AgentConfig();
-                config.setConfigKey("system_prompt.default");
-                config.setConfigType(SYSTEM_PROMPT_TYPE);
-                config.setTitle("Agent 默认系统提示词（中文）");
-                config.setContent(content);
-                config.setDescription("从 agent/prompt-zh.md 导入");
-                config.setCreatedAt(now);
-                config.setUpdatedAt(now);
-                configService.save(config);
-                log.info("Seeded zh-CN system prompt");
-                count++;
-            }
-        }
-
-        // 英文版 system_prompt.default.en
-        long enExisting = configService.count(
-                new QueryWrapper<AgentConfig>()
-                        .eq("config_type", SYSTEM_PROMPT_TYPE)
-                        .eq("config_key", "system_prompt.default.en"));
-        if (enExisting == 0) {
-            String content = readResource(SYSTEM_PROMPT_EN_PATH);
-            if (content != null && !content.isEmpty()) {
-                AgentConfig config = new AgentConfig();
-                config.setConfigKey("system_prompt.default.en");
-                config.setConfigType(SYSTEM_PROMPT_TYPE);
-                config.setTitle("Agent Default System Prompt (English)");
-                config.setContent(content);
-                config.setDescription("Imported from agent/prompt-en.md");
-                config.setCreatedAt(now);
-                config.setUpdatedAt(now);
-                configService.save(config);
-                log.info("Seeded en-US system prompt");
-                count++;
-            }
-        }
-
-        return count;
-    }
-
-    /**
-     * 灌入节点知识文档到 agent_config
-     * 中文版 configKey=node_{nodeType}，英文版 configKey=node_{nodeType}.en
-     *
-     * <p>按 configKey 逐条同步（存在则更新 title/content）：知识是平台教材而非用户数据，
-     * seed 修订必须能进现有库——旧的「非空即跳过」曾让过时教学（canvas/createPlan 等
-     * 已删除的工具）永远留在 DB 里误导模型。</p>
-     *
-     * @return 灌入条数
-     */
-    private int seedNodeKnowledge() {
-        String now = LocalDateTime.now().toString();
-        int count = 0;
-        count += seedNodeKnowledgeLang(NODE_KNOWLEDGE_ZH_PATH, false, now);
-        count += seedNodeKnowledgeLang(NODE_KNOWLEDGE_EN_PATH, true, now);
-        log.info("Seeded {} node knowledge configs", count);
-        return count;
-    }
-
-    /**
-     * 灌入单语言的节点知识，isEn=true 时 configKey 添加 .en 后缀
-     */
-    private int seedNodeKnowledgeLang(String path, boolean isEn, String now) {
-        JSONArray array = readJsonArray(path);
-        if (array == null || array.isEmpty()) {
-            log.warn("Node knowledge seed file is empty: {}", path);
-            return 0;
-        }
-        int count = 0;
-        for (int i = 0; i < array.size(); i++) {
-            JSONObject item = array.getJSONObject(i);
-            String nodeType = item.getStr("nodeType");
-            String title = item.getStr("title");
-            String content = item.getStr("content");
-            if (nodeType == null || nodeType.isEmpty()) {
-                continue;
-            }
-            String configKey = "node_" + nodeType + (isEn ? ".en" : "");
-            AgentConfig existing = configService.getOne(
-                    new QueryWrapper<AgentConfig>().eq("config_key", configKey).last("LIMIT 1"));
-            if (existing != null) {
-                // 内容没变不写库，避免每次启动都动 updated_at
-                if (!content.equals(existing.getContent()) || !title.equals(existing.getTitle())) {
-                    existing.setTitle(title);
-                    existing.setContent(content);
-                    existing.setUpdatedAt(now);
-                    configService.updateById(existing);
-                    count++;
-                }
-                continue;
-            }
-            AgentConfig config = new AgentConfig();
-            config.setConfigKey(configKey);
-            config.setConfigType(NODE_KNOWLEDGE_TYPE);
-            config.setTitle(title);
-            config.setContent(content);
-            config.setDescription(isEn
-                    ? "Flowgram node knowledge: " + nodeType
-                    : "Flowgram 节点知识文档: " + nodeType);
-            config.setCreatedAt(now);
-            config.setUpdatedAt(now);
-            configService.save(config);
-            count++;
-        }
-        log.info("Seeded {} {} node knowledge configs", count, isEn ? "en-US" : "zh-CN");
-        return count;
-    }
-
-    /**
-     * 灌入 RAG 知识库到 agent_knowledge_chunk（关键词检索）
-     * 同时灌入中英文两个版本，language 字段区分语言
-     *
-     * @return 灌入条数
-     */
-    private int seedRagKnowledge() {
-        String now = LocalDateTime.now().toString();
-        int count = 0;
-        count += seedRagKnowledgeLang(RAG_KNOWLEDGE_ZH_PATH, "zh", now);
-        count += seedRagKnowledgeLang(RAG_KNOWLEDGE_EN_PATH, "en", now);
-        log.info("Seeded {} RAG knowledge chunks", count);
-        return count;
-    }
-
-    /**
-     * 灌入单语言的 RAG 知识库，按 title+language 同步（seed 是检索教材的事实源，
-     * 内容修订要能进现有库，否则过时教学永远误导模型）
-     */
-    private int seedRagKnowledgeLang(String path, String lang, String now) {
-        JSONArray array = readJsonArray(path);
-        if (array == null || array.isEmpty()) {
-            log.warn("RAG knowledge seed file is empty: {}", path);
-            return 0;
-        }
-        int count = 0;
-        for (int i = 0; i < array.size(); i++) {
-            JSONObject item = array.getJSONObject(i);
-            String title = item.getStr("title");
-            String content = item.getStr("content");
-            if (title == null || content == null) {
-                continue;
-            }
-            AgentKnowledgeChunk existing = knowledgeChunkService.getOne(
-                    new QueryWrapper<AgentKnowledgeChunk>()
-                        .eq("title", title).eq("language", lang).last("LIMIT 1"));
-            if (existing != null) {
-                if (!content.equals(existing.getContent())) {
-                    existing.setContent(content);
-                    existing.setUpdatedAt(now);
-                    knowledgeChunkService.updateById(existing);
-                    count++;
-                }
-                continue;
-            }
-            AgentKnowledgeChunk chunk = new AgentKnowledgeChunk();
-            chunk.setTitle(title);
-            chunk.setContent(content);
-            chunk.setSource(item.getStr("source", "seed"));
-            chunk.setMetadata(null);
-            chunk.setLanguage(lang);
-            chunk.setCreatedAt(now);
-            chunk.setUpdatedAt(now);
-            knowledgeChunkService.save(chunk);
-            count++;
-        }
-        log.info("Seeded {} {} RAG knowledge chunks", count, lang);
-        return count;
-    }
-
-    /**
-     * 读取 classpath 下的 JSON 数组资源
-     */
-    private JSONArray readJsonArray(String path) {
-        String text = readResource(path);
-        if (text == null || text.isEmpty()) {
-            return null;
-        }
-        return JSONUtil.parseArray(text);
-    }
-
-    /**
-     * 通过 ClassLoader 读取 classpath 资源为 UTF-8 字符串
-     */
-    private String readResource(String path) {
-        try (InputStream is = getClass().getClassLoader().getResourceAsStream(path)) {
-            if (is == null) {
-                log.warn("Seed resource not found: {}", path);
-                return null;
-            }
-            return IoUtil.read(is, StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            log.warn("Failed to read seed resource {}: {}", path, e.getMessage());
-            return null;
-        }
     }
 }

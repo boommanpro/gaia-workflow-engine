@@ -2,11 +2,9 @@ package cn.boommanpro.gaia.workflow.infra.extend.node.base;
 
 import cn.boommanpro.gaia.workflow.base.GaiaWorkflow;
 import cn.boommanpro.gaia.workflow.base.tools.ParameterParseUtils;
-import cn.boommanpro.gaia.workflow.base.model.Parameter;
 import cn.boommanpro.gaia.workflow.infra.extend.node.BaseNodeParser;
 import cn.hutool.json.JSONObject;
 
-import java.util.List;
 
 /**
  * StartNode解析器
@@ -28,17 +26,5 @@ public class StartNodeParser extends BaseNodeParser<StartNode> {
         startNode.setOutputParameters(ParameterParseUtils.parseStartNodeOutputs(outputsSchema));
 
         return startNode;
-    }
-
-    /**
-     * 解析StartNode参数（保留向后兼容性）
-     *
-     * @param nodeJSONObject 参数schema对象
-     * @return 解析后的参数列表
-     * @deprecated 使用 {@link ParameterParseUtils#parseStartNodeParameters(JSONObject)} 替代
-     */
-    @Deprecated
-    public static List<Parameter> parseStartNodeParameters(JSONObject nodeJSONObject) {
-        return ParameterParseUtils.parseStartNodeOutputs(nodeJSONObject);
     }
 }

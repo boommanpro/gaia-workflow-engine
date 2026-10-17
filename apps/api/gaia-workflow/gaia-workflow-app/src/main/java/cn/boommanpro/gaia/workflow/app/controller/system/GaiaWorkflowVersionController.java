@@ -5,10 +5,12 @@ import cn.boommanpro.gaia.workflow.infra.manage.entity.GaiaWorkflowVersion;
 import cn.boommanpro.gaia.workflow.infra.manage.service.GaiaWorkflowService;
 import cn.boommanpro.gaia.workflow.infra.manage.service.GaiaWorkflowVersionService;
 import cn.boommanpro.gaia.workflow.app.service.WorkflowDslApplyService;
+import cn.boommanpro.gaia.workflow.app.service.WorkflowDslValidator;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -93,21 +95,37 @@ public class GaiaWorkflowVersionController {
     }
 
     /**
-     * 创建新版本
+     * 创建新版本（编辑器手动保存通道）。
+     *
+     * <p>2026-10-16 起：这是最后一条免校验写入通道——保存前过 {@link WorkflowDslValidator}，
+     * error 级问题（未知类型/环/悬空边/引用悬空/语义缺失）返回 422 并带结构化 issues，
+     * 不再让脏 schema 落库后到执行期才炸。</p>
      */
     @PostMapping("/create")
-    public boolean createVersion(@RequestBody GaiaWorkflowVersion version) {
+    public ResponseEntity<?> createVersion(@RequestBody GaiaWorkflowVersion version) {
+        List<WorkflowDslValidator.Issue> issues =
+            WorkflowDslValidator.validate(version.getWorkflowData());
+        if (WorkflowDslValidator.hasErrors(issues)) {
+            return reject(issues);
+        }
         version.setCreatedAt(LocalDateTime.now());
         version.setIsCurrent(0);
-        return workflowVersionService.save(version);
+        return ResponseEntity.ok(workflowVersionService.save(version));
     }
 
     /**
-     * 更新版本
+     * 更新版本：workflowData 有变更时同样过校验（防 PUT 直改绕过门禁）。
      */
     @PutMapping("/update")
-    public boolean updateVersion(@RequestBody GaiaWorkflowVersion version) {
-        return workflowVersionService.updateById(version);
+    public ResponseEntity<?> updateVersion(@RequestBody GaiaWorkflowVersion version) {
+        if (version.getWorkflowData() != null) {
+            List<WorkflowDslValidator.Issue> issues =
+                WorkflowDslValidator.validate(version.getWorkflowData());
+            if (WorkflowDslValidator.hasErrors(issues)) {
+                return reject(issues);
+            }
+        }
+        return ResponseEntity.ok(workflowVersionService.updateById(version));
     }
 
     /**
@@ -119,14 +137,20 @@ public class GaiaWorkflowVersionController {
     }
 
     /**
-     * 设置为当前版本
+     * 设置为当前版本。切换生效版本 = 生效内容变更，目标版本必须先过校验——
+     * 任意手工 POST 的坏 JSON 版本不能再被设为生效版本后到执行期才失败。
      */
     @PutMapping("/set-current/{id}")
-    public boolean setCurrentVersion(@PathVariable Long id) {
+    public ResponseEntity<?> setCurrentVersion(@PathVariable Long id) {
         // 先将该工作流下的所有版本设为非当前版本
         GaiaWorkflowVersion version = workflowVersionService.getById(id);
         if (version == null) {
-            return false;
+            return ResponseEntity.ok(false);
+        }
+        List<WorkflowDslValidator.Issue> issues =
+            WorkflowDslValidator.validate(version.getWorkflowData());
+        if (WorkflowDslValidator.hasErrors(issues)) {
+            return reject(issues);
         }
         // 切换生效版本 = 生效内容变更：revision 必须同步递增，
         // 否则切换前读取的 CAS 基准（revision 未变）仍会被认作新鲜，并发覆盖生效版本
@@ -142,11 +166,20 @@ public class GaiaWorkflowVersionController {
         );
 
         // 再将指定版本设为当前版本
-        return workflowVersionService.update(
+        return ResponseEntity.ok(workflowVersionService.update(
             new com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper<GaiaWorkflowVersion>()
                 .eq("id", id)
                 .set("is_current", 1)
-        );
+        ));
+    }
+
+    /** 校验失败：422 + 结构化 issues（前端 extractError 会读 error 字段直接展示） */
+    private static ResponseEntity<Map<String, Object>> reject(List<WorkflowDslValidator.Issue> issues) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("success", false);
+        body.put("error", "工作流校验未通过，未保存：" + WorkflowDslValidator.errorSummary(issues));
+        body.put("issues", issues);
+        return ResponseEntity.unprocessableEntity().body(body);
     }
 
     // ==================================================================

@@ -1,0 +1,41 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://gaia.workflow/schemas/node/llm",
+  "title": "llm",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "inputsValues": {
+      "type": "object"
+    },
+    "inputs": {
+      "type": "object"
+    },
+    "outputs": {
+      "type": "object"
+    },
+    "timeout": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "timeout": {
+          "type": "integer"
+        },
+        "retryTimes": {
+          "type": "integer"
+        }
+      }
+    }
+  },
+  "required": [
+    "inputsValues"
+  ],
+  "additionalProperties": true,
+  "x-gaia-outputs": [
+    "result"
+  ]
+}

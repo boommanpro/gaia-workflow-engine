@@ -178,6 +178,9 @@ Thumbs.db
 .workbuddy/
 .zcode/
 
+# AgentScope Service 运行时工作区（会话/事件/记忆落盘，不入库）
+.agentscope/
+
 # agent-v2 DB 备份（运行时产物，不入库）
 scripts/agent-v2/backups/
 

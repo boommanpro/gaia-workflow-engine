@@ -31,10 +31,6 @@ public class AgentRequest {
     /** 覆盖执行模式；为空则沿用 Agent 定义 */
     private ToolExecutionMode executionMode;
 
-    /** @deprecated 主循环已移除轮次硬上限（自然停止 + 护栏组合），字段仅为兼容保留 */
-    @Deprecated
-    private int maxTurns;
-
     /** 附加变量，供上下文提供者与工具使用 */
     private Map<String, Object> variables;
 
@@ -42,11 +38,11 @@ public class AgentRequest {
     private String runId;
 
     public static AgentRequest of(String message) {
-        return new AgentRequest(null, message, "zh-CN", null, null, null, 0, null, null);
+        return new AgentRequest(null, message, "zh-CN", null, null, null, null, null);
     }
 
     public static AgentRequest of(String sessionKey, String message, String locale, String pageContext) {
-        return new AgentRequest(sessionKey, message, locale, pageContext, null, null, 0, null, null);
+        return new AgentRequest(sessionKey, message, locale, pageContext, null, null, null, null);
     }
 
     public AgentRequest withRunId(String runId) {

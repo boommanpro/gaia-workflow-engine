@@ -100,7 +100,6 @@ export const CopilotSidebar: React.FC<CopilotSidebarProps> = ({ workflowName, wo
   const scoped = useMemo(
     () => !workflowCode || getWorkflowOfSession(currentSessionKey) === workflowCode,
     // bindingTick 用于绑定后强制重算（localStorage 不是响应式数据源）
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [workflowCode, currentSessionKey, bindingTick]
   );
 

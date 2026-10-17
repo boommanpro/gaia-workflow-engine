@@ -36,10 +36,12 @@ public final class WorkflowDslCanonicalizer {
 
     /** 与前端 node-templates 保持一致的受支持节点类型。
      *  注意：multi-condition 不在其中 —— 运行时没有它的解析器（NodeTypeEnum/ChainParser 均无），
-     *  建了也无法执行；多条件互斥分支用 branches，单条件用 condition。 */
+     *  出现即 fatal 打回（2026-10-16 起不再静默降级 variable）；多条件互斥分支用 branches，
+     *  单条件用 condition。assignee 是画布标注节点（无执行语义），2026-10-16 起移出 agent
+     *  可建清单（存量文档仍保留不执行）；note/group 同理不在 agent 可建清单。 */
     private static final Set<String> SUPPORTED_TYPES = new HashSet<>(Arrays.asList(
         "start", "end", "llm", "code", "http", "condition",
-        "branches", "loop", "variable", "string-format", "assignee", "comment"));
+        "branches", "loop", "variable", "string-format", "comment"));
 
     /** 不属于业务数据的节点保留键 */
     private static final Set<String> RESERVED_NODE_KEYS = new HashSet<>(Arrays.asList(
@@ -54,7 +56,7 @@ public final class WorkflowDslCanonicalizer {
     }
 
     /** 规范化结果 */
-    /** 供工具链做 op 级类型校验（edit_workflow.addNode 的枚举检查） */
+    /** 供工具链做 op 级类型校验（node add 的类型枚举检查） */
     public static boolean isSupportedType(String type) {
         return type != null && SUPPORTED_TYPES.contains(type);
     }
@@ -197,8 +199,18 @@ public final class WorkflowDslCanonicalizer {
             }
             type = type.toLowerCase();
             if (!SUPPORTED_TYPES.contains(type)) {
-                repairs.add("节点类型 \"" + type + "\" 不受支持，已降级为 variable");
-                type = "variable";
+                if (cn.boommanpro.gaia.workflow.base.type.NodeTypeEnum.notParse(type)) {
+                    // 画布标注类节点（note/group/comment/assignee）：引擎 parse 阶段本就跳过，
+                    // 保留原样落库，让「画布导出 → apply 落版」通道可用
+                    repairs.add("节点 \"" + raw.getStr("id") + "\" 类型 \"" + type
+                        + "\" 为画布标注类节点，保留不执行");
+                } else {
+                    // 2026-10-16 起：未知类型不再静默降级 variable——降级改语义且把失败
+                    // 推迟到运行期（旁路入库时更是 NPE 全崩）。这里显式 fatal 打回。
+                    fatalIssues.add("节点类型 \"" + type + "\" 不受支持：运行时没有它的解析器（执行必然失败）。"
+                        + "多条件互斥分支用 branches，单条件用 condition");
+                    continue;
+                }
             }
 
             // start / end 必须唯一，多余的降级，避免结构非法
@@ -334,13 +346,15 @@ public final class WorkflowDslCanonicalizer {
                 repairs.add("节点 " + source + " 存在自环连线，已跳过");
                 continue;
             }
-            String key = source + "->" + target;
+            String sourcePort = firstNonEmpty(raw.getStr("sourcePortID"), raw.getStr("sourcePort"),
+                raw.getStr("fromPort"));
+            // 去重键必须含端口：condition/branches 同一 source→target 的 if/else 双边是合法结构，
+            // 只按端点判重会把 else 边静默丢弃（2026-10-17 E2E 实证：反例路径整体 canceled）
+            String key = source + "->" + target + (sourcePort != null ? "[" + sourcePort + "]" : "");
             if (!seenEdges.add(key)) {
                 repairs.add("连线 " + key + " 重复，已去重");
                 continue;
             }
-            String sourcePort = firstNonEmpty(raw.getStr("sourcePortID"), raw.getStr("sourcePort"),
-                raw.getStr("fromPort"));
             String targetPort = firstNonEmpty(raw.getStr("targetPortID"), raw.getStr("targetPort"),
                 raw.getStr("toPort"));
 
@@ -423,6 +437,8 @@ public final class WorkflowDslCanonicalizer {
         JSONObject out = new JSONObject();
         out.set("nodes", outNodes);
         out.set("edges", outEdges);
+        // schema 契约版本标记：后续契约演进（改形状/迁移）靠它识别存量数据
+        out.set("schemaVersion", 1);
         if (globalVariable != null) {
             out.set("globalVariable", globalVariable);
         }
@@ -504,9 +520,9 @@ public final class WorkflowDslCanonicalizer {
                     + " 的端口 \"" + port + "\" 不存在：" + sourceType + " 节点的出边 fromPort 必须用 "
                     + portField + "（本节点可用: " + String.join(" / ", legal) + "），"
                     + "不能用 true/false 这类猜测值——端口匹配不到时该分支的下游节点不会执行。"
-                    + "修复：edit_workflow 传 {\"removeEdges\":[{\"from\":\"" + source + "\",\"to\":\""
-                    + e.getStr("targetNodeID") + "\"}],\"addEdges\":[{\"from\":\"" + source + "\",\"to\":\""
-                    + e.getStr("targetNodeID") + "\",\"fromPort\":\"" + fixPort.split("\\|", 2)[0] + "\"}]}"
+                    + "修复：先 edge 传 {\"action\":\"remove\",\"from\":\"" + source + "\",\"to\":\""
+                    + e.getStr("targetNodeID") + "\"}，再 edge 传 {\"action\":\"connect\",\"from\":\"" + source + "\",\"to\":\""
+                    + e.getStr("targetNodeID") + "\",\"fromPort\":\"" + fixPort.split("\\|", 2)[0] + "\"}"
                     + "（多条分支出边逐条改）");
             }
         }
@@ -531,8 +547,8 @@ public final class WorkflowDslCanonicalizer {
                 if (reportedSources.add(nodeId + "#no-edge")) {
                     fatalIssues.add("节点 " + nodeId + "（条件/分支）没有任何出边：分支后的路径没有接到任何节点，"
                         + "下游会全部照跑、条件等于没配。"
-                        + "修复：edit_workflow 传 {\"addEdges\":[{\"from\":\"" + nodeId + "\",\"to\":\"<下游节点id>\","
-                        + "\"fromPort\":\"" + String.join("|", entry.getValue()) + "\"}]}（每个 key/else 至少一条出边）");
+                        + "修复：edge 传 {\"action\":\"connect\",\"from\":\"" + nodeId + "\",\"to\":\"<下游节点id>\","
+                        + "\"fromPort\":\"" + String.join("|", entry.getValue()) + "\"}（每个 key/else 至少一条出边）");
                 }
                 continue;
             }
@@ -544,8 +560,8 @@ public final class WorkflowDslCanonicalizer {
                 if (!connectedPorts.contains(port) && reportedSources.add(nodeId + "#missing-" + port)) {
                     fatalIssues.add("节点 " + nodeId + " 的分支端口 \"" + port + "\" 没有连线："
                         + "命中该条件时下游不会执行、结果为空。"
-                        + "修复：edit_workflow 传 {\"addEdges\":[{\"from\":\"" + nodeId + "\",\"to\":\"<下游节点id>\","
-                        + "\"fromPort\":\"" + port + "\"}]}");
+                        + "修复：edge 传 {\"action\":\"connect\",\"from\":\"" + nodeId + "\",\"to\":\"<下游节点id>\","
+                        + "\"fromPort\":\"" + port + "\"}");
                 }
             }
             // 缺 else 降为 warning（2026-10-11 落地校准）：引擎在「无端口命中」时 fallback 全跑下游，
@@ -556,8 +572,8 @@ public final class WorkflowDslCanonicalizer {
                 String portField = isBranches ? "branches[].id" : "conditions[].key";
                 warnings.add("节点 " + nodeId + "（" + (isBranches ? "分支" : "条件")
                     + "）缺少 else 兜底出边：当前依赖引擎的「未命中全跑下游」兜底语义。"
-                    + "更稳妥的写法：edit_workflow 传 {\"addEdges\":[{\"from\":\"" + nodeId + "\",\"to\":\"<下游节点id>\","
-                    + "\"fromPort\":\"else\"}]}（可指向同一个 end）。注意 fromPort 用 " + portField
+                    + "更稳妥的写法：edge 传 {\"action\":\"connect\",\"from\":\"" + nodeId + "\",\"to\":\"<下游节点id>\","
+                    + "\"fromPort\":\"else\"}（可指向同一个 end）。注意 fromPort 用 " + portField
                     + " 或 else，不能用 true/false");
             }
         }
@@ -574,7 +590,7 @@ public final class WorkflowDslCanonicalizer {
      */
     /**
      * 业务字段预检（落版 / 试运行共用）：返回 fatal 问题清单（带可直接抄的修复 JSON）。
-     * 空清单 = 可跑。run_workflow 执行前先调它，把「跑 30 秒才发现 url 是空」提前成毫秒级失败。
+     * 空清单 = 可跑。run(target=workflow) 执行前先调它，把「跑 30 秒才发现 url 是空」提前成毫秒级失败。
      */
     public static List<String> businessFieldIssues(JSONObject doc) {
         List<String> fatalIssues = new ArrayList<>();
@@ -620,8 +636,8 @@ public final class WorkflowDslCanonicalizer {
                 case "llm": {
                     if (!hasTemplateContent(iv, "prompt") && !hasTemplateContent(iv, "systemPrompt")) {
                         fatalIssues.add("节点 " + id + "（LLM）缺少 prompt：没有提示词无法完成任何任务。"
-                            + "修复：edit_workflow 传 {\"updateNodes\":[{\"nodeId\":\"" + id
-                            + "\",\"data\":{\"prompt\":\"<从需求推导的提示词，可引用上游输出，如：总结以下文本：{{ start.text }}\"}}]}");
+                            + "修复：node 传 {\"action\":\"update\",\"nodeId\":\"" + id
+                            + "\",\"data\":{\"prompt\":\"<从需求推导的提示词，可引用上游输出，如：总结以下文本：{{ start.text }}\"}}");
                     } else if (isDerivedPlaceholderPrompt(constantContentOf(iv, "prompt"))) {
                         warnings.add("节点 " + id + "（LLM）的提示词是系统生成的占位内容（按标题派生），"
                             + "请改为真实业务提示词");
@@ -632,18 +648,19 @@ public final class WorkflowDslCanonicalizer {
                     break;
                 }
                 case "http": {
-                    String url = constantContentOf(iv, "url");
-                    if (!hasConstantContent(iv, "url")) {
+                    String url = apiUrlOf(data);
+                    if (url == null || url.trim().isEmpty()) {
                         fatalIssues.add("节点 " + id + "（HTTP）缺少 url：无法发起请求。"
-                            + "修复：edit_workflow 传 {\"updateNodes\":[{\"nodeId\":\"" + id
-                            + "\",\"data\":{\"method\":\"POST\",\"url\":\"https://真实地址\"}}]}；"
+                            + "修复：node 传 {\"action\":\"update\",\"nodeId\":\"" + id
+                            + "\",\"data\":{\"api\":{\"method\":\"POST\",\"url\":\"https://真实地址\"}}}；"
                             + "确实缺地址信息就先 ask_user 问用户");
-                    } else if (url != null && url.contains("example.com")) {
+                    } else if (url.contains("example.com")) {
                         fatalIssues.add("节点 " + id + "（HTTP）的 url 是占位地址（" + url + "）：调用必然失败。"
-                            + "修复：edit_workflow 传 {\"updateNodes\":[{\"nodeId\":\"" + id
-                            + "\",\"data\":{\"url\":\"https://真实地址\"}}]}");
+                            + "修复：node 传 {\"action\":\"update\",\"nodeId\":\"" + id
+                            + "\",\"data\":{\"api\":{\"url\":\"https://真实地址\"}}}");
                     }
-                    if (iv == null || iv.get("method") == null) {
+                    JSONObject api = data.getJSONObject("api");
+                    if (api == null || api.get("method") == null) {
                         warnings.add("节点 " + id + "（HTTP）未指定 method，将默认使用 GET");
                     }
                     break;
@@ -651,8 +668,8 @@ public final class WorkflowDslCanonicalizer {
                 case "code": {
                     if (!hasScript(data)) {
                         fatalIssues.add("节点 " + id + "（Code）缺少 script：空脚本无法产出结果。"
-                            + "修复：edit_workflow 传 {\"updateNodes\":[{\"nodeId\":\"" + id
-                            + "\",\"data\":{\"script\":{\"language\":\"java\",\"content\":\"return Map.of(\\\"result\\\", input.get(\\\"text\\\"));\"}}}]}"
+                            + "修复：node 传 {\"action\":\"update\",\"nodeId\":\"" + id
+                            + "\",\"data\":{\"script\":{\"language\":\"java\",\"content\":\"return Map.of(\\\"result\\\", input.get(\\\"text\\\"));\"}}}"
                             + "（content 写 java 语句，input 是上游输出 Map）");
                     }
                     break;
@@ -664,8 +681,8 @@ public final class WorkflowDslCanonicalizer {
                         // 2026-10-11 升 fatal：空壳骨架策略（先写骨架再填数据）曾导致连跑 3 次失败
                         //（"start 没有输出参数下游拿不到输入" warning 模型不当回事）
                         fatalIssues.add("节点 " + id + "（开始）没有定义任何输出参数，下游节点将拿不到输入。"
-                            + "修复：edit_workflow 传 {\"updateNodes\":[{\"nodeId\":\"" + id + "\",\"data\":"
-                            + "{\"outputs\":{\"type\":\"object\",\"properties\":{\"<参数名>\":{\"type\":\"string\",\"title\":\"<说明>\"}}}}}]}"
+                            + "修复：node 传 {\"action\":\"update\",\"nodeId\":\"" + id + "\",\"data\":"
+                            + "{\"outputs\":{\"type\":\"object\",\"properties\":{\"<参数名>\":{\"type\":\"string\",\"title\":\"<说明>\"}}}}}"
                             + "（按用户需求定义输入参数）");
                     }
                     break;
@@ -673,21 +690,20 @@ public final class WorkflowDslCanonicalizer {
                 case "end": {
                     if (iv == null || iv.isEmpty()) {
                         fatalIssues.add("节点 " + id + "（结束）没有引用任何上游输出，工作流运行结果将为空。"
-                            + "修复：edit_workflow 传 {\"updateNodes\":[{\"nodeId\":\"" + id + "\",\"data\":"
-                            + "{\"inputsValues\":{\"<结果字段>\":{\"type\":\"ref\",\"content\":[\"<上游节点id>\",\"<字段名>\"]}}}}]}"
+                            + "修复：node 传 {\"action\":\"update\",\"nodeId\":\"" + id + "\",\"data\":"
+                            + "{\"inputsValues\":{\"<结果字段>\":{\"type\":\"ref\",\"content\":[\"<上游节点id>\",\"<字段名>\"]}}}}"
                             + "（把上游要输出的字段引用进来）");
                     }
                     break;
                 }
-                case "condition":
-                case "multi-condition": {
+                case "condition": {
                     JSONArray conditions = data.getJSONArray("conditions");
                     if (conditions == null || conditions.isEmpty()) {
                         fatalIssues.add("节点 " + id + "（条件）没有配置任何条件分支——条件节点不配条件等于白建。"
-                            + "修复：edit_workflow 传 {\"updateNodes\":[{\"nodeId\":\"" + id + "\",\"data\":"
+                            + "修复：node 传 {\"action\":\"update\",\"nodeId\":\"" + id + "\",\"data\":"
                             + "{\"conditions\":[{\"key\":\"if_match\",\"value\":{\"left\":{\"type\":\"ref\","
                             + "\"content\":[\"<上游id>\",\"<字段>\"]},\"operator\":\"contains\","
-                            + "\"right\":{\"type\":\"constant\",\"content\":\"<比较值>\"}}}]}}]}");
+                            + "\"right\":{\"type\":\"constant\",\"content\":\"<比较值>\"}}}]}}");
                     }
                     break;
                 }
@@ -695,7 +711,7 @@ public final class WorkflowDslCanonicalizer {
                     JSONArray branches = data.getJSONArray("branches");
                     if (branches == null || branches.isEmpty()) {
                         fatalIssues.add("节点 " + id + "（分支）没有配置任何分支——分支节点不配分支等于白建。"
-                            + "get_node_schema(branches) 查看结构后补全 branches 列表");
+                            + "修复：get 传 {\"target\":\"knowledge\",\"nodeType\":\"branches\"} 查看结构后补全 branches 列表");
                     }
                     break;
                 }
@@ -734,6 +750,27 @@ public final class WorkflowDslCanonicalizer {
             return "ref:" + ((JSONArray) content).join(".");
         }
         return null;
+    }
+
+    /**
+     * http 节点的 url 文本：规范形状读 {@code data.api.url}（字符串或 constant/template 包装），
+     * 兼容旧落库数据的 {@code data.inputsValues.url}。取不到返回 null。
+     */
+    private static String apiUrlOf(JSONObject data) {
+        JSONObject api = data.getJSONObject("api");
+        Object url = api != null ? api.get("url") : null;
+        if (url == null) {
+            JSONObject iv = data.getJSONObject("inputsValues");
+            url = iv != null ? iv.get("url") : null;
+        }
+        if (url instanceof JSONObject) {
+            Object content = ((JSONObject) url).get("content");
+            if (content instanceof JSONArray) {
+                return "ref:" + ((JSONArray) content).join(".");
+            }
+            url = content;
+        }
+        return url == null ? null : String.valueOf(url);
     }
 
     /** inputsValues[key] 是 template/constant 且 content 非空 */
@@ -789,10 +826,6 @@ public final class WorkflowDslCanonicalizer {
             this.apiKey = apiKey;
             this.modelName = modelName;
         }
-    }
-
-    private static boolean hasConstantContent(JSONObject iv, String key) {
-        return hasWrapperContent(iv, key, "constant") || hasWrapperContent(iv, key, "template");
     }
 
     private static boolean hasWrapperContent(JSONObject iv, String key, String expectedType) {

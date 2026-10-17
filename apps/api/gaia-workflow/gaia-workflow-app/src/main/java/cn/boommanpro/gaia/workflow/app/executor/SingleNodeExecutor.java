@@ -2,6 +2,7 @@ package cn.boommanpro.gaia.workflow.app.executor;
 
 import cn.boommanpro.gaia.workflow.app.domain.testrun.input.SingleNodeRunInput;
 import cn.boommanpro.gaia.workflow.app.domain.testrun.output.SingleNodeRunOutput;
+import cn.boommanpro.gaia.workflow.app.service.NodeDataNormalizer;
 import cn.boommanpro.gaia.workflow.base.GaiaWorkflow;
 import cn.boommanpro.gaia.workflow.base.model.Chain;
 import cn.boommanpro.gaia.workflow.base.model.ChainNode;
@@ -27,12 +28,23 @@ import java.util.Set;
 /**
  * 单节点执行器
  * <p>
- * 解析并独立执行工作流中的单个节点，用于编辑器中的节点级测试。
+ * 解析并独立执行工作流中的单个节点，用于编辑器中的节点级测试（前端 run-node-panel 入口）。
+ * 节点 JSON 直接取画布 {@code node.toJSON()}——schema 与前端口径一致（容器节点内嵌
+ * blocks/edges，与 LoopNodeParser 的读取路径相同）；执行前过 {@link NodeDataNormalizer}，
+ * 与草稿/落版链路共享同一份归一化，扁平/历史形状在此收敛为规范形状。
  * 用户可提供模拟的内存上下文（inputs）以解析 ref/template 引用。
  * <p>
- * 支持测试的节点类型：start, end, code, string-format, variable, http, llm, condition。
- * 不支持：loop, block-start, block-end, continue, break, branches, workflow（控制流/嵌套结构），
- * 以及 group, note, comment, assignee（非执行节点）。
+ * 支持测试的节点类型（2026-10-17 起全量放开）：
+ * <ul>
+ *   <li>普通节点：start, end, code, string-format, variable, http, llm, condition, branches</li>
+ *   <li>loop：画布容器节点 toJSON 自带 blocks/edges，可独立迭代执行（需在面板给 loopFor 的
+ *       上游引用填模拟值）</li>
+ *   <li>workflow：嵌套工作流经 schema 解析钩子（WorkflowSchemaResolverBridge）加载执行</li>
+ *   <li>block-start / block-end / continue / break：loop 内部控制节点，独立执行仅回显控制
+ *       标记（loop.control）或空输出，主要用于排查节点配置</li>
+ * </ul>
+ * 不支持：group, note, comment, assignee（画布标注类，后端本就不执行）、
+ * multi-condition（后端无解析器；画布载入时会自动迁移为 branches）。
  *
  * @author <a href="mailto:boommanpro@gmail.com">boommanpro</a>
  */
@@ -41,10 +53,10 @@ import java.util.Set;
 public class SingleNodeExecutor {
 
     /**
-     * 不支持单节点测试的节点类型（控制流、嵌套结构等）
+     * 不支持单节点测试的节点类型：非执行节点（group/note/comment/assignee，引擎 parse 阶段
+     * 本就跳过）与无解析器类型（multi-condition）。
      */
     private static final Set<String> UNSUPPORTED_TYPES = new HashSet<>(Arrays.asList(
-            "loop", "block-start", "block-end", "continue", "break", "branches", "workflow",
             "group", "note", "comment", "assignee", "multi-condition"
     ));
 
@@ -67,7 +79,7 @@ public class SingleNodeExecutor {
 
         if (UNSUPPORTED_TYPES.contains(nodeType)) {
             return SingleNodeRunOutput.fail(nodeType,
-                    "该节点类型（" + nodeType + "）不支持单独测试，请通过完整工作流试运行进行测试", 0);
+                    "该节点类型（" + nodeType + "）不参与执行（画布标注类节点），无法单独测试", 0);
         }
 
         NodeParser nodeParser = new ChainParser().getNodeParserMap().get(nodeType);
@@ -77,6 +89,12 @@ public class SingleNodeExecutor {
         }
 
         try {
+            // 与草稿/落版链路同源归一化：扁平/历史字段收敛为引擎规范形状（幂等，画布 canonical 形状不变）
+            JSONObject dataObj = nodeJSONObject.getJSONObject("data");
+            if (dataObj != null) {
+                NodeDataNormalizer.normalize(nodeType, dataObj);
+            }
+
             // 构造一个仅包含当前节点的工作流 schema，用于 GaiaWorkflow 实例化
             JSONArray nodesArray = new JSONArray();
             nodesArray.set(nodeJSONObject);
@@ -97,6 +115,12 @@ public class SingleNodeExecutor {
             Chain chain = new Chain();
             if (input.getInputs() != null) {
                 chain.getMemory().putAll(input.getInputs());
+            }
+
+            // 容器节点（loop 是 Chain 子类）需要 parent 链：迭代时复制上下文、
+            // 接收子块事件都走 getParent()——完整工作流里由 ChainParser 接线，单节点路径在此补上
+            if (chainNode instanceof Chain) {
+                ((Chain) chainNode).setParent(chain);
             }
 
             // 执行节点

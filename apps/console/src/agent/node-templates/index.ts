@@ -50,29 +50,29 @@ const templates: Record<string, Record<string, any>> = {
   code: {
     title: 'Code',
     inputsValues: {},
-    script: { language: 'java', content: '' },
+    // 与后端 prompt 推荐一致：js 系（GraalJS）为主力，language 可省略
+    script: { language: 'javascript', content: '' },
     outputs: { type: 'object', properties: {}, required: [] },
     inputs: { type: 'object', properties: {} },
   },
   http: {
     title: 'HTTP',
-    inputsValues: {
-      method: { type: 'constant', content: 'GET', schema: { type: 'string' } },
-      url: { type: 'constant', content: '', schema: { type: 'string' } },
-      headers: { type: 'constant', content: {}, schema: { type: 'object' } },
-      body: { type: 'constant', content: '', schema: { type: 'string' } },
-    },
-    inputs: {
+    // 执行引擎（HttpNodeParser）只读 api/headersValues/paramsValues/body/timeout，
+    // 不能写成 inputsValues.{method,url}——那是校验层旧口径，引擎不认
+    api: { method: 'GET', url: '' },
+    headersValues: {},
+    paramsValues: {},
+    body: { bodyType: 'none', json: '' },
+    timeout: { timeout: 10000, retryTimes: 1 },
+    inputs: { type: 'object', properties: {} },
+    outputs: {
       type: 'object',
-      required: ['method', 'url'],
       properties: {
-        method: { type: 'string' },
-        url: { type: 'string' },
-        headers: { type: 'object' },
         body: { type: 'string' },
+        headers: { type: 'object' },
+        statusCode: { type: 'integer' },
       },
     },
-    outputs: { type: 'object', properties: { result: { type: 'string' } } },
   },
   condition: {
     title: 'Condition',
@@ -99,11 +99,6 @@ const templates: Record<string, Record<string, any>> = {
     script: { language: 'spel-vue', content: '' },
     outputs: { type: 'object', properties: { formatStringResult: { type: 'string' } } },
     inputs: { type: 'object', properties: {} },
-  },
-  assignee: {
-    title: 'Assignee',
-    assignees: [],
-    data: { assignees: [] },
   },
   comment: {
     title: 'Comment',

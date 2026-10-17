@@ -11,14 +11,11 @@ import org.springframework.stereotype.Component;
 /**
  * 系统提示词解析器（策略模式 + 三级兜底）。
  *
- * <p>改造前系统只有「一份」写死的系统提示词（prompt-zh.md / prompt-en.md），
- * 所有场景共用，想让某个 Agent 有不同人格只能再往那一堆字里加 if-else。</p>
- *
- * <p>现在按 Agent 解析，优先级：</p>
+ * <p>按 Agent 解析，优先级：</p>
  * <ol>
  *   <li>AgentDefinition 里直接写死的 systemPrompt</li>
- *   <li>AgentDefinition 指定的配置中心 key（systemPromptConfigKey）</li>
- *   <li>配置中心的默认提示词 system_prompt.default / .en</li>
+ *   <li>AgentDefinition 指定的配置中心 key（systemPromptConfigKey，如 workflow-architect 人设）</li>
+ *   <li>默认提示词：AgentPromptComposer 按 identity/soul/agents 组装（agent_prompt_config 覆盖、classpath 兜底）</li>
  * </ol>
  *
  * 这样在管理后台改提示词即刻生效，也能给不同 Agent 配不同人格。
@@ -26,9 +23,6 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 public class SystemPromptResolver {
-
-    private static final String DEFAULT_KEY_ZH = "system_prompt.default";
-    private static final String DEFAULT_KEY_EN = "system_prompt.default.en";
 
     private final AgentToolRegistry toolSchemaRegistry;
     private final AgentConfigService configService;
@@ -49,14 +43,14 @@ public class SystemPromptResolver {
             String byKey = loadFromConfig(definition.getSystemPromptConfigKey(), locale);
             if (byKey != null) {
                 // DB 提示词也要注入知识目录（skill 目录等价物）—— 否则默认 agent 看不到知识清单
-                return toolSchemaRegistry.injectMemory(toolSchemaRegistry.injectKnowledgeCatalog(byKey));
+                return toolSchemaRegistry.injectKnowledgeCatalog(byKey);
             }
         }
         return defaultPrompt(definition.getToolNames(), locale);
     }
 
     private String defaultPrompt(java.util.Set<String> toolNames, String locale) {
-        // 默认提示词 = DB 正文 + 按启用状态动态渲染的工具目录（目录随定义的工具集过滤）
+        // 默认提示词 = 组装正文 + 按启用状态动态渲染的工具目录（目录随定义的工具集过滤）
         return toolSchemaRegistry.getSystemPrompt(locale, toolNames);
     }
 

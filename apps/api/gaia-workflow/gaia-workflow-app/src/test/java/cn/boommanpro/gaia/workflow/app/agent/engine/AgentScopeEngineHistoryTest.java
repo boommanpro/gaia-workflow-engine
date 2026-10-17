@@ -83,7 +83,7 @@ class AgentScopeEngineHistoryTest {
         when(conversationStore.loadHistory("s1", 0)).thenReturn(history);
 
         AgentRequest request = new AgentRequest("r1", "帮我修改工作流", "s1", "zh-CN", null,
-            ToolExecutionMode.BACKEND, 0, null, null);
+            ToolExecutionMode.BACKEND, null, null);
         AgentRunContext context = new AgentRunContext(request, new AgentDefinition(), ToolExecutionMode.BACKEND);
         List<io.agentscope.core.message.Msg> msgs = engine.buildMessages(context, "s1");
 
@@ -138,7 +138,7 @@ class AgentScopeEngineHistoryTest {
         when(conversationStore.loadHistory("s3", 0)).thenReturn(history);
 
         AgentRequest request = new AgentRequest("r3", "继续", "s3", "zh-CN", null,
-            ToolExecutionMode.BACKEND, 0, null, null);
+            ToolExecutionMode.BACKEND, null, null);
         AgentRunContext context = new AgentRunContext(request, new AgentDefinition(), ToolExecutionMode.BACKEND);
         List<io.agentscope.core.message.Msg> msgs = engine.buildMessages(context, "s3");
 
@@ -166,7 +166,7 @@ class AgentScopeEngineHistoryTest {
         when(conversationStore.loadHistory("s2", 0)).thenReturn(history);
 
         AgentRequest request = new AgentRequest("r2", "改工作流", "s2", "zh-CN", null,
-            ToolExecutionMode.BACKEND, 0, null, null);
+            ToolExecutionMode.BACKEND, null, null);
         AgentRunContext context = new AgentRunContext(request, new AgentDefinition(), ToolExecutionMode.BACKEND);
         List<io.agentscope.core.message.Msg> msgs = engine.buildMessages(context, "s2");
 
@@ -186,7 +186,7 @@ class AgentScopeEngineHistoryTest {
         when(conversationStore.loadHistory("s4", 0)).thenReturn(history);
 
         AgentRequest request = new AgentRequest("r4", "继续", "s4", "zh-CN", null,
-            ToolExecutionMode.BACKEND, 0, null, null);
+            ToolExecutionMode.BACKEND, null, null);
         AgentRunContext context = new AgentRunContext(request, new AgentDefinition(), ToolExecutionMode.BACKEND);
         List<io.agentscope.core.message.Msg> msgs = engine.buildMessages(context, "s4");
 

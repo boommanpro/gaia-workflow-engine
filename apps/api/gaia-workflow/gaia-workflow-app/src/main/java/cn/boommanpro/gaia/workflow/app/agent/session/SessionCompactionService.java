@@ -35,15 +35,18 @@ public class SessionCompactionService {
     private final ConversationStore conversationStore;
     private final LlmCompletionService completionService;
     private final AgentModelConfigService modelConfigService;
+    private final cn.boommanpro.gaia.workflow.app.service.AgentPromptComposer promptComposer;
 
     public SessionCompactionService(AgentMessageService messageService,
                                     ConversationStore conversationStore,
                                     LlmCompletionService completionService,
-                                    AgentModelConfigService modelConfigService) {
+                                    AgentModelConfigService modelConfigService,
+                                    cn.boommanpro.gaia.workflow.app.service.AgentPromptComposer promptComposer) {
         this.messageService = messageService;
         this.conversationStore = conversationStore;
         this.completionService = completionService;
         this.modelConfigService = modelConfigService;
+        this.promptComposer = promptComposer;
     }
 
     public JSONObject compact(String sessionKey) {
@@ -95,8 +98,13 @@ public class SessionCompactionService {
 
         String summary;
         try {
+            // 2026-10-17 期4：压缩提示词配置化（agent_prompt_config[compaction]，classpath 兜底）
+            String compactionPrompt = promptComposer != null ? promptComposer.loadCompactionPrompt() : null;
+            if (compactionPrompt == null || compactionPrompt.isEmpty()) {
+                compactionPrompt = "请将以下对话历史压缩为简洁的摘要，保留关键信息、已完成的操作与未决事项。";
+            }
             summary = completionService.complete(
-                "请将以下对话历史压缩为简洁的摘要，保留关键信息、已完成的操作与未决事项。",
+                compactionPrompt,
                 summaryText.toString(), 0.3, 500);
         } catch (Exception e) {
             log.warn("[compaction] session={} summarize failed: {}", sessionKey, e.getMessage());

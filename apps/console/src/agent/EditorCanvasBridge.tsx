@@ -16,7 +16,7 @@ import {
 import { FlowNodeFormData } from '@flowgram.ai/form-core';
 import { usePanelManager } from '@flowgram.ai/panel-manager-plugin';
 
-import { setCanvasContext, type CanvasContext } from './tools';
+import { setCanvasContext, type CanvasContext } from './canvas-context';
 import { agentRunBridge } from './agent-run-bridge';
 import { useAgent } from './AgentContext';
 import { canvasSelectionStore, canvasSync } from '../document';

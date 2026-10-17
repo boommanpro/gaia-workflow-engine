@@ -141,8 +141,8 @@ export const ChatStyles: React.FC = () => (
     }
     .chat-fade { animation: chat-fade-up .18s ease-out both; }
 
-    /* AI 消息的操作栏：默认隐形，鼠标移上去才出现 */
-    .chat-msg-actions { opacity: 0; transition: opacity .14s ease; }
+    /* AI 消息的操作栏：低透明度常显，hover / 键盘聚焦时提亮 */
+    .chat-msg-actions { opacity: .45; transition: opacity .14s ease; }
     .chat-msg:hover .chat-msg-actions,
     .chat-msg-actions:focus-within { opacity: 1; }
 
@@ -172,15 +172,49 @@ export const ChatStyles: React.FC = () => (
       font-size: 12.5px; line-height: 1.6;
     }
     .md-body .md-code-block code { background: transparent; padding: 0; color: inherit; border: none; }
+    /* 带头部的代码块（语言标识 + 复制） */
+    .md-body .md-codeblock {
+      background: ${CHAT.bgSunken}; border: 1px solid ${CHAT.line};
+      border-radius: 10px; margin: 10px 0 14px; overflow: hidden;
+    }
+    .md-body .md-codeblock-head {
+      display: flex; align-items: center; justify-content: space-between; gap: 8;
+      padding: 5px 12px; border-bottom: 1px solid ${CHAT.line};
+      font-size: 11.5px; color: ${CHAT.textMuted};
+    }
+    .md-body .md-code-lang { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .md-body .md-cb-copy {
+      display: inline-flex; align-items: center; gap: 4;
+      border: none; background: transparent; cursor: pointer;
+      font-family: inherit; font-size: 11.5px; color: ${CHAT.textMuted};
+      padding: 2px 6px; border-radius: 5px; transition: color .12s, background .12s;
+    }
+    .md-body .md-cb-copy:hover { color: ${CHAT.text}; background: ${CHAT.hover}; }
+    .md-body .md-codeblock pre {
+      margin: 0; padding: 10px 14px; overflow-x: auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12.5px; line-height: 1.6; color: ${CHAT.textBody};
+    }
+    .md-body .md-codeblock pre code { background: transparent; padding: 0; color: inherit; border: none; }
     .md-body .md-quote {
       border-left: 3px solid ${CHAT.accentBorder}; padding: 4px 12px; margin: 10px 0;
       color: ${CHAT.textSub}; background: ${CHAT.bgSunken}; border-radius: 0 8px 8px 0;
     }
     .md-body .md-hr { border: none; border-top: 1px solid ${CHAT.line}; margin: 14px 0; }
-    .md-body .md-table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 13px; }
-    .md-body .md-table th { background: ${CHAT.bgSunken}; font-weight: 600; text-align: left; color: ${CHAT.text}; }
-    .md-body .md-table th, .md-body .md-table td { border: 1px solid ${CHAT.line}; padding: 7px 10px; }
-    .md-body .md-table tbody tr:nth-child(even) { background: ${CHAT.lineSoft}; }
+    .md-body .md-table {
+      border-collapse: separate; border-spacing: 0; width: 100%;
+      margin: 10px 0 14px; font-size: 13px;
+      border: 1px solid ${CHAT.line}; border-radius: 10px; overflow: hidden;
+    }
+    .md-body .md-table th {
+      background: ${CHAT.bgSunken}; font-weight: 600; text-align: left; color: ${CHAT.text};
+      padding: 8px 12px; border-bottom: 1px solid ${CHAT.line};
+    }
+    .md-body .md-table td { padding: 7px 12px; border-bottom: 1px solid ${CHAT.lineSoft}; color: ${CHAT.textBody}; }
+    .md-body .md-table thead th:first-child { border-top-left-radius: 9px; }
+    .md-body .md-table thead th:last-child { border-top-right-radius: 9px; }
+    .md-body .md-table tbody tr:last-child td:first-child { border-bottom-left-radius: 9px; }
+    .md-body .md-table tbody tr:last-child td:last-child { border-bottom-right-radius: 9px; }
     .md-body .md-link { color: ${CHAT.accent}; text-decoration: none; }
     .md-body .md-link:hover { text-decoration: underline; }
     .md-body strong { font-weight: 600; color: ${CHAT.text}; }

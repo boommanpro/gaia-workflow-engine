@@ -4,6 +4,7 @@ import cn.boommanpro.gaia.workflow.base.GaiaWorkflow;
 import cn.boommanpro.gaia.workflow.base.model.Chain;
 import cn.boommanpro.gaia.workflow.base.type.NodeTypeEnum;
 import cn.boommanpro.gaia.workflow.base.type.DataType;
+import cn.boommanpro.gaia.workflow.base.type.RefType;
 import cn.boommanpro.gaia.workflow.base.model.Parameter;
 import cn.boommanpro.gaia.workflow.base.tools.SpringExpressionParser;
 import cn.boommanpro.gaia.workflow.infra.extend.node.BaseNode;
@@ -13,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -45,8 +47,25 @@ public class WorkflowNode extends BaseNode {
     // 输出参数schema
     private Map<String, Object> outputs;
 
-    // 工作流存储服务（静态注入，因为节点不是Spring管理的bean）
-//    private static WorkflowStorageService workflowStorageService;
+    /**
+     * 目标工作流 schema 解析钩子：infra 不依赖 DB，由 app 层启动时注入实现。
+     * 测试可直接 set 桩实现。
+     */
+    public interface WorkflowSchemaResolver {
+        /** 按 workflowId（workflowCode 或版本 id）返回目标工作流的 schema JSON 文本；找不到返回 null */
+        String resolve(String workflowId);
+    }
+
+    private static volatile WorkflowSchemaResolver schemaResolver;
+
+    public static void setSchemaResolver(WorkflowSchemaResolver resolver) {
+        WorkflowNode.schemaResolver = resolver;
+    }
+
+    /** 嵌套守卫：本线程正在执行的 workflowId 栈（防自嵌套成环 + 限深） */
+    private static final ThreadLocal<java.util.Deque<String>> ACTIVE_CHAIN =
+        ThreadLocal.withInitial(java.util.ArrayDeque::new);
+    private static final int MAX_NESTING_DEPTH = 8;
 
     @Override
     public Map<String, Object> execute(Chain chain) {
@@ -59,19 +78,42 @@ public class WorkflowNode extends BaseNode {
                 throw new IllegalArgumentException("工作流ID不能为空");
             }
 
+            WorkflowSchemaResolver resolver = schemaResolver;
+            if (resolver == null) {
+                throw new IllegalStateException("工作流节点不可用：未注入 schema 解析器（应用未启动完成）");
+            }
+
+            java.util.Deque<String> active = ACTIVE_CHAIN.get();
+            if (active.contains(workflowId)) {
+                throw new IllegalStateException("工作流嵌套成环: " + workflowId
+                    + "（调用链: " + String.join(" → ", active) + " → " + workflowId + "）");
+            }
+            if (active.size() >= MAX_NESTING_DEPTH) {
+                throw new IllegalStateException("工作流嵌套超过最大深度 " + MAX_NESTING_DEPTH);
+            }
+
+            String targetWorkflowSchema = resolver.resolve(workflowId);
+            if (targetWorkflowSchema == null || targetWorkflowSchema.isEmpty()) {
+                throw new IllegalArgumentException("目标工作流不存在: " + workflowId);
+            }
+
             // 解析输入参数值
             Map<String, Object> resolvedInputs = resolveInputValues(chain);
 
-            // 获取目标工作流定义
-//            String targetWorkflowSchema = getTargetWorkflowSchema(workflowId);
-            String targetWorkflowSchema = "";
-
             // 创建并执行目标工作流
-            GaiaWorkflow targetWorkflow = new GaiaWorkflow(targetWorkflowSchema);
-            Map<String, Object> workflowResult = targetWorkflow.run(resolvedInputs);
+            active.push(workflowId);
+            try {
+                GaiaWorkflow targetWorkflow = new GaiaWorkflow(targetWorkflowSchema);
+                Map<String, Object> workflowResult = targetWorkflow.run(resolvedInputs);
 
-            // 将目标工作流的输出作为当前节点的输出
-            result.putAll(workflowResult);
+                // 将目标工作流的输出作为当前节点的输出
+                result.putAll(workflowResult);
+            } finally {
+                active.pop();
+                if (active.isEmpty()) {
+                    ACTIVE_CHAIN.remove();
+                }
+            }
 
             log.debug("工作流节点执行完成: {}, 输出: {}", getId(), result);
 
@@ -150,6 +192,10 @@ public class WorkflowNode extends BaseNode {
             parameter.setName(paramName);
             parameter.setType(DataType.ofValue((String) paramDef.get("type")));
             parameter.setDescription("输出参数: " + paramName);
+            // 必须声明 REF + refValue，否则 Chain.parseOutputResult 按默认值取 null，
+            // 把节点 execute 真实返回的输出覆盖掉（嵌套输出回传丢失的根因）
+            parameter.setRefType(RefType.REF);
+            parameter.setRefValue(Collections.singletonList(paramName));
 
             // 设置默认值
             if (paramDef.containsKey("default")) {

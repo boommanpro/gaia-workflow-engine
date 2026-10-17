@@ -10,7 +10,7 @@
  */
 import { useEffect } from 'react';
 
-import { getCanvasContext, setCanvasContext, type CanvasContext } from '../agent/tools';
+import { getCanvasContext, setCanvasContext, type CanvasContext } from '../agent/canvas-context';
 import { generateNodeId, workflowDocumentStore } from '../document';
 
 function createHeadlessCanvasContext(): CanvasContext {

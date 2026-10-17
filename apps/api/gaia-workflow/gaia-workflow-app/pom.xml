@@ -37,6 +37,17 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
+        <!-- 节点参数 JSON Schema 校验（NodeSchemaRegistry / WorkflowDslValidator S3 段）。
+             版本必须与 AgentScope SDK 传递依赖的版本一致（2.0.0）：在这里声明任何其他版本
+             都会以 Maven「最近优先」覆盖它，把 agentscope 编译所用的 API 换掉——
+             实测换成 1.5.8/1.0.77 后 ScriptedChatModel 流式解析静默卡死（轨迹回放 600s 超时）。
+             复用同一份库，零新增传递依赖。 -->
+        <dependency>
+            <groupId>com.networknt</groupId>
+            <artifactId>json-schema-validator</artifactId>
+            <version>2.0.0</version>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>

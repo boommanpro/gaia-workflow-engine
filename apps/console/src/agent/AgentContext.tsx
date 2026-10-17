@@ -23,7 +23,7 @@ import { liveStreamStore } from './live-stream-store';
 import { subscribeSessionEvents } from './sse-client';
 import { artifactStore } from './artifact-store';
 import { getCurrentLocale } from '../i18n';
-import { getCanvasContext } from './tools';
+import { getCanvasContext } from './canvas-context';
 import { WorkflowDocument, workflowDocumentStore } from '../document';
 import type {
   AgentSession,
@@ -36,11 +36,6 @@ import type {
   SseHandlers,
   AgentArtifactDto,
 } from './types';
-
-/** 工具执行器接口（由 AgentDock 注入；后端自治模式下不再被对话循环使用） */
-export interface ToolExecutor {
-  execute(action: string, args: Record<string, any>): Promise<{ result: string; rejected: boolean }>;
-}
 
 interface AgentContextValue {
   dockOpen: boolean;
@@ -81,15 +76,7 @@ interface AgentContextValue {
     toolResults?: any;
   }>;
   clearDebugEntries: () => void;
-  /** 调试面板是否打开 */
-  debugPanelOpen: boolean;
-  setDebugPanelOpen: (open: boolean) => void;
-  /** 当前聚焦的调试条目 ID（点击消息跳转时设置） */
-  focusDebugEntryId: string | null;
-  /** 打开调试面板并聚焦到指定条目 */
-  openDebugEntry: (entryId: string) => void;
 
-  setToolExecutor: (executor: ToolExecutor) => void;
 
   createSession: (title?: string, opts?: { scope?: 'chat' | 'work'; folderId?: number | null }) => Promise<string>;
   switchSession: (sessionKey: string) => Promise<void>;
@@ -355,7 +342,7 @@ function upsertArtifactCard(prev: DisplayMessage[], artifact: AgentArtifactDto):
  * 历史消息重放时，把会话产物里的 release 卡按时间戳插回消息流
  * （后端 artifact 没有直接挂 messageId，用「插在最后一条更早的消息后面」归位；
  * live 运行时的卡由 upsertArtifactCard 追加，两者通过同一消息 id 去重）。
- * test_report（试运行）不进对话流：run_workflow 本身就是工具调用，IN/OUT 由工具行承载（dsh 同款）。
+ * test_report（试运行）不进对话流：run 本身就是工具调用，IN/OUT 由工具行承载（dsh 同款）。
  */
 function placeArtifactCards(msgs: DisplayMessage[], artifacts: AgentArtifactDto[]): DisplayMessage[] {
   if (!artifacts || artifacts.length === 0) return msgs;
@@ -475,17 +462,10 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     context?: any;
     toolResults?: any;
   }>>([]);
-  const [debugPanelOpen, setDebugPanelOpen] = useState(false);
-  const [focusDebugEntryId, setFocusDebugEntryId] = useState<string | null>(null);
-  const openDebugEntry = (entryId: string) => {
-    setFocusDebugEntryId(entryId);
-    setDebugPanelOpen(true);
-  };
 
   // 兼容占位：后端自治模式下工具/计划/确认都在后端，前端不再执行
   const [activePlan, setActivePlan] = useState<ActivePlan | null>(null);
   void setActivePlan;
-  const toolExecutorRef = useRef<ToolExecutor | null>(null);
 
   // refs
   const currentSessionKeyRef = useRef<string | null>(null);
@@ -684,10 +664,6 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       }
     };
   }, [debugEntries, currentSessionKey]);
-
-  const setToolExecutor = useCallback((executor: ToolExecutor) => {
-    toolExecutorRef.current = executor;
-  }, []);
 
   const getPageContextJson = useCallback((): string => {
     const ctx: PageContext = { route: location.pathname };
@@ -1134,7 +1110,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         if (data?.action === 'upsert' && data.artifact?.artifactKey) {
           const art = data.artifact;
           artifactStore.upsert(sessionKey, art);
-          // release 直接成为对话流里的产物卡（test_report 由 run_workflow 工具行承载）
+          // release 直接成为对话流里的产物卡（test_report 由 run 工具行承载）
           if (art.type === 'release') {
             setMessages((prev) => upsertArtifactCard(prev, art));
           }
@@ -1371,11 +1347,6 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     compactContext,
     debugEntries,
     clearDebugEntries: () => setDebugEntries([]),
-    debugPanelOpen,
-    setDebugPanelOpen,
-    focusDebugEntryId,
-    openDebugEntry,
-    setToolExecutor,
     createSession,
     switchSession,
     renameSession,

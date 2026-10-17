@@ -1,0 +1,52 @@
+name: Verify (tests)
+
+# 2026-10-16 起：PR 与 main 推送必跑后端 mvn test + 前端 vitest。
+# 此前 deploy.yml 不跑任何测试，回归全靠人肉——这里是合入前的 P0 卡口。
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  backend:
+    name: Backend (mvn test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Run tests
+        run: mvn -B test
+        working-directory: apps/api/gaia-workflow
+
+  frontend:
+    name: Frontend (lint + vitest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+          cache-dependency-path: apps/console/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+        working-directory: apps/console
+
+      # eslint 默认只在 error 时非零退出；积压的 prettier/import-order 告警不阻塞，清零后再加 --max-warnings=0
+      - name: Lint
+        run: npm run lint
+        working-directory: apps/console
+
+      - name: Run tests
+        run: npm test
+        working-directory: apps/console

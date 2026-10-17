@@ -1,5 +1,6 @@
 package cn.boommanpro.gaia.workflow.app.controller.system;
 
+import cn.boommanpro.gaia.workflow.app.agent.session.SessionWorkflowStore;
 import cn.boommanpro.gaia.workflow.infra.manage.entity.GaiaWorkflow;
 import cn.boommanpro.gaia.workflow.infra.manage.entity.GaiaWorkflowTemplate;
 import cn.boommanpro.gaia.workflow.infra.manage.entity.GaiaWorkflowVersion;
@@ -35,11 +36,12 @@ public class GaiaWorkflowController {
     }
 
     /**
-     * 获取所有工作流列表
+     * 获取所有工作流列表（会话草稿工作流 source=session 不展示）
      */
     @GetMapping("/list")
     public List<GaiaWorkflow> listWorkflows() {
-        return workflowService.list();
+        return workflowService.list(new QueryWrapper<GaiaWorkflow>()
+            .and(w -> w.ne("source", SessionWorkflowStore.SOURCE_SESSION).or().isNull("source")));
     }
 
     /**
@@ -156,12 +158,25 @@ public class GaiaWorkflowController {
         "],\"edges\":[{\"sourceNodeID\":\"start_0\",\"targetNodeID\":\"end_0\"}]}";
 
     /**
-     * 更新工作流
+     * 更新工作流元数据（名称/描述）。
+     * 2026-10-16 起收紧：工作流必须存在；currentVersionId/revision 是并发控制字段，
+     * 不允许经本接口绕过 CAS 任意改写（要切换生效版本走 set-current，它有过校验门禁）。
      */
     @PutMapping("/update")
-    public boolean updateWorkflow(@RequestBody GaiaWorkflow workflow) {
+    public org.springframework.http.ResponseEntity<java.util.Map<String, Object>> updateWorkflow(
+        @RequestBody GaiaWorkflow workflow) {
+        java.util.Map<String, Object> result = new java.util.HashMap<>();
+        if (workflow == null || workflow.getId() == null
+            || workflowService.getById(workflow.getId()) == null) {
+            result.put("success", false);
+            result.put("error", "工作流不存在或缺少 id");
+            return org.springframework.http.ResponseEntity.unprocessableEntity().body(result);
+        }
+        workflow.setCurrentVersionId(null);
+        workflow.setRevision(null);
         workflow.setUpdatedAt(LocalDateTime.now());
-        return workflowService.updateById(workflow);
+        result.put("success", workflowService.updateById(workflow));
+        return org.springframework.http.ResponseEntity.ok(result);
     }
 
     /**

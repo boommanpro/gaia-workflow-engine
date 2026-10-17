@@ -34,19 +34,17 @@ import {
 import { IconClose, IconPlay } from '@douyinfe/semi-icons';
 
 import { getApiBaseUrl } from '../../utils/apiConfig';
+import { upstreamVariables, refSyntax } from '../../document/upstream-variables';
 import { useLanguage, t } from '../../i18n';
 
 import styles from './index.module.less';
 
-/** 不支持单节点测试的节点类型 */
+/**
+ * 不支持单节点测试的节点类型（与后端 SingleNodeExecutor.UNSUPPORTED_TYPES 对齐）：
+ * 仅非执行节点（画布标注类，引擎本就不跑）与无解析器类型（multi-condition，载入时会自动迁移为 branches）。
+ * 其余全部支持——loop/workflow 走画布 toJSON 自带的 blocks/edges 与解析钩子。
+ */
 const UNSUPPORTED_NODE_TYPES = new Set([
-  'loop',
-  'block-start',
-  'block-end',
-  'continue',
-  'break',
-  'branches',
-  'workflow',
   'group',
   'note',
   'comment',
@@ -148,6 +146,7 @@ function extractTemplateRefs(nodeData: any): RefField[] {
  * - headersValues/paramsValues: http
  * - conditions[].value.left/right: condition
  * - assign[].right: variable
+ * - loopFor: loop（循环数据源，填模拟数组即可单节点试跑整个子链）
  */
 function extractRefFields(nodeData: any, fieldTypeMap: Record<string, string>): RefField[] {
   if (!nodeData || typeof nodeData !== 'object') return [];
@@ -202,7 +201,12 @@ function extractRefFields(nodeData: any, fieldTypeMap: Record<string, string>): 
     });
   }
 
-  // 5. template 内嵌的 {{ nodeId.field }} 变量引用
+  // 5. loopFor (loop)：循环数据源引用，用户填模拟数组后即可单节点试跑整个子链
+  if (nodeData.loopFor && nodeData.loopFor.type === 'ref') {
+    pushRef(nodeData.loopFor, 'loopFor', 'array');
+  }
+
+  // 6. template 内嵌的 {{ nodeId.field }} 变量引用
   //    合并到 refFields，复用输入框与 memory 构建逻辑
   //    按 refNodeId.refParamName 去重（同一个引用可能同时被 ref 和 template 引用）
   const templateRefs = extractTemplateRefs(nodeData);
@@ -234,6 +238,19 @@ export const SingleNodeTestPanel: React.FC<SingleNodeTestPanelProps> = ({ nodeId
     if (!node) return null;
     return node.toJSON()?.data || null;
   }, [node]);
+
+  /** 上游可用变量（condition 的 if_match/else、http 的 body/headers/statusCode 等，与后端同口径） */
+  const upstreamVars = useMemo(() => {
+    if (!node) return [];
+    try {
+      const docJson = document.toJSON?.() || {};
+      const nodes = (docJson.nodes || []) as any[];
+      const edges = (docJson.edges || []) as any[];
+      return upstreamVariables(nodes, edges, nodeId);
+    } catch {
+      return [];
+    }
+  }, [document, nodeId]);
 
   const nodeType = String(node?.flowNodeType || '');
   const isSupported = nodeType !== '' && !UNSUPPORTED_NODE_TYPES.has(nodeType);
@@ -469,6 +486,40 @@ export const SingleNodeTestPanel: React.FC<SingleNodeTestPanelProps> = ({ nodeId
                 <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                   {t('singleNode.noRefFields')}
                 </Typography.Text>
+              </div>
+            )}
+
+            {/* 上游可用变量（与后端引擎同口径：condition 输出 if_match/else，http 输出 body/headers/statusCode…） */}
+            {upstreamVars.length > 0 && (
+              <div className={styles.section}>
+                <div className={styles.sectionTitle}>上游可用变量</div>
+                {upstreamVars.map((uv) => (
+                  <div key={uv.nodeId} style={{ marginBottom: 8 }}>
+                    <Typography.Text strong style={{ fontSize: 12 }}>
+                      {uv.title || uv.nodeId}
+                    </Typography.Text>
+                    <Tag size="small" style={{ marginLeft: 6 }}>{uv.type}</Tag>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+                      {uv.fields.map((f) => (
+                        <span
+                          key={f.name}
+                          title={`引用：${refSyntax(uv.nodeId, f.name)}`}
+                          style={{
+                            fontSize: 11,
+                            fontFamily: 'monospace',
+                            background: 'rgba(77,83,232,0.08)',
+                            color: '#4d53e8',
+                            borderRadius: 4,
+                            padding: '2px 6px',
+                            cursor: 'default',
+                          }}
+                        >
+                          {uv.nodeId}.{f.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
 

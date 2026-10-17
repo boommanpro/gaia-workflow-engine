@@ -1,20 +1,17 @@
 package cn.boommanpro.gaia.workflow.app.service;
 
-import cn.boommanpro.gaia.workflow.infra.manage.entity.AgentConfig;
+import cn.boommanpro.gaia.workflow.infra.manage.entity.AgentSkill;
 import cn.boommanpro.gaia.workflow.infra.manage.entity.AgentToolDefinition;
-import cn.boommanpro.gaia.workflow.infra.manage.service.AgentConfigService;
 import cn.boommanpro.gaia.workflow.infra.manage.service.AgentToolDefinitionService;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import cn.boommanpro.gaia.workflow.app.agent.tool.ToolGroup;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -34,12 +31,9 @@ import java.util.Objects;
 public class AgentToolRegistry {
 
     private final AgentToolDefinitionService toolDefinitionService;
-    private final AgentConfigService configService;
-    private final cn.boommanpro.gaia.workflow.app.agent.memory.AgentMemoryManager memoryManager;
+    private final AgentSkillCatalog skillCatalog;
 
     private JSONArray toolsSchema;
-    private String promptZh;
-    private String promptEn;
 
     /**
      * 当前已加载（enabled）的工具定义，供控制器 / 页面上下文过滤使用
@@ -57,144 +51,30 @@ public class AgentToolRegistry {
 
     private static Map<String, String> buildToolSummaries() {
         Map<String, String> m = new java.util.LinkedHashMap<>();
-        m.put("list_workflows", "工作流目录（编码/名称/revision），可按关键词过滤");
-        m.put("read_workflow", "完整 DSL + revision。**修改已有工作流前必读**（读取会同步为会话草稿）");
-        m.put("read_node", "节点详情 + 全部可用变量");
-        m.put("list_runs", "执行日志（状态/耗时/错误）");
-        m.put("list_templates", "模板目录");
-        m.put("search_knowledge", "检索知识库（用法/示例/最佳实践）");
-        m.put("get_node_schema", "节点类型的完整字段结构与 JSON 示例");
-        m.put("edit_workflow", "**增量修改主力**。声明式各项独立生效：合法项应用、非法项跳过（skipped 给逐项修复指引，只重发跳过项）；同批新节点用 `$ref` 互连");
-        m.put("run_workflow", "试运行当前会话草稿，等待终态返回输出");
-        m.put("write_workflow", "整份 DSL 一次成型写入会话草稿（不落版）。**仅新建或推倒重来用**；日常增量用 edit_workflow");
-        m.put("delete_workflow", "删除（不可逆，须用户明确同意后带 confirmed=true）");
+        m.put("skill", "按名称加载技能全文；`skill(\"name/path\")` 取引用文件。开工第一步加载 gaia-workflow-assistant");
+        m.put("ask_user", "向用户提问并等待回答（选项点选或自由输入；只问缺了会白做的关键信息）");
         m.put("todo_write", "任务进度清单（3 步以上任务先列清单，完成一项勾一项）");
-        m.put("ask_user", "向用户提问并等待回答（选项点选或自由输入；需要用户决定/确认/补充信息时用，不要在正文里输出选项）");
-        m.put("memory", "长期记忆：记住用户偏好/平台事实（跨会话生效），按需查看/删除");
+        m.put("get", "四合一查询：target=canvas 画布核心视图 / node 单节点配置+入出边 / variables 可引用变量 / knowledge 节点类型知识");
+        m.put("node", "节点增改删：action=add（items 批量，connect 用 $ref 接线）/ update（data 深合并）/ remove（级联连线）");
+        m.put("edge", "连线/断线：action=connect / remove；分支出边必须带 fromPort");
+        m.put("run", "执行：target=node 单节点试跑 / workflow 整流试跑（真跑草稿，回 outputs+节点状态）/ tests 跑测试用例");
+        m.put("test_case", "沉淀测试用例（输入 + 期望断言 exists/equals/contains）");
         return java.util.Collections.unmodifiableMap(m);
     }
 
-    /**
-     * 节点 data 参数的结构提示（嵌入 canvas 工具的 data 参数 description 中）
-     * <p>
-     * 系统会将 LLM 提供的简化扁平字段自动 normalize 为 flowgram 嵌套结构，
-     * 并与默认模板深度合并，因此 LLM 只需填写关键字段。
-     * 将此提示内联到工具定义中，使 AI 无需依赖知识库即可构造合法节点 data。
-     */
-    /**
-     * 节点 data 参数的简短提示（嵌入 canvas/applyWorkflow 的 data 参数 description）。
-     * <p>完整字段说明放在系统提示词「data 参数填写规则」中 —— 实测把大段说明塞进
-     * JSON schema 的深层 description 会让弱模型直接放弃填 data（工具调用参数质量暴跌），
-     * 而系统提示词正文模型遵循得很好。</p>
-     */
-    private static final String NODE_DATA_SCHEMA_HINT =
-        "节点业务数据，扁平写字段即可，系统自动 normalize。"
-        + "llm 例：{\"prompt\":\"总结：{{ start.text }}\"}；"
-        + "http 例：{\"method\":\"GET\",\"url\":\"https://...\"}；"
-        + "code 填 {\"script\":{\"language\":\"java\",\"content\":\"return ...;\"}}。"
-        + "各类型完整字段说明见系统提示词「data 参数填写规则」一节。";
+    private final AgentPromptComposer promptComposer;
 
     public AgentToolRegistry(AgentToolDefinitionService toolDefinitionService,
-                             AgentConfigService configService,
-        cn.boommanpro.gaia.workflow.app.agent.memory.AgentMemoryManager memoryManager) {
-        this.memoryManager = memoryManager;
+                             AgentPromptComposer promptComposer,
+                             AgentSkillCatalog skillCatalog) {
         this.toolDefinitionService = toolDefinitionService;
-        this.configService = configService;
+        this.promptComposer = promptComposer;
+        this.skillCatalog = skillCatalog;
     }
 
     @PostConstruct
-    public void init() throws IOException {
-        // classpath 文件作为兜底默认值
-        promptZh = readResource("agent/prompt-zh.md");
-        promptEn = readResource("agent/prompt-en.md");
+    public void init() {
         loadFromDatabase();
-        loadSystemPromptFromDb();
-    }
-
-    /** classpath 提示词里的版本标记：<!-- gaia:prompt-version:N --> */
-    private static final java.util.regex.Pattern PROMPT_VERSION =
-        java.util.regex.Pattern.compile("gaia:prompt-version:(\\d+)");
-
-    private static int versionOf(String content) {
-        if (content == null) {
-            return 0;
-        }
-        java.util.regex.Matcher m = PROMPT_VERSION.matcher(content);
-        return m.find() ? Integer.parseInt(m.group(1)) : 1;
-    }
-
-    /** DB 提示词版本低于 classpath 时覆盖（升级生效）；同版本/更高不碰（尊重管理后台手改）。
-     *  内置 Agent 专属提示词（workflow-architect）同样纳入版本同步。 */
-    private void syncSystemPromptFromCode() {
-        syncOnePrompt("system_prompt.default", "agent/prompt-zh.md", promptZh);
-        syncOnePrompt("system_prompt.default.en", "agent/prompt-en.md", promptEn);
-        syncOnePrompt("system_prompt.workflow-architect", "agent/prompt-workflow-architect-zh.md", null);
-        syncOnePrompt("system_prompt.workflow-architect.en", "agent/prompt-workflow-architect-en.md", null);
-    }
-
-    private void syncOnePrompt(String configKey, String classpathPath, String codeFallback) {
-        try {
-            String codeContent = readResource(classpathPath);
-            int codeVersion = versionOf(codeContent);
-            AgentConfig config = configService.getOne(
-                new QueryWrapper<AgentConfig>()
-                    .eq("config_key", configKey)
-                    .eq("config_type", "system_prompt"));
-            String dbContent = config != null ? config.getContent() : null;
-            if (dbContent != null && !dbContent.isEmpty() && versionOf(dbContent) >= codeVersion) {
-                return;
-            }
-            String now = LocalDateTime.now().toString();
-            if (config == null) {
-                config = new AgentConfig();
-                config.setConfigKey(configKey);
-                config.setConfigType("system_prompt");
-                config.setTitle("系统提示词" + (configKey.endsWith(".en") ? "（英文）" : ""));
-                config.setCreatedAt(now);
-            }
-            config.setContent(codeContent);
-            config.setUpdatedAt(now);
-            configService.saveOrUpdate(config);
-            log.info("System prompt [{}] synced from code to version {} (DB was {})",
-                configKey, codeVersion, versionOf(dbContent));
-        } catch (Exception e) {
-            log.warn("Failed to sync system prompt [{}]: {}", configKey, e.toString());
-        }
-    }
-
-    /**
-     * 从 agent_config 表加载系统提示词，覆盖 classpath 默认值
-     * configType=system_prompt，configKey=system_prompt.default
-     */
-    private void loadSystemPromptFromDb() {
-        try {
-            AgentConfig config = configService.getOne(
-                new QueryWrapper<AgentConfig>()
-                    .eq("config_key", "system_prompt.default")
-                    .eq("config_type", "system_prompt"));
-            if (config != null && config.getContent() != null && !config.getContent().isEmpty()) {
-                promptZh = config.getContent();
-                log.info("Loaded system prompt from DB ({} chars)", config.getContent().length());
-            }
-            // 英文版
-            AgentConfig configEn = configService.getOne(
-                new QueryWrapper<AgentConfig>()
-                    .eq("config_key", "system_prompt.default.en")
-                    .eq("config_type", "system_prompt"));
-            if (configEn != null && configEn.getContent() != null && !configEn.getContent().isEmpty()) {
-                promptEn = configEn.getContent();
-                log.info("Loaded EN system prompt from DB ({} chars)", configEn.getContent().length());
-            }
-        } catch (Exception e) {
-            log.warn("Failed to load system prompt from DB, using classpath fallback: {}", e.getMessage());
-        }
-    }
-
-    /**
-     * 热刷新系统提示词（管理后台保存后触发）
-     */
-    public void refreshSystemPrompt() {
-        loadSystemPromptFromDb();
     }
 
     /**
@@ -208,13 +88,9 @@ public class AgentToolRegistry {
      * 确保工具定义已播种到 DB（表为空时建种）。
      * 由 {@link cn.boommanpro.gaia.workflow.app.config.AgentDataSeeder} 在 SQL 初始化完成后调用，
      * 弥补 {@code @PostConstruct} 时机过早可能导致的建种失败。
-     * 提示词版本同步也在这里做：@PostConstruct 阶段数据源未就绪，DB 查询只会白失败
-     * （实测日志：sync failed 于 :48.7，Loaded definitions 于 :49.3）。
      */
     public void ensureSeeded() {
         loadFromDatabase(true);
-        syncSystemPromptFromCode();
-        loadSystemPromptFromDb();
     }
 
     /**
@@ -228,6 +104,23 @@ public class AgentToolRegistry {
         "addNode", "updateNode", "deleteNode", "connect", "disconnect", "autoLayout",
         // 第二代 7 个复合工具（v2 用 dsh 命名替代）
         "navigate", "query", "manage", "canvas", "applyWorkflow", "createPlan", "executeStep"
+    };
+
+    /**
+     * 2026-10-17 工具体系重构下线的工具：启动时从 DB 移除定义（保留在 git 历史可回滚）。
+     * save_workflow 自 2026-10-11 起落版只由用户界面触发，一并清理。
+     */
+    private static final String[] REMOVED_TOOL_NAMES = {
+        "save_workflow",
+        "write_workflow", "edit_workflow", "delete_workflow",
+        "list_workflows", "list_templates", "list_runs",
+        "search_knowledge", "get_node_schema",
+        "read_workflow", "read_node", "memory",
+        "get_canvas", "get_node", "get_node_variables",
+        "add_node", "update_node", "remove_node",
+        "connect_edge", "remove_edge",
+        "run_node", "run_workflow", "run_tests", "add_test_case",
+        "get_node_knowledge"
     };
 
     /**
@@ -251,6 +144,19 @@ public class AgentToolRegistry {
                 }
                 if (deleted > 0) {
                     log.info("Migrated: removed {} old individual tool definitions", deleted);
+                }
+                int removedNew = 0;
+                for (String name : REMOVED_TOOL_NAMES) {
+                    long cnt = toolDefinitionService.count(
+                        new QueryWrapper<AgentToolDefinition>().eq("tool_name", name));
+                    if (cnt > 0) {
+                        toolDefinitionService.remove(
+                            new QueryWrapper<AgentToolDefinition>().eq("tool_name", name));
+                        removedNew += cnt;
+                    }
+                }
+                if (removedNew > 0) {
+                    log.info("Migrated: removed {} decommissioned tool definitions (2026-10 tool redesign)", removedNew);
                 }
             }
 
@@ -342,14 +248,17 @@ public class AgentToolRegistry {
             AgentToolDefinition existing = toolDefinitionService.getOne(
                 new QueryWrapper<AgentToolDefinition>().eq("tool_name", name));
             if (existing != null) {
+                String group = toolGroupOf(name);
                 if (!Objects.equals(existing.getDescription(), desc)
-                    || !Objects.equals(existing.getParameters(), paramsJson)) {
+                    || !Objects.equals(existing.getParameters(), paramsJson)
+                    || !Objects.equals(existing.getToolGroup(), group)) {
                     existing.setDescription(desc);
                     existing.setParameters(paramsJson);
+                    existing.setToolGroup(group);
                     existing.setUpdatedAt(LocalDateTime.now().toString());
                     toolDefinitionService.updateById(existing);
                     updated++;
-                    log.info("Synced tool definition from code: {} (description/parameters changed)", name);
+                    log.info("Synced tool definition from code: {} (description/parameters/group changed)", name);
                 }
                 continue;
             }
@@ -420,51 +329,33 @@ public class AgentToolRegistry {
      *                     （目录与实际下发的工具 schema 保持一致，避免正文目录撒谎）
      */
     public String getSystemPrompt(String locale, java.util.Set<String> allowedTools) {
-        String prompt = loadPromptFromDb(locale);
+        // 默认提示词 = IDENTITY+SOUL+AGENTS 组装（AgentPromptComposer，DB 覆盖优先、classpath 兜底）
+        String prompt = promptComposer != null ? promptComposer.composeSystemPrompt() : "";
         prompt = injectToolCatalog(prompt, allowedTools);
-        prompt = injectKnowledgeCatalog(prompt);
-        return injectMemory(prompt);
-    }
-
-    /** 记忆注入（双层：手写区 + 条目区）；无记忆返回原文 */
-    public String injectMemory(String prompt) {
-        try {
-            String section = memoryManager.buildPromptSection();
-            return section != null ? prompt + section : prompt;
-        } catch (Exception e) {
-            log.warn("[tool-registry] memory inject failed: {}", e.getMessage());
-            return prompt;
-        }
+        return injectKnowledgeCatalog(prompt);
     }
 
     /**
-     * 知识目录注入（skill 目录等价物，2026-10-11）：模型开局就知道有哪些知识可查
-     * （此前模型不知道知识库内容，节点配置知识查了也用不对）。目录只列 nodeType+标题，
-     * 正文按需 get_node_schema(type) / search_knowledge 拉取 —— 懒加载不撑上下文。
+     * 技能目录注入：模型开局就知道有哪些技能可查，正文按需 skill(name) / get(target=knowledge) 拉取——懒加载不撑上下文。
      */
     public String injectKnowledgeCatalog(String prompt) {
+        if (skillCatalog == null) {
+            return prompt;
+        }
         try {
-            List<AgentConfig> knowledge = configService.list(
-                new QueryWrapper<AgentConfig>().likeRight("config_key", "node_").eq("is_deleted", 0));
-            if (knowledge == null || knowledge.isEmpty()) {
+            List<AgentSkill> skills = skillCatalog.catalog();
+            if (skills == null || skills.isEmpty()) {
                 return prompt;
             }
-            StringBuilder catalog = new StringBuilder("\n\n## 知识目录（get_node_schema(nodeType) 可取全文）\n");
-            knowledge.stream()
-                .sorted(java.util.Comparator.comparing(AgentConfig::getConfigKey))
-                .forEach((AgentConfig c) -> {
-                    String key = c.getConfigKey();
-                    if (key.endsWith(".en")) {
-                        return;
-                    }
-                    String nodeType = key.substring("node_".length());
-                    catalog.append("- `").append(nodeType).append("`：")
-                        .append(c.getTitle() != null ? c.getTitle() : "").append('\n');
-                });
-            catalog.append("配置节点前按目录查对应结构文档；工作流编排模式见 `workflow-pattern`。\n");
+            StringBuilder catalog = new StringBuilder("\n\n## 技能目录（skill(name) 可取全文；引用文件用 skill(name/path)）\n");
+            skills.stream()
+                .sorted(java.util.Comparator.comparing(AgentSkill::getName))
+                .forEach(skill -> catalog.append("- `").append(skill.getName()).append("`：")
+                    .append(skill.getDescription() != null ? skill.getDescription() : "").append('\n'));
+            catalog.append("开工第一步：skill(\"gaia-workflow-assistant\") 加载完整搭建手册；配置节点前用 get(target=knowledge, nodeType) 查该类型契约。\n");
             return prompt + catalog;
         } catch (Exception e) {
-            log.warn("[tool-registry] knowledge catalog inject failed: {}", e.getMessage());
+            log.warn("[tool-registry] skill catalog inject failed: {}", e.getMessage());
             return prompt;
         }
     }
@@ -492,15 +383,15 @@ public class AgentToolRegistry {
             defs.add(def);
         }
         StringBuilder sb = new StringBuilder("## 工具总览（").append(defs.size()).append(" 个）");
-        for (String group : new String[]{"read", "edit", "run", "commit", "meta", "other"}) {
+        for (ToolGroup group : ToolGroup.values()) {
             List<String> lines = new ArrayList<>();
             for (AgentToolDefinition def : defs) {
-                if (group.equals(toolGroupOf(def.getToolName()))) {
+                if (group.getCode().equals(toolGroupOf(def.getToolName()))) {
                     lines.add("- `" + def.getToolName() + "` — " + toolSummary(def));
                 }
             }
             if (!lines.isEmpty()) {
-                sb.append("\n\n").append(groupHeader(group)).append("\n");
+                sb.append("\n\n").append(groupHeader(group.getCode())).append("\n");
                 for (String line : lines) {
                     sb.append(line).append("\n");
                 }
@@ -510,14 +401,10 @@ public class AgentToolRegistry {
     }
 
     private static String groupHeader(String group) {
-        switch (group) {
-            case "read": return "### 读（无副作用，随时可用）";
-            case "edit": return "### 改（作用于会话草稿）";
-            case "run": return "### 执行（沙箱试运行）";
-            case "commit": return "### 落版（写库生效，语义校验 + 乐观锁守护）";
-            case "meta": return "### 元";
-            default: return "### 其它";
+        if (ToolGroup.COMMON.getCode().equals(group)) {
+            return "### 公共工具（任何任务都用得上）";
         }
+        return "### 工作流工具（操作会话画布：先 get(target=canvas) 再按需下钻）";
     }
 
     /** 目录里的一句话说明：优先人工维护的紧凑文案，未知工具退化为 description 首句 */
@@ -538,27 +425,6 @@ public class AgentToolRegistry {
             desc = desc.substring(0, 80) + "…";
         }
         return desc.isEmpty() ? "（见工具 schema）" : desc;
-    }
-
-    /**
-     * 从 DB 加载系统提示词，DB 无记录时 fallback 到 classpath 缓存
-     */
-    private String loadPromptFromDb(String locale) {
-        boolean isZh = "zh-CN".equals(locale);
-        String configKey = isZh ? "system_prompt.default" : "system_prompt.default.en";
-        try {
-            AgentConfig config = configService.getOne(
-                new QueryWrapper<AgentConfig>()
-                    .eq("config_key", configKey)
-                    .eq("config_type", "system_prompt"));
-            if (config != null && config.getContent() != null && !config.getContent().isEmpty()) {
-                return config.getContent();
-            }
-        } catch (Exception e) {
-            log.warn("Failed to load system prompt from DB for locale {}: {}", locale, e.getMessage());
-        }
-        // fallback 到 classpath 缓存
-        return isZh ? promptZh : promptEn;
     }
 
     /**
@@ -674,222 +540,94 @@ public class AgentToolRegistry {
     }
 
     private String toolGroupOf(String toolName) {
-        if (toolName == null) {
-            return "other";
-        }
+        if (toolName == null) return ToolGroup.WORKFLOW.getCode();
         switch (toolName) {
-            case "list_workflows":
-            case "read_workflow":
-            case "read_node":
-            case "list_runs":
-            case "list_templates":
-            case "search_knowledge":
-            case "get_node_schema":
-                return "read";
-            case "edit_workflow":
-                return "edit";
-            case "run_workflow":
-                return "run";
-            case "write_workflow":
-            case "delete_workflow":
-                return "commit";
-            case "todo_write":
-                return "meta";
+            case "skill": case "ask_user": case "todo_write":
+                return ToolGroup.COMMON.getCode();
             default:
-                return "other";
+                return ToolGroup.WORKFLOW.getCode();
         }
     }
 
-    private String readResource(String path) throws IOException {
-        ClassPathResource resource = new ClassPathResource(path);
-        try (java.io.InputStream is = resource.getInputStream()) {
-            java.io.ByteArrayOutputStream buffer = new java.io.ByteArrayOutputStream();
-            byte[] data = new byte[4096];
-            int n;
-            while ((n = is.read(data, 0, data.length)) != -1) {
-                buffer.write(data, 0, n);
-            }
-            return new String(buffer.toByteArray(), StandardCharsets.UTF_8);
-        }
-    }
+    // ===== 硬编码种子 schema（2026-10-17 工具合并版：16→8） =====
+    // 公共组: ask_user / todo_write / skill
+    // 工作流组: get / node / edge / run / test_case
+    // 下线: get_node / get_node_variables / get_node_knowledge / get_canvas / add_node / update_node /
+    //       remove_node / connect_edge / remove_edge / run_workflow / run_node / run_tests / add_test_case
 
-    // ===== 硬编码种子 schema（DB 为空时建种使用） =====
-
-
-    private JSONArray buildToolsSchema() {
+    public JSONArray buildToolsSchema() {
         JSONArray tools = new JSONArray();
-        String nodeTypes = "start, end, llm, code, http, condition, branches, loop, variable, string-format, assignee, comment";
+        String nodeTypes = "start, end, llm, code, http, condition, branches, loop, variable, string-format, comment";
 
-        // ===== 读层 =====
-        tools.add(func("list_workflows", "列出工作流目录（编码/名称/revision）。找目标工作流或确认存在性时用", obj(
-            null, new JSONObject[]{
-                str("keyword", "按名称/编码过滤（可选）", null)
-            }
-        )));
+        // ===== 公共组 =====
+        tools.add(func("skill", "按名称加载技能全文。开工第一步：skill(\"gaia-workflow-assistant\") 加载完整搭建手册",
+            obj(new String[]{"name"}, new JSONObject[]{ str("name", "技能名", null) })));
 
-        tools.add(func("read_workflow", "读取工作流完整 DSL，返回 nodes/edges 和 revision。"
-            + "修改已有工作流前【必须先调用】：revision 是后续落版的 baseRevision（CAS 基准），"
-            + "读取会同时把它同步为本会话草稿（之后 edit_workflow 直接改）", obj(
-            new String[]{"workflowCode"}, new JSONObject[]{
-                str("workflowCode", "工作流编码", null)
-            }
-        )));
-
-        tools.add(func("read_node", "读取单个节点详情 + 全部可用变量（更新节点前核对字段与可引用变量用；基于会话草稿）", obj(
-            new String[]{"nodeId"}, new JSONObject[]{
-                str("nodeId", "节点ID", null)
-            }
-        )));
-
-        tools.add(func("list_runs", "查询工作流执行日志（状态/耗时/错误）", obj(
-            null, new JSONObject[]{
-                str("workflowCode", "按工作流过滤（可选，不传则查最近）", null)
-            }
-        )));
-
-        tools.add(func("list_templates", "列出工作流模板目录", obj(
-            null, new JSONObject[]{
-                str("keyword", "按名称/编码过滤（可选）", null)
-            }
-        )));
-
-        tools.add(func("search_knowledge", "检索知识库（节点用法/示例/最佳实践）。不确定某概念或用法时先搜一下", obj(
-            new String[]{"query"}, new JSONObject[]{
-                str("query", "检索词（自然语言）", null),
-                num("topK", "返回条数（默认5，最大8）", 5)
-            }
-        )));
-
-        tools.add(func("get_node_schema", "获取节点类型的完整字段结构与 JSON 示例。"
-            + "【配置任何节点前先查它】，尤其是不常用的类型（loop/branches/variable 等）", obj(
-            new String[]{"nodeType"}, new JSONObject[]{
-                str("nodeType", "节点类型", enumVal("start", "end", "llm", "code", "http", "condition",
-                    "branches", "loop", "variable", "string-format", "assignee", "comment"))
-            }
-        )));
-
-        // ===== 编辑层 =====
-        // 单一声明式形态：addNodes/updateNodes/removeNodes/addEdges/removeEdges。
-        // （旧版还接受 ops 数组形态——服务端 EditWorkflowToolExecutor 仍宽容兼容，但 schema 不再宣传，
-        //  双形态会让模型在两种写法间摇摆。）
-        tools.add(func("edit_workflow",
-            "增量修改工作流（会话草稿）。一次调用可同时传 addNodes/updateNodes/removeNodes/addEdges/removeEdges，"
-            + "各项独立生效：合法项立即应用，非法项跳过并在回执 skipped 里给逐项修复指引（只需重发被跳过的项）。"
-            + "已有工作流先 read_workflow（或传 workflowCode）同步为草稿，再改；改完用 run_workflow 验证，落版由用户在界面操作。"
-            + "新增节点必须带 type 和 data（业务字段直接放 data，扁平写法）："
-            + "{\"type\":\"http\",\"ref\":\"hook\",\"data\":{\"method\":\"POST\",\"url\":\"https://...\"}}；"
-            + "随后用 addEdges 的 {\"from\":\"llm_1\",\"to\":\"$hook\"} 接线（$ref 引用同批新节点)。"
-            + "修改已有节点用 updateNodes：{\"nodeId\":\"llm_1\",\"data\":{只传变更字段}}（深合并）。",
-            obj(null, new JSONObject[]{
-                str("workflowCode", "目标工作流编码（可选；草稿未绑定时自动从该工作流当前版本同步）", null),
-                arrProp("addNodes", "新增节点数组，元素同 write_workflow 的 nodes：{type, ref?, id?, title?, data?}，后续用 $ref 引用", obj(
-                    new String[]{"type"}, new JSONObject[]{
-                        str("type", "节点类型（start/end/llm/code/http/condition/branches/loop/variable/string-format/assignee/comment）", null),
-                        str("ref", "本批引用名（后续 addEdges 的 from/to 用 $ref 引用）", null),
-                        str("id", "节点ID（可选）", null),
-                        str("title", "节点标题", null),
-                        objProp("data", NODE_DATA_SCHEMA_HINT)
-                    })),
-                arrProp("updateNodes", "修改已有节点：{nodeId, title?, data?}（data 深合并只传变更字段；只传 nodeId 的空壳项会被跳过）", obj(
-                    new String[]{"nodeId"}, new JSONObject[]{
-                        str("nodeId", "目标节点ID", null),
-                        str("title", "新标题（可选）", null),
-                        objProp("data", "变更字段（深合并）")
-                    })),
-                arrProp("removeNodes", "要删除的节点：{nodeId}", obj(
-                    new String[]{"nodeId"}, new JSONObject[]{
-                        str("nodeId", "节点ID", null)
-                    })),
-                arrProp("addEdges", "新增连线：{from, to, fromPort?}（from/to 可用 $ref）", obj(
-                    new String[]{"from", "to"}, new JSONObject[]{
-                        str("from", "源节点ID或$ref", null),
-                        str("to", "目标节点ID或$ref", null),
-                        str("fromPort", "源端口（条件/分支多出口）", null)
-                    })),
-                arrProp("removeEdges", "删除连线：{from, to}", obj(
-                    new String[]{"from", "to"}, new JSONObject[]{
-                        str("from", "源节点ID", null),
-                        str("to", "目标节点ID", null)
-                    }))
+        tools.add(func("ask_user", "向用户提问并等待回答。只问三类问题：①缺了会白做的关键信息 ②成品形态关键岔路 ③不可逆/只有用户知道的事。技术路线自己定",
+            obj(new String[]{"question"}, new JSONObject[]{
+                str("question", "问题（一句话，具体可答）", null),
+                arrProp("options", "可选项（可选）", obj(new String[]{"label"}, new JSONObject[]{
+                    str("label", "选项文案", null), str("detail", "代价/影响", null) }))
             })));
 
-        // ===== 执行层 =====
-        tools.add(func("run_workflow", "试运行当前会话草稿的工作流，等待终态并返回输出（超时默认180s）。"
-            + "落版前后都可以跑，用真实输出验证节点配置", obj(
-            null, new JSONObject[]{
-                objProp("inputs", "运行输入参数（可选，如 {\"query\":\"测试输入\"}）"),
-                num("timeoutMs", "超时毫秒数（默认180000，最大600000）", 180000)
-            }
-        )));
-
-        // ===== 落版层 =====
-        tools.add(func("write_workflow",
-            "整份 DSL 一次成型【写入会话草稿，不落版】。仅新建或推倒重来时用——"
-            + "修改已有工作流请走 read_workflow → edit_workflow 增量链路。"
-            + "系统会自动规范化：补 id、缺坐标自动布局、扁平字段转嵌套结构、去重连线、缺 start/end 自动补齐。"
-            + "传 workflowCode 表示把草稿绑定到该工作流（推倒重来场景）。"
-            + "写入后用 run_workflow 试运行验证；落版由用户在界面「保存为版本」完成，你没有落版工具。",
-            obj(new String[]{"nodes"}, new JSONObject[]{
-                str("workflowCode", "工作流编码（可选）。传入=草稿绑定到该工作流（推倒重来）；留空=纯新草稿", null),
-                str("workflowName", "工作流名称（可选，仅作记录）", null),
-                arrProp("nodes", "节点数组。每项 {id?, type, title?, data?}；给 id 用语义化命名（如 llm_summarize），连线直接引用", obj(
-                    new String[]{"type"}, new JSONObject[]{
-                        str("type", "节点类型（" + nodeTypes + "）", null),
-                        str("id", "节点ID，省略则自动生成", null),
-                        str("title", "节点标题", null),
-                        objProp("data", NODE_DATA_SCHEMA_HINT)
-                    })),
-                arrProp("edges", "连线数组。每项 {from, to}，必须覆盖完整执行链路，不要留孤立节点", obj(
-                    new String[]{"from", "to"}, new JSONObject[]{
-                        str("from", "源节点ID", null),
-                        str("to", "目标节点ID", null),
-                        str("fromPort", "源端口（条件/分支多出口时用）", null)
-                    }))
-            })));
-
-        tools.add(func("delete_workflow", "删除工作流（不可逆）。必须先向用户复述删除目标并征得明确同意，"
-            + "然后携带 confirmed=true 调用", obj(
-            new String[]{"workflowCode"}, new JSONObject[]{
-                str("workflowCode", "工作流编码", null),
-                boolProp("confirmed", "用户明确同意后传 true；未确认时工具会拒绝执行", false)
-            }
-        )));
-
-        // ===== 记忆层 =====
-        tools.add(func("memory",
-            "长期记忆管理（跨会话生效）。remember：记住用户偏好（输出风格/命名习惯）、"
-                + "平台事实（哪个工作流是生产用的）、项目约定——下次会话自动生效。"
-                + "forget：按关键词删除。list：查看。不要记密钥/临时信息。",
-            obj(new String[]{"action"}, new JSONObject[]{
-                str("action", "动作", enumVal("remember", "forget", "list")),
-                str("content", "remember 时必填：要记住的一条事实/偏好（一句话，具体可执行）", null),
-                str("keyword", "forget 时必填：删除包含该关键词的记忆", null)
-            })));
-
-        // ===== 元层 =====
-        tools.add(func("todo_write", "写入/更新任务进度清单（3 步以上的任务先列清单，完成一项勾一项）。"
-            + "这只是进度展示，不影响执行——每步仍由你在主循环里逐个完成", obj(
+        tools.add(func("todo_write", "写入/更新任务进度清单（≥3 步先列清单，完成即勾）", obj(
             new String[]{"steps"}, new JSONObject[]{
-                arrProp("steps", "清单步骤（全量重写，每次传完整列表）", obj(new String[]{"content"}, new JSONObject[]{
-                    str("id", "步骤ID（可选）", null),
-                    str("content", "步骤内容（一句话）", null),
-                    str("status", "状态", enumVal("pending", "in_progress", "completed", "blocked"))
-                }))
-            }
-        )));
+                arrProp("steps", "全量重写", obj(new String[]{"content"}, new JSONObject[]{
+                    str("id", "步骤ID", null), str("content", "内容", null),
+                    str("status", "状态", enumVal("pending","in_progress","completed","blocked")) }))})));
 
-        tools.add(func("ask_user", "向用户提问并等待回答。提问会渲染成交互卡片（问题 + 选项按钮 + 自由输入框），"
-            + "用户作答后你会收到回答文本；5 分钟未答返回超时提示。需要用户选择/确认/补充信息时必须用这个工具，"
-            + "不要在正文里输出选项列表", obj(
-            new String[]{"question"}, new JSONObject[]{
-                str("question", "要问的问题（一句话，具体到用户能直接回答）", null),
-                arrProp("options", "候选答案（2-5 个，每条是用户可直接点选的完整语句）；开放性问题不传，让用户自由输入",
-                    new JSONObject().set("type", "string"))
-            }
-        )));
+        // ===== 工作流组 =====
+        tools.add(func("get", "查询画布/单节点配置/变量/节点知识（四合一查询）。一切操作的起点；改节点前先 target=node 看现状", obj(
+            new String[]{"target"}, new JSONObject[]{
+                str("target", "查询目标", enumVal("canvas","node","variables","knowledge")),
+                str("nodeId", "target=node/variables 时必填：节点ID", null),
+                str("nodeType", "target=knowledge 时必填：节点类型", null),
+            })));
+
+        tools.add(func("node", "节点增/改/删。action=add 时用 type+data（items 批量），action=update 时用 nodeId+data，action=remove 时用 nodeId", obj(
+            new String[]{"action"}, new JSONObject[]{
+                str("action", "操作", enumVal("add","update","remove")),
+                str("type", "action=add 时必填：节点类型", null),
+                str("title", "节点标题（可选）", null),
+                objProp("data", "业务字段（扁平写法，系统自动 normalize）"),
+                str("nodeId", "action=update/remove 时必填：目标节点ID", null),
+                objProp("connect", "action=add 时可选：{from, fromPort?, to} 接线"),
+                arrProp("items", "批量添加（可选）", obj(new String[]{"type"}, new JSONObject[]{
+                    str("type", "节点类型", null), str("title", "标题", null),
+                    objProp("data", "业务字段"), objProp("connect", "接线") })),
+            })));
+
+        tools.add(func("edge", "连线/断线。connect=连两个既有节点（分支出边必须带 fromPort），remove=删除连线", obj(
+            new String[]{"action", "from", "to"}, new JSONObject[]{
+                str("action", "操作", enumVal("connect","remove")),
+                str("from", "源节点ID", null),
+                str("to", "目标节点ID", null),
+                str("fromPort", "源端口（仅分支节点需要）", null),
+            })));
+
+        tools.add(func("run", "执行。target=workflow 整流试跑会话草稿（真正执行，回 outputs/failedNodes/notExecuted，60s 超时）/ target=node 单节点试跑（mockInputs 模拟上游）/ target=tests 跑测试用例", obj(
+            new String[]{"target"}, new JSONObject[]{
+                str("target", "执行目标", enumVal("workflow","node","tests")),
+                str("nodeId", "target=node/tests 时必填：节点ID", null),
+                objProp("inputs", "target=workflow 时的 start 入参"),
+                objProp("mockInputs", "target=node 时的上游变量模拟值"),
+            })));
+
+        tools.add(func("test_case", "沉淀测试用例（回归资产）。expected 断言算子：exists/equals/contains", obj(
+            new String[]{"name", "expected"}, new JSONObject[]{
+                str("name", "用例名", null),
+                str("nodeId", "节点级用例的目标节点（不传=工作流级）", null),
+                objProp("inputs", "工作流级: start 入参；节点级: mock 上游变量"),
+                arrProp("expected", "断言列表 [{field, op, value?}]", obj(
+                    new String[]{"field", "op"}, new JSONObject[]{
+                        str("field", "结果字段", null),
+                        str("op", "断言算子", enumVal("exists","equals","contains")),
+                        str("value", "期望值", null) })),
+            })));
 
         return tools;
     }
+
 
     // ===== 辅助方法 =====
 
@@ -932,13 +670,6 @@ public class AgentToolRegistry {
         return p;
     }
 
-    private JSONObject num(String name, String desc, Number defaultValue) {
-        JSONObject p = new JSONObject().set("__name", name).set("type", "number");
-        if (desc != null) p.set("description", desc);
-        if (defaultValue != null) p.set("default", defaultValue);
-        return p;
-    }
-
     private JSONObject enumVal(String... values) {
         JSONObject p = new JSONObject();
         p.set("enum", JSONUtil.parseArray(java.util.Arrays.asList(values)));
@@ -947,13 +678,6 @@ public class AgentToolRegistry {
 
     private JSONObject objProp(String name, String desc) {
         return new JSONObject().set("__name", name).set("type", "object").set("description", desc);
-    }
-
-    private JSONObject boolProp(String name, String desc, boolean defaultValue) {
-        JSONObject p = new JSONObject().set("__name", name).set("type", "boolean");
-        if (desc != null) p.set("description", desc);
-        p.set("default", defaultValue);
-        return p;
     }
 
     private JSONObject arrProp(String name, String desc, JSONObject items) {

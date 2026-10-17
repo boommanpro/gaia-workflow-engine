@@ -36,7 +36,6 @@ export function normalizeNodeData(type: string, data: Record<string, any>): Reco
     case 'condition':
     case 'branches':
     case 'loop':
-    case 'assignee':
       normalizeRefShorthand(result);
       break;
   }
@@ -45,57 +44,99 @@ export function normalizeNodeData(type: string, data: Record<string, any>): Reco
 }
 
 /**
- * Normalize HTTP node: convert flat method/url/headers/body to nested inputsValues structure.
+ * Normalize HTTP node: convert flat method/url/headers/params/body/timeout into the
+ * engine's canonical nested shape (data.api / headersValues / paramsValues / data.body / data.timeout).
  * LLM may output: { method: "GET", url: "http://...", headers: {...}, body: "..." }
- * flowgram needs: { inputsValues: { method: {type:"constant",content:"GET",...}, url: {...}, ... } }
+ * Engine reads:   { api: {method, url}, headersValues: {...}, body: {bodyType, json}, timeout: {timeout} }
+ * Also migrates the legacy inputsValues.{method,url,...} shape produced by older normalizers.
  */
 function normalizeHttpNode(data: Record<string, any>): void {
-  if (!data.inputsValues) data.inputsValues = {};
+  if (!data.api || typeof data.api !== 'object') data.api = {};
 
-  // method
-  if (data.method && typeof data.method === 'string') {
-    data.inputsValues.method = data.inputsValues.method || {
-      type: 'constant',
-      content: data.method,
-      schema: { type: 'string' },
-    };
-    delete data.method;
+  // method / url: data.api wins, then flat fields, then legacy inputsValues wrappers
+  if ((!data.api.method || typeof data.api.method !== 'string')) {
+    const flat = takeLoose(data, 'method');
+    const legacy = takeLegacy(data, 'method');
+    const value = flat ?? unwrapConstant(legacy);
+    if (typeof value === 'string' && value) data.api.method = value.toUpperCase();
   }
-  // url
-  if (data.url && typeof data.url === 'string') {
-    data.inputsValues.url = data.inputsValues.url || {
-      type: 'constant',
-      content: data.url,
-      schema: { type: 'string' },
-    };
-    delete data.url;
+  if (data.api.url === undefined || data.api.url === '') {
+    const flat = takeLoose(data, 'url');
+    const legacy = takeLegacy(data, 'url');
+    const value = flat ?? unwrapConstant(legacy);
+    if (value !== undefined && value !== null) data.api.url = value;
   }
-  // headers
-  if (data.headers && typeof data.headers === 'object') {
-    data.inputsValues.headers = data.inputsValues.headers || {
-      type: 'constant',
-      content: data.headers,
-      schema: { type: 'object' },
-    };
-    delete data.headers;
+  delete data.method;
+  delete data.url;
+  delete data.inputsValues?.method;
+  delete data.inputsValues?.url;
+
+  // headers / params: {k: value} → {k: {type:'constant', content: value}} (engine reads wrapped form)
+  migrateHeaderLike(data, 'headers', 'headersValues');
+  migrateHeaderLike(data, 'params', 'paramsValues');
+
+  // body: flat string → { bodyType:'JSON', json:{type:'template', content} }
+  const flatBody = takeLoose(data, 'body');
+  const legacyBody = unwrapConstant(takeLegacy(data, 'body'));
+  const bodyCandidate = flatBody ?? legacyBody;
+  if (bodyCandidate !== undefined && !(data.body && typeof data.body === 'object' && (data.body as any).bodyType)) {
+    const content = typeof bodyCandidate === 'string' ? bodyCandidate : JSON.stringify(bodyCandidate);
+    data.body = { bodyType: 'JSON', json: { type: 'template', content } };
   }
-  // body
-  if (data.body !== undefined) {
-    data.inputsValues.body = data.inputsValues.body || {
-      type: 'constant',
-      content: typeof data.body === 'string' ? data.body : JSON.stringify(data.body),
-      schema: { type: 'string' },
-    };
-    delete data.body;
+  delete data.inputsValues?.body;
+
+  // timeout: number → { timeout: n }
+  const flatTimeout = takeLoose(data, 'timeout');
+  const legacyTimeout = unwrapConstant(takeLegacy(data, 'timeout'));
+  const timeoutCandidate = flatTimeout ?? legacyTimeout;
+  if (timeoutCandidate !== undefined && !(data.timeout && typeof data.timeout === 'object' && (data.timeout as any).timeout)) {
+    const n = typeof timeoutCandidate === 'number' ? timeoutCandidate : parseInt(String(timeoutCandidate), 10);
+    if (!Number.isNaN(n)) data.timeout = { timeout: n };
   }
-  // timeout
-  if (data.timeout !== undefined) {
-    data.inputsValues.timeout = data.inputsValues.timeout || {
-      type: 'constant',
-      content: data.timeout,
-      schema: { type: 'number' },
-    };
-    delete data.timeout;
+  delete data.inputsValues?.timeout;
+}
+
+/** 取出并删除 data 上的扁平字段 */
+function takeLoose(data: Record<string, any>, key: string): any {
+  const value = data[key];
+  delete data[key];
+  return value;
+}
+
+/** 取出并删除旧版 inputsValues 包装（旧归一化产物，引擎不读） */
+function takeLegacy(data: Record<string, any>, key: string): any {
+  const value = data.inputsValues?.[key];
+  if (data.inputsValues) delete data.inputsValues[key];
+  return value;
+}
+
+/** {type:'constant', content:x} → x；其他原样返回 */
+function unwrapConstant(wrapper: any): any {
+  return wrapper && typeof wrapper === 'object' && wrapper.type === 'constant' ? wrapper.content : wrapper;
+}
+
+/** headers/params 简写迁移：flat 字段或旧 inputsValues 包装 → 包好 constant 的目标键值对 */
+function migrateHeaderLike(data: Record<string, any>, from: string, to: string): void {
+  let source: Record<string, any> | undefined;
+  if (data[from] && typeof data[from] === 'object' && !Array.isArray(data[from])) {
+    source = data[from];
+  } else {
+    const legacy = data.inputsValues?.[from];
+    if (legacy && typeof legacy === 'object' && legacy.content && typeof legacy.content === 'object') {
+      source = legacy.content;
+    }
+  }
+  delete data[from];
+  delete data.inputsValues?.[from];
+  if (!source) return;
+  if (!data[to] || typeof data[to] !== 'object') data[to] = {};
+  for (const [key, value] of Object.entries(source)) {
+    if (data[to][key] === undefined) {
+      data[to][key] =
+        value && typeof value === 'object' && (value as any).type
+          ? value
+          : { type: 'constant', content: value, schema: { type: 'string' } };
+    }
   }
 }
 

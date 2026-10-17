@@ -238,7 +238,7 @@ class ArkManagedExecutionEngineTest {
 
     private static AgentRequest requestWithAgent(String agentId) {
         return new AgentRequest("sess-1", "帮我看看", "zh-CN", null, agentId,
-            ToolExecutionMode.BACKEND, 0, null, null);
+            ToolExecutionMode.BACKEND, null, null);
     }
 
     private static boolean isUserMessage(JSONArray events) {

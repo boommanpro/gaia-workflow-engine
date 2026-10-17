@@ -14,6 +14,7 @@ import cn.boommanpro.gaia.workflow.app.domain.testrun.output.TaskResultOutput;
 import cn.boommanpro.gaia.workflow.app.domain.testrun.output.TaskRunOutput;
 import cn.boommanpro.gaia.workflow.app.domain.testrun.output.TaskValidateOutput;
 import cn.boommanpro.gaia.workflow.app.service.TaskRepository;
+import cn.boommanpro.gaia.workflow.app.service.WorkflowDslValidator;
 import cn.boommanpro.gaia.workflow.app.service.WorkflowTaskService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,12 +50,13 @@ public class WorkflowTaskServiceImpl implements WorkflowTaskService {
     @Override
     public TaskValidateOutput validateWorkflow(TaskRunInput input) {
         logger.debug("验证工作流: {}", input);
-        // 验证工作流Schema
+        // 验证工作流Schema（2026-10-16 起对接统一校验器：结构/拓扑/语义/引用全量检查，
+        // 旧实现只查非空，是空壳——前端以为有业务级校验，实际没有）
         if (input.getSchema() == null || input.getSchema().isEmpty()) {
             logger.warn("工作流Schema为空");
             return TaskValidateOutput.fail(Arrays.asList("Schema不能为空"));
         }
-        return TaskValidateOutput.success();
+        return TaskValidateOutput.of(WorkflowDslValidator.validate(input.getSchema()));
     }
 
     @Override

@@ -23,6 +23,7 @@ import Markdown from './Markdown';
 import { t } from '../i18n';
 import { CHAT } from '../chat/theme';
 import { StepRow } from '../chat/ToolSteps';
+import { TaskCollapse } from '../chat/TaskCollapse';
 
 /** 已收尾文本块的 memo 化渲染 */
 const MemoText: React.FC<{ text: string }> = React.memo(({ text }) => (
@@ -366,24 +367,21 @@ export const TimelineView: React.FC<{
   </div>
 );
 
-/** 状态行：第 N/M 轮 · 当前工具 · 耗时（500ms 心跳） */
+/** 状态行：只保留异常态（重连中 / 疑似卡死）。
+ *  常规的「当前工具 + 耗时」已由 TaskCollapse 折叠行承担（TRAE 式极简，2026-10-17），
+ *  但重连/卡死是可靠性信号，必须无视折叠常显。 */
 const StreamStatusBar: React.FC = () => {
   const state = useSyncExternalStore(liveStreamStore.subscribe, liveStreamStore.getSnapshot);
-  const [, forceTick] = useState(0);
-  useEffect(() => {
-    if (!state.streaming) return;
-    const timer = setInterval(() => forceTick((v) => v + 1), 500);
-    return () => clearInterval(timer);
-  }, [state.streaming]);
   if (!state.streaming) return null;
 
-  const elapsed = state.startedAt ? (Date.now() - state.startedAt) / 1000 : 0;
   const reconnecting = state.connection === 'reconnecting';
   // 卡死中判定：streaming 且 >90s 无任何事件到达（对标 OWB「中断」态，不假装还在跑）
   const stalled =
     state.startedAt > 0 &&
     state.lastEventAt > 0 &&
     Date.now() - state.lastEventAt > 90000;
+  if (!reconnecting && !stalled) return null;
+
   return (
     <div
       style={{
@@ -398,33 +396,9 @@ const StreamStatusBar: React.FC = () => {
     >
       {reconnecting ? (
         <span style={{ color: '#b45309' }}>⚠ {t('chat.reconnecting')}</span>
-      ) : stalled ? (
-        <span style={{ color: '#b45309' }}>⚠ 运行疑似卡住（超过 90s 无事件），可停止后重试</span>
       ) : (
-        <>
-          <span
-            style={{
-              width: 10,
-              height: 10,
-              border: `1.5px solid ${CHAT.line}`,
-              borderTopColor: CHAT.accent,
-              borderRadius: '50%',
-              animation: 'chat-spin .8s linear infinite',
-              display: 'inline-block',
-              flexShrink: 0,
-            }}
-          />
-          {state.currentTool && (
-            <span style={{ color: CHAT.accent, fontWeight: 500 }}>{state.currentTool}</span>
-          )}
-          {state.contextTokens > 0 && (
-            <span title="当前上下文 token 估算（超过阈值会自动压缩）">
-              ≈{state.contextTokens} tok
-            </span>
-          )}
-        </>
+        <span style={{ color: '#b45309' }}>⚠ 运行疑似卡住（超过 90s 无事件），可停止后重试</span>
       )}
-      <span style={{ marginLeft: 'auto', color: CHAT.textFaint }}>{elapsed.toFixed(1)}s</span>
     </div>
   );
 };
@@ -449,20 +423,36 @@ const WaitingDots: React.FC = () => (
 );
 
 /**
- * live 助手消息渲染体：时间线走 store；
- * 工具步骤等结构化内容由 store.timeline 驱动（结构性事件低频）。
+ * live 助手消息渲染体：时间线走 store。
+ * TRAE 式极简（2026-10-17 二次反馈）：思考 / 工具 / 系统播报全部收进
+ * 「任务耗时 Xs」折叠行默认隐藏，只有正文文本块直接流式渲染。
  */
 export const LiveAssistantContent: React.FC = () => {
   const state = useSyncExternalStore(liveStreamStore.subscribe, liveStreamStore.getSnapshot);
-  const empty = state.timeline.length === 0;
+  if (state.timeline.length === 0) {
+    return (
+      <div>
+        <WaitingDots />
+        <StreamStatusBar />
+      </div>
+    );
+  }
+  // 过程项（思考/工具/播报）与正文文本块分离：前者折叠，后者照常流式
+  const processItems = state.timeline.filter((i) => i.kind !== 'text');
+  const textItems = state.timeline.filter((i) => i.kind === 'text');
+  const connected = state.connection !== 'reconnecting';
   return (
     <div>
-      {empty ? <WaitingDots /> : (
-        <TimelineView
-          timeline={state.timeline}
-          streaming={state.streaming}
-          connected={state.connection !== 'reconnecting'}
-        />
+      {processItems.length > 0 && (
+        <TaskCollapse
+          live={state.streaming}
+          startedAt={state.startedAt > 0 ? state.startedAt : undefined}
+        >
+          <TimelineView timeline={processItems} streaming={state.streaming} connected={connected} />
+        </TaskCollapse>
+      )}
+      {textItems.length > 0 && (
+        <TimelineView timeline={textItems} streaming={state.streaming} connected={connected} />
       )}
       <StreamStatusBar />
     </div>

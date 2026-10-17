@@ -11,6 +11,7 @@ import { merge } from 'lodash-es';
 
 import { createNodeByType } from '../agent/node-templates';
 import { autoLayoutDsl } from './layout';
+import { migrateLegacyDsl } from './migrations';
 import { validateDsl } from './validate';
 import type {
   DslEdge,
@@ -48,9 +49,15 @@ export class WorkflowDocument {
       }
     }
     const obj = (parsed && typeof parsed === 'object' ? parsed : {}) as Partial<WorkflowDsl>;
-    return new WorkflowDocument({
+    // 载入统一过迁移层：历史形状（如 multi-condition）在进画布前先变成当前契约，
+    // 否则存量节点会被后端校验门禁打回（未知类型 error）
+    const migrated = migrateLegacyDsl({
       nodes: Array.isArray(obj.nodes) ? obj.nodes : [],
       edges: Array.isArray(obj.edges) ? obj.edges : [],
+    });
+    return new WorkflowDocument({
+      nodes: migrated.nodes,
+      edges: migrated.edges,
       ...(obj.globalVariable ? { globalVariable: obj.globalVariable } : {}),
     });
   }

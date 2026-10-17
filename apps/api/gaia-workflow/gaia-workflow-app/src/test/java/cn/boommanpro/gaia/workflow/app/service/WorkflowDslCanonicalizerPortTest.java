@@ -35,7 +35,7 @@ class WorkflowDslCanonicalizerPortTest {
                 + "{\"sourceNodeID\":\"condition_1\",\"sourcePortID\":\"false\",\"targetNodeID\":\"end_false\"}]"));
         List<String> issues = WorkflowDslCanonicalizer.businessFieldIssues(doc);
         assertThat(issues).anyMatch(i -> i.contains("condition_1") && i.contains("\"true\"") && i.contains("if_match"))
-            .anyMatch(i -> i.contains("removeEdges") && i.contains("fromPort"));
+            .anyMatch(i -> i.contains("\"action\":\"remove\"") && i.contains("fromPort"));
     }
 
     @Test
@@ -83,7 +83,7 @@ class WorkflowDslCanonicalizerPortTest {
         JSONObject doc = JSONUtil.parseObj(String.format(DOC_TEMPLATE,
             "[{\"sourceNodeID\":\"start_1\",\"targetNodeID\":\"condition_1\"}]"));
         List<String> issues = WorkflowDslCanonicalizer.businessFieldIssues(doc);
-        assertThat(issues).anyMatch(i -> i.contains("condition_1") && i.contains("没有任何出边") && i.contains("addEdges"));
+        assertThat(issues).anyMatch(i -> i.contains("condition_1") && i.contains("没有任何出边") && i.contains("\"action\":\"connect\""));
     }
 
     @Test

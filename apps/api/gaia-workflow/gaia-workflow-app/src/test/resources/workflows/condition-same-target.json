@@ -1,0 +1,12 @@
+{
+  "nodes": [
+    {"id":"start_0","type":"start","meta":{"position":{"x":0,"y":0}},"data":{"title":"开始","outputs":{"type":"object","properties":{"q":{"type":"string","default":"has gaia"}}}}},
+    {"id":"cond_0","type":"condition","meta":{"position":{"x":1,"y":0}},"data":{"title":"包含gaia?","conditions":[{"key":"if_hit","value":{"left":{"type":"ref","content":["start_0","q"]},"operator":"contains","right":{"type":"constant","content":"gaia"}}}]}},
+    {"id":"end_0","type":"end","meta":{"position":{"x":2,"y":0}},"data":{"title":"结束","inputsValues":{"out":{"type":"ref","content":["cond_0","if_hit"]}},"inputs":{"type":"object","properties":{"out":{"type":"boolean"}}}}}
+  ],
+  "edges": [
+    {"sourceNodeID":"start_0","targetNodeID":"cond_0"},
+    {"sourceNodeID":"cond_0","targetNodeID":"end_0","sourcePortID":"if_hit"},
+    {"sourceNodeID":"cond_0","targetNodeID":"end_0","sourcePortID":"else"}
+  ]
+}

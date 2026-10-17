@@ -23,6 +23,9 @@ export const MultiConditionNodeRegistry: FlowNodeRegistry = {
     defaultPorts: [{ type: 'input' }],
     useDynamicPort: true,
     expandable: false,
+    // 2026-10-16 下架：后端没有 multi-condition 的解析器（执行必 NPE），互斥多分支用 branches。
+    // 注册表保留用于渲染存量文档——载入时会经 document/migrations 自动迁移为 branches。
+    nodePanelVisible: false,
     size: {
       width: 360,
       height: 210,

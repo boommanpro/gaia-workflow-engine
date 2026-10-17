@@ -5,6 +5,7 @@ import cn.boommanpro.gaia.workflow.app.agent.core.ExecutionSurface;
 import cn.boommanpro.gaia.workflow.app.agent.event.AgentEvent;
 import cn.boommanpro.gaia.workflow.app.agent.session.AskUserPendingStore;
 import cn.boommanpro.gaia.workflow.app.agent.tool.ToolExecutor;
+import cn.boommanpro.gaia.workflow.app.agent.tool.ToolGroup;
 import cn.boommanpro.gaia.workflow.app.agent.tool.ToolResult;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
@@ -31,6 +32,11 @@ public class AskUserToolExecutor implements ToolExecutor {
 
     public AskUserToolExecutor(AskUserPendingStore pendingStore) {
         this.pendingStore = pendingStore;
+    }
+
+    @Override
+    public ToolGroup group() {
+        return ToolGroup.COMMON;
     }
 
     @Override

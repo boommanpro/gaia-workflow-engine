@@ -119,9 +119,9 @@ class AgentScopeTrajectoryReplayTest {
 
     private AgentRequest request() {
         // AgentRequest 为全参构造：sessionKey, message, locale, pageContext, agentId,
-        // executionMode, maxTurns, variables, runId
+        // executionMode, variables, runId
         return new AgentRequest("s-traj-replay", "跑一遍工具链路",
-            null, null, null, null, 0, null, null);
+            null, null, null, null, null, null);
     }
 
     @Test

@@ -1,0 +1,41 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://gaia.workflow/schemas/node/code",
+  "title": "code",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "script": {
+      "type": [
+        "object",
+        "string"
+      ],
+      "properties": {
+        "language": {
+          "type": "string"
+        },
+        "content": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "content"
+      ]
+    },
+    "inputsValues": {
+      "type": "object"
+    },
+    "inputs": {
+      "type": "object"
+    },
+    "outputs": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "script"
+  ],
+  "additionalProperties": true
+}

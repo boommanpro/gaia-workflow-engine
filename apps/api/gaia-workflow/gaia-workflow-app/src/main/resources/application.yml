@@ -39,3 +39,21 @@ agent:
     default-model-id: ""
     connect-timeout-ms: 10000
     read-timeout-ms: 300000
+  # AgentScope Service 自托管（engine=as-service 的 Agent 使用；DB provider_config:as-service 可在线覆盖）
+  as-service:
+    base-url: http://localhost:18080
+    api-key: ""            # 数据面 Application API Key（X-API-Key）
+    admin-username: admin  # 管理面账号（按会话自动同步托管 Agent）
+    admin-password: ""
+    tenant: default
+    namespace: default
+    mcp-public-url: http://host.docker.internal:48080  # 数据面回连 Gaia MCP 的基址
+    model: dashscope:qwen-max
+    connect-timeout-ms: 10000
+    read-timeout-ms: 60000
+
+# 工作流数据面
+workflow:
+  execute:
+    # 执行前预检：生效版本先过 WorkflowDslValidator，error 级问题直接拒绝执行（false 可临时关闭）
+    pre-validate: true

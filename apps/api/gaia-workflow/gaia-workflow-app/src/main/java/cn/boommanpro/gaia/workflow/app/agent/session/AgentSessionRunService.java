@@ -239,6 +239,7 @@ public class AgentSessionRunService {
      * 请求未指定 Agent 时的默认选择（管理端「默认执行引擎」开关驱动，agent.engine.default）：
      * mode=ark 且方舟已配置（apiKey + environmentId）→ 方舟托管 Agent
      * （defaultAgentId 已填用之，否则内置 ark-assistant，首次运行自动同步创建远端资源）；
+     * mode=as-service 且 Service 已配置（baseUrl + apiKey + adminPassword）→ as-service-assistant；
      * 其余情况 → local 默认 workspace-backend。读取失败一律回退，保证聊天永不被配置问题打挂。
      */
     private String resolveDefaultAgentId() {
@@ -248,6 +249,11 @@ public class AgentSessionRunService {
                 String defaultAgentId = providerConfigService.getArkConfig().getDefaultAgentId();
                 return defaultAgentId != null && !defaultAgentId.isEmpty()
                     ? defaultAgentId : "ark-assistant";
+            }
+            if (AgentProviderConfigService.AS_SERVICE_ENGINE_MODE
+                    .equals(providerConfigService.getDefaultEngineMode())
+                && providerConfigService.isAsServiceConfiguredForDefault()) {
+                return "as-service-assistant";
             }
         } catch (Exception e) {
             log.warn("[session-run] resolve default agent failed, fallback to {}: {}",
@@ -312,6 +318,19 @@ public class AgentSessionRunService {
 
     // ---------------- 内部 ----------------
 
+    /** run 工具的 target 缺省即 workflow；args_digest 是原始参数 JSON（超长截断，截断后按非整流处理） */
+    private static boolean isWorkflowRun(String argsDigest) {
+        if (argsDigest == null || argsDigest.trim().isEmpty()) {
+            return true;
+        }
+        try {
+            String target = cn.hutool.json.JSONUtil.parseObj(argsDigest).getStr("target");
+            return target == null || "workflow".equals(target);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     /** 把 run 失败原因持久化为 assistant 消息，保证切走/刷新后用户仍能看到失败原因 */
     private void persistRunError(String sessionKey, String errorText) {
         try {
@@ -343,7 +362,7 @@ public class AgentSessionRunService {
                 "run_input", new JSONObject().set("content", message)));
             AgentRequest request = new AgentRequest(
                 sessionKey, message, locale != null ? locale : "zh-CN", pageContext,
-                agentId, ToolExecutionMode.BACKEND, 0, null, handle.getRunId());
+                agentId, ToolExecutionMode.BACKEND, null, handle.getRunId());
             if (request.getVariables() == null) {
                 request.setVariables(new java.util.HashMap<>());
             }
@@ -385,13 +404,14 @@ public class AgentSessionRunService {
                         toolCallLogService.list(new QueryWrapper<cn.boommanpro.gaia.workflow.infra.manage.entity.AgentToolCallLog>()
                             .eq("run_id", handle.getRunId()));
                     boolean mutated = calls.stream().anyMatch(c ->
-                        ("write_workflow".equals(c.getToolName()) || "edit_workflow".equals(c.getToolName()))
+                        ("node".equals(c.getToolName()) || "edge".equals(c.getToolName()))
                             && "SUCCESS".equals(c.getOutcome()));
                     boolean runVerified = calls.stream().anyMatch(c ->
-                        "run_workflow".equals(c.getToolName()) && "SUCCESS".equals(c.getOutcome()));
+                        "run".equals(c.getToolName()) && "SUCCESS".equals(c.getOutcome())
+                            && isWorkflowRun(c.getArgsDigest()));
                     if (mutated && !runVerified) {
-                        String warn = "本轮修改了工作流草稿，但没有成功试运行过——交付未经验证。"
-                            + "请先 run_workflow 验证（正反两组输入），验证通过后提醒用户「保存为版本」。";
+                        String warn = "本轮修改了工作流草稿，但没有成功整流验证过——交付未经验证。"
+                            + "请先 run(target=workflow) 验证（正反两组输入），验证通过后提醒用户「保存为版本」。";
                         eventBus.publish(sessionKey, "delivery_warning",
                             new JSONObject().set("message", warn));
                         if (result != null && result.getFailureChain() != null) {

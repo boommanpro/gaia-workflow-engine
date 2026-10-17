@@ -193,7 +193,7 @@ public class HttpNode extends BaseNode {
             return "";
         }
 
-        if ("JSON".equals(body.getBodyType()) && body.getJson() != null) {
+        if ("JSON".equalsIgnoreCase(body.getBodyType()) && body.getJson() != null) {
             Object jsonValue = body.getJson();
             if (jsonValue instanceof Map) {
                 Map<String, Object> jsonMap = (Map<String, Object>) jsonValue;
@@ -204,6 +204,13 @@ public class HttpNode extends BaseNode {
                     // 使用简单模板解析
                     return parseTemplate((String) content, chain.getMemory());
                 }
+                if (content != null && !"ref".equals(type)) {
+                    // constant 等类型：直接取字面量，避免归一化产物被静默丢弃
+                    return String.valueOf(content);
+                }
+            } else if (jsonValue instanceof String) {
+                // 宽松兼容：json 直接是字符串（用户手写/旧数据）
+                return (String) jsonValue;
             }
         }
 
@@ -211,12 +218,16 @@ public class HttpNode extends BaseNode {
     }
 
     /**
-     * 解析值（支持常量和引用）
+     * 解析值（支持常量、引用与纯字符串字面量）
      * @param valueObj 值对象
      * @param chain 工作流链
      * @return 解析后的字符串值
      */
     private String parseValue(Object valueObj, Chain chain) {
+        if (valueObj instanceof String) {
+            // 宽松兼容：{k: "v"} 的纯字符串写法当常量用（归一化前的手写 JSON）
+            return (String) valueObj;
+        }
         if (valueObj instanceof Map) {
             Map<String, Object> valueMap = (Map<String, Object>) valueObj;
             String type = (String) valueMap.get("type");
