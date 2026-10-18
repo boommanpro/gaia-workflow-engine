@@ -1,7 +1,6 @@
 package cn.boommanpro.gaia.workflow.app.controller.api;
 
 import cn.boommanpro.gaia.workflow.app.agent.session.AgentSessionRunService;
-import cn.boommanpro.gaia.workflow.app.agent.session.AskUserPendingStore;
 import cn.boommanpro.gaia.workflow.app.agent.session.SessionArtifactStore;
 import cn.boommanpro.gaia.workflow.app.agent.session.SessionCompactionService;
 import cn.boommanpro.gaia.workflow.app.agent.session.SessionEventBus;
@@ -51,7 +50,7 @@ public class AgentSessionRunController {
     private final GaiaWorkflowService workflowService;
     private final GaiaWorkflowVersionService workflowVersionService;
     private final SessionEventBus eventBus;
-    private final AskUserPendingStore askUserPendingStore;
+    private final cn.boommanpro.gaia.workflow.app.agent.session.AskUserRoundOrchestrator askRoundOrchestrator;
     private final SessionDraftPublishService publishService;
 
     public AgentSessionRunController(AgentSessionRunService runService,
@@ -61,8 +60,8 @@ public class AgentSessionRunController {
                                      GaiaWorkflowService workflowService,
                                      GaiaWorkflowVersionService workflowVersionService,
                                      SessionEventBus eventBus,
-                                     AskUserPendingStore askUserPendingStore,
-                                     SessionDraftPublishService publishService) {
+                                     SessionDraftPublishService publishService,
+                                     cn.boommanpro.gaia.workflow.app.agent.session.AskUserRoundOrchestrator askRoundOrchestrator) {
         this.runService = runService;
         this.draftService = draftService;
         this.compactionService = compactionService;
@@ -70,17 +69,17 @@ public class AgentSessionRunController {
         this.workflowService = workflowService;
         this.workflowVersionService = workflowVersionService;
         this.eventBus = eventBus;
-        this.askUserPendingStore = askUserPendingStore;
         this.publishService = publishService;
+        this.askRoundOrchestrator = askRoundOrchestrator;
     }
 
-    /** 用户回答 ask_user 提问：唤醒挂起的工具调用并广播收敛 */
+    /** 用户回答 ask_user 提问：答案成为新一轮对话（唤醒挂起工具 + 停旧 run + 以答案启动新 run） */
     @PostMapping("/{sessionKey}/ask/{askId}/answer")
     public org.springframework.http.ResponseEntity<JSONObject> answerAsk(@PathVariable String sessionKey,
                                                 @PathVariable String askId,
                                                 @RequestBody java.util.Map<String, Object> body) {
         String answer = body != null && body.get("answer") != null ? String.valueOf(body.get("answer")) : "";
-        boolean ok = askUserPendingStore.resolve(sessionKey, askId, answer);
+        boolean ok = askRoundOrchestrator.startRound(sessionKey, askId, answer, false, true);
         if (!ok) {
             return org.springframework.http.ResponseEntity.status(404).body(new JSONObject()
                 .set("ok", false).set("error", "提问不存在或已超时"));

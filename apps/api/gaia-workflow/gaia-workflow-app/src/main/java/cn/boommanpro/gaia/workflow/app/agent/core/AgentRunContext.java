@@ -101,6 +101,19 @@ public class AgentRunContext {
         return supplier instanceof BooleanSupplier && ((BooleanSupplier) supplier).getAsBoolean();
     }
 
+    /** 取消原因（user_stop / ask_handoff）：收尾呈现据此区分异常中断与作答交接 */
+    public String getInterruptReason() {
+        if (request == null || request.getVariables() == null) {
+            return null;
+        }
+        Object supplier = request.getVariables().get("interruptReason");
+        if (supplier instanceof java.util.function.Supplier) {
+            Object reason = ((java.util.function.Supplier<?>) supplier).get();
+            return reason != null ? reason.toString() : null;
+        }
+        return null;
+    }
+
     /** 运行中 steering 收件箱（无则为 null）：turn 边界排空注入当前对话 */
     public SteeringInbox getSteeringInbox() {
         if (request == null || request.getVariables() == null) {

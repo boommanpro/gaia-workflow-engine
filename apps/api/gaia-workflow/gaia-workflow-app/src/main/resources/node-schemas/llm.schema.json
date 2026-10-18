@@ -37,5 +37,17 @@
   "additionalProperties": true,
   "x-gaia-outputs": [
     "result"
-  ]
+  ],
+  "x-gaia-form-inputs": {
+    "type": "object",
+    "required": ["modelName", "apiKey", "apiHost", "temperature", "prompt"],
+    "properties": {
+      "modelName": { "type": "string" },
+      "apiKey": { "type": "string" },
+      "apiHost": { "type": "string" },
+      "temperature": { "type": "number" },
+      "systemPrompt": { "type": "string", "extra": { "formComponent": "prompt-editor" } },
+      "prompt": { "type": "string", "extra": { "formComponent": "prompt-editor" } }
+    }
+  }
 }

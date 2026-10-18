@@ -1,0 +1,44 @@
+{
+  "modelName": "scripted-p2",
+  "loopLast": false,
+  "responses": [
+    {
+      "thinking": ["用户要一个智能处理工作流（P2）：llm 翻译 + code 统计。先看画布现状。"],
+      "text": [],
+      "toolCalls": [
+        { "id": "c1", "name": "get", "arguments": "{\"target\":\"canvas\"}" }
+      ]
+    },
+    {
+      "thinking": ["llm 节点用扁平字段配置（normalize 会转 inputsValues 常量/模板），code 节点统计大写与字数，一次批量加入并接回 start/end。"],
+      "text": [],
+      "toolCalls": [
+        { "id": "c3", "name": "node", "arguments": "{\"action\":\"add\",\"items\":[{\"type\":\"llm\",\"id\":\"ask_1\",\"title\":\"大模型翻译\",\"data\":{\"modelName\":\"mock-model\",\"apiKey\":\"sk-test\",\"apiHost\":\"__LLM_HOST__\",\"temperature\":0.3,\"systemPrompt\":\"你是严谨的翻译助手，只输出译文。\",\"prompt\":\"把这句话翻译成英文：{{ start_1.query }}\"},\"connect\":{\"from\":\"start_1\"}},{\"type\":\"code\",\"id\":\"post_1\",\"title\":\"结果统计\",\"data\":{\"script\":{\"language\":\"javascript\",\"content\":\"var text = reply == null ? \\\"\\\" : reply.toString();\\n({ upper: text.toUpperCase(), length: text.length });\"},\"inputsValues\":{\"reply\":{\"type\":\"ref\",\"content\":[\"ask_1\",\"result\"]}},\"inputs\":{\"type\":\"object\",\"properties\":{\"reply\":{\"type\":\"string\"}}},\"outputs\":{\"type\":\"object\",\"properties\":{\"upper\":{\"type\":\"string\"},\"length\":{\"type\":\"number\"}}}},\"connect\":{\"from\":\"ask_1\",\"to\":\"end_1\"}}]}" }
+      ]
+    },
+    {
+      "thinking": ["声明 start 的 query 输入。"],
+      "text": [],
+      "toolCalls": [
+        { "id": "c4", "name": "node", "arguments": "{\"action\":\"update\",\"nodeId\":\"start_1\",\"data\":{\"outputs\":{\"type\":\"object\",\"properties\":{\"query\":{\"type\":\"string\",\"default\":\"你好，世界\"}}}}}" }
+      ]
+    },
+    {
+      "thinking": ["end 输出译文大写与字数两个字段。"],
+      "text": [],
+      "toolCalls": [
+        { "id": "c5", "name": "node", "arguments": "{\"action\":\"update\",\"nodeId\":\"end_1\",\"data\":{\"inputsValues\":{\"translation\":{\"type\":\"ref\",\"content\":[\"post_1\",\"upper\"]},\"chars\":{\"type\":\"ref\",\"content\":[\"post_1\",\"length\"]}},\"inputs\":{\"type\":\"object\",\"properties\":{\"translation\":{\"type\":\"string\"},\"chars\":{\"type\":\"number\"}}}}}" }
+      ]
+    },
+    {
+      "thinking": ["试跑整流。"],
+      "text": [],
+      "toolCalls": [
+        { "id": "c6", "name": "run", "arguments": "{\"target\":\"workflow\",\"inputs\":{\"query\":\"你好，世界\"}}" }
+      ]
+    },
+    {
+      "text": ["P2 工作流完成：llm 翻译 + code 统计，试跑输出译文与字数。"]
+    }
+  ]
+}

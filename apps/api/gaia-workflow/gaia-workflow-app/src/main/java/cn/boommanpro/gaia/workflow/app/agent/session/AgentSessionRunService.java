@@ -49,6 +49,8 @@ public class AgentSessionRunService {
         private final long startedAt;
         private final AtomicBoolean cancelled = new AtomicBoolean(false);
         private final AtomicBoolean finished = new AtomicBoolean(false);
+        /** 取消原因（user_stop / ask_handoff）：ask 交接不是异常中断，收尾呈现要区分 */
+        private volatile String cancelReason;
 
         RunHandle(String runId, String sessionKey) {
             this.runId = runId;
@@ -72,8 +74,17 @@ public class AgentSessionRunService {
             return finished.get();
         }
 
+        public String getCancelReason() {
+            return cancelReason;
+        }
+
         void cancel() {
+            cancel("user_stop");
+        }
+
+        void cancel(String reason) {
             cancelled.set(true);
+            cancelReason = reason;
         }
 
         void markFinished() {
@@ -183,27 +194,34 @@ public class AgentSessionRunService {
             return StartResult.conflict("message is required");
         }
 
-        RunHandle existing = runs.get(sessionKey);
-        if (existing != null && !existing.isFinished()) {
-            // steering：消息入库 + 进收件箱（turn 边界注入或收尾链接）
+        // 会话锁：与 run 收尾（markFinished + 摘除 + chainSteering）互斥。
+        // 实测竞态：作答编排是 stop → startRun 两步，若旧 run 的收尾恰好在两步之间
+        // 排空了空收件箱，随后入队的答案将永远无人消费（新轮不再启动）——
+        // 「检查活跃 run + 入队/启动」与「摘除 run」串行化后，顺序只有两种且都正确：
+        // 先入队 → 收尾链接消费；先摘除 → 直接开新 run。
+        synchronized (sessionLock(sessionKey)) {
+            RunHandle existing = runs.get(sessionKey);
+            if (existing != null && !existing.isFinished()) {
+                // steering：消息入库 + 进收件箱（turn 边界注入或收尾链接）
+                conversationStore.saveMessage(sessionKey, "user", message, null, null, images);
+                steeringInboxes.computeIfAbsent(sessionKey, k ->
+                    new cn.boommanpro.gaia.workflow.app.agent.core.SteeringInbox())
+                    .offer(new cn.boommanpro.gaia.workflow.app.agent.core.SteeringInbox.Message(
+                        message, images, pageContext, locale, agentId));
+                eventBus.publish(sessionKey, "steering_queued",
+                    new JSONObject().set("content", message).set("runId", existing.getRunId()));
+                log.info("[session-run] steering queued session={} activeRun={}", sessionKey, existing.getRunId());
+                return StartResult.accepted(sessionKey, existing.getRunId());
+            }
+
+            ensureSession(sessionKey, message);
+
+            // 用户消息入库（含多模态图片）
             conversationStore.saveMessage(sessionKey, "user", message, null, null, images);
-            steeringInboxes.computeIfAbsent(sessionKey, k ->
-                new cn.boommanpro.gaia.workflow.app.agent.core.SteeringInbox())
-                .offer(new cn.boommanpro.gaia.workflow.app.agent.core.SteeringInbox.Message(
-                    message, images, pageContext, locale, agentId));
-            eventBus.publish(sessionKey, "steering_queued",
-                new JSONObject().set("content", message).set("runId", existing.getRunId()));
-            log.info("[session-run] steering queued session={} activeRun={}", sessionKey, existing.getRunId());
-            return StartResult.accepted(sessionKey, existing.getRunId());
+
+            startExecution(sessionKey, message, pageContext, locale,
+                (agentId != null && !agentId.isEmpty()) ? agentId : resolveDefaultAgentId(), images, true);
         }
-
-        ensureSession(sessionKey, message);
-
-        // 用户消息入库（含多模态图片）
-        conversationStore.saveMessage(sessionKey, "user", message, null, null, images);
-
-        startExecution(sessionKey, message, pageContext, locale,
-            (agentId != null && !agentId.isEmpty()) ? agentId : resolveDefaultAgentId(), images, true);
 
         return StartResult.accepted(sessionKey, currentRunId(sessionKey));
     }
@@ -264,19 +282,28 @@ public class AgentSessionRunService {
 
     /** 停止当前运行（尽力而为：标记取消，事件不再进总线；后台线程自然结束） */
     public void stop(String sessionKey) {
+        stop(sessionKey, "user_stop");
+    }
+
+    /**
+     * 停止当前运行并注明原因。原因会透传给引擎的收尾逻辑：
+     * {@code ask_handoff}（作答交接，答案已开启新一轮对话）不落「已被中断」
+     * marker、不发 interrupted 事件 —— 它是正常交接而不是异常中断。
+     */
+    public void stop(String sessionKey, String reason) {
         if (sessionKey == null) {
             return;
         }
         RunHandle handle = runs.get(sessionKey);
         if (handle != null && !handle.isFinished()) {
-            handle.cancel();
+            handle.cancel(reason);
             eventBus.setState(sessionKey, new JSONObject()
                 .set("status", "stopped")
                 .set("phase", "stopped")
                 .set("runId", handle.getRunId())
                 .set("sessionKey", sessionKey));
             eventBus.publish(sessionKey, "done", new JSONObject().set("stopped", true));
-            log.info("[session-run] stopped session={} runId={}", sessionKey, handle.getRunId());
+            log.info("[session-run] stopped session={} runId={} reason={}", sessionKey, handle.getRunId(), reason);
         }
     }
 
@@ -368,6 +395,9 @@ public class AgentSessionRunService {
             }
             // 协作式中断：主循环在轮边界/工具前后/重试等待轮询本句柄
             request.getVariables().put("interrupt", (java.util.function.BooleanSupplier) handle::isCancelled);
+            // 取消原因（ask_handoff 等）：引擎据此区分「异常中断」与「作答交接」的收尾呈现
+            request.getVariables().put("interruptReason",
+                (java.util.function.Supplier<String>) handle::getCancelReason);
             // steering 收件箱（会话级）：turn 边界注入；收尾残留由此处的链接逻辑消费
             request.getVariables().put("steeringInbox",
                 steeringInboxes.computeIfAbsent(sessionKey, k ->
@@ -468,8 +498,12 @@ public class AgentSessionRunService {
                 state.set("status", handle.isCancelled() ? "stopped" : "done").set("phase", "done");
                 eventBus.setState(sessionKey, state);
             }
-            handle.markFinished();
-            runs.remove(sessionKey, handle);
+            // 会话锁内完成「终态标记 + 摘除」：与 startRun 的「检查 + 入队」互斥，
+            // 保证 chainSteering 排空时能看到此前已入队的全部消息（竞态见 startRun 注释）
+            synchronized (sessionLock(sessionKey)) {
+                handle.markFinished();
+                runs.remove(sessionKey, handle);
+            }
             // steering 链接：run 结束时收件箱里还有消息（到达太晚没赶上 turn 边界），
             // 不丢给用户一个「已发送但没人处理」的沉默——链接成新 run 继续执行
             chainSteering(sessionKey);
@@ -550,27 +584,39 @@ public class AgentSessionRunService {
     }
 
     /** 把收件箱残留消息链接成新 run（消息已入库，跳过重复持久化；后续消息由链接链继续处理） */
-    private void chainSteering(String sessionKey) {        if (handleIsActive(sessionKey)) {
-            return; // 新 run 已经抢先注册（极端竞态），收件箱归它消费
+    private void chainSteering(String sessionKey) {
+        // 同锁串行：与 startRun 的「检查 + 入队」互斥 —— 这里排空后若有并发入队，
+        // 入队方必然看到「无活跃 run」而直接开新 run，不会产生孤儿消息
+        synchronized (sessionLock(sessionKey)) {
+            if (handleIsActive(sessionKey)) {
+                return; // 新 run 已经抢先注册（极端竞态），收件箱归它消费
+            }
+            cn.boommanpro.gaia.workflow.app.agent.core.SteeringInbox inbox = steeringInboxes.get(sessionKey);
+            if (inbox == null) {
+                return;
+            }
+            java.util.List<cn.boommanpro.gaia.workflow.app.agent.core.SteeringInbox.Message> remaining = inbox.drain();
+            if (remaining.isEmpty()) {
+                steeringInboxes.remove(sessionKey, inbox);
+                return;
+            }
+            cn.boommanpro.gaia.workflow.app.agent.core.SteeringInbox.Message next = remaining.remove(0);
+            // 更晚到达的消息回填：链接 run 的收尾会再次进入这里，逐条顺序执行
+            for (cn.boommanpro.gaia.workflow.app.agent.core.SteeringInbox.Message m : remaining) {
+                inbox.offer(m);
+            }
+            String agent = next.agentId != null && !next.agentId.isEmpty()
+                ? next.agentId : resolveDefaultAgentId();
+            log.info("[session-run] chaining steering message session={}: {}", sessionKey, next.content);
+            startExecution(sessionKey, next.content, next.pageContext, next.locale, agent, next.images, false);
         }
-        cn.boommanpro.gaia.workflow.app.agent.core.SteeringInbox inbox = steeringInboxes.get(sessionKey);
-        if (inbox == null) {
-            return;
-        }
-        java.util.List<cn.boommanpro.gaia.workflow.app.agent.core.SteeringInbox.Message> remaining = inbox.drain();
-        if (remaining.isEmpty()) {
-            steeringInboxes.remove(sessionKey, inbox);
-            return;
-        }
-        cn.boommanpro.gaia.workflow.app.agent.core.SteeringInbox.Message next = remaining.remove(0);
-        // 更晚到达的消息回填：链接 run 的收尾会再次进入这里，逐条顺序执行
-        for (cn.boommanpro.gaia.workflow.app.agent.core.SteeringInbox.Message m : remaining) {
-            inbox.offer(m);
-        }
-        String agent = next.agentId != null && !next.agentId.isEmpty()
-            ? next.agentId : resolveDefaultAgentId();
-        log.info("[session-run] chaining steering message session={}: {}", sessionKey, next.content);
-        startExecution(sessionKey, next.content, next.pageContext, next.locale, agent, next.images, false);
+    }
+
+    /** 会话级串行锁：startRun 的入队 / run 收尾摘除 / chainSteering 三者互斥 */
+    private final ConcurrentMap<String, Object> sessionLocks = new ConcurrentHashMap<>();
+
+    private Object sessionLock(String sessionKey) {
+        return sessionLocks.computeIfAbsent(sessionKey, k -> new Object());
     }
 
     private boolean handleIsActive(String sessionKey) {

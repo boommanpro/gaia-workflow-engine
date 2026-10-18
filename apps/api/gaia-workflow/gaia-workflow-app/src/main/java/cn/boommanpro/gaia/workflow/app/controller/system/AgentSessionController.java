@@ -106,7 +106,10 @@ public class AgentSessionController {
         } else if (Boolean.TRUE.equals(unfiled)) {
             qw.isNull("folder_id");
         }
-        qw.orderByDesc("pinned").orderByDesc("updated_at").orderByDesc("id");
+        // 会话列表按「初次创建时间」稳定排序：点击打开/调试数据保存等非对话活动
+        // 不得引起列表重排（用户点击后 会话跳到顶部 的问题根源）。最近活动时间
+        // （updated_at）仍随消息更新并展示在卡片上，只不参与排序
+        qw.orderByDesc("pinned").orderByDesc("created_at").orderByDesc("id");
         return sessionService.list(qw);
     }
 
@@ -209,7 +212,8 @@ public class AgentSessionController {
         }
         Object data = body.get("debugData");
         session.setDebugData(data != null ? data.toString() : null);
-        session.setUpdatedAt(LocalDateTime.now());
+        // 调试数据是诊断元数据不是对话活动：不触碰 updated_at，
+        // 否则仅打开会话（前端自动回存调试数据）就会把会话顶到列表最上方
         return sessionService.updateById(session);
     }
 

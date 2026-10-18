@@ -8,7 +8,7 @@
  * 旧的「预览」tab 已移除：执行路径与节点构成和对话流卡片、画布重复；
  * 「DSL」tab 收进弹层，不再占一个常驻页签。
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button, Input, Modal, Popover, Tag, Toast, Tooltip } from '@douyinfe/semi-ui';
 import {
@@ -21,8 +21,7 @@ import {
   IconTickCircle,
 } from '@douyinfe/semi-icons';
 
-import { useWorkflowDocumentState, workflowDocumentStore, validateDsl, WorkflowDocument } from '../../document';
-import type { GaiaWorkflowVersion } from '../../services/workflow-api';
+import { useWorkflowDocumentState, workflowDocumentStore, validateDsl } from '../../document';
 import { t } from '../../i18n';
 import { workflowApi } from '../../services/workflow-api';
 import { useAgent } from '../../agent/AgentContext';
@@ -31,10 +30,9 @@ import type { AgentArtifactDto } from '../../agent/types';
 import { agentApi } from '../../agent/api';
 import { CHAT } from '../../chat/theme';
 import { IconPanelRight } from '../../components/app-shell/icons';
-import { ReadonlyCanvas } from './ReadonlyCanvas';
 
 export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollapse }) => {
-  const { doc, meta, cursor, snapshots, revision } = useWorkflowDocumentState();
+  const { doc, meta } = useWorkflowDocumentState();
   const navigate = useNavigate();
   const location = useLocation();
   const { currentSessionKey } = useAgent();
@@ -48,50 +46,10 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
   const [recordsOpen, setRecordsOpen] = useState(false);
   const [recordDetail, setRecordDetail] = useState<AgentArtifactDto | null>(null);
 
-  const dsl = doc.toJSON();
+  // dsl 按 doc 变化重建（toJSON 不便宜，别跟着无关渲染每次重算）
+  const dsl = useMemo(() => doc.toJSON(), [doc]);
   const validation = useMemo(() => validateDsl(dsl), [dsl]);
-  const stats = useMemo(() => doc.toStats(), [doc]);
-  const dirty = workflowDocumentStore.isDirty;
   const isEmpty = doc.isEmpty;
-
-  // ---------- D4 版本切换器：会话版本轴 + 落版版本轴 ----------
-  const [versions, setVersions] = useState<GaiaWorkflowVersion[]>([]);
-  useEffect(() => {
-    const code = meta.workflowCode;
-    if (!code) {
-      setVersions([]);
-      return;
-    }
-    let cancelled = false;
-    workflowApi.listVersions(code).then((list) => {
-      if (!cancelled) setVersions(list || []);
-    }).catch(() => {});
-    return () => { cancelled = true; };
-  }, [meta.workflowCode, dirty]);
-
-  /** 切到某会话版本：游标移动，不删历史（可随时切回） */
-  const switchSessionVersion = useCallback((snapshotId: string) => {
-    workflowDocumentStore.rollbackTo(snapshotId);
-  }, []);
-
-  /** 切到某落版版本查看：加载该版本 DSL 进画布，可继续迭代或另存 */
-  const switchPublishedVersion = useCallback(async (versionId: number) => {
-    try {
-      const v = await workflowApi.getVersionById(versionId);
-      if (!v?.workflowData) return;
-      const parsed = typeof v.workflowData === 'string' ? JSON.parse(v.workflowData) : v.workflowData;
-      workflowDocumentStore.replace(WorkflowDocument.fromJSON(parsed), {
-        kind: 'replace',
-        source: 'system',
-        reason: 'import',
-      });
-      if (meta.workflowCode) {
-        workflowDocumentStore.markSaved({ workflowCode: meta.workflowCode, workflowName: meta.workflowName });
-      }
-    } catch (error) {
-      Toast.error(`${(error as Error).message}`);
-    }
-  }, [meta.workflowCode, meta.workflowName]);
 
   /** 会话产物记录：试运行 / 发布 / 计划（workflow 即当前画布，不进列表） */
   const records = useMemo(() => {
@@ -233,11 +191,6 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
             {t('workspace.artifact')}
           </span>
           {!isEmpty && (
-            <Tag size="small" shape="circle" style={{ background: CHAT.bgSunken, color: CHAT.textSub, border: 'none' }}>
-              {t('chat.snapshotVersion', { n: cursor + 1 })}
-            </Tag>
-          )}
-          {!isEmpty && (
             <Popover content={validationContent} position="bottomRight" trigger="click">
               <Tag
                 size="small"
@@ -301,113 +254,8 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
           </div>
         </div>
 
-        {!isEmpty && (
-          <div style={{ marginTop: 6, fontSize: 11.5, color: CHAT.textMuted, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <span>
-              {t('workspace.stats', { nodes: stats.nodeCount, edges: stats.edgeCount })}
-            </span>
-            <span>·</span>
-            <span style={{ color: dirty ? CHAT.warn : CHAT.success }}>
-              {dirty ? t('workspace.dirtyHint') : t('workspace.savedHint')}
-            </span>
-            {meta.workflowCode && (
-              <>
-                <span>·</span>
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {meta.workflowCode}
-                </span>
-              </>
-            )}
-            {/* D4 版本切换器：会话版本（run 粒度）与落版版本两轴，点击画布即切换查看 */}
-            {snapshots.length > 0 && (
-              <Popover
-                trigger="click"
-                position="bottomLeft"
-                content={
-                  <div style={{ width: 260, maxHeight: 280, overflow: 'auto' }}>
-                    {snapshots.map((s, i) => (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => switchSessionVersion(s.id)}
-                        style={{
-                          width: '100%',
-                          border: 'none',
-                          background: i === cursor ? 'var(--g-primary-soft, rgba(77,83,232,.1))' : 'transparent',
-                          padding: '6px 10px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 8,
-                          cursor: 'pointer',
-                          textAlign: 'left',
-                          fontSize: 11.5,
-                          color: i === cursor ? CHAT.accent : CHAT.textSub,
-                        }}
-                      >
-                        <span style={{ fontWeight: 600, flexShrink: 0 }}>{t('chat.snapshotVersion', { n: i + 1 })}</span>
-                        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {s.outcome === 'failed'
-                            ? t('chat.snapshotFailedShort')
-                            : s.source === 'ai' ? t('chat.snapshotReasonAiEdit') : t('chat.snapshotReasonUserEdit')}
-                        </span>
-                        <span style={{ color: CHAT.textFaint, flexShrink: 0, fontSize: 10.5 }}>
-                          {new Date(s.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                }
-              >
-                <span
-                  style={{ cursor: 'pointer', textDecoration: 'underline dotted', textUnderlineOffset: 2 }}
-                  title={t('chat.historySnapshots')}
-                >
-                  {t('chat.historySnapshots')} v{cursor + 1}/{snapshots.length} ▾
-                </span>
-              </Popover>
-            )}
-            {meta.workflowCode && versions.length > 0 && (
-              <Popover
-                trigger="click"
-                position="bottomLeft"
-                content={
-                  <div style={{ width: 240, maxHeight: 280, overflow: 'auto' }}>
-                    {versions.map((v) => (
-                      <button
-                        key={v.id}
-                        type="button"
-                        onClick={() => v.id != null && void switchPublishedVersion(v.id)}
-                        style={{
-                          width: '100%',
-                          border: 'none',
-                          background: 'transparent',
-                          padding: '6px 10px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 8,
-                          cursor: 'pointer',
-                          textAlign: 'left',
-                          fontSize: 11.5,
-                          color: v.isCurrent === 1 ? CHAT.accent : CHAT.textSub,
-                        }}
-                      >
-                        <span style={{ fontWeight: 600, flexShrink: 0 }}>{v.versionNumber}</span>
-                        {v.isCurrent === 1 && <span style={{ flex: 1 }}>{t('chat.snapshotCurrent')}</span>}
-                      </button>
-                    ))}
-                  </div>
-                }
-              >
-                <span
-                  style={{ cursor: 'pointer', textDecoration: 'underline dotted', textUnderlineOffset: 2 }}
-                  title={t('chat.historyVersions')}
-                >
-                  {t('chat.historyVersions')} ({versions.length}) ▾
-                </span>
-              </Popover>
-            )}
-          </div>
-        )}
+        {/* 状态条已按需求移除（节点/连线统计、未保存标记、版本切换器）：
+            会话底部的画布与状态不再展示，画布查看/精修走「在编辑器中精修」 */}
       </div>
 
       {isEmpty ? (
@@ -446,13 +294,8 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
         </div>
       ) : (
         <>
-          {/* 主位：全高只读画布。flowgram 内部是 absolute 定位层，
-              容器必须自带 relative + overflow hidden，否则画布会逃逸占满整个视口。
-              key=revision：flowgram 只在初始化时消费 initialData，产物变化必须 remount 重载，
-              否则常驻画布会停在旧内容（数据是新的、画面是旧的）。 */}
-          <div style={{ flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden' }}>
-            <ReadonlyCanvas key={`canvas-${revision}`} dsl={dsl} />
-          </div>
+        {/* 画布区已按需求移除：会话底部不再渲染 flowgram 画布（含流式期间的拓扑缩略）。
+            查看与精修画布走「在编辑器中精修」；DSL 页签仍可看结构 */}
 
           {/* 产物记录：会话的试运行 / 发布 / 计划历史（收起式） */}
           {records.length > 0 && (
@@ -647,7 +490,7 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
           </div>
           <div style={{ fontSize: 11, color: CHAT.textMuted, display: 'flex', alignItems: 'center', gap: 4 }}>
             <IconCode size="small" />
-            {t('workspace.stats', { nodes: stats.nodeCount, edges: stats.edgeCount })}
+            {t('workspace.stats', { nodes: dsl.nodes.length, edges: (dsl.edges || []).length })}
           </div>
         </div>
       </Modal>

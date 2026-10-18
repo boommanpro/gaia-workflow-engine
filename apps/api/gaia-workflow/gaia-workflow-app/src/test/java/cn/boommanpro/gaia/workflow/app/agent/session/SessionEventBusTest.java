@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @DisplayName("SessionEventBus：快照时间线（thinking/text/tool/notice 交错 + 刷新恢复依据）")
@@ -113,5 +114,42 @@ class SessionEventBusTest {
         assertNotNull(replayed[0]);
         assertEquals("running", replayed[0].getStr("status"));
         assertTrue(replayed[0].getJSONArray("timeline").size() > 0);
+    }
+
+    @Test
+    @DisplayName("pendingAsk 生命周期：ask_request 落快照，作答/新 turn/收尾清除")
+    void pendingAskLifecycle() {
+        SessionEventBus bus = new SessionEventBus();
+        bus.publish("s", "turn", new JSONObject().set("turn", 1));
+        JSONArray options = new JSONArray();
+        options.add(new JSONObject().set("label", "A"));
+        options.add(new JSONObject().set("label", "B"));
+        bus.publish("s", "ask_request", new JSONObject()
+            .set("askId", "ask-1").set("question", "选哪个？").set("options", options));
+
+        JSONObject state = bus.getState("s");
+        assertEquals("ask-1", state.getJSONObject("pendingAsk").getStr("askId"));
+        assertEquals("选哪个？", state.getJSONObject("pendingAsk").getStr("question"));
+        assertEquals(2, state.getJSONObject("pendingAsk").getJSONArray("options").size());
+
+        // 订阅回放能拿到挂起中的提问（刷新/断线重连恢复提问卡的依据）
+        final JSONObject[] replayed = new JSONObject[1];
+        bus.subscribe("s", (type, data) -> {
+            if ("run_state".equals(type)) {
+                replayed[0] = data;
+            }
+            return true;
+        });
+        assertNotNull(replayed[0].getJSONObject("pendingAsk"));
+
+        // 作答清除
+        bus.publish("s", "ask_resolved", new JSONObject().set("askId", "ask-1").set("answer", "A"));
+        assertNull(bus.getState("s").getJSONObject("pendingAsk"));
+
+        // 新一轮提问被新 turn 收敛
+        bus.publish("s", "ask_request", new JSONObject().set("askId", "ask-2").set("question", "再选？"));
+        assertNotNull(bus.getState("s").getJSONObject("pendingAsk"));
+        bus.publish("s", "turn", new JSONObject().set("turn", 2));
+        assertNull(bus.getState("s").getJSONObject("pendingAsk"));
     }
 }

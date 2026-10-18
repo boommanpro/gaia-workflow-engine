@@ -1,0 +1,44 @@
+{
+  "modelName": "scripted-p1",
+  "loopLast": false,
+  "responses": [
+    {
+      "thinking": ["用户要一个问候语渲染工作流（P1 纯转换）。按规矩先看画布现状。"],
+      "text": [],
+      "toolCalls": [
+        { "id": "c1", "name": "get", "arguments": "{\"target\":\"canvas\"}" }
+      ]
+    },
+    {
+      "thinking": ["画布有孤立的 start_1 / end_1 骨架（不预连边）。加 string-format 节点并显式串成 start→format→end。"],
+      "text": [],
+      "toolCalls": [
+        { "id": "c3", "name": "node", "arguments": "{\"action\":\"add\",\"items\":[{\"type\":\"string-format\",\"id\":\"greet_1\",\"title\":\"问候语渲染\",\"data\":{\"script\":{\"language\":\"spel-vue\",\"content\":\"Hello, {{ name }}!\"},\"inputsValues\":{\"name\":{\"type\":\"ref\",\"content\":[\"start_1\",\"query\"]}},\"inputs\":{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"}}},\"outputs\":{\"type\":\"object\",\"properties\":{\"formatStringResult\":{\"type\":\"string\"}}}},\"connect\":{\"from\":\"start_1\",\"to\":\"end_1\"}}]}" }
+      ]
+    },
+    {
+      "thinking": ["骨架 start 只有 input 字段，声明 query 输出。"],
+      "text": [],
+      "toolCalls": [
+        { "id": "c4", "name": "node", "arguments": "{\"action\":\"update\",\"nodeId\":\"start_1\",\"data\":{\"outputs\":{\"type\":\"object\",\"properties\":{\"query\":{\"type\":\"string\",\"default\":\"World\"}}}}}" }
+      ]
+    },
+    {
+      "thinking": ["end 接上渲染结果。"],
+      "text": [],
+      "toolCalls": [
+        { "id": "c5", "name": "node", "arguments": "{\"action\":\"update\",\"nodeId\":\"end_1\",\"data\":{\"inputsValues\":{\"output\":{\"type\":\"ref\",\"content\":[\"greet_1\",\"formatStringResult\"]}},\"inputs\":{\"type\":\"object\",\"properties\":{\"output\":{\"type\":\"string\"}}}}}" }
+      ]
+    },
+    {
+      "thinking": ["试跑验证。"],
+      "text": [],
+      "toolCalls": [
+        { "id": "c6", "name": "run", "arguments": "{\"target\":\"workflow\",\"inputs\":{\"query\":\"World\"}}" }
+      ]
+    },
+    {
+      "text": ["工作流完成：输入 World，渲染输出 Hello, World!，试跑通过。"]
+    }
+  ]
+}

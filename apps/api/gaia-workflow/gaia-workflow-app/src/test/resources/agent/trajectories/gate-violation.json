@@ -1,0 +1,16 @@
+{
+  "modelName": "scripted-gate",
+  "loopLast": false,
+  "responses": [
+    {
+      "thinking": ["跳过查知识，直接盲写节点（故意违反 skill-gate，用于负例断言）。"],
+      "text": [],
+      "toolCalls": [
+        { "id": "c1", "name": "node", "arguments": "{\"action\":\"add\",\"items\":[{\"type\":\"comment\",\"title\":\"盲写批注\"}]}" }
+      ]
+    },
+    {
+      "text": ["好的，我先补查知识再继续。"]
+    }
+  ]
+}

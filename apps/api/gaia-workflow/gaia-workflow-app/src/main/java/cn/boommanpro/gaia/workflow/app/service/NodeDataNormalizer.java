@@ -2,6 +2,7 @@ package cn.boommanpro.gaia.workflow.app.service;
 
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
+import cn.hutool.json.JSONUtil;
 
 /**
  * 节点数据归一化器 —— 把模型产出的「简化扁平字段」转成执行引擎认识的结构。
@@ -38,13 +39,11 @@ public final class NodeDataNormalizer {
                 normalizeEnd(data);
                 break;
             case "code":
-            case "string-format":
-            case "variable":
-            case "condition":
-            case "branches":
-            case "loop":
-            case "assignee":
+                normalizeScriptObject(data, "javascript");
                 normalizeRefShorthand(data);
+                break;
+            case "string-format":
+                normalizeStringFormat(data);
                 break;
             default:
                 normalizeRefShorthand(data);
@@ -242,6 +241,56 @@ public final class NodeDataNormalizer {
         moveToConstant(iv, data, "modelName");
         moveToConstant(iv, data, "apiKey");
         moveToConstant(iv, data, "apiHost");
+        alignFormInputs(data);
+    }
+
+    /**
+     * 表单 schema 对齐（2026-10-18 E2E 实证）：前端属性面板是纯 schema 驱动
+     * （FormInputs 只渲染 data.inputs.properties，extra.formComponent 选提示词编辑器），
+     * 手工添加走前端模板自带完整 inputs，而模型常自创声明（如 inputs.properties.text）
+     * ——导致 AI 节点表单缺字段、6 个配置值无 UI 承载。此处以
+     * node-schemas/llm.schema.json 的 x-gaia-form-inputs 扩展为单一事实源，
+     * 归一化后整体替换 data.inputs。inputs 只是表单 schema：llm 运行时的模板引用
+     * （{{nodeId.field}}）由 LlmNode 独立解析，不受此影响。
+     */
+    private static void alignFormInputs(JSONObject data) {
+        JSONObject canonical = llmFormInputsSchema();
+        if (canonical != null) {
+            data.set("inputs", canonical);
+        }
+    }
+
+    /** llm 规范表单 schema（来自 x-gaia-form-inputs 扩展；缺失时跳过对齐，保持宽容） */
+    private static volatile JSONObject cachedLlmFormInputs;
+    private static volatile boolean llmFormInputsResolved;
+
+    private static JSONObject llmFormInputsSchema() {
+        if (cachedLlmFormInputs != null) {
+            return new JSONObject(cachedLlmFormInputs.toString());
+        }
+        if (llmFormInputsResolved) {
+            return null;
+        }
+        synchronized (NodeDataNormalizer.class) {
+            if (cachedLlmFormInputs == null && !llmFormInputsResolved) {
+                try {
+                    String raw = NodeSchemaRegistry.rawSchema("llm");
+                    if (raw != null) {
+                        JSONObject extension = JSONUtil.parseObj(raw)
+                            .getJSONObject("x-gaia-form-inputs");
+                        if (extension != null && extension.getJSONObject("properties") != null) {
+                            cachedLlmFormInputs = extension;
+                        }
+                    }
+                } catch (Exception e) {
+                    // schema 扩展缺失/损坏不阻断归一化，仅放弃表单对齐
+                }
+                llmFormInputsResolved = true;
+            }
+        }
+        return cachedLlmFormInputs != null
+            ? new JSONObject(cachedLlmFormInputs.toString())
+            : null;
     }
 
     /** Start 节点：自动补齐输出字段的 description 与默认值 */
@@ -276,9 +325,108 @@ public final class NodeDataNormalizer {
 
     /** End 节点：确保 inputsValues 与 inputs 结构存在 */
     private static void normalizeEnd(JSONObject data) {
-        ensureInputsValues(data);
+        JSONObject iv = ensureInputsValues(data);
         if (!(data.get("inputs") instanceof JSONObject)) {
             data.set("inputs", new JSONObject().set("type", "object").set("properties", new JSONObject()));
+        }
+        // 表单声明对齐（2026-10-18 会话 3d481faf 实证）：FormInputs 只渲染
+        // inputs.properties 里声明的字段，inputsValues 有值而声明缺失 = 输出字段无 UI 承载
+        JSONObject inputs = data.getJSONObject("inputs");
+        JSONObject properties = inputs.getJSONObject("properties");
+        if (properties == null) {
+            properties = new JSONObject();
+            inputs.set("properties", properties);
+        }
+        for (String key : iv.keySet()) {
+            if (!properties.containsKey(key)) {
+                properties.set(key, new JSONObject().set("type", "string"));
+            }
+        }
+    }
+
+    /**
+     * string-format 节点归一化（2026-10-18 会话 3d481faf 实证的三类畸形）：
+     * ① script 裸字符串 → {language, content} 对象（引擎只认对象，schema 曾宽容放行）；
+     * ② language 简写别名（spel/vue/thymeleaf）→ 引擎合法值；
+     * ③ 缺 outputs 声明 → 补 formatStringResult（前端变量面板靠 outputs 推变量，
+     *    缺声明 = 下游 ref 显示「变量不存在」）。
+     */
+    private static void normalizeStringFormat(JSONObject data) {
+        normalizeScriptObject(data, null);
+        normalizeRefShorthand(data);
+        JSONObject outputs = asObjectOrNew(data, "outputs");
+        // 注意用 getStr 判空：hutool 的 getJSONObject 对字符串值会尝试按 JSON 解析而抛异常
+        if (outputs.getStr("type") == null) {
+            outputs.set("type", "object");
+        }
+        JSONObject properties = outputs.getJSONObject("properties");
+        if (properties == null) {
+            properties = new JSONObject();
+            outputs.set("properties", properties);
+        }
+        if (!properties.containsKey("formatStringResult")) {
+            properties.set("formatStringResult", new JSONObject().set("type", "string"));
+        }
+    }
+
+    /**
+     * script 归一化：裸字符串 → 对象（stringFormat/code 引擎都只读 $.data.script.content）；
+     * 扁平 content/language 收进 script；语言别名归一。
+     *
+     * @param stringDefaultLanguage 裸字符串时的默认语言；null 表示按模板语法启发式推断
+     */
+    private static void normalizeScriptObject(JSONObject data, String stringDefaultLanguage) {
+        Object script = data.get("script");
+        if (script instanceof String) {
+            String content = (String) script;
+            String language = stringDefaultLanguage != null
+                ? stringDefaultLanguage : guessTemplateLanguage(content);
+            data.set("script", new JSONObject().set("language", language).set("content", content));
+            return;
+        }
+        if (!(script instanceof JSONObject)) {
+            return;
+        }
+        JSONObject scriptObj = (JSONObject) script;
+        if (scriptObj.get("content") == null && data.get("content") instanceof String) {
+            scriptObj.set("content", data.getStr("content"));
+            data.remove("content");
+        }
+        if (scriptObj.get("language") == null && data.get("language") instanceof String) {
+            scriptObj.set("language", data.getStr("language"));
+            data.remove("language");
+        }
+        String language = scriptObj.getStr("language");
+        if (language != null) {
+            scriptObj.set("language", normalizeTemplateLanguage(language));
+        }
+    }
+
+    /** 模板语法启发式：{{}} → spel-vue，[()] → thymeleaf-text，其余 → spel-standard */
+    private static String guessTemplateLanguage(String content) {
+        if (content.contains("{{")) {
+            return "spel-vue";
+        }
+        if (content.contains("[(")) {
+            return "thymeleaf-text";
+        }
+        return "spel-standard";
+    }
+
+    /** 语言别名：spel/vue/thymeleaf 简写 → 引擎合法值；未知值原样保留（由引擎报错暴露） */
+    private static String normalizeTemplateLanguage(String language) {
+        switch (language.trim().toLowerCase()) {
+            case "spel":
+            case "spel-standard":
+                return "spel-standard";
+            case "vue":
+            case "spel-vue":
+                return "spel-vue";
+            case "thymeleaf":
+            case "thymeleaf-text":
+                return "thymeleaf-text";
+            default:
+                return language;
         }
     }
 
@@ -332,6 +480,18 @@ public final class NodeDataNormalizer {
             value.set("type", "ref");
             value.set("content", value.get("ref"));
             value.remove("ref");
+            return;
+        }
+        // 畸形杂交修复（2026-10-18 会话 3d481faf 实证）：content 是数组却标了
+        // 非 ref 的标量 type（如 type:"string" + content:["start_1","input"] + 杂散 value 键）
+        // ——数组 content 只有 ref 语义，强制修正并清掉杂散键
+        if (value.get("content") instanceof JSONArray && !"ref".equals(value.getStr("type"))) {
+            JSONArray content = value.getJSONArray("content");
+            for (int i = 0; i < content.size(); i++) {
+                content.set(i, String.valueOf(content.get(i)));
+            }
+            value.set("type", "ref");
+            value.remove("value");
         }
     }
 

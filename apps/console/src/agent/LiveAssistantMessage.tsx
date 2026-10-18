@@ -375,6 +375,9 @@ const StreamStatusBar: React.FC = () => {
   if (!state.streaming) return null;
 
   const reconnecting = state.connection === 'reconnecting';
+  // 挂起等待用户作答不算「卡死」：ask_user 期间没有事件是设计使然（可能等满超时窗口）
+  if (state.currentTool === 'ask_user') return null;
+
   // 卡死中判定：streaming 且 >90s 无任何事件到达（对标 OWB「中断」态，不假装还在跑）
   const stalled =
     state.startedAt > 0 &&
@@ -429,10 +432,12 @@ const WaitingDots: React.FC = () => (
  */
 export const LiveAssistantContent: React.FC = () => {
   const state = useSyncExternalStore(liveStreamStore.subscribe, liveStreamStore.getSnapshot);
+  // ask_user 挂起等待：任务没有「在进行」，是在等用户 —— 显式提示，别让秒表假装还在干活
+  const waitingAsk = state.streaming && state.currentTool === 'ask_user';
   if (state.timeline.length === 0) {
     return (
       <div>
-        <WaitingDots />
+        {waitingAsk ? <WaitingAnswerBar /> : <WaitingDots />}
         <StreamStatusBar />
       </div>
     );
@@ -443,6 +448,7 @@ export const LiveAssistantContent: React.FC = () => {
   const connected = state.connection !== 'reconnecting';
   return (
     <div>
+      {waitingAsk && <WaitingAnswerBar />}
       {processItems.length > 0 && (
         <TaskCollapse
           live={state.streaming}
@@ -458,5 +464,24 @@ export const LiveAssistantContent: React.FC = () => {
     </div>
   );
 };
+
+/** ask_user 挂起中的等待提示（任务在等用户，不在干活） */
+const WaitingAnswerBar: React.FC = () => (
+  <div
+    style={{
+      display: 'flex', alignItems: 'center', gap: 8,
+      padding: '7px 12px', margin: '2px 0 6px',
+      borderRadius: 10,
+      border: `1px solid ${CHAT.accentBorder}`,
+      background: CHAT.accentSoft,
+      color: CHAT.textBody,
+      fontSize: 12.5,
+      lineHeight: 1.6,
+    }}
+  >
+    <span style={{ flexShrink: 0 }}>💬</span>
+    <span>{t('chat.waitingYourAnswer')}</span>
+  </div>
+);
 
 export default LiveAssistantContent;

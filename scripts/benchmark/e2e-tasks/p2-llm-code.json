@@ -1,0 +1,11 @@
+{
+  "name": "p2-llm-code",
+  "description": "P2 智能处理模式（基准 8 模式第 2 式）：start → llm → code(后处理) → end；llm 用平台免费端点（dmxapi glm-4-flash），code 做结构化加工。翻译内容不确定，行为断言只看结构+试跑成功（不设 expectOutputs 精确匹配）",
+  "message": "帮我创建一个智能处理工作流：用户输入一句话，用大模型节点把它翻译成英文，再用代码节点统计翻译结果的字符数，最后输出翻译结果和字符数两个字段。大模型用 glm-4-flash，apiHost 用 https://www.dmxapi.cn/v1",
+  "limits": { "maxToolCalls": 25 },
+  "structure": [
+    { "check": "noEmptyNodes" },
+    { "check": "endHasInputs" }
+  ],
+  "expectOutputs": []
+}

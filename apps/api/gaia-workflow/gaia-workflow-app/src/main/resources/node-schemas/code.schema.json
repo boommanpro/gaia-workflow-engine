@@ -8,10 +8,7 @@
       "type": "string"
     },
     "script": {
-      "type": [
-        "object",
-        "string"
-      ],
+      "type": "object",
       "properties": {
         "language": {
           "type": "string"

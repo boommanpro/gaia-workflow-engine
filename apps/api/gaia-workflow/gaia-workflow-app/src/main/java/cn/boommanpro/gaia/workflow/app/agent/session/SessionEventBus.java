@@ -208,6 +208,8 @@ public class SessionEventBus {
                 state.set("turn", data.getInt("turn", 1));
                 state.set("assistantContent", "");
                 state.set("toolCalls", new JSONArray());
+                // 新 turn = 上一条提问已出结果（作答/超时/中断），不再挂起
+                state.set("pendingAsk", null);
                 break;
             }
             case "token": {
@@ -330,11 +332,13 @@ public class SessionEventBus {
             case "done":
                 state.set("status", "done");
                 state.set("phase", "done");
+                state.set("pendingAsk", null);
                 break;
             case "error":
                 state.set("status", "error");
                 state.set("phase", "error");
                 state.set("error", data.getStr("message", ""));
+                state.set("pendingAsk", null);
                 break;
             case "confirm_request": {
                 // 待确认状态反哺快照：窗口刷新 / SSE 断线重连后，确认卡能从
@@ -352,6 +356,21 @@ public class SessionEventBus {
                 JSONObject pending = state.getJSONObject("pendingConfirm");
                 if (pending != null && pending.getStr("toolCallId").equals(data.getStr("toolCallId"))) {
                     state.set("pendingConfirm", null);
+                }
+                break;
+            }
+            case "ask_request": {
+                // 挂起提问反哺快照：窗口刷新 / SSE 断线重连后，提问卡能从
+                // run_state 回放里恢复（后端还在等待这个回答），而不是永久丢失。
+                if (data.getStr("askId") != null) {
+                    state.set("pendingAsk", data);
+                }
+                break;
+            }
+            case "ask_resolved": {
+                JSONObject pendingAsk = state.getJSONObject("pendingAsk");
+                if (pendingAsk != null && pendingAsk.getStr("askId").equals(data.getStr("askId"))) {
+                    state.set("pendingAsk", null);
                 }
                 break;
             }

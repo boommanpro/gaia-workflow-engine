@@ -28,6 +28,7 @@ import { WorkflowDocument, workflowDocumentStore } from '../document';
 import type {
   AgentSession,
   AgentMessage,
+  AskCardData,
   DisplayMessage,
   ToolCallEvent,
   PageContext,
@@ -156,6 +157,15 @@ export function convertMessages(msgs: AgentMessage[]): DisplayMessage[] {
     }
   }
 
+  interface AskCall {
+    askId: string;
+    question: string;
+    options?: import('./types').AskOption[];
+    answer?: string;
+    auto?: boolean;
+    answeredOnlyByTimeout?: boolean;
+  }
+
   interface RunGroup {
     firstId: string;
     ts: number;
@@ -164,9 +174,36 @@ export function convertMessages(msgs: AgentMessage[]): DisplayMessage[] {
     steps: ToolCallEvent[];
     /** 真实调用链路的交错时间线（思考 → 工具 → 思考 → … → 正文） */
     timeline: import('./types').TimelineItem[];
+    /** 本 run 里的 ask_user 调用（flush 时紧跟本组重建为已答提问卡，持久可见） */
+    asks: AskCall[];
   }
   const result: DisplayMessage[] = [];
   let group: RunGroup | null = null;
+
+  /** 从 ask_user 的落库 toolCalls + 结果行重建提问卡数据（历史视图的提问卡数据源） */
+  const rebuildAsk = (callId: string, args: any, rawResult?: string): AskCall | null => {
+    const question = String(args?.question || '');
+    if (!question) return null;
+    let answer: string | undefined;
+    let auto = false;
+    let answeredOnlyByTimeout = false;
+    if (rawResult) {
+      try {
+        const parsed = JSON.parse(rawResult);
+        answer = parsed.answer != null ? String(parsed.answer) : undefined;
+        auto = parsed.auto === true;
+        answeredOnlyByTimeout = parsed.timeout === true && parsed.auto !== true;
+      } catch { /* 结果不是 JSON：当无答案处理 */ }
+    }
+    return {
+      askId: callId,
+      question,
+      options: Array.isArray(args?.options) ? args.options : undefined,
+      answer,
+      auto,
+      answeredOnlyByTimeout,
+    };
+  };
 
   const flush = () => {
     if (!group) return;
@@ -174,7 +211,7 @@ export function convertMessages(msgs: AgentMessage[]): DisplayMessage[] {
     group = null;
     const content = g.contents.filter(Boolean).join('\n\n');
     const thinking = g.thinkings.filter(Boolean).join('\n\n');
-    if (!content && !thinking && g.steps.length === 0) return;
+    if (!content && !thinking && g.steps.length === 0 && g.asks.length === 0) return;
 
     let planSteps: DisplayMessage['planSteps'];
     const planStep = g.steps.find((s) => s.action === 'todo_write' || s.action === 'createPlan');
@@ -198,6 +235,24 @@ export function convertMessages(msgs: AgentMessage[]): DisplayMessage[] {
       ...(g.timeline.length ? { timeline: g.timeline } : {}),
       timestamp: g.ts,
     });
+    // 本组里的 ask_user 调用重建为已答提问卡：紧跟 AI 回复之后、用户作答气泡之前 ——
+    // 提问卡即模型回复的一部分，刷新后不能凭空消失（答案气泡本身已是落库的 user 行）
+    for (const ask of g.asks) {
+      result.push({
+        id: `ask-${ask.askId}`,
+        role: 'assistant',
+        content: '',
+        timestamp: g.ts,
+        ask: {
+          askId: ask.askId,
+          question: ask.question,
+          options: ask.options,
+          answered: true,
+          answer: ask.answer ?? (ask.answeredOnlyByTimeout ? '超时未回应' : undefined),
+          auto: ask.auto,
+        },
+      });
+    }
   };
 
   for (const msg of msgs) {
@@ -221,7 +276,7 @@ export function convertMessages(msgs: AgentMessage[]): DisplayMessage[] {
       continue;
     }
     if (msg.role === 'assistant') {
-      if (!group) group = { firstId: `msg-${msg.id}`, ts, contents: [], thinkings: [], steps: [], timeline: [] };
+      if (!group) group = { firstId: `msg-${msg.id}`, ts, contents: [], thinkings: [], steps: [], timeline: [], asks: [] };
       // 时间线按真实落库顺序推进：思考 → （正文若有）→ 工具调用 → …
       if (msg.thinking) {
         group.thinkings.push(msg.thinking);
@@ -240,6 +295,11 @@ export function convertMessages(msgs: AgentMessage[]): DisplayMessage[] {
               args = JSON.parse(tc.function?.arguments || '{}');
             } catch { /* ignore */ }
             const toolResult = toolResultMap.get(tc.id);
+            // ask_user 调用重建为持久提问卡（详见 flush）
+            if (tc.function?.name === 'ask_user') {
+              const ask = rebuildAsk(tc.id, args, toolResult);
+              if (ask) group.asks.push(ask);
+            }
             const step: ToolCallEvent = {
               id: tc.id,
               action: tc.function?.name || 'unknown',
@@ -275,6 +335,20 @@ export function convertMessages(msgs: AgentMessage[]): DisplayMessage[] {
     }
   }
   flush();
+  // 顺序容错（历史数据）：作答轮的落库顺序曾是「工具结果 → 答案用户行 → 中断 assistant 行」，
+  // 重放时答案气泡会排在提问卡前面。若提问卡前一条是 AI 回复、再前一条恰好是等值的用户气泡，
+  // 旋转为 [AI 回复][提问卡][答案气泡] —— 只做相邻结构匹配，不误伤正常对话
+  for (let i = 2; i < result.length; i++) {
+    const card = result[i];
+    if (card.ask?.answered && card.ask.answer) {
+      const bubble = result[i - 2];
+      if (result[i - 1].role === 'assistant' && bubble.role === 'user' && bubble.content === card.ask.answer) {
+        result[i - 2] = result[i - 1];
+        result[i - 1] = card;
+        result[i] = bubble;
+      }
+    }
+  }
   return result;
 }
 
@@ -300,6 +374,27 @@ export function appendLiveRow(
   return [...history, liveRow];
 }
 
+/**
+ * 历史整表替换时保留全部临时行（live 占位 + 未答的 ask 提问卡）。
+ * ask 卡只存在于前端（ask_request 事件 / run_state 快照 pendingAsk 恢复），不落库 ——
+ * 历史响应晚到时若不接回，挂起中的提问卡会被整表替换抹掉，用户从此无处作答。
+ * 已作答的卡片不保留：答案已作为用户消息落库（新一轮对话），重载后由真实历史行呈现。
+ */
+export function appendEphemeralRows(
+  history: DisplayMessage[],
+  prev: DisplayMessage[],
+  liveId: string | null | undefined
+): DisplayMessage[] {
+  const liveRow = liveId ? prev.find((m) => m.id === liveId) ?? null : null;
+  let next = appendLiveRow(history, liveRow);
+  for (const m of prev) {
+    if (m.ask && !m.ask.answered && !next.some((n) => n.id === m.id)) {
+      next = [...next, m];
+    }
+  }
+  return next;
+}
+
 /** 用后端 plan 事件 upsert PlanCard 消息 */
 function upsertPlanCard(prev: DisplayMessage[], plan: { id: string; steps: any[] }): DisplayMessage[] {
   const planSteps = (plan.steps || []).map((s: any, idx: number) => ({
@@ -323,6 +418,43 @@ function upsertPlanCard(prev: DisplayMessage[], plan: { id: string; steps: any[]
 /** 产物卡消息 id（live upsert 与历史重放共用，保证不重复渲染） */
 function artifactCardId(artifact: AgentArtifactDto): string {
   return `artifact-${artifact.artifactKey}`;
+}
+
+/**
+ * document 事件的合并应用（模块级，随最新订阅生效）：
+ * 搭建高峰每个节点/连线变更都广播一次 document，逐次整表 replace 会引发
+ * store 订阅方（产物面板/活卡/快照逻辑）连环重渲染 —— 事件洪峰是
+ * 「选完后页面无响应」的推手。250ms 尾沿合并（最新胜出）：中间帧丢弃
+ * （预览语义），终态必达；归因（messageId/会话归属）在事件到达时定格。
+ */
+let docApplyTimer: ReturnType<typeof setTimeout> | null = null;
+
+function scheduleDocumentApply(apply: () => void): void {
+  if (docApplyTimer) clearTimeout(docApplyTimer);
+  docApplyTimer = setTimeout(() => {
+    docApplyTimer = null;
+    try {
+      apply();
+    } catch { /* ignore */ }
+  }, 250);
+}
+
+/** ask_user 提问卡 upsert（ask_request 事件与 run_state 快照 pendingAsk 恢复共用；id 稳定幂等） */
+function upsertAskRow(prev: DisplayMessage[], ask: AskCardData): DisplayMessage[] {
+  const row: DisplayMessage = {
+    id: `ask-${ask.askId}`,
+    role: 'assistant',
+    content: '',
+    timestamp: Date.now(),
+    ask,
+  };
+  const idx = prev.findIndex((m) => m.id === row.id);
+  if (idx >= 0) {
+    const next = [...prev];
+    next[idx] = row;
+    return next;
+  }
+  return [...prev, row];
 }
 
 /** 用产物事件 upsert 一张产物卡消息（release；test_report 走工具行不单独成卡） */
@@ -583,12 +715,8 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     agentApi.getMessages(sessionKey).then((msgs) => {
       // 竞态 guard：只有仍是当前会话的响应才允许落地
       if (currentSessionKeyRef.current !== sessionKey) return;
-      // 幂等合并：若 SSE 快照先到并建了 live 占位行，历史整表替换不得抹掉它
-      setMessages((prev) => {
-        const liveId = liveAssistantIdRef.current;
-        const liveRow = liveId ? prev.find((m) => m.id === liveId) ?? null : null;
-        return appendLiveRow(convertMessages(msgs || []), liveRow);
-      });
+      // 幂等合并：若 SSE 快照先到并建了 live 占位行 / ask 提问卡，历史整表替换不得抹掉它们
+      setMessages((prev) => appendEphemeralRows(convertMessages(msgs || []), prev, liveAssistantIdRef.current));
     }).catch(() => {});
     // run 级 token 账：挂在各轮 assistant 回复尾部（dsh turn-usage 持久化对位物）；
     // turn-usage 聚合补缓存命中/模型，两路任一失败不阻塞另一方
@@ -745,11 +873,12 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       // placeArtifactCards 必须在这里同步做：messages 与 artifacts 两个请求是并发的，
       // 若 artifacts 先返回 place 完成、messages 后返回直接覆盖，产物卡会被冲掉。
       if (currentSessionKeyRef.current === sessionKey) {
-        setMessages((prev) => {
-          const liveId = liveAssistantIdRef.current;
-          const liveRow = liveId ? prev.find((m) => m.id === liveId) ?? null : null;
-          return placeArtifactCards(appendLiveRow(convertMessages(msgs || []), liveRow), artifactStore.latestAll(sessionKey));
-        });
+        setMessages((prev) =>
+          placeArtifactCards(
+            appendEphemeralRows(convertMessages(msgs || []), prev, liveAssistantIdRef.current),
+            artifactStore.latestAll(sessionKey)
+          )
+        );
         opts?.onSettled?.();
       }
     }).catch(() => {
@@ -979,6 +1108,17 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
             artifactStore.setAll(sessionKey, snapshotArts);
             setMessages((prev) => placeArtifactCards(prev, snapshotArts));
           }
+          // 快照里的挂起提问（刷新/断线重连后恢复交互卡，后端仍在等待这个回答；
+          // 否则卡片永久丢失，run 挂到 5 分钟超时才继续）
+          const pendingAsk = (data as any).pendingAsk;
+          if (pendingAsk?.askId) {
+            setMessages((prev) => upsertAskRow(prev, {
+              askId: String(pendingAsk.askId),
+              question: pendingAsk.question || '',
+              options: pendingAsk.options,
+              answered: false,
+            }));
+          }
         } else {
           // idle / done / error / stopped
           // run 结束：本轮 AI 画布变更定格为一个会话版本（run 粒度），再走收敛协议
@@ -1093,15 +1233,20 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         if (/^\/(editor|template-editor)/.test(pathnameRef.current)) return;
         try {
           if (data?.dsl && Array.isArray(data.dsl.nodes) && data.dsl.nodes.length > 0) {
-            workflowDocumentStore.replace(WorkflowDocument.fromJSON(data.dsl), {
-              kind: 'replace',
-              source: 'ai',
-              reason: 'ai-edit',
-              // 归因到当前流式助手消息：对话流里的画布快照卡才能挂到产出它的消息下
-              messageId: liveAssistantIdRef.current ?? undefined,
+            const dsl = data.dsl;
+            // 归因到当前流式助手消息（事件到达时定格）；应用走 250ms 合并（见 scheduleDocumentApply）
+            const owner = { sessionKey, messageId: liveAssistantIdRef.current ?? undefined };
+            scheduleDocumentApply(() => {
+              if (currentSessionKeyRef.current !== owner.sessionKey) return;
+              workflowDocumentStore.replace(WorkflowDocument.fromJSON(dsl), {
+                kind: 'replace',
+                source: 'ai',
+                reason: 'ai-edit',
+                messageId: owner.messageId,
+              });
+              // 归属当前会话：切走后按归属清空（见草稿恢复处的注释）
+              workflowDocumentStore.setMeta({ producedBy: 'ai', ownerSession: owner.sessionKey });
             });
-            // 归属当前会话：切走后按归属清空（见草稿恢复处的注释）
-            workflowDocumentStore.setMeta({ producedBy: 'ai', ownerSession: sessionKey });
           }
         } catch { /* ignore */ }
       },
@@ -1151,32 +1296,31 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         if (disposed) return;
         if (!data?.askId || currentSessionKeyRef.current !== sessionKey) return;
         // ask_user 提问卡：独立消息行（id 稳定，ask_resolved 与重放快照都能幂等 upsert）
-        setMessages((prev) => {
-          const row: DisplayMessage = {
-            id: `ask-${data.askId}`,
-            role: 'assistant',
-            content: '',
-            timestamp: Date.now(),
-            ask: { askId: data.askId, question: data.question || '', options: data.options, answered: false },
-          };
-          const idx = prev.findIndex((m) => m.id === row.id);
-          if (idx >= 0) {
-            const next = [...prev];
-            next[idx] = row;
-            return next;
-          }
-          return [...prev, row];
-        });
+        setMessages((prev) => upsertAskRow(prev, {
+          askId: data.askId,
+          question: data.question || '',
+          options: data.options,
+          answered: false,
+        }));
       },
       onAskResolved: (data) => {
         if (disposed) return;
         if (!data?.askId) return;
-        // 本窗口作答的乐观收敛 + 其他窗口代答的同步收敛共用此路径
-        setMessages((prev) => prev.map((m) =>
-          m.ask && m.ask.askId === data.askId && !m.ask.answered
-            ? { ...m, ask: { ...m.ask, answered: true, answer: data.answer } }
-            : m
-        ));
+        // 本窗口作答的乐观收敛 + 其他窗口代答/超时自动代答的同步收敛共用此路径
+        setMessages((prev) => {
+          const next = prev.map((m) =>
+            m.ask && m.ask.askId === data.askId && !m.ask.answered
+              ? { ...m, ask: { ...m.ask, answered: true, answer: data.answer, auto: !!data.auto } }
+              : m
+          );
+          // 答案成为新一轮对话：立即以用户消息上屏（后端已落库，
+          // run 收敛重载后由真实历史行接管，气泡 id 稳定保证多窗口幂等）
+          const bubbleId = `ask-answer-${data.askId}`;
+          if (data.answer && !next.some((m) => m.id === bubbleId)) {
+            next.push({ id: bubbleId, role: 'user', content: data.answer, timestamp: Date.now() });
+          }
+          return next;
+        });
       },
       onDone: () => {
         if (disposed) return;
@@ -1223,6 +1367,10 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     return () => {
       disposed = true;
       controller.abort();
+      if (docApplyTimer) {
+        clearTimeout(docApplyTimer);
+        docApplyTimer = null;
+      }
       liveStreamStore.reset();
     };
   }, [currentSessionKey, sessionEpoch, reloadMessages, settleRun]);

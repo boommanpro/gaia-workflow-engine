@@ -47,6 +47,15 @@ public class AskUserPendingStore {
 
     /** 用户作答：唤醒挂起的工具并广播收敛；不存在/跨会话返回 false */
     public boolean resolve(String sessionKey, String askId, String answer) {
+        return resolve(sessionKey, askId, answer, false);
+    }
+
+    /**
+     * 作答（用户或超时自动代答）：唤醒挂起的工具并广播收敛。
+     *
+     * @param auto 是否超时自动代答（前端据此把卡片标注为「超时自动选择」）
+     */
+    public boolean resolve(String sessionKey, String askId, String answer, boolean auto) {
         PendingAsk ask = pending.get(askId);
         if (ask == null || !ask.sessionKey.equals(sessionKey)) {
             return false;
@@ -55,12 +64,12 @@ public class AskUserPendingStore {
         ask.answer.complete(answer != null ? answer : "");
         try {
             eventBus.publish(sessionKey, "ask_resolved",
-                new JSONObject().set("askId", askId).set("answer", answer));
+                new JSONObject().set("askId", askId).set("answer", answer).set("auto", auto));
         } catch (Exception e) {
             log.debug("[ask-user] resolved event publish failed: {}", e.getMessage());
         }
-        log.info("[ask-user] resolved session={} askId={} answerLen={}",
-            sessionKey, askId, answer == null ? 0 : answer.length());
+        log.info("[ask-user] resolved session={} askId={} auto={} answerLen={}",
+            sessionKey, askId, auto, answer == null ? 0 : answer.length());
         return true;
     }
 

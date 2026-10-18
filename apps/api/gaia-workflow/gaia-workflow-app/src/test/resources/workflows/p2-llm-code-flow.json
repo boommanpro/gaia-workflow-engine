@@ -1,0 +1,71 @@
+{
+  "nodes": [
+    {
+      "id": "start_0",
+      "type": "start",
+      "meta": { "position": { "x": 180, "y": 200 } },
+      "data": {
+        "title": "开始",
+        "outputs": {
+          "type": "object",
+          "properties": {
+            "query": { "type": "string", "default": "用一句话介绍工作流引擎是什么" }
+          }
+        }
+      }
+    },
+    {
+      "id": "llm_0",
+      "type": "llm",
+      "meta": { "position": { "x": 480, "y": 200 } },
+      "data": {
+        "title": "大模型处理",
+        "inputsValues": {
+          "modelName": { "type": "constant", "content": "glm-4-flash" },
+          "apiKey": { "type": "constant", "content": "sk-SnEd69fzfoB1Ffwzd1pVRXkxzD7dSvpeyFtcdiJWetZLnS39" },
+          "apiHost": { "type": "constant", "content": "https://www.dmxapi.cn/v1" },
+          "temperature": { "type": "constant", "content": 0.3 },
+          "systemPrompt": { "type": "template", "content": "你是严谨的中文助手，用一句话直接回答，不添加多余内容。" },
+          "prompt": { "type": "template", "content": "{{ start_0.query }}" }
+        },
+        "timeout": { "timeout": 60000, "retryTimes": 1 },
+        "outputs": { "type": "object", "properties": { "result": { "type": "string" } } }
+      }
+    },
+    {
+      "id": "code_0",
+      "type": "code",
+      "meta": { "position": { "x": 780, "y": 200 } },
+      "data": {
+        "title": "结果统计",
+        "script": {
+          "language": "javascript",
+          "content": "var text = reply == null ? \"\" : reply.toString();\n({ reply: text, chars: text.length });"
+        },
+        "inputsValues": {
+          "reply": { "type": "ref", "content": ["llm_0", "result"] }
+        },
+        "inputs": { "type": "object", "properties": { "reply": { "type": "string" } } },
+        "outputs": { "type": "object", "properties": { "reply": { "type": "string" }, "chars": { "type": "number" } } }
+      }
+    },
+    {
+      "id": "end_0",
+      "type": "end",
+      "meta": { "position": { "x": 1080, "y": 200 } },
+      "data": {
+        "title": "结束",
+        "inputsValues": {
+          "reply": { "type": "ref", "content": ["code_0", "reply"] },
+          "chars": { "type": "ref", "content": ["code_0", "chars"] }
+        },
+        "inputs": { "type": "object", "properties": { "reply": { "type": "string" }, "chars": { "type": "number" } } }
+      }
+    }
+  ],
+  "edges": [
+    { "sourceNodeID": "start_0", "targetNodeID": "llm_0" },
+    { "sourceNodeID": "llm_0", "targetNodeID": "code_0" },
+    { "sourceNodeID": "code_0", "targetNodeID": "end_0" }
+  ]
+}

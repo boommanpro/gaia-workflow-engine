@@ -26,10 +26,19 @@ mybatis-plus:
 
 agent:
   llm:
-    api-host: http://localhost:1234/v1
-    api-key: sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-    model: qwen/qwen3-4b-2507
+    # 平台默认模型（会话 Agent 与 llm 节点凭据兜底）：dmxapi 免费 glm-4-flash，
+    # 该 key 仅可调用此免费模型；管理后台 manage/agent-config 的 llm_config 可在线覆盖
+    api-host: https://www.dmxapi.cn/v1
+    api-key: sk-SnEd69fzfoB1Ffwzd1pVRXkxzD7dSvpeyFtcdiJWetZLnS39
+    model: glm-4-flash
     temperature: 0.5
+  # ask_user 提问的挂起等待上限（秒）：全局默认，模型可用工具参数 timeoutSeconds（5-300）按次覆盖；
+  # 超时自动替用户选择 recommended 选项（无则第一个），答案作为新一轮对话继续。
+  # max-auto-answers：同一会话连续自动代答的上限（防「追问→超时→自答→再追问」自驱循环），
+  # 达到上限后按「未回应」收尾，用户真实作答即重置
+  ask-user:
+    timeout-seconds: 60
+    max-auto-answers: 2
   # 火山方舟 Managed Agents（engine=ark 的 Agent 使用；DB provider_config:ark 可在线覆盖）
   ark:
     base-url: https://ark.cn-beijing.volces.com/api/v3

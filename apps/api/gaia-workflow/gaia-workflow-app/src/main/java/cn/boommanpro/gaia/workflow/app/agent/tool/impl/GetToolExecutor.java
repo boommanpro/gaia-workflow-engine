@@ -165,6 +165,14 @@ public class GetToolExecutor implements ToolExecutor {
         return ToolResult.notFound("节点类型 " + nodeType + "（可用类型见技能目录）");
     }
 
+    /**
+     * 空画布默认骨架：两个孤立节点（start_1 / end_1），不预连边、不预填占位输出。
+     * <p>
+     * 2026-10-18 E2E 实证（case-221c56cb20）：预连 start→end 直连边 + 预填
+     * output=constant "" 会让模型插节点后忘记拆边（并行双路）或忘记替换占位
+     * （输出空串却"试跑通过"）。结构性消灭该类事故：骨架只给锚点，接线与输出
+     * 全部由模型显式完成，未配置即被 endHasInputs 预检挡下。
+     */
     private static JSONObject buildDefaultSkeleton() {
         return new JSONObject().set("nodes", new JSONArray()
             .set(new JSONObject().set("id", "start_1").set("type", "start")
@@ -174,12 +182,11 @@ public class GetToolExecutor implements ToolExecutor {
                         new JSONObject().set("type", "string").set("default", ""))))))
             .set(new JSONObject().set("id", "end_1").set("type", "end")
                 .set("meta", new JSONObject().set("position", new JSONObject().set("x", 500).set("y", 180)))
-                .set("data", new JSONObject().set("title", "结束").set("inputsValues", new JSONObject()
-                    .set("output", new JSONObject().set("type", "constant").set("content", "")))
+                .set("data", new JSONObject().set("title", "结束")
+                    .set("inputsValues", new JSONObject())
                     .set("inputs", new JSONObject().set("type", "object")
-                        .set("properties", new JSONObject().set("output", new JSONObject().set("type", "string")))))))
-            .set("edges", new JSONArray()
-                .set(new JSONObject().set("sourceNodeID", "start_1").set("targetNodeID", "end_1")));
+                        .set("properties", new JSONObject())))))
+            .set("edges", new JSONArray());
     }
 
     private static java.util.List<JSONObject> toList(JSONArray arr) {

@@ -108,8 +108,45 @@ export interface AgentArtifactDto {
   updatedAt?: string;
 }
 
+/** ask_user 的单个选项（后端 schema 定义为 {label, detail, recommended} 对象；字符串形态兼容旧数据） */
+export type AskOption = string | { label?: string; detail?: string; recommended?: boolean };
+
+/** ask_user 提问卡数据（ask_request 事件与 run_state 快照 pendingAsk 共用） */
+export interface AskCardData {
+  askId: string;
+  question: string;
+  options?: AskOption[];
+  answered?: boolean;
+  answer?: string;
+  /** 超时自动代答（非用户本人作答） */
+  auto?: boolean;
+}
+
+/** 把任意形态的 options 归一化为 {label, detail?, recommended?}：
+ *  后端工具 schema 要求模型传对象数组，但历史/异构数据可能是字符串 ——
+ *  渲染层绝不直接把原始 option 当 React 子节点（对象会直接抛错炸掉整页）。 */
+export function normalizeAskOptions(raw: unknown): Array<{ label: string; detail?: string; recommended?: boolean }> {
+  if (!Array.isArray(raw)) return [];
+  const out: Array<{ label: string; detail?: string; recommended?: boolean }> = [];
+  for (const item of raw) {
+    if (typeof item === 'string') {
+      if (item.trim()) out.push({ label: item });
+    } else if (item && typeof item === 'object') {
+      const label = String((item as any).label ?? '').trim();
+      if (!label) continue;
+      const entry: { label: string; detail?: string; recommended?: boolean } = { label };
+      const detail = String((item as any).detail ?? '').trim();
+      if (detail) entry.detail = detail;
+      if ((item as any).recommended === true) entry.recommended = true;
+      out.push(entry);
+    }
+  }
+  return out;
+}
+
 /** 前端展示的消息（含 plan 卡片等扩展） */
-export interface DisplayMessage {  id: string;
+export interface DisplayMessage {
+  id: string;
   role: 'user' | 'assistant' | 'tool';
   content: string;
   toolCall?: ToolCallEvent;
@@ -130,13 +167,7 @@ export interface DisplayMessage {  id: string;
    */
   toolSteps?: ToolCallEvent[];
   /** ask_user 提问卡：run 进行中由 ask_request 事件 upsert，回答后收敛为已答状态 */
-  ask?: {
-    askId: string;
-    question: string;
-    options?: string[];
-    answered?: boolean;
-    answer?: string;
-  };
+  ask?: AskCardData;
   // 关联的调试条目 ID，用于点击消息跳转调试面板
   debugEntryId?: string;
   /** 本轮 run 的 token 用量（dsh turn-usage 同位：挂在回复尾部持久展示；来自 run_end/runs + turn-usage 聚合） */
@@ -285,10 +316,10 @@ export interface SseHandlers {
     thinkingLength?: number;
     toolCalls?: Array<{ id: string; name: string; arguments?: string }>;
   }) => void;
-  /** ask_user 提问到达：渲染交互卡片并等待用户作答 */
-  onAskRequest?: (data: { askId: string; question: string; options?: string[] }) => void;
-  /** ask_user 已作答（可能是其他窗口答的）：卡片收敛为已答状态 */
-  onAskResolved?: (data: { askId: string; answer: string }) => void;
+  /** ask_user 提问到达：渲染交互卡片并等待用户作答（options 为 {label,detail} 对象数组） */
+  onAskRequest?: (data: { askId: string; question: string; options?: AskOption[] }) => void;
+  /** ask_user 已作答（可能是其他窗口答的/超时自动代答）：卡片收敛为已答状态，答案成为新一轮对话 */
+  onAskResolved?: (data: { askId: string; answer: string; auto?: boolean }) => void;
   /** 模型请求用量（方舟托管引擎的 span.model_request_end 聚合） */
   onUsage?: (data: {
     last?: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number };

@@ -52,7 +52,7 @@ public class AgentToolRegistry {
     private static Map<String, String> buildToolSummaries() {
         Map<String, String> m = new java.util.LinkedHashMap<>();
         m.put("skill", "按名称加载技能全文；`skill(\"name/path\")` 取引用文件。开工第一步加载 gaia-workflow-assistant");
-        m.put("ask_user", "向用户提问并等待回答（选项点选或自由输入；只问缺了会白做的关键信息）");
+        m.put("ask_user", "向用户提问并等待回答（点选/自由输入，答案成为新一轮对话；只问缺了会白做的关键信息；超时自动选 recommended 项继续）");
         m.put("todo_write", "任务进度清单（3 步以上任务先列清单，完成一项勾一项）");
         m.put("get", "四合一查询：target=canvas 画布核心视图 / node 单节点配置+入出边 / variables 可引用变量 / knowledge 节点类型知识");
         m.put("node", "节点增改删：action=add（items 批量，connect 用 $ref 接线）/ update（data 深合并）/ remove（级联连线）");
@@ -563,11 +563,13 @@ public class AgentToolRegistry {
         tools.add(func("skill", "按名称加载技能全文。开工第一步：skill(\"gaia-workflow-assistant\") 加载完整搭建手册",
             obj(new String[]{"name"}, new JSONObject[]{ str("name", "技能名", null) })));
 
-        tools.add(func("ask_user", "向用户提问并等待回答。只问三类问题：①缺了会白做的关键信息 ②成品形态关键岔路 ③不可逆/只有用户知道的事。技术路线自己定",
+        tools.add(func("ask_user", "向用户提问并等待回答，答案会成为新一轮对话（点选/自由输入皆可）。只问三类问题：①缺了会白做的关键信息 ②成品形态关键岔路 ③不可逆/只有用户知道的事。技术路线自己定。超时未答会自动替用户选择 recommended 选项（无则第一个）并继续",
             obj(new String[]{"question"}, new JSONObject[]{
                 str("question", "问题（一句话，具体可答）", null),
-                arrProp("options", "可选项（可选）", obj(new String[]{"label"}, new JSONObject[]{
-                    str("label", "选项文案", null), str("detail", "代价/影响", null) }))
+                arrProp("options", "可选项（可选；最多 5 个，最可能的一项标 recommended=true，超时自动代答用它）", obj(new String[]{"label"}, new JSONObject[]{
+                    str("label", "选项文案", null), str("detail", "代价/影响", null),
+                    boolProp("recommended", "最可能的选项标 true（最多一项）", null) })),
+                intProp("timeoutSeconds", "等待上限秒数 5-300（缺省走后台配置，超时自动代答）", null)
             })));
 
         tools.add(func("todo_write", "写入/更新任务进度清单（≥3 步先列清单，完成即勾）", obj(
@@ -665,6 +667,20 @@ public class AgentToolRegistry {
 
     private JSONObject str(String name, String desc, JSONObject extra) {
         JSONObject p = new JSONObject().set("__name", name).set("type", "string");
+        if (desc != null) p.set("description", desc);
+        if (extra != null) p.putAll(extra);
+        return p;
+    }
+
+    private JSONObject boolProp(String name, String desc, JSONObject extra) {
+        JSONObject p = new JSONObject().set("__name", name).set("type", "boolean");
+        if (desc != null) p.set("description", desc);
+        if (extra != null) p.putAll(extra);
+        return p;
+    }
+
+    private JSONObject intProp(String name, String desc, JSONObject extra) {
+        JSONObject p = new JSONObject().set("__name", name).set("type", "integer");
         if (desc != null) p.set("description", desc);
         if (extra != null) p.putAll(extra);
         return p;

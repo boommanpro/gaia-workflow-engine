@@ -108,4 +108,17 @@ describe('llm 模板契约', () => {
     const node = createNodeByType('llm', { prompt: '总结：{{ start_0.text }}' });
     expect((node.data.inputsValues as any).prompt).toMatchObject({ type: 'template', content: '总结：{{ start_0.text }}' });
   });
+
+  it('llm 模板 inputs 与后端 x-gaia-form-inputs 扩展一致（表单 schema 单一事实源防漂移）', () => {
+    const schema = JSON.parse(
+      readFileSync(new URL('llm.schema.json', SCHEMAS_DIR), 'utf-8'),
+    );
+    const formInputs = schema['x-gaia-form-inputs'];
+    expect(formInputs, 'llm.schema.json 缺少 x-gaia-form-inputs 扩展').toBeDefined();
+    const node = createNodeByType('llm', {});
+    expect(node.data.inputs).toEqual(formInputs);
+    // 后端 NodeDataNormalizer 用同一扩展对齐 AI 生成的 llm 节点——
+    // 模板（手工添加）、schema 扩展（AI 归一化）两路产出必须逐字段一致，
+    // 否则画布表单展示分叉
+  });
 });

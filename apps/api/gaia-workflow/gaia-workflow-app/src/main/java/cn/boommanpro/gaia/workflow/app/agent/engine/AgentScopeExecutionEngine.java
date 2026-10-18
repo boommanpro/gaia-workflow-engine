@@ -515,6 +515,17 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
                 boolean interrupted = context.isInterrupted();
                 if (interrupted) {
                     stats.failureChain.add("user_interrupt");
+                    // ask_user 交接（答案已成为新一轮对话）：正常交接不是异常中断 ——
+                    // 不落 ⏹ marker、不发 interrupted 事件，只把已流出的正文/思考/工具调用
+                    // 留档（工具调用行是前端重建提问卡的数据源，不能丢）
+                    if ("ask_handoff".equals(context.getInterruptReason())) {
+                        String partial = finalContent.toString().trim();
+                        if (!partial.isEmpty() || thinking.length() > 0 || toolCallsJson != null) {
+                            conversationStore.saveMessage(sessionKey, "assistant", partial, toolCallsJson, null,
+                                thinking.length() > 0 ? thinking.toString() : null);
+                        }
+                        return finishedResult(partial, definition, sessionKey, stats, runStartedAt, true, false);
+                    }
                     // 已流出的部分正文必须随中断 marker 一起落库 —— 否则刷新后用户
                     // 看到过的正文从 DB 视图消失且无事件再触发重载（刷新一致性症状之一）
                     String persisted = persistInterruptedRun(conversationStore, sessionKey,
@@ -952,9 +963,11 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
         // 1.5 skill-gate（owb skill-gate 对标，2026-10-11）：改画布前必须先触碰过知识
         //（加载技能 / 查画布现状 / 查节点契约）—— 盲写是空壳骨架与端口错配的事故源头。
         // 知识类工具（skill / get）成功执行后登记触碰标记，node / edge 首次调用时检查。
-        if (("node".equals(toolName) || "edge".equals(toolName))
+        // 拦截不走提前 return：置入 result 让它沿标准管线落库/记指标/发事件
+        //（model-visible ⟺ logged），否则前端工具行永远悬挂、真相源缺失这条拦截记录。
+        if (result == null && ("node".equals(toolName) || "edge".equals(toolName))
             && !"1".equals(context.getAttributes().get("knowledge.touched"))) {
-            return ToolResult.fail(
+            result = ToolResult.fail(
                 "{\"error\":\"改画布前先查知识：先 skill(\\\"gaia-workflow-assistant\\\") 加载搭建手册，"
                     + "再 get(target=canvas) 看现状、get(target=knowledge, nodeType) 查要用的节点契约，然后再增删节点/连线。\"}",
                 "skill-gate：先查知识再动手（避免盲写踩结构坑）", ToolErrorCode.INVALID_ARGS);

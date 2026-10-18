@@ -4,30 +4,40 @@
  * 模型需要用户选择/确认/补充信息时调用 ask_user，后端挂起等待；
  * 这里渲染问题 + 选项按钮 + 自由输入，作答即唤醒挂起的工具调用继续 run。
  * 已答状态收敛为只读（其他窗口代答时由 ask_resolved 事件同步）。
+ *
+ * options 兼容两种形态：字符串（旧数据）与 {label, detail}（工具 schema 的
+ * 规范形态）——统一经 normalizeAskOptions 归一化，原始条目绝不能直接进 JSX
+ * （对象子节点会让 React 抛 "Objects are not valid as a React child" 炸掉整页）。
  */
 import React, { useState } from 'react';
 
 import { agentApi } from '../agent/api';
+import { normalizeAskOptions, type AskCardData } from '../agent/types';
 import { useLanguage, t } from '../i18n';
 import { CHAT } from './theme';
 
 export const AskCard: React.FC<{
-  ask: { askId: string; question: string; options?: string[]; answered?: boolean; answer?: string };
+  ask: AskCardData;
   sessionKey?: string;
 }> = ({ ask, sessionKey }) => {
   useLanguage();
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [expired, setExpired] = useState(false);
   const answered = !!ask.answered;
+  const options = normalizeAskOptions(ask.options);
+  const closed = answered || expired;
 
   const answer = async (text: string) => {
-    if (!text.trim() || !sessionKey || answered || sending) return;
+    if (!text.trim() || !sessionKey || closed || sending) return;
     setSending(true);
     try {
       await agentApi.answerAsk(sessionKey, ask.askId, text.trim());
       // 收敛态由 ask_resolved 事件回填（与其它窗口一致），本地乐观禁用即可
-    } catch {
+    } catch (e) {
       setSending(false);
+      // 提问已不存在（超时/运行停止后端已摘除）：卡片收敛为失效，别让按钮永远转圈
+      if (/404/.test(String((e as Error)?.message || ''))) setExpired(true);
     }
   };
 
@@ -38,13 +48,13 @@ export const AskCard: React.FC<{
         margin: '6px 0',
         padding: '13px 15px',
         borderRadius: 14,
-        border: `1px solid ${answered ? CHAT.line : CHAT.accentBorder}`,
+        border: `1px solid ${closed ? CHAT.line : CHAT.accentBorder}`,
         background: 'var(--g-bg-raised)',
         boxShadow: '0 1px 3px rgba(20, 20, 40, 0.05)',
         maxWidth: 560,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9, marginBottom: answered ? 8 : 11 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9, marginBottom: closed ? 8 : 11 }}>
         <span
           aria-hidden
           style={{
@@ -77,36 +87,67 @@ export const AskCard: React.FC<{
           style={{
             display: 'flex', alignItems: 'flex-start', gap: 6,
             padding: '7px 10px', borderRadius: 8,
-            background: CHAT.successSoft, color: CHAT.success, fontSize: 12.5, lineHeight: 1.6,
+            background: ask.auto ? CHAT.hover : CHAT.successSoft,
+            color: ask.auto ? CHAT.textSub : CHAT.success, fontSize: 12.5, lineHeight: 1.6,
           }}
         >
-          <span style={{ flexShrink: 0 }}>✓</span>
+          <span style={{ flexShrink: 0 }}>{ask.auto ? '⌛' : '✓'}</span>
           <span style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-            {t('chat.askAnswered')}：{ask.answer}
+            {ask.auto ? t('chat.askAutoAnswered') : t('chat.askAnswered')}：{ask.answer}
           </span>
+        </div>
+      ) : expired ? (
+        <div
+          style={{
+            display: 'flex', alignItems: 'flex-start', gap: 6,
+            padding: '7px 10px', borderRadius: 8,
+            background: CHAT.hover, color: CHAT.textSub, fontSize: 12.5, lineHeight: 1.6,
+          }}
+        >
+          <span style={{ flexShrink: 0 }}>⌛</span>
+          <span>{t('chat.askExpired')}</span>
         </div>
       ) : (
         <>
-          {(ask.options || []).length > 0 && (
+          {options.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
-              {ask.options!.map((option) => (
+              {options.map((option, idx) => (
                 <button
-                  key={option}
+                  key={`${ask.askId}-opt-${idx}`}
                   type="button"
                   disabled={sending}
-                  onClick={() => void answer(option)}
+                  onClick={() => void answer(option.label)}
                   style={{
                     display: 'block', width: '100%', textAlign: 'left', cursor: sending ? 'default' : 'pointer',
                     padding: '8px 12px', borderRadius: 9,
-                    border: `1px solid ${CHAT.line}`, background: CHAT.bg,
+                    border: `1px solid ${option.recommended ? CHAT.accentBorder : CHAT.line}`,
+                    background: CHAT.bg,
                     color: CHAT.textBody, fontSize: 13, lineHeight: 1.5, fontFamily: 'inherit',
                     transition: 'border-color .14s, background .14s',
                     opacity: sending ? 0.6 : 1,
                   }}
                   onMouseEnter={(e) => { if (!sending) { e.currentTarget.style.borderColor = CHAT.accent; e.currentTarget.style.background = CHAT.hover; } }}
-                  onMouseLeave={(e) => { if (!sending) { e.currentTarget.style.borderColor = CHAT.line; e.currentTarget.style.background = CHAT.bg; } }}
+                  onMouseLeave={(e) => { if (!sending) { e.currentTarget.style.borderColor = option.recommended ? CHAT.accentBorder : CHAT.line; e.currentTarget.style.background = CHAT.bg; } }}
                 >
-                  {option}
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {option.label}
+                    {option.recommended && (
+                      <span
+                        style={{
+                          flexShrink: 0, padding: '1px 6px', borderRadius: 999,
+                          border: `1px solid ${CHAT.accentBorder}`, background: CHAT.accentSoft,
+                          color: CHAT.textSub, fontSize: 10.5, lineHeight: 1.5,
+                        }}
+                      >
+                        {t('chat.askRecommended')}
+                      </span>
+                    )}
+                  </span>
+                  {option.detail && (
+                    <span style={{ display: 'block', marginTop: 2, fontSize: 12, color: CHAT.textSub }}>
+                      {option.detail}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>

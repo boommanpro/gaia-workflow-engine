@@ -1,0 +1,13 @@
+{
+  "name": "p1-string-format",
+  "description": "P1 纯转换模式（基准 8 模式第 1 式）：start → string-format → end，问候语渲染；结构与双向输出断言",
+  "message": "帮我创建一个问候语工作流：输入名字（试跑时传 World），用模板节点渲染成 Hello, {名字}! 这样的问候语输出，比如输入 World 就输出 Hello, World!",
+  "limits": { "maxToolCalls": 20 },
+  "structure": [
+    { "check": "noEmptyNodes" },
+    { "check": "endHasInputs" }
+  ],
+  "expectOutputs": [
+    { "output": "Hello, World!" }
+  ]
+}
