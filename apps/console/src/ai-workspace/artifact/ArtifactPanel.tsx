@@ -8,7 +8,7 @@
  * 旧的「预览」tab 已移除：执行路径与节点构成和对话流卡片、画布重复；
  * 「DSL」tab 收进弹层，不再占一个常驻页签。
  */
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button, Input, Modal, Popover, Tag, Toast, Tooltip } from '@douyinfe/semi-ui';
 import {
@@ -30,12 +30,13 @@ import type { AgentArtifactDto } from '../../agent/types';
 import { agentApi } from '../../agent/api';
 import { CHAT } from '../../chat/theme';
 import { IconPanelRight } from '../../components/app-shell/icons';
+import { ReadonlyCanvas } from './ReadonlyCanvas';
 
 export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollapse }) => {
-  const { doc, meta } = useWorkflowDocumentState();
+  const { doc, meta, revision } = useWorkflowDocumentState();
   const navigate = useNavigate();
   const location = useLocation();
-  const { currentSessionKey } = useAgent();
+  const { currentSessionKey, streaming } = useAgent();
   const artifactState = useArtifactState();
 
   const [saveVisible, setSaveVisible] = useState(false);
@@ -50,6 +51,27 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
   const dsl = useMemo(() => doc.toJSON(), [doc]);
   const validation = useMemo(() => validateDsl(dsl), [dsl]);
   const isEmpty = doc.isEmpty;
+
+  // 流式期间的画布刷新节流：document 事件高频到达，逐次 remount 整只 flowgram
+  // 编辑器会打挂主线程（实测「页面无响应」的元凶）。3 秒采样一次最新画布 ——
+  // 预览保持准实时、remount 成本有界；流式结束立即收敛到最终版
+  const dslRef = useRef(dsl);
+  dslRef.current = dsl;
+  const revisionRef = useRef(revision);
+  revisionRef.current = revision;
+  const [liveSample, setLiveSample] = useState<{ dsl: any; rev: number } | null>(null);
+  useEffect(() => {
+    if (!streaming) {
+      setLiveSample(null);
+      return;
+    }
+    const timer = setInterval(() => {
+      setLiveSample({ dsl: dslRef.current, rev: revisionRef.current });
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [streaming]);
+  const canvasDsl = liveSample ? liveSample.dsl : dsl;
+  const canvasKey = liveSample ? `canvas-live-${liveSample.rev}` : `canvas-${revision}`;
 
   /** 会话产物记录：试运行 / 发布 / 计划（workflow 即当前画布，不进列表） */
   const records = useMemo(() => {
@@ -294,8 +316,46 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
         </div>
       ) : (
         <>
-        {/* 画布区已按需求移除：会话底部不再渲染 flowgram 画布（含流式期间的拓扑缩略）。
-            查看与精修画布走「在编辑器中精修」；DSL 页签仍可看结构 */}
+          {/* 主位：实时预览画布。flowgram 内部是 absolute 定位层，容器必须自带
+              relative + overflow hidden，否则画布会逃逸占满整个视口。
+              key 变化 = remount 重载（flowgram 只在初始化时消费 initialData）。
+              流式期间走 3 秒节流采样（canvasDsl/canvasKey，见组件头部）：
+              document 事件每个节点变更都到，逐次 remount 会连环重挂打挂主线程，
+              节流后预览准实时、成本有界；流式一结束立即收敛到最终版 */}
+          <div style={{ flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden' }}>
+            <ReadonlyCanvas key={canvasKey} dsl={canvasDsl} />
+            {streaming && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 8,
+                  right: 10,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  padding: '2px 8px',
+                  borderRadius: 999,
+                  background: 'var(--g-bg-raised, #fff)',
+                  border: `1px solid ${CHAT.accentBorder}`,
+                  color: CHAT.textSub,
+                  fontSize: 10.5,
+                  pointerEvents: 'none',
+                }}
+              >
+                <span
+                  style={{
+                    width: 7,
+                    height: 7,
+                    borderRadius: '50%',
+                    background: CHAT.accent,
+                    animation: 'chat-typing 1.2s infinite ease-in-out',
+                    display: 'inline-block',
+                  }}
+                />
+                {t('chat.buildingCanvas')}…
+              </div>
+            )}
+          </div>
 
           {/* 产物记录：会话的试运行 / 发布 / 计划历史（收起式） */}
           {records.length > 0 && (
