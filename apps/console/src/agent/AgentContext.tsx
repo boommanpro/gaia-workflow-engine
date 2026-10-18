@@ -33,6 +33,7 @@ import type {
   ToolCallEvent,
   PageContext,
   ActivePlan,
+  PlanStep,
   WorkFolder,
   SseHandlers,
   AgentArtifactDto,
@@ -148,6 +149,27 @@ function mapPersistedTimeline(
   return out;
 }
 
+/**
+ * 历史重建的 todo 步骤状态归一：词表对齐后端 TodoWriteToolExecutor.mapStatus
+ * （落库的 tool args 是模型原始词表：completed/in_progress/pending…）。
+ * 区别：历史 run 已结束，「进行中」不保留（落为 pending），
+ * 避免刷新后任务清单里残留永远旋转的“进行中”步骤。
+ */
+function mapRestoredTodoStatus(raw: unknown): PlanStep['status'] {
+  switch (String(raw ?? '').trim().toLowerCase()) {
+    case 'completed':
+    case 'done':
+    case 'finished':
+      return 'done';
+    case 'blocked':
+    case 'error':
+    case 'failed':
+      return 'error';
+    default:
+      return 'pending';
+  }
+}
+
 export function convertMessages(msgs: AgentMessage[]): DisplayMessage[] {
   // 先建立 tool_call_id → tool 结果 content 映射，用于回填工具步骤结果
   const toolResultMap = new Map<string, string>();
@@ -214,14 +236,20 @@ export function convertMessages(msgs: AgentMessage[]): DisplayMessage[] {
     if (!content && !thinking && g.steps.length === 0 && g.asks.length === 0) return;
 
     let planSteps: DisplayMessage['planSteps'];
-    const planStep = g.steps.find((s) => s.action === 'todo_write' || s.action === 'createPlan');
+    // run 内模型会多次 todo_write 勾进度，取最后一次 = 最终状态（与 live plan 事件的 upsert 语义一致）
+    let planStep: ToolCallEvent | undefined;
+    for (const s of g.steps) {
+      if (s.action === 'todo_write' || s.action === 'createPlan') planStep = s;
+    }
     if (planStep && Array.isArray((planStep.args as any)?.steps)) {
       planSteps = ((planStep.args as any).steps as any[]).map((s: any, idx: number) => ({
         id: `plan-restored-${planStep.id}-${idx}`,
-        intent: s.intent || s.description || `Step ${idx + 1}`,
-        action: s.action || 'unknown',
+        // 落库的是模型原始参数（steps[].content 为标题）；后端只在实时广播前归一化成
+        // intent —— 历史重建两条字段都要认，否则刷新后退化为「Step N」占位
+        intent: s.intent || s.description || s.content || `Step ${idx + 1}`,
+        action: s.action || 'todo',
         args: s.args || {},
-        status: 'done' as const,
+        status: mapRestoredTodoStatus(s.status),
       }));
     }
 

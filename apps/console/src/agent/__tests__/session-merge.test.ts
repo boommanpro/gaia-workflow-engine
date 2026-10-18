@@ -85,4 +85,37 @@ describe('convertMessages：历史重建契约', () => {
     expect(out[1].content).toBe('a1');
     expect(out[3].content).toBe('a2');
   });
+
+  it('todo_write 历史重建：steps[].content 为标题、取最后一次调用、状态归一（不出现 Step N 占位）', () => {
+    const todoCall = (id: string, steps: unknown[]) =>
+      ({ id, type: 'function', function: { name: 'todo_write', arguments: JSON.stringify({ steps }) } });
+    const msgs: AgentMessage[] = [
+      { id: 1, sessionKey: 's', role: 'user', content: '搭工作流', createdAt: '2026-10-18T10:00:00' },
+      {
+        id: 2,
+        sessionKey: 's',
+        role: 'assistant',
+        content: '完成。',
+        createdAt: '2026-10-18T10:00:30',
+        toolCalls: JSON.stringify([
+          todoCall('t1', [
+            { id: 's1', content: '添加 LLM 节点', status: 'in_progress' },
+            { id: 's2', content: '配置输出字段', status: 'pending' },
+          ]),
+          todoCall('t2', [
+            { id: 's1', content: '添加 LLM 节点', status: 'completed' },
+            { id: 's2', content: '配置输出字段', status: 'in_progress' },
+          ]),
+        ]),
+      },
+    ];
+    const out = convertMessages(msgs);
+    const reply = out[1];
+    expect(reply.planSteps).toBeDefined();
+    // 标题来自 content，而非「Step N」占位
+    expect(reply.planSteps!.map((s) => s.intent)).toEqual(['添加 LLM 节点', '配置输出字段']);
+    // 取最后一次 todo_write 的状态；运行已结束，in_progress 归一为 pending（不残留旋转态）
+    expect(reply.planSteps!.map((s) => s.status)).toEqual(['done', 'pending']);
+    expect(reply.planSteps![0].action).toBe('todo');
+  });
 });
