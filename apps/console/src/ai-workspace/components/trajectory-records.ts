@@ -340,3 +340,36 @@ export function buildRecords(events: any[], llmCalls: any[]): TrajectoryRecord[]
   records.sort((a, b) => a.at - b.at || a.id.localeCompare(b.id));
   return records;
 }
+
+/**
+ * 权威历史行 + 实时账本行的合并（派生读取的收口）：
+ * 权威行（REST 拉取，带 DB id）优先，实时行按「事件类型 + 载荷」去重 ——
+ * 边界重拉期间在途的实时行会被权威结果覆盖，不会重复渲染；
+ * 真正同型同参的两次调用会被折叠（调试面板可接受的退化）。
+ */
+export function mergeLiveEvents(
+  fetched: any[],
+  live: LiveSessionEventLike[]
+): any[] {
+  if (!live.length) return fetched;
+  const seen = new Set(
+    fetched.map((e) => `${e.eventType}:${String(e.payload ?? '')}`)
+  );
+  const merged = [...fetched];
+  for (const e of live) {
+    const key = `${e.eventType}:${String(e.payload ?? '')}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(e);
+  }
+  return merged;
+}
+
+/** mergeLiveEvents 的实时行最小结构（与 session-event-store 的 LiveSessionEvent 同构） */
+export interface LiveSessionEventLike {
+  id: string;
+  runId?: string;
+  eventType: string;
+  payload: string;
+  createdAt: string;
+}

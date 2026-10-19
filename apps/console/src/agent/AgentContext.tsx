@@ -20,6 +20,7 @@ import { nanoid } from 'nanoid';
 
 import { agentApi } from './api';
 import { liveStreamStore } from './live-stream-store';
+import { sessionEventStore } from './session-event-store';
 import { subscribeSessionEvents } from './sse-client';
 import { artifactStore } from './artifact-store';
 import { getCurrentLocale } from '../i18n';
@@ -1089,6 +1090,8 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!currentSessionKey || currentSessionKey.startsWith('draft-')) return;
     const sessionKey = currentSessionKey;
+    // 事件活账本随订阅生命周期重置：派生视图（轨迹面板）从这里增量读取
+    sessionEventStore.reset(sessionKey);
 
     const controller = new AbortController();
     let disposed = false;
@@ -1098,11 +1101,17 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         if (disposed) return;
         liveStreamStore.markConnected();
       },
+      onRawEvent: (type, data) => {
+        if (disposed) return;
+        sessionEventStore.append(sessionKey, type, data);
+      },
       onRunState: (data) => {
         if (disposed) return;
         const status = data?.status;
         if (status === 'running') {
           setStreaming(true);
+          // 新 run 边界：账本清零计当前 run，派生方在边界处做一次权威重拉
+          sessionEventStore.markRunStart(data.runId);
           // 守卫：已在流式中（SSE 重连的快照回放）不得重置 store ——
           // 否则挂起的 timeline/排队指示被清空，现场丢失。
           // 快照带后端 run 真实起点：刷新后秒表从原点续走，而不是从 0 重计

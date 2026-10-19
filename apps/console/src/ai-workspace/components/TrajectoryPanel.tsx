@@ -11,12 +11,14 @@
  *     增量拼回的全量 JSON（可 curl 复现口径），带数据口径标注条，可切看原始存储
  *     形态——调试时必须能区分「拼回全量 / 原始存储 / 截断摘要」三种口径
  *
- * 数据：会话事件流（agent_session_event）+ LLM 调用账本（agent_llm_call_log），
- * 运行中每 4s 轮询跟随。
+ * 数据：会话事件流（agent_session_event）+ LLM 调用账本（agent_llm_call_log）。
+ * 读取是派生式的：挂载/run 边界做权威拉取，运行中从 SSE 事件活账本增量派生
+ * （不再每 4s 全量重拉 —— 重复读取已废除）。
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { agentApi } from '../../agent/api';
+import { useSessionEventLedger } from '../../agent/session-event-store';
 import { useLanguage } from '../../i18n';
 
 import {
@@ -25,6 +27,7 @@ import {
   firstLine,
   fmtDuration,
   fmtTok,
+  mergeLiveEvents,
 } from './trajectory-records';
 import type { TrajectoryRecord } from './trajectory-records';
 /* ---------------- 时间线 ---------------- */
@@ -372,7 +375,8 @@ export const TrajectoryPanel: React.FC<{ sessionKey?: string; streaming?: boolea
   streaming,
 }) => {
   useLanguage();
-  const [records, setRecords] = useState<TrajectoryRecord[]>([]);
+  /** 权威拉取结果（挂载 / run 边界时刷新），records 在其上派生 */
+  const [fetched, setFetched] = useState<{ events: any[]; llmCalls: any[] }>({ events: [], llmCalls: [] });
   const [loading, setLoading] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   /** dsh 工具栏状态：时长模式 / 轮次折叠 / 调用折叠 / 搜索 */
@@ -418,7 +422,7 @@ export const TrajectoryPanel: React.FC<{ sessionKey?: string; streaming?: boolea
 
   const load = useCallback(async () => {
     if (!sessionKey || sessionKey.startsWith('draft-')) {
-      setRecords([]);
+      setFetched({ events: [], llmCalls: [] });
       return;
     }
     setLoading(true);
@@ -429,9 +433,12 @@ export const TrajectoryPanel: React.FC<{ sessionKey?: string; streaming?: boolea
         // 截断会把基准裁掉，导致增量行无法还原完整请求
         agentApi.getRunLlmCalls(sessionKey, undefined, 1000),
       ]);
-      setRecords(buildRecords(Array.isArray(events) ? events : [], llmCalls));
+      setFetched({
+        events: Array.isArray(events) ? events : [],
+        llmCalls: Array.isArray(llmCalls) ? llmCalls : [],
+      });
     } catch {
-      setRecords([]);
+      setFetched({ events: [], llmCalls: [] });
     } finally {
       setLoading(false);
     }
@@ -440,6 +447,25 @@ export const TrajectoryPanel: React.FC<{ sessionKey?: string; streaming?: boolea
   useEffect(() => {
     void load();
   }, [load]);
+
+  // 派生读取：运行中不再定时重拉 —— 权威历史行 + SSE 事件活账本合并出 records。
+  // 重拉只发生在边界（挂载 / 新 run 开始 / run 收尾定格），每条消息至多 2-3 次。
+  const ledger = useSessionEventLedger();
+  const liveEvents = ledger.sessionKey === sessionKey ? ledger.events : [];
+  const records = useMemo(
+    () => buildRecords(mergeLiveEvents(fetched.events, liveEvents), fetched.llmCalls),
+    [fetched, liveEvents]
+  );
+
+  // run 边界（新 run 开始 / run 收尾）：权威拉取一次，活账本与 DB 行在边界处收口
+  const wasStreamingRef = useRef(false);
+  useEffect(() => {
+    if (ledger.sessionKey === sessionKey && ledger.runTick > 0) void load();
+  }, [ledger.runTick, ledger.sessionKey, sessionKey, load]);
+  useEffect(() => {
+    if (wasStreamingRef.current && !streaming) void load();
+    wasStreamingRef.current = !!streaming;
+  }, [streaming, load]);
 
   // Service 对话视图：开关时拉取，运行中随 4s 轮询跟随
   const loadService = useCallback(async () => {
@@ -466,13 +492,6 @@ export const TrajectoryPanel: React.FC<{ sessionKey?: string; streaming?: boolea
       return () => clearInterval(timer);
     }
   }, [serviceView, streaming, loadService]);
-
-  // 运行中每 4s 跟随（事件流是追加只写，重拉即增量）
-  useEffect(() => {
-    if (!streaming) return;
-    const timer = setInterval(load, 4000);
-    return () => clearInterval(timer);
-  }, [streaming, load]);
 
   // 选中行滚动进可视区（时间线点击联动）
   useEffect(() => {

@@ -212,6 +212,8 @@ export type TimelineItem =
 export interface SseHandlers {
   /** 订阅流建立成功（HTTP 响应就绪，事件尚未到达）——连接状态据此收敛 */
   onOpen?: () => void;
+  /** 原始事件入口（先于具名 handler）：喂会话事件活账本，派生视图增量读取 */
+  onRawEvent?: (type: string, data: any) => void;
   onToken?: (content: string) => void;
   onToolCall?: (event: ToolCallEvent) => void;
   onDone?: () => void;

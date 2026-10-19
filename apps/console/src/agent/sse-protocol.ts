@@ -9,6 +9,8 @@ export function handleEvent(
   data: any,
   handlers: SseHandlers
 ): void {
+  // 原始事件入口先于具名分发：活账本（派生视图数据源）对每条事件记账
+  handlers.onRawEvent?.(name || 'message', data);
   switch (name) {
     case 'token':
       handlers.onToken?.(data.content);

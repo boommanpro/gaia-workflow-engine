@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { buildRecords } from '../trajectory-records';
+import { buildRecords, mergeLiveEvents } from '../trajectory-records';
 
 const BASE_MESSAGES = [
   { role: 'system', content: 'SYS' },
@@ -123,5 +123,31 @@ describe('buildRecords · request_json 口径', () => {
     expect(tool?.resultText).toBe('ok');
     expect(tool?.isRunning).toBe(false);
     expect(tool?.durationMs).toBe(8000);
+  });
+});
+
+describe('mergeLiveEvents：权威行 + 实时账本行合并（派生读取收口）', () => {
+  it('无实时行时原样返回权威行（引用不变）', () => {
+    const fetched = [{ id: 1, eventType: 'run_input', payload: '{}' }];
+    expect(mergeLiveEvents(fetched, [])).toBe(fetched);
+  });
+
+  it('实时行追加在权威行之后；同型同载荷新旧重叠时以权威行为准（不重复）', () => {
+    const fetched = [
+      { id: 1, runId: 'r1', eventType: 'run_input', createdAt: '2026-10-11T10:00:00', payload: JSON.stringify({ content: 'hi' }) },
+    ];
+    const live = [
+      // 边界重拉期间在途的实时行：与权威行同型同载荷 → 去重
+      { id: 'live-1', runId: 'r1', eventType: 'run_input', createdAt: '2026-10-11T10:00:00', payload: JSON.stringify({ content: 'hi' }) },
+      // 权威拉取之后的新事件 → 保留
+      { id: 'live-2', runId: 'r1', eventType: 'tool_call', createdAt: '2026-10-11T10:00:05', payload: JSON.stringify({ id: 'tc1', name: 'get', args: {} }) },
+    ];
+    const merged = mergeLiveEvents(fetched, live);
+    expect(merged).toHaveLength(2);
+    expect(merged.map((e: any) => e.eventType)).toEqual(['run_input', 'tool_call']);
+    // 合并行可直接喂 buildRecords（与 REST 行同构）
+    const records = buildRecords(merged, []);
+    expect(records.find((r) => r.kind === 'user')).toBeDefined();
+    expect(records.find((r) => r.kind === 'tool')).toBeDefined();
   });
 });
