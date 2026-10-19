@@ -517,6 +517,7 @@ export const zhCN: I18nLanguage = {
     'chat.taskThinking': '思考中',
     'chat.taskComposing': '生成回复中',
     'chat.taskCalling': '调用 {{name}}',
+    'chat.taskToolBurst': '连续调用工具 · {{count}} 个',
     'chat.taskWaitingAnswer': '等待你的回答',
     'chat.taskProcess': '执行过程',
     'chat.copyCode': '复制代码',

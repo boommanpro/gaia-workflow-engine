@@ -516,6 +516,7 @@ export const enUS: I18nLanguage = {
     'chat.taskThinking': 'Thinking',
     'chat.taskComposing': 'Writing reply',
     'chat.taskCalling': 'Running {{name}}',
+    'chat.taskToolBurst': 'Running tools ×{{count}}',
     'chat.taskWaitingAnswer': 'Waiting for your answer',
     'chat.taskProcess': 'Execution details',
     'chat.copyCode': 'Copy code',

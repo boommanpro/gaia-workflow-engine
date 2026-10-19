@@ -18,6 +18,8 @@
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 
 import { liveStreamStore } from './live-stream-store';
+import type { ActivityLabel } from './use-stable-activity';
+import { useStableActivity } from './use-stable-activity';
 import type { TimelineItem } from './types';
 import Markdown from './Markdown';
 import { t } from '../i18n';
@@ -428,26 +430,39 @@ const WaitingDots: React.FC = () => (
 /**
  * 当前活动标签（live 专用）：按时间线尾部未闭合条目推导「任务在干什么」。
  * ask_user 挂起优先（在等用户，不在干活）；工具收尾到下一段思考之间的
- * 空窗视为模型在推理。
+ * 空窗视为模型在推理。返回结构化标签（稳定 key + 文案），
+ * 经 useStableActivity 做最小停留防抖后展示 —— 子能力毫秒级连发时
+ * 标签不再逐事件闪烁。
  */
 function currentActivity(state: {
   currentTool: string | null;
   timeline: TimelineItem[];
-}): string | undefined {
-  if (state.currentTool === 'ask_user') return t('chat.taskWaitingAnswer');
+}): ActivityLabel {
+  if (state.currentTool === 'ask_user') {
+    return { key: 'wait', label: t('chat.taskWaitingAnswer'), immediate: true };
+  }
+  // 快速连发聚合：2s 内 ≥3 个工具启动 → 不逐个报名，聚合为计数
+  const now = Date.now();
+  const recentTools = state.timeline.filter(
+    (i) => (i as any).kind === 'tool' && now - ((i as any).startedAt ?? 0) < 2000
+  ).length;
+  if (recentTools >= 3) {
+    return { key: 'tool-burst', label: t('chat.taskToolBurst', { count: recentTools }) };
+  }
   for (let i = state.timeline.length - 1; i >= 0; i -= 1) {
     const item = state.timeline[i] as any;
     if (item.closed === true) break; // 尾部开条目才是「正在进行」
-    if (item.kind === 'thinking') return t('chat.taskThinking');
+    if (item.kind === 'thinking') return { key: 'think', label: t('chat.taskThinking') };
     if (item.kind === 'tool' && item.endedAt == null) {
-      return t('chat.taskCalling', { name: item.call?.action || 'tool' });
+      const name = item.call?.action || 'tool';
+      return { key: `tool:${name}`, label: t('chat.taskCalling', { name }) };
     }
-    if (item.kind === 'text') return t('chat.taskComposing');
+    if (item.kind === 'text') return { key: 'compose', label: t('chat.taskComposing') };
     if (item.kind === 'notice') continue; // 播报不改活动，继续往前找开条目
     break;
   }
   // 空窗（run 刚起 / 工具刚收尾）都视为模型在推理
-  return t('chat.taskThinking');
+  return { key: 'think', label: t('chat.taskThinking') };
 }
 
 /**
@@ -457,6 +472,8 @@ function currentActivity(state: {
  */
 export const LiveAssistantContent: React.FC = () => {
   const state = useSyncExternalStore(liveStreamStore.subscribe, liveStreamStore.getSnapshot);
+  // 活动前缀走稳定展示（最小停留 + 连发聚合），不随事件逐条闪烁
+  const stableActivity = useStableActivity(state.streaming ? currentActivity(state) : undefined);
   // ask_user 挂起等待：任务没有「在进行」，是在等用户 —— 显式提示，别让秒表假装还在干活
   const waitingAsk = state.streaming && state.currentTool === 'ask_user';
   if (state.timeline.length === 0) {
@@ -478,7 +495,7 @@ export const LiveAssistantContent: React.FC = () => {
         <TaskCollapse
           live={state.streaming}
           startedAt={state.startedAt > 0 ? state.startedAt : undefined}
-          activity={state.streaming ? currentActivity(state) : undefined}
+          activity={stableActivity}
         >
           <TimelineView timeline={processItems} streaming={state.streaming} connected={connected} />
         </TaskCollapse>
