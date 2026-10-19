@@ -185,4 +185,19 @@ describe('结构性事件与聚合字段', () => {
     expect(s.content).toBe('');
     expect(s.streaming).toBe(true);
   });
+
+  it('beginRun(startedAt) 沿用后端快照的 run 起点（刷新后秒表续走，不归零）', () => {
+    const backendStart = Date.now() - 33_000; // 假设刷新发生在 run 已跑 33s 时
+    liveStreamStore.beginRun(backendStart);
+    const s = liveStreamStore.getSnapshot();
+    expect(s.startedAt).toBe(backendStart);
+
+    // 缺省回退为当下起计（全新 run，无快照起点）
+    liveStreamStore.beginRun();
+    expect(liveStreamStore.getSnapshot().startedAt).toBeGreaterThanOrEqual(backendStart + 33_000);
+
+    // 非法值（0/负数）同样回退，不得把秒表钉死在过去
+    liveStreamStore.beginRun(0);
+    expect(liveStreamStore.getSnapshot().startedAt).toBeGreaterThanOrEqual(backendStart + 33_000);
+  });
 });

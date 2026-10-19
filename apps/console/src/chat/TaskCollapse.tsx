@@ -17,6 +17,8 @@ interface TaskCollapseProps {
   /** 流式进行中：头部 spinner + 秒表自走（startedAt 为 run 起点，ms） */
   live?: boolean;
   startedAt?: number;
+  /** 当前活动（live 专用）：「思考中 / 调用 node / 生成回复中」等，显示在耗时前 */
+  activity?: string;
   children: React.ReactNode;
 }
 
@@ -24,6 +26,7 @@ export const TaskCollapse: React.FC<TaskCollapseProps> = ({
   elapsedSec,
   live = false,
   startedAt,
+  activity,
   children,
 }) => {
   // 默认收起是本组件的存在意义，不读用户偏好（本次反馈明确要默认极简）
@@ -80,6 +83,25 @@ export const TaskCollapse: React.FC<TaskCollapseProps> = ({
               display: 'inline-block',
             }}
           />
+        ) : null}
+        {activity && live ? (
+          <>
+            <span
+              style={{
+                flex: 'none',
+                fontSize: 12.5,
+                lineHeight: '24px',
+                color: 'var(--g-text-sub)',
+                maxWidth: 220,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {activity}
+            </span>
+            <span style={{ flex: 'none', color: 'var(--g-text-faint)' }}>·</span>
+          </>
         ) : null}
         <span style={{ flex: 'none', fontSize: 12.5, lineHeight: '24px' }}>{label}</span>
         <span style={{ flex: 'none', display: 'inline-flex', color: 'var(--g-text-faint)', opacity: open ? 1 : 0.55 }}>

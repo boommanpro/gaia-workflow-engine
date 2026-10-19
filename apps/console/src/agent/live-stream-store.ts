@@ -315,7 +315,8 @@ export const liveStreamStore = {
     cancelScheduled();
     publishNow();
   },
-  beginRun(): void {
+  /** startedAt 传后端 run_state 的真实起点（刷新重连续走秒表）；缺省从当下起计 */
+  beginRun(startedAt?: number): void {
     cancelScheduled();
     pendingContent = '';
     pendingThinking = '';
@@ -323,7 +324,7 @@ export const liveStreamStore = {
       ...initial(),
       version: state.version + 1,
       streaming: true,
-      startedAt: Date.now(),
+      startedAt: startedAt && startedAt > 0 ? startedAt : Date.now(),
       connection: state.connection,
     };
     notify();

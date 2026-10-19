@@ -1104,8 +1104,11 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         if (status === 'running') {
           setStreaming(true);
           // 守卫：已在流式中（SSE 重连的快照回放）不得重置 store ——
-          // 否则挂起的 timeline/排队指示被清空，现场丢失
-          if (!liveStreamStore.getSnapshot().streaming) liveStreamStore.beginRun();
+          // 否则挂起的 timeline/排队指示被清空，现场丢失。
+          // 快照带后端 run 真实起点：刷新后秒表从原点续走，而不是从 0 重计
+          if (!liveStreamStore.getSnapshot().streaming) {
+            liveStreamStore.beginRun(Number((data as any).startedAt) || undefined);
+          }
           // 建立/复用 live 占位行（工具/正文一律以 store 时间线为唯一渲染源）
           if (!liveAssistantIdRef.current) {
             const id = `live-${data.runId || Date.now()}`;

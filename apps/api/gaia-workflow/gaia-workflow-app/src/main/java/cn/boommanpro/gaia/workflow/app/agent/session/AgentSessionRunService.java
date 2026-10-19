@@ -240,7 +240,9 @@ public class AgentSessionRunService {
             .set("sessionKey", sessionKey)
             .set("turn", 0)
             .set("assistantContent", "")
-            .set("toolCalls", new cn.hutool.json.JSONArray());
+            .set("toolCalls", new cn.hutool.json.JSONArray())
+            // run 真实起点（epoch ms）：前端刷新/重连后据此续走秒表，而不是从 0 重计
+            .set("startedAt", System.currentTimeMillis());
         eventBus.setState(sessionKey, runningState);
 
         executor.execute(() -> runAsync(sessionKey, message, pageContext, locale, agent, handle, persistedUserMessage));

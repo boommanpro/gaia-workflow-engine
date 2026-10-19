@@ -426,6 +426,31 @@ const WaitingDots: React.FC = () => (
 );
 
 /**
+ * 当前活动标签（live 专用）：按时间线尾部未闭合条目推导「任务在干什么」。
+ * ask_user 挂起优先（在等用户，不在干活）；工具收尾到下一段思考之间的
+ * 空窗视为模型在推理。
+ */
+function currentActivity(state: {
+  currentTool: string | null;
+  timeline: TimelineItem[];
+}): string | undefined {
+  if (state.currentTool === 'ask_user') return t('chat.taskWaitingAnswer');
+  for (let i = state.timeline.length - 1; i >= 0; i -= 1) {
+    const item = state.timeline[i] as any;
+    if (item.closed === true) break; // 尾部开条目才是「正在进行」
+    if (item.kind === 'thinking') return t('chat.taskThinking');
+    if (item.kind === 'tool' && item.endedAt == null) {
+      return t('chat.taskCalling', { name: item.call?.action || 'tool' });
+    }
+    if (item.kind === 'text') return t('chat.taskComposing');
+    if (item.kind === 'notice') continue; // 播报不改活动，继续往前找开条目
+    break;
+  }
+  // 空窗（run 刚起 / 工具刚收尾）都视为模型在推理
+  return t('chat.taskThinking');
+}
+
+/**
  * live 助手消息渲染体：时间线走 store。
  * TRAE 式极简（2026-10-17 二次反馈）：思考 / 工具 / 系统播报全部收进
  * 「任务耗时 Xs」折叠行默认隐藏，只有正文文本块直接流式渲染。
@@ -453,6 +478,7 @@ export const LiveAssistantContent: React.FC = () => {
         <TaskCollapse
           live={state.streaming}
           startedAt={state.startedAt > 0 ? state.startedAt : undefined}
+          activity={state.streaming ? currentActivity(state) : undefined}
         >
           <TimelineView timeline={processItems} streaming={state.streaming} connected={connected} />
         </TaskCollapse>
