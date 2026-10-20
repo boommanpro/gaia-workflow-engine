@@ -1,0 +1,2238 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Gaia 数据库指南</title><style>:root{--bg:#ffffff;--bg2:#f5f6f7;--ink:#202124;--muted:#555d66;--rule:#dce0e4;--accent:#205b84;--accent2:#476475;--font:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;--mono:ui-monospace,SFMono-Regular,Consolas,monospace}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.75 var(--font)}a{color:var(--accent)}nav{position:fixed;width:260px;height:100vh;overflow:auto;padding:28px 22px;background:var(--bg2);border-right:1px solid var(--rule)}nav a{display:block;text-decoration:none;padding:7px 0;color:var(--ink)}nav small{display:block;color:var(--muted);font-size:11px}main{max-width:1420px;padding:48px 64px;margin-left:260px}h1{font-size:38px;letter-spacing:-1px;margin:0}h2{font-size:25px;margin:0 0 12px}h3{font-size:17px;margin:0}h2 small{font-size:13px;color:var(--muted);font-weight:400}header{padding-bottom:30px}section{padding:35px 0;border-top:1px solid var(--rule);scroll-margin-top:20px}p{margin:10px 0 16px}.muted{color:var(--muted)}.intro{font-size:18px}.stats{padding:16px 0;font-size:20px}.table-wrap{overflow-x:auto;overflow-y:auto;max-height:600px;margin:20px 0}table{border-collapse:collapse;width:100%;font-size:14px}th,td{text-align:left;vertical-align:top;padding:12px;border-bottom:1px solid var(--rule)}th{background:var(--bg2);position:sticky;top:0}td:nth-child(3){min-width:220px}td:last-child{min-width:220px}code,pre{font-family:var(--mono)}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--bg2);padding:18px;font-size:13px;line-height:1.65}details{margin:14px 0}summary{cursor:pointer;color:var(--accent)}figure{margin:25px 0;overflow:auto}figcaption{font-weight:600;margin-bottom:12px}.mermaid{background:var(--bg);min-width:640px}.mermaid svg{max-width:100%!important;height:auto}sup a{text-decoration:none;font-size:12px}footer{border-top:1px solid var(--rule);padding-top:30px}.sources ol{padding-left:20px;font-size:13px;color:var(--muted)}.sources li{margin-bottom:18px;overflow-wrap:anywhere}.src-title{color:var(--ink)}.src-url{display:block;word-break:break-all}button{font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(--rule);padding:6px 14px;cursor:pointer}@media(max-width:900px){nav{position:static;width:auto;height:auto;max-height:260px;border-right:0;border-bottom:1px solid var(--rule)}main{margin:0;padding:25px 18px}h1{font-size:30px}table{min-width:850px}}@media print{nav,button{display:none}main{margin:0;padding:0;max-width:none}section{break-before:page}.table-wrap{max-height:none;overflow:visible}pre{white-space:pre-wrap}details{display:block}h2,h3{break-after:avoid}}</style></head><body><nav aria-label="文档目录"><strong>数据库指南</strong><a href="#overview">阅读说明</a><a href="#relations">业务关系图</a><a href="#deletion">删除与留存</a><a href="#gaia_workflow_template">工作流模板<small>gaia_workflow_template</small></a><a href="#gaia_workflow">工作流主表<small>gaia_workflow</small></a><a href="#gaia_workflow_version">工作流版本<small>gaia_workflow_version</small></a><a href="#gaia_workflow_log">工作流执行日志<small>gaia_workflow_log</small></a><a href="#gaia_workflow_api">工作流发布接口<small>gaia_workflow_api</small></a><a href="#agent_session">对话会话<small>agent_session</small></a><a href="#agent_work_folder">工作空间文件夹<small>agent_work_folder</small></a><a href="#agent_message">对话消息<small>agent_message</small></a><a href="#agent_artifact">会话产物<small>agent_artifact</small></a><a href="#agent_config">通用配置<small>agent_config</small></a><a href="#agent_config_history">配置变更历史<small>agent_config_history</small></a><a href="#llm_model">模型条目<small>llm_model</small></a><a href="#agent_tool_definition">工具定义<small>agent_tool_definition</small></a><a href="#agent_session_event">会话事件日志<small>agent_session_event</small></a><a href="#agent_tool_call_log">工具调用账本<small>agent_tool_call_log</small></a><a href="#agent_llm_call_log">模型调用账本<small>agent_llm_call_log</small></a><a href="#workflow_test_case">工作流测试用例<small>workflow_test_case</small></a><a href="#workflow_test_run">测试运行记录<small>workflow_test_run</small></a><a href="#agent_prompt_config">提示词配置<small>agent_prompt_config</small></a><a href="#agent_skill">技能元数据<small>agent_skill</small></a><a href="#agent_skill_file">技能文件<small>agent_skill_file</small></a><a href="#agent_skill_history">技能历史快照<small>agent_skill_history</small></a><a href="#sources">源码依据</a></nav><main><header><p class="muted">Gaia · 数据结构参考 · 2026-10-20</p><h1>数据库指南</h1><p class="intro">从建表语句到业务语义，一份可离线阅读的完整数据字典。</p><div class="stats">22 张表 · 237 个字段 · 22 份合成示例 · 0 个数据库外键</div><button id="print">打印 / 保存为 PDF</button></header><section id="overview"><h2>阅读说明</h2><p>以当前工作区 <code>src/main/resources/sql/schema.sql</code> 为结构依据，以实体和删除入口核对业务行为。没有读取生产数据库，也不把 target 或 extracted 构建副本当成源文件。实际存量库可能存在迁移差异。</p><p>SQLite 数据源与每次启动执行的初始化策略见配置。<sup><a href="#cite-56">[56]</a></sup>类型栏保留 DDL 声明：VARCHAR 长度不构成 SQLite 强制长度校验；TINYINT 不是布尔约束；未声明 NOT NULL 的字段允许 NULL（INTEGER PRIMARY KEY 仍具有主键语义）。默认值不等于非空限制；JSON 存于 TEXT，DDL 没有 JSON 格式校验。枚举说明属于业务约定，不是 CHECK 约束。</p><p><strong>所有示例均为合成数据</strong>，不是数据库导出，也不是可直接调用的 API 请求。TEXT 中的 JSON 保留为转义字符串；示例画布仅展示存储形状，不承诺可执行。密钥使用虚构值。无外部网络依赖，复制时请保留同目录资源。</p><p>结构校验：程序解析 DDL 后在内存 SQLite 中建表，读取 PRAGMA 元数据；逐字段生成并验证完整样例插入。schema SHA-256：<code>f95edbfb655d1adaa0b9e3d80ad26f7f89cac2c627b2ad89e4217ce35ff083dc</code>。</p></section><section id="relations"><h2>业务关系图</h2><p>以下虚线均为<strong>业务关联，不是外键</strong>；不表示数据库保证引用存在、基数或级联。日志/API 的版本匹配需同时考虑 workflow_code 与 version_number。run_id 为运行关联键，不存在独立 run 表。提示词配置通过 config_key 查找，没有声明与通用配置的外键。</p><figure><figcaption>工作流与测试关系</figcaption><pre class="mermaid">flowchart TB
+gaia_workflow_template[&quot;工作流模板&lt;br/&gt;gaia_workflow_template&quot;]
+gaia_workflow[&quot;工作流主表&lt;br/&gt;gaia_workflow&quot;]
+gaia_workflow_version[&quot;工作流版本&lt;br/&gt;gaia_workflow_version&quot;]
+gaia_workflow_log[&quot;工作流执行日志&lt;br/&gt;gaia_workflow_log&quot;]
+gaia_workflow_api[&quot;工作流发布接口&lt;br/&gt;gaia_workflow_api&quot;]
+workflow_test_case[&quot;工作流测试用例&lt;br/&gt;workflow_test_case&quot;]
+workflow_test_run[&quot;测试运行记录&lt;br/&gt;workflow_test_run&quot;]
+gaia_workflow_template -. &quot;template_code&quot; .-&gt; gaia_workflow
+gaia_workflow -. &quot;workflow_code&quot; .-&gt; gaia_workflow_version
+gaia_workflow -. &quot;current_version_id → id&quot; .-&gt; gaia_workflow_version
+gaia_workflow -. &quot;workflow_code + version_number&quot; .-&gt; gaia_workflow_log
+gaia_workflow -. &quot;workflow_code；发布版本 version_number&quot; .-&gt; gaia_workflow_api
+gaia_workflow -. &quot;workflow_code&quot; .-&gt; workflow_test_case
+workflow_test_case -. &quot;id → case_id&quot; .-&gt; workflow_test_run</pre><details><summary>查看 Mermaid 源码</summary><pre>flowchart TB
+gaia_workflow_template[&quot;工作流模板&lt;br/&gt;gaia_workflow_template&quot;]
+gaia_workflow[&quot;工作流主表&lt;br/&gt;gaia_workflow&quot;]
+gaia_workflow_version[&quot;工作流版本&lt;br/&gt;gaia_workflow_version&quot;]
+gaia_workflow_log[&quot;工作流执行日志&lt;br/&gt;gaia_workflow_log&quot;]
+gaia_workflow_api[&quot;工作流发布接口&lt;br/&gt;gaia_workflow_api&quot;]
+workflow_test_case[&quot;工作流测试用例&lt;br/&gt;workflow_test_case&quot;]
+workflow_test_run[&quot;测试运行记录&lt;br/&gt;workflow_test_run&quot;]
+gaia_workflow_template -. &quot;template_code&quot; .-&gt; gaia_workflow
+gaia_workflow -. &quot;workflow_code&quot; .-&gt; gaia_workflow_version
+gaia_workflow -. &quot;current_version_id → id&quot; .-&gt; gaia_workflow_version
+gaia_workflow -. &quot;workflow_code + version_number&quot; .-&gt; gaia_workflow_log
+gaia_workflow -. &quot;workflow_code；发布版本 version_number&quot; .-&gt; gaia_workflow_api
+gaia_workflow -. &quot;workflow_code&quot; .-&gt; workflow_test_case
+workflow_test_case -. &quot;id → case_id&quot; .-&gt; workflow_test_run</pre></details></figure><figure><figcaption>会话与运行观测关系</figcaption><pre class="mermaid">flowchart TB
+agent_session[&quot;对话会话&lt;br/&gt;agent_session&quot;]
+agent_work_folder[&quot;工作空间文件夹&lt;br/&gt;agent_work_folder&quot;]
+llm_model[&quot;模型条目&lt;br/&gt;llm_model&quot;]
+gaia_workflow[&quot;工作流主表&lt;br/&gt;gaia_workflow&quot;]
+agent_message[&quot;对话消息&lt;br/&gt;agent_message&quot;]
+agent_artifact[&quot;会话产物&lt;br/&gt;agent_artifact&quot;]
+agent_session_event[&quot;会话事件日志&lt;br/&gt;agent_session_event&quot;]
+agent_tool_call_log[&quot;工具调用账本&lt;br/&gt;agent_tool_call_log&quot;]
+agent_llm_call_log[&quot;模型调用账本&lt;br/&gt;agent_llm_call_log&quot;]
+agent_tool_definition[&quot;工具定义&lt;br/&gt;agent_tool_definition&quot;]
+agent_work_folder -. &quot;id → folder_id&quot; .-&gt; agent_session
+llm_model -. &quot;id → model_id&quot; .-&gt; agent_session
+agent_session -. &quot;draft_ + session_key；source=session&quot; .-&gt; gaia_workflow
+agent_session -. &quot;session_key&quot; .-&gt; agent_message
+agent_session -. &quot;session_key&quot; .-&gt; agent_artifact
+agent_session -. &quot;session_key&quot; .-&gt; agent_session_event
+agent_session -. &quot;session_key&quot; .-&gt; agent_tool_call_log
+agent_session -. &quot;session_key&quot; .-&gt; agent_llm_call_log
+agent_tool_definition -. &quot;tool_name&quot; .-&gt; agent_tool_call_log
+agent_message -. &quot;id → parent_message_id；文本线程引用&quot; .-&gt; agent_message</pre><details><summary>查看 Mermaid 源码</summary><pre>flowchart TB
+agent_session[&quot;对话会话&lt;br/&gt;agent_session&quot;]
+agent_work_folder[&quot;工作空间文件夹&lt;br/&gt;agent_work_folder&quot;]
+llm_model[&quot;模型条目&lt;br/&gt;llm_model&quot;]
+gaia_workflow[&quot;工作流主表&lt;br/&gt;gaia_workflow&quot;]
+agent_message[&quot;对话消息&lt;br/&gt;agent_message&quot;]
+agent_artifact[&quot;会话产物&lt;br/&gt;agent_artifact&quot;]
+agent_session_event[&quot;会话事件日志&lt;br/&gt;agent_session_event&quot;]
+agent_tool_call_log[&quot;工具调用账本&lt;br/&gt;agent_tool_call_log&quot;]
+agent_llm_call_log[&quot;模型调用账本&lt;br/&gt;agent_llm_call_log&quot;]
+agent_tool_definition[&quot;工具定义&lt;br/&gt;agent_tool_definition&quot;]
+agent_work_folder -. &quot;id → folder_id&quot; .-&gt; agent_session
+llm_model -. &quot;id → model_id&quot; .-&gt; agent_session
+agent_session -. &quot;draft_ + session_key；source=session&quot; .-&gt; gaia_workflow
+agent_session -. &quot;session_key&quot; .-&gt; agent_message
+agent_session -. &quot;session_key&quot; .-&gt; agent_artifact
+agent_session -. &quot;session_key&quot; .-&gt; agent_session_event
+agent_session -. &quot;session_key&quot; .-&gt; agent_tool_call_log
+agent_session -. &quot;session_key&quot; .-&gt; agent_llm_call_log
+agent_tool_definition -. &quot;tool_name&quot; .-&gt; agent_tool_call_log
+agent_message -. &quot;id → parent_message_id；文本线程引用&quot; .-&gt; agent_message</pre></details></figure><figure><figcaption>配置与技能关系</figcaption><pre class="mermaid">flowchart TB
+agent_config[&quot;通用配置&lt;br/&gt;agent_config&quot;]
+agent_config_history[&quot;配置变更历史&lt;br/&gt;agent_config_history&quot;]
+agent_prompt_config[&quot;提示词配置&lt;br/&gt;agent_prompt_config&quot;]
+agent_skill[&quot;技能元数据&lt;br/&gt;agent_skill&quot;]
+agent_skill_file[&quot;技能文件&lt;br/&gt;agent_skill_file&quot;]
+agent_skill_history[&quot;技能历史快照&lt;br/&gt;agent_skill_history&quot;]
+agent_config -. &quot;config_key&quot; .-&gt; agent_config_history
+agent_skill -. &quot;name → skill_name&quot; .-&gt; agent_skill_file
+agent_skill -. &quot;name → skill_name&quot; .-&gt; agent_skill_history</pre><details><summary>查看 Mermaid 源码</summary><pre>flowchart TB
+agent_config[&quot;通用配置&lt;br/&gt;agent_config&quot;]
+agent_config_history[&quot;配置变更历史&lt;br/&gt;agent_config_history&quot;]
+agent_prompt_config[&quot;提示词配置&lt;br/&gt;agent_prompt_config&quot;]
+agent_skill[&quot;技能元数据&lt;br/&gt;agent_skill&quot;]
+agent_skill_file[&quot;技能文件&lt;br/&gt;agent_skill_file&quot;]
+agent_skill_history[&quot;技能历史快照&lt;br/&gt;agent_skill_history&quot;]
+agent_config -. &quot;config_key&quot; .-&gt; agent_config_history
+agent_skill -. &quot;name → skill_name&quot; .-&gt; agent_skill_file
+agent_skill -. &quot;name → skill_name&quot; .-&gt; agent_skill_history</pre></details></figure></section><section id="deletion"><h2>删除与留存</h2><p>13 张表带有逻辑删除标记；其余 9 张表没有该字段。MyBatis-Plus 的逻辑删除配置为 0 未删、1 已删；直接 SQL DELETE 仍会物理删除，不受 ORM 语义保护。<sup><a href="#cite-56">[56]</a></sup></p><p>schema 没有 FOREIGN KEY、ON DELETE CASCADE 或触发器。删除主记录不等于相关记录被清理；下方逐表说明区分实体能力与具体入口行为。软删不会释放 UNIQUE 键，旧记录仍占用业务编码；历史表的普通索引也不等价于唯一版本约束。</p><p>启动脚本明确 DROP 已下线的六张历史表：agent_graph_node、agent_graph_edge、agent_permission、agent_global_permission、agent_knowledge_chunk、agent_memory。这是物理清表，不属于当前 22 表。<sup><a href="#cite-57">[57]</a></sup></p></section><section class="table-section" id="gaia_workflow_template" data-table="gaia_workflow_template"><h2>工作流模板 <small>8 字段</small></h2><h3><code>gaia_workflow_template</code></h3><p>保存可复用的工作流模板及画布数据。<sup><a href="#cite-12">[12]</a></sup><sup><a href="#cite-13">[13]</a></sup></p><p><strong>索引与唯一性：</strong>唯一约束 (template_code)</p><p><strong>删除语义：</strong>删除入口软删模板，不删除引用它的工作流。<sup><a href="#cite-2">[2]</a></sup></p><div class="table-wrap"><table><thead><tr><th>字段</th><th>声明类型</th><th>原始类型与约束</th><th>中文用途</th></tr></thead><tbody><tr data-column="id"><td><code>id</code></td><td><code>INTEGER</code></td><td>INTEGER PRIMARY KEY AUTOINCREMENT</td><td>自增主键</td></tr><tr data-column="template_code"><td><code>template_code</code></td><td><code>VARCHAR(64)</code></td><td>VARCHAR(64) NOT NULL UNIQUE</td><td>来源或自身模板编码</td></tr><tr data-column="template_name"><td><code>template_name</code></td><td><code>VARCHAR(128)</code></td><td>VARCHAR(128) NOT NULL</td><td>模板显示名称</td></tr><tr data-column="template_desc"><td><code>template_desc</code></td><td><code>TEXT</code></td><td>TEXT</td><td>模板用途描述</td></tr><tr data-column="template_data"><td><code>template_data</code></td><td><code>TEXT</code></td><td>TEXT</td><td>模板画布数据，JSON 文本</td></tr><tr data-column="created_at"><td><code>created_at</code></td><td><code>TEXT</code></td><td>TEXT</td><td>创建时间，文本存储</td></tr><tr data-column="updated_at"><td><code>updated_at</code></td><td><code>TEXT</code></td><td>TEXT</td><td>最后更新时间，文本存储</td></tr><tr data-column="is_deleted"><td><code>is_deleted</code></td><td><code>TINYINT</code></td><td>TINYINT DEFAULT 0</td><td>逻辑删除标记：0 未删除，1 已删除</td></tr></tbody></table></div><details open><summary>合成 JSON 示例 · 包含全部字段</summary><pre class="json-example">{
+  &quot;id&quot;: 1,
+  &quot;template_code&quot;: &quot;tpl_demo&quot;,
+  &quot;template_name&quot;: &quot;合成示例&quot;,
+  &quot;template_desc&quot;: &quot;合成示例&quot;,
+  &quot;template_data&quot;: &quot;{\&quot;nodes\&quot;:[],\&quot;edges\&quot;:[]}&quot;,
+  &quot;created_at&quot;: &quot;2026-10-20T10:00:00&quot;,
+  &quot;updated_at&quot;: &quot;2026-10-20T10:00:00&quot;,
+  &quot;is_deleted&quot;: 0
+}</pre></details><details><summary>原始建表语句</summary><pre>CREATE TABLE IF NOT EXISTS gaia_workflow_template (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    template_code VARCHAR(64) NOT NULL UNIQUE,
+    template_name VARCHAR(128) NOT NULL,
+    template_desc TEXT,
+    template_data TEXT,
+    created_at TEXT,
+    updated_at TEXT,
+    is_deleted TINYINT DEFAULT 0
+);</pre></details></section><section class="table-section" id="gaia_workflow" data-table="gaia_workflow"><h2>工作流主表 <small>11 字段</small></h2><h3><code>gaia_workflow</code></h3><p>维护工作流身份、当前版本指针及乐观锁修订号；包含用户工作流与会话草稿。<sup><a href="#cite-14">[14]</a></sup><sup><a href="#cite-15">[15]</a></sup></p><p><strong>索引与唯一性：</strong>唯一约束 (workflow_code)</p><p><strong>删除语义：</strong>工作流删除入口仅软删主表，不级联删除版本、日志、API 或用例。<sup><a href="#cite-1">[1]</a></sup></p><div class="table-wrap"><table><thead><tr><th>字段</th><th>声明类型</th><th>原始类型与约束</th><th>中文用途</th></tr></thead><tbody><tr data-column="id"><td><code>id</code></td><td><code>INTEGER</code></td><td>INTEGER PRIMARY KEY AUTOINCREMENT</td><td>自增主键</td></tr><tr data-column="workflow_code"><td><code>workflow_code</code></td><td><code>VARCHAR(64)</code></td><td>VARCHAR(64) NOT NULL UNIQUE</td><td>工作流业务编码</td></tr><tr data-column="workflow_name"><td><code>workflow_name</code></td><td><code>VARCHAR(128)</code></td><td>VARCHAR(128) NOT NULL</td><td>工作流显示名称</td></tr><tr data-column="workflow_desc"><td><code>workflow_desc</code></td><td><code>TEXT</code></td><td>TEXT</td><td>工作流用途描述</td></tr><tr data-column="current_version_id"><td><code>current_version_id</code></td><td><code>INTEGER</code></td><td>INTEGER</td><td>当前版本行 ID，业务关联版本表</td></tr><tr data-column="revision"><td><code>revision</code></td><td><code>INTEGER</code></td><td>INTEGER DEFAULT 0</td><td>乐观锁修订号，用于并发修改校验</td></tr><tr data-column="template_code"><td><code>template_code</code></td><td><code>VARCHAR(64)</code></td><td>VARCHAR(64)</td><td>来源或自身模板编码</td></tr><tr data-column="source"><td><code>source</code></td><td><code>VARCHAR(16)</code></td><td>VARCHAR(16) DEFAULT &#x27;user&#x27;,</td><td>user 用户工作流；session 会话草稿（draft_&lt;sessionKey&gt;）</td></tr><tr data-column="created_at"><td><code>created_at</code></td><td><code>TEXT</code></td><td>TEXT</td><td>创建时间，文本存储</td></tr><tr data-column="updated_at"><td><code>updated_at</code></td><td><code>TEXT</code></td><td>TEXT</td><td>最后更新时间，文本存储</td></tr><tr data-column="is_deleted"><td><code>is_deleted</code></td><td><code>TINYINT</code></td><td>TINYINT DEFAULT 0</td><td>逻辑删除标记：0 未删除，1 已删除</td></tr></tbody></table></div><details open><summary>合成 JSON 示例 · 包含全部字段</summary><pre class="json-example">{
+  &quot;id&quot;: 1,
+  &quot;workflow_code&quot;: &quot;wf_demo&quot;,
+  &quot;workflow_name&quot;: &quot;合成示例&quot;,
+  &quot;workflow_desc&quot;: &quot;合成示例&quot;,
+  &quot;current_version_id&quot;: 1,
+  &quot;revision&quot;: 0,
+  &quot;template_code&quot;: &quot;tpl_demo&quot;,
+  &quot;source&quot;: &quot;user&quot;,
+  &quot;created_at&quot;: &quot;2026-10-20T10:00:00&quot;,
+  &quot;updated_at&quot;: &quot;2026-10-20T10:00:00&quot;,
+  &quot;is_deleted&quot;: 0
+}</pre></details><details><summary>原始建表语句</summary><pre>CREATE TABLE IF NOT EXISTS gaia_workflow (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    workflow_code VARCHAR(64) NOT NULL UNIQUE,
+    workflow_name VARCHAR(128) NOT NULL,
+    workflow_desc TEXT,
+    current_version_id INTEGER,
+    revision INTEGER DEFAULT 0,
+    template_code VARCHAR(64),
+    source VARCHAR(16) DEFAULT &#x27;user&#x27;,   -- user=用户工作流 / session=会话草稿工作流（draft_&lt;sessionKey&gt;，不进列表）
+    created_at TEXT,
+    updated_at TEXT,
+    is_deleted TINYINT DEFAULT 0
+);</pre></details></section><section class="table-section" id="gaia_workflow_version" data-table="gaia_workflow_version"><h2>工作流版本 <small>9 字段</small></h2><h3><code>gaia_workflow_version</code></h3><p>保存按工作流编码组织的历史画布快照与版本差异。<sup><a href="#cite-16">[16]</a></sup><sup><a href="#cite-17">[17]</a></sup></p><p><strong>索引与唯一性：</strong>唯一约束 (workflow_code, version_number)</p><p><strong>删除语义：</strong>删除入口物理删除版本；未见同步修复主表 current_version_id 的逻辑，可能留下悬空引用。<sup><a href="#cite-3">[3]</a></sup></p><div class="table-wrap"><table><thead><tr><th>字段</th><th>声明类型</th><th>原始类型与约束</th><th>中文用途</th></tr></thead><tbody><tr data-column="id"><td><code>id</code></td><td><code>INTEGER</code></td><td>INTEGER PRIMARY KEY AUTOINCREMENT</td><td>自增主键</td></tr><tr data-column="workflow_code"><td><code>workflow_code</code></td><td><code>VARCHAR(64)</code></td><td>VARCHAR(64) NOT NULL</td><td>工作流业务编码</td></tr><tr data-column="version_number"><td><code>version_number</code></td><td><code>VARCHAR(32)</code></td><td>VARCHAR(32) NOT NULL</td><td>工作流版本号</td></tr><tr data-column="version_desc"><td><code>version_desc</code></td><td><code>VARCHAR(256)</code></td><td>VARCHAR(256)</td><td>版本说明</td></tr><tr data-column="workflow_data"><td><code>workflow_data</code></td><td><code>TEXT</code></td><td>TEXT</td><td>工作流画布快照，JSON 文本</td></tr><tr data-column="diff_json"><td><code>diff_json</code></td><td><code>TEXT</code></td><td>TEXT</td><td>与前一版本的节点、连线差异，JSON 文本</td></tr><tr data-column="created_by"><td><code>created_by</code></td><td><code>VARCHAR(64)</code></td><td>VARCHAR(64)</td><td>创建者标识</td></tr><tr data-column="created_at"><td><code>created_at</code></td><td><code>TEXT</code></td><td>TEXT</td><td>创建时间，文本存储</td></tr><tr data-column="is_current"><td><code>is_current</code></td><td><code>TINYINT</code></td><td>TINYINT DEFAULT 0</td><td>是否当前版本：0 否，1 是</td></tr></tbody></table></div><details open><summary>合成 JSON 示例 · 包含全部字段</summary><pre class="json-example">{
+  &quot;id&quot;: 1,
+  &quot;workflow_code&quot;: &quot;wf_demo&quot;,
+  &quot;version_number&quot;: &quot;1.0.0&quot;,
+  &quot;version_desc&quot;: &quot;合成示例&quot;,
+  &quot;workflow_data&quot;: &quot;{\&quot;nodes\&quot;:[],\&quot;edges\&quot;:[]}&quot;,
+  &quot;diff_json&quot;: &quot;{\&quot;nodes\&quot;:{\&quot;added\&quot;:[],\&quot;removed\&quot;:[],\&quot;changed\&quot;:[]},\&quot;edges\&quot;:{\&quot;added\&quot;:[],\&quot;removed\&quot;:[]}}&quot;,
+  &quot;created_by&quot;: &quot;合成示例&quot;,
+  &quot;created_at&quot;: &quot;2026-10-20T10:00:00&quot;,
+  &quot;is_current&quot;: 1
+}</pre></details><details><summary>原始建表语句</summary><pre>CREATE TABLE IF NOT EXISTS gaia_workflow_version (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    workflow_code VARCHAR(64) NOT NULL,
+    version_number VARCHAR(32) NOT NULL,
+    version_desc VARCHAR(256),
+    workflow_data TEXT,
+    diff_json TEXT,
+    created_by VARCHAR(64),
+    created_at TEXT,
+    is_current TINYINT DEFAULT 0,
+    UNIQUE(workflow_code, version_number)
+);</pre></details></section><section class="table-section" id="gaia_workflow_log" data-table="gaia_workflow_log"><h2>工作流执行日志 <small>15 字段</small></h2><h3><code>gaia_workflow_log</code></h3><p>记录一次工作流执行的输入输出、状态、耗时及调用渠道。<sup><a href="#cite-18">[18]</a></sup><sup><a href="#cite-19">[19]</a></sup></p><p><strong>索引与唯一性：</strong>唯一约束 (execution_id)</p><p><strong>删除语义：</strong>删除入口物理删除日志行。<sup><a href="#cite-4">[4]</a></sup></p><div class="table-wrap"><table><thead><tr><th>字段</th><th>声明类型</th><th>原始类型与约束</th><th>中文用途</th></tr></thead><tbody><tr data-column="id"><td><code>id</code></td><td><code>INTEGER</code></td><td>INTEGER PRIMARY KEY AUTOINCREMENT</td><td>自增主键</td></tr><tr data-column="workflow_code"><td><code>workflow_code</code></td><td><code>VARCHAR(64)</code></td><td>VARCHAR(64) NOT NULL</td><td>工作流业务编码</td></tr><tr data-column="version_number"><td><code>version_number</code></td><td><code>VARCHAR(32)</code></td><td>VARCHAR(32) NOT NULL</td><td>工作流版本号</td></tr><tr data-column="execution_id"><td><code>execution_id</code></td><td><code>VARCHAR(64)</code></td><td>VARCHAR(64) NOT NULL UNIQUE</td><td>一次工作流执行的唯一标识</td></tr><tr data-column="start_time"><td><code>start_time</code></td><td><code>TEXT</code></td><td>TEXT</td><td>执行开始时间</td></tr><tr data-column="end_time"><td><code>end_time</code></td><td><code>TEXT</code></td><td>TEXT</td><td>执行结束时间</td></tr><tr data-column="status"><td><code>status</code></td><td><code>VARCHAR(32)</code></td><td>VARCHAR(32)</td><td>执行状态：success、failed、running</td></tr><tr data-column="input_params"><td><code>input_params</code></td><td><code>TEXT</code></td><td>TEXT</td><td>执行输入参数，JSON 文本</td></tr><tr data-column="output_params"><td><code>output_params</code></td><td><code>TEXT</code></td><td>TEXT</td><td>执行输出参数，JSON 文本</td></tr><tr data-column="error_message"><td><code>error_message</code></td><td><code>TEXT</code></td><td>TEXT</td><td>错误描述，成功时可为空</td></tr><tr data-column="execution_duration"><td><code>execution_duration</code></td><td><code>BIGINT</code></td><td>BIGINT</td><td>执行耗时，单位毫秒</td></tr><tr data-column="invoke_channel"><td><code>invoke_channel</code></td><td><code>VARCHAR(32)</code></td><td>VARCHAR(32)</td><td>调用渠道：execute 原生执行，api 发布接口</td></tr><tr data-column="api_path"><td><code>api_path</code></td><td><code>VARCHAR(128)</code></td><td>VARCHAR(128)</td><td>对外接口调用路径</td></tr><tr data-column="api_key_prefix"><td><code>api_key_prefix</code></td><td><code>VARCHAR(32)</code></td><td>VARCHAR(32)</td><td>访问密钥前缀，用于脱敏审查</td></tr><tr data-column="created_at"><td><code>created_at</code></td><td><code>TEXT</code></td><td>TEXT</td><td>创建时间，文本存储</td></tr></tbody></table></div><details open><summary>合成 JSON 示例 · 包含全部字段</summary><pre class="json-example">{
+  &quot;id&quot;: 1,
+  &quot;workflow_code&quot;: &quot;wf_demo&quot;,
+  &quot;version_number&quot;: &quot;1.0.0&quot;,
+  &quot;execution_id&quot;: &quot;exec_demo&quot;,
+  &quot;start_time&quot;: &quot;2026-10-20T10:00:00&quot;,
+  &quot;end_time&quot;: &quot;2026-10-20T10:00:00&quot;,
+  &quot;status&quot;: &quot;success&quot;,
+  &quot;input_params&quot;: &quot;{\&quot;text\&quot;:\&quot;示例\&quot;}&quot;,
+  &quot;output_params&quot;: &quot;{\&quot;result\&quot;:\&quot;通过\&quot;}&quot;,
+  &quot;error_message&quot;: null,
+  &quot;execution_duration&quot;: 0,
+  &quot;invoke_channel&quot;: &quot;execute&quot;,
+  &quot;api_path&quot;: &quot;/api/v1/wf/wf_demo&quot;,
+  &quot;api_key_prefix&quot;: &quot;SYNTHETIC&quot;,
+  &quot;created_at&quot;: &quot;2026-10-20T10:00:00&quot;
+}</pre></details><details><summary>原始建表语句</summary><pre>CREATE TABLE IF NOT EXISTS gaia_workflow_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    workflow_code VARCHAR(64) NOT NULL,
+    version_number VARCHAR(32) NOT NULL,
+    execution_id VARCHAR(64) NOT NULL UNIQUE,
+    start_time TEXT,
+    end_time TEXT,
+    status VARCHAR(32),
+    input_params TEXT,
+    output_params TEXT,
+    error_message TEXT,
+    execution_duration BIGINT,
+    invoke_channel VARCHAR(32),
+    api_path VARCHAR(128),
+    api_key_prefix VARCHAR(32),
+    created_at TEXT
+);</pre></details></section><section class="table-section" id="gaia_workflow_api" data-table="gaia_workflow_api"><h2>工作流发布接口 <small>14 字段</small></h2><h3><code>gaia_workflow_api</code></h3><p>保存工作流对外发布的接口契约、版本、访问密钥和发布状态。<sup><a href="#cite-20">[20]</a></sup><sup><a href="#cite-21">[21]</a></sup></p><p><strong>索引与唯一性：</strong>唯一约束 (workflow_code)</p><p><strong>删除语义：</strong>实体支持逻辑删除（is_deleted：0 → 1）；不代表存在对外删除接口，也不代表自动级联。</p><div class="table-wrap"><table><thead><tr><th>字段</th><th>声明类型</th><th>原始类型与约束</th><th>中文用途</th></tr></thead><tbody><tr data-column="id"><td><code>id</code></td><td><code>INTEGER</code></td><td>INTEGER PRIMARY KEY AUTOINCREMENT</td><td>自增主键</td></tr><tr data-column="workflow_code"><td><code>workflow_code</code></td><td><code>VARCHAR(64)</code></td><td>VARCHAR(64) NOT NULL UNIQUE</td><td>工作流业务编码</td></tr><tr data-column="api_name"><td><code>api_name</code></td><td><code>VARCHAR(128)</code></td><td>VARCHAR(128)</td><td>发布接口显示名称</td></tr><tr data-column="api_desc"><td><code>api_desc</code></td><td><code>TEXT</code></td><td>TEXT</td><td>发布接口说明</td></tr><tr data-column="version_number"><td><code>version_number</code></td><td><code>VARCHAR(32)</code></td><td>VARCHAR(32)</td><td>工作流版本号</td></tr><tr data-column="api_path"><td><code>api_path</code></td><td><code>VARCHAR(128)</code></td><td>VARCHAR(128)</td><td>对外接口调用路径</td></tr><tr data-column="api_key"><td><code>api_key</code></td><td><code>VARCHAR(128)</code></td><td>VARCHAR(128)</td><td>访问密钥，敏感信息；示例仅用虚构占位值</td></tr><tr data-column="status"><td><code>status</code></td><td><code>TINYINT</code></td><td>TINYINT DEFAULT 0</td><td>发布状态：0 草稿，1 已发布</td></tr><tr data-column="request_schema"><td><code>request_schema</code></td><td><code>TEXT</code></td><td>TEXT</td><td>请求参数契约，JSON 文本</td></tr><tr data-column="response_schema"><td><code>response_schema</code></td><td><code>TEXT</code></td><td>TEXT</td><td>响应参数契约，JSON 文本</td></tr><tr data-column="error_codes"><td><code>error_codes</code></td><td><code>TEXT</code></td><td>TEXT</td><td>接口错误码说明，JSON 数组文本</td></tr><tr data-column="created_at"><td><code>created_at</code></td><td><code>TEXT</code></td><td>TEXT</td><td>创建时间，文本存储</td></tr><tr data-column="updated_at"><td><code>updated_at</code></td><td><code>TEXT</code></td><td>TEXT</td><td>最后更新时间，文本存储</td></tr><tr data-column="is_deleted"><td><code>is_deleted</code></td><td><code>TINYINT</code></td><td>TINYINT DEFAULT 0</td><td>逻辑删除标记：0 未删除，1 已删除</td></tr></tbody></table></div><details open><summary>合成 JSON 示例 · 包含全部字段</summary><pre class="json-example">{
+  &quot;id&quot;: 1,
+  &quot;workflow_code&quot;: &quot;wf_demo&quot;,
+  &quot;api_name&quot;: &quot;合成示例&quot;,
+  &quot;api_desc&quot;: &quot;合成示例&quot;,
+  &quot;version_number&quot;: &quot;1.0.0&quot;,
+  &quot;api_path&quot;: &quot;/api/v1/wf/wf_demo&quot;,
+  &quot;api_key&quot;: &quot;SYNTHETIC_NOT_A_REAL_KEY&quot;,
+  &quot;status&quot;: 0,
+  &quot;request_schema&quot;: &quot;{\&quot;type\&quot;:\&quot;object\&quot;,\&quot;properties\&quot;:{}}&quot;,
+  &quot;response_schema&quot;: &quot;{\&quot;type\&quot;:\&quot;object\&quot;,\&quot;properties\&quot;:{}}&quot;,
+  &quot;error_codes&quot;: &quot;[]&quot;,
+  &quot;created_at&quot;: &quot;2026-10-20T10:00:00&quot;,
+  &quot;updated_at&quot;: &quot;2026-10-20T10:00:00&quot;,
+  &quot;is_deleted&quot;: 0
+}</pre></details><details><summary>原始建表语句</summary><pre>CREATE TABLE IF NOT EXISTS gaia_workflow_api (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    workflow_code VARCHAR(64) NOT NULL UNIQUE,
+    api_name VARCHAR(128),
+    api_desc TEXT,
+    version_number VARCHAR(32),
+    api_path VARCHAR(128),
+    api_key VARCHAR(128),
+    status TINYINT DEFAULT 0,
+    request_schema TEXT,
+    response_schema TEXT,
+    error_codes TEXT,
+    created_at TEXT,
+    updated_at TEXT,
+    is_deleted TINYINT DEFAULT 0
+);</pre></details></section><section class="table-section" id="agent_session" data-table="agent_session"><h2>对话会话 <small>17 字段</small></h2><h3><code>agent_session</code></h3><p>维护对话身份、工作空间归属、模型绑定及远端执行引擎映射。<sup><a href="#cite-22">[22]</a></sup><sup><a href="#cite-23">[23]</a></sup></p><p><strong>索引与唯一性：</strong>唯一约束 (session_key)</p><p><strong>删除语义：</strong>先尝试归档远端托管 Agent，再软删 source=session 的草稿工作流，最后软删会话；此入口没有删除消息、事件、账本、产物、版本和测试用例。草稿清理异常会记录日志而不阻止本地会话删除。<sup><a href="#cite-5">[5]</a></sup><sup><a href="#cite-6">[6]</a></sup></p><div class="table-wrap"><table><thead><tr><th>字段</th><th>声明类型</th><th>原始类型与约束</th><th>中文用途</th></tr></thead><tbody><tr data-column="id"><td><code>id</code></td><td><code>INTEGER</code></td><td>INTEGER PRIMARY KEY AUTOINCREMENT</td><td>自增主键</td></tr><tr data-column="session_key"><td><code>session_key</code></td><td><code>VARCHAR(64)</code></td><td>VARCHAR(64) NOT NULL UNIQUE</td><td>会话稳定业务标识</td></tr><tr data-column="title"><td><code>title</code></td><td><code>VARCHAR(128)</code></td><td>VARCHAR(128)</td><td>显示标题</td></tr><tr data-column="created_at"><td><code>created_at</code></td><td><code>TEXT</code></td><td>TEXT</td><td>创建时间，文本存储</td></tr><tr data-column="updated_at"><td><code>updated_at</code></td><td><code>TEXT</code></td><td>TEXT</td><td>最后更新时间，文本存储</td></tr><tr data-column="is_deleted"><td><code>is_deleted</code></td><td><code>TINYINT</code></td><td>TINYINT DEFAULT 0</td><td>逻辑删除标记：0 未删除，1 已删除</td></tr><tr data-column="debug_data"><td><code>debug_data</code></td><td><code>TEXT</code></td><td>TEXT</td><td>会话调试数据文本</td></tr><tr data-column="scope"><td><code>scope</code></td><td><code>VARCHAR(16)</code></td><td>VARCHAR(16) DEFAULT &#x27;chat&#x27;,</td><td>界面作用域：chat 对话，work 工作空间</td></tr><tr data-column="folder_id"><td><code>folder_id</code></td><td><code>BIGINT</code></td><td>BIGINT,</td><td>所属工作文件夹 ID，空表示未归类</td></tr><tr data-column="pinned"><td><code>pinned</code></td><td><code>TINYINT</code></td><td>TINYINT DEFAULT 0,</td><td>会话置顶标记：0 否，1 是</td></tr><tr data-column="archived"><td><code>archived</code></td><td><code>TINYINT</code></td><td>TINYINT DEFAULT 0,</td><td>会话归档标记：0 否，1 是；不等于删除</td></tr><tr data-column="engine"><td><code>engine</code></td><td><code>VARCHAR(16)</code></td><td>VARCHAR(16) DEFAULT &#x27;local&#x27;,</td><td>执行引擎：local 自研，ark 方舟托管</td></tr><tr data-column="remote_session_id"><td><code>remote_session_id</code></td><td><code>VARCHAR(128)</code></td><td>VARCHAR(128),</td><td>远端托管会话标识</td></tr><tr data-column="remote_agent_id"><td><code>remote_agent_id</code></td><td><code>VARCHAR(128)</code></td><td>VARCHAR(128),</td><td>远端 Agent 标识快照</td></tr><tr data-column="remote_agent_version"><td><code>remote_agent_version</code></td><td><code>INTEGER</code></td><td>INTEGER,</td><td>远端 Agent 版本</td></tr><tr data-column="token_usage"><td><code>token_usage</code></td><td><code>TEXT</code></td><td>TEXT,</td><td>累计模型用量，JSON 文本</td></tr><tr data-column="model_id"><td><code>model_id</code></td><td><code>INTEGER</code></td><td>INTEGER</td><td>绑定 llm_model.id，空表示跟随全局默认模型</td></tr></tbody></table></div><details open><summary>合成 JSON 示例 · 包含全部字段</summary><pre class="json-example">{
+  &quot;id&quot;: 1,
+  &quot;session_key&quot;: &quot;session_demo&quot;,
+  &quot;title&quot;: &quot;合成示例&quot;,
+  &quot;created_at&quot;: &quot;2026-10-20T10:00:00&quot;,
+  &quot;updated_at&quot;: &quot;2026-10-20T10:00:00&quot;,
+  &quot;is_deleted&quot;: 0,
+  &quot;debug_data&quot;: &quot;[]&quot;,
+  &quot;scope&quot;: &quot;work&quot;,
+  &quot;folder_id&quot;: 1,
+  &quot;pinned&quot;: 0,
+  &quot;archived&quot;: 0,
+  &quot;engine&quot;: &quot;local&quot;,
+  &quot;remote_session_id&quot;: null,
+  &quot;remote_agent_id&quot;: null,
+  &quot;remote_agent_version&quot;: null,
+  &quot;token_usage&quot;: &quot;{\&quot;input_tokens\&quot;:12,\&quot;output_tokens\&quot;:8,\&quot;cache_read_input_tokens\&quot;:0}&quot;,
+  &quot;model_id&quot;: 1
+}</pre></details><details><summary>原始建表语句</summary><pre>CREATE TABLE IF NOT EXISTS agent_session (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_key VARCHAR(64) NOT NULL UNIQUE,
+    title VARCHAR(128),
+    created_at TEXT,
+    updated_at TEXT,
+    is_deleted TINYINT DEFAULT 0,
+    debug_data TEXT,
+    -- 工作空间（Codex 风格三区）
+    scope VARCHAR(16) DEFAULT &#x27;chat&#x27;,    -- chat（对话）/ work（工作空间），两套逻辑隔离
+    folder_id BIGINT,               -- 所属工作文件夹（agent_work_folder.id），null=未归入文件夹
+    pinned TINYINT DEFAULT 0,       -- 置顶 0/1
+    archived TINYINT DEFAULT 0,     -- 归档 0/1
+    -- 执行引擎与会话映射（双引擎架构：local 自研 / ark 方舟托管）
+    engine VARCHAR(16) DEFAULT &#x27;local&#x27;,          -- local | ark
+    remote_session_id VARCHAR(128),              -- 方舟 sesn-*（engine=ark 时绑定）
+    remote_agent_id VARCHAR(128),                -- 运行时绑定的方舟 agent-* 快照
+    remote_agent_version INTEGER,                -- 绑定的方舟 Agent 版本
+    token_usage TEXT,               -- 累计用量 JSON：{input_tokens, output_tokens, cache_read_input_tokens}
+    model_id INTEGER                -- 会话绑定的模型条目（llm_model.id），NULL=跟随全局默认
+);</pre></details></section><section class="table-section" id="agent_work_folder" data-table="agent_work_folder"><h2>工作空间文件夹 <small>6 字段</small></h2><h3><code>agent_work_folder</code></h3><p>按文件夹组织工作空间会话。<sup><a href="#cite-24">[24]</a></sup><sup><a href="#cite-25">[25]</a></sup></p><p><strong>索引与唯一性：</strong>除主键外，无额外索引或唯一约束。</p><p><strong>删除语义：</strong>软删文件夹后，把其会话 folder_id 显式置空，不删除会话。<sup><a href="#cite-7">[7]</a></sup></p><div class="table-wrap"><table><thead><tr><th>字段</th><th>声明类型</th><th>原始类型与约束</th><th>中文用途</th></tr></thead><tbody><tr data-column="id"><td><code>id</code></td><td><code>INTEGER</code></td><td>INTEGER PRIMARY KEY AUTOINCREMENT</td><td>自增主键</td></tr><tr data-column="name"><td><code>name</code></td><td><code>VARCHAR(64)</code></td><td>VARCHAR(64) NOT NULL</td><td>名称</td></tr><tr data-column="sort_order"><td><code>sort_order</code></td><td><code>INTEGER</code></td><td>INTEGER DEFAULT 0</td><td>排序权重，较小值优先</td></tr><tr data-column="created_at"><td><code>created_at</code></td><td><code>TEXT</code></td><td>TEXT</td><td>创建时间，文本存储</td></tr><tr data-column="updated_at"><td><code>updated_at</code></td><td><code>TEXT</code></td><td>TEXT</td><td>最后更新时间，文本存储</td></tr><tr data-column="is_deleted"><td><code>is_deleted</code></td><td><code>TINYINT</code></td><td>TINYINT DEFAULT 0</td><td>逻辑删除标记：0 未删除，1 已删除</td></tr></tbody></table></div><details open><summary>合成 JSON 示例 · 包含全部字段</summary><pre class="json-example">{
+  &quot;id&quot;: 1,
+  &quot;name&quot;: &quot;合成示例&quot;,
+  &quot;sort_order&quot;: 0,
+  &quot;created_at&quot;: &quot;2026-10-20T10:00:00&quot;,
+  &quot;updated_at&quot;: &quot;2026-10-20T10:00:00&quot;,
+  &quot;is_deleted&quot;: 0
+}</pre></details><details><summary>原始建表语句</summary><pre>CREATE TABLE IF NOT EXISTS agent_work_folder (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name VARCHAR(64) NOT NULL,
+    sort_order INTEGER DEFAULT 0,
+    created_at TEXT,
+    updated_at TEXT,
+    is_deleted TINYINT DEFAULT 0
+);</pre></details></section><section class="table-section" id="agent_message" data-table="agent_message"><h2>对话消息 <small>13 字段</small></h2><h3><code>agent_message</code></h3><p>保存消息正文、工具调用、思考过程、多模态输入及上下文压缩标记。<sup><a href="#cite-26">[26]</a></sup><sup><a href="#cite-27">[27]</a></sup></p><p><strong>索引与唯一性：</strong>普通索引 (session_key, id) · idx_agent_message_session</p><p><strong>删除语义：</strong>没有逻辑删除字段；若执行 ORM 删除则是物理删除。本页未将追加写入或历史留存表推断为存在对外删除接口。</p><div class="table-wrap"><table><thead><tr><th>字段</th><th>声明类型</th><th>原始类型与约束</th><th>中文用途</th></tr></thead><tbody><tr data-column="id"><td><code>id</code></td><td><code>INTEGER</code></td><td>INTEGER PRIMARY KEY AUTOINCREMENT</td><td>自增主键</td></tr><tr data-column="session_key"><td><code>session_key</code></td><td><code>VARCHAR(64)</code></td><td>VARCHAR(64) NOT NULL</td><td>会话稳定业务标识</td></tr><tr data-column="role"><td><code>role</code></td><td><code>VARCHAR(16)</code></td><td>VARCHAR(16) NOT NULL</td><td>消息角色：user、assistant、system 或 tool</td></tr><tr data-column="content"><td><code>content</code></td><td><code>TEXT</code></td><td>TEXT</td><td>文本正文</td></tr><tr data-column="tool_calls"><td><code>tool_calls</code></td><td><code>TEXT</code></td><td>TEXT</td><td>工具调用集合，JSON 文本</td></tr><tr data-column="thinking"><td><code>thinking</code></td><td><code>TEXT</code></td><td>TEXT</td><td>模型思考内容</td></tr><tr data-column="timeline"><td><code>timeline</code></td><td><code>TEXT</code></td><td>TEXT</td><td>消息执行时间线，JSON 文本</td></tr><tr data-column="tool_call_id"><td><code>tool_call_id</code></td><td><code>VARCHAR(64)</code></td><td>VARCHAR(64)</td><td>工具调用标识，与工具结果消息配对</td></tr><tr data-column="page_context"><td><code>page_context</code></td><td><code>TEXT</code></td><td>TEXT</td><td>请求所在页面上下文</td></tr><tr data-column="created_at"><td><code>created_at</code></td><td><code>TEXT</code></td><td>TEXT</td><td>创建时间，文本存储</td></tr><tr data-column="compacted"><td><code>compacted</code></td><td><code>INTEGER</code></td><td>INTEGER DEFAULT 0,</td><td>1 表示已被摘要替代，不再进入模型上下文</td></tr><tr data-column="images"><td><code>images</code></td><td><code>TEXT</code></td><td>TEXT,</td><td>多模态图片集合，JSON 数组文本</td></tr><tr data-column="parent_message_id"><td><code>parent_message_id</code></td><td><code>VARCHAR(64)</code></td><td>VARCHAR(64)</td><td>父消息标识，线程引用；不是数据库外键</td></tr></tbody></table></div><details open><summary>合成 JSON 示例 · 包含全部字段</summary><pre class="json-example">{
+  &quot;id&quot;: 1,
+  &quot;session_key&quot;: &quot;session_demo&quot;,
+  &quot;role&quot;: &quot;assistant&quot;,
+  &quot;content&quot;: &quot;这是一条合成示例正文。&quot;,
+  &quot;tool_calls&quot;: &quot;[]&quot;,
+  &quot;thinking&quot;: &quot;合成示例&quot;,
+  &quot;timeline&quot;: &quot;[]&quot;,
+  &quot;tool_call_id&quot;: null,
+  &quot;page_context&quot;: &quot;合成示例&quot;,
+  &quot;created_at&quot;: &quot;2026-10-20T10:00:00&quot;,
+  &quot;compacted&quot;: 0,
+  &quot;images&quot;: &quot;[]&quot;,
+  &quot;parent_message_id&quot;: null
+}</pre></details><details><summary>原始建表语句</summary><pre>CREATE TABLE IF NOT EXISTS agent_message (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_key VARCHAR(64) NOT NULL,
+    role VARCHAR(16) NOT NULL,
+    content TEXT,
+    tool_calls TEXT,
+    thinking TEXT,
+    timeline TEXT,
+    tool_call_id VARCHAR(64),
+    page_context TEXT,
+    created_at TEXT,
+    compacted INTEGER DEFAULT 0,    -- 1=已被上下文摘要取代，不再进入模型上下文
+    images TEXT,                    -- 多模态图片（JSON 数组，base64）
+    parent_message_id VARCHAR(64)   -- 父消息 ID（线程引用）
+);</pre></details></section><section class="table-section" id="agent_artifact" data-table="agent_artifact"><h2>会话产物 <small>14 字段</small></h2><h3><code>agent_artifact</code></h3><p>保存工作流、计划、测试报告及发布记录等一等产物。<sup><a href="#cite-28">[28]</a></sup><sup><a href="#cite-29">[29]</a></sup></p><p><strong>索引与唯一性：</strong>普通索引 (session_key, updated_at) · idx_agent_artifact_session；唯一约束 (artifact_key)</p><p><strong>删除语义：</strong>实体支持逻辑删除（is_deleted：0 → 1）；不代表存在对外删除接口，也不代表自动级联。</p><div class="table-wrap"><table><thead><tr><th>字段</th><th>声明类型</th><th>原始类型与约束</th><th>中文用途</th></tr></thead><tbody><tr data-column="id"><td><code>id</code></td><td><code>INTEGER</code></td><td>INTEGER PRIMARY KEY AUTOINCREMENT</td><td>自增主键</td></tr><tr data-column="artifact_key"><td><code>artifact_key</code></td><td><code>VARCHAR(96)</code></td><td>VARCHAR(96) NOT NULL UNIQUE,</td><td>产物稳定标识，会话级通常为 sessionKey:type</td></tr><tr data-column="session_key"><td><code>session_key</code></td><td><code>VARCHAR(64)</code></td><td>VARCHAR(64) NOT NULL</td><td>会话稳定业务标识</td></tr><tr data-column="run_id"><td><code>run_id</code></td><td><code>VARCHAR(64)</code></td><td>VARCHAR(64)</td><td>一次 Agent 运行标识；没有独立运行主表</td></tr><tr data-column="type"><td><code>type</code></td><td><code>VARCHAR(24)</code></td><td>VARCHAR(24) NOT NULL</td><td>产物类型：workflow、plan、test_report、release</td></tr><tr data-column="status"><td><code>status</code></td><td><code>VARCHAR(24)</code></td><td>VARCHAR(24) NOT NULL DEFAULT &#x27;stable&#x27;</td><td>产物状态：streaming、stable、applied、discarded、proposed、completed、published</td></tr><tr data-column="title"><td><code>title</code></td><td><code>VARCHAR(128)</code></td><td>VARCHAR(128)</td><td>显示标题</td></tr><tr data-column="summary"><td><code>summary</code></td><td><code>VARCHAR(256)</code></td><td>VARCHAR(256)</td><td>产物摘要</td></tr><tr data-column="payload"><td><code>payload</code></td><td><code>TEXT</code></td><td>TEXT NOT NULL,</td><td>载荷 JSON 文本，结构依产物或事件类型而定</td></tr><tr data-column="version"><td><code>version</code></td><td><code>INTEGER</code></td><td>INTEGER NOT NULL DEFAULT 1,</td><td>内容修订版本号</td></tr><tr data-column="engine"><td><code>engine</code></td><td><code>VARCHAR(16)</code></td><td>VARCHAR(16)</td><td>执行引擎：local 自研，ark 方舟托管</td></tr><tr data-column="created_at"><td><code>created_at</code></td><td><code>TEXT</code></td><td>TEXT</td><td>创建时间，文本存储</td></tr><tr data-column="updated_at"><td><code>updated_at</code></td><td><code>TEXT</code></td><td>TEXT</td><td>最后更新时间，文本存储</td></tr><tr data-column="is_deleted"><td><code>is_deleted</code></td><td><code>TINYINT</code></td><td>TINYINT DEFAULT 0</td><td>逻辑删除标记：0 未删除，1 已删除</td></tr></tbody></table></div><details open><summary>合成 JSON 示例 · 包含全部字段</summary><pre class="json-example">{
+  &quot;id&quot;: 1,
+  &quot;artifact_key&quot;: &quot;session_demo:plan&quot;,
+  &quot;session_key&quot;: &quot;session_demo&quot;,
+  &quot;run_id&quot;: &quot;run_demo&quot;,
+  &quot;type&quot;: &quot;plan&quot;,
+  &quot;status&quot;: &quot;stable&quot;,
+  &quot;title&quot;: &quot;合成示例&quot;,
+  &quot;summary&quot;: &quot;合成示例&quot;,
+  &quot;payload&quot;: &quot;{\&quot;steps\&quot;:[]}&quot;,
+  &quot;version&quot;: 1,
+  &quot;engine&quot;: &quot;local&quot;,
+  &quot;created_at&quot;: &quot;2026-10-20T10:00:00&quot;,
+  &quot;updated_at&quot;: &quot;2026-10-20T10:00:00&quot;,
+  &quot;is_deleted&quot;: 0
+}</pre></details><details><summary>原始建表语句</summary><pre>CREATE TABLE IF NOT EXISTS agent_artifact (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    artifact_key VARCHAR(96) NOT NULL UNIQUE,   -- 对外稳定标识：会话级产物为 &quot;{sessionKey}:{type}&quot;，追加式为 &quot;art_xxx&quot;
+    session_key VARCHAR(64) NOT NULL,
+    run_id VARCHAR(64),
+    type VARCHAR(24) NOT NULL,
+    status VARCHAR(24) NOT NULL DEFAULT &#x27;stable&#x27;,
+    title VARCHAR(128),
+    summary VARCHAR(256),
+    payload TEXT NOT NULL,                      -- JSON，schema 按 type 定义
+    version INTEGER NOT NULL DEFAULT 1,         -- 同一 artifact 的第 N 次内容更新
+    engine VARCHAR(16),
+    created_at TEXT,
+    updated_at TEXT,
+    is_deleted TINYINT DEFAULT 0
+);</pre></details></section><section class="table-section" id="agent_config" data-table="agent_config"><h2>通用配置 <small>10 字段</small></h2><h3><code>agent_config</code></h3><p>保存模型参数、渠道、引擎、人设及迁移标记；不是独立的知识库表。<sup><a href="#cite-30">[30]</a></sup><sup><a href="#cite-31">[31]</a></sup></p><p><strong>索引与唯一性：</strong>唯一约束 (config_key)</p><p><strong>删除语义：</strong>实体支持逻辑删除（is_deleted：0 → 1）；不代表存在对外删除接口，也不代表自动级联。</p><div class="table-wrap"><table><thead><tr><th>字段</th><th>声明类型</th><th>原始类型与约束</th><th>中文用途</th></tr></thead><tbody><tr data-column="id"><td><code>id</code></td><td><code>INTEGER</code></td><td>INTEGER PRIMARY KEY AUTOINCREMENT</td><td>自增主键</td></tr><tr data-column="config_key"><td><code>config_key</code></td><td><code>VARCHAR(128)</code></td><td>VARCHAR(128) NOT NULL UNIQUE</td><td>配置业务键</td></tr><tr data-column="config_type"><td><code>config_type</code></td><td><code>VARCHAR(32)</code></td><td>VARCHAR(32) NOT NULL</td><td>配置分类</td></tr><tr data-column="title"><td><code>title</code></td><td><code>VARCHAR(256)</code></td><td>VARCHAR(256)</td><td>显示标题</td></tr><tr data-column="content"><td><code>content</code></td><td><code>TEXT</code></td><td>TEXT</td><td>文本正文</td></tr><tr data-column="config_data"><td><code>config_data</code></td><td><code>TEXT</code></td><td>TEXT</td><td>结构化配置，JSON 文本</td></tr><tr data-column="description"><td><code>description</code></td><td><code>TEXT</code></td><td>TEXT</td><td>用途说明</td></tr><tr data-column="created_at"><td><code>created_at</code></td><td><code>TEXT</code></td><td>TEXT</td><td>创建时间，文本存储</td></tr><tr data-column="updated_at"><td><code>updated_at</code></td><td><code>TEXT</code></td><td>TEXT</td><td>最后更新时间，文本存储</td></tr><tr data-column="is_deleted"><td><code>is_deleted</code></td><td><code>TINYINT</code></td><td>TINYINT DEFAULT 0</td><td>逻辑删除标记：0 未删除，1 已删除</td></tr></tbody></table></div><details open><summary>合成 JSON 示例 · 包含全部字段</summary><pre class="json-example">{
+  &quot;id&quot;: 1,
+  &quot;config_key&quot;: &quot;demo_config&quot;,
+  &quot;config_type&quot;: &quot;example&quot;,
+  &quot;title&quot;: &quot;合成示例&quot;,
+  &quot;content&quot;: &quot;这是一条合成示例正文。&quot;,
+  &quot;config_data&quot;: &quot;{\&quot;example\&quot;:true}&quot;,
+  &quot;description&quot;: &quot;合成示例&quot;,
+  &quot;created_at&quot;: &quot;2026-10-20T10:00:00&quot;,
+  &quot;updated_at&quot;: &quot;2026-10-20T10:00:00&quot;,
+  &quot;is_deleted&quot;: 0
+}</pre></details><details><summary>原始建表语句</summary><pre>CREATE TABLE IF NOT EXISTS agent_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    config_key VARCHAR(128) NOT NULL UNIQUE,
+    config_type VARCHAR(32) NOT NULL,
+    title VARCHAR(256),
+    content TEXT,
+    config_data TEXT,
+    description TEXT,
+    created_at TEXT,
+    updated_at TEXT,
+    is_deleted TINYINT DEFAULT 0
+);</pre></details></section><section class="table-section" id="agent_config_history" data-table="agent_config_history"><h2>配置变更历史 <small>9 字段</small></h2><h3><code>agent_config_history</code></h3><p>保存配置修改时的归档快照。<sup><a href="#cite-32">[32]</a></sup><sup><a href="#cite-33">[33]</a></sup></p><p><strong>索引与唯一性：</strong>普通索引 (config_key, version) · idx_agent_config_history_key</p><p><strong>删除语义：</strong>没有逻辑删除字段；若执行 ORM 删除则是物理删除。本页未将追加写入或历史留存表推断为存在对外删除接口。</p><div class="table-wrap"><table><thead><tr><th>字段</th><th>声明类型</th><th>原始类型与约束</th><th>中文用途</th></tr></thead><tbody><tr data-column="id"><td><code>id</code></td><td><code>INTEGER</code></td><td>INTEGER PRIMARY KEY AUTOINCREMENT</td><td>自增主键</td></tr><tr data-column="config_key"><td><code>config_key</code></td><td><code>VARCHAR(128)</code></td><td>VARCHAR(128) NOT NULL</td><td>配置业务键</td></tr><tr data-column="version"><td><code>version</code></td><td><code>INTEGER</code></td><td>INTEGER NOT NULL</td><td>内容修订版本号</td></tr><tr data-column="title"><td><code>title</code></td><td><code>VARCHAR(256)</code></td><td>VARCHAR(256)</td><td>显示标题</td></tr><tr data-column="content"><td><code>content</code></td><td><code>TEXT</code></td><td>TEXT</td><td>文本正文</td></tr><tr data-column="config_data"><td><code>config_data</code></td><td><code>TEXT</code></td><td>TEXT</td><td>结构化配置，JSON 文本</td></tr><tr data-column="description"><td><code>description</code></td><td><code>TEXT</code></td><td>TEXT</td><td>用途说明</td></tr><tr data-column="changed_by"><td><code>changed_by</code></td><td><code>VARCHAR(64)</code></td><td>VARCHAR(64)</td><td>变更操作者标识</td></tr><tr data-column="created_at"><td><code>created_at</code></td><td><code>TEXT</code></td><td>TEXT</td><td>创建时间，文本存储</td></tr></tbody></table></div><details open><summary>合成 JSON 示例 · 包含全部字段</summary><pre class="json-example">{
+  &quot;id&quot;: 1,
+  &quot;config_key&quot;: &quot;demo_config&quot;,
+  &quot;version&quot;: 1,
+  &quot;title&quot;: &quot;合成示例&quot;,
+  &quot;content&quot;: &quot;这是一条合成示例正文。&quot;,
+  &quot;config_data&quot;: &quot;{\&quot;example\&quot;:true}&quot;,
+  &quot;description&quot;: &quot;合成示例&quot;,
+  &quot;changed_by&quot;: &quot;合成示例&quot;,
+  &quot;created_at&quot;: &quot;2026-10-20T10:00:00&quot;
+}</pre></details><details><summary>原始建表语句</summary><pre>CREATE TABLE IF NOT EXISTS agent_config_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    config_key VARCHAR(128) NOT NULL,
+    version INTEGER NOT NULL,
+    title VARCHAR(256),
+    content TEXT,
+    config_data TEXT,
+    description TEXT,
+    changed_by VARCHAR(64),
+    created_at TEXT
+);</pre></details></section><section class="table-section" id="llm_model" data-table="llm_model"><h2>模型条目 <small>14 字段</small></h2><h3><code>llm_model</code></h3><p>保存模型渠道连接信息及生成参数，供全局默认和会话选择。<sup><a href="#cite-34">[34]</a></sup><sup><a href="#cite-35">[35]</a></sup></p><p><strong>索引与唯一性：</strong>除主键外，无额外索引或唯一约束。</p><p><strong>删除语义：</strong>物理删除；全局默认模型或仍被可见会话绑定时拒绝删除。逻辑删除会话默认不计入 ORM 查询，不能把该检查理解为数据库外键约束。<sup><a href="#cite-8">[8]</a></sup></p><div class="table-wrap"><table><thead><tr><th>字段</th><th>声明类型</th><th>原始类型与约束</th><th>中文用途</th></tr></thead><tbody><tr data-column="id"><td><code>id</code></td><td><code>INTEGER</code></td><td>INTEGER PRIMARY KEY AUTOINCREMENT</td><td>自增主键</td></tr><tr data-column="display_name"><td><code>display_name</code></td><td><code>VARCHAR(128)</code></td><td>VARCHAR(128) NOT NULL,</td><td>模型显示名；DDL 未声明 UNIQUE</td></tr><tr data-column="vendor"><td><code>vendor</code></td><td><code>VARCHAR(32)</code></td><td>VARCHAR(32),</td><td>模型厂商标识</td></tr><tr data-column="base_url"><td><code>base_url</code></td><td><code>VARCHAR(256)</code></td><td>VARCHAR(256)</td><td>模型服务接口根地址</td></tr><tr data-column="api_key"><td><code>api_key</code></td><td><code>VARCHAR(256)</code></td><td>VARCHAR(256)</td><td>访问密钥，敏感信息；示例仅用虚构占位值</td></tr><tr data-column="model_id"><td><code>model_id</code></td><td><code>VARCHAR(128)</code></td><td>VARCHAR(128),</td><td>上游服务模型 ID，不是 llm_model 的主键</td></tr><tr data-column="thinking_override"><td><code>thinking_override</code></td><td><code>VARCHAR(16)</code></td><td>VARCHAR(16),</td><td>思考档位覆盖；空表示跟随全局</td></tr><tr data-column="max_tokens"><td><code>max_tokens</code></td><td><code>INTEGER</code></td><td>INTEGER</td><td>模型最大输出令牌数</td></tr><tr data-column="temperature"><td><code>temperature</code></td><td><code>DOUBLE</code></td><td>DOUBLE</td><td>模型采样温度</td></tr><tr data-column="extra_body"><td><code>extra_body</code></td><td><code>TEXT</code></td><td>TEXT,</td><td>厂商扩展请求参数，JSON 文本</td></tr><tr data-column="enabled"><td><code>enabled</code></td><td><code>INTEGER</code></td><td>INTEGER DEFAULT 1</td><td>是否启用：0 否，1 是</td></tr><tr data-column="sort_order"><td><code>sort_order</code></td><td><code>INTEGER</code></td><td>INTEGER DEFAULT 0</td><td>排序权重，较小值优先</td></tr><tr data-column="created_at"><td><code>created_at</code></td><td><code>TEXT</code></td><td>TEXT</td><td>创建时间，文本存储</td></tr><tr data-column="updated_at"><td><code>updated_at</code></td><td><code>TEXT</code></td><td>TEXT</td><td>最后更新时间，文本存储</td></tr></tbody></table></div><details open><summary>合成 JSON 示例 · 包含全部字段</summary><pre class="json-example">{
+  &quot;id&quot;: 1,
+  &quot;display_name&quot;: &quot;合成示例&quot;,
+  &quot;vendor&quot;: &quot;custom&quot;,
+  &quot;base_url&quot;: null,
+  &quot;api_key&quot;: &quot;SYNTHETIC_NOT_A_REAL_KEY&quot;,
+  &quot;model_id&quot;: &quot;demo-model&quot;,
+  &quot;thinking_override&quot;: &quot;auto&quot;,
+  &quot;max_tokens&quot;: 1024,
+  &quot;temperature&quot;: 0.7,
+  &quot;extra_body&quot;: &quot;{}&quot;,
+  &quot;enabled&quot;: 1,
+  &quot;sort_order&quot;: 0,
+  &quot;created_at&quot;: &quot;2026-10-20T10:00:00&quot;,
+  &quot;updated_at&quot;: &quot;2026-10-20T10:00:00&quot;
+}</pre></details><details><summary>原始建表语句</summary><pre>CREATE TABLE IF NOT EXISTS llm_model (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    display_name VARCHAR(128) NOT NULL,   -- 用户可见唯一名
+    vendor VARCHAR(32),                   -- openai/qwen/glm/anthropic/deepseek/openrouter/ollama/custom
+    base_url VARCHAR(256),
+    api_key VARCHAR(256),
+    model_id VARCHAR(128),                -- 上游模型 ID
+    thinking_override VARCHAR(16),        -- auto/off/low/medium/high；空=跟随全局
+    max_tokens INTEGER,
+    temperature DOUBLE,
+    extra_body TEXT,                      -- 厂商私有参数（JSON）
+    enabled INTEGER DEFAULT 1,
+    sort_order INTEGER DEFAULT 0,
+    created_at TEXT,
+    updated_at TEXT
+);</pre></details></section><section class="table-section" id="agent_tool_definition" data-table="agent_tool_definition"><h2>工具定义 <small>11 字段</small></h2><h3><code>agent_tool_definition</code></h3><p>维护动态工具名称、参数契约、页面适用范围及启用状态。<sup><a href="#cite-36">[36]</a></sup><sup><a href="#cite-37">[37]</a></sup></p><p><strong>索引与唯一性：</strong>唯一约束 (tool_name)</p><p><strong>删除语义：</strong>实体支持逻辑删除（is_deleted：0 → 1）；不代表存在对外删除接口，也不代表自动级联。</p><div class="table-wrap"><table><thead><tr><th>字段</th><th>声明类型</th><th>原始类型与约束</th><th>中文用途</th></tr></thead><tbody><tr data-column="id"><td><code>id</code></td><td><code>INTEGER</code></td><td>INTEGER PRIMARY KEY AUTOINCREMENT</td><td>自增主键</td></tr><tr data-column="tool_name"><td><code>tool_name</code></td><td><code>VARCHAR(128)</code></td><td>VARCHAR(128) NOT NULL UNIQUE</td><td>工具业务名称</td></tr><tr data-column="tool_group"><td><code>tool_group</code></td><td><code>VARCHAR(64)</code></td><td>VARCHAR(64) NOT NULL</td><td>工具所属分组</td></tr><tr data-column="description"><td><code>description</code></td><td><code>TEXT</code></td><td>TEXT</td><td>用途说明</td></tr><tr data-column="parameters"><td><code>parameters</code></td><td><code>TEXT</code></td><td>TEXT NOT NULL</td><td>工具参数契约，JSON 文本</td></tr><tr data-column="page_contexts"><td><code>page_contexts</code></td><td><code>TEXT</code></td><td>TEXT</td><td>工具可用页面范围</td></tr><tr data-column="enabled"><td><code>enabled</code></td><td><code>TINYINT</code></td><td>TINYINT DEFAULT 1</td><td>是否启用：0 否，1 是</td></tr><tr data-column="sort_order"><td><code>sort_order</code></td><td><code>INTEGER</code></td><td>INTEGER DEFAULT 0</td><td>排序权重，较小值优先</td></tr><tr data-column="created_at"><td><code>created_at</code></td><td><code>TEXT</code></td><td>TEXT</td><td>创建时间，文本存储</td></tr><tr data-column="updated_at"><td><code>updated_at</code></td><td><code>TEXT</code></td><td>TEXT</td><td>最后更新时间，文本存储</td></tr><tr data-column="is_deleted"><td><code>is_deleted</code></td><td><code>TINYINT</code></td><td>TINYINT DEFAULT 0</td><td>逻辑删除标记：0 未删除，1 已删除</td></tr></tbody></table></div><details open><summary>合成 JSON 示例 · 包含全部字段</summary><pre class="json-example">{
+  &quot;id&quot;: 1,
+  &quot;tool_name&quot;: &quot;demo.inspect&quot;,
+  &quot;tool_group&quot;: &quot;demo&quot;,
+  &quot;description&quot;: &quot;合成示例&quot;,
+  &quot;parameters&quot;: &quot;{\&quot;type\&quot;:\&quot;object\&quot;,\&quot;properties\&quot;:{}}&quot;,
+  &quot;page_contexts&quot;: &quot;[]&quot;,
+  &quot;enabled&quot;: 1,
+  &quot;sort_order&quot;: 0,
+  &quot;created_at&quot;: &quot;2026-10-20T10:00:00&quot;,
+  &quot;updated_at&quot;: &quot;2026-10-20T10:00:00&quot;,
+  &quot;is_deleted&quot;: 0
+}</pre></details><details><summary>原始建表语句</summary><pre>CREATE TABLE IF NOT EXISTS agent_tool_definition (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tool_name VARCHAR(128) NOT NULL UNIQUE,
+    tool_group VARCHAR(64) NOT NULL,
+    description TEXT,
+    parameters TEXT NOT NULL,
+    page_contexts TEXT,
+    enabled TINYINT DEFAULT 1,
+    sort_order INTEGER DEFAULT 0,
+    created_at TEXT,
+    updated_at TEXT,
+    is_deleted TINYINT DEFAULT 0
+);</pre></details></section><section class="table-section" id="agent_session_event" data-table="agent_session_event"><h2>会话事件日志 <small>7 字段</small></h2><h3><code>agent_session_event</code></h3><p>追加记录运行事件，用于事件回放、审查和观测。<sup><a href="#cite-38">[38]</a></sup><sup><a href="#cite-39">[39]</a></sup></p><p><strong>索引与唯一性：</strong>普通索引 (session_key, id) · idx_agent_session_event</p><p><strong>删除语义：</strong>没有逻辑删除字段；若执行 ORM 删除则是物理删除。本页未将追加写入或历史留存表推断为存在对外删除接口。</p><div class="table-wrap"><table><thead><tr><th>字段</th><th>声明类型</th><th>原始类型与约束</th><th>中文用途</th></tr></thead><tbody><tr data-column="id"><td><code>id</code></td><td><code>INTEGER</code></td><td>INTEGER PRIMARY KEY AUTOINCREMENT</td><td>自增主键</td></tr><tr data-column="session_key"><td><code>session_key</code></td><td><code>VARCHAR(64)</code></td><td>VARCHAR(64) NOT NULL</td><td>会话稳定业务标识</td></tr><tr data-column="run_id"><td><code>run_id</code></td><td><code>VARCHAR(64)</code></td><td>VARCHAR(64)</td><td>一次 Agent 运行标识；没有独立运行主表</td></tr><tr data-column="seq"><td><code>seq</code></td><td><code>INTEGER</code></td><td>INTEGER NOT NULL</td><td>运行或会话内事件序号；DDL 未声明唯一</td></tr><tr data-column="event_type"><td><code>event_type</code></td><td><code>VARCHAR(48)</code></td><td>VARCHAR(48) NOT NULL</td><td>事件类型，如 turn、tool_call、tool_result</td></tr><tr data-column="payload"><td><code>payload</code></td><td><code>TEXT</code></td><td>TEXT</td><td>载荷 JSON 文本，结构依产物或事件类型而定</td></tr><tr data-column="created_at"><td><code>created_at</code></td><td><code>TEXT</code></td><td>TEXT</td><td>创建时间，文本存储</td></tr></tbody></table></div><details open><summary>合成 JSON 示例 · 包含全部字段</summary><pre class="json-example">{
+  &quot;id&quot;: 1,
+  &quot;session_key&quot;: &quot;session_demo&quot;,
+  &quot;run_id&quot;: &quot;run_demo&quot;,
+  &quot;seq&quot;: 1,
+  &quot;event_type&quot;: &quot;turn&quot;,
+  &quot;payload&quot;: &quot;{\&quot;steps\&quot;:[]}&quot;,
+  &quot;created_at&quot;: &quot;2026-10-20T10:00:00&quot;
+}</pre></details><details><summary>原始建表语句</summary><pre>CREATE TABLE IF NOT EXISTS agent_session_event (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_key VARCHAR(64) NOT NULL,
+    run_id VARCHAR(64),
+    seq INTEGER NOT NULL,
+    event_type VARCHAR(48) NOT NULL,
+    payload TEXT,
+    created_at TEXT
+);</pre></details></section><section class="table-section" id="agent_tool_call_log" data-table="agent_tool_call_log"><h2>工具调用账本 <small>10 字段</small></h2><h3><code>agent_tool_call_log</code></h3><p>每次工具调用一行，记录结局码、耗时及参数摘要。<sup><a href="#cite-40">[40]</a></sup><sup><a href="#cite-41">[41]</a></sup></p><p><strong>索引与唯一性：</strong>普通索引 (tool_name, outcome) · idx_agent_tool_call_log</p><p><strong>删除语义：</strong>没有逻辑删除字段；若执行 ORM 删除则是物理删除。本页未将追加写入或历史留存表推断为存在对外删除接口。</p><div class="table-wrap"><table><thead><tr><th>字段</th><th>声明类型</th><th>原始类型与约束</th><th>中文用途</th></tr></thead><tbody><tr data-column="id"><td><code>id</code></td><td><code>INTEGER</code></td><td>INTEGER PRIMARY KEY AUTOINCREMENT</td><td>自增主键</td></tr><tr data-column="session_key"><td><code>session_key</code></td><td><code>VARCHAR(64)</code></td><td>VARCHAR(64) NOT NULL</td><td>会话稳定业务标识</td></tr><tr data-column="run_id"><td><code>run_id</code></td><td><code>VARCHAR(64)</code></td><td>VARCHAR(64)</td><td>一次 Agent 运行标识；没有独立运行主表</td></tr><tr data-column="turn"><td><code>turn</code></td><td><code>INTEGER</code></td><td>INTEGER</td><td>运行中的对话轮次</td></tr><tr data-column="tool_name"><td><code>tool_name</code></td><td><code>VARCHAR(128)</code></td><td>VARCHAR(128) NOT NULL</td><td>工具业务名称</td></tr><tr data-column="outcome"><td><code>outcome</code></td><td><code>VARCHAR(32)</code></td><td>VARCHAR(32) NOT NULL</td><td>工具执行结局码，如 SUCCESS、INVALID_ARGS、EXEC_ERROR</td></tr><tr data-column="error_code"><td><code>error_code</code></td><td><code>VARCHAR(32)</code></td><td>VARCHAR(32)</td><td>结构化错误码</td></tr><tr data-column="duration_ms"><td><code>duration_ms</code></td><td><code>BIGINT</code></td><td>BIGINT</td><td>执行耗时，单位毫秒</td></tr><tr data-column="args_digest"><td><code>args_digest</code></td><td><code>TEXT</code></td><td>TEXT</td><td>工具参数摘要，可能截断</td></tr><tr data-column="created_at"><td><code>created_at</code></td><td><code>TEXT</code></td><td>TEXT</td><td>创建时间，文本存储</td></tr></tbody></table></div><details open><summary>合成 JSON 示例 · 包含全部字段</summary><pre class="json-example">{
+  &quot;id&quot;: 1,
+  &quot;session_key&quot;: &quot;session_demo&quot;,
+  &quot;run_id&quot;: &quot;run_demo&quot;,
+  &quot;turn&quot;: 1,
+  &quot;tool_name&quot;: &quot;demo.inspect&quot;,
+  &quot;outcome&quot;: &quot;SUCCESS&quot;,
+  &quot;error_code&quot;: null,
+  &quot;duration_ms&quot;: 0,
+  &quot;args_digest&quot;: &quot;合成示例&quot;,
+  &quot;created_at&quot;: &quot;2026-10-20T10:00:00&quot;
+}</pre></details><details><summary>原始建表语句</summary><pre>CREATE TABLE IF NOT EXISTS agent_tool_call_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_key VARCHAR(64) NOT NULL,
+    run_id VARCHAR(64),
+    turn INTEGER,
+    tool_name VARCHAR(128) NOT NULL,
+    outcome VARCHAR(32) NOT NULL,
+    error_code VARCHAR(32),
+    duration_ms BIGINT,
+    args_digest TEXT,
+    created_at TEXT
+);</pre></details></section><section class="table-section" id="agent_llm_call_log" data-table="agent_llm_call_log"><h2>模型调用账本 <small>18 字段</small></h2><h3><code>agent_llm_call_log</code></h3><p>每次模型调用一行，保存请求响应证据、用量及耗时。<sup><a href="#cite-42">[42]</a></sup><sup><a href="#cite-43">[43]</a></sup></p><p><strong>索引与唯一性：</strong>普通索引 (session_key, run_id) · idx_agent_llm_call_log</p><p><strong>删除语义：</strong>没有逻辑删除字段；若执行 ORM 删除则是物理删除。本页未将追加写入或历史留存表推断为存在对外删除接口。</p><div class="table-wrap"><table><thead><tr><th>字段</th><th>声明类型</th><th>原始类型与约束</th><th>中文用途</th></tr></thead><tbody><tr data-column="id"><td><code>id</code></td><td><code>INTEGER</code></td><td>INTEGER PRIMARY KEY AUTOINCREMENT</td><td>自增主键</td></tr><tr data-column="session_key"><td><code>session_key</code></td><td><code>VARCHAR(64)</code></td><td>VARCHAR(64) NOT NULL</td><td>会话稳定业务标识</td></tr><tr data-column="run_id"><td><code>run_id</code></td><td><code>VARCHAR(64)</code></td><td>VARCHAR(64)</td><td>一次 Agent 运行标识；没有独立运行主表</td></tr><tr data-column="seq"><td><code>seq</code></td><td><code>INTEGER</code></td><td>INTEGER</td><td>运行或会话内事件序号；DDL 未声明唯一</td></tr><tr data-column="model"><td><code>model</code></td><td><code>VARCHAR(128)</code></td><td>VARCHAR(128)</td><td>本次调用使用的模型名称</td></tr><tr data-column="messages_count"><td><code>messages_count</code></td><td><code>INTEGER</code></td><td>INTEGER</td><td>请求消息条数</td></tr><tr data-column="tools_count"><td><code>tools_count</code></td><td><code>INTEGER</code></td><td>INTEGER</td><td>请求工具定义数量</td></tr><tr data-column="prompt_digest"><td><code>prompt_digest</code></td><td><code>TEXT</code></td><td>TEXT</td><td>模型输入摘要</td></tr><tr data-column="output_digest"><td><code>output_digest</code></td><td><code>TEXT</code></td><td>TEXT</td><td>模型输出摘要</td></tr><tr data-column="request_json"><td><code>request_json</code></td><td><code>TEXT</code></td><td>TEXT,</td><td>模型请求证据，首条全量、后续可能增量</td></tr><tr data-column="response_json"><td><code>response_json</code></td><td><code>TEXT</code></td><td>TEXT,</td><td>流式组装后的模型响应，JSON 文本</td></tr><tr data-column="prompt_tokens"><td><code>prompt_tokens</code></td><td><code>INTEGER</code></td><td>INTEGER</td><td>输入令牌数</td></tr><tr data-column="completion_tokens"><td><code>completion_tokens</code></td><td><code>INTEGER</code></td><td>INTEGER</td><td>输出令牌数</td></tr><tr data-column="cached_tokens"><td><code>cached_tokens</code></td><td><code>INTEGER</code></td><td>INTEGER</td><td>缓存命中令牌数</td></tr><tr data-column="duration_ms"><td><code>duration_ms</code></td><td><code>BIGINT</code></td><td>BIGINT</td><td>执行耗时，单位毫秒</td></tr><tr data-column="status"><td><code>status</code></td><td><code>VARCHAR(16)</code></td><td>VARCHAR(16)</td><td>当前记录状态，取值由业务代码解释</td></tr><tr data-column="error_message"><td><code>error_message</code></td><td><code>TEXT</code></td><td>TEXT</td><td>错误描述，成功时可为空</td></tr><tr data-column="created_at"><td><code>created_at</code></td><td><code>TEXT</code></td><td>TEXT</td><td>创建时间，文本存储</td></tr></tbody></table></div><details open><summary>合成 JSON 示例 · 包含全部字段</summary><pre class="json-example">{
+  &quot;id&quot;: 1,
+  &quot;session_key&quot;: &quot;session_demo&quot;,
+  &quot;run_id&quot;: &quot;run_demo&quot;,
+  &quot;seq&quot;: 1,
+  &quot;model&quot;: &quot;demo-model&quot;,
+  &quot;messages_count&quot;: 0,
+  &quot;tools_count&quot;: 0,
+  &quot;prompt_digest&quot;: &quot;合成示例&quot;,
+  &quot;output_digest&quot;: &quot;合成示例&quot;,
+  &quot;request_json&quot;: &quot;{\&quot;model\&quot;:\&quot;demo-model\&quot;,\&quot;messages\&quot;:[{\&quot;role\&quot;:\&quot;user\&quot;,\&quot;content\&quot;:\&quot;示例\&quot;}]}&quot;,
+  &quot;response_json&quot;: &quot;{\&quot;content\&quot;:\&quot;通过\&quot;,\&quot;tool_calls\&quot;:[]}&quot;,
+  &quot;prompt_tokens&quot;: 0,
+  &quot;completion_tokens&quot;: 0,
+  &quot;cached_tokens&quot;: 0,
+  &quot;duration_ms&quot;: 0,
+  &quot;status&quot;: &quot;success&quot;,
+  &quot;error_message&quot;: null,
+  &quot;created_at&quot;: &quot;2026-10-20T10:00:00&quot;
+}</pre></details><details><summary>原始建表语句</summary><pre>CREATE TABLE IF NOT EXISTS agent_llm_call_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_key VARCHAR(64) NOT NULL,
+    run_id VARCHAR(64),
+    seq INTEGER,
+    model VARCHAR(128),
+    messages_count INTEGER,
+    tools_count INTEGER,
+    prompt_digest TEXT,
+    output_digest TEXT,
+    request_json TEXT,               -- 真实请求（OpenAI 同构 messages+tools+options，首条全量/后续增量）——复现证据
+    response_json TEXT,              -- 真实响应（流式组装后的完整输出：content+tool_calls+usage+finish_reason）
+    prompt_tokens INTEGER,
+    completion_tokens INTEGER,
+    cached_tokens INTEGER,
+    duration_ms BIGINT,
+    status VARCHAR(16),
+    error_message TEXT,
+    created_at TEXT
+);</pre></details></section><section class="table-section" id="workflow_test_case" data-table="workflow_test_case"><h2>工作流测试用例 <small>12 字段</small></h2><h3><code>workflow_test_case</code></h3><p>保存工作流级或节点级输入与预期断言。<sup><a href="#cite-44">[44]</a></sup><sup><a href="#cite-45">[45]</a></sup></p><p><strong>索引与唯一性：</strong>普通索引 (workflow_code, node_id) · idx_workflow_test_case_code</p><p><strong>删除语义：</strong>删除入口仅软删测试用例，不级联删除测试运行记录。<sup><a href="#cite-11">[11]</a></sup></p><div class="table-wrap"><table><thead><tr><th>字段</th><th>声明类型</th><th>原始类型与约束</th><th>中文用途</th></tr></thead><tbody><tr data-column="id"><td><code>id</code></td><td><code>INTEGER</code></td><td>INTEGER PRIMARY KEY AUTOINCREMENT</td><td>自增主键</td></tr><tr data-column="workflow_code"><td><code>workflow_code</code></td><td><code>VARCHAR(128)</code></td><td>VARCHAR(128) NOT NULL</td><td>工作流业务编码</td></tr><tr data-column="node_id"><td><code>node_id</code></td><td><code>VARCHAR(128)</code></td><td>VARCHAR(128)</td><td>目标节点 ID，空表示工作流级测试</td></tr><tr data-column="name"><td><code>name</code></td><td><code>VARCHAR(256)</code></td><td>VARCHAR(256) NOT NULL</td><td>名称</td></tr><tr data-column="description"><td><code>description</code></td><td><code>TEXT</code></td><td>TEXT</td><td>用途说明</td></tr><tr data-column="inputs_json"><td><code>inputs_json</code></td><td><code>TEXT</code></td><td>TEXT</td><td>测试输入，JSON 文本</td></tr><tr data-column="expected_json"><td><code>expected_json</code></td><td><code>TEXT</code></td><td>TEXT NOT NULL</td><td>预期断言数组，JSON 文本</td></tr><tr data-column="created_by"><td><code>created_by</code></td><td><code>VARCHAR(64)</code></td><td>VARCHAR(64) DEFAULT &#x27;user&#x27;</td><td>创建者标识</td></tr><tr data-column="enabled"><td><code>enabled</code></td><td><code>TINYINT</code></td><td>TINYINT DEFAULT 1</td><td>是否启用：0 否，1 是</td></tr><tr data-column="created_at"><td><code>created_at</code></td><td><code>TEXT</code></td><td>TEXT</td><td>创建时间，文本存储</td></tr><tr data-column="updated_at"><td><code>updated_at</code></td><td><code>TEXT</code></td><td>TEXT</td><td>最后更新时间，文本存储</td></tr><tr data-column="is_deleted"><td><code>is_deleted</code></td><td><code>TINYINT</code></td><td>TINYINT DEFAULT 0</td><td>逻辑删除标记：0 未删除，1 已删除</td></tr></tbody></table></div><details open><summary>合成 JSON 示例 · 包含全部字段</summary><pre class="json-example">{
+  &quot;id&quot;: 1,
+  &quot;workflow_code&quot;: &quot;wf_demo&quot;,
+  &quot;node_id&quot;: null,
+  &quot;name&quot;: &quot;合成示例&quot;,
+  &quot;description&quot;: &quot;合成示例&quot;,
+  &quot;inputs_json&quot;: &quot;{\&quot;text\&quot;:\&quot;示例\&quot;}&quot;,
+  &quot;expected_json&quot;: &quot;[{\&quot;field\&quot;:\&quot;result\&quot;,\&quot;op\&quot;:\&quot;equals\&quot;,\&quot;value\&quot;:\&quot;通过\&quot;}]&quot;,
+  &quot;created_by&quot;: &quot;合成示例&quot;,
+  &quot;enabled&quot;: 1,
+  &quot;created_at&quot;: &quot;2026-10-20T10:00:00&quot;,
+  &quot;updated_at&quot;: &quot;2026-10-20T10:00:00&quot;,
+  &quot;is_deleted&quot;: 0
+}</pre></details><details><summary>原始建表语句</summary><pre>CREATE TABLE IF NOT EXISTS workflow_test_case (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    workflow_code VARCHAR(128) NOT NULL,
+    node_id VARCHAR(128),
+    name VARCHAR(256) NOT NULL,
+    description TEXT,
+    inputs_json TEXT,
+    expected_json TEXT NOT NULL,
+    created_by VARCHAR(64) DEFAULT &#x27;user&#x27;,
+    enabled TINYINT DEFAULT 1,
+    created_at TEXT,
+    updated_at TEXT,
+    is_deleted TINYINT DEFAULT 0
+);</pre></details></section><section class="table-section" id="workflow_test_run" data-table="workflow_test_run"><h2>测试运行记录 <small>10 字段</small></h2><h3><code>workflow_test_run</code></h3><p>保存测试用例每次执行的实际结果及断言结论。<sup><a href="#cite-46">[46]</a></sup><sup><a href="#cite-47">[47]</a></sup></p><p><strong>索引与唯一性：</strong>普通索引 (case_id, executed_at) · idx_workflow_test_run_case</p><p><strong>删除语义：</strong>实体支持逻辑删除（is_deleted：0 → 1）；不代表存在对外删除接口，也不代表自动级联。</p><div class="table-wrap"><table><thead><tr><th>字段</th><th>声明类型</th><th>原始类型与约束</th><th>中文用途</th></tr></thead><tbody><tr data-column="id"><td><code>id</code></td><td><code>INTEGER</code></td><td>INTEGER PRIMARY KEY AUTOINCREMENT</td><td>自增主键</td></tr><tr data-column="case_id"><td><code>case_id</code></td><td><code>INTEGER</code></td><td>INTEGER NOT NULL</td><td>测试用例行 ID，业务关联用例表</td></tr><tr data-column="status"><td><code>status</code></td><td><code>VARCHAR(16)</code></td><td>VARCHAR(16) NOT NULL</td><td>测试状态：passed、failed、error、stale</td></tr><tr data-column="actual_json"><td><code>actual_json</code></td><td><code>TEXT</code></td><td>TEXT</td><td>测试实际输出，JSON 文本</td></tr><tr data-column="assert_results_json"><td><code>assert_results_json</code></td><td><code>TEXT</code></td><td>TEXT</td><td>逐条断言结果，JSON 文本</td></tr><tr data-column="error"><td><code>error</code></td><td><code>TEXT</code></td><td>TEXT</td><td>运行错误说明</td></tr><tr data-column="duration_ms"><td><code>duration_ms</code></td><td><code>INTEGER</code></td><td>INTEGER</td><td>执行耗时，单位毫秒</td></tr><tr data-column="source"><td><code>source</code></td><td><code>VARCHAR(16)</code></td><td>VARCHAR(16) DEFAULT &#x27;manual&#x27;</td><td>测试触发来源：manual 或 agent</td></tr><tr data-column="executed_at"><td><code>executed_at</code></td><td><code>TEXT</code></td><td>TEXT</td><td>测试执行时间</td></tr><tr data-column="is_deleted"><td><code>is_deleted</code></td><td><code>TINYINT</code></td><td>TINYINT DEFAULT 0</td><td>逻辑删除标记：0 未删除，1 已删除</td></tr></tbody></table></div><details open><summary>合成 JSON 示例 · 包含全部字段</summary><pre class="json-example">{
+  &quot;id&quot;: 1,
+  &quot;case_id&quot;: 1,
+  &quot;status&quot;: &quot;passed&quot;,
+  &quot;actual_json&quot;: &quot;{\&quot;result\&quot;:\&quot;通过\&quot;}&quot;,
+  &quot;assert_results_json&quot;: &quot;[{\&quot;field\&quot;:\&quot;result\&quot;,\&quot;passed\&quot;:true}]&quot;,
+  &quot;error&quot;: null,
+  &quot;duration_ms&quot;: 0,
+  &quot;source&quot;: &quot;manual&quot;,
+  &quot;executed_at&quot;: &quot;2026-10-20T10:00:00&quot;,
+  &quot;is_deleted&quot;: 0
+}</pre></details><details><summary>原始建表语句</summary><pre>CREATE TABLE IF NOT EXISTS workflow_test_run (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    case_id INTEGER NOT NULL,
+    status VARCHAR(16) NOT NULL,
+    actual_json TEXT,
+    assert_results_json TEXT,
+    error TEXT,
+    duration_ms INTEGER,
+    source VARCHAR(16) DEFAULT &#x27;manual&#x27;,
+    executed_at TEXT,
+    is_deleted TINYINT DEFAULT 0
+);</pre></details></section><section class="table-section" id="agent_prompt_config" data-table="agent_prompt_config"><h2>提示词配置 <small>8 字段</small></h2><h3><code>agent_prompt_config</code></h3><p>维护身份、规范、行为与压缩提示词配置。<sup><a href="#cite-48">[48]</a></sup><sup><a href="#cite-49">[49]</a></sup></p><p><strong>索引与唯一性：</strong>唯一约束 (config_key)</p><p><strong>删除语义：</strong>实体支持逻辑删除（is_deleted：0 → 1）；不代表存在对外删除接口，也不代表自动级联。</p><div class="table-wrap"><table><thead><tr><th>字段</th><th>声明类型</th><th>原始类型与约束</th><th>中文用途</th></tr></thead><tbody><tr data-column="id"><td><code>id</code></td><td><code>INTEGER</code></td><td>INTEGER PRIMARY KEY AUTOINCREMENT</td><td>自增主键</td></tr><tr data-column="config_key"><td><code>config_key</code></td><td><code>VARCHAR(64)</code></td><td>VARCHAR(64) NOT NULL UNIQUE</td><td>配置业务键</td></tr><tr data-column="content"><td><code>content</code></td><td><code>TEXT</code></td><td>TEXT NOT NULL</td><td>文本正文</td></tr><tr data-column="version"><td><code>version</code></td><td><code>INTEGER</code></td><td>INTEGER NOT NULL DEFAULT 1</td><td>内容修订版本号</td></tr><tr data-column="scope"><td><code>scope</code></td><td><code>VARCHAR(32)</code></td><td>VARCHAR(32) NOT NULL DEFAULT &#x27;global&#x27;</td><td>提示词作用域，默认 global</td></tr><tr data-column="updated_by"><td><code>updated_by</code></td><td><code>VARCHAR(64)</code></td><td>VARCHAR(64)</td><td>最后更新操作者</td></tr><tr data-column="updated_at"><td><code>updated_at</code></td><td><code>TEXT</code></td><td>TEXT</td><td>最后更新时间，文本存储</td></tr><tr data-column="is_deleted"><td><code>is_deleted</code></td><td><code>TINYINT</code></td><td>TINYINT DEFAULT 0</td><td>逻辑删除标记：0 未删除，1 已删除</td></tr></tbody></table></div><details open><summary>合成 JSON 示例 · 包含全部字段</summary><pre class="json-example">{
+  &quot;id&quot;: 1,
+  &quot;config_key&quot;: &quot;IDENTITY&quot;,
+  &quot;content&quot;: &quot;这是一条合成示例正文。&quot;,
+  &quot;version&quot;: 1,
+  &quot;scope&quot;: &quot;global&quot;,
+  &quot;updated_by&quot;: &quot;合成示例&quot;,
+  &quot;updated_at&quot;: &quot;2026-10-20T10:00:00&quot;,
+  &quot;is_deleted&quot;: 0
+}</pre></details><details><summary>原始建表语句</summary><pre>CREATE TABLE IF NOT EXISTS agent_prompt_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    config_key VARCHAR(64) NOT NULL UNIQUE,
+    content TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 1,
+    scope VARCHAR(32) NOT NULL DEFAULT &#x27;global&#x27;,
+    updated_by VARCHAR(64),
+    updated_at TEXT,
+    is_deleted TINYINT DEFAULT 0
+);</pre></details></section><section class="table-section" id="agent_skill" data-table="agent_skill"><h2>技能元数据 <small>8 字段</small></h2><h3><code>agent_skill</code></h3><p>维护技能目录身份、分类和启用状态；正文存于文件表。<sup><a href="#cite-50">[50]</a></sup><sup><a href="#cite-51">[51]</a></sup></p><p><strong>索引与唯一性：</strong>唯一约束 (name)</p><p><strong>删除语义：</strong>删除技能入口实际将 enabled 设为 false，保留元数据；随后逐文件软删，历史快照保留。不要将实体支持逻辑删除误读为该接口软删技能元数据。<sup><a href="#cite-9">[9]</a></sup></p><div class="table-wrap"><table><thead><tr><th>字段</th><th>声明类型</th><th>原始类型与约束</th><th>中文用途</th></tr></thead><tbody><tr data-column="id"><td><code>id</code></td><td><code>INTEGER</code></td><td>INTEGER PRIMARY KEY AUTOINCREMENT</td><td>自增主键</td></tr><tr data-column="name"><td><code>name</code></td><td><code>VARCHAR(128)</code></td><td>VARCHAR(128) NOT NULL UNIQUE</td><td>名称</td></tr><tr data-column="description"><td><code>description</code></td><td><code>VARCHAR(512)</code></td><td>VARCHAR(512)</td><td>用途说明</td></tr><tr data-column="kind"><td><code>kind</code></td><td><code>VARCHAR(32)</code></td><td>VARCHAR(32) NOT NULL DEFAULT &#x27;general&#x27;</td><td>技能分类：node、pattern、general、domain</td></tr><tr data-column="enabled"><td><code>enabled</code></td><td><code>TINYINT</code></td><td>TINYINT DEFAULT 1</td><td>是否启用：0 否，1 是</td></tr><tr data-column="source"><td><code>source</code></td><td><code>VARCHAR(16)</code></td><td>VARCHAR(16) DEFAULT &#x27;user&#x27;</td><td>技能来源：seed 内置或 user 用户</td></tr><tr data-column="updated_at"><td><code>updated_at</code></td><td><code>TEXT</code></td><td>TEXT</td><td>最后更新时间，文本存储</td></tr><tr data-column="is_deleted"><td><code>is_deleted</code></td><td><code>TINYINT</code></td><td>TINYINT DEFAULT 0</td><td>逻辑删除标记：0 未删除，1 已删除</td></tr></tbody></table></div><details open><summary>合成 JSON 示例 · 包含全部字段</summary><pre class="json-example">{
+  &quot;id&quot;: 1,
+  &quot;name&quot;: &quot;demo-skill&quot;,
+  &quot;description&quot;: &quot;合成示例&quot;,
+  &quot;kind&quot;: &quot;general&quot;,
+  &quot;enabled&quot;: 1,
+  &quot;source&quot;: &quot;user&quot;,
+  &quot;updated_at&quot;: &quot;2026-10-20T10:00:00&quot;,
+  &quot;is_deleted&quot;: 0
+}</pre></details><details><summary>原始建表语句</summary><pre>CREATE TABLE IF NOT EXISTS agent_skill (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name VARCHAR(128) NOT NULL UNIQUE,
+    description VARCHAR(512),
+    kind VARCHAR(32) NOT NULL DEFAULT &#x27;general&#x27;,
+    enabled TINYINT DEFAULT 1,
+    source VARCHAR(16) DEFAULT &#x27;user&#x27;,
+    updated_at TEXT,
+    is_deleted TINYINT DEFAULT 0
+);</pre></details></section><section class="table-section" id="agent_skill_file" data-table="agent_skill_file"><h2>技能文件 <small>7 字段</small></h2><h3><code>agent_skill_file</code></h3><p>保存技能目录中的文本文件，SKILL.md 为入口。<sup><a href="#cite-52">[52]</a></sup><sup><a href="#cite-53">[53]</a></sup></p><p><strong>索引与唯一性：</strong>普通索引 (skill_name, is_deleted) · idx_agent_skill_file_name；唯一约束 (skill_name, file_path)</p><p><strong>删除语义：</strong>删除文件使用 removeById，按实体标记软删。唯一键不包含 is_deleted，同名文件重建可能发生唯一键冲突。<sup><a href="#cite-10">[10]</a></sup></p><div class="table-wrap"><table><thead><tr><th>字段</th><th>声明类型</th><th>原始类型与约束</th><th>中文用途</th></tr></thead><tbody><tr data-column="id"><td><code>id</code></td><td><code>INTEGER</code></td><td>INTEGER PRIMARY KEY AUTOINCREMENT</td><td>自增主键</td></tr><tr data-column="skill_name"><td><code>skill_name</code></td><td><code>VARCHAR(128)</code></td><td>VARCHAR(128) NOT NULL</td><td>所属技能名称</td></tr><tr data-column="file_path"><td><code>file_path</code></td><td><code>VARCHAR(512)</code></td><td>VARCHAR(512) NOT NULL</td><td>技能内相对文件路径</td></tr><tr data-column="content"><td><code>content</code></td><td><code>TEXT</code></td><td>TEXT NOT NULL DEFAULT &#x27;&#x27;</td><td>文本正文</td></tr><tr data-column="is_deleted"><td><code>is_deleted</code></td><td><code>TINYINT</code></td><td>TINYINT DEFAULT 0</td><td>逻辑删除标记：0 未删除，1 已删除</td></tr><tr data-column="created_at"><td><code>created_at</code></td><td><code>TEXT</code></td><td>TEXT</td><td>创建时间，文本存储</td></tr><tr data-column="updated_at"><td><code>updated_at</code></td><td><code>TEXT</code></td><td>TEXT</td><td>最后更新时间，文本存储</td></tr></tbody></table></div><details open><summary>合成 JSON 示例 · 包含全部字段</summary><pre class="json-example">{
+  &quot;id&quot;: 1,
+  &quot;skill_name&quot;: &quot;demo-skill&quot;,
+  &quot;file_path&quot;: &quot;SKILL.md&quot;,
+  &quot;content&quot;: &quot;这是一条合成示例正文。&quot;,
+  &quot;is_deleted&quot;: 0,
+  &quot;created_at&quot;: &quot;2026-10-20T10:00:00&quot;,
+  &quot;updated_at&quot;: &quot;2026-10-20T10:00:00&quot;
+}</pre></details><details><summary>原始建表语句</summary><pre>CREATE TABLE IF NOT EXISTS agent_skill_file (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    skill_name VARCHAR(128) NOT NULL,
+    file_path VARCHAR(512) NOT NULL,
+    content TEXT NOT NULL DEFAULT &#x27;&#x27;,
+    is_deleted TINYINT DEFAULT 0,
+    created_at TEXT,
+    updated_at TEXT,
+    UNIQUE(skill_name, file_path)
+);</pre></details></section><section class="table-section" id="agent_skill_history" data-table="agent_skill_history"><h2>技能历史快照 <small>6 字段</small></h2><h3><code>agent_skill_history</code></h3><p>按技能记录所有文件的版本快照。<sup><a href="#cite-54">[54]</a></sup><sup><a href="#cite-55">[55]</a></sup></p><p><strong>索引与唯一性：</strong>普通索引 (skill_name, version) · idx_agent_skill_history_name</p><p><strong>删除语义：</strong>没有逻辑删除字段；若执行 ORM 删除则是物理删除。本页未将追加写入或历史留存表推断为存在对外删除接口。</p><div class="table-wrap"><table><thead><tr><th>字段</th><th>声明类型</th><th>原始类型与约束</th><th>中文用途</th></tr></thead><tbody><tr data-column="id"><td><code>id</code></td><td><code>INTEGER</code></td><td>INTEGER PRIMARY KEY AUTOINCREMENT</td><td>自增主键</td></tr><tr data-column="skill_name"><td><code>skill_name</code></td><td><code>VARCHAR(128)</code></td><td>VARCHAR(128) NOT NULL</td><td>所属技能名称</td></tr><tr data-column="version"><td><code>version</code></td><td><code>INTEGER</code></td><td>INTEGER NOT NULL</td><td>内容修订版本号</td></tr><tr data-column="files_json"><td><code>files_json</code></td><td><code>TEXT</code></td><td>TEXT NOT NULL</td><td>全部技能文件的快照，JSON 文本</td></tr><tr data-column="changed_by"><td><code>changed_by</code></td><td><code>VARCHAR(64)</code></td><td>VARCHAR(64)</td><td>变更操作者标识</td></tr><tr data-column="created_at"><td><code>created_at</code></td><td><code>TEXT</code></td><td>TEXT</td><td>创建时间，文本存储</td></tr></tbody></table></div><details open><summary>合成 JSON 示例 · 包含全部字段</summary><pre class="json-example">{
+  &quot;id&quot;: 1,
+  &quot;skill_name&quot;: &quot;demo-skill&quot;,
+  &quot;version&quot;: 1,
+  &quot;files_json&quot;: &quot;{\&quot;SKILL.md\&quot;:\&quot;合成技能正文\&quot;}&quot;,
+  &quot;changed_by&quot;: &quot;合成示例&quot;,
+  &quot;created_at&quot;: &quot;2026-10-20T10:00:00&quot;
+}</pre></details><details><summary>原始建表语句</summary><pre>CREATE TABLE IF NOT EXISTS agent_skill_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    skill_name VARCHAR(128) NOT NULL,
+    version INTEGER NOT NULL,
+    files_json TEXT NOT NULL,
+    changed_by VARCHAR(64),
+    created_at TEXT
+);</pre></details></section><footer id="sources"><div class="sources"><h2>源码依据</h2><p>引用提供相对源码路径和已冻结的带行号摘录；离开仓库后仍可离线查看摘录，源码文件链接则需要保留仓库目录结构。摘录行号对应生成时工作区。</p><ol><li id="cite-1"><span class="src-title">GaiaWorkflowController.java · L185–L188</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-app/src/main/java/cn/boommanpro/gaia/workflow/app/controller/system/GaiaWorkflowController.java" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-app/src/main/java/cn/boommanpro/gaia/workflow/app/controller/system/GaiaWorkflowController.java</a><details><summary>离线源码摘录</summary><pre>185:     @DeleteMapping(&quot;/delete/{id}&quot;)
+186:     public boolean deleteWorkflow(@PathVariable Long id) {
+187:         return workflowService.removeById(id);
+188:     }</pre></details></li><li id="cite-2"><span class="src-title">GaiaWorkflowTemplateController.java · L58–L61</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-app/src/main/java/cn/boommanpro/gaia/workflow/app/controller/system/GaiaWorkflowTemplateController.java" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-app/src/main/java/cn/boommanpro/gaia/workflow/app/controller/system/GaiaWorkflowTemplateController.java</a><details><summary>离线源码摘录</summary><pre>58:     @DeleteMapping(&quot;/delete/{id}&quot;)
+59:     public boolean deleteTemplate(@PathVariable Long id) {
+60:         return templateAppService.removeById(id);
+61:     }</pre></details></li><li id="cite-3"><span class="src-title">GaiaWorkflowVersionController.java · L134–L137</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-app/src/main/java/cn/boommanpro/gaia/workflow/app/controller/system/GaiaWorkflowVersionController.java" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-app/src/main/java/cn/boommanpro/gaia/workflow/app/controller/system/GaiaWorkflowVersionController.java</a><details><summary>离线源码摘录</summary><pre>134:     @DeleteMapping(&quot;/delete/{id}&quot;)
+135:     public boolean deleteVersion(@PathVariable Long id) {
+136:         return workflowVersionService.removeById(id);
+137:     }</pre></details></li><li id="cite-4"><span class="src-title">GaiaWorkflowLogController.java · L83–L86</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-app/src/main/java/cn/boommanpro/gaia/workflow/app/controller/system/GaiaWorkflowLogController.java" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-app/src/main/java/cn/boommanpro/gaia/workflow/app/controller/system/GaiaWorkflowLogController.java</a><details><summary>离线源码摘录</summary><pre>83:     @DeleteMapping(&quot;/delete/{id}&quot;)
+84:     public boolean deleteLog(@PathVariable Long id) {
+85:         return workflowLogService.removeById(id);
+86:     }</pre></details></li><li id="cite-5"><span class="src-title">AgentSessionController.java · L165–L172</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-app/src/main/java/cn/boommanpro/gaia/workflow/app/controller/system/AgentSessionController.java" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-app/src/main/java/cn/boommanpro/gaia/workflow/app/controller/system/AgentSessionController.java</a><details><summary>离线源码摘录</summary><pre>165:     @DeleteMapping(&quot;/{sessionKey}&quot;)
+166:     public boolean deleteSession(@PathVariable String sessionKey) {
+167:         // as-service 会话先回收远端托管 Agent（按会话建 Agent 的配套清理），再删本地行
+168:         asServiceSessionService.archiveRemoteAgentForSession(sessionKey);
+169:         sessionWorkflowStore.dropSession(sessionKey);
+170:         return sessionService.remove(
+171:             new QueryWrapper&lt;AgentSession&gt;().eq(&quot;session_key&quot;, sessionKey));
+172:     }</pre></details></li><li id="cite-6"><span class="src-title">SessionWorkflowStore.java · L109–L122</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-app/src/main/java/cn/boommanpro/gaia/workflow/app/agent/session/SessionWorkflowStore.java" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-app/src/main/java/cn/boommanpro/gaia/workflow/app/agent/session/SessionWorkflowStore.java</a><details><summary>离线源码摘录</summary><pre>109:     /** 会话删除时连带软删草稿工作流（幂等；版本行与用例按 code 留档，不再可见） */
+110:     public void dropSession(String sessionKey) {
+111:         if (sessionKey == null) {
+112:             return;
+113:         }
+114:         try {
+115:             workflowService.update(new UpdateWrapper&lt;GaiaWorkflow&gt;()
+116:                 .eq(&quot;workflow_code&quot;, sessionCode(sessionKey))
+117:                 .eq(&quot;source&quot;, SOURCE_SESSION)
+118:                 .set(&quot;is_deleted&quot;, 1)
+119:                 .set(&quot;updated_at&quot;, LocalDateTime.now()));
+120:         } catch (Exception e) {
+121:             log.warn(&quot;[session-workflow] drop {} failed: {}&quot;, sessionKey, e.getMessage());
+122:         }</pre></details></li><li id="cite-7"><span class="src-title">AgentWorkspaceController.java · L109–L122</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-app/src/main/java/cn/boommanpro/gaia/workflow/app/controller/system/AgentWorkspaceController.java" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-app/src/main/java/cn/boommanpro/gaia/workflow/app/controller/system/AgentWorkspaceController.java</a><details><summary>离线源码摘录</summary><pre>109:     /**
+110:      * 删除文件夹：其中会话自动移出（folder_id 置空），不删除会话
+111:      */
+112:     @DeleteMapping(&quot;/folder/{id}&quot;)
+113:     public boolean deleteFolder(@PathVariable Long id) {
+114:         boolean removed = folderService.removeById(id);
+115:         if (!removed) {
+116:             return false;
+117:         }
+118:         // 移出其中的会话（UpdateWrapper 显式置空，绕过 updateById 跳过 null 字段）
+119:         UpdateWrapper&lt;AgentSession&gt; uw = new UpdateWrapper&lt;&gt;();
+120:         uw.eq(&quot;folder_id&quot;, id).set(&quot;folder_id&quot;, null).set(&quot;updated_at&quot;, LocalDateTime.now());
+121:         sessionService.update(uw);
+122:         return true;</pre></details></li><li id="cite-8"><span class="src-title">ModelConfigController.java · L120–L131</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-app/src/main/java/cn/boommanpro/gaia/workflow/app/controller/api/ModelConfigController.java" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-app/src/main/java/cn/boommanpro/gaia/workflow/app/controller/api/ModelConfigController.java</a><details><summary>离线源码摘录</summary><pre>120:     @DeleteMapping(&quot;/models/{id}&quot;)
+121:     public Map&lt;String, Object&gt; delete(@PathVariable Long id) {
+122:         Long activeId = modelConfigService.getActiveModelId();
+123:         if (id.equals(activeId)) {
+124:             return err(&quot;该模型是全局默认模型，先把默认切到其他模型再删除&quot;);
+125:         }
+126:         Long bound = sessionService.count(new QueryWrapper&lt;AgentSession&gt;().eq(&quot;model_id&quot;, id)) &gt; 0 ? id : null;
+127:         if (bound != null) {
+128:             return err(&quot;仍有会话绑定该模型，先在对话里切换模型再删除&quot;);
+129:         }
+130:         llmModelService.removeById(id);
+131:         return new JSONObject().set(&quot;success&quot;, true);</pre></details></li><li id="cite-9"><span class="src-title">AgentSkillController.java · L110–L121</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-app/src/main/java/cn/boommanpro/gaia/workflow/app/controller/system/AgentSkillController.java" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-app/src/main/java/cn/boommanpro/gaia/workflow/app/controller/system/AgentSkillController.java</a><details><summary>离线源码摘录</summary><pre>110:     /** 删除技能 */
+111:     @DeleteMapping(&quot;{name}&quot;)
+112:     public Map&lt;String, Object&gt; delete(@PathVariable String name) {
+113:         AgentSkill meta = skillCatalog.listAll().stream()
+114:             .filter(s -&gt; name.equals(s.getName())).findFirst().orElse(null);
+115:         if (meta == null) {
+116:             return Map.of(&quot;success&quot;, false, &quot;error&quot;, &quot;技能不存在&quot;);
+117:         }
+118:         skillCatalog.saveMeta(name, meta.getDescription(), meta.getKind(), false);
+119:         // 逻辑删除所有文件
+120:         skillCatalog.getFiles(name).forEach(f -&gt; skillCatalog.deleteFile(name, f.getFilePath()));
+121:         return Map.of(&quot;success&quot;, true);</pre></details></li><li id="cite-10"><span class="src-title">AgentSkillCatalog.java · L118–L131</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-app/src/main/java/cn/boommanpro/gaia/workflow/app/service/AgentSkillCatalog.java" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-app/src/main/java/cn/boommanpro/gaia/workflow/app/service/AgentSkillCatalog.java</a><details><summary>离线源码摘录</summary><pre>118:     public void deleteFile(String skillName, String filePath) {
+119:         AgentSkillFile file = getFile(skillName, filePath);
+120:         if (file != null) fileService.removeById(file.getId());
+121:     }
+122: 
+123:     private void saveFileRaw(String skillName, String filePath, String content) {
+124:         AgentSkillFile existing = getFile(skillName, filePath);
+125:         AgentSkillFile file = existing != null ? existing : new AgentSkillFile();
+126:         file.setSkillName(skillName);
+127:         file.setFilePath(filePath);
+128:         file.setContent(content);
+129:         file.setUpdatedAt(LocalDateTime.now().toString());
+130:         if (existing == null) file.setCreatedAt(LocalDateTime.now().toString());
+131:         fileService.saveOrUpdate(file);</pre></details></li><li id="cite-11"><span class="src-title">WorkflowTestCaseController.java · L92–L95</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-app/src/main/java/cn/boommanpro/gaia/workflow/app/controller/api/WorkflowTestCaseController.java" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-app/src/main/java/cn/boommanpro/gaia/workflow/app/controller/api/WorkflowTestCaseController.java</a><details><summary>离线源码摘录</summary><pre>92:     @DeleteMapping(&quot;delete/{id}&quot;)
+93:     public boolean delete(@PathVariable Long id) {
+94:         return caseService.removeById(id);
+95:     }</pre></details></li><li id="cite-12"><span class="src-title">schema.sql · L1–L10</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql</a><details><summary>离线源码摘录</summary><pre>1: CREATE TABLE IF NOT EXISTS gaia_workflow_template (
+2:     id INTEGER PRIMARY KEY AUTOINCREMENT,
+3:     template_code VARCHAR(64) NOT NULL UNIQUE,
+4:     template_name VARCHAR(128) NOT NULL,
+5:     template_desc TEXT,
+6:     template_data TEXT,
+7:     created_at TEXT,
+8:     updated_at TEXT,
+9:     is_deleted TINYINT DEFAULT 0
+10: );</pre></details></li><li id="cite-13"><span class="src-title">GaiaWorkflowTemplate.java · L1–L59</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/GaiaWorkflowTemplate.java" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/GaiaWorkflowTemplate.java</a><details><summary>离线源码摘录</summary><pre>1: package cn.boommanpro.gaia.workflow.infra.manage.entity;
+2: 
+3: import com.baomidou.mybatisplus.annotation.*;
+4: import lombok.Data;
+5: import java.time.LocalDateTime;
+6: 
+7: @Data
+8: @TableName(&quot;gaia_workflow_template&quot;)
+9: public class GaiaWorkflowTemplate {
+10: 
+11:     /**
+12:      * 主键ID
+13:      */
+14:     @TableId(value = &quot;id&quot;, type = IdType.AUTO)
+15:     private Long id;
+16: 
+17:     /**
+18:      * 模板编码
+19:      */
+20:     @TableField(&quot;template_code&quot;)
+21:     private String templateCode;
+22: 
+23:     /**
+24:      * 模板名称
+25:      */
+26:     @TableField(&quot;template_name&quot;)
+27:     private String templateName;
+28: 
+29:     /**
+30:      * 模板描述
+31:      */
+32:     @TableField(&quot;template_desc&quot;)
+33:     private String templateDesc;
+34: 
+35:     /**
+36:      * 模板数据（JSON格式）
+37:      */
+38:     @TableField(&quot;template_data&quot;)
+39:     private String templateData;
+40: 
+41:     /**
+42:      * 创建时间
+43:      */
+44:     @TableField(value = &quot;created_at&quot;, fill = FieldFill.INSERT)
+45:     private LocalDateTime createdAt;
+46: 
+47:     /**
+48:      * 更新时间
+49:      */
+50:     @TableField(value = &quot;updated_at&quot;, fill = FieldFill.INSERT_UPDATE)
+51:     private LocalDateTime updatedAt;
+52: 
+53:     /**
+54:      * 是否删除（0-未删除，1-已删除）
+55:      */
+56:     @TableField(&quot;is_deleted&quot;)
+57:     @TableLogic
+58:     private Integer isDeleted;
+59: }</pre></details></li><li id="cite-14"><span class="src-title">schema.sql · L12–L24</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql</a><details><summary>离线源码摘录</summary><pre>12: CREATE TABLE IF NOT EXISTS gaia_workflow (
+13:     id INTEGER PRIMARY KEY AUTOINCREMENT,
+14:     workflow_code VARCHAR(64) NOT NULL UNIQUE,
+15:     workflow_name VARCHAR(128) NOT NULL,
+16:     workflow_desc TEXT,
+17:     current_version_id INTEGER,
+18:     revision INTEGER DEFAULT 0,
+19:     template_code VARCHAR(64),
+20:     source VARCHAR(16) DEFAULT &#x27;user&#x27;,   -- user=用户工作流 / session=会话草稿工作流（draft_&lt;sessionKey&gt;，不进列表）
+21:     created_at TEXT,
+22:     updated_at TEXT,
+23:     is_deleted TINYINT DEFAULT 0
+24: );</pre></details></li><li id="cite-15"><span class="src-title">GaiaWorkflow.java · L1–L78</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/GaiaWorkflow.java" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/GaiaWorkflow.java</a><details><summary>离线源码摘录</summary><pre>1: package cn.boommanpro.gaia.workflow.infra.manage.entity;
+2: 
+3: import com.baomidou.mybatisplus.annotation.*;
+4: import lombok.Data;
+5: import java.time.LocalDateTime;
+6: 
+7: @Data
+8: @TableName(&quot;gaia_workflow&quot;)
+9: public class GaiaWorkflow {
+10: 
+11:     /**
+12:      * 主键ID
+13:      */
+14:     @TableId(value = &quot;id&quot;, type = IdType.AUTO)
+15:     private Long id;
+16: 
+17:     /**
+18:      * 工作流编码，全局唯一
+19:      */
+20:     @TableField(&quot;workflow_code&quot;)
+21:     private String workflowCode;
+22: 
+23:     /**
+24:      * 工作流名称
+25:      */
+26:     @TableField(&quot;workflow_name&quot;)
+27:     private String workflowName;
+28: 
+29:     /**
+30:      * 工作流描述
+31:      */
+32:     @TableField(&quot;workflow_desc&quot;)
+33:     private String workflowDesc;
+34: 
+35:     /**
+36:      * 当前版本ID
+37:      */
+38:     @TableField(&quot;current_version_id&quot;)
+39:     private Long currentVersionId;
+40: 
+41:     /**
+42:      * 乐观锁修订号：任何提交（AI 落版 / 编辑器手动保存）+1。
+43:      * 工具链的 read→edit→save 均以它做 CAS 基准，防止基于陈旧状态的覆盖。
+44:      */
+45:     @TableField(&quot;revision&quot;)
+46:     private Long revision;
+47: 
+48:     /**
+49:      * 来源模板编码
+50:      */
+51:     @TableField(&quot;template_code&quot;)
+52:     private String templateCode;
+53: 
+54:     /**
+55:      * 来源：user=用户工作流（默认）；session=会话草稿工作流（draft_&amp;lt;sessionKey&amp;gt;，随对话实时同步，不进工作流列表）
+56:      */
+57:     @TableField(&quot;source&quot;)
+58:     private String source;
+59: 
+60:     /**
+61:      * 创建时间
+62:      */
+63:     @TableField(value = &quot;created_at&quot;, fill = FieldFill.INSERT)
+64:     private LocalDateTime createdAt;
+65: 
+66:     /**
+67:      * 更新时间
+68:      */
+69:     @TableField(value = &quot;updated_at&quot;, fill = FieldFill.INSERT_UPDATE)
+70:     private LocalDateTime updatedAt;
+71: 
+72:     /**
+73:      * 是否删除（0-未删除，1-已删除）
+74:      */
+75:     @TableField(&quot;is_deleted&quot;)
+76:     @TableLogic
+77:     private Integer isDeleted;
+78: }</pre></details></li><li id="cite-16"><span class="src-title">schema.sql · L26–L37</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql</a><details><summary>离线源码摘录</summary><pre>26: CREATE TABLE IF NOT EXISTS gaia_workflow_version (
+27:     id INTEGER PRIMARY KEY AUTOINCREMENT,
+28:     workflow_code VARCHAR(64) NOT NULL,
+29:     version_number VARCHAR(32) NOT NULL,
+30:     version_desc VARCHAR(256),
+31:     workflow_data TEXT,
+32:     diff_json TEXT,
+33:     created_by VARCHAR(64),
+34:     created_at TEXT,
+35:     is_current TINYINT DEFAULT 0,
+36:     UNIQUE(workflow_code, version_number)
+37: );</pre></details></li><li id="cite-17"><span class="src-title">GaiaWorkflowVersion.java · L1–L65</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/GaiaWorkflowVersion.java" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/GaiaWorkflowVersion.java</a><details><summary>离线源码摘录</summary><pre>1: package cn.boommanpro.gaia.workflow.infra.manage.entity;
+2: 
+3: import com.baomidou.mybatisplus.annotation.*;
+4: import lombok.Data;
+5: import java.time.LocalDateTime;
+6: 
+7: @Data
+8: @TableName(&quot;gaia_workflow_version&quot;)
+9: public class GaiaWorkflowVersion {
+10: 
+11:     /**
+12:      * 主键ID
+13:      */
+14:     @TableId(value = &quot;id&quot;, type = IdType.AUTO)
+15:     private Long id;
+16: 
+17:     /**
+18:      * 工作流编码
+19:      */
+20:     @TableField(&quot;workflow_code&quot;)
+21:     private String workflowCode;
+22: 
+23:     /**
+24:      * 版本号
+25:      */
+26:     @TableField(&quot;version_number&quot;)
+27:     private String versionNumber;
+28: 
+29:     /**
+30:      * 版本描述
+31:      */
+32:     @TableField(&quot;version_desc&quot;)
+33:     private String versionDesc;
+34: 
+35:     /**
+36:      * 工作流数据（JSON格式）
+37:      */
+38:     @TableField(&quot;workflow_data&quot;)
+39:     private String workflowData;
+40: 
+41:     /**
+42:      * 与上一版本的差异（JSON）：nodes 的 added/removed/changed 与 edges 的 added/removed。
+43:      * 首个版本为空。供版本审查与 E2E 断言使用。
+44:      */
+45:     @TableField(&quot;diff_json&quot;)
+46:     private String diffJson;
+47: 
+48:     /**
+49:      * 创建人
+50:      */
+51:     @TableField(&quot;created_by&quot;)
+52:     private String createdBy;
+53: 
+54:     /**
+55:      * 创建时间
+56:      */
+57:     @TableField(value = &quot;created_at&quot;, fill = FieldFill.INSERT)
+58:     private LocalDateTime createdAt;
+59: 
+60:     /**
+61:      * 是否为当前版本（0-否，1-是）
+62:      */
+63:     @TableField(&quot;is_current&quot;)
+64:     private Integer isCurrent;
+65: }</pre></details></li><li id="cite-18"><span class="src-title">schema.sql · L39–L55</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql</a><details><summary>离线源码摘录</summary><pre>39: CREATE TABLE IF NOT EXISTS gaia_workflow_log (
+40:     id INTEGER PRIMARY KEY AUTOINCREMENT,
+41:     workflow_code VARCHAR(64) NOT NULL,
+42:     version_number VARCHAR(32) NOT NULL,
+43:     execution_id VARCHAR(64) NOT NULL UNIQUE,
+44:     start_time TEXT,
+45:     end_time TEXT,
+46:     status VARCHAR(32),
+47:     input_params TEXT,
+48:     output_params TEXT,
+49:     error_message TEXT,
+50:     execution_duration BIGINT,
+51:     invoke_channel VARCHAR(32),
+52:     api_path VARCHAR(128),
+53:     api_key_prefix VARCHAR(32),
+54:     created_at TEXT
+55: );</pre></details></li><li id="cite-19"><span class="src-title">GaiaWorkflowLog.java · L1–L100</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/GaiaWorkflowLog.java" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/GaiaWorkflowLog.java</a><details><summary>离线源码摘录</summary><pre>1: package cn.boommanpro.gaia.workflow.infra.manage.entity;
+2: 
+3: import com.baomidou.mybatisplus.annotation.*;
+4: import lombok.Data;
+5: import java.time.LocalDateTime;
+6: 
+7: @Data
+8: @TableName(&quot;gaia_workflow_log&quot;)
+9: public class GaiaWorkflowLog {
+10: 
+11:     /**
+12:      * 主键ID
+13:      */
+14:     @TableId(value = &quot;id&quot;, type = IdType.AUTO)
+15:     private Long id;
+16: 
+17:     /**
+18:      * 工作流编码
+19:      */
+20:     @TableField(&quot;workflow_code&quot;)
+21:     private String workflowCode;
+22: 
+23:     /**
+24:      * 版本号
+25:      */
+26:     @TableField(&quot;version_number&quot;)
+27:     private String versionNumber;
+28: 
+29:     /**
+30:      * 执行ID，全局唯一
+31:      */
+32:     @TableField(&quot;execution_id&quot;)
+33:     private String executionId;
+34: 
+35:     /**
+36:      * 开始执行时间
+37:      */
+38:     @TableField(&quot;start_time&quot;)
+39:     private LocalDateTime startTime;
+40: 
+41:     /**
+42:      * 执行结束时间
+43:      */
+44:     @TableField(&quot;end_time&quot;)
+45:     private LocalDateTime endTime;
+46: 
+47:     /**
+48:      * 执行状态（success-成功，failed-失败，running-执行中）
+49:      */
+50:     @TableField(&quot;status&quot;)
+51:     private String status;
+52: 
+53:     /**
+54:      * 输入参数（JSON格式）
+55:      */
+56:     @TableField(&quot;input_params&quot;)
+57:     private String inputParams;
+58: 
+59:     /**
+60:      * 输出参数（JSON格式）
+61:      */
+62:     @TableField(&quot;output_params&quot;)
+63:     private String outputParams;
+64: 
+65:     /**
+66:      * 错误信息
+67:      */
+68:     @TableField(&quot;error_message&quot;)
+69:     private String errorMessage;
+70: 
+71:     /**
+72:      * 执行时长（毫秒）
+73:      */
+74:     @TableField(&quot;execution_duration&quot;)
+75:     private Long executionDuration;
+76: 
+77:     /**
+78:      * 调用渠道：execute-原生执行端点 / api-对外发布 API 调用
+79:      */
+80:     @TableField(&quot;invoke_channel&quot;)
+81:     private String invokeChannel;
+82: 
+83:     /**
+84:      * 调用路径（对外 API 时为 /api/v1/wf/{code}）
+85:      */
+86:     @TableField(&quot;api_path&quot;)
+87:     private String apiPath;
+88: 
+89:     /**
+90:      * API Key 前缀（脱敏，用于看板区分调用方）
+91:      */
+92:     @TableField(&quot;api_key_prefix&quot;)
+93:     private String apiKeyPrefix;
+94: 
+95:     /**
+96:      * 创建时间
+97:      */
+98:     @TableField(value = &quot;created_at&quot;, fill = FieldFill.INSERT)
+99:     private LocalDateTime createdAt;
+100: }</pre></details></li><li id="cite-20"><span class="src-title">schema.sql · L58–L73</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql</a><details><summary>离线源码摘录</summary><pre>58: CREATE TABLE IF NOT EXISTS gaia_workflow_api (
+59:     id INTEGER PRIMARY KEY AUTOINCREMENT,
+60:     workflow_code VARCHAR(64) NOT NULL UNIQUE,
+61:     api_name VARCHAR(128),
+62:     api_desc TEXT,
+63:     version_number VARCHAR(32),
+64:     api_path VARCHAR(128),
+65:     api_key VARCHAR(128),
+66:     status TINYINT DEFAULT 0,
+67:     request_schema TEXT,
+68:     response_schema TEXT,
+69:     error_codes TEXT,
+70:     created_at TEXT,
+71:     updated_at TEXT,
+72:     is_deleted TINYINT DEFAULT 0
+73: );</pre></details></li><li id="cite-21"><span class="src-title">GaiaWorkflowApi.java · L1–L69</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/GaiaWorkflowApi.java" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/GaiaWorkflowApi.java</a><details><summary>离线源码摘录</summary><pre>1: package cn.boommanpro.gaia.workflow.infra.manage.entity;
+2: 
+3: import com.baomidou.mybatisplus.annotation.*;
+4: import lombok.Data;
+5: import java.time.LocalDateTime;
+6: 
+7: /**
+8:  * 工作流「发布为 API」主表。
+9:  *
+10:  * 一条记录 = 一个对外可调用的 API：绑定某个 workflow 的当前生效版本，
+11:  * 拥有独立的调用路径 {@code /api/v1/wf/{workflowCode}} 与 API Key 鉴权。
+12:  */
+13: @Data
+14: @TableName(&quot;gaia_workflow_api&quot;)
+15: public class GaiaWorkflowApi {
+16: 
+17:     @TableId(value = &quot;id&quot;, type = IdType.AUTO)
+18:     private Long id;
+19: 
+20:     /** 工作流编码（与 gaia_workflow.workflow_code 一一对应） */
+21:     @TableField(&quot;workflow_code&quot;)
+22:     private String workflowCode;
+23: 
+24:     /** API 名称（对外展示） */
+25:     @TableField(&quot;api_name&quot;)
+26:     private String apiName;
+27: 
+28:     /** API 描述 */
+29:     @TableField(&quot;api_desc&quot;)
+30:     private String apiDesc;
+31: 
+32:     /** 发布时锁定的版本号 */
+33:     @TableField(&quot;version_number&quot;)
+34:     private String versionNumber;
+35: 
+36:     /** 对外调用路径，例如 /api/v1/wf/demo001 */
+37:     @TableField(&quot;api_path&quot;)
+38:     private String apiPath;
+39: 
+40:     /** API Key（明文存储，仅发布/重置时返回一次；列表/详情返回脱敏值） */
+41:     @TableField(&quot;api_key&quot;)
+42:     private String apiKey;
+43: 
+44:     /** 发布状态：0-未发布(草稿) / 1-已发布 */
+45:     @TableField(&quot;status&quot;)
+46:     private Integer status;
+47: 
+48:     /** 请求参数契约（JSON：{ type, properties }） */
+49:     @TableField(&quot;request_schema&quot;)
+50:     private String requestSchema;
+51: 
+52:     /** 响应参数契约（JSON：{ type, properties }） */
+53:     @TableField(&quot;response_schema&quot;)
+54:     private String responseSchema;
+55: 
+56:     /** 错误码说明（JSON 数组） */
+57:     @TableField(&quot;error_codes&quot;)
+58:     private String errorCodes;
+59: 
+60:     @TableField(value = &quot;created_at&quot;, fill = FieldFill.INSERT)
+61:     private LocalDateTime createdAt;
+62: 
+63:     @TableField(value = &quot;updated_at&quot;, fill = FieldFill.INSERT_UPDATE)
+64:     private LocalDateTime updatedAt;
+65: 
+66:     @TableField(&quot;is_deleted&quot;)
+67:     @TableLogic
+68:     private Integer isDeleted;
+69: }</pre></details></li><li id="cite-22"><span class="src-title">schema.sql · L76–L96</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql</a><details><summary>离线源码摘录</summary><pre>76: CREATE TABLE IF NOT EXISTS agent_session (
+77:     id INTEGER PRIMARY KEY AUTOINCREMENT,
+78:     session_key VARCHAR(64) NOT NULL UNIQUE,
+79:     title VARCHAR(128),
+80:     created_at TEXT,
+81:     updated_at TEXT,
+82:     is_deleted TINYINT DEFAULT 0,
+83:     debug_data TEXT,
+84:     -- 工作空间（Codex 风格三区）
+85:     scope VARCHAR(16) DEFAULT &#x27;chat&#x27;,    -- chat（对话）/ work（工作空间），两套逻辑隔离
+86:     folder_id BIGINT,               -- 所属工作文件夹（agent_work_folder.id），null=未归入文件夹
+87:     pinned TINYINT DEFAULT 0,       -- 置顶 0/1
+88:     archived TINYINT DEFAULT 0,     -- 归档 0/1
+89:     -- 执行引擎与会话映射（双引擎架构：local 自研 / ark 方舟托管）
+90:     engine VARCHAR(16) DEFAULT &#x27;local&#x27;,          -- local | ark
+91:     remote_session_id VARCHAR(128),              -- 方舟 sesn-*（engine=ark 时绑定）
+92:     remote_agent_id VARCHAR(128),                -- 运行时绑定的方舟 agent-* 快照
+93:     remote_agent_version INTEGER,                -- 绑定的方舟 Agent 版本
+94:     token_usage TEXT,               -- 累计用量 JSON：{input_tokens, output_tokens, cache_read_input_tokens}
+95:     model_id INTEGER                -- 会话绑定的模型条目（llm_model.id），NULL=跟随全局默认
+96: );</pre></details></li><li id="cite-23"><span class="src-title">AgentSession.java · L1–L99</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/AgentSession.java" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/AgentSession.java</a><details><summary>离线源码摘录</summary><pre>1: package cn.boommanpro.gaia.workflow.infra.manage.entity;
+2: 
+3: import com.baomidou.mybatisplus.annotation.*;
+4: import lombok.Data;
+5: import java.time.LocalDateTime;
+6: 
+7: /**
+8:  * Agent 对话会话
+9:  */
+10: @Data
+11: @TableName(&quot;agent_session&quot;)
+12: public class AgentSession {
+13: 
+14:     @TableId(value = &quot;id&quot;, type = IdType.AUTO)
+15:     private Long id;
+16: 
+17:     /**
+18:      * 会话标识（浏览器生成的 UUID）
+19:      */
+20:     @TableField(&quot;session_key&quot;)
+21:     private String sessionKey;
+22: 
+23:     /**
+24:      * 会话标题
+25:      */
+26:     @TableField(&quot;title&quot;)
+27:     private String title;
+28: 
+29:     @TableField(value = &quot;created_at&quot;, fill = FieldFill.INSERT)
+30:     private LocalDateTime createdAt;
+31: 
+32:     @TableField(value = &quot;updated_at&quot;, fill = FieldFill.INSERT_UPDATE)
+33:     private LocalDateTime updatedAt;
+34: 
+35:     /**
+36:      * 是否删除（0-未删除，1-已删除）
+37:      */
+38:     @TableField(&quot;is_deleted&quot;)
+39:     @TableLogic
+40:     private Integer isDeleted;
+41: 
+42:     /**
+43:      * 调试信息 JSON（前端持久化的 debug entries）
+44:      */
+45:     @TableField(&quot;debug_data&quot;)
+46:     private String debugData;
+47: 
+48:     // ===== 工作空间 / 列表增强（Codex 风格三区） =====
+49: 
+50:     /**
+51:      * 会话所属空间：chat（对话）/ work（工作空间），两套逻辑隔离
+52:      */
+53:     @TableField(&quot;scope&quot;)
+54:     private String scope;
+55: 
+56:     /**
+57:      * 所属工作文件夹（agent_work_folder.id），null 表示未归档到文件夹
+58:      */
+59:     @TableField(&quot;folder_id&quot;)
+60:     private Long folderId;
+61: 
+62:     /**
+63:      * 置顶标记（0-否，1-是）
+64:      */
+65:     @TableField(&quot;pinned&quot;)
+66:     private Integer pinned;
+67: 
+68:     /**
+69:      * 归档标记（0-否，1-是）
+70:      */
+71:     @TableField(&quot;archived&quot;)
+72:     private Integer archived;
+73: 
+74:     // ===== 执行引擎与会话映射（双引擎架构） =====
+75: 
+76:     /** 执行引擎：local（自研编排，默认）/ ark（火山方舟 Managed Agents 托管） */
+77:     @TableField(&quot;engine&quot;)
+78:     private String engine;
+79: 
+80:     /** 会话级模型绑定（llm_model.id，NULL=跟随全局默认；2026-10-11 owb 式多模型） */
+81:     @TableField(&quot;model_id&quot;)
+82:     private Long modelId;
+83: 
+84:     /** 方舟 Session ID（形如 sesn-...），engine=ark 时与 session_key 双向绑定 */
+85:     @TableField(&quot;remote_session_id&quot;)
+86:     private String remoteSessionId;
+87: 
+88:     /** 运行时绑定的方舟 Agent ID 快照 */
+89:     @TableField(&quot;remote_agent_id&quot;)
+90:     private String remoteAgentId;
+91: 
+92:     /** 绑定的方舟 Agent 版本 */
+93:     @TableField(&quot;remote_agent_version&quot;)
+94:     private Integer remoteAgentVersion;
+95: 
+96:     /** 累计 token 用量 JSON：{input_tokens, output_tokens, cache_read_input_tokens} */
+97:     @TableField(&quot;token_usage&quot;)
+98:     private String tokenUsage;
+99: }</pre></details></li><li id="cite-24"><span class="src-title">schema.sql · L99–L106</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql</a><details><summary>离线源码摘录</summary><pre>99: CREATE TABLE IF NOT EXISTS agent_work_folder (
+100:     id INTEGER PRIMARY KEY AUTOINCREMENT,
+101:     name VARCHAR(64) NOT NULL,
+102:     sort_order INTEGER DEFAULT 0,
+103:     created_at TEXT,
+104:     updated_at TEXT,
+105:     is_deleted TINYINT DEFAULT 0
+106: );</pre></details></li><li id="cite-25"><span class="src-title">AgentWorkFolder.java · L1–L41</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/AgentWorkFolder.java" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/AgentWorkFolder.java</a><details><summary>离线源码摘录</summary><pre>1: package cn.boommanpro.gaia.workflow.infra.manage.entity;
+2: 
+3: import com.baomidou.mybatisplus.annotation.*;
+4: import lombok.Data;
+5: import java.time.LocalDateTime;
+6: 
+7: /**
+8:  * 工作空间文件夹（Work 模式：按文件夹分组的对话）
+9:  */
+10: @Data
+11: @TableName(&quot;agent_work_folder&quot;)
+12: public class AgentWorkFolder {
+13: 
+14:     @TableId(value = &quot;id&quot;, type = IdType.AUTO)
+15:     private Long id;
+16: 
+17:     /**
+18:      * 文件夹名称
+19:      */
+20:     @TableField(&quot;name&quot;)
+21:     private String name;
+22: 
+23:     /**
+24:      * 排序权重（越小越靠前）
+25:      */
+26:     @TableField(&quot;sort_order&quot;)
+27:     private Integer sortOrder;
+28: 
+29:     @TableField(value = &quot;created_at&quot;, fill = FieldFill.INSERT)
+30:     private LocalDateTime createdAt;
+31: 
+32:     @TableField(value = &quot;updated_at&quot;, fill = FieldFill.INSERT_UPDATE)
+33:     private LocalDateTime updatedAt;
+34: 
+35:     /**
+36:      * 是否删除（0-未删除，1-已删除）
+37:      */
+38:     @TableField(&quot;is_deleted&quot;)
+39:     @TableLogic
+40:     private Integer isDeleted;
+41: }</pre></details></li><li id="cite-26"><span class="src-title">schema.sql · L109–L123</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql</a><details><summary>离线源码摘录</summary><pre>109: CREATE TABLE IF NOT EXISTS agent_message (
+110:     id INTEGER PRIMARY KEY AUTOINCREMENT,
+111:     session_key VARCHAR(64) NOT NULL,
+112:     role VARCHAR(16) NOT NULL,
+113:     content TEXT,
+114:     tool_calls TEXT,
+115:     thinking TEXT,
+116:     timeline TEXT,
+117:     tool_call_id VARCHAR(64),
+118:     page_context TEXT,
+119:     created_at TEXT,
+120:     compacted INTEGER DEFAULT 0,    -- 1=已被上下文摘要取代，不再进入模型上下文
+121:     images TEXT,                    -- 多模态图片（JSON 数组，base64）
+122:     parent_message_id VARCHAR(64)   -- 父消息 ID（线程引用）
+123: );</pre></details></li><li id="cite-27"><span class="src-title">AgentMessage.java · L1–L84</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/AgentMessage.java" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/AgentMessage.java</a><details><summary>离线源码摘录</summary><pre>1: package cn.boommanpro.gaia.workflow.infra.manage.entity;
+2: 
+3: import com.baomidou.mybatisplus.annotation.*;
+4: import lombok.Data;
+5: import java.time.LocalDateTime;
+6: 
+7: /**
+8:  * Agent 对话消息
+9:  */
+10: @Data
+11: @TableName(&quot;agent_message&quot;)
+12: public class AgentMessage {
+13: 
+14:     @TableId(value = &quot;id&quot;, type = IdType.AUTO)
+15:     private Long id;
+16: 
+17:     /**
+18:      * 会话标识
+19:      */
+20:     @TableField(&quot;session_key&quot;)
+21:     private String sessionKey;
+22: 
+23:     /**
+24:      * 角色：user / assistant / tool
+25:      */
+26:     @TableField(&quot;role&quot;)
+27:     private String role;
+28: 
+29:     /**
+30:      * 文本内容
+31:      */
+32:     @TableField(&quot;content&quot;)
+33:     private String content;
+34: 
+35:     /**
+36:      * 工具调用 JSON（assistant 角色的 tool_calls 数组）
+37:      */
+38:     @TableField(&quot;tool_calls&quot;)
+39:     private String toolCalls;
+40: 
+41:     /**
+42:      * 思考过程文本（assistant 角色；模型 reasoning 输出，审查页/回放折叠展示）
+43:      */
+44:     @TableField(&quot;thinking&quot;)
+45:     private String thinking;
+46: 
+47:     /**
+48:      * 交错时间线 JSON（assistant 角色；run 收尾时持久化的真实调用链路：
+49:      * 思考 → 工具 → 思考 → … → 正文。刷新后前端按原样还原，不再退化成合并视图）
+50:      */
+51:     @TableField(&quot;timeline&quot;)
+52:     private String timeline;
+53: 
+54:     /**
+55:      * 工具结果对应的 tool_call_id（tool 角色使用）
+56:      */
+57:     @TableField(&quot;tool_call_id&quot;)
+58:     private String toolCallId;
+59: 
+60:     /**
+61:      * 发送时的页面上下文 JSON
+62:      */
+63:     @TableField(&quot;page_context&quot;)
+64:     private String pageContext;
+65: 
+66:     /**
+67:      * 多模态图片数据（JSON 数组，base64）
+68:      */
+69:     @TableField(&quot;images&quot;)
+70:     private String images;
+71: 
+72:     /**
+73:      * 父消息 ID（线程引用）
+74:      */
+75:     @TableField(&quot;parent_message_id&quot;)
+76:     private String parentMessageId;
+77: 
+78:     /** 是否已被上下文摘要覆盖（surface replace 持久化侧）：1=已被摘要取代，不再进入模型上下文 */
+79:     @TableField(&quot;compacted&quot;)
+80:     private Integer compacted;
+81: 
+82:     @TableField(&quot;created_at&quot;)
+83:     private LocalDateTime createdAt;
+84: }</pre></details></li><li id="cite-28"><span class="src-title">schema.sql · L130–L145</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql</a><details><summary>离线源码摘录</summary><pre>130: CREATE TABLE IF NOT EXISTS agent_artifact (
+131:     id INTEGER PRIMARY KEY AUTOINCREMENT,
+132:     artifact_key VARCHAR(96) NOT NULL UNIQUE,   -- 对外稳定标识：会话级产物为 &quot;{sessionKey}:{type}&quot;，追加式为 &quot;art_xxx&quot;
+133:     session_key VARCHAR(64) NOT NULL,
+134:     run_id VARCHAR(64),
+135:     type VARCHAR(24) NOT NULL,
+136:     status VARCHAR(24) NOT NULL DEFAULT &#x27;stable&#x27;,
+137:     title VARCHAR(128),
+138:     summary VARCHAR(256),
+139:     payload TEXT NOT NULL,                      -- JSON，schema 按 type 定义
+140:     version INTEGER NOT NULL DEFAULT 1,         -- 同一 artifact 的第 N 次内容更新
+141:     engine VARCHAR(16),
+142:     created_at TEXT,
+143:     updated_at TEXT,
+144:     is_deleted TINYINT DEFAULT 0
+145: );</pre></details></li><li id="cite-29"><span class="src-title">AgentArtifact.java · L1–L77</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/AgentArtifact.java" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/AgentArtifact.java</a><details><summary>离线源码摘录</summary><pre>1: package cn.boommanpro.gaia.workflow.infra.manage.entity;
+2: 
+3: import com.baomidou.mybatisplus.annotation.*;
+4: import lombok.Data;
+5: 
+6: import java.time.LocalDateTime;
+7: 
+8: /**
+9:  * Agent 产物（Artifact 一等实体）。
+10:  *
+11:  * &lt;p&gt;把 AI 的产出从「事件流里的一次性 payload」升级为有身份、有状态机、
+12:  * 可持久化的实体。四种 type：&lt;/p&gt;
+13:  * &lt;ul&gt;
+14:  *   &lt;li&gt;{@code workflow} —— 画布草稿/落版产物，每会话一行（artifact_key = sessionKey:workflow）&lt;/li&gt;
+15:  *   &lt;li&gt;{@code plan} —— 执行计划，每会话一行（artifact_key = sessionKey:plan）&lt;/li&gt;
+16:  *   &lt;li&gt;{@code test_report} —— 试运行证据（runWorkflow / runNode），追加式&lt;/li&gt;
+17:  *   &lt;li&gt;{@code release} —— 发布收口记录（publish 成功），追加式&lt;/li&gt;
+18:  * &lt;/ul&gt;
+19:  */
+20: @Data
+21: @TableName(&quot;agent_artifact&quot;)
+22: public class AgentArtifact {
+23: 
+24:     @TableId(value = &quot;id&quot;, type = IdType.AUTO)
+25:     private Long id;
+26: 
+27:     /**
+28:      * 对外稳定标识：会话级产物为 &quot;{sessionKey}:{type}&quot;，追加式为 &quot;art_xxx&quot;。
+29:      * 会话级产物据此 upsert（内容更新 = version 递增），追加式每次都是新行。
+30:      */
+31:     @TableField(&quot;artifact_key&quot;)
+32:     private String artifactKey;
+33: 
+34:     @TableField(&quot;session_key&quot;)
+35:     private String sessionKey;
+36: 
+37:     /** 产出它的那次运行（可空：非 run 上下文的更新） */
+38:     @TableField(&quot;run_id&quot;)
+39:     private String runId;
+40: 
+41:     /** workflow | plan | test_report | release */
+42:     @TableField(&quot;type&quot;)
+43:     private String type;
+44: 
+45:     /** streaming | stable | applied | discarded | proposed | completed | published */
+46:     @TableField(&quot;status&quot;)
+47:     private String status;
+48: 
+49:     @TableField(&quot;title&quot;)
+50:     private String title;
+51: 
+52:     /** 一句话 delta / 结论（卡片副标题） */
+53:     @TableField(&quot;summary&quot;)
+54:     private String summary;
+55: 
+56:     /** JSON，schema 按 type 定义 */
+57:     @TableField(&quot;payload&quot;)
+58:     private String payload;
+59: 
+60:     /** 同一 artifact 的第 N 次内容更新，从 1 开始 */
+61:     @TableField(&quot;version&quot;)
+62:     private Integer version;
+63: 
+64:     /** 产出引擎：local | ark（可空） */
+65:     @TableField(&quot;engine&quot;)
+66:     private String engine;
+67: 
+68:     @TableField(value = &quot;created_at&quot;, fill = FieldFill.INSERT)
+69:     private LocalDateTime createdAt;
+70: 
+71:     @TableField(value = &quot;updated_at&quot;, fill = FieldFill.INSERT_UPDATE)
+72:     private LocalDateTime updatedAt;
+73: 
+74:     @TableField(&quot;is_deleted&quot;)
+75:     @TableLogic
+76:     private Integer isDeleted;
+77: }</pre></details></li><li id="cite-30"><span class="src-title">schema.sql · L150–L161</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql</a><details><summary>离线源码摘录</summary><pre>150: CREATE TABLE IF NOT EXISTS agent_config (
+151:     id INTEGER PRIMARY KEY AUTOINCREMENT,
+152:     config_key VARCHAR(128) NOT NULL UNIQUE,
+153:     config_type VARCHAR(32) NOT NULL,
+154:     title VARCHAR(256),
+155:     content TEXT,
+156:     config_data TEXT,
+157:     description TEXT,
+158:     created_at TEXT,
+159:     updated_at TEXT,
+160:     is_deleted TINYINT DEFAULT 0
+161: );</pre></details></li><li id="cite-31"><span class="src-title">AgentConfig.java · L1–L43</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/AgentConfig.java" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/AgentConfig.java</a><details><summary>离线源码摘录</summary><pre>1: package cn.boommanpro.gaia.workflow.infra.manage.entity;
+2: 
+3: import com.baomidou.mybatisplus.annotation.*;
+4: import lombok.Data;
+5: 
+6: /**
+7:  * Agent 配置中心：在线管理 Prompt / 节点知识文档 / LLM 参数
+8:  */
+9: @Data
+10: @TableName(&quot;agent_config&quot;)
+11: public class AgentConfig {
+12: 
+13:     @TableId(value = &quot;id&quot;, type = IdType.AUTO)
+14:     private Long id;
+15: 
+16:     @TableField(&quot;config_key&quot;)
+17:     private String configKey;
+18: 
+19:     @TableField(&quot;config_type&quot;)
+20:     private String configType;
+21: 
+22:     @TableField(&quot;title&quot;)
+23:     private String title;
+24: 
+25:     @TableField(&quot;content&quot;)
+26:     private String content;
+27: 
+28:     @TableField(&quot;config_data&quot;)
+29:     private String configData;
+30: 
+31:     @TableField(&quot;description&quot;)
+32:     private String description;
+33: 
+34:     @TableField(&quot;created_at&quot;)
+35:     private String createdAt;
+36: 
+37:     @TableField(&quot;updated_at&quot;)
+38:     private String updatedAt;
+39: 
+40:     @TableField(&quot;is_deleted&quot;)
+41:     @TableLogic
+42:     private Integer isDeleted;
+43: }</pre></details></li><li id="cite-32"><span class="src-title">schema.sql · L164–L174</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql</a><details><summary>离线源码摘录</summary><pre>164: CREATE TABLE IF NOT EXISTS agent_config_history (
+165:     id INTEGER PRIMARY KEY AUTOINCREMENT,
+166:     config_key VARCHAR(128) NOT NULL,
+167:     version INTEGER NOT NULL,
+168:     title VARCHAR(256),
+169:     content TEXT,
+170:     config_data TEXT,
+171:     description TEXT,
+172:     changed_by VARCHAR(64),
+173:     created_at TEXT
+174: );</pre></details></li><li id="cite-33"><span class="src-title">AgentConfigHistory.java · L1–L39</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/AgentConfigHistory.java" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/AgentConfigHistory.java</a><details><summary>离线源码摘录</summary><pre>1: package cn.boommanpro.gaia.workflow.infra.manage.entity;
+2: 
+3: import com.baomidou.mybatisplus.annotation.*;
+4: import lombok.Data;
+5: 
+6: /**
+7:  * Agent 配置变更历史（每次修改自动归档）
+8:  */
+9: @Data
+10: @TableName(&quot;agent_config_history&quot;)
+11: public class AgentConfigHistory {
+12: 
+13:     @TableId(value = &quot;id&quot;, type = IdType.AUTO)
+14:     private Long id;
+15: 
+16:     @TableField(&quot;config_key&quot;)
+17:     private String configKey;
+18: 
+19:     @TableField(&quot;version&quot;)
+20:     private Integer version;
+21: 
+22:     @TableField(&quot;title&quot;)
+23:     private String title;
+24: 
+25:     @TableField(&quot;content&quot;)
+26:     private String content;
+27: 
+28:     @TableField(&quot;config_data&quot;)
+29:     private String configData;
+30: 
+31:     @TableField(&quot;description&quot;)
+32:     private String description;
+33: 
+34:     @TableField(&quot;changed_by&quot;)
+35:     private String changedBy;
+36: 
+37:     @TableField(&quot;created_at&quot;)
+38:     private String createdAt;
+39: }</pre></details></li><li id="cite-34"><span class="src-title">schema.sql · L178–L193</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql</a><details><summary>离线源码摘录</summary><pre>178: CREATE TABLE IF NOT EXISTS llm_model (
+179:     id INTEGER PRIMARY KEY AUTOINCREMENT,
+180:     display_name VARCHAR(128) NOT NULL,   -- 用户可见唯一名
+181:     vendor VARCHAR(32),                   -- openai/qwen/glm/anthropic/deepseek/openrouter/ollama/custom
+182:     base_url VARCHAR(256),
+183:     api_key VARCHAR(256),
+184:     model_id VARCHAR(128),                -- 上游模型 ID
+185:     thinking_override VARCHAR(16),        -- auto/off/low/medium/high；空=跟随全局
+186:     max_tokens INTEGER,
+187:     temperature DOUBLE,
+188:     extra_body TEXT,                      -- 厂商私有参数（JSON）
+189:     enabled INTEGER DEFAULT 1,
+190:     sort_order INTEGER DEFAULT 0,
+191:     created_at TEXT,
+192:     updated_at TEXT
+193: );</pre></details></li><li id="cite-35"><span class="src-title">LlmModel.java · L1–L62</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/LlmModel.java" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/LlmModel.java</a><details><summary>离线源码摘录</summary><pre>1: package cn.boommanpro.gaia.workflow.infra.manage.entity;
+2: 
+3: import com.baomidou.mybatisplus.annotation.*;
+4: import lombok.Data;
+5: 
+6: /**
+7:  * 模型条目（owb 式「渠道+条目」两层里的条目层，2026-10-11）。
+8:  * 用户可配多个模型，会话可绑定其中一个（agent_session.model_id，NULL=跟随全局默认）。
+9:  * 渠道层（provider）暂以 base_url+api_key 快照内联在条目上（owb 的「压平」手法，
+10:  * 执行路径免 JOIN）；后续多条目共享渠道时再拆表。
+11:  */
+12: @Data
+13: @TableName(&quot;llm_model&quot;)
+14: public class LlmModel {
+15: 
+16:     @TableId(value = &quot;id&quot;, type = IdType.AUTO)
+17:     private Long id;
+18: 
+19:     /** 用户可见唯一名（会话绑定/全局默认按它引用） */
+20:     @TableField(&quot;display_name&quot;)
+21:     private String displayName;
+22: 
+23:     /** 厂商标识：openai/qwen/glm/anthropic/deepseek/openrouter/ollama/custom（思考参数映射用） */
+24:     @TableField(&quot;vendor&quot;)
+25:     private String vendor;
+26: 
+27:     @TableField(&quot;base_url&quot;)
+28:     private String baseUrl;
+29: 
+30:     @TableField(&quot;api_key&quot;)
+31:     private String apiKey;
+32: 
+33:     /** 上游模型 ID（如 qwen3-max / glm-4.6 / deepseek-chat） */
+34:     @TableField(&quot;model_id&quot;)
+35:     private String modelId;
+36: 
+37:     /** 思考档位条目级覆盖：auto/off/low/medium/high；空 = 跟随全局 */
+38:     @TableField(&quot;thinking_override&quot;)
+39:     private String thinkingOverride;
+40: 
+41:     @TableField(&quot;max_tokens&quot;)
+42:     private Integer maxTokens;
+43: 
+44:     @TableField(&quot;temperature&quot;)
+45:     private Double temperature;
+46: 
+47:     /** 厂商私有参数逃生口（JSON），优先级最高 */
+48:     @TableField(&quot;extra_body&quot;)
+49:     private String extraBody;
+50: 
+51:     @TableField(&quot;enabled&quot;)
+52:     private Integer enabled;
+53: 
+54:     @TableField(&quot;sort_order&quot;)
+55:     private Integer sortOrder;
+56: 
+57:     @TableField(&quot;created_at&quot;)
+58:     private String createdAt;
+59: 
+60:     @TableField(&quot;updated_at&quot;)
+61:     private String updatedAt;
+62: }</pre></details></li><li id="cite-36"><span class="src-title">schema.sql · L196–L208</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql</a><details><summary>离线源码摘录</summary><pre>196: CREATE TABLE IF NOT EXISTS agent_tool_definition (
+197:     id INTEGER PRIMARY KEY AUTOINCREMENT,
+198:     tool_name VARCHAR(128) NOT NULL UNIQUE,
+199:     tool_group VARCHAR(64) NOT NULL,
+200:     description TEXT,
+201:     parameters TEXT NOT NULL,
+202:     page_contexts TEXT,
+203:     enabled TINYINT DEFAULT 1,
+204:     sort_order INTEGER DEFAULT 0,
+205:     created_at TEXT,
+206:     updated_at TEXT,
+207:     is_deleted TINYINT DEFAULT 0
+208: );</pre></details></li><li id="cite-37"><span class="src-title">AgentToolDefinition.java · L1–L46</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/AgentToolDefinition.java" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/AgentToolDefinition.java</a><details><summary>离线源码摘录</summary><pre>1: package cn.boommanpro.gaia.workflow.infra.manage.entity;
+2: 
+3: import com.baomidou.mybatisplus.annotation.*;
+4: import lombok.Data;
+5: 
+6: /**
+7:  * Agent 工具定义（动态管理）
+8:  */
+9: @Data
+10: @TableName(&quot;agent_tool_definition&quot;)
+11: public class AgentToolDefinition {
+12: 
+13:     @TableId(value = &quot;id&quot;, type = IdType.AUTO)
+14:     private Long id;
+15: 
+16:     @TableField(&quot;tool_name&quot;)
+17:     private String toolName;
+18: 
+19:     @TableField(&quot;tool_group&quot;)
+20:     private String toolGroup;
+21: 
+22:     @TableField(&quot;description&quot;)
+23:     private String description;
+24: 
+25:     @TableField(&quot;parameters&quot;)
+26:     private String parameters;
+27: 
+28:     @TableField(&quot;page_contexts&quot;)
+29:     private String pageContexts;
+30: 
+31:     @TableField(&quot;enabled&quot;)
+32:     private Integer enabled;
+33: 
+34:     @TableField(&quot;sort_order&quot;)
+35:     private Integer sortOrder;
+36: 
+37:     @TableField(&quot;created_at&quot;)
+38:     private String createdAt;
+39: 
+40:     @TableField(&quot;updated_at&quot;)
+41:     private String updatedAt;
+42: 
+43:     @TableField(&quot;is_deleted&quot;)
+44:     @TableLogic
+45:     private Integer isDeleted;
+46: }</pre></details></li><li id="cite-38"><span class="src-title">schema.sql · L211–L219</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql</a><details><summary>离线源码摘录</summary><pre>211: CREATE TABLE IF NOT EXISTS agent_session_event (
+212:     id INTEGER PRIMARY KEY AUTOINCREMENT,
+213:     session_key VARCHAR(64) NOT NULL,
+214:     run_id VARCHAR(64),
+215:     seq INTEGER NOT NULL,
+216:     event_type VARCHAR(48) NOT NULL,
+217:     payload TEXT,
+218:     created_at TEXT
+219: );</pre></details></li><li id="cite-39"><span class="src-title">AgentSessionEvent.java · L1–L40</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/AgentSessionEvent.java" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/AgentSessionEvent.java</a><details><summary>离线源码摘录</summary><pre>1: package cn.boommanpro.gaia.workflow.infra.manage.entity;
+2: 
+3: import com.baomidou.mybatisplus.annotation.*;
+4: import lombok.Data;
+5: 
+6: /**
+7:  * Agent 会话持久事件日志（追加只写）。
+8:  *
+9:  * &lt;p&gt;对齐 deepseek-harness 的 durable session event log 思想：
+10:  * 「模型可见即已记录」—— run 期间的 turn/llm_end/tool_call/tool_result/skill_loaded/
+11:  * confirm 等事件按序落表，供回放调试、审查与指标统计。超长 payload 截断保留。&lt;/p&gt;
+12:  */
+13: @Data
+14: @TableName(&quot;agent_session_event&quot;)
+15: public class AgentSessionEvent {
+16: 
+17:     @TableId(value = &quot;id&quot;, type = IdType.AUTO)
+18:     private Long id;
+19: 
+20:     @TableField(&quot;session_key&quot;)
+21:     private String sessionKey;
+22: 
+23:     @TableField(&quot;run_id&quot;)
+24:     private String runId;
+25: 
+26:     /** 会话内自增序号（按落库顺序） */
+27:     @TableField(&quot;seq&quot;)
+28:     private Integer seq;
+29: 
+30:     /** 事件类型：turn / llm_end / tool_call / tool_result / skill_loaded / confirm_request / confirm_resolved / document / plan / error */
+31:     @TableField(&quot;event_type&quot;)
+32:     private String eventType;
+33: 
+34:     /** 事件数据 JSON（超长截断） */
+35:     @TableField(&quot;payload&quot;)
+36:     private String payload;
+37: 
+38:     @TableField(&quot;created_at&quot;)
+39:     private String createdAt;
+40: }</pre></details></li><li id="cite-40"><span class="src-title">schema.sql · L223–L234</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql</a><details><summary>离线源码摘录</summary><pre>223: CREATE TABLE IF NOT EXISTS agent_tool_call_log (
+224:     id INTEGER PRIMARY KEY AUTOINCREMENT,
+225:     session_key VARCHAR(64) NOT NULL,
+226:     run_id VARCHAR(64),
+227:     turn INTEGER,
+228:     tool_name VARCHAR(128) NOT NULL,
+229:     outcome VARCHAR(32) NOT NULL,
+230:     error_code VARCHAR(32),
+231:     duration_ms BIGINT,
+232:     args_digest TEXT,
+233:     created_at TEXT
+234: );</pre></details></li><li id="cite-41"><span class="src-title">AgentToolCallLog.java · L1–L49</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/AgentToolCallLog.java" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/AgentToolCallLog.java</a><details><summary>离线源码摘录</summary><pre>1: package cn.boommanpro.gaia.workflow.infra.manage.entity;
+2: 
+3: import com.baomidou.mybatisplus.annotation.*;
+4: import lombok.Data;
+5: 
+6: /**
+7:  * 工具调用指标表 —— 「成功率可度量」的数据底座。
+8:  *
+9:  * &lt;p&gt;每次工具调用一行：结局码（SUCCESS / INVALID_ARGS / NOT_FOUND / STALE_REVISION /
+10:  * REJECTED_POLICY / EXEC_ERROR / TIMEOUT / CIRCUIT_BROKEN / UNAVAILABLE_SURFACE）
+11:  * + 耗时 + 参数摘要。管理端按 工具 × 结局 聚合即得一次通过率与失败分布。&lt;/p&gt;
+12:  */
+13: @Data
+14: @TableName(&quot;agent_tool_call_log&quot;)
+15: public class AgentToolCallLog {
+16: 
+17:     @TableId(value = &quot;id&quot;, type = IdType.AUTO)
+18:     private Long id;
+19: 
+20:     @TableField(&quot;session_key&quot;)
+21:     private String sessionKey;
+22: 
+23:     @TableField(&quot;run_id&quot;)
+24:     private String runId;
+25: 
+26:     @TableField(&quot;turn&quot;)
+27:     private Integer turn;
+28: 
+29:     @TableField(&quot;tool_name&quot;)
+30:     private String toolName;
+31: 
+32:     /** 结局码 */
+33:     @TableField(&quot;outcome&quot;)
+34:     private String outcome;
+35: 
+36:     /** 结构化错误码（ToolErrorCode，成功为空） */
+37:     @TableField(&quot;error_code&quot;)
+38:     private String errorCode;
+39: 
+40:     @TableField(&quot;duration_ms&quot;)
+41:     private Long durationMs;
+42: 
+43:     /** 参数摘要（截断） */
+44:     @TableField(&quot;args_digest&quot;)
+45:     private String argsDigest;
+46: 
+47:     @TableField(&quot;created_at&quot;)
+48:     private String createdAt;
+49: }</pre></details></li><li id="cite-42"><span class="src-title">schema.sql · L238–L257</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql</a><details><summary>离线源码摘录</summary><pre>238: CREATE TABLE IF NOT EXISTS agent_llm_call_log (
+239:     id INTEGER PRIMARY KEY AUTOINCREMENT,
+240:     session_key VARCHAR(64) NOT NULL,
+241:     run_id VARCHAR(64),
+242:     seq INTEGER,
+243:     model VARCHAR(128),
+244:     messages_count INTEGER,
+245:     tools_count INTEGER,
+246:     prompt_digest TEXT,
+247:     output_digest TEXT,
+248:     request_json TEXT,               -- 真实请求（OpenAI 同构 messages+tools+options，首条全量/后续增量）——复现证据
+249:     response_json TEXT,              -- 真实响应（流式组装后的完整输出：content+tool_calls+usage+finish_reason）
+250:     prompt_tokens INTEGER,
+251:     completion_tokens INTEGER,
+252:     cached_tokens INTEGER,
+253:     duration_ms BIGINT,
+254:     status VARCHAR(16),
+255:     error_message TEXT,
+256:     created_at TEXT
+257: );</pre></details></li><li id="cite-43"><span class="src-title">AgentLlmCallLog.java · L1–L86</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/AgentLlmCallLog.java" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/AgentLlmCallLog.java</a><details><summary>离线源码摘录</summary><pre>1: package cn.boommanpro.gaia.workflow.infra.manage.entity;
+2: 
+3: import com.baomidou.mybatisplus.annotation.*;
+4: import lombok.Data;
+5: 
+6: /**
+7:  * LLM 调用账本 —— 「generation 级观测」的数据底座（对标 OpenWorkBuddy trace 的 generation 层）。
+8:  *
+9:  * &lt;p&gt;每次模型调用一行：请求摘要（消息数+头尾截断的 prompt 摘要）、响应摘要、
+10:  * token 用量（含缓存命中）、耗时、结局。失败/空响应类问题的事后根因探索靠它 ——
+11:  * 没有这张表，模型侧的怪行为（空转、复读、漏斗）永远无法复现。&lt;/p&gt;
+12:  */
+13: @Data
+14: @TableName(&quot;agent_llm_call_log&quot;)
+15: public class AgentLlmCallLog {
+16: 
+17:     @TableId(value = &quot;id&quot;, type = IdType.AUTO)
+18:     private Long id;
+19: 
+20:     @TableField(&quot;session_key&quot;)
+21:     private String sessionKey;
+22: 
+23:     @TableField(&quot;run_id&quot;)
+24:     private String runId;
+25: 
+26:     /** run 内调用序号（从 1 起） */
+27:     @TableField(&quot;seq&quot;)
+28:     private Integer seq;
+29: 
+30:     @TableField(&quot;model&quot;)
+31:     private String model;
+32: 
+33:     /** 请求消息条数 */
+34:     @TableField(&quot;messages_count&quot;)
+35:     private Integer messagesCount;
+36: 
+37:     /** 请求工具 schema 数 */
+38:     @TableField(&quot;tools_count&quot;)
+39:     private Integer toolsCount;
+40: 
+41:     /** 请求摘要（消息头尾截断拼接，超长挖洞） */
+42:     @TableField(&quot;prompt_digest&quot;)
+43:     private String promptDigest;
+44: 
+45:     /** 响应摘要（正文+工具调用，头尾截断） */
+46:     @TableField(&quot;output_digest&quot;)
+47:     private String outputDigest;
+48: 
+49:     /**
+50:      * 真实请求 JSON（OpenAI 同构：messages/tool_calls/tool_call_id 配对 + tools + options）。
+51:      * 首个调用存全量，后续调用增量（{@code sharedMessages} 前缀共用 + 只存新增尾部）——
+52:      * 问题复现的第一手证据：拿它即可原样 curl 重放这次模型调用。
+53:      */
+54:     @TableField(&quot;request_json&quot;)
+55:     private String requestJson;
+56: 
+57:     /**
+58:      * 真实响应 JSON（流式块组装后的完整输出：choices[0].message.content/tool_calls + usage +
+59:      * finish_reason）——messages 内容与 arguments 全量不截断，Trajectory/执行追踪据此展示。
+60:      */
+61:     @TableField(&quot;response_json&quot;)
+62:     private String responseJson;
+63: 
+64:     @TableField(&quot;prompt_tokens&quot;)
+65:     private Integer promptTokens;
+66: 
+67:     @TableField(&quot;completion_tokens&quot;)
+68:     private Integer completionTokens;
+69: 
+70:     @TableField(&quot;cached_tokens&quot;)
+71:     private Integer cachedTokens;
+72: 
+73:     @TableField(&quot;duration_ms&quot;)
+74:     private Long durationMs;
+75: 
+76:     /** 结局：ok / empty / error */
+77:     @TableField(&quot;status&quot;)
+78:     private String status;
+79: 
+80:     /** 错误类型/摘要（status=error 时） */
+81:     @TableField(&quot;error_message&quot;)
+82:     private String errorMessage;
+83: 
+84:     @TableField(&quot;created_at&quot;)
+85:     private String createdAt;
+86: }</pre></details></li><li id="cite-44"><span class="src-title">schema.sql · L273–L286</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql</a><details><summary>离线源码摘录</summary><pre>273: CREATE TABLE IF NOT EXISTS workflow_test_case (
+274:     id INTEGER PRIMARY KEY AUTOINCREMENT,
+275:     workflow_code VARCHAR(128) NOT NULL,
+276:     node_id VARCHAR(128),
+277:     name VARCHAR(256) NOT NULL,
+278:     description TEXT,
+279:     inputs_json TEXT,
+280:     expected_json TEXT NOT NULL,
+281:     created_by VARCHAR(64) DEFAULT &#x27;user&#x27;,
+282:     enabled TINYINT DEFAULT 1,
+283:     created_at TEXT,
+284:     updated_at TEXT,
+285:     is_deleted TINYINT DEFAULT 0
+286: );</pre></details></li><li id="cite-45"><span class="src-title">WorkflowTestCase.java · L1–L52</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/WorkflowTestCase.java" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/WorkflowTestCase.java</a><details><summary>离线源码摘录</summary><pre>1: package cn.boommanpro.gaia.workflow.infra.manage.entity;
+2: 
+3: import com.baomidou.mybatisplus.annotation.*;
+4: import lombok.Data;
+5: 
+6: /**
+7:  * 工作流测试用例（节点级/工作流级）
+8:  */
+9: @Data
+10: @TableName(&quot;workflow_test_case&quot;)
+11: public class WorkflowTestCase {
+12: 
+13:     @TableId(value = &quot;id&quot;, type = IdType.AUTO)
+14:     private Long id;
+15: 
+16:     @TableField(&quot;workflow_code&quot;)
+17:     private String workflowCode;
+18: 
+19:     /** 节点级用例的目标节点（null=工作流级） */
+20:     @TableField(&quot;node_id&quot;)
+21:     private String nodeId;
+22: 
+23:     @TableField(&quot;name&quot;)
+24:     private String name;
+25: 
+26:     @TableField(&quot;description&quot;)
+27:     private String description;
+28: 
+29:     /** 工作流级: start 入参对象；节点级: {&quot;&lt;上游id&gt;&quot;:{&quot;&lt;字段&gt;&quot;:值} */
+30:     @TableField(&quot;inputs_json&quot;)
+31:     private String inputsJson;
+32: 
+33:     /** [{&quot;field&quot;,&quot;op&quot;(exists/equals/contains),&quot;value&quot;}] */
+34:     @TableField(&quot;expected_json&quot;)
+35:     private String expectedJson;
+36: 
+37:     @TableField(&quot;created_by&quot;)
+38:     private String createdBy;
+39: 
+40:     @TableField(&quot;enabled&quot;)
+41:     private Integer enabled;
+42: 
+43:     @TableField(&quot;created_at&quot;)
+44:     private String createdAt;
+45: 
+46:     @TableField(&quot;updated_at&quot;)
+47:     private String updatedAt;
+48: 
+49:     @TableField(&quot;is_deleted&quot;)
+50:     @TableLogic
+51:     private Integer isDeleted;
+52: }</pre></details></li><li id="cite-46"><span class="src-title">schema.sql · L290–L301</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql</a><details><summary>离线源码摘录</summary><pre>290: CREATE TABLE IF NOT EXISTS workflow_test_run (
+291:     id INTEGER PRIMARY KEY AUTOINCREMENT,
+292:     case_id INTEGER NOT NULL,
+293:     status VARCHAR(16) NOT NULL,
+294:     actual_json TEXT,
+295:     assert_results_json TEXT,
+296:     error TEXT,
+297:     duration_ms INTEGER,
+298:     source VARCHAR(16) DEFAULT &#x27;manual&#x27;,
+299:     executed_at TEXT,
+300:     is_deleted TINYINT DEFAULT 0
+301: );</pre></details></li><li id="cite-47"><span class="src-title">WorkflowTestRun.java · L1–L45</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/WorkflowTestRun.java" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/WorkflowTestRun.java</a><details><summary>离线源码摘录</summary><pre>1: package cn.boommanpro.gaia.workflow.infra.manage.entity;
+2: 
+3: import com.baomidou.mybatisplus.annotation.*;
+4: import lombok.Data;
+5: 
+6: /**
+7:  * 测试用例运行记录
+8:  */
+9: @Data
+10: @TableName(&quot;workflow_test_run&quot;)
+11: public class WorkflowTestRun {
+12: 
+13:     @TableId(value = &quot;id&quot;, type = IdType.AUTO)
+14:     private Long id;
+15: 
+16:     @TableField(&quot;case_id&quot;)
+17:     private Long caseId;
+18: 
+19:     /** passed | failed | error | stale */
+20:     @TableField(&quot;status&quot;)
+21:     private String status;
+22: 
+23:     @TableField(&quot;actual_json&quot;)
+24:     private String actualJson;
+25: 
+26:     @TableField(&quot;assert_results_json&quot;)
+27:     private String assertResultsJson;
+28: 
+29:     @TableField(&quot;error&quot;)
+30:     private String error;
+31: 
+32:     @TableField(&quot;duration_ms&quot;)
+33:     private Long durationMs;
+34: 
+35:     /** agent | manual */
+36:     @TableField(&quot;source&quot;)
+37:     private String source;
+38: 
+39:     @TableField(&quot;executed_at&quot;)
+40:     private String executedAt;
+41: 
+42:     @TableField(&quot;is_deleted&quot;)
+43:     @TableLogic
+44:     private Integer isDeleted;
+45: }</pre></details></li><li id="cite-48"><span class="src-title">schema.sql · L305–L314</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql</a><details><summary>离线源码摘录</summary><pre>305: CREATE TABLE IF NOT EXISTS agent_prompt_config (
+306:     id INTEGER PRIMARY KEY AUTOINCREMENT,
+307:     config_key VARCHAR(64) NOT NULL UNIQUE,
+308:     content TEXT NOT NULL,
+309:     version INTEGER NOT NULL DEFAULT 1,
+310:     scope VARCHAR(32) NOT NULL DEFAULT &#x27;global&#x27;,
+311:     updated_by VARCHAR(64),
+312:     updated_at TEXT,
+313:     is_deleted TINYINT DEFAULT 0
+314: );</pre></details></li><li id="cite-49"><span class="src-title">AgentPromptConfig.java · L1–L37</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/AgentPromptConfig.java" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/AgentPromptConfig.java</a><details><summary>离线源码摘录</summary><pre>1: package cn.boommanpro.gaia.workflow.infra.manage.entity;
+2: 
+3: import com.baomidou.mybatisplus.annotation.*;
+4: import lombok.Data;
+5: 
+6: /**
+7:  * Agent 人设/规范/压缩提示词配置（IDENTITY/SOUL/AGENTS/COMPACTION）
+8:  */
+9: @Data
+10: @TableName(&quot;agent_prompt_config&quot;)
+11: public class AgentPromptConfig {
+12: 
+13:     @TableId(value = &quot;id&quot;, type = IdType.AUTO)
+14:     private Long id;
+15: 
+16:     @TableField(&quot;config_key&quot;)
+17:     private String configKey;
+18: 
+19:     @TableField(&quot;content&quot;)
+20:     private String content;
+21: 
+22:     @TableField(&quot;version&quot;)
+23:     private Integer version;
+24: 
+25:     @TableField(&quot;scope&quot;)
+26:     private String scope;
+27: 
+28:     @TableField(&quot;updated_by&quot;)
+29:     private String updatedBy;
+30: 
+31:     @TableField(&quot;updated_at&quot;)
+32:     private String updatedAt;
+33: 
+34:     @TableField(&quot;is_deleted&quot;)
+35:     @TableLogic
+36:     private Integer isDeleted;
+37: }</pre></details></li><li id="cite-50"><span class="src-title">schema.sql · L317–L326</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql</a><details><summary>离线源码摘录</summary><pre>317: CREATE TABLE IF NOT EXISTS agent_skill (
+318:     id INTEGER PRIMARY KEY AUTOINCREMENT,
+319:     name VARCHAR(128) NOT NULL UNIQUE,
+320:     description VARCHAR(512),
+321:     kind VARCHAR(32) NOT NULL DEFAULT &#x27;general&#x27;,
+322:     enabled TINYINT DEFAULT 1,
+323:     source VARCHAR(16) DEFAULT &#x27;user&#x27;,
+324:     updated_at TEXT,
+325:     is_deleted TINYINT DEFAULT 0
+326: );</pre></details></li><li id="cite-51"><span class="src-title">AgentSkill.java · L1–L39</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/AgentSkill.java" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/AgentSkill.java</a><details><summary>离线源码摘录</summary><pre>1: package cn.boommanpro.gaia.workflow.infra.manage.entity;
+2: 
+3: import com.baomidou.mybatisplus.annotation.*;
+4: import lombok.Data;
+5: 
+6: /**
+7:  * Agent 技能元数据（原 node_knowledge 重构）。正文按文件存 {@link AgentSkillFile}，SKILL.md 为入口。
+8:  */
+9: @Data
+10: @TableName(&quot;agent_skill&quot;)
+11: public class AgentSkill {
+12: 
+13:     @TableId(value = &quot;id&quot;, type = IdType.AUTO)
+14:     private Long id;
+15: 
+16:     @TableField(&quot;name&quot;)
+17:     private String name;
+18: 
+19:     @TableField(&quot;description&quot;)
+20:     private String description;
+21: 
+22:     /** node | pattern | general | domain */
+23:     @TableField(&quot;kind&quot;)
+24:     private String kind;
+25: 
+26:     @TableField(&quot;enabled&quot;)
+27:     private Integer enabled;
+28: 
+29:     /** seed | user */
+30:     @TableField(&quot;source&quot;)
+31:     private String source;
+32: 
+33:     @TableField(&quot;updated_at&quot;)
+34:     private String updatedAt;
+35: 
+36:     @TableField(&quot;is_deleted&quot;)
+37:     @TableLogic
+38:     private Integer isDeleted;
+39: }</pre></details></li><li id="cite-52"><span class="src-title">schema.sql · L330–L339</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql</a><details><summary>离线源码摘录</summary><pre>330: CREATE TABLE IF NOT EXISTS agent_skill_file (
+331:     id INTEGER PRIMARY KEY AUTOINCREMENT,
+332:     skill_name VARCHAR(128) NOT NULL,
+333:     file_path VARCHAR(512) NOT NULL,
+334:     content TEXT NOT NULL DEFAULT &#x27;&#x27;,
+335:     is_deleted TINYINT DEFAULT 0,
+336:     created_at TEXT,
+337:     updated_at TEXT,
+338:     UNIQUE(skill_name, file_path)
+339: );</pre></details></li><li id="cite-53"><span class="src-title">AgentSkillFile.java · L1–L32</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/AgentSkillFile.java" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/AgentSkillFile.java</a><details><summary>离线源码摘录</summary><pre>1: package cn.boommanpro.gaia.workflow.infra.manage.entity;
+2: 
+3: import com.baomidou.mybatisplus.annotation.*;
+4: import lombok.Data;
+5: 
+6: /** 技能文件（多文件技能的组成单元） */
+7: @Data
+8: @TableName(&quot;agent_skill_file&quot;)
+9: public class AgentSkillFile {
+10: 
+11:     @TableId(value = &quot;id&quot;, type = IdType.AUTO)
+12:     private Long id;
+13: 
+14:     @TableField(&quot;skill_name&quot;)
+15:     private String skillName;
+16: 
+17:     @TableField(&quot;file_path&quot;)
+18:     private String filePath;
+19: 
+20:     @TableField(&quot;content&quot;)
+21:     private String content;
+22: 
+23:     @TableField(&quot;created_at&quot;)
+24:     private String createdAt;
+25: 
+26:     @TableField(&quot;updated_at&quot;)
+27:     private String updatedAt;
+28: 
+29:     @TableField(&quot;is_deleted&quot;)
+30:     @TableLogic
+31:     private Integer isDeleted;
+32: }</pre></details></li><li id="cite-54"><span class="src-title">schema.sql · L343–L350</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql</a><details><summary>离线源码摘录</summary><pre>343: CREATE TABLE IF NOT EXISTS agent_skill_history (
+344:     id INTEGER PRIMARY KEY AUTOINCREMENT,
+345:     skill_name VARCHAR(128) NOT NULL,
+346:     version INTEGER NOT NULL,
+347:     files_json TEXT NOT NULL,
+348:     changed_by VARCHAR(64),
+349:     created_at TEXT
+350: );</pre></details></li><li id="cite-55"><span class="src-title">AgentSkillHistory.java · L1–L28</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/AgentSkillHistory.java" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-infra/src/main/java/cn/boommanpro/gaia/workflow/infra/manage/entity/AgentSkillHistory.java</a><details><summary>离线源码摘录</summary><pre>1: package cn.boommanpro.gaia.workflow.infra.manage.entity;
+2: 
+3: import com.baomidou.mybatisplus.annotation.*;
+4: import lombok.Data;
+5: 
+6: /** 技能版本历史快照 */
+7: @Data
+8: @TableName(&quot;agent_skill_history&quot;)
+9: public class AgentSkillHistory {
+10: 
+11:     @TableId(value = &quot;id&quot;, type = IdType.AUTO)
+12:     private Long id;
+13: 
+14:     @TableField(&quot;skill_name&quot;)
+15:     private String skillName;
+16: 
+17:     @TableField(&quot;version&quot;)
+18:     private Integer version;
+19: 
+20:     @TableField(&quot;files_json&quot;)
+21:     private String filesJson;
+22: 
+23:     @TableField(&quot;changed_by&quot;)
+24:     private String changedBy;
+25: 
+26:     @TableField(&quot;created_at&quot;)
+27:     private String createdAt;
+28: }</pre></details></li><li id="cite-56"><span class="src-title">application.yml · L1–L25</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-app/target/classes/application.yml" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-app/target/classes/application.yml</a><details><summary>离线源码摘录</summary><pre>1: 
+2: spring:
+3:   datasource:
+4:     url: jdbc:sqlite:gaia_workflow.db
+5:     driver-class-name: org.sqlite.JDBC
+6:     username:
+7:     password:
+8:   sql:
+9:     init:
+10:       schema-locations: classpath:sql/schema.sql
+11:       mode: always
+12:   application:
+13:     name: gaia-workflow-app
+14: 
+15: server:
+16:   port: 48080
+17: 
+18: mybatis-plus:
+19:   configuration:
+20:     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+21:   global-config:
+22:     db-config:
+23:       logic-delete-field: isDeleted
+24:       logic-delete-value: 1
+25:       logic-not-delete-value: 0</pre></details></li><li id="cite-57"><span class="src-title">schema.sql · L259–L269</span><a class="src-url" href="../../apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql" target="_blank" rel="noopener">apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/sql/schema.sql</a><details><summary>离线源码摘录</summary><pre>259: -- ---------------------------------------------------------------------------
+260: -- 已下线功能的存量清理（幂等）：知识图谱 / 权限体系（2026-10 简体重构）
+261: --                              / RAG 知识库 / 双层记忆（2026-10-17 工具体系重构）
+262: -- spring.sql.init.mode=always，每次启动执行；新库无这些表时为空操作。
+263: -- ---------------------------------------------------------------------------
+264: DROP TABLE IF EXISTS agent_graph_node;
+265: DROP TABLE IF EXISTS agent_graph_edge;
+266: DROP TABLE IF EXISTS agent_permission;
+267: DROP TABLE IF EXISTS agent_global_permission;
+268: DROP TABLE IF EXISTS agent_knowledge_chunk;
+269: DROP TABLE IF EXISTS agent_memory;</pre></details></li></ol></div></footer><script src="./_shared/js/echarts.min.js"></script><script src="./_shared/js/mermaid.min.js"></script><script src="./assets/charts.js"></script></main></body></html>

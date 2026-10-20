@@ -1,0 +1,2871 @@
+{
+  "schema_sha256": "f95edbfb655d1adaa0b9e3d80ad26f7f89cac2c627b2ad89e4217ce35ff083dc",
+  "table_count": 22,
+  "column_count": 237,
+  "tables": [
+    {
+      "name": "gaia_workflow_template",
+      "title": "工作流模板",
+      "purpose": "保存可复用的工作流模板及画布数据。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "pk": true,
+          "declaration": "INTEGER PRIMARY KEY AUTOINCREMENT",
+          "purpose": "自增主键"
+        },
+        {
+          "name": "template_code",
+          "type": "VARCHAR(64)",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(64) NOT NULL UNIQUE",
+          "purpose": "来源或自身模板编码"
+        },
+        {
+          "name": "template_name",
+          "type": "VARCHAR(128)",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(128) NOT NULL",
+          "purpose": "模板显示名称"
+        },
+        {
+          "name": "template_desc",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "模板用途描述"
+        },
+        {
+          "name": "template_data",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "模板画布数据，JSON 文本"
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "创建时间，文本存储"
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "最后更新时间，文本存储"
+        },
+        {
+          "name": "is_deleted",
+          "type": "TINYINT",
+          "not_null": false,
+          "default": "0",
+          "pk": false,
+          "declaration": "TINYINT DEFAULT 0",
+          "purpose": "逻辑删除标记：0 未删除，1 已删除"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "sqlite_autoindex_gaia_workflow_template_1",
+          "unique": true,
+          "columns": [
+            "template_code"
+          ],
+          "origin": "u"
+        }
+      ],
+      "start": 1,
+      "end": 10,
+      "ddl": "CREATE TABLE IF NOT EXISTS gaia_workflow_template (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    template_code VARCHAR(64) NOT NULL UNIQUE,\n    template_name VARCHAR(128) NOT NULL,\n    template_desc TEXT,\n    template_data TEXT,\n    created_at TEXT,\n    updated_at TEXT,\n    is_deleted TINYINT DEFAULT 0\n);",
+      "sample": {
+        "id": 1,
+        "template_code": "tpl_demo",
+        "template_name": "合成示例",
+        "template_desc": "合成示例",
+        "template_data": "{\"nodes\":[],\"edges\":[]}",
+        "created_at": "2026-10-20T10:00:00",
+        "updated_at": "2026-10-20T10:00:00",
+        "is_deleted": 0
+      }
+    },
+    {
+      "name": "gaia_workflow",
+      "title": "工作流主表",
+      "purpose": "维护工作流身份、当前版本指针及乐观锁修订号；包含用户工作流与会话草稿。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "pk": true,
+          "declaration": "INTEGER PRIMARY KEY AUTOINCREMENT",
+          "purpose": "自增主键"
+        },
+        {
+          "name": "workflow_code",
+          "type": "VARCHAR(64)",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(64) NOT NULL UNIQUE",
+          "purpose": "工作流业务编码"
+        },
+        {
+          "name": "workflow_name",
+          "type": "VARCHAR(128)",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(128) NOT NULL",
+          "purpose": "工作流显示名称"
+        },
+        {
+          "name": "workflow_desc",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "工作流用途描述"
+        },
+        {
+          "name": "current_version_id",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "INTEGER",
+          "purpose": "当前版本行 ID，业务关联版本表"
+        },
+        {
+          "name": "revision",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": "0",
+          "pk": false,
+          "declaration": "INTEGER DEFAULT 0",
+          "purpose": "乐观锁修订号，用于并发修改校验"
+        },
+        {
+          "name": "template_code",
+          "type": "VARCHAR(64)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(64)",
+          "purpose": "来源或自身模板编码"
+        },
+        {
+          "name": "source",
+          "type": "VARCHAR(16)",
+          "not_null": false,
+          "default": "'user'",
+          "pk": false,
+          "declaration": "VARCHAR(16) DEFAULT 'user',",
+          "purpose": "user 用户工作流；session 会话草稿（draft_<sessionKey>）"
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "创建时间，文本存储"
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "最后更新时间，文本存储"
+        },
+        {
+          "name": "is_deleted",
+          "type": "TINYINT",
+          "not_null": false,
+          "default": "0",
+          "pk": false,
+          "declaration": "TINYINT DEFAULT 0",
+          "purpose": "逻辑删除标记：0 未删除，1 已删除"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "sqlite_autoindex_gaia_workflow_1",
+          "unique": true,
+          "columns": [
+            "workflow_code"
+          ],
+          "origin": "u"
+        }
+      ],
+      "start": 12,
+      "end": 24,
+      "ddl": "CREATE TABLE IF NOT EXISTS gaia_workflow (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    workflow_code VARCHAR(64) NOT NULL UNIQUE,\n    workflow_name VARCHAR(128) NOT NULL,\n    workflow_desc TEXT,\n    current_version_id INTEGER,\n    revision INTEGER DEFAULT 0,\n    template_code VARCHAR(64),\n    source VARCHAR(16) DEFAULT 'user',   -- user=用户工作流 / session=会话草稿工作流（draft_<sessionKey>，不进列表）\n    created_at TEXT,\n    updated_at TEXT,\n    is_deleted TINYINT DEFAULT 0\n);",
+      "sample": {
+        "id": 1,
+        "workflow_code": "wf_demo",
+        "workflow_name": "合成示例",
+        "workflow_desc": "合成示例",
+        "current_version_id": 1,
+        "revision": 0,
+        "template_code": "tpl_demo",
+        "source": "user",
+        "created_at": "2026-10-20T10:00:00",
+        "updated_at": "2026-10-20T10:00:00",
+        "is_deleted": 0
+      }
+    },
+    {
+      "name": "gaia_workflow_version",
+      "title": "工作流版本",
+      "purpose": "保存按工作流编码组织的历史画布快照与版本差异。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "pk": true,
+          "declaration": "INTEGER PRIMARY KEY AUTOINCREMENT",
+          "purpose": "自增主键"
+        },
+        {
+          "name": "workflow_code",
+          "type": "VARCHAR(64)",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(64) NOT NULL",
+          "purpose": "工作流业务编码"
+        },
+        {
+          "name": "version_number",
+          "type": "VARCHAR(32)",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(32) NOT NULL",
+          "purpose": "工作流版本号"
+        },
+        {
+          "name": "version_desc",
+          "type": "VARCHAR(256)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(256)",
+          "purpose": "版本说明"
+        },
+        {
+          "name": "workflow_data",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "工作流画布快照，JSON 文本"
+        },
+        {
+          "name": "diff_json",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "与前一版本的节点、连线差异，JSON 文本"
+        },
+        {
+          "name": "created_by",
+          "type": "VARCHAR(64)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(64)",
+          "purpose": "创建者标识"
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "创建时间，文本存储"
+        },
+        {
+          "name": "is_current",
+          "type": "TINYINT",
+          "not_null": false,
+          "default": "0",
+          "pk": false,
+          "declaration": "TINYINT DEFAULT 0",
+          "purpose": "是否当前版本：0 否，1 是"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "sqlite_autoindex_gaia_workflow_version_1",
+          "unique": true,
+          "columns": [
+            "workflow_code",
+            "version_number"
+          ],
+          "origin": "u"
+        }
+      ],
+      "start": 26,
+      "end": 37,
+      "ddl": "CREATE TABLE IF NOT EXISTS gaia_workflow_version (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    workflow_code VARCHAR(64) NOT NULL,\n    version_number VARCHAR(32) NOT NULL,\n    version_desc VARCHAR(256),\n    workflow_data TEXT,\n    diff_json TEXT,\n    created_by VARCHAR(64),\n    created_at TEXT,\n    is_current TINYINT DEFAULT 0,\n    UNIQUE(workflow_code, version_number)\n);",
+      "sample": {
+        "id": 1,
+        "workflow_code": "wf_demo",
+        "version_number": "1.0.0",
+        "version_desc": "合成示例",
+        "workflow_data": "{\"nodes\":[],\"edges\":[]}",
+        "diff_json": "{\"nodes\":{\"added\":[],\"removed\":[],\"changed\":[]},\"edges\":{\"added\":[],\"removed\":[]}}",
+        "created_by": "合成示例",
+        "created_at": "2026-10-20T10:00:00",
+        "is_current": 1
+      }
+    },
+    {
+      "name": "gaia_workflow_log",
+      "title": "工作流执行日志",
+      "purpose": "记录一次工作流执行的输入输出、状态、耗时及调用渠道。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "pk": true,
+          "declaration": "INTEGER PRIMARY KEY AUTOINCREMENT",
+          "purpose": "自增主键"
+        },
+        {
+          "name": "workflow_code",
+          "type": "VARCHAR(64)",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(64) NOT NULL",
+          "purpose": "工作流业务编码"
+        },
+        {
+          "name": "version_number",
+          "type": "VARCHAR(32)",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(32) NOT NULL",
+          "purpose": "工作流版本号"
+        },
+        {
+          "name": "execution_id",
+          "type": "VARCHAR(64)",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(64) NOT NULL UNIQUE",
+          "purpose": "一次工作流执行的唯一标识"
+        },
+        {
+          "name": "start_time",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "执行开始时间"
+        },
+        {
+          "name": "end_time",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "执行结束时间"
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(32)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(32)",
+          "purpose": "执行状态：success、failed、running"
+        },
+        {
+          "name": "input_params",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "执行输入参数，JSON 文本"
+        },
+        {
+          "name": "output_params",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "执行输出参数，JSON 文本"
+        },
+        {
+          "name": "error_message",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "错误描述，成功时可为空"
+        },
+        {
+          "name": "execution_duration",
+          "type": "BIGINT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "BIGINT",
+          "purpose": "执行耗时，单位毫秒"
+        },
+        {
+          "name": "invoke_channel",
+          "type": "VARCHAR(32)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(32)",
+          "purpose": "调用渠道：execute 原生执行，api 发布接口"
+        },
+        {
+          "name": "api_path",
+          "type": "VARCHAR(128)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(128)",
+          "purpose": "对外接口调用路径"
+        },
+        {
+          "name": "api_key_prefix",
+          "type": "VARCHAR(32)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(32)",
+          "purpose": "访问密钥前缀，用于脱敏审查"
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "创建时间，文本存储"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "sqlite_autoindex_gaia_workflow_log_1",
+          "unique": true,
+          "columns": [
+            "execution_id"
+          ],
+          "origin": "u"
+        }
+      ],
+      "start": 39,
+      "end": 55,
+      "ddl": "CREATE TABLE IF NOT EXISTS gaia_workflow_log (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    workflow_code VARCHAR(64) NOT NULL,\n    version_number VARCHAR(32) NOT NULL,\n    execution_id VARCHAR(64) NOT NULL UNIQUE,\n    start_time TEXT,\n    end_time TEXT,\n    status VARCHAR(32),\n    input_params TEXT,\n    output_params TEXT,\n    error_message TEXT,\n    execution_duration BIGINT,\n    invoke_channel VARCHAR(32),\n    api_path VARCHAR(128),\n    api_key_prefix VARCHAR(32),\n    created_at TEXT\n);",
+      "sample": {
+        "id": 1,
+        "workflow_code": "wf_demo",
+        "version_number": "1.0.0",
+        "execution_id": "exec_demo",
+        "start_time": "2026-10-20T10:00:00",
+        "end_time": "2026-10-20T10:00:00",
+        "status": "success",
+        "input_params": "{\"text\":\"示例\"}",
+        "output_params": "{\"result\":\"通过\"}",
+        "error_message": null,
+        "execution_duration": 0,
+        "invoke_channel": "execute",
+        "api_path": "/api/v1/wf/wf_demo",
+        "api_key_prefix": "SYNTHETIC",
+        "created_at": "2026-10-20T10:00:00"
+      }
+    },
+    {
+      "name": "gaia_workflow_api",
+      "title": "工作流发布接口",
+      "purpose": "保存工作流对外发布的接口契约、版本、访问密钥和发布状态。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "pk": true,
+          "declaration": "INTEGER PRIMARY KEY AUTOINCREMENT",
+          "purpose": "自增主键"
+        },
+        {
+          "name": "workflow_code",
+          "type": "VARCHAR(64)",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(64) NOT NULL UNIQUE",
+          "purpose": "工作流业务编码"
+        },
+        {
+          "name": "api_name",
+          "type": "VARCHAR(128)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(128)",
+          "purpose": "发布接口显示名称"
+        },
+        {
+          "name": "api_desc",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "发布接口说明"
+        },
+        {
+          "name": "version_number",
+          "type": "VARCHAR(32)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(32)",
+          "purpose": "工作流版本号"
+        },
+        {
+          "name": "api_path",
+          "type": "VARCHAR(128)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(128)",
+          "purpose": "对外接口调用路径"
+        },
+        {
+          "name": "api_key",
+          "type": "VARCHAR(128)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(128)",
+          "purpose": "访问密钥，敏感信息；示例仅用虚构占位值"
+        },
+        {
+          "name": "status",
+          "type": "TINYINT",
+          "not_null": false,
+          "default": "0",
+          "pk": false,
+          "declaration": "TINYINT DEFAULT 0",
+          "purpose": "发布状态：0 草稿，1 已发布"
+        },
+        {
+          "name": "request_schema",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "请求参数契约，JSON 文本"
+        },
+        {
+          "name": "response_schema",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "响应参数契约，JSON 文本"
+        },
+        {
+          "name": "error_codes",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "接口错误码说明，JSON 数组文本"
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "创建时间，文本存储"
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "最后更新时间，文本存储"
+        },
+        {
+          "name": "is_deleted",
+          "type": "TINYINT",
+          "not_null": false,
+          "default": "0",
+          "pk": false,
+          "declaration": "TINYINT DEFAULT 0",
+          "purpose": "逻辑删除标记：0 未删除，1 已删除"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "sqlite_autoindex_gaia_workflow_api_1",
+          "unique": true,
+          "columns": [
+            "workflow_code"
+          ],
+          "origin": "u"
+        }
+      ],
+      "start": 58,
+      "end": 73,
+      "ddl": "CREATE TABLE IF NOT EXISTS gaia_workflow_api (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    workflow_code VARCHAR(64) NOT NULL UNIQUE,\n    api_name VARCHAR(128),\n    api_desc TEXT,\n    version_number VARCHAR(32),\n    api_path VARCHAR(128),\n    api_key VARCHAR(128),\n    status TINYINT DEFAULT 0,\n    request_schema TEXT,\n    response_schema TEXT,\n    error_codes TEXT,\n    created_at TEXT,\n    updated_at TEXT,\n    is_deleted TINYINT DEFAULT 0\n);",
+      "sample": {
+        "id": 1,
+        "workflow_code": "wf_demo",
+        "api_name": "合成示例",
+        "api_desc": "合成示例",
+        "version_number": "1.0.0",
+        "api_path": "/api/v1/wf/wf_demo",
+        "api_key": "SYNTHETIC_NOT_A_REAL_KEY",
+        "status": 0,
+        "request_schema": "{\"type\":\"object\",\"properties\":{}}",
+        "response_schema": "{\"type\":\"object\",\"properties\":{}}",
+        "error_codes": "[]",
+        "created_at": "2026-10-20T10:00:00",
+        "updated_at": "2026-10-20T10:00:00",
+        "is_deleted": 0
+      }
+    },
+    {
+      "name": "agent_session",
+      "title": "对话会话",
+      "purpose": "维护对话身份、工作空间归属、模型绑定及远端执行引擎映射。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "pk": true,
+          "declaration": "INTEGER PRIMARY KEY AUTOINCREMENT",
+          "purpose": "自增主键"
+        },
+        {
+          "name": "session_key",
+          "type": "VARCHAR(64)",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(64) NOT NULL UNIQUE",
+          "purpose": "会话稳定业务标识"
+        },
+        {
+          "name": "title",
+          "type": "VARCHAR(128)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(128)",
+          "purpose": "显示标题"
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "创建时间，文本存储"
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "最后更新时间，文本存储"
+        },
+        {
+          "name": "is_deleted",
+          "type": "TINYINT",
+          "not_null": false,
+          "default": "0",
+          "pk": false,
+          "declaration": "TINYINT DEFAULT 0",
+          "purpose": "逻辑删除标记：0 未删除，1 已删除"
+        },
+        {
+          "name": "debug_data",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "会话调试数据文本"
+        },
+        {
+          "name": "scope",
+          "type": "VARCHAR(16)",
+          "not_null": false,
+          "default": "'chat'",
+          "pk": false,
+          "declaration": "VARCHAR(16) DEFAULT 'chat',",
+          "purpose": "界面作用域：chat 对话，work 工作空间"
+        },
+        {
+          "name": "folder_id",
+          "type": "BIGINT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "BIGINT,",
+          "purpose": "所属工作文件夹 ID，空表示未归类"
+        },
+        {
+          "name": "pinned",
+          "type": "TINYINT",
+          "not_null": false,
+          "default": "0",
+          "pk": false,
+          "declaration": "TINYINT DEFAULT 0,",
+          "purpose": "会话置顶标记：0 否，1 是"
+        },
+        {
+          "name": "archived",
+          "type": "TINYINT",
+          "not_null": false,
+          "default": "0",
+          "pk": false,
+          "declaration": "TINYINT DEFAULT 0,",
+          "purpose": "会话归档标记：0 否，1 是；不等于删除"
+        },
+        {
+          "name": "engine",
+          "type": "VARCHAR(16)",
+          "not_null": false,
+          "default": "'local'",
+          "pk": false,
+          "declaration": "VARCHAR(16) DEFAULT 'local',",
+          "purpose": "执行引擎：local 自研，ark 方舟托管"
+        },
+        {
+          "name": "remote_session_id",
+          "type": "VARCHAR(128)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(128),",
+          "purpose": "远端托管会话标识"
+        },
+        {
+          "name": "remote_agent_id",
+          "type": "VARCHAR(128)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(128),",
+          "purpose": "远端 Agent 标识快照"
+        },
+        {
+          "name": "remote_agent_version",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "INTEGER,",
+          "purpose": "远端 Agent 版本"
+        },
+        {
+          "name": "token_usage",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT,",
+          "purpose": "累计模型用量，JSON 文本"
+        },
+        {
+          "name": "model_id",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "INTEGER",
+          "purpose": "绑定 llm_model.id，空表示跟随全局默认模型"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "sqlite_autoindex_agent_session_1",
+          "unique": true,
+          "columns": [
+            "session_key"
+          ],
+          "origin": "u"
+        }
+      ],
+      "start": 76,
+      "end": 96,
+      "ddl": "CREATE TABLE IF NOT EXISTS agent_session (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    session_key VARCHAR(64) NOT NULL UNIQUE,\n    title VARCHAR(128),\n    created_at TEXT,\n    updated_at TEXT,\n    is_deleted TINYINT DEFAULT 0,\n    debug_data TEXT,\n    -- 工作空间（Codex 风格三区）\n    scope VARCHAR(16) DEFAULT 'chat',    -- chat（对话）/ work（工作空间），两套逻辑隔离\n    folder_id BIGINT,               -- 所属工作文件夹（agent_work_folder.id），null=未归入文件夹\n    pinned TINYINT DEFAULT 0,       -- 置顶 0/1\n    archived TINYINT DEFAULT 0,     -- 归档 0/1\n    -- 执行引擎与会话映射（双引擎架构：local 自研 / ark 方舟托管）\n    engine VARCHAR(16) DEFAULT 'local',          -- local | ark\n    remote_session_id VARCHAR(128),              -- 方舟 sesn-*（engine=ark 时绑定）\n    remote_agent_id VARCHAR(128),                -- 运行时绑定的方舟 agent-* 快照\n    remote_agent_version INTEGER,                -- 绑定的方舟 Agent 版本\n    token_usage TEXT,               -- 累计用量 JSON：{input_tokens, output_tokens, cache_read_input_tokens}\n    model_id INTEGER                -- 会话绑定的模型条目（llm_model.id），NULL=跟随全局默认\n);",
+      "sample": {
+        "id": 1,
+        "session_key": "session_demo",
+        "title": "合成示例",
+        "created_at": "2026-10-20T10:00:00",
+        "updated_at": "2026-10-20T10:00:00",
+        "is_deleted": 0,
+        "debug_data": "[]",
+        "scope": "work",
+        "folder_id": 1,
+        "pinned": 0,
+        "archived": 0,
+        "engine": "local",
+        "remote_session_id": null,
+        "remote_agent_id": null,
+        "remote_agent_version": null,
+        "token_usage": "{\"input_tokens\":12,\"output_tokens\":8,\"cache_read_input_tokens\":0}",
+        "model_id": 1
+      }
+    },
+    {
+      "name": "agent_work_folder",
+      "title": "工作空间文件夹",
+      "purpose": "按文件夹组织工作空间会话。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "pk": true,
+          "declaration": "INTEGER PRIMARY KEY AUTOINCREMENT",
+          "purpose": "自增主键"
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR(64)",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(64) NOT NULL",
+          "purpose": "名称"
+        },
+        {
+          "name": "sort_order",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": "0",
+          "pk": false,
+          "declaration": "INTEGER DEFAULT 0",
+          "purpose": "排序权重，较小值优先"
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "创建时间，文本存储"
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "最后更新时间，文本存储"
+        },
+        {
+          "name": "is_deleted",
+          "type": "TINYINT",
+          "not_null": false,
+          "default": "0",
+          "pk": false,
+          "declaration": "TINYINT DEFAULT 0",
+          "purpose": "逻辑删除标记：0 未删除，1 已删除"
+        }
+      ],
+      "indexes": [],
+      "start": 99,
+      "end": 106,
+      "ddl": "CREATE TABLE IF NOT EXISTS agent_work_folder (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    name VARCHAR(64) NOT NULL,\n    sort_order INTEGER DEFAULT 0,\n    created_at TEXT,\n    updated_at TEXT,\n    is_deleted TINYINT DEFAULT 0\n);",
+      "sample": {
+        "id": 1,
+        "name": "合成示例",
+        "sort_order": 0,
+        "created_at": "2026-10-20T10:00:00",
+        "updated_at": "2026-10-20T10:00:00",
+        "is_deleted": 0
+      }
+    },
+    {
+      "name": "agent_message",
+      "title": "对话消息",
+      "purpose": "保存消息正文、工具调用、思考过程、多模态输入及上下文压缩标记。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "pk": true,
+          "declaration": "INTEGER PRIMARY KEY AUTOINCREMENT",
+          "purpose": "自增主键"
+        },
+        {
+          "name": "session_key",
+          "type": "VARCHAR(64)",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(64) NOT NULL",
+          "purpose": "会话稳定业务标识"
+        },
+        {
+          "name": "role",
+          "type": "VARCHAR(16)",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(16) NOT NULL",
+          "purpose": "消息角色：user、assistant、system 或 tool"
+        },
+        {
+          "name": "content",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "文本正文"
+        },
+        {
+          "name": "tool_calls",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "工具调用集合，JSON 文本"
+        },
+        {
+          "name": "thinking",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "模型思考内容"
+        },
+        {
+          "name": "timeline",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "消息执行时间线，JSON 文本"
+        },
+        {
+          "name": "tool_call_id",
+          "type": "VARCHAR(64)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(64)",
+          "purpose": "工具调用标识，与工具结果消息配对"
+        },
+        {
+          "name": "page_context",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "请求所在页面上下文"
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "创建时间，文本存储"
+        },
+        {
+          "name": "compacted",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": "0",
+          "pk": false,
+          "declaration": "INTEGER DEFAULT 0,",
+          "purpose": "1 表示已被摘要替代，不再进入模型上下文"
+        },
+        {
+          "name": "images",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT,",
+          "purpose": "多模态图片集合，JSON 数组文本"
+        },
+        {
+          "name": "parent_message_id",
+          "type": "VARCHAR(64)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(64)",
+          "purpose": "父消息标识，线程引用；不是数据库外键"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_agent_message_session",
+          "unique": false,
+          "columns": [
+            "session_key",
+            "id"
+          ],
+          "origin": "c"
+        }
+      ],
+      "start": 109,
+      "end": 123,
+      "ddl": "CREATE TABLE IF NOT EXISTS agent_message (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    session_key VARCHAR(64) NOT NULL,\n    role VARCHAR(16) NOT NULL,\n    content TEXT,\n    tool_calls TEXT,\n    thinking TEXT,\n    timeline TEXT,\n    tool_call_id VARCHAR(64),\n    page_context TEXT,\n    created_at TEXT,\n    compacted INTEGER DEFAULT 0,    -- 1=已被上下文摘要取代，不再进入模型上下文\n    images TEXT,                    -- 多模态图片（JSON 数组，base64）\n    parent_message_id VARCHAR(64)   -- 父消息 ID（线程引用）\n);",
+      "sample": {
+        "id": 1,
+        "session_key": "session_demo",
+        "role": "assistant",
+        "content": "这是一条合成示例正文。",
+        "tool_calls": "[]",
+        "thinking": "合成示例",
+        "timeline": "[]",
+        "tool_call_id": null,
+        "page_context": "合成示例",
+        "created_at": "2026-10-20T10:00:00",
+        "compacted": 0,
+        "images": "[]",
+        "parent_message_id": null
+      }
+    },
+    {
+      "name": "agent_artifact",
+      "title": "会话产物",
+      "purpose": "保存工作流、计划、测试报告及发布记录等一等产物。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "pk": true,
+          "declaration": "INTEGER PRIMARY KEY AUTOINCREMENT",
+          "purpose": "自增主键"
+        },
+        {
+          "name": "artifact_key",
+          "type": "VARCHAR(96)",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(96) NOT NULL UNIQUE,",
+          "purpose": "产物稳定标识，会话级通常为 sessionKey:type"
+        },
+        {
+          "name": "session_key",
+          "type": "VARCHAR(64)",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(64) NOT NULL",
+          "purpose": "会话稳定业务标识"
+        },
+        {
+          "name": "run_id",
+          "type": "VARCHAR(64)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(64)",
+          "purpose": "一次 Agent 运行标识；没有独立运行主表"
+        },
+        {
+          "name": "type",
+          "type": "VARCHAR(24)",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(24) NOT NULL",
+          "purpose": "产物类型：workflow、plan、test_report、release"
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(24)",
+          "not_null": true,
+          "default": "'stable'",
+          "pk": false,
+          "declaration": "VARCHAR(24) NOT NULL DEFAULT 'stable'",
+          "purpose": "产物状态：streaming、stable、applied、discarded、proposed、completed、published"
+        },
+        {
+          "name": "title",
+          "type": "VARCHAR(128)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(128)",
+          "purpose": "显示标题"
+        },
+        {
+          "name": "summary",
+          "type": "VARCHAR(256)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(256)",
+          "purpose": "产物摘要"
+        },
+        {
+          "name": "payload",
+          "type": "TEXT",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT NOT NULL,",
+          "purpose": "载荷 JSON 文本，结构依产物或事件类型而定"
+        },
+        {
+          "name": "version",
+          "type": "INTEGER",
+          "not_null": true,
+          "default": "1",
+          "pk": false,
+          "declaration": "INTEGER NOT NULL DEFAULT 1,",
+          "purpose": "内容修订版本号"
+        },
+        {
+          "name": "engine",
+          "type": "VARCHAR(16)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(16)",
+          "purpose": "执行引擎：local 自研，ark 方舟托管"
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "创建时间，文本存储"
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "最后更新时间，文本存储"
+        },
+        {
+          "name": "is_deleted",
+          "type": "TINYINT",
+          "not_null": false,
+          "default": "0",
+          "pk": false,
+          "declaration": "TINYINT DEFAULT 0",
+          "purpose": "逻辑删除标记：0 未删除，1 已删除"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_agent_artifact_session",
+          "unique": false,
+          "columns": [
+            "session_key",
+            "updated_at"
+          ],
+          "origin": "c"
+        },
+        {
+          "name": "sqlite_autoindex_agent_artifact_1",
+          "unique": true,
+          "columns": [
+            "artifact_key"
+          ],
+          "origin": "u"
+        }
+      ],
+      "start": 130,
+      "end": 145,
+      "ddl": "CREATE TABLE IF NOT EXISTS agent_artifact (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    artifact_key VARCHAR(96) NOT NULL UNIQUE,   -- 对外稳定标识：会话级产物为 \"{sessionKey}:{type}\"，追加式为 \"art_xxx\"\n    session_key VARCHAR(64) NOT NULL,\n    run_id VARCHAR(64),\n    type VARCHAR(24) NOT NULL,\n    status VARCHAR(24) NOT NULL DEFAULT 'stable',\n    title VARCHAR(128),\n    summary VARCHAR(256),\n    payload TEXT NOT NULL,                      -- JSON，schema 按 type 定义\n    version INTEGER NOT NULL DEFAULT 1,         -- 同一 artifact 的第 N 次内容更新\n    engine VARCHAR(16),\n    created_at TEXT,\n    updated_at TEXT,\n    is_deleted TINYINT DEFAULT 0\n);",
+      "sample": {
+        "id": 1,
+        "artifact_key": "session_demo:plan",
+        "session_key": "session_demo",
+        "run_id": "run_demo",
+        "type": "plan",
+        "status": "stable",
+        "title": "合成示例",
+        "summary": "合成示例",
+        "payload": "{\"steps\":[]}",
+        "version": 1,
+        "engine": "local",
+        "created_at": "2026-10-20T10:00:00",
+        "updated_at": "2026-10-20T10:00:00",
+        "is_deleted": 0
+      }
+    },
+    {
+      "name": "agent_config",
+      "title": "通用配置",
+      "purpose": "保存模型参数、渠道、引擎、人设及迁移标记；不是独立的知识库表。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "pk": true,
+          "declaration": "INTEGER PRIMARY KEY AUTOINCREMENT",
+          "purpose": "自增主键"
+        },
+        {
+          "name": "config_key",
+          "type": "VARCHAR(128)",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(128) NOT NULL UNIQUE",
+          "purpose": "配置业务键"
+        },
+        {
+          "name": "config_type",
+          "type": "VARCHAR(32)",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(32) NOT NULL",
+          "purpose": "配置分类"
+        },
+        {
+          "name": "title",
+          "type": "VARCHAR(256)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(256)",
+          "purpose": "显示标题"
+        },
+        {
+          "name": "content",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "文本正文"
+        },
+        {
+          "name": "config_data",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "结构化配置，JSON 文本"
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "用途说明"
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "创建时间，文本存储"
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "最后更新时间，文本存储"
+        },
+        {
+          "name": "is_deleted",
+          "type": "TINYINT",
+          "not_null": false,
+          "default": "0",
+          "pk": false,
+          "declaration": "TINYINT DEFAULT 0",
+          "purpose": "逻辑删除标记：0 未删除，1 已删除"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "sqlite_autoindex_agent_config_1",
+          "unique": true,
+          "columns": [
+            "config_key"
+          ],
+          "origin": "u"
+        }
+      ],
+      "start": 150,
+      "end": 161,
+      "ddl": "CREATE TABLE IF NOT EXISTS agent_config (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    config_key VARCHAR(128) NOT NULL UNIQUE,\n    config_type VARCHAR(32) NOT NULL,\n    title VARCHAR(256),\n    content TEXT,\n    config_data TEXT,\n    description TEXT,\n    created_at TEXT,\n    updated_at TEXT,\n    is_deleted TINYINT DEFAULT 0\n);",
+      "sample": {
+        "id": 1,
+        "config_key": "demo_config",
+        "config_type": "example",
+        "title": "合成示例",
+        "content": "这是一条合成示例正文。",
+        "config_data": "{\"example\":true}",
+        "description": "合成示例",
+        "created_at": "2026-10-20T10:00:00",
+        "updated_at": "2026-10-20T10:00:00",
+        "is_deleted": 0
+      }
+    },
+    {
+      "name": "agent_config_history",
+      "title": "配置变更历史",
+      "purpose": "保存配置修改时的归档快照。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "pk": true,
+          "declaration": "INTEGER PRIMARY KEY AUTOINCREMENT",
+          "purpose": "自增主键"
+        },
+        {
+          "name": "config_key",
+          "type": "VARCHAR(128)",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(128) NOT NULL",
+          "purpose": "配置业务键"
+        },
+        {
+          "name": "version",
+          "type": "INTEGER",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "INTEGER NOT NULL",
+          "purpose": "内容修订版本号"
+        },
+        {
+          "name": "title",
+          "type": "VARCHAR(256)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(256)",
+          "purpose": "显示标题"
+        },
+        {
+          "name": "content",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "文本正文"
+        },
+        {
+          "name": "config_data",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "结构化配置，JSON 文本"
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "用途说明"
+        },
+        {
+          "name": "changed_by",
+          "type": "VARCHAR(64)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(64)",
+          "purpose": "变更操作者标识"
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "创建时间，文本存储"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_agent_config_history_key",
+          "unique": false,
+          "columns": [
+            "config_key",
+            "version"
+          ],
+          "origin": "c"
+        }
+      ],
+      "start": 164,
+      "end": 174,
+      "ddl": "CREATE TABLE IF NOT EXISTS agent_config_history (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    config_key VARCHAR(128) NOT NULL,\n    version INTEGER NOT NULL,\n    title VARCHAR(256),\n    content TEXT,\n    config_data TEXT,\n    description TEXT,\n    changed_by VARCHAR(64),\n    created_at TEXT\n);",
+      "sample": {
+        "id": 1,
+        "config_key": "demo_config",
+        "version": 1,
+        "title": "合成示例",
+        "content": "这是一条合成示例正文。",
+        "config_data": "{\"example\":true}",
+        "description": "合成示例",
+        "changed_by": "合成示例",
+        "created_at": "2026-10-20T10:00:00"
+      }
+    },
+    {
+      "name": "llm_model",
+      "title": "模型条目",
+      "purpose": "保存模型渠道连接信息及生成参数，供全局默认和会话选择。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "pk": true,
+          "declaration": "INTEGER PRIMARY KEY AUTOINCREMENT",
+          "purpose": "自增主键"
+        },
+        {
+          "name": "display_name",
+          "type": "VARCHAR(128)",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(128) NOT NULL,",
+          "purpose": "模型显示名；DDL 未声明 UNIQUE"
+        },
+        {
+          "name": "vendor",
+          "type": "VARCHAR(32)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(32),",
+          "purpose": "模型厂商标识"
+        },
+        {
+          "name": "base_url",
+          "type": "VARCHAR(256)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(256)",
+          "purpose": "模型服务接口根地址"
+        },
+        {
+          "name": "api_key",
+          "type": "VARCHAR(256)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(256)",
+          "purpose": "访问密钥，敏感信息；示例仅用虚构占位值"
+        },
+        {
+          "name": "model_id",
+          "type": "VARCHAR(128)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(128),",
+          "purpose": "上游服务模型 ID，不是 llm_model 的主键"
+        },
+        {
+          "name": "thinking_override",
+          "type": "VARCHAR(16)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(16),",
+          "purpose": "思考档位覆盖；空表示跟随全局"
+        },
+        {
+          "name": "max_tokens",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "INTEGER",
+          "purpose": "模型最大输出令牌数"
+        },
+        {
+          "name": "temperature",
+          "type": "DOUBLE",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "DOUBLE",
+          "purpose": "模型采样温度"
+        },
+        {
+          "name": "extra_body",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT,",
+          "purpose": "厂商扩展请求参数，JSON 文本"
+        },
+        {
+          "name": "enabled",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": "1",
+          "pk": false,
+          "declaration": "INTEGER DEFAULT 1",
+          "purpose": "是否启用：0 否，1 是"
+        },
+        {
+          "name": "sort_order",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": "0",
+          "pk": false,
+          "declaration": "INTEGER DEFAULT 0",
+          "purpose": "排序权重，较小值优先"
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "创建时间，文本存储"
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "最后更新时间，文本存储"
+        }
+      ],
+      "indexes": [],
+      "start": 178,
+      "end": 193,
+      "ddl": "CREATE TABLE IF NOT EXISTS llm_model (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    display_name VARCHAR(128) NOT NULL,   -- 用户可见唯一名\n    vendor VARCHAR(32),                   -- openai/qwen/glm/anthropic/deepseek/openrouter/ollama/custom\n    base_url VARCHAR(256),\n    api_key VARCHAR(256),\n    model_id VARCHAR(128),                -- 上游模型 ID\n    thinking_override VARCHAR(16),        -- auto/off/low/medium/high；空=跟随全局\n    max_tokens INTEGER,\n    temperature DOUBLE,\n    extra_body TEXT,                      -- 厂商私有参数（JSON）\n    enabled INTEGER DEFAULT 1,\n    sort_order INTEGER DEFAULT 0,\n    created_at TEXT,\n    updated_at TEXT\n);",
+      "sample": {
+        "id": 1,
+        "display_name": "合成示例",
+        "vendor": "custom",
+        "base_url": null,
+        "api_key": "SYNTHETIC_NOT_A_REAL_KEY",
+        "model_id": "demo-model",
+        "thinking_override": "auto",
+        "max_tokens": 1024,
+        "temperature": 0.7,
+        "extra_body": "{}",
+        "enabled": 1,
+        "sort_order": 0,
+        "created_at": "2026-10-20T10:00:00",
+        "updated_at": "2026-10-20T10:00:00"
+      }
+    },
+    {
+      "name": "agent_tool_definition",
+      "title": "工具定义",
+      "purpose": "维护动态工具名称、参数契约、页面适用范围及启用状态。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "pk": true,
+          "declaration": "INTEGER PRIMARY KEY AUTOINCREMENT",
+          "purpose": "自增主键"
+        },
+        {
+          "name": "tool_name",
+          "type": "VARCHAR(128)",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(128) NOT NULL UNIQUE",
+          "purpose": "工具业务名称"
+        },
+        {
+          "name": "tool_group",
+          "type": "VARCHAR(64)",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(64) NOT NULL",
+          "purpose": "工具所属分组"
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "用途说明"
+        },
+        {
+          "name": "parameters",
+          "type": "TEXT",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT NOT NULL",
+          "purpose": "工具参数契约，JSON 文本"
+        },
+        {
+          "name": "page_contexts",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "工具可用页面范围"
+        },
+        {
+          "name": "enabled",
+          "type": "TINYINT",
+          "not_null": false,
+          "default": "1",
+          "pk": false,
+          "declaration": "TINYINT DEFAULT 1",
+          "purpose": "是否启用：0 否，1 是"
+        },
+        {
+          "name": "sort_order",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": "0",
+          "pk": false,
+          "declaration": "INTEGER DEFAULT 0",
+          "purpose": "排序权重，较小值优先"
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "创建时间，文本存储"
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "最后更新时间，文本存储"
+        },
+        {
+          "name": "is_deleted",
+          "type": "TINYINT",
+          "not_null": false,
+          "default": "0",
+          "pk": false,
+          "declaration": "TINYINT DEFAULT 0",
+          "purpose": "逻辑删除标记：0 未删除，1 已删除"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "sqlite_autoindex_agent_tool_definition_1",
+          "unique": true,
+          "columns": [
+            "tool_name"
+          ],
+          "origin": "u"
+        }
+      ],
+      "start": 196,
+      "end": 208,
+      "ddl": "CREATE TABLE IF NOT EXISTS agent_tool_definition (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    tool_name VARCHAR(128) NOT NULL UNIQUE,\n    tool_group VARCHAR(64) NOT NULL,\n    description TEXT,\n    parameters TEXT NOT NULL,\n    page_contexts TEXT,\n    enabled TINYINT DEFAULT 1,\n    sort_order INTEGER DEFAULT 0,\n    created_at TEXT,\n    updated_at TEXT,\n    is_deleted TINYINT DEFAULT 0\n);",
+      "sample": {
+        "id": 1,
+        "tool_name": "demo.inspect",
+        "tool_group": "demo",
+        "description": "合成示例",
+        "parameters": "{\"type\":\"object\",\"properties\":{}}",
+        "page_contexts": "[]",
+        "enabled": 1,
+        "sort_order": 0,
+        "created_at": "2026-10-20T10:00:00",
+        "updated_at": "2026-10-20T10:00:00",
+        "is_deleted": 0
+      }
+    },
+    {
+      "name": "agent_session_event",
+      "title": "会话事件日志",
+      "purpose": "追加记录运行事件，用于事件回放、审查和观测。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "pk": true,
+          "declaration": "INTEGER PRIMARY KEY AUTOINCREMENT",
+          "purpose": "自增主键"
+        },
+        {
+          "name": "session_key",
+          "type": "VARCHAR(64)",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(64) NOT NULL",
+          "purpose": "会话稳定业务标识"
+        },
+        {
+          "name": "run_id",
+          "type": "VARCHAR(64)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(64)",
+          "purpose": "一次 Agent 运行标识；没有独立运行主表"
+        },
+        {
+          "name": "seq",
+          "type": "INTEGER",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "INTEGER NOT NULL",
+          "purpose": "运行或会话内事件序号；DDL 未声明唯一"
+        },
+        {
+          "name": "event_type",
+          "type": "VARCHAR(48)",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(48) NOT NULL",
+          "purpose": "事件类型，如 turn、tool_call、tool_result"
+        },
+        {
+          "name": "payload",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "载荷 JSON 文本，结构依产物或事件类型而定"
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "创建时间，文本存储"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_agent_session_event",
+          "unique": false,
+          "columns": [
+            "session_key",
+            "id"
+          ],
+          "origin": "c"
+        }
+      ],
+      "start": 211,
+      "end": 219,
+      "ddl": "CREATE TABLE IF NOT EXISTS agent_session_event (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    session_key VARCHAR(64) NOT NULL,\n    run_id VARCHAR(64),\n    seq INTEGER NOT NULL,\n    event_type VARCHAR(48) NOT NULL,\n    payload TEXT,\n    created_at TEXT\n);",
+      "sample": {
+        "id": 1,
+        "session_key": "session_demo",
+        "run_id": "run_demo",
+        "seq": 1,
+        "event_type": "turn",
+        "payload": "{\"steps\":[]}",
+        "created_at": "2026-10-20T10:00:00"
+      }
+    },
+    {
+      "name": "agent_tool_call_log",
+      "title": "工具调用账本",
+      "purpose": "每次工具调用一行，记录结局码、耗时及参数摘要。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "pk": true,
+          "declaration": "INTEGER PRIMARY KEY AUTOINCREMENT",
+          "purpose": "自增主键"
+        },
+        {
+          "name": "session_key",
+          "type": "VARCHAR(64)",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(64) NOT NULL",
+          "purpose": "会话稳定业务标识"
+        },
+        {
+          "name": "run_id",
+          "type": "VARCHAR(64)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(64)",
+          "purpose": "一次 Agent 运行标识；没有独立运行主表"
+        },
+        {
+          "name": "turn",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "INTEGER",
+          "purpose": "运行中的对话轮次"
+        },
+        {
+          "name": "tool_name",
+          "type": "VARCHAR(128)",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(128) NOT NULL",
+          "purpose": "工具业务名称"
+        },
+        {
+          "name": "outcome",
+          "type": "VARCHAR(32)",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(32) NOT NULL",
+          "purpose": "工具执行结局码，如 SUCCESS、INVALID_ARGS、EXEC_ERROR"
+        },
+        {
+          "name": "error_code",
+          "type": "VARCHAR(32)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(32)",
+          "purpose": "结构化错误码"
+        },
+        {
+          "name": "duration_ms",
+          "type": "BIGINT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "BIGINT",
+          "purpose": "执行耗时，单位毫秒"
+        },
+        {
+          "name": "args_digest",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "工具参数摘要，可能截断"
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "创建时间，文本存储"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_agent_tool_call_log",
+          "unique": false,
+          "columns": [
+            "tool_name",
+            "outcome"
+          ],
+          "origin": "c"
+        }
+      ],
+      "start": 223,
+      "end": 234,
+      "ddl": "CREATE TABLE IF NOT EXISTS agent_tool_call_log (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    session_key VARCHAR(64) NOT NULL,\n    run_id VARCHAR(64),\n    turn INTEGER,\n    tool_name VARCHAR(128) NOT NULL,\n    outcome VARCHAR(32) NOT NULL,\n    error_code VARCHAR(32),\n    duration_ms BIGINT,\n    args_digest TEXT,\n    created_at TEXT\n);",
+      "sample": {
+        "id": 1,
+        "session_key": "session_demo",
+        "run_id": "run_demo",
+        "turn": 1,
+        "tool_name": "demo.inspect",
+        "outcome": "SUCCESS",
+        "error_code": null,
+        "duration_ms": 0,
+        "args_digest": "合成示例",
+        "created_at": "2026-10-20T10:00:00"
+      }
+    },
+    {
+      "name": "agent_llm_call_log",
+      "title": "模型调用账本",
+      "purpose": "每次模型调用一行，保存请求响应证据、用量及耗时。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "pk": true,
+          "declaration": "INTEGER PRIMARY KEY AUTOINCREMENT",
+          "purpose": "自增主键"
+        },
+        {
+          "name": "session_key",
+          "type": "VARCHAR(64)",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(64) NOT NULL",
+          "purpose": "会话稳定业务标识"
+        },
+        {
+          "name": "run_id",
+          "type": "VARCHAR(64)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(64)",
+          "purpose": "一次 Agent 运行标识；没有独立运行主表"
+        },
+        {
+          "name": "seq",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "INTEGER",
+          "purpose": "运行或会话内事件序号；DDL 未声明唯一"
+        },
+        {
+          "name": "model",
+          "type": "VARCHAR(128)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(128)",
+          "purpose": "本次调用使用的模型名称"
+        },
+        {
+          "name": "messages_count",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "INTEGER",
+          "purpose": "请求消息条数"
+        },
+        {
+          "name": "tools_count",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "INTEGER",
+          "purpose": "请求工具定义数量"
+        },
+        {
+          "name": "prompt_digest",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "模型输入摘要"
+        },
+        {
+          "name": "output_digest",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "模型输出摘要"
+        },
+        {
+          "name": "request_json",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT,",
+          "purpose": "模型请求证据，首条全量、后续可能增量"
+        },
+        {
+          "name": "response_json",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT,",
+          "purpose": "流式组装后的模型响应，JSON 文本"
+        },
+        {
+          "name": "prompt_tokens",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "INTEGER",
+          "purpose": "输入令牌数"
+        },
+        {
+          "name": "completion_tokens",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "INTEGER",
+          "purpose": "输出令牌数"
+        },
+        {
+          "name": "cached_tokens",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "INTEGER",
+          "purpose": "缓存命中令牌数"
+        },
+        {
+          "name": "duration_ms",
+          "type": "BIGINT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "BIGINT",
+          "purpose": "执行耗时，单位毫秒"
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(16)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(16)",
+          "purpose": "当前记录状态，取值由业务代码解释"
+        },
+        {
+          "name": "error_message",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "错误描述，成功时可为空"
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "创建时间，文本存储"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_agent_llm_call_log",
+          "unique": false,
+          "columns": [
+            "session_key",
+            "run_id"
+          ],
+          "origin": "c"
+        }
+      ],
+      "start": 238,
+      "end": 257,
+      "ddl": "CREATE TABLE IF NOT EXISTS agent_llm_call_log (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    session_key VARCHAR(64) NOT NULL,\n    run_id VARCHAR(64),\n    seq INTEGER,\n    model VARCHAR(128),\n    messages_count INTEGER,\n    tools_count INTEGER,\n    prompt_digest TEXT,\n    output_digest TEXT,\n    request_json TEXT,               -- 真实请求（OpenAI 同构 messages+tools+options，首条全量/后续增量）——复现证据\n    response_json TEXT,              -- 真实响应（流式组装后的完整输出：content+tool_calls+usage+finish_reason）\n    prompt_tokens INTEGER,\n    completion_tokens INTEGER,\n    cached_tokens INTEGER,\n    duration_ms BIGINT,\n    status VARCHAR(16),\n    error_message TEXT,\n    created_at TEXT\n);",
+      "sample": {
+        "id": 1,
+        "session_key": "session_demo",
+        "run_id": "run_demo",
+        "seq": 1,
+        "model": "demo-model",
+        "messages_count": 0,
+        "tools_count": 0,
+        "prompt_digest": "合成示例",
+        "output_digest": "合成示例",
+        "request_json": "{\"model\":\"demo-model\",\"messages\":[{\"role\":\"user\",\"content\":\"示例\"}]}",
+        "response_json": "{\"content\":\"通过\",\"tool_calls\":[]}",
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "cached_tokens": 0,
+        "duration_ms": 0,
+        "status": "success",
+        "error_message": null,
+        "created_at": "2026-10-20T10:00:00"
+      }
+    },
+    {
+      "name": "workflow_test_case",
+      "title": "工作流测试用例",
+      "purpose": "保存工作流级或节点级输入与预期断言。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "pk": true,
+          "declaration": "INTEGER PRIMARY KEY AUTOINCREMENT",
+          "purpose": "自增主键"
+        },
+        {
+          "name": "workflow_code",
+          "type": "VARCHAR(128)",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(128) NOT NULL",
+          "purpose": "工作流业务编码"
+        },
+        {
+          "name": "node_id",
+          "type": "VARCHAR(128)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(128)",
+          "purpose": "目标节点 ID，空表示工作流级测试"
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR(256)",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(256) NOT NULL",
+          "purpose": "名称"
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "用途说明"
+        },
+        {
+          "name": "inputs_json",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "测试输入，JSON 文本"
+        },
+        {
+          "name": "expected_json",
+          "type": "TEXT",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT NOT NULL",
+          "purpose": "预期断言数组，JSON 文本"
+        },
+        {
+          "name": "created_by",
+          "type": "VARCHAR(64)",
+          "not_null": false,
+          "default": "'user'",
+          "pk": false,
+          "declaration": "VARCHAR(64) DEFAULT 'user'",
+          "purpose": "创建者标识"
+        },
+        {
+          "name": "enabled",
+          "type": "TINYINT",
+          "not_null": false,
+          "default": "1",
+          "pk": false,
+          "declaration": "TINYINT DEFAULT 1",
+          "purpose": "是否启用：0 否，1 是"
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "创建时间，文本存储"
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "最后更新时间，文本存储"
+        },
+        {
+          "name": "is_deleted",
+          "type": "TINYINT",
+          "not_null": false,
+          "default": "0",
+          "pk": false,
+          "declaration": "TINYINT DEFAULT 0",
+          "purpose": "逻辑删除标记：0 未删除，1 已删除"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_workflow_test_case_code",
+          "unique": false,
+          "columns": [
+            "workflow_code",
+            "node_id"
+          ],
+          "origin": "c"
+        }
+      ],
+      "start": 273,
+      "end": 286,
+      "ddl": "CREATE TABLE IF NOT EXISTS workflow_test_case (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    workflow_code VARCHAR(128) NOT NULL,\n    node_id VARCHAR(128),\n    name VARCHAR(256) NOT NULL,\n    description TEXT,\n    inputs_json TEXT,\n    expected_json TEXT NOT NULL,\n    created_by VARCHAR(64) DEFAULT 'user',\n    enabled TINYINT DEFAULT 1,\n    created_at TEXT,\n    updated_at TEXT,\n    is_deleted TINYINT DEFAULT 0\n);",
+      "sample": {
+        "id": 1,
+        "workflow_code": "wf_demo",
+        "node_id": null,
+        "name": "合成示例",
+        "description": "合成示例",
+        "inputs_json": "{\"text\":\"示例\"}",
+        "expected_json": "[{\"field\":\"result\",\"op\":\"equals\",\"value\":\"通过\"}]",
+        "created_by": "合成示例",
+        "enabled": 1,
+        "created_at": "2026-10-20T10:00:00",
+        "updated_at": "2026-10-20T10:00:00",
+        "is_deleted": 0
+      }
+    },
+    {
+      "name": "workflow_test_run",
+      "title": "测试运行记录",
+      "purpose": "保存测试用例每次执行的实际结果及断言结论。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "pk": true,
+          "declaration": "INTEGER PRIMARY KEY AUTOINCREMENT",
+          "purpose": "自增主键"
+        },
+        {
+          "name": "case_id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "INTEGER NOT NULL",
+          "purpose": "测试用例行 ID，业务关联用例表"
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(16)",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(16) NOT NULL",
+          "purpose": "测试状态：passed、failed、error、stale"
+        },
+        {
+          "name": "actual_json",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "测试实际输出，JSON 文本"
+        },
+        {
+          "name": "assert_results_json",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "逐条断言结果，JSON 文本"
+        },
+        {
+          "name": "error",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "运行错误说明"
+        },
+        {
+          "name": "duration_ms",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "INTEGER",
+          "purpose": "执行耗时，单位毫秒"
+        },
+        {
+          "name": "source",
+          "type": "VARCHAR(16)",
+          "not_null": false,
+          "default": "'manual'",
+          "pk": false,
+          "declaration": "VARCHAR(16) DEFAULT 'manual'",
+          "purpose": "测试触发来源：manual 或 agent"
+        },
+        {
+          "name": "executed_at",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "测试执行时间"
+        },
+        {
+          "name": "is_deleted",
+          "type": "TINYINT",
+          "not_null": false,
+          "default": "0",
+          "pk": false,
+          "declaration": "TINYINT DEFAULT 0",
+          "purpose": "逻辑删除标记：0 未删除，1 已删除"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_workflow_test_run_case",
+          "unique": false,
+          "columns": [
+            "case_id",
+            "executed_at"
+          ],
+          "origin": "c"
+        }
+      ],
+      "start": 290,
+      "end": 301,
+      "ddl": "CREATE TABLE IF NOT EXISTS workflow_test_run (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    case_id INTEGER NOT NULL,\n    status VARCHAR(16) NOT NULL,\n    actual_json TEXT,\n    assert_results_json TEXT,\n    error TEXT,\n    duration_ms INTEGER,\n    source VARCHAR(16) DEFAULT 'manual',\n    executed_at TEXT,\n    is_deleted TINYINT DEFAULT 0\n);",
+      "sample": {
+        "id": 1,
+        "case_id": 1,
+        "status": "passed",
+        "actual_json": "{\"result\":\"通过\"}",
+        "assert_results_json": "[{\"field\":\"result\",\"passed\":true}]",
+        "error": null,
+        "duration_ms": 0,
+        "source": "manual",
+        "executed_at": "2026-10-20T10:00:00",
+        "is_deleted": 0
+      }
+    },
+    {
+      "name": "agent_prompt_config",
+      "title": "提示词配置",
+      "purpose": "维护身份、规范、行为与压缩提示词配置。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "pk": true,
+          "declaration": "INTEGER PRIMARY KEY AUTOINCREMENT",
+          "purpose": "自增主键"
+        },
+        {
+          "name": "config_key",
+          "type": "VARCHAR(64)",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(64) NOT NULL UNIQUE",
+          "purpose": "配置业务键"
+        },
+        {
+          "name": "content",
+          "type": "TEXT",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT NOT NULL",
+          "purpose": "文本正文"
+        },
+        {
+          "name": "version",
+          "type": "INTEGER",
+          "not_null": true,
+          "default": "1",
+          "pk": false,
+          "declaration": "INTEGER NOT NULL DEFAULT 1",
+          "purpose": "内容修订版本号"
+        },
+        {
+          "name": "scope",
+          "type": "VARCHAR(32)",
+          "not_null": true,
+          "default": "'global'",
+          "pk": false,
+          "declaration": "VARCHAR(32) NOT NULL DEFAULT 'global'",
+          "purpose": "提示词作用域，默认 global"
+        },
+        {
+          "name": "updated_by",
+          "type": "VARCHAR(64)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(64)",
+          "purpose": "最后更新操作者"
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "最后更新时间，文本存储"
+        },
+        {
+          "name": "is_deleted",
+          "type": "TINYINT",
+          "not_null": false,
+          "default": "0",
+          "pk": false,
+          "declaration": "TINYINT DEFAULT 0",
+          "purpose": "逻辑删除标记：0 未删除，1 已删除"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "sqlite_autoindex_agent_prompt_config_1",
+          "unique": true,
+          "columns": [
+            "config_key"
+          ],
+          "origin": "u"
+        }
+      ],
+      "start": 305,
+      "end": 314,
+      "ddl": "CREATE TABLE IF NOT EXISTS agent_prompt_config (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    config_key VARCHAR(64) NOT NULL UNIQUE,\n    content TEXT NOT NULL,\n    version INTEGER NOT NULL DEFAULT 1,\n    scope VARCHAR(32) NOT NULL DEFAULT 'global',\n    updated_by VARCHAR(64),\n    updated_at TEXT,\n    is_deleted TINYINT DEFAULT 0\n);",
+      "sample": {
+        "id": 1,
+        "config_key": "IDENTITY",
+        "content": "这是一条合成示例正文。",
+        "version": 1,
+        "scope": "global",
+        "updated_by": "合成示例",
+        "updated_at": "2026-10-20T10:00:00",
+        "is_deleted": 0
+      }
+    },
+    {
+      "name": "agent_skill",
+      "title": "技能元数据",
+      "purpose": "维护技能目录身份、分类和启用状态；正文存于文件表。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "pk": true,
+          "declaration": "INTEGER PRIMARY KEY AUTOINCREMENT",
+          "purpose": "自增主键"
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR(128)",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(128) NOT NULL UNIQUE",
+          "purpose": "名称"
+        },
+        {
+          "name": "description",
+          "type": "VARCHAR(512)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(512)",
+          "purpose": "用途说明"
+        },
+        {
+          "name": "kind",
+          "type": "VARCHAR(32)",
+          "not_null": true,
+          "default": "'general'",
+          "pk": false,
+          "declaration": "VARCHAR(32) NOT NULL DEFAULT 'general'",
+          "purpose": "技能分类：node、pattern、general、domain"
+        },
+        {
+          "name": "enabled",
+          "type": "TINYINT",
+          "not_null": false,
+          "default": "1",
+          "pk": false,
+          "declaration": "TINYINT DEFAULT 1",
+          "purpose": "是否启用：0 否，1 是"
+        },
+        {
+          "name": "source",
+          "type": "VARCHAR(16)",
+          "not_null": false,
+          "default": "'user'",
+          "pk": false,
+          "declaration": "VARCHAR(16) DEFAULT 'user'",
+          "purpose": "技能来源：seed 内置或 user 用户"
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "最后更新时间，文本存储"
+        },
+        {
+          "name": "is_deleted",
+          "type": "TINYINT",
+          "not_null": false,
+          "default": "0",
+          "pk": false,
+          "declaration": "TINYINT DEFAULT 0",
+          "purpose": "逻辑删除标记：0 未删除，1 已删除"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "sqlite_autoindex_agent_skill_1",
+          "unique": true,
+          "columns": [
+            "name"
+          ],
+          "origin": "u"
+        }
+      ],
+      "start": 317,
+      "end": 326,
+      "ddl": "CREATE TABLE IF NOT EXISTS agent_skill (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    name VARCHAR(128) NOT NULL UNIQUE,\n    description VARCHAR(512),\n    kind VARCHAR(32) NOT NULL DEFAULT 'general',\n    enabled TINYINT DEFAULT 1,\n    source VARCHAR(16) DEFAULT 'user',\n    updated_at TEXT,\n    is_deleted TINYINT DEFAULT 0\n);",
+      "sample": {
+        "id": 1,
+        "name": "demo-skill",
+        "description": "合成示例",
+        "kind": "general",
+        "enabled": 1,
+        "source": "user",
+        "updated_at": "2026-10-20T10:00:00",
+        "is_deleted": 0
+      }
+    },
+    {
+      "name": "agent_skill_file",
+      "title": "技能文件",
+      "purpose": "保存技能目录中的文本文件，SKILL.md 为入口。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "pk": true,
+          "declaration": "INTEGER PRIMARY KEY AUTOINCREMENT",
+          "purpose": "自增主键"
+        },
+        {
+          "name": "skill_name",
+          "type": "VARCHAR(128)",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(128) NOT NULL",
+          "purpose": "所属技能名称"
+        },
+        {
+          "name": "file_path",
+          "type": "VARCHAR(512)",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(512) NOT NULL",
+          "purpose": "技能内相对文件路径"
+        },
+        {
+          "name": "content",
+          "type": "TEXT",
+          "not_null": true,
+          "default": "''",
+          "pk": false,
+          "declaration": "TEXT NOT NULL DEFAULT ''",
+          "purpose": "文本正文"
+        },
+        {
+          "name": "is_deleted",
+          "type": "TINYINT",
+          "not_null": false,
+          "default": "0",
+          "pk": false,
+          "declaration": "TINYINT DEFAULT 0",
+          "purpose": "逻辑删除标记：0 未删除，1 已删除"
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "创建时间，文本存储"
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "最后更新时间，文本存储"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_agent_skill_file_name",
+          "unique": false,
+          "columns": [
+            "skill_name",
+            "is_deleted"
+          ],
+          "origin": "c"
+        },
+        {
+          "name": "sqlite_autoindex_agent_skill_file_1",
+          "unique": true,
+          "columns": [
+            "skill_name",
+            "file_path"
+          ],
+          "origin": "u"
+        }
+      ],
+      "start": 330,
+      "end": 339,
+      "ddl": "CREATE TABLE IF NOT EXISTS agent_skill_file (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    skill_name VARCHAR(128) NOT NULL,\n    file_path VARCHAR(512) NOT NULL,\n    content TEXT NOT NULL DEFAULT '',\n    is_deleted TINYINT DEFAULT 0,\n    created_at TEXT,\n    updated_at TEXT,\n    UNIQUE(skill_name, file_path)\n);",
+      "sample": {
+        "id": 1,
+        "skill_name": "demo-skill",
+        "file_path": "SKILL.md",
+        "content": "这是一条合成示例正文。",
+        "is_deleted": 0,
+        "created_at": "2026-10-20T10:00:00",
+        "updated_at": "2026-10-20T10:00:00"
+      }
+    },
+    {
+      "name": "agent_skill_history",
+      "title": "技能历史快照",
+      "purpose": "按技能记录所有文件的版本快照。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "pk": true,
+          "declaration": "INTEGER PRIMARY KEY AUTOINCREMENT",
+          "purpose": "自增主键"
+        },
+        {
+          "name": "skill_name",
+          "type": "VARCHAR(128)",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(128) NOT NULL",
+          "purpose": "所属技能名称"
+        },
+        {
+          "name": "version",
+          "type": "INTEGER",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "INTEGER NOT NULL",
+          "purpose": "内容修订版本号"
+        },
+        {
+          "name": "files_json",
+          "type": "TEXT",
+          "not_null": true,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT NOT NULL",
+          "purpose": "全部技能文件的快照，JSON 文本"
+        },
+        {
+          "name": "changed_by",
+          "type": "VARCHAR(64)",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "VARCHAR(64)",
+          "purpose": "变更操作者标识"
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "TEXT",
+          "purpose": "创建时间，文本存储"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_agent_skill_history_name",
+          "unique": false,
+          "columns": [
+            "skill_name",
+            "version"
+          ],
+          "origin": "c"
+        }
+      ],
+      "start": 343,
+      "end": 350,
+      "ddl": "CREATE TABLE IF NOT EXISTS agent_skill_history (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    skill_name VARCHAR(128) NOT NULL,\n    version INTEGER NOT NULL,\n    files_json TEXT NOT NULL,\n    changed_by VARCHAR(64),\n    created_at TEXT\n);",
+      "sample": {
+        "id": 1,
+        "skill_name": "demo-skill",
+        "version": 1,
+        "files_json": "{\"SKILL.md\":\"合成技能正文\"}",
+        "changed_by": "合成示例",
+        "created_at": "2026-10-20T10:00:00"
+      }
+    }
+  ]
+}
