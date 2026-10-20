@@ -13,8 +13,10 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Popover, Spin, Tag, Toast } from '@douyinfe/semi-ui';
 import { IconHistory, IconUndo, IconTick } from '@douyinfe/semi-icons';
 
-import { useCanvasSnapshots, workflowDocumentStore } from '../../document';
+import { useCanvasSnapshots } from '../../document';
 import type { CanvasSnapshot } from '../../document';
+import { useAgent } from '../../agent/AgentContext';
+import { rollbackCanvasTo } from '../../agent/canvas-draft-sync';
 import { workflowApi, type GaiaWorkflowVersion } from '../../services/workflow-api';
 import { useLanguage, t } from '../../i18n';
 import { CHAT } from '../../chat/theme';
@@ -76,6 +78,7 @@ export const CanvasHistoryPopover: React.FC<CanvasHistoryPopoverProps> = ({
 }) => {
   useLanguage();
   const { snapshots, cursor } = useCanvasSnapshots();
+  const { currentSessionKey } = useAgent();
   const [visible, setVisible] = useState(false);
   const [versions, setVersions] = useState<GaiaWorkflowVersion[]>([]);
   const [loading, setLoading] = useState(false);
@@ -102,10 +105,14 @@ export const CanvasHistoryPopover: React.FC<CanvasHistoryPopoverProps> = ({
   }, [visible, loadVersions]);
 
   const handleRollback = useCallback((snapshot: CanvasSnapshot) => {
-    const ok = workflowDocumentStore.rollbackTo(snapshot.id);
+    // 回滚同时同步服务端草稿（阶段 1.1）：只改本地的话，之后的提问与「保存为版本」
+    // 都还基于回滚前的内容
+    const ok = rollbackCanvasTo(snapshot.id, currentSessionKey, (err) =>
+      Toast.error(`${t('chat.rollbackSyncFailed')}${err}`)
+    );
     if (ok) Toast.success(t('chat.rollbackDone'));
     else Toast.error(t('chat.rollbackFailed'));
-  }, []);
+  }, [currentSessionKey]);
 
   const handleSetEffective = useCallback(
     async (versionId: number) => {

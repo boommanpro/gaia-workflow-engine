@@ -26,11 +26,13 @@ import { TestCaseSheetButton } from './components/test-case-panel';
 import { useLanguage, t } from './i18n';
 import { LanguageToggle } from './components/language-toggle';
 import { EditorCanvasBridge } from './agent';
+import { pushCanvasDraftToSession } from './agent/canvas-draft-sync';
 import { WorkflowDocument, workflowDocumentStore, useWorkflowDocumentState } from './document';
 import { getSessionKeyForWorkflow } from './ai-workspace/session-scope';
 import { useWorkflowArtifactSync } from './ai-workspace/artifact/useWorkflowArtifactSync';
 import { CopilotSidebar } from './ai-workspace/components/CopilotSidebar';
 import { CanvasHistoryPopover } from './ai-workspace/components/CanvasHistoryPopover';
+import { AiPendingBanner } from './ai-workspace/components/AiPendingBanner';
 
 const ACCENT = '#4d53e8';
 
@@ -173,7 +175,20 @@ export const Editor = () => {
 
     // —— 2) 草稿模式：store 没有就看交接过来的草稿 ——
     if (workflowCode === DRAFT_CODE) {
-      setWorkflowData(readDraftDsl() ?? initialData);
+      const draft = readDraftDsl();
+      setWorkflowData(draft ?? initialData);
+      // 草稿优先：store 里可能躺着同 scope 的旧会话快照（useWorkflowArtifactSync
+      // 的 setScope 恢复先于本 effect 执行），不显式写回的话画布会被旧快照顶掉
+      // —— 表现为「精修进来看不到 AI 刚生成的草稿」（2026-10-20 验收实证）
+      if (draft) {
+        try {
+          const doc = WorkflowDocument.fromJSON(draft);
+          if (!doc.isEmpty) {
+            workflowDocumentStore.replace(doc, { kind: 'replace', source: 'system', reason: 'import' });
+            workflowDocumentStore.setMeta({ producedBy: 'import' });
+          }
+        } catch { /* ignore */ }
+      }
       setLoading(false);
       if (!firstRun) setRemountKey((k) => k + 1);
       return;
@@ -339,6 +354,8 @@ export const Editor = () => {
             onVersionsChanged={() => effectiveCode && loadVersions(effectiveCode)}
             hasHistory={snapshots.length > 0 || versions.length > 0}
           />
+          {/* AI 待应用变更条（阶段 2.2）：AI 在专家模式提交的修改浮出在这里 */}
+          <AiPendingBanner />
           <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
             <div className="demo-container" style={{ width: '100%', height: '100%' }}>
               <EditorRenderer className="demo-editor" />
@@ -414,6 +431,10 @@ const EditorHeader = ({
   useLanguage();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [codeAskOpen, setCodeAskOpen] = useState(false);
+  const [newCode, setNewCode] = useState('');
+  /** 首次保存失败原因（校验拒绝等）：显示在弹窗内，画布与输入都保留 */
+  const [codeAskError, setCodeAskError] = useState<string | null>(null);
   const [publishOpen, setPublishOpen] = useState(false);
   const [apiName, setApiName] = useState('');
   const [apiDesc, setApiDesc] = useState('');
@@ -422,42 +443,96 @@ const EditorHeader = ({
 
   const currentVersion = versions.find(v => v.id === currentVersionId);
 
+  /** 保存成功后的收口：基线对齐 + 已保存内容同步回会话草稿（AI 下一轮与保存结果一致） */
+  const settleSaved = (code: string) => {
+    workflowDocumentStore.markSaved({ workflowCode: code });
+    workflowDocumentStore.setMeta({ workflowCode: code });
+    void pushCanvasDraftToSession(getSessionKeyForWorkflow(code), {
+      workflowCode: code,
+      source: 'editor-save',
+    });
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
   const handleSave = async () => {
     if (!ctx?.document) return;
+    // 无编码（AI 草稿模式且未落版）：没有可寻址的版本容器 —— 明确要一个编码，
+    // 不再静默显示「已保存」（阶段 1.2 的虚假成功路径）
+    if (!workflowCode) {
+      setNewCode('');
+      setCodeAskError(null);
+      setCodeAskOpen(true);
+      return;
+    }
     setSaving(true);
     try {
       const jsonData = ctx.document.toJSON();
       const dataStr = JSON.stringify(jsonData);
 
-      if (workflowCode) {
-        const allVersions = await workflowApi.listVersions(workflowCode);
-        const versionCount = allVersions ? allVersions.length : 0;
-        const newVersionNumber = `v1.${versionCount}`;
+      const allVersions = await workflowApi.listVersions(workflowCode);
+      const versionCount = allVersions ? allVersions.length : 0;
+      // 版本号取现存最大 minor + 1：按条数编号在删除历史版本后会重号
+      const maxMinor = (allVersions || []).reduce((max, v) => {
+        const m = /^v\d+\.(\d+)$/.exec(v.versionNumber || '');
+        return m ? Math.max(max, Number(m[1])) : max;
+      }, 0);
+      const newVersionNumber = `v1.${maxMinor + 1}`;
 
-        await workflowApi.createVersion({
-          workflowCode,
-          versionNumber: newVersionNumber,
-          versionDesc: `Version ${newVersionNumber}`,
-          workflowData: dataStr,
-          createdBy: 'user',
-        });
+      await workflowApi.createVersion({
+        workflowCode,
+        versionNumber: newVersionNumber,
+        versionDesc: `Version ${newVersionNumber}`,
+        workflowData: dataStr,
+        createdBy: 'user',
+      });
 
-        // 首次保存（无历史版本）时自动设为生效版本；后续保存不改变生效版本
-        if (versionCount === 0) {
-          const newVersions = await workflowApi.listVersions(workflowCode);
-          if (newVersions && newVersions.length > 0) {
-            const newest = newVersions[0];
-            await workflowApi.setCurrentVersion(newest.id!);
-          }
+      // 首次保存（无历史版本）时自动设为生效版本；后续保存不改变生效版本
+      if (versionCount === 0) {
+        const newVersions = await workflowApi.listVersions(workflowCode);
+        if (newVersions && newVersions.length > 0) {
+          const newest = newVersions[0];
+          await workflowApi.setCurrentVersion(newest.id!);
         }
-
-        onVersionsChanged();
       }
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+
+      onVersionsChanged();
+      settleSaved(workflowCode);
     } catch (error) {
+      // 失败保留现场：画布与输入不动，只报错（阶段 1.2）
       console.error('Save failed:', error);
       alert(t('editor.saveFailed') + (error as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /** 首次保存：用户给出工作流编码后经 applyDsl 建流落版（新工作流首版即生效版）。
+   *  注意 apply 接口校验拒绝时返回 HTTP 200 + success:false —— 必须检查响应体，
+   *  否则又是「没存进去却显示已保存」（阶段 1.2）。 */
+  const handleSaveWithNewCode = async () => {
+    const code = newCode.trim();
+    if (!code || !ctx?.document) return;
+    setSaving(true);
+    setCodeAskError(null);
+    try {
+      const jsonData = ctx.document.toJSON();
+      const res = await workflowApi.applyDsl(code, jsonData, {
+        workflowName: workflowName || code,
+        versionDesc: 'Initial version',
+        createIfMissing: true,
+      });
+      const r = (res || {}) as { success?: boolean; error?: string };
+      if (r.success === false) {
+        // 弹窗保留 + 就地显示原因（多为节点配置缺失的长文案），现场不动
+        setCodeAskError(r.error || 'workflow validation rejected');
+        return;
+      }
+      setCodeAskOpen(false);
+      settleSaved(code);
+    } catch (error) {
+      console.error('Save failed:', error);
+      setCodeAskError((error as Error).message);
     } finally {
       setSaving(false);
     }
@@ -622,6 +697,48 @@ const EditorHeader = ({
           {saving ? t('Saving') : saved ? `✓ ${t('Saved')}` : t('Save')}
         </button>
       </div>
+
+      {/* 首次保存需要工作流编码：草稿模式下没有可寻址的版本容器，明确要一个编码
+          而不是静默「已保存」（阶段 1.2）。新建后经 applyDsl 落为首版（即生效版） */}
+      <Modal
+        title={t('editor.needCodeTitle')}
+        visible={codeAskOpen}
+        onCancel={() => setCodeAskOpen(false)}
+        onOk={handleSaveWithNewCode}
+        okButtonProps={{ loading: saving }}
+        okText={t('Save')}
+        cancelText={t('Cancel')}
+      >
+        <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>
+          {t('editor.needCodeDesc')}
+        </div>
+        <Input
+          value={newCode}
+          onChange={(v) => setNewCode(v)}
+          placeholder="e.g. order-approval"
+          onKeyPress={(e) => {
+            if (e.key === 'Enter') void handleSaveWithNewCode();
+          }}
+        />
+        {codeAskError && (
+          <div
+            style={{
+              marginTop: 10,
+              fontSize: 12,
+              lineHeight: 1.6,
+              color: '#e5404e',
+              background: '#fdf0f0',
+              borderRadius: 8,
+              padding: '8px 10px',
+              maxHeight: 160,
+              overflow: 'auto',
+              whiteSpace: 'pre-wrap',
+            }}
+          >
+            {codeAskError}
+          </div>
+        )}
+      </Modal>
 
       {/* 发布为 API 弹窗 */}
       <Modal

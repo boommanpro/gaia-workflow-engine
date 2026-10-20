@@ -26,10 +26,11 @@ import {
 
 import { useAgent } from '../../agent/AgentContext';
 import { agentApi } from '../../agent/api';
+import { rollbackCanvasTo } from '../../agent/canvas-draft-sync';
 import SessionList from '../../agent/SessionList';
 import { useLanguage, t } from '../../i18n';
 import { publicPath } from '../../utils/public-path';
-import { useWorkflowDocumentState, useCanvasSelection, workflowDocumentStore } from '../../document';
+import { useWorkflowDocumentState, useCanvasSelection } from '../../document';
 import { CHAT, ChatComposer, ChatMessageList, ChatStyles } from '../../chat';
 import {
   bindSessionToWorkflow,
@@ -193,9 +194,10 @@ export const CopilotSidebar: React.FC<CopilotSidebarProps> = ({ workflowName, wo
 
   const handleUndoChange = useCallback(() => {
     if (!previousSnapshot) return;
-    workflowDocumentStore.rollbackTo(previousSnapshot.id);
+    // 撤销要「真撤销」：本地回滚之外同步服务端草稿，后续提问与保存才都基于恢复后的内容
+    rollbackCanvasTo(previousSnapshot.id, currentSessionKey);
     setChangeBarFor(null);
-  }, [previousSnapshot]);
+  }, [previousSnapshot, currentSessionKey]);
 
   // ---------- 画布引用：选中节点 → 提问自带上下文 ----------
   const activeRef = selection && selection.nodeId !== refDismissed ? selection : null;

@@ -31,6 +31,7 @@ import {
   thumbTone,
   type CanvasSnapshot,
 } from '../document';
+import { DeltaDetailsView } from '../document/DeltaDetailsView';
 
 import { t } from '../i18n';
 import { CHAT } from './theme';
@@ -264,10 +265,18 @@ export const CanvasSnapshotCard: React.FC<CanvasSnapshotCardProps> = ({
   }
 
   const compareContent = (
-    <div style={{ width: 230, maxHeight: 260, overflow: 'auto' }}>
+    <div style={{ width: 300, maxHeight: 300, overflow: 'auto' }}>
       {(() => {
+        // 新快照带字段级/连线级明细（阶段 2.3）；旧快照退化为节点标题列表
+        const details = snapshot.delta?.details;
+        if (details) return <DeltaDetailsView details={details} />;
         const detail = describeNodeDelta(snapshot.dsl, snapshot.prevDsl);
-        if (detail.added.length + detail.removed.length + detail.updated.length === 0) {
+        const hasEdgeDelta =
+          (snapshot.delta?.addedEdges || 0) + (snapshot.delta?.removedEdges || 0) > 0;
+        if (
+          detail.added.length + detail.removed.length + detail.updated.length === 0
+          && !hasEdgeDelta
+        ) {
           return <div style={{ fontSize: 12, color: CHAT.textMuted }}>{t('chat.snapshotNoDelta')}</div>;
         }
         return (
@@ -275,6 +284,14 @@ export const CanvasSnapshotCard: React.FC<CanvasSnapshotCardProps> = ({
             <DeltaDetailList label={t('chat.snapshotDetailAdded')} items={detail.added} color={CHAT.success} />
             <DeltaDetailList label={t('chat.snapshotDetailUpdated')} items={detail.updated} color={CHAT.warn} />
             <DeltaDetailList label={t('chat.snapshotDetailRemoved')} items={detail.removed} color={CHAT.danger} />
+            {hasEdgeDelta && (
+              <div style={{ fontSize: 11.5, color: CHAT.textMuted }}>
+                {t('chat.snapshotEdgesOnlyLegacy', {
+                  added: snapshot.delta?.addedEdges || 0,
+                  removed: snapshot.delta?.removedEdges || 0,
+                })}
+              </div>
+            )}
           </>
         );
       })()}

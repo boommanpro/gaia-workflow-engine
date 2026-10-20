@@ -159,6 +159,16 @@ export const agentApi = {
       { method: 'POST', body: JSON.stringify({ workflowCode }) },
     ),
 
+  /** 前端画布草稿回推：以本地画布为准更新服务端会话草稿（回滚后/提问前/保存前对齐） */
+  pushDraft: (
+    sessionKey: string,
+    body: { dsl: unknown; workflowCode?: string; source?: string },
+  ) =>
+    request<{ success: boolean; nodeCount?: number; boundCode?: string | null; baseRevision?: number | null; error?: string }>(
+      `/agent/session/${sessionKey}/push-draft`,
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
+
   // 调试信息持久化
   saveDebugData: (sessionKey: string, debugData: string) =>
     request<boolean>(`/agent/session/${sessionKey}/debug`, {

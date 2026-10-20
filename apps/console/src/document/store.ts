@@ -286,7 +286,10 @@ class WorkflowDocumentStore {
     this.scope = key;
 
     const restored = key ? this.loadPersisted(key) : null;
-    if (restored) {
+    // 快照恢复只服务「空画布」：currentSessionKey 是异步恢复的，setScope 往往在
+    // 编辑器承接草稿（__draft__）/ 载入正式版之后才触发，无条件 restore 会把
+    // 眼前刚承接的内容用旧会话快照顶掉（2026-10-20 精修草稿竞争实证）。
+    if (restored && this.state.doc.isEmpty) {
       this.state = {
         ...this.state,
         doc: WorkflowDocument.fromJSON(restored.dsl),

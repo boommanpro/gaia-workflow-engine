@@ -28,6 +28,7 @@ import { useAgent } from '../../agent/AgentContext';
 import { useArtifactState } from '../../agent/artifact-store';
 import type { AgentArtifactDto } from '../../agent/types';
 import { agentApi } from '../../agent/api';
+import { pushCanvasDraftToSession } from '../../agent/canvas-draft-sync';
 import { CHAT } from '../../chat/theme';
 import { IconPanelRight } from '../../components/app-shell/icons';
 import { ReadonlyCanvas } from './ReadonlyCanvas';
@@ -83,8 +84,18 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
     setSaving(true);
     try {
       if (currentSessionKey) {
-        // 会话场景：服务端会话草稿是权威数据（AI 经 SSE 单向同步给画布，本地只读），
-        // 走专用端点落版并收口草稿绑定/CAS 基准；workflowCode 留空 = 用草稿绑定的编码
+        // 保存前对齐（阶段 1.1）：把「眼前的画布」推成服务端权威草稿再落版 ——
+        // 回滚 / 编辑器手改可能让本地领先于服务端，不对齐就会出现「保存的内容
+        // 和画布所见不一致」。同步失败则明确阻断，不产生错误的版本。
+        const sync = await pushCanvasDraftToSession(currentSessionKey, {
+          workflowCode: workflowCode.trim() || undefined,
+          source: 'pre-save',
+        });
+        if (!sync.ok) {
+          throw new Error(`${t('chat.rollbackSyncFailed')}${sync.error || ''}`);
+        }
+        // 会话场景：服务端会话草稿是权威数据，走专用端点落版并收口草稿绑定/CAS 基准；
+        // workflowCode 留空 = 用草稿绑定的编码
         const res = await agentApi.saveDraftAsVersion(currentSessionKey, {
           workflowCode: workflowCode.trim() || undefined,
           name: meta.workflowName || workflowCode.trim() || undefined,
@@ -99,16 +110,22 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
         }
         Toast.success(res.message || t('workspace.saveSuccess'));
       } else {
-        // 编辑器独立打开（无会话）：直接落当前画布
+        // 编辑器独立打开（无会话）：直接落当前画布。
+        // apply 校验拒绝时返回 HTTP 200 + success:false —— 必须检查响应体，否则
+        // 又是「没存进去却提示已保存」（阶段 1.2）
         if (!workflowCode.trim()) {
           Toast.warning(t('workspace.needCode'));
           return;
         }
-        await workflowApi.applyDsl(workflowCode.trim(), dsl, {
+        const applyRes = await workflowApi.applyDsl(workflowCode.trim(), dsl, {
           workflowName: meta.workflowName || workflowCode.trim(),
           versionDesc,
           createIfMissing: true,
         });
+        const applyBody = (applyRes || {}) as { success?: boolean; error?: string };
+        if (applyBody.success === false) {
+          throw new Error(applyBody.error || 'workflow validation rejected');
+        }
         workflowDocumentStore.markSaved({ workflowCode: workflowCode.trim(), savedDsl: dsl });
         workflowDocumentStore.setMeta({ workflowCode: workflowCode.trim() });
         Toast.success(t('workspace.saveSuccess'));

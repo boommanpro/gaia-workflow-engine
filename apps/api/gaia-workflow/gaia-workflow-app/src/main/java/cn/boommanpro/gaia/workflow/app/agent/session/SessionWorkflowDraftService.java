@@ -458,6 +458,51 @@ public class SessionWorkflowDraftService {
         drafts.put(sessionKey, doc);
     }
 
+    /**
+     * 前端画布草稿回推（阶段 1.1「统一草稿与保存内容」）：以用户眼前的画布为准
+     * 整份覆盖会话草稿。这是「本地草稿 → 服务端草稿」方向缺失的半边链路 ——
+     * 回滚后同步、编辑器提问前同步、保存前对齐都走这里，否则回滚后再保存落的
+     * 仍是撤销前的服务端旧内容、AI 回答基于旧参数。
+     *
+     * <p>绑定语义：保留既有 _meta（绑定码 + CAS 基准）；调用方带 workflowCode
+     * 且与当前绑定不同时重建绑定（baseRevision 由 controller 按该工作流当前值解析）。
+     * 客户端 DSL 永不带 _meta，传入的 _meta 一律丢弃。</p>
+     */
+    public JSONObject push(String sessionKey, JSONObject dsl, String workflowCode, Long baseRevision) {
+        if (sessionKey == null || dsl == null) {
+            return err("sessionKey and dsl are required");
+        }
+        JSONArray nodes = dsl.getJSONArray("nodes");
+        if (nodes == null || nodes.isEmpty()) {
+            return err("dsl.nodes is empty");
+        }
+        JSONObject copy = normalizeDoc(dsl);
+        copy.remove(META_KEY);
+
+        JSONObject meta = getMeta(sessionKey);
+        boolean rebound = false;
+        if (workflowCode != null && !workflowCode.isEmpty()
+            && !workflowCode.equals(meta.getStr("boundCode"))) {
+            meta = new JSONObject()
+                .set("boundCode", workflowCode)
+                .set("baseRevision", baseRevision != null ? baseRevision : 0L)
+                .set("draftRevision", 1);
+            rebound = true;
+        }
+        if (!meta.isEmpty()) {
+            copy.set(META_KEY, meta);
+        }
+        drafts.put(sessionKey, copy);
+        persistArtifact(sessionKey, "stable", "画布同步 · " + nodes.size() + " 节点");
+        log.info("[draft] {} pushed from client ({} nodes{}, bound={})", sessionKey, nodes.size(),
+            rebound ? ", rebound" : "", getBoundCode(sessionKey));
+        return new JSONObject()
+            .set("success", true)
+            .set("nodeCount", nodes.size())
+            .set("boundCode", getBoundCode(sessionKey))
+            .set("baseRevision", getBaseRevision(sessionKey));
+    }
+
     private static final String META_KEY = "_meta";
 
     private static int nextDraftRevision(JSONObject doc) {
@@ -514,7 +559,29 @@ public class SessionWorkflowDraftService {
         if (!copy.containsKey("edges") || !(copy.get("edges") instanceof JSONArray)) {
             copy.set("edges", new JSONArray());
         }
+        // 清洗 JSONNull（历史草稿可能已被「null 值」毒化，Jackson 序列化会 500）
+        stripNulls(copy);
         return copy;
+    }
+
+    /** 递归移除值为 null / JSONNull 的键（对 JSONObject 与 JSONArray 生效） */
+    private static void stripNulls(Object node) {
+        if (node instanceof JSONObject) {
+            JSONObject obj = (JSONObject) node;
+            for (String key : new java.util.ArrayList<>(obj.keySet())) {
+                Object value = obj.get(key);
+                if (value == null || value instanceof cn.hutool.json.JSONNull) {
+                    obj.remove(key);
+                } else {
+                    stripNulls(value);
+                }
+            }
+        } else if (node instanceof JSONArray) {
+            JSONArray arr = (JSONArray) node;
+            for (int i = 0; i < arr.size(); i++) {
+                stripNulls(arr.get(i));
+            }
+        }
     }
 
     private static JSONObject emptyDoc() {
@@ -527,13 +594,18 @@ public class SessionWorkflowDraftService {
         return new JSONObject().set("success", false).set("error", message);
     }
 
-    /** 深合并：目标对象上递归合并源对象的值，数组/标量直接覆盖 */
+    /**
+     * 深合并：目标对象上递归合并源对象的值，数组/标量直接覆盖。
+     * null（含 JSONNull）= 删除该键 —— 这是模型「删除字段」的唯一途径；
+     * 直接存 null 会让 Jackson 无法序列化（GET /document 500，2026-10-20 验收实证）。
+     */
     private void deepMerge(JSONObject target, JSONObject source) {
         for (String key : source.keySet()) {
             Object value = source.get(key);
-            Object existing = target.get(key);
-            if (value instanceof JSONObject && existing instanceof JSONObject) {
-                deepMerge((JSONObject) existing, (JSONObject) value);
+            if (value == null || value instanceof cn.hutool.json.JSONNull) {
+                target.remove(key);
+            } else if (value instanceof JSONObject && target.get(key) instanceof JSONObject) {
+                deepMerge((JSONObject) target.get(key), (JSONObject) value);
             } else {
                 target.set(key, value);
             }

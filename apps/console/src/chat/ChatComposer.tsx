@@ -80,6 +80,8 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
   const fileRef = useRef<HTMLInputElement>(null);
   /** 供 addImages 读取当前图片数，避免把副作用写进 setState 更新函数 */
   const imagesRef = useRef<string[]>([]);
+  /** 提交在途标志：延迟清空输入后，防止发送请求未返回时的重复提交 */
+  const submittingRef = useRef(false);
 
   useEffect(() => {
     imagesRef.current = images;
@@ -149,7 +151,7 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
   );
 
   const submit = useCallback(() => {
-    if (blocked) return;
+    if (blocked || submittingRef.current) return;
     const raw = value.trim();
     if (!raw && images.length === 0) return;
     const prefix = prefixBuilder?.() ?? '';
@@ -159,9 +161,19 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
     if (messages.length === 0 && raw && currentSessionKey) {
       void renameSession(currentSessionKey, raw.length > 24 ? `${raw.slice(0, 24)}…` : raw);
     }
-    setValue('');
-    setImages([]);
-    void sendMessage(text, payload);
+    // 先发再清空：sendMessage 被拦截（画布同步失败 / 会话创建失败）时输入保留，
+    // 用户可原地重试，而不是重新打一遍字（阶段 3.3 的同一处根因）
+    submittingRef.current = true;
+    void sendMessage(text, payload)
+      .then((sent) => {
+        if (sent) {
+          setValue('');
+          setImages([]);
+        }
+      })
+      .finally(() => {
+        submittingRef.current = false;
+      });
     requestAnimationFrame(() => textareaRef.current?.focus());
   }, [blocked, value, images, sendMessage, messages.length, currentSessionKey, renameSession, prefixBuilder, setValue]);
 

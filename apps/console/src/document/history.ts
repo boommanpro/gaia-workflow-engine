@@ -26,6 +26,40 @@ export interface SnapshotDelta {
   updatedNodes: number;
   addedEdges: number;
   removedEdges: number;
+  /**
+   * 字段级/连线级明细（阶段 2.3）。旧快照没有此字段，UI 退化为节点标题列表。
+   * 在 computeSnapshotDelta 里一并算出，成本可忽略（每次快照一次）。
+   */
+  details?: DslChangeDetails;
+}
+
+/** 单个字段的 before → after（值已格式化为可读字符串） */
+export interface FieldChange {
+  path: string;
+  before: string;
+  after: string;
+}
+
+export interface NodeChangeDetail {
+  nodeId: string;
+  title: string;
+  type: string;
+  change: 'added' | 'removed' | 'updated';
+  /** 仅 updated 节点携带：改了哪些字段、从什么变成什么 */
+  fields?: FieldChange[];
+}
+
+export interface EdgeChangeDetail {
+  key: string;
+  fromTitle: string;
+  toTitle: string;
+  fromPort?: string;
+  change: 'added' | 'removed';
+}
+
+export interface DslChangeDetails {
+  nodes: NodeChangeDetail[];
+  edges: EdgeChangeDetail[];
 }
 
 export interface CanvasSnapshot {
@@ -84,33 +118,152 @@ export function nodeDataSignature(data: Record<string, any> | undefined | null):
   return JSON.stringify(visible);
 }
 
-/** 计算两份 DSL 之间的结构差异（只看结构，不看坐标） */
+/** 计算两份 DSL 之间的结构差异（只看结构，不看坐标），并附带字段级/连线级明细 */
 export function computeSnapshotDelta(
   next: WorkflowDsl,
   prev?: WorkflowDsl | null
 ): SnapshotDelta {
+  const details = computeDslChangeDetails(next, prev);
+
   if (!prev) {
-    return { ...EMPTY_DELTA, addedNodes: next.nodes.length, addedEdges: next.edges.length };
+    return {
+      ...EMPTY_DELTA,
+      addedNodes: next.nodes.length,
+      addedEdges: next.edges.length,
+      details,
+    };
   }
 
-  const prevNodes = new Map<string, DslNode>((prev.nodes || []).map((n) => [n.id, n]));
-  const nextNodes = new Map<string, DslNode>((next.nodes || []).map((n) => [n.id, n]));
+  const delta: SnapshotDelta = {
+    addedNodes: details.nodes.filter((n) => n.change === 'added').length,
+    removedNodes: details.nodes.filter((n) => n.change === 'removed').length,
+    updatedNodes: details.nodes.filter((n) => n.change === 'updated').length,
+    addedEdges: details.edges.filter((e) => e.change === 'added').length,
+    removedEdges: details.edges.filter((e) => e.change === 'removed').length,
+    details,
+  };
+  return delta;
+}
 
-  let addedNodes = 0;
-  let updatedNodes = 0;
-  for (const node of next.nodes || []) {
-    const before = prevNodes.get(node.id);
-    if (!before) addedNodes += 1;
-    else if (nodeDataSignature(before.data) !== nodeDataSignature(node.data)) updatedNodes += 1;
+/** 值格式化：字符串截断、对象 JSON 化，保证差异条目单行可读 */
+function formatDeltaValue(value: unknown): string {
+  if (value === undefined || value === null) return '∅';
+  let text: string;
+  if (typeof value === 'string') text = value;
+  else if (typeof value === 'object') {
+    try { text = JSON.stringify(value); } catch { text = '[object]'; }
+  } else text = String(value);
+  if (text.length > 60) text = `${text.slice(0, 57)}…`;
+  return text;
+}
+
+/**
+ * 字段级 data diff：递归到第 2 层（inputsValues.text 这类常用路径），再深就整块对比。
+ * 与 nodeDataSignature 同口径剔除派生字段 inputs —— 那是画布回填的，不是用户改的。
+ */
+function diffNodeData(
+  beforeData: Record<string, any> | undefined | null,
+  afterData: Record<string, any> | undefined | null
+): FieldChange[] {
+  const fields: FieldChange[] = [];
+  const before = beforeData || {};
+  const after = afterData || {};
+  const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
+  for (const key of keys) {
+    if (key === 'inputs') continue; // 框架派生字段
+    const b = before[key];
+    const a = after[key];
+    const bText = formatDeltaValue(b);
+    const aText = formatDeltaValue(a);
+    if (bText === aText) continue;
+    const bothPlainObject =
+      b && a && typeof b === 'object' && typeof a === 'object'
+      && !Array.isArray(b) && !Array.isArray(a);
+    if (bothPlainObject) {
+      // 深一层：把 outputs.properties.text 这类嵌套变化摊开
+      const sub = diffNodeData(b, a);
+      if (sub.length > 0 && sub.length <= 8) {
+        for (const f of sub) fields.push({ path: `${key}.${f.path}`, before: f.before, after: f.after });
+      } else if (sub.length > 8) {
+        fields.push({ path: key, before: bText, after: aText });
+      } else {
+        fields.push({ path: key, before: bText, after: aText });
+      }
+    } else {
+      fields.push({ path: key, before: bText, after: aText });
+    }
   }
-  const removedNodes = (prev.nodes || []).filter((n) => !nextNodes.has(n.id)).length;
+  return fields;
+}
 
-  const prevEdges = new Set((prev.edges || []).map(edgeKey));
-  const nextEdges = new Set((next.edges || []).map(edgeKey));
-  const addedEdges = [...nextEdges].filter((k) => !prevEdges.has(k)).length;
-  const removedEdges = [...prevEdges].filter((k) => !nextEdges.has(k)).length;
+/** 两份 DSL 的完整差异明细（节点增删改 + 字段前后值 + 连线增删，阶段 2.3） */
+export function computeDslChangeDetails(
+  next: WorkflowDsl,
+  prev?: WorkflowDsl | null
+): DslChangeDetails {
+  const nodes: NodeChangeDetail[] = [];
+  const nextList = next.nodes || [];
+  const prevList = prev?.nodes || [];
+  const prevNodes = new Map<string, DslNode>(prevList.map((n) => [n.id, n]));
+  const nextNodes = new Map<string, DslNode>(nextList.map((n) => [n.id, n]));
 
-  return { addedNodes, removedNodes, updatedNodes, addedEdges, removedEdges };
+  for (const node of nextList) {
+    const before = prev ? prevNodes.get(node.id) : undefined;
+    if (!prev || !before) {
+      nodes.push({ nodeId: node.id, title: nodeLabel(node), type: node.type || '', change: 'added' });
+    } else if (nodeDataSignature(before.data) !== nodeDataSignature(node.data)) {
+      nodes.push({
+        nodeId: node.id,
+        title: nodeLabel(node),
+        type: node.type || '',
+        change: 'updated',
+        fields: diffNodeData(before.data, node.data),
+      });
+    }
+  }
+  if (prev) {
+    for (const node of prevList) {
+      if (!nextNodes.has(node.id)) {
+        nodes.push({ nodeId: node.id, title: nodeLabel(node), type: node.type || '', change: 'removed' });
+      }
+    }
+  }
+
+  const titleOf = (id: string): string => {
+    const node = nextNodes.get(id) || prevNodes.get(id);
+    return node ? nodeLabel(node) : id;
+  };
+  const edges: EdgeChangeDetail[] = [];
+  const prevEdgeKeys = new Map<string, DslEdge>();
+  for (const e of prev?.edges || []) prevEdgeKeys.set(edgeKey(e), e);
+  const nextEdgeKeys = new Map<string, DslEdge>();
+  for (const e of next.edges || []) nextEdgeKeys.set(edgeKey(e), e);
+  for (const [key, e] of nextEdgeKeys) {
+    if (!prev || !prevEdgeKeys.has(key)) {
+      edges.push({
+        key,
+        fromTitle: titleOf(e.sourceNodeID),
+        toTitle: titleOf(e.targetNodeID),
+        ...(e.sourcePortID ? { fromPort: e.sourcePortID } : {}),
+        change: 'added',
+      });
+    }
+  }
+  if (prev) {
+    for (const [key, e] of prevEdgeKeys) {
+      if (!nextEdgeKeys.has(key)) {
+        edges.push({
+          key,
+          fromTitle: titleOf(e.sourceNodeID),
+          toTitle: titleOf(e.targetNodeID),
+          ...(e.sourcePortID ? { fromPort: e.sourcePortID } : {}),
+          change: 'removed',
+        });
+      }
+    }
+  }
+
+  return { nodes, edges };
 }
 
 /** 差异是否有实质内容（纯坐标变化不算） */

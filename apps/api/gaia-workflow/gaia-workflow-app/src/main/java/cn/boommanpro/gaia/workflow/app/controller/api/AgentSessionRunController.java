@@ -35,6 +35,7 @@ import java.util.concurrent.atomic.AtomicReference;
  *  GET  /api/agent/session/{key}/status    当前运行快照（轮询兜底）
  *  POST /api/agent/session/{key}/stop      停止当前运行
  *  GET  /api/agent/session/{key}/document  当前服务端画布草稿
+ *  POST /api/agent/session/{key}/push-draft 前端画布草稿回推（回滚后/提问前/保存前对齐）
  *  GET  /api/agent/session/{key}/artifacts 会话产物列表（workflow/plan/test_report/release）
  * </pre>
  */
@@ -224,6 +225,46 @@ public class AgentSessionRunController {
         return doc;
     }
 
+    /**
+     * 前端画布草稿回推（阶段 1.1）：以用户眼前的画布为准更新会话草稿。
+     * 触发点：回滚后（撤销要同步撤销）、编辑器提问前（AI 基于当前未保存参数）、
+     * 「保存为版本」前（落的就是所见内容）。成功后广播 document，让其他在线窗口对齐。
+     */
+    @PostMapping("/{sessionKey}/push-draft")
+    public Map<String, Object> pushDraft(@PathVariable String sessionKey,
+                                         @RequestBody(required = false) Map<String, Object> body) {
+        Object dslRaw = body != null ? body.get("dsl") : null;
+        if (dslRaw == null) {
+            return new JSONObject().set("success", false).set("error", "dsl is required");
+        }
+        JSONObject dsl;
+        try {
+            dsl = cn.hutool.json.JSONUtil.parseObj(dslRaw);
+        } catch (Exception e) {
+            return new JSONObject().set("success", false).set("error", "invalid dsl: " + e.getMessage());
+        }
+        String workflowCode = body.get("workflowCode") != null
+            ? String.valueOf(body.get("workflowCode")) : null;
+
+        // 绑定到新的工作流编码时，以该工作流当前 revision 作为落版 CAS 基准
+        Long baseRevision = null;
+        if (workflowCode != null && !workflowCode.isEmpty()
+            && !workflowCode.equals(draftService.getBoundCode(sessionKey))) {
+            GaiaWorkflow workflow = workflowService.getOne(
+                new QueryWrapper<GaiaWorkflow>().eq("workflow_code", workflowCode).last("LIMIT 1"));
+            if (workflow != null) {
+                baseRevision = workflow.getRevision() != null ? workflow.getRevision() : 0L;
+            }
+        }
+        JSONObject result = draftService.push(sessionKey, dsl, workflowCode, baseRevision);
+        if (result.getBool("success", false)) {
+            // 无 run 上下文，直接经事件总线广播（在线窗口立即看到回滚/同步后的画布）
+            eventBus.publish(sessionKey, "document",
+                new JSONObject().set("dsl", draftService.publicDoc(sessionKey)));
+        }
+        return result;
+    }
+
     /** 会话产物列表（会话打开时加载，驱动产物面板与历史卡片） */
     @GetMapping("/{sessionKey}/artifacts")
     public List<Map<String, Object>> artifacts(@PathVariable String sessionKey) {
@@ -264,6 +305,11 @@ public class AgentSessionRunController {
         }
         String summary = "基于 " + workflowCode + " " + version.getVersionNumber() + " 迭代";
         draftService.replace(sessionKey, dsl, "stable", summary);
+        // 绑定草稿到该工作流并持久化绑定（replace 重置 _meta —— 不绑定的话用户
+        // 「保存为版本」时会新建 wf_xxx 而不是迭代原工作流）
+        draftService.rebind(sessionKey, workflowCode,
+            workflow.getRevision() != null ? workflow.getRevision() : 0L);
+        draftService.persistArtifact(sessionKey, "stable", summary);
         // 无 run 上下文，直接经事件总线广播文档，让在线窗口立即渲染出「被迭代的那份」
         eventBus.publish(sessionKey, "document", new JSONObject().set("dsl", draftService.get(sessionKey)));
         return new JSONObject()

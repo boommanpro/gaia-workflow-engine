@@ -26,7 +26,8 @@ import { useSyncExternalStore } from 'react';
 import SubagentCard from '../agent/SubagentCard';
 import { PlanCard } from '../agent/PlanCard';
 import { useLanguage, t } from '../i18n';
-import { useWorkflowDocumentState, workflowDocumentStore } from '../document';
+import { useWorkflowDocumentState } from '../document';
+import { rollbackCanvasTo } from '../agent/canvas-draft-sync';
 import type { CanvasSnapshot } from '../document';
 import { useLatestArtifact } from '../agent/artifact-store';
 import { CHAT, CHAT_COLUMN_WIDTH, ChatStyles } from './theme';
@@ -489,17 +490,43 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
     window.dispatchEvent(evt);
   }, []);
 
-  /** 消息 id → 它产出的画布快照（含失败轮）。一条消息理论上只会有一张，但保留数组更稳。 */
+  /**
+   * 消息 id → 它产出的画布快照（含失败轮）。一条消息理论上只会有一张，但保留数组更稳。
+   *
+   * 孤儿重锚定：快照的 messageId 是生成时的 live 占位 id（live-xxx），刷新后消息从 DB
+   * 重建、id 全部变化 —— 快照卡因此全部消失（只能去头部历史面板找）。这里把指向
+   * 已不存在消息的快照按时间锚回「时间轴上最近的 assistant 消息」，刷新后卡仍在
+   * 对话流里（可能挂到相邻一轮，但内容与回滚能力完整保留）。
+   */
   const snapshotsByMessage = useMemo(() => {
     const map = new Map<string, { snapshot: CanvasSnapshot; versionNo: number }[]>();
+    const liveIds = new Set(messages.map((m) => m.id));
+    const assistants = messages
+      .map((m, idx) => ({ m, idx }))
+      .filter(({ m }) => m.role === 'assistant');
+    const anchorFor = (snapshot: CanvasSnapshot): string | null => {
+      let best: { id: string; ts: number } | null = null;
+      for (const { m } of assistants) {
+        const ts = m.timestamp || 0;
+        if (ts <= snapshot.at + 2000 && (!best || ts >= best.ts)) {
+          best = { id: m.id, ts };
+        }
+      }
+      if (best) return best.id;
+      return assistants.length > 0 ? assistants[assistants.length - 1].m.id : null;
+    };
     snapshots.forEach((snapshot, index) => {
-      if (!snapshot.messageId) return;
-      const list = map.get(snapshot.messageId) || [];
+      let targetId = snapshot.messageId;
+      if (!targetId || (targetId.startsWith('live-') && !liveIds.has(targetId))) {
+        targetId = anchorFor(snapshot) ?? targetId;
+      }
+      if (!targetId) return;
+      const list = map.get(targetId) || [];
       list.push({ snapshot, versionNo: index + 1 });
-      map.set(snapshot.messageId, list);
+      map.set(targetId, list);
     });
     return map;
-  }, [snapshots]);
+  }, [snapshots, messages]);
 
   const currentSnapshotId = snapshots[cursor]?.id;
 
@@ -516,12 +543,16 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
           isCurrent={snapshot.id === currentSnapshotId}
           compact={compact}
           {...(onSnapshotView ? { onView: () => onSnapshotView(snapshot) } : {})}
-          onRollback={() => workflowDocumentStore.rollbackTo(snapshot.id)}
+          onRollback={() =>
+            rollbackCanvasTo(snapshot.id, currentSessionKey, (err) =>
+              Toast.error(`${t('chat.rollbackSyncFailed')}${err}`)
+            )
+          }
           onRetry={() => void sendMessage(t('chat.snapshotRetryPrompt'))}
         />
       ));
     },
-    [snapshotsByMessage, currentSnapshotId, compact, onSnapshotView, sendMessage]
+    [snapshotsByMessage, currentSnapshotId, compact, onSnapshotView, sendMessage, currentSessionKey]
   );
 
   /** 历史窗口（owb TURN_WINDOW 对标）：默认只渲染最近 10 个用户轮次，更早的收在按钮里 */

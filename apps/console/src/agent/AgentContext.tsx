@@ -20,6 +20,8 @@ import { nanoid } from 'nanoid';
 
 import { agentApi } from './api';
 import { liveStreamStore } from './live-stream-store';
+import { pushCanvasDraftToSession } from './canvas-draft-sync';
+import { aiPendingChangeStore } from './ai-pending-change';
 import { sessionEventStore } from './session-event-store';
 import { subscribeSessionEvents } from './sse-client';
 import { artifactStore } from './artifact-store';
@@ -85,7 +87,7 @@ interface AgentContextValue {
   switchSession: (sessionKey: string) => Promise<void>;
   renameSession: (sessionKey: string, title: string) => Promise<void>;
   deleteSession: (sessionKey: string) => Promise<void>;
-  sendMessage: (text: string, images?: string[]) => Promise<void>;
+  sendMessage: (text: string, images?: string[]) => Promise<boolean>;
   stopStreaming: () => void;
 
   // Subagent debug flow
@@ -981,11 +983,11 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     }
   }, [getPageContextJson]);
 
-  /** 发送消息：入队，串行触发后端自治运行 */
+  /** 发送消息：入队，串行触发后端自治运行。返回 false = 发送前被拦截（输入应保留） */
   const sendMessage = useCallback(
-    async (text: string, images?: string[]) => {
+    async (text: string, images?: string[]): Promise<boolean> => {
       let sessionKey = currentSessionKeyRef.current;
-      if (!sessionKey) return;
+      if (!sessionKey) return false;
 
       // 草稿会话：发送前先创建正式会话（scope/folderId 来自草稿元信息），失败则不发送
       const draft = draftMetaRef.current.get(sessionKey);
@@ -1010,7 +1012,29 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
             ...prev,
             { id: nanoid(), role: 'assistant', content: `[错误] ${(e as Error).message}`, timestamp: Date.now() },
           ]);
-          return;
+          return false;
+        }
+      }
+
+      // 专家模式提问前同步（阶段 2.1）：画布是主位，而 AI 读的是服务端会话草稿 ——
+      // 不先把未保存的手改推上去，AI 就会基于旧参数回答。同步失败则拦截本次提问
+      // 并保留输入（宁可明确失败，不让 AI 抢答一份过时上下文）。
+      if (
+        /^\/(editor|template-editor)/.test(location.pathname)
+        && !liveStreamStore.getSnapshot().streaming
+      ) {
+        const sync = await pushCanvasDraftToSession(sessionKey, { source: 'ask' });
+        if (!sync.ok) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: nanoid(),
+              role: 'assistant',
+              content: `[错误] 画布同步失败：${sync.error || '未知错误'}。本次未发送，请检查网络后重试。`,
+              timestamp: Date.now(),
+            },
+          ]);
+          return false;
         }
       }
 
@@ -1029,8 +1053,9 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       // steering：run 进行中直接发送，后端在 turn 边界注入；本地仅维护排队指示
       if (liveStreamStore.getSnapshot().streaming) setQueueLength((q) => q + 1);
       void postMessage(sessionKey, text, images);
+      return true;
     },
-    [postMessage, refreshFolders]
+    [postMessage, refreshFolders, location.pathname]
   );
 
   /** 停止当前运行：通知后端停止（协作式中断，主循环在下一个检查点退出）。
@@ -1268,9 +1293,18 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       },
       onDocument: (data) => {
         if (disposed) return;
-        // 编辑器（专家模式）页面画布是主位，AI 的 document 事件同样不得整表替换 ——
-        // 否则对话中的画布产物会把用户正在编辑的工作流覆盖掉
-        if (/^\/(editor|template-editor)/.test(pathnameRef.current)) return;
+        // 编辑器（专家模式）页面画布是主位，AI 的 document 事件不得整表替换 ——
+        // 否则对话中的画布产物会把用户正在编辑的工作流覆盖掉。
+        // 替代路径（阶段 2.2）：捕获为「待应用变更」，由用户查看差异后手动应用。
+        if (/^\/(editor|template-editor)/.test(pathnameRef.current)) {
+          try {
+            if (data?.dsl && Array.isArray(data.dsl.nodes) && data.dsl.nodes.length > 0) {
+              const base = workflowDocumentStore.getSnapshot().doc.toJSON();
+              aiPendingChangeStore.set(data.dsl, base, liveAssistantIdRef.current ?? undefined);
+            }
+          } catch { /* ignore */ }
+          return;
+        }
         try {
           if (data?.dsl && Array.isArray(data.dsl.nodes) && data.dsl.nodes.length > 0) {
             const dsl = data.dsl;
