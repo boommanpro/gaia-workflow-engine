@@ -113,7 +113,7 @@ export const agentApi = {
     ),
 
   // ===== 模型配置（owb 式多模型）=====
-  listModels: () => request<{ items: any[]; activeModelId: number | null; globalThinking: string; engineMode?: string }>(
+  listModels: () => request<{ items: any[]; activeModelId: number | null; globalThinking: string; compactionThreshold?: number; engineMode?: string }>(
     '/agent/models'),
   saveModel: (entry: Record<string, unknown>) =>
     request<{ success: boolean; id?: number; error?: string }>('/agent/models',
@@ -129,6 +129,9 @@ export const agentApi = {
   setGlobalThinking: (level: string) =>
     request<{ success: boolean; globalThinking: string }>('/agent/models/thinking',
       { method: 'POST', body: JSON.stringify({ level }) }),
+  setCompactionThreshold: (percent: number) =>
+    request<{ success: boolean; compactionThreshold: number; error?: string }>('/agent/models/compaction-threshold',
+      { method: 'POST', body: JSON.stringify({ percent }) }),
   testModel: (body: { id?: number; baseUrl?: string; apiKey?: string; modelId?: string }) =>
     request<{ success: boolean; latencyMs?: number; error?: string }>('/agent/models/test',
       { method: 'POST', body: JSON.stringify(body) }),

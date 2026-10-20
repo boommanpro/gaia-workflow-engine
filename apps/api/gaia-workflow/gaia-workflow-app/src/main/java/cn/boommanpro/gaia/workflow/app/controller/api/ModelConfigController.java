@@ -29,6 +29,8 @@ import java.util.Map;
  * POST   /api/agent/models                        新建/更新条目（带 id = 更新）
  * DELETE /api/agent/models/{id}                   删除条目（会话绑定/全局默认指向它时明确报错）
  * POST   /api/agent/models/active                 设全局默认 {id|null}
+ * POST   /api/agent/models/thinking               设全局思考档位 {level}
+ * POST   /api/agent/models/compaction-threshold   设全局历史压缩阈值 {percent}
  * GET    /api/agent/models/thinking-levels        五档能力（按模型逐档算 supported/note）
  * POST   /api/agent/session/{key}/model           会话绑定模型 {modelId|null}
  * </pre>
@@ -70,6 +72,7 @@ public class ModelConfigController {
             .set("items", items)
             .set("activeModelId", activeId)
             .set("globalThinking", modelConfigService.globalThinkingLevel())
+            .set("compactionThreshold", modelConfigService.globalCompactionThreshold())
             // 模型管理仅自研引擎（local）有意义：方舟托管的模型由远端 Agent 管理
             .set("engineMode", providerConfigService.getDefaultEngineMode());
         return result;
@@ -103,6 +106,7 @@ public class ModelConfigController {
         entry.setModelId(modelId.trim());
         entry.setThinkingOverride(str(body, "thinkingOverride"));
         entry.setMaxTokens(body.get("maxTokens") instanceof Number n ? n.intValue() : null);
+        entry.setContextWindow(body.get("contextWindow") instanceof Number n ? n.intValue() : null);
         entry.setTemperature(body.get("temperature") instanceof Number n ? n.doubleValue() : null);
         entry.setExtraBody(str(body, "extraBody"));
         entry.setEnabled(body.get("enabled") instanceof Boolean b && !b ? 0 : 1);
@@ -154,6 +158,17 @@ public class ModelConfigController {
         }
         modelConfigService.setGlobalThinkingLevel(level);
         return new JSONObject().set("success", true).set("globalThinking", level);
+    }
+
+    /** 设全局历史压缩阈值（相对上下文窗口的百分比，10-95；历史估算达到 窗口×阈值 时压缩前半段） */
+    @PostMapping("/models/compaction-threshold")
+    public Map<String, Object> setCompactionThreshold(@RequestBody Map<String, Object> body) {
+        int percent = body.get("percent") instanceof Number n ? n.intValue() : -1;
+        if (percent < 10 || percent > 95) {
+            return err("压缩阈值需在 10-95（%）之间: " + percent);
+        }
+        modelConfigService.setGlobalCompactionThreshold(percent);
+        return new JSONObject().set("success", true).set("compactionThreshold", percent);
     }
 
     /** 五档思考能力（能力判断只在服务端做，前端照渲染） */
@@ -324,6 +339,7 @@ public class ModelConfigController {
         json.put("modelId", m.getModelId());
         json.put("thinkingOverride", m.getThinkingOverride());
         json.put("maxTokens", m.getMaxTokens());
+        json.put("contextWindow", m.getContextWindow());
         json.put("temperature", m.getTemperature());
         json.put("enabled", m.getEnabled() == null || m.getEnabled() == 1);
         json.put("active", active);

@@ -184,6 +184,7 @@ CREATE TABLE IF NOT EXISTS llm_model (
     model_id VARCHAR(128),                -- 上游模型 ID
     thinking_override VARCHAR(16),        -- auto/off/low/medium/high；空=跟随全局
     max_tokens INTEGER,
+    context_window INTEGER,               -- 模型上下文窗口（token）；空=平台默认，压缩阈值按它算
     temperature DOUBLE,
     extra_body TEXT,                      -- 厂商私有参数（JSON）
     enabled INTEGER DEFAULT 1,

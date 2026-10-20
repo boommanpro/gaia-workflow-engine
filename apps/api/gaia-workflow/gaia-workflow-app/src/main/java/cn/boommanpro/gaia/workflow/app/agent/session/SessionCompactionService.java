@@ -28,8 +28,6 @@ import java.util.List;
 public class SessionCompactionService {
 
     private static final int MIN_MESSAGES = 6;
-    /** 跨 run 压缩触发线（相对 contextWindow 的百分比）—— 前端「上下文容量」药丸的告警线同源 */
-    public static final int TOKEN_THRESHOLD_PERCENT = 50;
 
     private final AgentMessageService messageService;
     private final ConversationStore conversationStore;
@@ -50,7 +48,8 @@ public class SessionCompactionService {
     }
 
     public JSONObject compact(String sessionKey) {
-        int contextWindow = modelConfigService.getLlmConfig().getContextWindow();
+        // 会话绑定模型优先：条目级 context_window 决定压缩线，未绑定/缺省回退平台默认
+        int contextWindow = modelConfigService.getLlmConfig(sessionKey).getContextWindow();
         if (contextWindow <= 0) {
             contextWindow = 32768;
         }
@@ -63,12 +62,16 @@ public class SessionCompactionService {
 
         int estimatedTokens = estimateTokens(msgs);
         int percentage = (int) ((estimatedTokens * 100L) / contextWindow);
-        if (msgs.size() < MIN_MESSAGES || percentage < TOKEN_THRESHOLD_PERCENT) {
+        // 触发线全局可配（DB model.compaction → yml run.compaction-threshold-percent → 80），
+        // 与前端「上下文容量」药丸的告警线同源（AgentObservabilityController 同一取值）
+        int thresholdPercent = modelConfigService.globalCompactionThreshold();
+        if (msgs.size() < MIN_MESSAGES || percentage < thresholdPercent) {
             return new JSONObject()
                 .set("compacted", false)
                 .set("message", "No compaction needed")
                 .set("tokenPercentage", percentage)
                 .set("estimatedTokens", estimatedTokens)
+                .set("thresholdPercent", thresholdPercent)
                 .set("limit", contextWindow);
         }
 
@@ -86,6 +89,7 @@ public class SessionCompactionService {
                 .set("message", "No safe split point")
                 .set("tokenPercentage", percentage)
                 .set("estimatedTokens", estimatedTokens)
+                .set("thresholdPercent", thresholdPercent)
                 .set("limit", contextWindow);
         }
 
@@ -113,6 +117,7 @@ public class SessionCompactionService {
                 .set("message", "Summarize failed: " + e.getMessage())
                 .set("tokenPercentage", percentage)
                 .set("estimatedTokens", estimatedTokens)
+                .set("thresholdPercent", thresholdPercent)
                 .set("limit", contextWindow);
         }
 
@@ -131,6 +136,7 @@ public class SessionCompactionService {
             .set("kept", msgs.size() - split)
             .set("tokenPercentageBefore", percentage)
             .set("estimatedTokensBefore", estimatedTokens)
+            .set("thresholdPercent", thresholdPercent)
             .set("limit", contextWindow);
     }
 

@@ -797,9 +797,9 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
 
     /**
      * 自研历史（agent_message 表，真相源）→ AgentScope Msg 列表。全量透传，不做条数滑窗：
-     * 上下文治理只走阈值机制 —— 跨 run 由 SessionCompactionService（估算 token 超窗 50%）
-     * 在 run 启动前摘要压缩（另有页面手动压缩入口），run 内由 HarnessAgent 内建
-     * CompactionMiddleware（contextWindow 80% 阈值）兜底。
+     * 上下文治理只走阈值机制 —— 跨 run 由 SessionCompactionService（估算 token 超窗阈值，
+     * 全局可配、默认 80%）在 run 启动前摘要压缩（另有页面手动压缩入口），run 内由
+     * HarnessAgent 内建 CompactionMiddleware（contextWindow 80% 阈值）兜底。
      * 包级可见：历史回放的正确性（tool_use/tool_result 配对）有专项单测守护。
      */
     List<Msg> buildMessages(AgentRunContext context, String sessionKey) {

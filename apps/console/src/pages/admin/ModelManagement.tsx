@@ -5,7 +5,7 @@
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Table, Button, Modal, Input, Select, Switch, Toast, Popconfirm, Tag, Tooltip,
+  Table, Button, Modal, Input, Select, Switch, Toast, Popconfirm, Tag, Tooltip, AutoComplete,
 } from '@douyinfe/semi-ui';
 import { IconPlus, IconRefresh } from '@douyinfe/semi-icons';
 import { agentApi } from '../../agent/api';
@@ -34,6 +34,21 @@ const THINKING_OPTIONS = [
   { value: 'high', label: '高' },
 ];
 
+/** 常见上下文窗口预设（token）：AutoComplete 下拉快选，也支持自由输入任意数值 */
+const CONTEXT_WINDOW_PRESETS: { label: string; value: string }[] = [
+  { label: '8K · 8,192', value: '8192' },
+  { label: '16K · 16,384', value: '16384' },
+  { label: '32K · 32,768', value: '32768' },
+  { label: '64K · 65,536', value: '65536' },
+  { label: '128K · 131,072', value: '131072' },
+  { label: '200K · 200,000', value: '200000' },
+  { label: '256K · 262,144', value: '262144' },
+  { label: '1M · 1,048,576', value: '1048576' },
+];
+
+/** 全局压缩阈值候选（相对上下文窗口的百分比） */
+const COMPACTION_THRESHOLD_OPTIONS = [50, 60, 70, 80, 90, 95];
+
 interface ModelEntry {
   id: number;
   displayName: string;
@@ -43,6 +58,7 @@ interface ModelEntry {
   modelId?: string;
   thinkingOverride?: string;
   maxTokens?: number;
+  contextWindow?: number;
   temperature?: number;
   enabled: boolean;
   active: boolean;
@@ -66,6 +82,7 @@ const emptyForm = () => ({
   modelId: '',
   thinkingOverride: '',
   maxTokens: undefined as number | undefined,
+  contextWindow: undefined as number | undefined,
   extraBody: '',
   enabled: true,
 });
@@ -75,6 +92,7 @@ export const ModelManagement: React.FC = () => {
   const [items, setItems] = useState<ModelEntry[]>([]);
   const [activeModelId, setActiveModelId] = useState<number | null>(null);
   const [globalThinking, setGlobalThinking] = useState('auto');
+  const [compactionThreshold, setCompactionThreshold] = useState(80);
   const [health, setHealth] = useState<HealthItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState<ReturnType<typeof emptyForm> | null>(null);
@@ -91,6 +109,7 @@ export const ModelManagement: React.FC = () => {
       setItems((list.items || []) as ModelEntry[]);
       setActiveModelId(list.activeModelId ?? null);
       setGlobalThinking(list.globalThinking || 'auto');
+      setCompactionThreshold(list.compactionThreshold ?? 80);
       setHealth((h.items || []) as HealthItem[]);
     } finally {
       setLoading(false);
@@ -118,6 +137,7 @@ export const ModelManagement: React.FC = () => {
       modelId: entry.modelId || '',
       thinkingOverride: entry.thinkingOverride || '',
       maxTokens: entry.maxTokens,
+      contextWindow: entry.contextWindow,
       extraBody: '',
       enabled: entry.enabled,
     });
@@ -137,6 +157,7 @@ export const ModelManagement: React.FC = () => {
       modelId: editing.modelId.trim(),
       thinkingOverride: editing.thinkingOverride || null,
       maxTokens: editing.maxTokens ?? null,
+      contextWindow: editing.contextWindow ?? null,
       enabled: editing.enabled,
     };
     // apiKey 原样掩码 = 未修改，不传
@@ -198,7 +219,15 @@ export const ModelManagement: React.FC = () => {
       ),
     },
     { title: '厂商', dataIndex: 'vendor', width: 100 },
-    { title: '上游模型', dataIndex: 'modelId', width: 200 },
+    { title: '上游模型', dataIndex: 'modelId', width: 200,
+      render: (v: string, e: ModelEntry) => (
+        <span>
+          <div>{v}</div>
+          {e.contextWindow != null && e.contextWindow > 0 && (
+            <div style={{ fontSize: 11, color: '#999' }}>{Math.round(e.contextWindow / 1024)}k 窗口</div>
+          )}
+        </span>
+      ) },
     {
       title: 'BaseURL', dataIndex: 'baseUrl', ellipsis: true,
       render: (v: string) => <span style={{ fontSize: 12, color: '#888' }}>{v}</span>,
@@ -278,8 +307,24 @@ export const ModelManagement: React.FC = () => {
           }}
           optionList={THINKING_OPTIONS.filter((o) => o.value !== '')}
         />
+        <span style={{ fontSize: 13, color: '#666' }}>历史压缩阈值（全局）：</span>
+        <Select
+          value={compactionThreshold}
+          style={{ width: 100 }}
+          size="small"
+          onChange={async (v) => {
+            const res = await agentApi.setCompactionThreshold(v as number);
+            if (res.success) {
+              setCompactionThreshold(v as number);
+              Toast.success(`已更新压缩阈值：窗口 × ${v}%`);
+            } else {
+              Toast.error(res.error || '保存失败');
+            }
+          }}
+          optionList={COMPACTION_THRESHOLD_OPTIONS.map((v) => ({ value: v, label: `${v}%` }))}
+        />
         <span style={{ fontSize: 12, color: '#aaa' }}>
-          会话内可单独切换模型（对话输入框右下角）；条目级思考覆盖优先于全局档位
+          会话内可单独切换模型（对话输入框右下角）；条目级思考覆盖优先于全局档位；历史估算达到 窗口 × 阈值 时自动压缩
         </span>
       </div>
 
@@ -368,6 +413,25 @@ export const ModelManagement: React.FC = () => {
                   onChange={(v) => setEditing({ ...editing, enabled: v })} />
                 <span style={{ fontSize: 12, color: '#666', marginLeft: 6 }}>启用</span>
               </div>
+            </div>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <div style={{ width: 220 }}>
+                <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>上下文窗口（可空）</div>
+                <AutoComplete
+                  data={CONTEXT_WINDOW_PRESETS}
+                  value={editing.contextWindow != null ? String(editing.contextWindow) : ''}
+                  placeholder="预设或自由输入，如 262144"
+                  showClear
+                  style={{ width: '100%' }}
+                  onChange={(v) => {
+                    const digits = String(v).replace(/\D/g, '');
+                    setEditing({ ...editing, contextWindow: digits ? Number(digits) : undefined });
+                  }}
+                />
+              </div>
+              <span style={{ fontSize: 12, color: '#aaa', flex: 1, lineHeight: 1.6 }}>
+                模型真实的上下文 token 数；历史压缩与「上下文容量」告警按 窗口 × 阈值（全局设置，默认 80%）触发，留空用平台默认
+              </span>
             </div>
             <div>
               <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>

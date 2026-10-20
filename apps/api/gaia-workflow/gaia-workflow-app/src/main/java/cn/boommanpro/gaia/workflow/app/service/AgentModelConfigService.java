@@ -113,7 +113,8 @@ public class AgentModelConfigService {
             ? entry.getTemperature() : properties.getLlm().getTemperature());
         result.setMaxTokens(entry.getMaxTokens() != null
             ? entry.getMaxTokens() : properties.getLlm().getMaxTokens());
-        result.setContextWindow(properties.getLlm().getContextWindow());
+        result.setContextWindow(entry.getContextWindow() != null && entry.getContextWindow() > 0
+            ? entry.getContextWindow() : properties.getLlm().getContextWindow());
         String level = entry.getThinkingOverride() != null && !entry.getThinkingOverride().isEmpty()
             ? entry.getThinkingOverride() : globalThinkingLevel();
         ThinkingParamPlanner.Plan plan = thinkingPlanner.plan(
@@ -159,6 +160,43 @@ public class AgentModelConfigService {
             configService.save(config);
         } else {
             config.setContent(level);
+            config.setUpdatedAt(now);
+            configService.updateById(config);
+        }
+    }
+
+    /** 全局历史压缩阈值（agent_config model.compaction，窗口百分比；缺省走 yml run.compaction-threshold-percent） */
+    public int globalCompactionThreshold() {
+        AgentConfig config = configService.getOne(
+            new QueryWrapper<AgentConfig>().eq("config_key", "model.compaction"));
+        if (config != null && config.getContent() != null && !config.getContent().isEmpty()) {
+            try {
+                int percent = Integer.parseInt(config.getContent().trim());
+                if (percent >= 10 && percent <= 95) {
+                    return percent;
+                }
+            } catch (NumberFormatException ignore) {
+                // 脏数据回退默认
+            }
+        }
+        return properties.getRun().getCompactionThresholdPercent();
+    }
+
+    public void setGlobalCompactionThreshold(int percent) {
+        AgentConfig config = configService.getOne(
+            new QueryWrapper<AgentConfig>().eq("config_key", "model.compaction"));
+        String now = java.time.LocalDateTime.now().toString();
+        if (config == null) {
+            config = new AgentConfig();
+            config.setConfigKey("model.compaction");
+            config.setConfigType("model_setting");
+            config.setTitle("全局历史压缩阈值");
+            config.setCreatedAt(now);
+            config.setUpdatedAt(now);
+            config.setContent(String.valueOf(percent));
+            configService.save(config);
+        } else {
+            config.setContent(String.valueOf(percent));
             config.setUpdatedAt(now);
             configService.updateById(config);
         }

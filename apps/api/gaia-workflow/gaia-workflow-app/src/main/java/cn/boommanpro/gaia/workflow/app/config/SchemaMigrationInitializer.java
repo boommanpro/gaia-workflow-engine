@@ -37,6 +37,8 @@ public class SchemaMigrationInitializer implements CommandLineRunner {
         new String[]{"agent_llm_call_log", "request_json", "TEXT"},
         // Trajectory 全量输出：流式组装后的完整响应 JSON（content+tool_calls+usage+finish_reason）
         new String[]{"agent_llm_call_log", "response_json", "TEXT"},
+        // 条目级上下文窗口（模型管理页可配）：压缩线/容量告警按会话绑定模型的窗口算
+        new String[]{"llm_model", "context_window", "INTEGER"},
         // 双引擎架构：local 自研 / ark 方舟托管的会话映射
         new String[]{"agent_session", "engine", "VARCHAR(16) DEFAULT 'local'"},
         new String[]{"agent_session", "remote_session_id", "VARCHAR(128)"},

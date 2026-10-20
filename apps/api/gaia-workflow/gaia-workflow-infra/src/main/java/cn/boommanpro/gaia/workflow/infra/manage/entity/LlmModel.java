@@ -41,6 +41,10 @@ public class LlmModel {
     @TableField("max_tokens")
     private Integer maxTokens;
 
+    /** 模型上下文窗口（token）：历史压缩线/容量告警按它算；空 = 平台默认（agent.llm.context-window） */
+    @TableField("context_window")
+    private Integer contextWindow;
+
     @TableField("temperature")
     private Double temperature;
 

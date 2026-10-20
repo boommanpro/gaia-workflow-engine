@@ -2,7 +2,6 @@ package cn.boommanpro.gaia.workflow.app.controller.system;
 
 import cn.boommanpro.gaia.workflow.app.agent.ass.AgentServiceClient;
 import cn.boommanpro.gaia.workflow.app.agent.ass.AgentServiceSessionService;
-import cn.boommanpro.gaia.workflow.app.agent.session.SessionCompactionService;
 import cn.boommanpro.gaia.workflow.app.service.AgentModelConfigService;
 import cn.boommanpro.gaia.workflow.app.service.AgentProviderConfigService;
 import cn.boommanpro.gaia.workflow.infra.manage.entity.AgentLlmCallLog;
@@ -348,11 +347,11 @@ public class AgentObservabilityController {
             }
         }
 
-        int contextWindow = modelConfigService.getLlmConfig().getContextWindow();
+        // 会话绑定模型优先：容量药丸的窗口/告警线与该会话实际压缩线同源
+        int contextWindow = modelConfigService.getLlmConfig(sessionKey).getContextWindow();
         if (contextWindow <= 0) {
             contextWindow = 32768;
         }
-
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("usedTokens", usedTokens);
         result.put("estimated", estimated);
@@ -360,7 +359,7 @@ public class AgentObservabilityController {
         // 窗口与压缩真线：容量药丸的告警线 = 跨 run 压缩（pre-run）实际使用的触发线，前端不算数
         result.put("contextWindow", contextWindow);
         result.put("compactThreshold",
-            (long) contextWindow * SessionCompactionService.TOKEN_THRESHOLD_PERCENT / 100);
+            (long) contextWindow * modelConfigService.globalCompactionThreshold() / 100);
         if (promptSum > 0) {
             result.put("cacheHitRate", Math.round(cachedSum * 1000.0 / promptSum) / 1000.0);
             result.put("sampledCalls", sampled);

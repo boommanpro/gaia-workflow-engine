@@ -47,6 +47,8 @@ public class AgentProperties {
         private int runawayTurnCeiling = 30;
         /** 连续无进展轮护栏：连续 N 轮没有任何工具成功即收尾 */
         private int noProgressTurnLimit = 8;
+        /** 跨 run 历史压缩触发线（相对 contextWindow 的百分比；DB model.compaction 可在线覆盖） */
+        private int compactionThresholdPercent = 80;
     }
 
     /**
