@@ -149,9 +149,9 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
     }
     const code = meta.workflowCode?.trim();
     navigate(code ? `/editor/${encodeURIComponent(code)}` : '/editor/__draft__', {
-      state: { from: location.pathname },
+      state: { from: location.pathname, sessionKey: currentSessionKey || undefined },
     });
-  }, [dsl, meta.workflowCode, navigate, location.pathname]);
+  }, [dsl, meta.workflowCode, navigate, location.pathname, currentSessionKey]);
 
   const handleCopy = useCallback(() => {
     void navigator.clipboard.writeText(JSON.stringify(dsl, null, 2));

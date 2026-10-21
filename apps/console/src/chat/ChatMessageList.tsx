@@ -26,14 +26,10 @@ import { useSyncExternalStore } from 'react';
 import SubagentCard from '../agent/SubagentCard';
 import { PlanCard } from '../agent/PlanCard';
 import { useLanguage, t } from '../i18n';
-import { useWorkflowDocumentState } from '../document';
-import { rollbackCanvasTo } from '../agent/canvas-draft-sync';
-import type { CanvasSnapshot } from '../document';
 import { useLatestArtifact } from '../agent/artifact-store';
 import { CHAT, CHAT_COLUMN_WIDTH, ChatStyles } from './theme';
 import { ToolSteps } from './ToolSteps';
 import { TaskCollapse } from './TaskCollapse';
-import { CanvasSnapshotCard } from './CanvasSnapshotCard';
 import { AskCard } from './AskCard';
 import {
   LiveCanvasCard,
@@ -413,11 +409,6 @@ interface ChatMessageListProps {
   compact?: boolean;
   /** 关闭底部留白（专家模式侧边栏已经由外层留白） */
   dense?: boolean;
-  /**
-   * 点击快照卡上的「查看」。通用模式用来展开右侧产物面板并定位到这一版；
-   * 专家模式用来把视线拉回画布。不传则只做回滚，不做跳转。
-   */
-  onSnapshotView?: (snapshot: CanvasSnapshot) => void;
   /** 2026-10-17：todo 改由顶部 TodoCard 固定渲染，消息流不再内嵌计划卡 */
   hidePlanCards?: boolean;
   }
@@ -426,11 +417,9 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   compact = false,
   dense = false,
   hidePlanCards = false,
-  onSnapshotView,
 }) => {
   const { messages, streaming, liveMessageId, sendMessage, queueLength, currentSessionKey } = useAgent();
   useLanguage();
-  const { snapshots, cursor } = useWorkflowDocumentState();
   /** run 期间最新的 workflow 产物 —— 驱动对话流里的画布活卡（随版本原地生长） */
   const liveWorkflowArtifact = useLatestArtifact(currentSessionKey, 'workflow');
 
@@ -490,71 +479,6 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
     window.dispatchEvent(evt);
   }, []);
 
-  /**
-   * 消息 id → 它产出的画布快照（含失败轮）。一条消息理论上只会有一张，但保留数组更稳。
-   *
-   * 孤儿重锚定：快照的 messageId 是生成时的 live 占位 id（live-xxx），刷新后消息从 DB
-   * 重建、id 全部变化 —— 快照卡因此全部消失（只能去头部历史面板找）。这里把指向
-   * 已不存在消息的快照按时间锚回「时间轴上最近的 assistant 消息」，刷新后卡仍在
-   * 对话流里（可能挂到相邻一轮，但内容与回滚能力完整保留）。
-   */
-  const snapshotsByMessage = useMemo(() => {
-    const map = new Map<string, { snapshot: CanvasSnapshot; versionNo: number }[]>();
-    const liveIds = new Set(messages.map((m) => m.id));
-    const assistants = messages
-      .map((m, idx) => ({ m, idx }))
-      .filter(({ m }) => m.role === 'assistant');
-    const anchorFor = (snapshot: CanvasSnapshot): string | null => {
-      let best: { id: string; ts: number } | null = null;
-      for (const { m } of assistants) {
-        const ts = m.timestamp || 0;
-        if (ts <= snapshot.at + 2000 && (!best || ts >= best.ts)) {
-          best = { id: m.id, ts };
-        }
-      }
-      if (best) return best.id;
-      return assistants.length > 0 ? assistants[assistants.length - 1].m.id : null;
-    };
-    snapshots.forEach((snapshot, index) => {
-      let targetId = snapshot.messageId;
-      if (!targetId || (targetId.startsWith('live-') && !liveIds.has(targetId))) {
-        targetId = anchorFor(snapshot) ?? targetId;
-      }
-      if (!targetId) return;
-      const list = map.get(targetId) || [];
-      list.push({ snapshot, versionNo: index + 1 });
-      map.set(targetId, list);
-    });
-    return map;
-  }, [snapshots, messages]);
-
-  const currentSnapshotId = snapshots[cursor]?.id;
-
-  /** 渲染某条消息下面的画布快照卡 */
-  const cardsFor = useCallback(
-    (messageId: string): React.ReactNode[] => {
-      const entries = snapshotsByMessage.get(messageId);
-      if (!entries || entries.length === 0) return [];
-      return entries.map(({ snapshot, versionNo }) => (
-        <CanvasSnapshotCard
-          key={snapshot.id}
-          snapshot={snapshot}
-          versionNo={versionNo}
-          isCurrent={snapshot.id === currentSnapshotId}
-          compact={compact}
-          {...(onSnapshotView ? { onView: () => onSnapshotView(snapshot) } : {})}
-          onRollback={() =>
-            rollbackCanvasTo(snapshot.id, currentSessionKey, (err) =>
-              Toast.error(`${t('chat.rollbackSyncFailed')}${err}`)
-            )
-          }
-          onRetry={() => void sendMessage(t('chat.snapshotRetryPrompt'))}
-        />
-      ));
-    },
-    [snapshotsByMessage, currentSnapshotId, compact, onSnapshotView, sendMessage, currentSessionKey]
-  );
-
   /** 历史窗口（owb TURN_WINDOW 对标）：默认只渲染最近 10 个用户轮次，更早的收在按钮里 */
   const [turnsWindow, setTurnsWindow] = useState(10);
 
@@ -593,9 +517,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
       const m = messages[i];
 
       if (m.role === 'assistant' && m.id !== liveMessageId && !m.content && !m.thinking && !m.subagentSteps && !m.subagentResult && !m.planSteps && !m.toolSteps && !m.ask) {
-        // 空的助手占位消息不渲染正文，但它的画布快照卡仍需渲染
-        //（AI 工具在第一轮就写入了快照，mid 指向这个占位消息）
-        nodes.push(...cardsFor(m.id));
+        // 空的助手占位消息（历史重建的产物）：无正文无卡片，直接跳过
         i += 1;
         continue;
       }
@@ -648,8 +570,6 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
         }
         if (group.length > 0) {
           nodes.push(<ToolSteps key={`tools-${group[0].id}`} messages={group} compact={compact} />);
-          // 画布快照卡跟在产出它的工具调用后面 —— 用户先看到「做了什么」，再看「图变成了什么样」
-          for (const gm of group) nodes.push(...cardsFor(gm.id));
         }
         continue;
       }
@@ -769,11 +689,10 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
           </div>
         </div>
       );
-      nodes.push(...cardsFor(m.id));
       i += 1;
     }
     return nodes;
-  }, [messages, compact, streaming, liveMessageId, lastAssistantId, handleOptionClick, copyMessage, openDebug, cardsFor]);
+  }, [messages, compact, streaming, liveMessageId, lastAssistantId, handleOptionClick, copyMessage, openDebug]);
 
   const lastMsg = messages[messages.length - 1];
   // 打字点只兜「无 live 占位行」的空窗（历史末条是 assistant 且非 live，如重连间隙）；

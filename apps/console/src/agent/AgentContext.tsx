@@ -20,7 +20,7 @@ import { nanoid } from 'nanoid';
 
 import { agentApi } from './api';
 import { liveStreamStore } from './live-stream-store';
-import { pushCanvasDraftToSession } from './canvas-draft-sync';
+import { pushCanvasDraftToSession, hasUnsyncedLocalEdits, markSyncedWithServer } from './canvas-draft-sync';
 import { aiPendingChangeStore } from './ai-pending-change';
 import { sessionEventStore } from './session-event-store';
 import { subscribeSessionEvents } from './sse-client';
@@ -1016,13 +1016,11 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // 专家模式提问前同步（阶段 2.1）：画布是主位，而 AI 读的是服务端会话草稿 ——
-      // 不先把未保存的手改推上去，AI 就会基于旧参数回答。同步失败则拦截本次提问
-      // 并保留输入（宁可明确失败，不让 AI 抢答一份过时上下文）。
-      if (
-        /^\/(editor|template-editor)/.test(location.pathname)
-        && !liveStreamStore.getSnapshot().streaming
-      ) {
+      // 提问前同步（阶段 2.1 → 全会话）：AI 读的是服务端会话草稿，而用户手改可能
+      // 只落在本地 —— 不先推上去 AI 就基于旧参数回答。/chat 与编辑器一视同仁
+      // （空画布自动跳过）；同步失败则拦截本次提问并保留输入（宁可明确失败，
+      // 不让 AI 抢答一份过时上下文）。
+      if (!liveStreamStore.getSnapshot().streaming) {
         const sync = await pushCanvasDraftToSession(sessionKey, { source: 'ask' });
         if (!sync.ok) {
           setMessages((prev) => [
@@ -1293,10 +1291,10 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       },
       onDocument: (data) => {
         if (disposed) return;
-        // 编辑器（专家模式）页面画布是主位，AI 的 document 事件不得整表替换 ——
-        // 否则对话中的画布产物会把用户正在编辑的工作流覆盖掉。
-        // 替代路径（阶段 2.2）：捕获为「待应用变更」，由用户查看差异后手动应用。
-        if (/^\/(editor|template-editor)/.test(pathnameRef.current)) {
+        // 编辑器（专家模式）页面画布是主位。守卫按需化：本地有「尚未同步到服务端
+        // 草稿的手改」时才拦截成「待应用变更」（防 AI 整表替换冲掉手改）；本地干净
+        // （手改已自动同步 / 没动过）则直接应用 —— 编辑器是草稿区，改错有快照/回滚兜底。
+        if (/^\/(editor|template-editor)/.test(pathnameRef.current) && hasUnsyncedLocalEdits()) {
           try {
             if (data?.dsl && Array.isArray(data.dsl.nodes) && data.dsl.nodes.length > 0) {
               const base = workflowDocumentStore.getSnapshot().doc.toJSON();
@@ -1320,6 +1318,8 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
               });
               // 归属当前会话：切走后按归属清空（见草稿恢复处的注释）
               workflowDocumentStore.setMeta({ producedBy: 'ai', ownerSession: owner.sessionKey });
+              // store 内容此刻即服务端草稿内容：恢复「已同步」状态，后续 AI 修改继续直通
+              markSyncedWithServer();
             });
           }
         } catch { /* ignore */ }

@@ -53,6 +53,8 @@ public class AgentSessionRunController {
     private final SessionEventBus eventBus;
     private final cn.boommanpro.gaia.workflow.app.agent.session.AskUserRoundOrchestrator askRoundOrchestrator;
     private final SessionDraftPublishService publishService;
+    private final cn.boommanpro.gaia.workflow.infra.manage.service.AgentMessageService messageService;
+    private final cn.boommanpro.gaia.workflow.app.service.LlmCompletionService llmCompletionService;
 
     public AgentSessionRunController(AgentSessionRunService runService,
                                      SessionWorkflowDraftService draftService,
@@ -62,7 +64,9 @@ public class AgentSessionRunController {
                                      GaiaWorkflowVersionService workflowVersionService,
                                      SessionEventBus eventBus,
                                      SessionDraftPublishService publishService,
-                                     cn.boommanpro.gaia.workflow.app.agent.session.AskUserRoundOrchestrator askRoundOrchestrator) {
+                                     cn.boommanpro.gaia.workflow.app.agent.session.AskUserRoundOrchestrator askRoundOrchestrator,
+                                     cn.boommanpro.gaia.workflow.infra.manage.service.AgentMessageService messageService,
+                                     cn.boommanpro.gaia.workflow.app.service.LlmCompletionService llmCompletionService) {
         this.runService = runService;
         this.draftService = draftService;
         this.compactionService = compactionService;
@@ -72,6 +76,8 @@ public class AgentSessionRunController {
         this.eventBus = eventBus;
         this.publishService = publishService;
         this.askRoundOrchestrator = askRoundOrchestrator;
+        this.messageService = messageService;
+        this.llmCompletionService = llmCompletionService;
     }
 
     /** 用户回答 ask_user 提问：答案成为新一轮对话（唤醒挂起工具 + 停旧 run + 以答案启动新 run） */
@@ -261,8 +267,92 @@ public class AgentSessionRunController {
             // 无 run 上下文，直接经事件总线广播（在线窗口立即看到回滚/同步后的画布）
             eventBus.publish(sessionKey, "document",
                 new JSONObject().set("dsl", draftService.publicDoc(sessionKey)));
+            insertCanvasNote(sessionKey, body != null && body.get("source") != null
+                ? String.valueOf(body.get("source")) : null, result);
         }
         return result;
+    }
+
+    /**
+     * 画布变更注记 —— 模型感知用户手改的通道：手改/回滚推送成功后往会话历史写一条
+     * user 消息（复用 compaction 前情摘要的先例），下一轮对话模型天然读到，
+     * 不再依赖它恰好主动 get(target=canvas)。连续编辑合并更新同一条注记，不刷屏。
+     * ask/保存前的推送不写：紧随其后的用户消息本身就是完整意图。
+     */
+    private void insertCanvasNote(String sessionKey, String source, JSONObject pushResult) {
+        boolean rollback = "rollback".equals(source);
+        boolean manual = "manual-edit".equals(source);
+        if (!rollback && !manual) {
+            return;
+        }
+        try {
+            JSONObject doc = draftService.get(sessionKey);
+            String content = "[画布更新] 用户" + (rollback ? "回滚了画布" : "手动编辑了画布")
+                + "（修订 r" + pushResult.getInt("draftRevision", 0)
+                + "，当前 " + doc.getJSONArray("nodes").size() + " 节点 · "
+                + doc.getJSONArray("edges").size() + " 连线）";
+            cn.boommanpro.gaia.workflow.infra.manage.entity.AgentMessage latest = messageService.getOne(
+                new QueryWrapper<cn.boommanpro.gaia.workflow.infra.manage.entity.AgentMessage>()
+                    .eq("session_key", sessionKey)
+                    .likeRight("content", "[画布更新]")
+                    .orderByDesc("id").last("LIMIT 1"));
+            if (latest != null) {
+                latest.setContent(content);
+                messageService.updateById(latest);
+            } else {
+                cn.boommanpro.gaia.workflow.infra.manage.entity.AgentMessage note =
+                    new cn.boommanpro.gaia.workflow.infra.manage.entity.AgentMessage();
+                note.setSessionKey(sessionKey);
+                note.setRole("user");
+                note.setContent(content);
+                note.setCreatedAt(java.time.LocalDateTime.now());
+                messageService.save(note);
+            }
+        } catch (Exception e) {
+            log.warn("[push-draft] canvas note failed (ignored): {}", e.getMessage());
+        }
+    }
+
+    /**
+     * 版本历史 AI 摘要：把快照条目的变更明细批量总结成一句话，供右上角版本记录
+     * 展示（帮助用户回忆每一版做了什么、决定回滚到哪）。一次最多 30 条；
+     * 失败返回 success:false（前端退回规则摘要，不阻塞历史面板打开）。
+     */
+    @PostMapping("/{sessionKey}/snapshot-summaries")
+    public Map<String, Object> snapshotSummaries(@PathVariable String sessionKey,
+                                                 @RequestBody Map<String, Object> body) {
+        Object itemsRaw = body != null ? body.get("snapshots") : null;
+        if (!(itemsRaw instanceof List) || ((List<?>) itemsRaw).isEmpty()) {
+            return new JSONObject().set("success", false).set("error", "snapshots is required");
+        }
+        List<?> items = (List<?>) itemsRaw;
+        if (items.size() > 30) {
+            items = items.subList(0, 30);
+        }
+        try {
+            String systemPrompt = "你是工作流版本历史的摘要助手。对给出的每个版本条目，用一句不超过 20 字的中文"
+                + "概括这一版做了什么（依据变更明细：新增/删除/修改了哪些节点或连线）。"
+                + "只输出 JSON 数组，形如 [{\"id\":\"...\",\"summary\":\"...\"}]，不要输出任何解释。";
+            String reply = llmCompletionService.complete(systemPrompt,
+                cn.hutool.json.JSONUtil.toJsonStr(items), 0.2, 800);
+            // 容错：剥掉可能存在的 ```json 围栏
+            String cleaned = reply == null ? "" : reply.trim()
+                .replaceAll("^```(json)?", "")
+                .replaceAll("```$", "")
+                .trim();
+            cn.hutool.json.JSONArray arr = cn.hutool.json.JSONUtil.parseArray(cleaned);
+            JSONObject summaries = new JSONObject();
+            for (int i = 0; i < arr.size(); i++) {
+                cn.hutool.json.JSONObject item = arr.getJSONObject(i);
+                if (item != null && item.getStr("id") != null && item.getStr("summary") != null) {
+                    summaries.set(item.getStr("id"), item.getStr("summary"));
+                }
+            }
+            return new JSONObject().set("success", true).set("summaries", summaries);
+        } catch (Exception e) {
+            log.warn("[snapshot-summaries] failed: {}", e.getMessage());
+            return new JSONObject().set("success", false).set("error", e.getMessage());
+        }
     }
 
     /** 会话产物列表（会话打开时加载，驱动产物面板与历史卡片） */

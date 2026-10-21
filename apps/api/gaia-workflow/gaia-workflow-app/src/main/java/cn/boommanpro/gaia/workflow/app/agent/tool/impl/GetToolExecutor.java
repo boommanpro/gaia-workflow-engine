@@ -7,8 +7,11 @@ import cn.boommanpro.gaia.workflow.app.agent.tool.ToolExecutor;
 import cn.boommanpro.gaia.workflow.app.agent.tool.ToolGroup;
 import cn.boommanpro.gaia.workflow.app.agent.tool.ToolResult;
 import cn.boommanpro.gaia.workflow.app.service.*;
+import cn.boommanpro.gaia.workflow.infra.manage.entity.GaiaWorkflow;
+import cn.boommanpro.gaia.workflow.infra.manage.service.GaiaWorkflowService;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -25,10 +28,13 @@ public class GetToolExecutor implements ToolExecutor {
 
     private final SessionWorkflowDraftService draftService;
     private final AgentSkillCatalog skillCatalog;
+    private final GaiaWorkflowService workflowService;
 
-    public GetToolExecutor(SessionWorkflowDraftService draftService, AgentSkillCatalog skillCatalog) {
+    public GetToolExecutor(SessionWorkflowDraftService draftService, AgentSkillCatalog skillCatalog,
+                           GaiaWorkflowService workflowService) {
         this.draftService = draftService;
         this.skillCatalog = skillCatalog;
+        this.workflowService = workflowService;
     }
 
     @Override public String name() { return "get"; }
@@ -76,8 +82,19 @@ public class GetToolExecutor implements ToolExecutor {
         }
         JSONObject payload = new JSONObject().set("boundWorkflow", code).set("nodeCount", coreNodes.size())
             .set("nodes", coreNodes).set("edges", coreEdges)
-            .set("hint", "看单节点配置 get(target=node, nodeId)；配引用 get(target=variables, nodeId)；类型知识 get(target=knowledge, nodeType)；改结构用 node / edge 工具");
-        return ToolResult.ok(payload.toString(), "画布 " + coreNodes.size() + " 节点");
+            // 版本感知（用户手改不再对模型隐身）：草稿修订号 + 最后编辑者 + 绑定工作流落版基准
+            .set("draftRevision", draftService.getDraftRevision(sessionKey))
+            .set("lastEditedBy", draftService.getLastEditedBy(sessionKey))
+            .set("lastEditedAt", draftService.getLastEditedAt(sessionKey));
+        if (code != null && !code.isEmpty()) {
+            GaiaWorkflow bound = workflowService.getOne(
+                new QueryWrapper<GaiaWorkflow>().eq("workflow_code", code).last("LIMIT 1"));
+            if (bound != null && bound.getRevision() != null) {
+                payload.set("publishedRevision", bound.getRevision());
+            }
+        }
+        payload.set("hint", "draftRevision=会话草稿修订号（每次实质变更 +1）；lastEditedBy: user=用户手动编辑/回滚、ai=你此前的修改、system=系统动作；publishedRevision=绑定工作流已落版的 revision，与 draftRevision 不同说明草稿有未保存修改。看单节点配置 get(target=node, nodeId)；配引用 get(target=variables, nodeId)；类型知识 get(target=knowledge, nodeType)；改结构用 node / edge 工具");
+        return ToolResult.ok(payload.toString(), "画布 " + coreNodes.size() + " 节点（r" + draftService.getDraftRevision(sessionKey) + "）");
     }
 
     /** 单节点当前配置（敏感键掩蔽）+ 入出边：node(action=update) 深合并前先看现状，避免盲改 */

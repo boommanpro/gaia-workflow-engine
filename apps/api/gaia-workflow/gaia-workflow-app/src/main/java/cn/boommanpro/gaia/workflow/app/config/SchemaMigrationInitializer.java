@@ -26,7 +26,8 @@ public class SchemaMigrationInitializer implements CommandLineRunner {
         new String[]{"agent_message", "thinking", "TEXT"},
         // 交错时间线（run 收尾持久化真实调用链路，刷新后原样还原对话过程）
         new String[]{"agent_message", "timeline", "TEXT"},
-        new String[]{"agent_knowledge_chunk", "language", "VARCHAR(10) DEFAULT 'zh'"},
+        // （agent_knowledge_chunk.language 迁移已删：该表属已下线的 RAG 知识库，
+        //  schema.sql 尾部的存量清理段每次启动都会 DROP 它，补列没有意义）
         new String[]{"agent_session", "debug_data", "TEXT"},
         // 工作空间（Codex 风格三区）：旧库补充列
         new String[]{"agent_session", "scope", "VARCHAR(16) DEFAULT 'chat'"},

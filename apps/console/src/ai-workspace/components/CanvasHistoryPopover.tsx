@@ -9,7 +9,7 @@
  *   快照 = 工作台的撤销深度（不出这个会话）
  *   版本 = 交付物（别人跑的是这个）
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Popover, Spin, Tag, Toast } from '@douyinfe/semi-ui';
 import { IconHistory, IconUndo, IconTick } from '@douyinfe/semi-icons';
 
@@ -17,6 +17,7 @@ import { useCanvasSnapshots } from '../../document';
 import type { CanvasSnapshot } from '../../document';
 import { useAgent } from '../../agent/AgentContext';
 import { rollbackCanvasTo } from '../../agent/canvas-draft-sync';
+import { agentApi } from '../../agent/api';
 import { workflowApi, type GaiaWorkflowVersion } from '../../services/workflow-api';
 import { useLanguage, t } from '../../i18n';
 import { CHAT } from '../../chat/theme';
@@ -68,6 +69,35 @@ function formatDate(value?: string): string {
   ).padStart(2, '0')}`;
 }
 
+/** 规则摘要兜底：AI 摘要未就绪/失败时，从变更明细拼一句可读的话 */
+function baselineSummary(snapshot: CanvasSnapshot): string {
+  const d = snapshot.delta;
+  const details = d.details;
+  const parts: string[] = [];
+  if (details?.nodes?.length) {
+    const titlesOf = (c: 'added' | 'removed' | 'updated') =>
+      details.nodes.filter((n) => n.change === c).map((n) => n.title);
+    const added = titlesOf('added');
+    const removed = titlesOf('removed');
+    const updated = titlesOf('updated');
+    if (added.length) parts.push(`${t('chat.historySumNodeAdded')}${added.slice(0, 2).join('、')}${added.length > 2 ? '…' : ''}`);
+    if (removed.length) parts.push(`${t('chat.historySumNodeRemoved')}${removed.slice(0, 2).join('、')}${removed.length > 2 ? '…' : ''}`);
+    if (updated.length) parts.push(`${t('chat.historySumNodeUpdated')}${updated.slice(0, 2).join('、')}${updated.length > 2 ? '…' : ''}`);
+  }
+  if (parts.length === 0 && (d.addedEdges || d.removedEdges)) {
+    parts.push(`${t('chat.historySumEdges')} +${d.addedEdges || 0}/-${d.removedEdges || 0}`);
+  }
+  if (parts.length === 0) {
+    if (snapshot.reason === 'ai-generate') return t('chat.historySumGenerate');
+    if (snapshot.reason === 'rollback') return t('chat.historySumRollback');
+    return t('chat.historySumTweak');
+  }
+  return parts.join(t('chat.historySumJoin'));
+}
+
+/** AI 摘要缓存（模块级）：面板关开不重拉，同会话同快照只总结一次 */
+const summaryCache = new Map<string, string>();
+
 export const CanvasHistoryPopover: React.FC<CanvasHistoryPopoverProps> = ({
   workflowCode,
   onPublish,
@@ -83,6 +113,9 @@ export const CanvasHistoryPopover: React.FC<CanvasHistoryPopoverProps> = ({
   const [versions, setVersions] = useState<GaiaWorkflowVersion[]>([]);
   const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
+  /** AI 摘要（snapshot.id → 一句话）：懒加载，打开面板时才批量总结 */
+  const [aiSummaries, setAiSummaries] = useState<Record<string, string>>({});
+  const summarizingRef = useRef(new Set<string>());
 
   const loadVersions = useCallback(async () => {
     if (!workflowCode) {
@@ -103,6 +136,49 @@ export const CanvasHistoryPopover: React.FC<CanvasHistoryPopoverProps> = ({
   useEffect(() => {
     if (visible) void loadVersions();
   }, [visible, loadVersions]);
+
+  const ordered = useMemo(() => snapshots.map((s, i) => ({ snapshot: s, versionNo: i + 1 })), [snapshots]);
+
+  // AI 摘要懒加载：面板打开时把缺摘要的条目（最多 30 条）批量发给模型总结。
+  // 失败静默 —— 条目退回 baselineSummary 的规则摘要，不阻塞历史面板使用。
+  useEffect(() => {
+    if (!visible || !currentSessionKey) return;
+    const pending = ordered
+      .filter(({ snapshot }) => snapshot.outcome !== 'failed')
+      .slice(-30)
+      .filter(({ snapshot }) => {
+        const key = `${currentSessionKey}:${snapshot.id}`;
+        return !summaryCache.has(key) && !summarizingRef.current.has(key);
+      })
+      .map(({ snapshot, versionNo }) => ({
+        id: snapshot.id,
+        no: versionNo,
+        reason: snapshot.reason,
+        baseline: baselineSummary(snapshot),
+        delta: snapshot.delta,
+        nodeCount: snapshot.nodeCount,
+        edgeCount: snapshot.edgeCount,
+      }));
+    if (pending.length === 0) return;
+    pending.forEach((p) => summarizingRef.current.add(p.id));
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await agentApi.snapshotSummaries(currentSessionKey, pending);
+        if (cancelled || !res?.success || !res.summaries) return;
+        const next: Record<string, string> = {};
+        for (const p of pending) {
+          const s = res.summaries[p.id];
+          if (s) {
+            summaryCache.set(`${currentSessionKey}:${p.id}`, s);
+            next[p.id] = s;
+          }
+        }
+        if (Object.keys(next).length > 0) setAiSummaries((prev) => ({ ...prev, ...next }));
+      } catch { /* 静默：保留规则摘要 */ }
+    })();
+    return () => { cancelled = true; };
+  }, [visible, ordered, currentSessionKey]);
 
   const handleRollback = useCallback((snapshot: CanvasSnapshot) => {
     // 回滚同时同步服务端草稿（阶段 1.1）：只改本地的话，之后的提问与「保存为版本」
@@ -130,8 +206,6 @@ export const CanvasHistoryPopover: React.FC<CanvasHistoryPopoverProps> = ({
     },
     [loadVersions, onVersionsChanged]
   );
-
-  const ordered = useMemo(() => snapshots.map((s, i) => ({ snapshot: s, versionNo: i + 1 })), [snapshots]);
 
   const content = (
     <div style={{ width: 320, maxHeight: 420, overflow: 'auto' }}>
@@ -197,6 +271,26 @@ export const CanvasHistoryPopover: React.FC<CanvasHistoryPopoverProps> = ({
                             edges: snapshot.edgeCount,
                           })}`}
                     </div>
+                    {!failed && (() => {
+                      const cached = currentSessionKey
+                        ? summaryCache.get(`${currentSessionKey}:${snapshot.id}`) : undefined;
+                      const summary = aiSummaries[snapshot.id] || cached || baselineSummary(snapshot);
+                      return (
+                        <div
+                          style={{
+                            fontSize: 11,
+                            color: CHAT.textSub,
+                            marginTop: 2,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                          title={summary}
+                        >
+                          {summary}
+                        </div>
+                      );
+                    })()}
                   </div>
                   {isCurrent ? (
                     <span style={{ fontSize: 11, color: CHAT.accent, flexShrink: 0 }}>

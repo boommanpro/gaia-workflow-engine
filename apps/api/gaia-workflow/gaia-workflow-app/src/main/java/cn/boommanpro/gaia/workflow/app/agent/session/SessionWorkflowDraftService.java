@@ -99,6 +99,7 @@ public class SessionWorkflowDraftService {
         }
         JSONObject copy = normalizeDoc(dsl);
         drafts.put(sessionKey, copy);
+        touch(sessionKey, "system");
         log.info("[draft] {} replaced with {} nodes", sessionKey,
             copy.getJSONArray("nodes") != null ? copy.getJSONArray("nodes").size() : 0);
         persistArtifact(sessionKey, status, summary);
@@ -187,6 +188,7 @@ public class SessionWorkflowDraftService {
             node.set("parentId", args.get("parentId"));
         }
         nodes.add(node);
+        touch(sessionKey, "ai");
 
         JSONObject result = new JSONObject()
             .set("success", true)
@@ -220,6 +222,7 @@ public class SessionWorkflowDraftService {
         }
         // 扁平字段 → inputsValues，保证 canvas 增量配置的节点可直接执行
         NodeDataNormalizer.normalize(node.getStr("type"), data);
+        touch(sessionKey, "ai");
         return new JSONObject().set("success", true);
     }
 
@@ -242,6 +245,9 @@ public class SessionWorkflowDraftService {
                 || nodeId.equals(edge.getStr("targetNodeID"))) {
                 edges.remove(i);
             }
+        }
+        if (removed) {
+            touch(sessionKey, "ai");
         }
         return new JSONObject().set("success", removed);
     }
@@ -270,6 +276,7 @@ public class SessionWorkflowDraftService {
             }
         }
         edges.add(edge);
+        touch(sessionKey, "ai");
         return new JSONObject().set("success", true);
     }
 
@@ -288,6 +295,9 @@ public class SessionWorkflowDraftService {
                 removed = true;
             }
         }
+        if (removed) {
+            touch(sessionKey, "ai");
+        }
         return new JSONObject().set("success", removed);
     }
 
@@ -304,6 +314,9 @@ public class SessionWorkflowDraftService {
                 removed = true;
                 break;
             }
+        }
+        if (removed) {
+            touch(sessionKey, "ai");
         }
         return new JSONObject().set("success", removed);
     }
@@ -324,6 +337,7 @@ public class SessionWorkflowDraftService {
             }
         }
         WorkflowDslCanonicalizer.applyLayout(doc);
+        touch(sessionKey, "ai");
         return new JSONObject().set("success", true);
     }
 
@@ -488,7 +502,11 @@ public class SessionWorkflowDraftService {
                 .set("baseRevision", baseRevision != null ? baseRevision : 0L)
                 .set("draftRevision", 1);
             rebound = true;
+        } else {
+            // 同一绑定内的回推 = 用户改了一版：修订号 +1（get target=canvas 可见）
+            meta.set("draftRevision", meta.getInt("draftRevision", 0) + 1);
         }
+        meta.set("lastEditedBy", "user").set("lastEditedAt", System.currentTimeMillis());
         if (!meta.isEmpty()) {
             copy.set(META_KEY, meta);
         }
@@ -499,11 +517,47 @@ public class SessionWorkflowDraftService {
         return new JSONObject()
             .set("success", true)
             .set("nodeCount", nodes.size())
+            .set("draftRevision", getDraftRevision(sessionKey))
             .set("boundCode", getBoundCode(sessionKey))
             .set("baseRevision", getBaseRevision(sessionKey));
     }
 
     private static final String META_KEY = "_meta";
+
+    /**
+     * 变更记账：草稿修订号 +1 并记录最后编辑者（get target=canvas 的版本信息来源，
+     * 让模型能回答「当前是什么版本、谁刚改过」）。编辑者：user=用户手改/回推/回滚，
+     * ai=画布工具写入，system=落版应用/骨架等系统动作。
+     */
+    private void touch(String sessionKey, String editor) {
+        JSONObject doc = drafts.get(sessionKey);
+        if (doc == null) {
+            return;
+        }
+        JSONObject meta = doc.getJSONObject(META_KEY);
+        if (meta == null) {
+            meta = new JSONObject();
+        }
+        meta.set("draftRevision", meta.getInt("draftRevision", 0) + 1);
+        meta.set("lastEditedBy", editor);
+        meta.set("lastEditedAt", System.currentTimeMillis());
+        doc.set(META_KEY, meta);
+    }
+
+    /** 当前草稿修订号（每次实质变更 +1；随 _meta 持久化，重启不丢） */
+    public int getDraftRevision(String sessionKey) {
+        return getMeta(sessionKey).getInt("draftRevision", 0);
+    }
+
+    /** 最后编辑者：user / ai / system（可空 = 从未记账的旧草稿） */
+    public String getLastEditedBy(String sessionKey) {
+        return getMeta(sessionKey).getStr("lastEditedBy");
+    }
+
+    /** 最后编辑时间（epoch 毫秒，可空） */
+    public Long getLastEditedAt(String sessionKey) {
+        return getMeta(sessionKey).getLong("lastEditedAt");
+    }
 
     private static int nextDraftRevision(JSONObject doc) {
         JSONObject meta = doc.getJSONObject(META_KEY);

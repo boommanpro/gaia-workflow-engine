@@ -400,13 +400,7 @@ export const AiWorkspace: React.FC = () => {
                 <div style={{ position: 'absolute', top: 10, right: 16, zIndex: 20 }}>
                   <TodoCardInline messages={messages} />
                 </div>
-                <ChatMessageList
-                  hidePlanCards
-                  onSnapshotView={() => {
-                    userToggledRef.current = false;
-                    setInspectorView('artifact');
-                  }}
-                />
+                <ChatMessageList hidePlanCards />
               </div>
             )}
           </div>

@@ -7,7 +7,7 @@
  *   · LiveCanvasCard    —— run 期间的画布活卡：随 artifact 版本原地生长，结束时定格
  */
 import React, { useMemo, useState } from 'react';
-import { Button, Modal, Popover, Tooltip } from '@douyinfe/semi-ui';
+import { Button, Popover, Tooltip } from '@douyinfe/semi-ui';
 import {
   IconAlertCircle,
   IconChevronDown,
@@ -20,7 +20,6 @@ import { computeThumbnail, thumbTone } from '../document';
 import type { AgentArtifactDto } from '../agent/types';
 import { t } from '../i18n';
 import { CHAT } from './theme';
-import { ReadonlyCanvas } from '../ai-workspace/artifact/ReadonlyCanvas';
 
 const THUMB_W = 116;
 const THUMB_H = 46;
@@ -340,99 +339,5 @@ export const LiveCanvasCard: React.FC<{ artifact: AgentArtifactDto }> = ({ artif
         </div>
       </div>
     </div>
-  );
-};
-
-// ---------------- 懒加载真实画布（当前版快照卡的渲染升级） ----------------
-
-/** 滚动到可视区才挂 flowgram 实例；同一时刻渲染中的实例数由「仅当前版卡启用」控制 */
-export const LazyRealCanvas: React.FC<{ dsl: any; height?: number }> = ({ dsl, height = 200 }) => {
-  const [visible, setVisible] = useState(false);
-  const [failed, setFailed] = useState(false);
-  const ref = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    const el = ref.current;
-    if (!el || visible) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) {
-          setVisible(true);
-          observer.disconnect();
-        }
-      },
-      { rootMargin: '200px' }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [visible]);
-
-  if (!dsl?.nodes?.length) return null;
-
-  return (
-    <div
-      ref={ref}
-      style={{ height, borderTop: `1px solid ${CHAT.lineSoft}`, background: 'var(--g-bg-sunken)' }}
-    >
-      {visible && !failed ? (
-        <CanvasErrorBoundary onFail={() => setFailed(true)}>
-          <ReadonlyCanvas dsl={dsl} />
-        </CanvasErrorBoundary>
-      ) : (
-        <div
-          style={{
-            height: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 11.5,
-            color: CHAT.textFaint,
-          }}
-        >
-          {t('chat.realCanvasLoading')}
-        </div>
-      )}
-    </div>
-  );
-};
-
-class CanvasErrorBoundary extends React.Component<
-  { onFail: () => void; children: React.ReactNode },
-  { failed: boolean }
-> {
-  state = { failed: false };
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-  componentDidCatch() {
-    this.props.onFail();
-  }
-  render() {
-    return this.state.failed ? null : this.props.children;
-  }
-}
-
-/** 卡片内嵌真渲染 + 点击 Modal 放大（当前版卡专用） */
-export const RealCanvasPreview: React.FC<{ dsl: any; height?: number }> = ({ dsl, height = 200 }) => {
-  const [expanded, setExpanded] = useState(false);
-  return (
-    <>
-      <div
-        style={{ cursor: 'zoom-in' }}
-        onClick={() => dsl?.nodes?.length && setExpanded(true)}
-      >
-        <LazyRealCanvas dsl={dsl} height={height} />
-      </div>
-      <Modal
-        title={t('chat.realCanvasFull')}
-        visible={expanded}
-        onCancel={() => setExpanded(false)}
-        footer={null}
-        width={Math.min(860, typeof window !== 'undefined' ? window.innerWidth - 80 : 860)}
-        bodyStyle={{ height: '60vh', padding: 0 }}
-      >
-        {expanded && <ReadonlyCanvas dsl={dsl} />}
-      </Modal>
-    </>
   );
 };

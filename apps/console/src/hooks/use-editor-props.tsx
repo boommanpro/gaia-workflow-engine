@@ -44,6 +44,7 @@ import { BaseNode, CommentRender, GroupNodeRender, LineAddButton, NodePanel } fr
 import { getApiBaseUrl } from '../utils/apiConfig';
 import { getCurrentLocale } from '../i18n';
 import { canvasSync, type CanvasChangeType } from '../document';
+import { scheduleManualDraftPush } from '../agent/canvas-draft-sync';
 
 /**
  * 画布变更类型的累积缓冲。
@@ -59,6 +60,9 @@ const flushCanvasChange = debounce(() => {
   canvasChangeTypes.clear();
   if (!ctx || ctx.document.disposed) return;
   canvasSync.onCanvasChange(types);
+  // 手改自动同步：回流 store 后排队推送服务端草稿（内部再防抖 1.2s，运行中跳过），
+  // 让模型感知用户编辑不再依赖「保存」
+  scheduleManualDraftPush();
 }, 600);
 
 export function useEditorProps(

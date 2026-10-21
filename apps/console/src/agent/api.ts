@@ -111,6 +111,12 @@ export const agentApi = {
       `/agent/session/${encodeURIComponent(sessionKey)}/compact`,
       { method: 'POST' },
     ),
+  /** 版本历史条目 AI 摘要（右上角版本记录用；失败前端退回规则摘要） */
+  snapshotSummaries: (sessionKey: string, snapshots: unknown[]) =>
+    request<{ success: boolean; summaries?: Record<string, string>; error?: string }>(
+      `/agent/session/${encodeURIComponent(sessionKey)}/snapshot-summaries`,
+      { method: 'POST', body: JSON.stringify({ snapshots }) },
+    ),
 
   // ===== 模型配置（owb 式多模型）=====
   listModels: () => request<{ items: any[]; activeModelId: number | null; globalThinking: string; compactionThreshold?: number; engineMode?: string }>(

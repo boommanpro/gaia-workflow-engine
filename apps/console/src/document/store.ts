@@ -166,6 +166,34 @@ class WorkflowDocumentStore {
     const delta = computeSnapshotDelta(dsl, prev?.dsl);
     if (!rollbackFrom && !hasStructuralDelta(delta) && prev) return;
 
+    // 手动编辑合并（少记版本）：连续手改更新同一条快照，而不是每步一条 ——
+    // 用户在编辑器里操作几步，历史只留一条「手动编辑」，回滚目标仍是这批
+    // 改动之前的状态。AI 变更已按 run 粒度归并（见 recordSnapshot/captureAiRunSnapshot），
+    // 两类都归并后，历史条目 = 用户操作批次 + AI 轮次，用户才真的会用回滚。
+    if (
+      !rollbackFrom
+      && change.source === 'user'
+      && prev
+      && prev.source === 'user'
+      && (prev.reason === 'user-edit' || prev.reason === 'user-layout')
+      && prev.outcome === 'ok'
+      && this.state.cursor === this.state.snapshots.length - 1
+    ) {
+      const snapshots = this.state.snapshots.slice();
+      snapshots[this.state.snapshots.length - 1] = {
+        ...prev,
+        at: Date.now(),
+        dsl: clone(dsl),
+        // 累计增量：与本条快照最初的前置版对比，整批手改一屏看完
+        delta: computeSnapshotDelta(dsl, prev.prevDsl),
+        nodeCount: dsl.nodes.length,
+        edgeCount: (dsl.edges || []).length,
+      };
+      this.state = { ...this.state, snapshots };
+      this.persist();
+      return;
+    }
+
     const reason: SnapshotReason = rollbackFrom
       ? 'rollback'
       : change.reason || deriveReason(change, current);

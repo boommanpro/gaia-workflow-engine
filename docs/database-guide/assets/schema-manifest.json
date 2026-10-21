@@ -1,7 +1,7 @@
 {
-  "schema_sha256": "f95edbfb655d1adaa0b9e3d80ad26f7f89cac2c627b2ad89e4217ce35ff083dc",
+  "schema_sha256": "4d8216f2cd043c85196662e0a23fb10d0f2a5991605c3f119cfd6d48e35ab500",
   "table_count": 22,
-  "column_count": 237,
+  "column_count": 238,
   "tables": [
     {
       "name": "gaia_workflow_template",
@@ -1584,6 +1584,15 @@
           "pk": false,
           "declaration": "INTEGER",
           "purpose": "模型最大输出令牌数"
+        },
+        {
+          "name": "context_window",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "pk": false,
+          "declaration": "INTEGER,",
+          "purpose": "模型上下文窗口（token）；空=平台默认（agent.llm.context-window），历史压缩线/容量告警按它计算"
         },
         {
           "name": "temperature",

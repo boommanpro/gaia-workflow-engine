@@ -3,5 +3,3 @@ export { ChatMessageList } from './ChatMessageList';
 export { ChatComposer } from './ChatComposer';
 export { ChatWelcome } from './ChatWelcome';
 export { ToolSteps } from './ToolSteps';
-export { CanvasSnapshotCard } from './CanvasSnapshotCard';
-export type { CanvasSnapshotCardProps } from './CanvasSnapshotCard';

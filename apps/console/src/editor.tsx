@@ -102,6 +102,13 @@ export const Editor = () => {
   // 是否从 AI 工作区跳过来（决定是否允许承接会话草稿，见 readCarriedDsl）
   const cameFromWorkspace = typeof (location.state as any)?.from === 'string'
     && /^\/(chat|work)\//.test((location.state as any).from);
+  // 双入口（草稿/正式）：从会话进入的精修是「会话草稿模式」—— 保存对象是会话草稿
+  // （对话立即可见，AI 实时感知），不落正式工作流；落版只发生在会话页「保存为版本」。
+  // 工作流库直达（无 from state）才是正式模式，保存 = 落正式版本。
+  const draftMode = workflowCode === DRAFT_CODE || cameFromWorkspace;
+  /** 草稿所属会话：精修跳转时由产物面板带入；旧入口按绑定关系反查 */
+  const draftSessionKey = ((location.state as any)?.sessionKey as string | undefined)
+    || (workflowCode && workflowCode !== DRAFT_CODE ? getSessionKeyForWorkflow(workflowCode) : null);
   // 专家模式同样要接住「AI 在对话里产出的工作流」——不接的话，侧边栏说改了、画布却没动。
   useWorkflowArtifactSync();
   const [workflowData, setWorkflowData] = useState<any>(() => resolveInitialData(workflowCode, cameFromWorkspace));
@@ -353,6 +360,8 @@ export const Editor = () => {
             onSwitchVersion={handleSwitchVersion}
             onVersionsChanged={() => effectiveCode && loadVersions(effectiveCode)}
             hasHistory={snapshots.length > 0 || versions.length > 0}
+            draftMode={draftMode}
+            draftSessionKey={draftSessionKey}
           />
           {/* AI 待应用变更条（阶段 2.2）：AI 在专家模式提交的修改浮出在这里 */}
           <AiPendingBanner />
@@ -416,6 +425,8 @@ const EditorHeader = ({
   onSwitchVersion,
   onVersionsChanged,
   hasHistory,
+  draftMode,
+  draftSessionKey,
 }: {
   workflowCode?: string;
   workflowName: string;
@@ -426,6 +437,10 @@ const EditorHeader = ({
   onVersionsChanged: () => void;
   /** 有会话内快照或落版版本时，头部才出现历史入口 */
   hasHistory: boolean;
+  /** 会话草稿模式（从 /chat、/work 精修进入）：保存 = 同步会话草稿，不落正式版本 */
+  draftMode: boolean;
+  /** 草稿所属会话（产物面板跳转时带入；旧入口按绑定关系反查） */
+  draftSessionKey?: string | null;
 }) => {
   const ctx = useClientContext();
   useLanguage();
@@ -457,6 +472,34 @@ const EditorHeader = ({
 
   const handleSave = async () => {
     if (!ctx?.document) return;
+    // 草稿模式：保存 = 把眼前画布同步到会话草稿（对话与 AI 立即可见），不创建任何
+    // 正式工作流或版本 —— 落版只发生在会话页「保存为版本」。未关联会话时明确提示，
+    // 不静默假装成功，也不退回落版弹窗。
+    if (draftMode) {
+      setSaving(true);
+      try {
+        const sync = await pushCanvasDraftToSession(draftSessionKey, {
+          workflowCode: workflowCode && workflowCode !== DRAFT_CODE ? workflowCode : undefined,
+          source: 'editor-save',
+          dsl: ctx.document.toJSON(),
+        });
+        if (!sync.ok) {
+          alert(t('editor.syncFailed') + (sync.error || ''));
+          return;
+        }
+        if (sync.skipped && sync.reason === 'no-session') {
+          alert(t('editor.syncNoSession'));
+          return;
+        }
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      } catch (error) {
+        alert(t('editor.syncFailed') + (error as Error).message);
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
     // 无编码（AI 草稿模式且未落版）：没有可寻址的版本容器 —— 明确要一个编码，
     // 不再静默显示「已保存」（阶段 1.2 的虚假成功路径）
     if (!workflowCode) {
@@ -678,7 +721,22 @@ const EditorHeader = ({
           />
         )}
 
-        {/* Save button */}
+        {/* Save button（草稿模式 = 同步到对话；正式模式 = 落版保存） */}
+        {draftMode && (
+          <span
+            style={{
+              fontSize: '12px',
+              color: '#5558c8',
+              background: '#eef0ff',
+              border: '1px solid #dcdff8',
+              borderRadius: '6px',
+              padding: '5px 10px',
+              marginRight: 8,
+            }}
+          >
+            {t('editor.sessionDraft')}
+          </span>
+        )}
         <button
           onClick={handleSave}
           disabled={saving}
@@ -694,7 +752,11 @@ const EditorHeader = ({
             transition: 'background 0.15s',
           }}
         >
-          {saving ? t('Saving') : saved ? `✓ ${t('Saved')}` : t('Save')}
+          {saving
+            ? (draftMode ? t('editor.syncing') : t('Saving'))
+            : saved
+              ? (draftMode ? `✓ ${t('editor.synced')}` : `✓ ${t('Saved')}`)
+              : (draftMode ? t('editor.syncToChat') : t('Save'))}
         </button>
       </div>
 
