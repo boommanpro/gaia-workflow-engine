@@ -10,7 +10,7 @@
  *   版本 = 交付物（别人跑的是这个）
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Popover, Spin, Tag, Toast } from '@douyinfe/semi-ui';
+import { Button, Popover, Popconfirm, Spin, Tag, Toast } from '@douyinfe/semi-ui';
 import { IconHistory, IconUndo, IconTick } from '@douyinfe/semi-icons';
 
 import { useCanvasSnapshots } from '../../document';
@@ -186,8 +186,13 @@ export const CanvasHistoryPopover: React.FC<CanvasHistoryPopoverProps> = ({
     const ok = rollbackCanvasTo(snapshot.id, currentSessionKey, (err) =>
       Toast.error(`${t('chat.rollbackSyncFailed')}${err}`)
     );
-    if (ok) Toast.success(t('chat.rollbackDone'));
-    else Toast.error(t('chat.rollbackFailed'));
+    if (ok === 'streaming') {
+      Toast.warning(t('chat.rollbackBlockedStreaming'));
+    } else if (ok === true) {
+      Toast.success(t('chat.rollbackDone'));
+    } else {
+      Toast.error(t('chat.rollbackFailed'));
+    }
   }, [currentSessionKey]);
 
   const handleSetEffective = useCallback(
@@ -298,16 +303,23 @@ export const CanvasHistoryPopover: React.FC<CanvasHistoryPopoverProps> = ({
                     </span>
                   ) : (
                     !failed && (
-                      <Button
-                        size="small"
-                        theme="borderless"
-                        type="tertiary"
-                        icon={<IconUndo size="small" />}
-                        onClick={() => handleRollback(snapshot)}
-                        style={{ borderRadius: 7, flexShrink: 0 }}
+                      <Popconfirm
+                        title={t('chat.rollbackConfirmTitle')}
+                        content={t('chat.rollbackConfirmContent')}
+                        okText={t('chat.rollbackConfirmOk')}
+                        cancelText={t('common.cancel')}
+                        onConfirm={() => handleRollback(snapshot)}
                       >
-                        {t('chat.snapshotRollback')}
-                      </Button>
+                        <Button
+                          size="small"
+                          theme="borderless"
+                          type="tertiary"
+                          icon={<IconUndo size="small" />}
+                          style={{ borderRadius: 7, flexShrink: 0 }}
+                        >
+                          {t('chat.snapshotRollback')}
+                        </Button>
+                      </Popconfirm>
                     )
                   )}
                 </div>

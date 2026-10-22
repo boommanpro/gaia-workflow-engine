@@ -20,7 +20,7 @@ import { nanoid } from 'nanoid';
 
 import { agentApi } from './api';
 import { liveStreamStore } from './live-stream-store';
-import { pushCanvasDraftToSession, hasUnsyncedLocalEdits, markSyncedWithServer } from './canvas-draft-sync';
+import { pushCanvasDraftToSession, hasUnsyncedLocalEdits, markSyncedWithServer, isEchoOfLastPush } from './canvas-draft-sync';
 import { aiPendingChangeStore } from './ai-pending-change';
 import { sessionEventStore } from './session-event-store';
 import { subscribeSessionEvents } from './sse-client';
@@ -1310,6 +1310,14 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
             const owner = { sessionKey, messageId: liveAssistantIdRef.current ?? undefined };
             scheduleDocumentApply(() => {
               if (currentSessionKeyRef.current !== owner.sessionKey) return;
+              // 回声抑制：手改自动同步 / 保存回推触发的服务端广播回到自己手上时，
+              // 再应用一次会误置「未保存」标记、污染快照归属（阶段 1.3 实测：
+              // 保存成功后「未保存」复发的根因）。按「推送指纹」识别 —— 画布侧
+              // 与 store 侧序列化字段集不同，与本地直接对比判不出这种回声
+              if (isEchoOfLastPush(dsl)) {
+                markSyncedWithServer();
+                return;
+              }
               workflowDocumentStore.replace(WorkflowDocument.fromJSON(dsl), {
                 kind: 'replace',
                 source: 'ai',

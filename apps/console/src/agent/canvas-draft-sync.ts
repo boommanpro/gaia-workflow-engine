@@ -32,6 +32,61 @@ export interface DraftPushResult {
 let lastSyncedAt = 0;
 let dirtySince = 0;
 
+/** 最近一次推送的内容指纹（回声判定）：我们刚推上去的 DSL 广播回来时不该
+ *  再应用一次 —— 画布侧与 store 侧的序列化字段集不同，「与本地对比等价」
+ *  判不出这种回声（阶段 1.3 实测保存后「未保存」复发的根因） */
+let lastPushedFingerprint: { at: number; canon: string } | null = null;
+
+/** 规范化序列化（对象键排序）：只比较内容等价性，不比较键序 */
+function canonicalJson(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  const entries = Object.keys(value as Record<string, unknown>)
+    .sort()
+    .map((k) => `${JSON.stringify(k)}:${canonicalJson((value as Record<string, unknown>)[k])}`);
+  return `{${entries.join(',')}}`;
+}
+
+/** DSL 内容指纹：只取 nodes/edges —— 服务端广播会附 _meta（修订号等），
+ *  连 _meta 一起比对会把「自己刚推的内容」判成不同。
+ *  另外要剥掉 null 值：服务端存草稿时按「null = 删除键」语义清洗（stripNulls），
+ *  画布侧序列化携带的 format:null 之类字段回来就没了，不剥则回声永远判不等 */
+function contentFingerprint(dsl: unknown): string {
+  const d = (dsl || {}) as { nodes?: unknown; edges?: unknown };
+  return canonicalJson({
+    nodes: stripNulls(d.nodes) || [],
+    edges: stripNulls(d.edges) || [],
+  });
+}
+
+/** 递归剥除 null 值（与服务端 stripNulls 的存储语义对齐，仅用于指纹比较） */
+function stripNulls(value: unknown): unknown {
+  if (value === null) return undefined;
+  if (Array.isArray(value)) {
+    return value.map(stripNulls).filter((x) => x !== undefined);
+  }
+  if (typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      const stripped = stripNulls(v);
+      if (stripped !== undefined) out[k] = stripped;
+    }
+    return out;
+  }
+  return value;
+}
+
+/** 这份 DSL 是否就是我们最近推上去的内容（10s 内）——document 广播回声 */
+export function isEchoOfLastPush(dsl: unknown): boolean {
+  if (!lastPushedFingerprint) return false;
+  if (Date.now() - lastPushedFingerprint.at > 10_000) return false;
+  try {
+    return contentFingerprint(dsl) === lastPushedFingerprint.canon;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * 本地是否有尚未同步到服务端草稿的手改。
  * AI 的 document 事件是整份 DSL：本地干净时直接应用；有未同步手改时才拦截成
@@ -73,6 +128,10 @@ export async function pushCanvasDraftToSession(
     }
     lastSyncedAt = startedAt;
     if (dirtySince <= startedAt) dirtySince = 0;
+    // 记录指纹：这次推送触发的服务端 document 广播回来时按它识别回声
+    try {
+      lastPushedFingerprint = { at: Date.now(), canon: contentFingerprint(dsl) };
+    } catch { /* ignore */ }
     return { ok: true };
   } catch (e) {
     return { ok: false, error: (e as Error).message };
@@ -107,17 +166,24 @@ export function scheduleManualDraftPush(): void {
 /**
  * 回滚并同步：本地 rollbackTo 之外，把回滚后的画布推回服务端草稿 ——
  * 否则「撤销后保存 / 撤销后继续提问」仍基于撤销前的内容。
- * 运行中（streaming）不同步：AI 正在改服务端草稿，此时推送会互相覆盖；
- * 运行中回滚的完整处理属于阶段 2.4。
+ *
+ * 返回值：
+ *   true        —— 本地已回滚，服务端同步已发起（失败经 onSyncFailed 报出）
+ *   false       —— 快照不存在/不可回滚，本地无变化
+ *   'streaming' —— AI 正在运行。此时不做「半回滚」：本地回滚既不会同步服务端
+ *                 （与 AI 的并发修改互相覆盖），又会被 AI 的下一个 document 事件
+ *                 顶掉，用户只会看到「回滚了又弹回来」。调用方应先提示用户停止运行。
  */
+export type RollbackResult = boolean | 'streaming';
+
 export function rollbackCanvasTo(
   snapshotId: string,
   sessionKey: string | null | undefined,
   onSyncFailed?: (error: string) => void,
-): boolean {
+): RollbackResult {
+  if (liveStreamStore.getSnapshot().streaming) return 'streaming';
   const ok = workflowDocumentStore.rollbackTo(snapshotId);
   if (!ok) return false;
-  if (liveStreamStore.getSnapshot().streaming) return true;
   void pushCanvasDraftToSession(sessionKey, { source: 'rollback' }).then((res) => {
     if (!res.ok && !res.skipped) onSyncFailed?.(res.error || 'sync failed');
   });

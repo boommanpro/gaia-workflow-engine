@@ -71,6 +71,8 @@ export const TestCasePanel: FC<TestCasePanelProps> = ({ workflowCode, getCanvasJ
   const [name, setName] = useState('');
   const [nodeId, setNodeId] = useState('');
   const [inputsText, setInputsText] = useState('{}');
+  /** 输入 JSON 的校验错误 / 创建失败信息：就地显示，现场保留（阶段 1.4） */
+  const [inputsError, setInputsError] = useState<string | null>(null);
   const [expectedRows, setExpectedRows] = useState<ExpectedRow[]>([{ field: '', op: 'exists', value: '' }]);
 
   const reload = useCallback(async () => {
@@ -119,10 +121,25 @@ export const TestCasePanel: FC<TestCasePanelProps> = ({ workflowCode, getCanvasJ
       .filter(row => row.field.trim())
       .map(row => ({ field: row.field.trim(), op: row.op, ...(row.op === 'exists' ? {} : { value: row.value }) }));
     if (!name.trim() || expected.length === 0) return;
-    await fetch(`${getApiBaseUrl()}/test-case/create`, {
+    // 输入必须是合法 JSON：非法就地报错、保留原文不清空不关窗（阶段 1.4 ——
+    // 旧的 safeJson 会把非法文本静默替换成 {}，用户写的 mock 输入被无声丢弃）
+    let inputs: any;
+    try {
+      inputs = inputsText.trim() ? JSON.parse(inputsText) : {};
+    } catch (e) {
+      setInputsError(`输入不是合法 JSON：${(e as Error).message}`);
+      return;
+    }
+    setInputsError(null);
+    const res = await fetch(`${getApiBaseUrl()}/test-case/create`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ workflowCode, nodeId: nodeId || null, name: name.trim(), inputs: safeJson(inputsText), expected }),
+      body: JSON.stringify({ workflowCode, nodeId: nodeId || null, name: name.trim(), inputs, expected }),
     });
+    if (!res.ok) {
+      // 创建失败同样保留现场（旧实现无条件清空关窗，等于丢掉刚填的内容）
+      setInputsError(`创建失败：HTTP ${res.status}`);
+      return;
+    }
     setName(''); setNodeId(''); setInputsText('{}'); setExpectedRows([{ field: '', op: 'exists', value: '' }]);
     setCreating(false);
     await reload();
@@ -157,8 +174,12 @@ export const TestCasePanel: FC<TestCasePanelProps> = ({ workflowCode, getCanvasJ
           <Select size="small" placeholder="目标节点（不选=工作流级）" showClear style={{ width: '100%' }}
             value={nodeId || undefined} onChange={v => setNodeId(String(v || ''))}
             optionList={nodeOptions} />
-          <TextArea autosize={{ minRows: 3, maxRows: 8 }} value={inputsText} onChange={(v: string) => setInputsText(v)}
+          <TextArea autosize={{ minRows: 3, maxRows: 8 }} value={inputsText}
+            onChange={(v: string) => { setInputsText(v); if (inputsError) setInputsError(null); }}
             placeholder='输入 mock（节点级: {"上游id":{"字段":值}}；工作流级: start 入参）' />
+          {inputsError && (
+            <Typography.Text type="danger" size="small" style={{ lineHeight: 1.4 }}>{inputsError}</Typography.Text>
+          )}
           {expectedRows.map((row, idx) => (
             <div key={idx} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               <Input size="small" style={{ width: 130 }} placeholder="字段（如 output）"
@@ -241,10 +262,6 @@ export const TestCasePanel: FC<TestCasePanelProps> = ({ workflowCode, getCanvasJ
     </div>
   );
 };
-
-function safeJson(text: string): any {
-  try { return JSON.parse(text); } catch { return {}; }
-}
 
 /** 编辑器头部入口：测试用例 SideSheet */
 export const TestCaseSheetButton: FC<TestCasePanelProps> = (props) => {

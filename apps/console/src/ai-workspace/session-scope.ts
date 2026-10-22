@@ -35,7 +35,9 @@ function write(binding: Binding): void {
 
 /** 把一段会话绑定到某个工作流（同一个会话只会绑定最后一次工作流） */
 export function bindSessionToWorkflow(sessionKey: string, workflowCode: string): void {
-  if (!sessionKey || !workflowCode) return;
+  // draft- 是画布本地草稿的伪会话 key，不是 agent 会话：写进绑定表会把
+  // 「最近绑定」污染成 draft-xxx，手改自动同步的反查随之失效（静默 skip）
+  if (!sessionKey || !workflowCode || sessionKey.startsWith('draft-')) return;
   const binding = read();
   if (binding[sessionKey] === workflowCode) return;
   binding[sessionKey] = workflowCode;
@@ -68,7 +70,9 @@ export function getSessionKeyForWorkflow(workflowCode: string | null): string | 
   const binding = read();
   let found: string | null = null;
   for (const [sessionKey, code] of Object.entries(binding)) {
-    if (code === workflowCode) found = sessionKey;
+    // 存量防御：历史版本可能已把 draft- 伪会话写进绑定表，反查时跳过它们，
+    // 否则取到的「最近绑定」是 draft-xxx，推送侧只能静默 skip
+    if (code === workflowCode && !sessionKey.startsWith('draft-')) found = sessionKey;
   }
   return found;
 }

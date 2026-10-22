@@ -359,6 +359,7 @@ export const Editor = () => {
             currentVersionId={currentVersionId}
             onSwitchVersion={handleSwitchVersion}
             onVersionsChanged={() => effectiveCode && loadVersions(effectiveCode)}
+            onCurrentVersionChange={setCurrentVersionId}
             hasHistory={snapshots.length > 0 || versions.length > 0}
             draftMode={draftMode}
             draftSessionKey={draftSessionKey}
@@ -424,6 +425,7 @@ const EditorHeader = ({
   currentVersionId,
   onSwitchVersion,
   onVersionsChanged,
+  onCurrentVersionChange,
   hasHistory,
   draftMode,
   draftSessionKey,
@@ -435,6 +437,8 @@ const EditorHeader = ({
   currentVersionId?: number;
   onSwitchVersion: (versionId: number) => void;
   onVersionsChanged: () => void;
+  /** 保存落版后把头部标签对齐到新版本（阶段 1.3） */
+  onCurrentVersionChange?: (versionId: number) => void;
   /** 有会话内快照或落版版本时，头部才出现历史入口 */
   hasHistory: boolean;
   /** 会话草稿模式（从 /chat、/work 精修进入）：保存 = 同步会话草稿，不落正式版本 */
@@ -444,6 +448,11 @@ const EditorHeader = ({
 }) => {
   const ctx = useClientContext();
   useLanguage();
+  // 未保存判定（阶段 1.3）：按变更来源维护的 store 标记，markSaved 时清除。
+  // AI 修改、手改、回滚都会置位 —— 版本意义上它们都还没落进任何正式版本。
+  // 不用「序列化对比」：首挂时 flowgram 规整序列化会产生派生字段差异，必误报。
+  const { meta: headerMeta } = useWorkflowDocumentState();
+  const unsaved = !draftMode && headerMeta.dirtySinceSave === true;
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [codeAskOpen, setCodeAskOpen] = useState(false);
@@ -538,6 +547,16 @@ const EditorHeader = ({
           await workflowApi.setCurrentVersion(newest.id!);
         }
       }
+
+      // 保存后头部标签与画布内容对齐（阶段 1.3）：否则标签还停在旧版号，
+      // 用户看到的却是刚保存的新内容
+      const refreshed = await workflowApi.listVersions(workflowCode);
+      const newestVersion = (refreshed || []).reduce<GaiaWorkflowVersion | null>((best, v) => {
+        if (!best) return v;
+        const no = (x: string) => Number(/^v\d+\.(\d+)$/.exec(x || '')?.[1] ?? -1);
+        return no(v.versionNumber) > no(best.versionNumber) ? v : best;
+      }, null);
+      if (newestVersion?.id != null) onCurrentVersionChange?.(newestVersion.id);
 
       onVersionsChanged();
       settleSaved(workflowCode);
@@ -665,13 +684,32 @@ const EditorHeader = ({
               style={{ fontSize: '13px', color: '#555', height: '32px' }}
             >
               {(() => {
+                // 阶段 1.3：标签区分「生效版 / 查看版 / 未保存」三层状态。
+                // 仅一个版号 = 生效即所见；两个版号 = 生效 v旧 / 查看 v新；
+                // 「未保存」标记 = 画布内容已偏离最近一次落版基线（手改/AI 改/回滚都算）。
                 const effective = versions.find((v) => v.isCurrent === 1);
                 if (!effective) return currentVersion ? currentVersion.versionNumber : t('editor.version');
                 if (currentVersion && currentVersion.id !== effective.id) {
-                  return `${effective.versionNumber} / ${currentVersion.versionNumber}`;
+                  return `${t('editor.versionEffective', { v: effective.versionNumber })} / ${currentVersion.versionNumber}`;
                 }
                 return effective.versionNumber;
               })()}
+              {unsaved && !draftMode && (
+                <span
+                  style={{
+                    marginLeft: 6,
+                    fontSize: 10,
+                    fontWeight: 600,
+                    color: '#d4a017',
+                    background: 'rgba(212, 160, 23, 0.12)',
+                    borderRadius: 4,
+                    padding: '1px 5px',
+                  }}
+                  title={t('editor.unsavedHint')}
+                >
+                  {t('editor.unsavedBadge')}
+                </span>
+              )}
               <IconChevronDown size="small" style={{ marginLeft: '4px' }} />
             </SemiButton>
           </CanvasHistoryPopover>

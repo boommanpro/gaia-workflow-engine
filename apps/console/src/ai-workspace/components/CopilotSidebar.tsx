@@ -16,7 +16,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Button, Popover, Tooltip } from '@douyinfe/semi-ui';
+import { Button, Popconfirm, Popover, Toast, Tooltip } from '@douyinfe/semi-ui';
 import {
   IconPlus,
   IconMinus,
@@ -99,7 +99,13 @@ export const CopilotSidebar: React.FC<CopilotSidebarProps> = ({ workflowName, wo
 
   /** 当前会话是否就是「这个工作流的那段对话」 */
   const scoped = useMemo(
-    () => !workflowCode || getWorkflowOfSession(currentSessionKey) === workflowCode,
+    () =>
+      !workflowCode ||
+      getWorkflowOfSession(currentSessionKey) === workflowCode ||
+      // 草稿会话（draft-*）是「正在为这个工作流开对话」的中间态：它尚未进
+      // 绑定表（bind 只收转正后的真实会话，draft- 进表会污染手改自动同步的
+      // 反查），但输入框必须可用——否则首条消息发不出去、草稿永远无法转正
+      (!!currentSessionKey && currentSessionKey.startsWith('draft-')),
     // bindingTick 用于绑定后强制重算（localStorage 不是响应式数据源）
     [workflowCode, currentSessionKey, bindingTick]
   );
@@ -108,6 +114,8 @@ export const CopilotSidebar: React.FC<CopilotSidebarProps> = ({ workflowName, wo
     if (!workflowCode) return;
 
     if (pendingBindRef.current === workflowCode && currentSessionKey) {
+      // 草稿会话还没转正：等首条消息把它物化成真实会话后再绑定
+      if (currentSessionKey.startsWith('draft-')) return;
       pendingBindRef.current = null;
       bindSessionToWorkflow(currentSessionKey, workflowCode);
       setBindingTick((v) => v + 1);
@@ -194,8 +202,15 @@ export const CopilotSidebar: React.FC<CopilotSidebarProps> = ({ workflowName, wo
 
   const handleUndoChange = useCallback(() => {
     if (!previousSnapshot) return;
-    // 撤销要「真撤销」：本地回滚之外同步服务端草稿，后续提问与保存才都基于恢复后的内容
-    rollbackCanvasTo(previousSnapshot.id, currentSessionKey);
+    // 撤销要「真撤销」：本地回滚之外同步服务端草稿，后续提问与保存才都基于恢复后的内容。
+    // 运行中不做半回滚（会被 AI 的下一个 document 事件顶掉），提示先停止运行。
+    const ok = rollbackCanvasTo(previousSnapshot.id, currentSessionKey, (err) =>
+      Toast.error(`${t('chat.rollbackSyncFailed')}${err}`)
+    );
+    if (ok === 'streaming') {
+      Toast.warning(t('chat.rollbackBlockedStreaming'));
+      return; // 保留撤销条，停止运行后还能撤
+    }
     setChangeBarFor(null);
   }, [previousSnapshot, currentSessionKey]);
 
@@ -496,23 +511,30 @@ export const CopilotSidebar: React.FC<CopilotSidebarProps> = ({ workflowName, wo
             <span style={{ fontSize: 11.5, color: CHAT.accent, flex: 1, lineHeight: 1.5 }}>
               {t('workspace.changeBar', { n: versionNo })}
             </span>
-            <button
-              type="button"
-              onClick={handleUndoChange}
-              style={{
-                border: 'none',
-                background: 'transparent',
-                color: CHAT.accent,
-                fontSize: 11.5,
-                fontWeight: 600,
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-                padding: 0,
-                flexShrink: 0,
-              }}
+            <Popconfirm
+              title={t('chat.rollbackConfirmTitle')}
+              content={t('workspace.undoConfirmContent')}
+              okText={t('chat.rollbackConfirmOk')}
+              cancelText={t('common.cancel')}
+              onConfirm={handleUndoChange}
             >
-              {t('workspace.undoChange')}
-            </button>
+              <button
+                type="button"
+                style={{
+                  border: 'none',
+                  background: 'transparent',
+                  color: CHAT.accent,
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  padding: 0,
+                  flexShrink: 0,
+                }}
+              >
+                {t('workspace.undoChange')}
+              </button>
+            </Popconfirm>
             <button
               type="button"
               onClick={() => setChangeBarFor(null)}

@@ -35,6 +35,13 @@ export interface WorkflowMeta {
    * 不设 ownerSession，任何会话切换都不会清掉它。
    */
   ownerSession?: string | null;
+  /**
+   * 自上次 markSaved 以来画布是否发生内容级变化（阶段 1.3「未保存」标记）。
+   * 按变更来源维护：用户/AI 的结构变化与回滚置 true；纯拖动（layout）、
+   * 系统加载（import）不置——首挂时 flowgram 会规整序列化产生派生字段差异，
+   * 用「对比序列化」判定会稳定误报。
+   */
+  dirtySinceSave?: boolean;
   updatedAt?: number;
 }
 
@@ -272,7 +279,7 @@ class WorkflowDocumentStore {
     this.state = {
       ...this.state,
       doc: WorkflowDocument.fromJSON(clone(target.dsl)),
-      meta: { ...this.state.meta, updatedAt: Date.now() },
+      meta: { ...this.state.meta, updatedAt: Date.now(), dirtySinceSave: true },
       lastChange: { kind: 'replace', source: 'user', reason: 'rollback' },
       revision: this.state.revision + 1,
       cursor: index,
@@ -364,9 +371,15 @@ class WorkflowDocumentStore {
   ): void {
     if (doc === this.state.doc) return; // 无变更
 
+    // 内容级变化才置「未保存」：拖动（layout）与系统加载不算
+    const affectsContent = change.kind !== 'layout' && change.source !== 'system';
     this.state = {
       doc,
-      meta: { ...this.state.meta, updatedAt: Date.now() },
+      meta: {
+        ...this.state.meta,
+        updatedAt: Date.now(),
+        ...(affectsContent ? { dirtySinceSave: true } : {}),
+      },
       lastChange: change,
       revision: this.state.revision + 1,
       snapshots: this.state.snapshots,
@@ -398,7 +411,7 @@ class WorkflowDocumentStore {
     this.emit();
   }
 
-  /** 标记为已保存：把当前 DSL 记为基线 */
+  /** 标记为已保存：把当前 DSL 记为基线，同时清除「未保存」标记 */
   markSaved(meta: Partial<WorkflowMeta> = {}): void {
     this.state = {
       ...this.state,
@@ -406,6 +419,7 @@ class WorkflowDocumentStore {
         ...this.state.meta,
         ...meta,
         savedDsl: clone(this.state.doc.toJSON()),
+        dirtySinceSave: false,
         updatedAt: Date.now(),
       },
     };
