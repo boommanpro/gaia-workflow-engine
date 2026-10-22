@@ -31,6 +31,8 @@ export interface LiveStreamState {
   thinking: string;
   /** 是否有流在进行 */
   streaming: boolean;
+  /** 用户已请求停止、等待后端终态确认（阶段 3.2）：停止中不算已停止 */
+  stopping: boolean;
   /** SSE 连接状态：断线重连期间 UI 必须显式呈现，不得冒充流式中 */
   connection: ConnectionState;
   /** 轮次信息（turn 事件） */
@@ -52,6 +54,7 @@ const initial = (): LiveStreamState => ({
   content: '',
   thinking: '',
   streaming: false,
+  stopping: false,
   connection: 'idle',
   turn: 0,
   maxTurns: 0,
@@ -329,12 +332,25 @@ export const liveStreamStore = {
     };
     notify();
   },
+  /** 用户已请求停止、等待后端终态确认（阶段 3.2）：流仍视为进行中，
+   *  UI 显示「停止中」并禁止重复点击；终态 endRun 或失败 cancelStop 收敛 */
+  beginStop(): void {
+    if (!state.streaming || state.stopping) return;
+    state = { ...state, stopping: true };
+    notify();
+  },
+  /** 停止请求失败：回到运行态，用户可重试停止 */
+  cancelStop(): void {
+    if (!state.stopping) return;
+    state = { ...state, stopping: false };
+    notify();
+  },
   /** run 终态：关闭全部打开条目 —— 任何终态路径都不会遗留闪烁中的思考块 */
   endRun(): void {
     cancelScheduled();
     pendingContent = '';
     pendingThinking = '';
-    state = { ...state, timeline: closeOpenTail(state.timeline), streaming: false, currentTool: null };
+    state = { ...state, timeline: closeOpenTail(state.timeline), streaming: false, stopping: false, currentTool: null };
     notify();
   },
   /** SSE 连接建立（订阅响应就绪） */

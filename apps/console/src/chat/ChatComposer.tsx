@@ -4,11 +4,12 @@
  * 参考成熟对话产品的输入形态：一张圆角卡片，底部左侧放「加东西」的入口（图片），
  * 右下角是一颗圆形发送键；流式输出时它变成「停止」。
  */
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { Toast, Tooltip } from '@douyinfe/semi-ui';
-import { IconSend, IconStop, IconImage, IconClose } from '@douyinfe/semi-icons';
+import { IconSend, IconStop, IconImage, IconClose, IconLoading } from '@douyinfe/semi-icons';
 
 import { useAgent } from '../agent/AgentContext';
+import { liveStreamStore } from '../agent/live-stream-store';
 import { useLanguage, t } from '../i18n';
 import { CHAT, ChatStyles } from './theme';
 
@@ -61,6 +62,8 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
 }) => {
   useLanguage();
   const { sendMessage, streaming, stopStreaming, messages, currentSessionKey, renameSession } = useAgent();
+  // 停止中状态（阶段 3.2）：请求已发出、等后端终态确认 —— 期间按钮转圈禁点
+  const liveSnapshot = useSyncExternalStore(liveStreamStore.subscribe, liveStreamStore.getSnapshot);
 
   const [innerValue, setInnerValue] = useState('');
   const controlled = draft !== undefined;
@@ -385,26 +388,30 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
               </span>
             )}
             {streaming ? (
-            <button
-              type="button"
-              onClick={stopStreaming}
-              title={t('chat.stop')}
-              style={{
-                width: 32,
-                height: 32,
-                flexShrink: 0,
-                border: `1px solid ${CHAT.line}`,
-                borderRadius: '50%',
-                background: 'var(--g-bg-raised)',
-                color: CHAT.textSub,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <IconStop size="small" />
-            </button>
+            <Tooltip content={liveSnapshot.stopping ? t('chat.stopping') : t('chat.stop')} position="top">
+              <button
+                type="button"
+                onClick={stopStreaming}
+                disabled={liveSnapshot.stopping}
+                title={liveSnapshot.stopping ? t('chat.stopping') : t('chat.stop')}
+                style={{
+                  width: 32,
+                  height: 32,
+                  flexShrink: 0,
+                  border: `1px solid ${CHAT.line}`,
+                  borderRadius: '50%',
+                  background: 'var(--g-bg-raised)',
+                  color: CHAT.textSub,
+                  cursor: liveSnapshot.stopping ? 'not-allowed' : 'pointer',
+                  opacity: liveSnapshot.stopping ? 0.6 : 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {liveSnapshot.stopping ? <IconLoading size="small" /> : <IconStop size="small" />}
+              </button>
+            </Tooltip>
           ) : (
             <button
               type="button"

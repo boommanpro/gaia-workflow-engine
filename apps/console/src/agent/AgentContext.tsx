@@ -21,6 +21,7 @@ import { nanoid } from 'nanoid';
 import { agentApi } from './api';
 import { liveStreamStore } from './live-stream-store';
 import { pushCanvasDraftToSession, hasUnsyncedLocalEdits, markSyncedWithServer, isEchoOfLastPush } from './canvas-draft-sync';
+import { getWorkflowOfSession } from '../ai-workspace/session-scope';
 import { aiPendingChangeStore } from './ai-pending-change';
 import { sessionEventStore } from './session-event-store';
 import { subscribeSessionEvents } from './sse-client';
@@ -1057,25 +1058,54 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   );
 
   /** 停止当前运行：通知后端停止（协作式中断，主循环在下一个检查点退出）。
-   *  live 占位保留到 done/interrupted 事件触发 reload 落位后再摘除；
-   *  后端 10s 内没有终态事件时兜底强制收敛（防占位行悬挂）。 */
+   *
+   * 阶段 3.2 语义：停止请求发出后进入「停止中」（stopping），流仍视为进行中 ——
+   * 后端确认（done/interrupted 终态事件 → settleRun）之前不显示「已停止」；
+   * 请求失败回到运行态并提示可重试，不再吞错假装停了。终态事件 10s 未到时
+   * 兜底强制收敛（连接可能已断，live 占位行不能永远悬挂）。 */
   const stopStreaming = useCallback(() => {
     const sessionKey = currentSessionKeyRef.current;
-    if (sessionKey && !sessionKey.startsWith('draft-')) {
-      void agentApi.stopRun(sessionKey).catch(() => {});
-    }
     setQueueLength(0);
-    // 停止也是一轮结束：把已发生的 AI 变更定格为会话版本
-    workflowDocumentStore.captureAiRunSnapshot(liveAssistantIdRef.current ?? undefined);
-    liveStreamStore.endRun();
-    setStreaming(false);
-    if (sessionKey) {
-      setTimeout(() => {
-        if (currentSessionKeyRef.current === sessionKey && liveAssistantIdRef.current) {
-          settleRun(sessionKey);
-        }
-      }, 10000);
+
+    const finishStopLocally = () => {
+      // 停止也是一轮结束：把已发生的 AI 变更定格为会话版本
+      workflowDocumentStore.captureAiRunSnapshot(liveAssistantIdRef.current ?? undefined);
+      liveStreamStore.endRun();
+      setStreaming(false);
+    };
+
+    if (!sessionKey || sessionKey.startsWith('draft-')) {
+      finishStopLocally(); // 本地草稿没有可停的后端 run
+      return;
     }
+    if (liveStreamStore.getSnapshot().stopping) return; // 停止请求已发出，等待确认
+
+    liveStreamStore.beginStop();
+    void agentApi.stopRun(sessionKey).then(
+      () => {
+        // 请求已受理：终态事件（done/interrupted）经 run 收敛入口 settleRun 真正结束；
+        // 10s 兜底防占位行悬挂（SSE 断线时终态永远不来）
+        setTimeout(() => {
+          if (currentSessionKeyRef.current === sessionKey && liveStreamStore.getSnapshot().streaming) {
+            finishStopLocally();
+            if (liveAssistantIdRef.current) settleRun(sessionKey);
+          }
+        }, 10_000);
+      },
+      (error) => {
+        // 停止失败：回到运行态，明确报错可重试（旧行为吞错 + 立即假停止）
+        liveStreamStore.cancelStop();
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: nanoid(),
+            role: 'assistant',
+            content: `[错误] 停止请求失败：${(error as Error).message}。运行仍在进行，可重试停止。`,
+            timestamp: Date.now(),
+          },
+        ]);
+      }
+    );
   }, [settleRun]);
 
   // ===== 会话画布草稿恢复 =====
@@ -1291,8 +1321,15 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       },
       onDocument: (data) => {
         if (disposed) return;
-        // 编辑器（专家模式）页面画布是主位。守卫按需化：本地有「尚未同步到服务端
-        // 草稿的手改」时才拦截成「待应用变更」（防 AI 整表替换冲掉手改）；本地干净
+        // 编辑器（专家模式）页面画布归工作流所有：只有「归属本工作流的会话」的
+        // document 才允许进入应用/待应用 —— 无关会话（如「最近会话」自动恢复的
+        // 别处对话）的草稿事件不得顶掉工作流画布（实测会把首挂竞争中的画布顶成空白）
+        if (/^\/(editor|template-editor)/.test(pathnameRef.current)) {
+          const wfCode = workflowDocumentStore.getSnapshot().meta.workflowCode;
+          if (wfCode && getWorkflowOfSession(sessionKey) !== wfCode) return;
+        }
+        // 守卫按需化：本地有「尚未同步到服务端草稿的手改」时才拦截成
+        // 「待应用变更」（防 AI 整表替换冲掉手改）；本地干净
         // （手改已自动同步 / 没动过）则直接应用 —— 编辑器是草稿区，改错有快照/回滚兜底。
         if (/^\/(editor|template-editor)/.test(pathnameRef.current) && hasUnsyncedLocalEdits()) {
           try {

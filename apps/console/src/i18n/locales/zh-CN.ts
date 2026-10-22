@@ -284,6 +284,10 @@ export const zhCN: I18nLanguage = {
     'runPanel.runWorkflow': '运行工作流',
     'runPanel.outputResult': '输出结果',
     'runPanel.requestFailed': '请求失败',
+    'runPanel.execFailed': '执行失败',
+    'runPanel.phaseRunning': '运行中…（正在等待执行结果，请勿重复点击）',
+    'runPanel.phaseSuccess': '运行成功',
+    'runPanel.phaseFailed': '运行失败',
 
     /* ---------- Single node test ---------- */
     'singleNode.title': '单节点测试',
@@ -543,6 +547,8 @@ export const zhCN: I18nLanguage = {
     'chat.inputHint': 'Enter 发送 · Shift+Enter 换行 · 可粘贴或拖入图片',
     'chat.send': '发送',
     'chat.stop': '停止',
+    'chat.stopping': '停止中，等待后台确认…',
+    'chat.retrySend': '重试这条',
     'chat.attachImage': '添加图片',
     'chat.imageName': '图片 {{n}}',
     'chat.taskElapsed': '任务耗时 {{sec}}s',

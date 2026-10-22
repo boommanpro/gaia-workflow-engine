@@ -284,6 +284,10 @@ export const enUS: I18nLanguage = {
     'runPanel.runWorkflow': 'Run Workflow',
     'runPanel.outputResult': 'Output Result',
     'runPanel.requestFailed': 'Request failed',
+    'runPanel.execFailed': 'Execution failed',
+    'runPanel.phaseRunning': 'Running… (waiting for the result, do not click again)',
+    'runPanel.phaseSuccess': 'Run succeeded',
+    'runPanel.phaseFailed': 'Run failed',
 
     /* ---------- Single node test ---------- */
     'singleNode.title': 'Node Test',
@@ -542,6 +546,8 @@ export const enUS: I18nLanguage = {
     'chat.inputHint': 'Enter to send · Shift+Enter for newline · paste or drop images',
     'chat.send': 'Send',
     'chat.stop': 'Stop',
+    'chat.stopping': 'Stopping, waiting for backend…',
+    'chat.retrySend': 'Retry this message',
     'chat.attachImage': 'Add image',
     'chat.imageName': 'Image {{n}}',
     'chat.taskElapsed': 'Task took {{sec}}s',

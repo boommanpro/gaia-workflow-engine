@@ -628,6 +628,13 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
       }
 
       // assistant：一次 run 合并为一条回复 —— 头像 + 身份行在前，过程行折叠，正文在后
+      // 发送失败行（[错误] 前缀，阶段 3.3）：就地挂「重试」按钮，重发它的前一条用户输入 ——
+      // 输入框内容可能已被用户改动，重试必须用失败时的原文
+      const isErrorRow =
+        m.role === 'assistant' && typeof m.content === 'string' && m.content.startsWith('[错误]');
+      const retryText = isErrorRow
+        ? [...messages.slice(0, i)].reverse().find((x) => x.role === 'user' && x.content && !x.content.startsWith('【'))?.content
+        : undefined;
       nodes.push(
         <div
           key={m.id}
@@ -637,6 +644,26 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
           <AssistantAvatar />
           <div style={{ minWidth: 0, flex: 1 }}>
             <MessageTitle ts={m.timestamp} />
+            {isErrorRow && retryText && (
+              <div style={{ marginBottom: 6 }}>
+                <button
+                  type="button"
+                  onClick={() => void sendMessage(retryText)}
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: CHAT.accent,
+                    background: 'transparent',
+                    border: `1px solid ${CHAT.accent}`,
+                    borderRadius: 8,
+                    padding: '4px 12px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t('chat.retrySend')}
+                </button>
+              </div>
+            )}
             {/* TRAE 式极简（2026-10-17 二次反馈）：思考 + 工具过程默认收进「任务耗时」一行，
                 点击才展开。live 行的过程由 store 时间线渲染（LiveAssistantContent 内），
                 此处只管历史消息 —— 条件里排除 liveMessageId 防止双路重复 */}

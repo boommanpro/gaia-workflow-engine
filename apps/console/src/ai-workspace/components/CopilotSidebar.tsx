@@ -117,8 +117,20 @@ export const CopilotSidebar: React.FC<CopilotSidebarProps> = ({ workflowName, wo
       // 草稿会话还没转正：等首条消息把它物化成真实会话后再绑定
       if (currentSessionKey.startsWith('draft-')) return;
       pendingBindRef.current = null;
-      bindSessionToWorkflow(currentSessionKey, workflowCode);
-      setBindingTick((v) => v + 1);
+      // 只认领「新生」会话：pendingBind 期待的是自己 startScopedSession 建的
+      // 草稿经 sendMessage 物化出的会话。若 currentSessionKey 是中途恢复/切进
+      // 来的既有会话（如「最近会话」自动恢复），改绑它等于把别处的对话上下文
+      // 拽到本工作流名下——会话归属漂移（共享环境实测：打开新工作流后既有
+      // 会话被静默改绑，其草稿 document 事件随即污染画布）
+      const isNewborn = sessions.some((s) => {
+        if (s.sessionKey !== currentSessionKey) return false;
+        const created = s.createdAt ? new Date(s.createdAt).getTime() : 0;
+        return created > 0 && Date.now() - created < 60_000;
+      });
+      if (isNewborn) {
+        bindSessionToWorkflow(currentSessionKey, workflowCode);
+        setBindingTick((v) => v + 1);
+      }
       return;
     }
 
@@ -127,7 +139,7 @@ export const CopilotSidebar: React.FC<CopilotSidebarProps> = ({ workflowName, wo
     if (!userPickedRef.current && ownerSessionKey && ownerSessionKey !== currentSessionKey) {
       void switchSession(ownerSessionKey);
     }
-  }, [workflowCode, currentSessionKey, ownerSessionKey, switchSession]);
+  }, [workflowCode, currentSessionKey, ownerSessionKey, sessions, switchSession]);
 
   const startScopedSession = useCallback(() => {
     if (!workflowCode) return;
