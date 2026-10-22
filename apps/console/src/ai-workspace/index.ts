@@ -5,5 +5,5 @@ export { AiWorkspace } from './AiWorkspace';
 export { ArtifactPanel } from './artifact/ArtifactPanel';
 export { HeadlessCanvasBridge } from './HeadlessCanvasBridge';
 export { Composer } from './components/Composer';
-export { CopilotSidebar } from './components/CopilotSidebar';
 export { findLatestWorkflow, findWorkflowInMessage } from './artifact/extract';
+export { openEditorWithDraft } from './openEditorWithDraft';

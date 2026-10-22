@@ -148,6 +148,8 @@ public class WorkflowDslApplyService {
                     opts.getWorkflowName() != null && !opts.getWorkflowName().isEmpty()
                         ? opts.getWorkflowName() : workflowCode);
                 workflow.setWorkflowDesc(opts.getWorkflowDesc());
+                // 新建工作流归属调用方所在项目（会话落版时继承会话的项目，对话优先 IA）
+                workflow.setFolderId(opts.getFolderId());
                 workflow.setCreatedAt(LocalDateTime.now());
                 workflow.setUpdatedAt(LocalDateTime.now());
                 workflowService.save(workflow);
@@ -336,6 +338,8 @@ public class WorkflowDslApplyService {
         private boolean createIfMissing = true;
         /** CAS 基准：工作流已存在时须与当前 revision 一致才允许提交（null=跳过检查，REST 兼容） */
         private Long expectedRevision;
+        /** 新建工作流时归属的项目（agent_work_folder.id，可空=未分组） */
+        private Long folderId;
     }
 
     /** 落版结果 */

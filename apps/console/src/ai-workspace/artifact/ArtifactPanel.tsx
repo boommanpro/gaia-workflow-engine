@@ -10,25 +10,26 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Button, Input, Modal, Popover, Tag, Toast, Tooltip } from '@douyinfe/semi-ui';
+import { Button, Input, Modal, Toast, Tooltip } from '@douyinfe/semi-ui';
 import {
   IconAlertTriangle,
   IconCode,
   IconCopy,
-  IconDownload,
   IconExternalOpen,
   IconSave,
   IconTickCircle,
 } from '@douyinfe/semi-icons';
 
-import { useWorkflowDocumentState, workflowDocumentStore, validateDsl } from '../../document';
+import { useWorkflowDocumentState, workflowDocumentStore } from '../../document';
 import { t } from '../../i18n';
-import { workflowApi } from '../../services/workflow-api';
+import { workflowApi, type GaiaWorkflow } from '../../services/workflow-api';
 import { useAgent } from '../../agent/AgentContext';
 import { useArtifactState } from '../../agent/artifact-store';
 import type { AgentArtifactDto } from '../../agent/types';
 import { agentApi } from '../../agent/api';
 import { pushCanvasDraftToSession } from '../../agent/canvas-draft-sync';
+import { bindSessionToWorkflow } from '../session-scope';
+import { openEditorWithDraft } from '../openEditorWithDraft';
 import { CHAT } from '../../chat/theme';
 import { IconPanelRight } from '../../components/app-shell/icons';
 import { ReadonlyCanvas } from './ReadonlyCanvas';
@@ -37,20 +38,21 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
   const { doc, meta, revision } = useWorkflowDocumentState();
   const navigate = useNavigate();
   const location = useLocation();
-  const { currentSessionKey, streaming } = useAgent();
+  const { currentSessionKey, sessions, streaming } = useAgent();
   const artifactState = useArtifactState();
 
   const [saveVisible, setSaveVisible] = useState(false);
   const [saving, setSaving] = useState(false);
   const [workflowCode, setWorkflowCode] = useState('');
   const [versionDesc, setVersionDesc] = useState('AI 生成');
-  const [dslOpen, setDslOpen] = useState(false);
+  /** 落版目标：''=新建工作流，否则为所选已有工作流编码（对其新增版本） */
+  const [saveTarget, setSaveTarget] = useState('');
+  const [workflows, setWorkflows] = useState<GaiaWorkflow[]>([]);
   const [recordsOpen, setRecordsOpen] = useState(false);
   const [recordDetail, setRecordDetail] = useState<AgentArtifactDto | null>(null);
 
   // dsl 按 doc 变化重建（toJSON 不便宜，别跟着无关渲染每次重算）
   const dsl = useMemo(() => doc.toJSON(), [doc]);
-  const validation = useMemo(() => validateDsl(dsl), [dsl]);
   const isEmpty = doc.isEmpty;
 
   // 流式期间的画布刷新节流：document 事件高频到达，逐次 remount 整只 flowgram
@@ -80,25 +82,41 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
     return [...list].filter((a) => a.type !== 'workflow').reverse();
   }, [artifactState, currentSessionKey]);
 
+  /** 打开落版弹窗：默认选中草稿绑定的已有工作流（对其新增版本），否则新建 */
+  const openSaveModal = useCallback(() => {
+    setWorkflowCode(meta.workflowCode || '');
+    setVersionDesc('AI 生成');
+    setSaveTarget(meta.workflowCode || '');
+    setSaveVisible(true);
+    if (workflows.length === 0) {
+      workflowApi.listWorkflows()
+        .then((list) => setWorkflows(list || []))
+        .catch(() => { /* 选择器退化成「新建」，保存仍可用 */ });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meta.workflowCode, workflows.length]);
+
   const handleSave = useCallback(async () => {
     setSaving(true);
     try {
+      // 落版目标：所选已有工作流（新增版本）或新建编码（留空 = 草稿绑定的编码）
+      const targetCode = saveTarget || workflowCode.trim();
       if (currentSessionKey) {
         // 保存前对齐（阶段 1.1）：把「眼前的画布」推成服务端权威草稿再落版 ——
         // 回滚 / 编辑器手改可能让本地领先于服务端，不对齐就会出现「保存的内容
         // 和画布所见不一致」。同步失败则明确阻断，不产生错误的版本。
         const sync = await pushCanvasDraftToSession(currentSessionKey, {
-          workflowCode: workflowCode.trim() || undefined,
+          workflowCode: targetCode || undefined,
           source: 'pre-save',
         });
         if (!sync.ok) {
           throw new Error(`${t('chat.rollbackSyncFailed')}${sync.error || ''}`);
         }
-        // 会话场景：服务端会话草稿是权威数据，走专用端点落版并收口草稿绑定/CAS 基准；
-        // workflowCode 留空 = 用草稿绑定的编码
+        // 会话场景：服务端会话草稿是权威数据，走专用端点落版并收口草稿绑定/CAS 基准。
+        // 保存到已有工作流时不传 name —— 避免把别人的工作流顺带改名。
         const res = await agentApi.saveDraftAsVersion(currentSessionKey, {
-          workflowCode: workflowCode.trim() || undefined,
-          name: meta.workflowName || workflowCode.trim() || undefined,
+          workflowCode: targetCode || undefined,
+          name: saveTarget ? undefined : meta.workflowName || workflowCode.trim() || undefined,
           versionDesc,
         });
         if (!res.success) {
@@ -107,18 +125,20 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
         if (res.workflowCode) {
           workflowDocumentStore.markSaved({ workflowCode: res.workflowCode, workflowName: meta.workflowName });
           workflowDocumentStore.setMeta({ workflowCode: res.workflowCode });
+          // 会话↔工作流绑定跟随落版目标（编辑器返回/手改同步的反查依据）
+          bindSessionToWorkflow(currentSessionKey, res.workflowCode);
         }
         Toast.success(res.message || t('workspace.saveSuccess'));
       } else {
         // 编辑器独立打开（无会话）：直接落当前画布。
         // apply 校验拒绝时返回 HTTP 200 + success:false —— 必须检查响应体，否则
         // 又是「没存进去却提示已保存」（阶段 1.2）
-        if (!workflowCode.trim()) {
+        if (!targetCode) {
           Toast.warning(t('workspace.needCode'));
           return;
         }
-        const applyRes = await workflowApi.applyDsl(workflowCode.trim(), dsl, {
-          workflowName: meta.workflowName || workflowCode.trim(),
+        const applyRes = await workflowApi.applyDsl(targetCode, dsl, {
+          workflowName: meta.workflowName || targetCode,
           versionDesc,
           createIfMissing: true,
         });
@@ -126,8 +146,8 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
         if (applyBody.success === false) {
           throw new Error(applyBody.error || 'workflow validation rejected');
         }
-        workflowDocumentStore.markSaved({ workflowCode: workflowCode.trim(), savedDsl: dsl });
-        workflowDocumentStore.setMeta({ workflowCode: workflowCode.trim() });
+        workflowDocumentStore.markSaved({ workflowCode: targetCode, savedDsl: dsl });
+        workflowDocumentStore.setMeta({ workflowCode: targetCode });
         Toast.success(t('workspace.saveSuccess'));
       }
       setSaveVisible(false);
@@ -136,66 +156,49 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
     } finally {
       setSaving(false);
     }
-  }, [currentSessionKey, dsl, meta.workflowName, versionDesc, workflowCode]);
+  }, [currentSessionKey, dsl, meta.workflowName, versionDesc, workflowCode, saveTarget]);
 
   const handleRefine = useCallback(() => {
     // 同标签页跳转，而不是新开一个标签：
     // workflowDocumentStore 是模块级单例，同标签页里 AI 刚生成的那份 DSL 原样承接，
     // 对话会话也不会断（AgentContext 全局）。带 state.from 让编辑器「返回」回到本会话。
-    try {
-      sessionStorage.setItem('gaia.artifactDraft', JSON.stringify(dsl));
-    } catch {
-      /* 忽略隐私模式下的写入失败 */
-    }
-    const code = meta.workflowCode?.trim();
-    navigate(code ? `/editor/${encodeURIComponent(code)}` : '/editor/__draft__', {
-      state: { from: location.pathname, sessionKey: currentSessionKey || undefined },
+    openEditorWithDraft({
+      dsl,
+      workflowCode: meta.workflowCode,
+      navigate,
+      from: location.pathname,
+      sessionKey: currentSessionKey,
     });
   }, [dsl, meta.workflowCode, navigate, location.pathname, currentSessionKey]);
 
-  const handleCopy = useCallback(() => {
-    void navigator.clipboard.writeText(JSON.stringify(dsl, null, 2));
-    Toast.success(t('workspace.copied'));
-  }, [dsl]);
-
-  const handleDownload = useCallback(() => {
-    const blob = new Blob([JSON.stringify(dsl, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = `${meta.workflowCode || 'workflow'}.json`;
-    anchor.click();
-    URL.revokeObjectURL(url);
-  }, [dsl, meta.workflowCode]);
-
-  const validationContent = (
-    <div style={{ width: 250, maxHeight: 260, overflow: 'auto' }}>
-      {validation.issues.length === 0 ? (
-        <div style={{ fontSize: 12, color: CHAT.success, display: 'flex', alignItems: 'center', gap: 5 }}>
-          <IconTickCircle size="small" />
-          {t('workspace.noIssues')}
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {validation.issues.map((issue, index) => (
-            <div
-              key={`${issue.code}-${index}`}
-              style={{
-                padding: '6px 9px',
-                borderRadius: 8,
-                fontSize: 12,
-                background: issue.level === 'error' ? CHAT.dangerSoft : CHAT.warnSoft,
-                color: issue.level === 'error' ? CHAT.danger : CHAT.warn,
-                border: `1px solid ${issue.level === 'error' ? 'var(--g-danger-soft)' : 'var(--g-warn-soft)'}`,
-              }}
-            >
-              {issue.message}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  /**
+   * 换新会话继续（产运多版本迭代）：新建会话并把当前草稿原样推过去（pushDraft），
+   * 不走 seedDraft——后者只带工作流已落版的版本，会丢掉本会话未保存的草稿修改。
+   * 新会话归入与当前会话相同的项目。
+   */
+  const [forking, setForking] = useState(false);
+  const handleForkSession = useCallback(async () => {
+    if (!currentSessionKey || forking) return;
+    const cur = sessions.find((s) => s.sessionKey === currentSessionKey);
+    setForking(true);
+    try {
+      const next = await agentApi.createSession(
+        meta.workflowCode ? `迭代 ${meta.workflowName || meta.workflowCode}` : undefined,
+        cur?.folderId != null ? { scope: 'work', folderId: cur.folderId } : { scope: 'chat' },
+      );
+      await agentApi.pushDraft(next.sessionKey, {
+        dsl,
+        workflowCode: meta.workflowCode || undefined,
+      });
+      if (meta.workflowCode) bindSessionToWorkflow(next.sessionKey, meta.workflowCode);
+      Toast.success(t('workspace.forkSuccess'));
+      navigate(`/chat/${next.sessionKey}`);
+    } catch (err) {
+      Toast.error(t('workspace.forkFailed') + (err as Error).message);
+    } finally {
+      setForking(false);
+    }
+  }, [currentSessionKey, forking, sessions, dsl, meta.workflowCode, meta.workflowName, navigate]);
 
   const formatTime = (iso?: string) => {
     if (!iso) return '';
@@ -223,61 +226,13 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
         borderLeft: `1px solid ${CHAT.line}`,
       }}
     >
-      {/* 头部：版本 / 校验 / 统计 / 导出 */}
+      {/* 头部：标题 + 收起（校验提示 / DSL 查看复制下载已按需求移除） */}
       <div style={{ padding: '12px 14px 10px', borderBottom: `1px solid ${CHAT.lineSoft}`, flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: CHAT.text, flexShrink: 0 }}>
             {t('workspace.artifact')}
           </span>
-          {!isEmpty && (
-            <Popover content={validationContent} position="bottomRight" trigger="click">
-              <Tag
-                size="small"
-                shape="circle"
-                color={validation.valid ? 'green' : 'orange'}
-                style={{ cursor: 'pointer' }}
-              >
-                {validation.valid
-                  ? t('workspace.validationPassed')
-                  : t('workspace.validationIssues', { count: validation.issues.length })}
-              </Tag>
-            </Popover>
-          )}
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 2, flexShrink: 0 }}>
-            {!isEmpty && (
-              <>
-                <Tooltip content={t('workspace.tabDsl')} position="bottomRight">
-                  <Button
-                    size="small"
-                    theme="borderless"
-                    type="tertiary"
-                    icon={<IconCode size="small" />}
-                    onClick={() => setDslOpen(true)}
-                    aria-label={t('workspace.tabDsl')}
-                  />
-                </Tooltip>
-                <Tooltip content={t('workspace.copyDsl')} position="bottomRight">
-                  <Button
-                    size="small"
-                    theme="borderless"
-                    type="tertiary"
-                    icon={<IconCopy size="small" />}
-                    onClick={handleCopy}
-                    aria-label={t('workspace.copyDsl')}
-                  />
-                </Tooltip>
-                <Tooltip content={t('workspace.downloadDsl')} position="bottomRight">
-                  <Button
-                    size="small"
-                    theme="borderless"
-                    type="tertiary"
-                    icon={<IconDownload size="small" />}
-                    onClick={handleDownload}
-                    aria-label={t('workspace.downloadDsl')}
-                  />
-                </Tooltip>
-              </>
-            )}
             {onCollapse && (
               <Tooltip content={t('workspace.collapseArtifact')} position="bottomRight">
                 <Button
@@ -443,7 +398,7 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
             </div>
           )}
 
-          {/* 主操作：先「打开」，落版是次要动作 */}
+          {/* 主操作：先「打开」，落版是次要动作；「换新会话继续」服务多版本迭代 */}
           <div
             style={{
               padding: 12,
@@ -462,48 +417,31 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
             >
               {meta.workflowCode ? t('workspace.openWorkflow') : t('workspace.openInEditor')}
             </Button>
+            <Tooltip content={t('workspace.forkSessionDesc')} position="top">
+              <Button
+                theme="light"
+                type="primary"
+                loading={forking}
+                onClick={() => void handleForkSession()}
+                icon={<IconCopy />}
+                style={{ borderRadius: 9 }}
+              >
+                {t('workspace.forkSession')}
+              </Button>
+            </Tooltip>
             <Tooltip content={t('workspace.saveVersionDesc')} position="top">
               <Button
                 theme="light"
                 type="primary"
-                onClick={() => {
-                  setWorkflowCode(meta.workflowCode || '');
-                  setSaveVisible(true);
-                }}
+                onClick={openSaveModal}
                 icon={<IconSave />}
+                aria-label={t('workspace.saveVersion')}
                 style={{ borderRadius: 9 }}
-              >
-                {t('workspace.saveVersion')}
-              </Button>
+              />
             </Tooltip>
           </div>
         </>
       )}
-
-      {/* DSL 弹层（原 DSL tab） */}
-      <Modal
-        title={`DSL${meta.workflowCode ? ` · ${meta.workflowCode}` : ''}`}
-        visible={dslOpen}
-        onCancel={() => setDslOpen(false)}
-        footer={null}
-        width={Math.min(760, typeof window !== 'undefined' ? window.innerWidth - 80 : 760)}
-        bodyStyle={{ maxHeight: '62vh', overflow: 'auto', padding: 0 }}
-      >
-        <pre
-          style={{
-            margin: 0,
-            padding: '14px 16px',
-            fontSize: 11,
-            lineHeight: 1.65,
-            color: CHAT.textSub,
-            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-all',
-          }}
-        >
-          {JSON.stringify(dsl, null, 2)}
-        </pre>
-      </Modal>
 
       {/* 产物记录详情 */}
       <Modal
@@ -540,6 +478,7 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
         )}
       </Modal>
 
+      {/* 落版弹窗：可另存为已有工作流（对其新增版本）或新建编码 */}
       <Modal
         title={t('workspace.saveVersion')}
         visible={saveVisible}
@@ -555,10 +494,41 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div>
             <div style={{ fontSize: 12, marginBottom: 4, color: CHAT.textSub }}>
-              {t('workspace.workflowCode')}
+              {t('workspace.saveTarget')}
             </div>
-            <Input value={workflowCode} onChange={setWorkflowCode} placeholder="e.g. sentiment-analysis" />
+            <select
+              value={saveTarget}
+              onChange={(e) => setSaveTarget(e.target.value)}
+              style={{
+                width: '100%',
+                height: 32,
+                padding: '0 10px',
+                background: 'var(--g-bg-sunken)',
+                border: `1px solid ${CHAT.line}`,
+                borderRadius: 6,
+                fontSize: 13,
+                color: CHAT.text,
+                outline: 'none',
+                fontFamily: 'inherit',
+                boxSizing: 'border-box',
+              }}
+            >
+              <option value="">{t('workspace.saveAsNew')}</option>
+              {workflows.map((w) => (
+                <option key={w.workflowCode} value={w.workflowCode}>
+                  {w.workflowName}（{w.workflowCode}）
+                </option>
+              ))}
+            </select>
           </div>
+          {!saveTarget && (
+            <div>
+              <div style={{ fontSize: 12, marginBottom: 4, color: CHAT.textSub }}>
+                {t('workspace.workflowCode')}
+              </div>
+              <Input value={workflowCode} onChange={setWorkflowCode} placeholder="e.g. sentiment-analysis" />
+            </div>
+          )}
           <div>
             <div style={{ fontSize: 12, marginBottom: 4, color: CHAT.textSub }}>
               {t('workspace.versionDesc')}

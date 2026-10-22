@@ -175,7 +175,15 @@ public class GaiaWorkflowController {
         workflow.setCurrentVersionId(null);
         workflow.setRevision(null);
         workflow.setUpdatedAt(LocalDateTime.now());
-        result.put("success", workflowService.updateById(workflow));
+        boolean updated = workflowService.updateById(workflow);
+        if (updated) {
+            // folder_id 允许置空（移出项目）：MyBatis-Plus 默认跳过 null 字段，需显式 set。
+            // 本接口的唯一调用方（工作流管理编辑弹窗）始终携带 folderId 提交。
+            workflowService.update(new com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper<GaiaWorkflow>()
+                .eq("id", workflow.getId())
+                .set("folder_id", workflow.getFolderId()));
+        }
+        result.put("success", updated);
         return org.springframework.http.ResponseEntity.ok(result);
     }
 

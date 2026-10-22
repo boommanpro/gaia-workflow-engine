@@ -21,7 +21,7 @@ import { nanoid } from 'nanoid';
 import { agentApi } from './api';
 import { liveStreamStore } from './live-stream-store';
 import { pushCanvasDraftToSession, hasUnsyncedLocalEdits, markSyncedWithServer, isEchoOfLastPush } from './canvas-draft-sync';
-import { getWorkflowOfSession } from '../ai-workspace/session-scope';
+import { getWorkflowOfSession, bindSessionToWorkflow } from '../ai-workspace/session-scope';
 import { aiPendingChangeStore } from './ai-pending-change';
 import { sessionEventStore } from './session-event-store';
 import { subscribeSessionEvents } from './sse-client';
@@ -58,6 +58,11 @@ interface AgentContextValue {
   // 工作空间（文件夹分组的对话）
   folders: WorkFolder[];
   refreshFolders: () => Promise<void>;
+  /** 重新拉取会话列表（外部入口新建会话后左栏对齐；不改动 currentSessionKey） */
+  refreshSessions: () => Promise<void>;
+  /** 新任务草稿（draft- 会话）的选项：欢迎页「任务设置」面板读写；非草稿会话为 null */
+  draftSetup: { folderId: number | null; inheritWorkflowCode: string | null } | null;
+  updateDraftSetup: (patch: { folderId?: number | null; inheritWorkflowCode?: string | null }) => void;
   createFolder: (name: string) => Promise<WorkFolder | void>;
   renameFolder: (id: number, name: string) => Promise<void>;
   deleteFolder: (id: number) => Promise<void>;
@@ -580,10 +585,13 @@ function attachRunUsage(
 }
 
 /** 后端 navigate ui_action 参数 → 路由路径 */
-function navigatePathFor(target: string, args: any): string | null {
-  switch (target) {
-    case 'home': return '/';
-    case 'admin': return args?.tab === 'templates' ? '/admin/templates' : '/admin/workflows';
+function navigatePathFor(target: string, args: any): string | null {  switch (target) {
+    case 'home': return '/chat';
+    case 'admin':
+      // 设置二级区（对话优先 IA）：模板/Agent 配置；工作流管理是应用态一级页面
+      if (args?.tab === 'templates') return '/manage/templates';
+      if (args?.tab === 'agent') return '/manage/agent-config';
+      return '/workflows';
     case 'releases': return '/releases';
     case 'editor': return args?.workflowCode ? `/editor/${args.workflowCode}` : '/editor';
     case 'templateEditor': return `/template-editor/${args?.templateCode}`;
@@ -592,6 +600,16 @@ function navigatePathFor(target: string, args: any): string | null {
 }
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+/**
+ * 草稿会话（draft- 前缀的本地 key）的元信息：首条消息发送时据此物化真实会话。
+ * inheritWorkflowCode = 新建任务选择的「继承已有工作流」：物化后 seedDraft 带上其当前落版。
+ */
+interface DraftMeta {
+  scope: 'chat' | 'work';
+  folderId: number | null;
+  inheritWorkflowCode?: string | null;
+}
 
 export function AgentProvider({ children }: { children: React.ReactNode }) {
   const [dockOpen, setDockOpen] = useState(false);
@@ -604,6 +622,8 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   const [sessionEpoch, setSessionEpoch] = useState(0);
   // 工作空间文件夹
   const [folders, setFolders] = useState<WorkFolder[]>([]);
+  /** 新任务草稿的选项（所属项目 / 继承工作流）；仅 currentSessionKey 是 draft- 时非空 */
+  const [draftSetup, setDraftSetup] = useState<{ folderId: number | null; inheritWorkflowCode: string | null } | null>(null);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -633,7 +653,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
 
   // refs
   const currentSessionKeyRef = useRef<string | null>(null);
-  const draftMetaRef = useRef<Map<string, { scope: 'chat' | 'work'; folderId: number | null }>>(new Map());
+  const draftMetaRef = useRef<Map<string, DraftMeta>>(new Map());
   // steering 计数：run 进行中发出、由后端 turn 边界注入的消息数（仅排队指示用）
   /** 当前正在流式渲染的助手占位消息 id */
   const liveAssistantIdRef = useRef<string | null>(null);
@@ -648,6 +668,14 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     try {
       const list = await agentApi.listFolders();
       setFolders(list || []);
+    } catch { /* ignore */ }
+  }, []);
+
+  /** 重新拉取会话列表（新建任务弹窗等外部入口落库后，左栏立即对齐） */
+  const refreshSessions = useCallback(async () => {
+    try {
+      const list = await agentApi.listSessions();
+      setSessions(list || []);
     } catch { /* ignore */ }
   }, []);
 
@@ -861,21 +889,46 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   }, [location.pathname]);
 
   const createSession = useCallback(async (title?: string, opts?: { scope?: 'chat' | 'work'; folderId?: number | null }) => {
-    // 新建对话只生成本地草稿 key，不请求后端；首条消息发送时（postMessage）才真正创建会话
+    // 新建对话只生成本地草稿 key，不请求后端；首条消息发送时（postMessage）才真正创建会话。
+    // 归属项目 / 继承工作流等「新任务选项」在欢迎页调整，由 updateDraftSetup 写回元信息。
     const key = `draft-${nanoid(8)}`;
     draftMetaRef.current.set(key, {
       scope: opts?.scope || 'chat',
       folderId: opts?.folderId ?? null,
+      inheritWorkflowCode: null,
     });
+    setDraftSetup({ folderId: opts?.folderId ?? null, inheritWorkflowCode: null });
     setCurrentSessionKey(key);
     setMessages([]);
     setDockOpen(true);
     return key;
   }, []);
 
+  /** 新任务草稿的当前选项（仅 draft- 会话非空）：欢迎页「任务设置」面板的数据源 */
+  const updateDraftSetup = useCallback((patch: { folderId?: number | null; inheritWorkflowCode?: string | null }) => {
+    const key = currentSessionKeyRef.current;
+    if (!key || !key.startsWith('draft-')) return;
+    setDraftSetup((prev) => {
+      const next = {
+        folderId: patch.folderId !== undefined ? patch.folderId : prev?.folderId ?? null,
+        inheritWorkflowCode: patch.inheritWorkflowCode !== undefined ? patch.inheritWorkflowCode : prev?.inheritWorkflowCode ?? null,
+      };
+      const meta = draftMetaRef.current.get(key);
+      if (meta) {
+        draftMetaRef.current.set(key, {
+          scope: next.folderId != null ? 'work' : 'chat',
+          folderId: next.folderId,
+          inheritWorkflowCode: next.inheritWorkflowCode,
+        });
+      }
+      return next;
+    });
+  }, []);
+
   const switchSession = useCallback(async (sessionKey: string) => {
     if (currentSessionKeyRef.current && currentSessionKeyRef.current !== sessionKey) {
       draftMetaRef.current.delete(currentSessionKeyRef.current);
+      if (currentSessionKeyRef.current.startsWith('draft-')) setDraftSetup(null);
     }
     setCurrentSessionKey(sessionKey);
     setDockOpen(true);
@@ -1008,6 +1061,25 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
           setSessionEpoch((e) => e + 1);
           setSessions((prev) => [real, ...prev]);
           if (draft.scope === 'work') void refreshFolders();
+          setDraftSetup(null);
+          // 「继承已有工作流」：物化后把所选工作流当前落版 seed 进会话草稿，
+          // AI 的上下文起点即该工作流（服务端草稿，本地空画布不会覆盖它）
+          if (draft.inheritWorkflowCode) {
+            try {
+              await agentApi.seedDraft(sessionKey, draft.inheritWorkflowCode);
+              bindSessionToWorkflow(sessionKey, draft.inheritWorkflowCode);
+            } catch (e) {
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: nanoid(),
+                  role: 'assistant',
+                  content: `[提示] 工作流继承失败：${(e as Error).message}。任务已创建，可继续对话，或在任务列表重新发起。`,
+                  timestamp: Date.now(),
+                },
+              ]);
+            }
+          }
         } catch (e) {
           setMessages((prev) => [
             ...prev,
@@ -1604,6 +1676,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     queueLength,
     folders,
     refreshFolders,
+    refreshSessions,
     createFolder,
     renameFolder,
     deleteFolder,
@@ -1615,6 +1688,8 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     debugEntries,
     clearDebugEntries: () => setDebugEntries([]),
     createSession,
+    updateDraftSetup,
+    draftSetup,
     switchSession,
     renameSession,
     deleteSession,

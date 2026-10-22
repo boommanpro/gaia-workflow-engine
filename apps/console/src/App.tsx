@@ -6,10 +6,10 @@ import { LandingPage } from './pages/LandingPage';
 import { Home } from './pages/Home';
 import { Editor, TemplateEditor } from './editor';
 import { AdminLayout } from './pages/admin/AdminLayout';
+import { WorkflowsLayout } from './pages/admin/WorkflowsLayout';
 import { WorkflowManagement } from './pages/admin/WorkflowManagement';
 import { TemplateManagement } from './pages/admin/TemplateManagement';
 import { AgentConfigManagement } from './pages/admin/AgentConfigManagement';
-import { ModelManagement } from './pages/admin/ModelManagement';
 import { AgentProvider } from './agent';
 import { AiWorkspace } from './ai-workspace';
 import ScrollPage from './components/ScrollPage';
@@ -82,22 +82,29 @@ const LegacyChatRedirect = () => {
   return <Navigate to={sessionKey ? `/chat/${sessionKey}` : '/chat'} replace />;
 };
 
-/** 旧地址 /admin/* → 新地址 /manage/*（保留子路径） */
+/** 旧地址 /admin/* → 新地址：工作流管理是应用态一级页面 /workflows，其余进设置区 /manage/* */
 const LegacyAdminRedirect = () => {
   const { pathname } = useLocation();
-  return <Navigate to={pathname.replace(/^\/admin/, '/manage')} replace />;
+  const next = pathname.replace(/^\/admin\/workflows/, '/workflows').replace(/^\/admin/, '/manage');
+  return <Navigate to={next} replace />;
+};
+
+/** 旧地址 /work/c/:sessionKey → 统一任务地址 /chat/:sessionKey（Chat/Work 双 scope 已合并） */
+const LegacyWorkRedirect = () => {
+  const { sessionKey } = useParams<{ sessionKey: string }>();
+  return <Navigate to={sessionKey ? `/chat/${sessionKey}` : '/chat'} replace />;
 };
 
 /**
- * 路由表 —— 三层模式各有自己的地址空间：
+ * 路由表 —— 对话优先 IA：
  *
- *   /chat,  /chat/:sessionKey    Chat   · 纯对话
- *   /work,  /work/c/:sessionKey  Work   · 工作空间（文件夹分组的对话）
- *   /manage/*                    Manage · 管理端（工作流 / 模板 / Agent 配置 / 执行追踪）
+ *   /                    产品宣传首页（大输入框直通对话 + 管理入口）
+ *   /chat, /chat/:sessionKey     对话主页（任务即会话，项目分组的入口在左栏 AppRail）
+ *   /workflows                   工作流管理（应用态一级页面：打开编辑器 / 更多低频操作）
+ *   /manage/*                    设置二级区（模板管理 / Agent 配置中心；左下角「设置」进入）
+ *   /editor/:workflowCode        专家模式 · 画布主位（工具页，无内嵌对话）
  *
- *   /                    产品首页（对话即 API 入口）
- *   /releases            版本记录
- *   /editor/:workflowCode 专家模式 · 画布主位
+ *   /releases          版本记录
  *
  * 注意：任何新增的前端路由都不要以 /api 开头。
  * 开发服务器把 /api 前缀代理到了后端（rsbuild.config.ts 的 proxy），
@@ -109,32 +116,33 @@ function App() {
       <div style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
         <RouteErrorBoundary>
           <Routes>
-          {/* 产品首页（对话创建 API 入口） */}
+          {/* 产品宣传首页 */}
           <Route path="/" element={<LandingPage />} />
 
-          {/* Chat · 纯对话 */}
+          {/* 对话主页（任务即会话） */}
           <Route path="/chat" element={<AiWorkspace />} />
           <Route path="/chat/:sessionKey" element={<AiWorkspace />} />
 
-          {/* Work · 工作空间（文件夹分组的对话） */}
-          <Route path="/work" element={<AiWorkspace />} />
-          <Route path="/work/c/:sessionKey" element={<AiWorkspace />} />
+          {/* 工作流管理（应用态一级页面） */}
+          <Route path="/workflows" element={<WorkflowsLayout />}>
+            <Route index element={<WorkflowManagement />} />
+          </Route>
 
           {/* 旧地址重定向 */}
           <Route path="/c/:sessionKey" element={<LegacyChatRedirect />} />
+          <Route path="/work" element={<Navigate to="/chat" replace />} />
+          <Route path="/work/c/:sessionKey" element={<LegacyWorkRedirect />} />
           <Route path="/admin/*" element={<LegacyAdminRedirect />} />
 
           {/* 内容页 */}
           <Route path="/preview" element={<ScrollPage><Home /></ScrollPage>} />
           <Route path="/releases" element={<ScrollPage><Releases /></ScrollPage>} />
 
-          {/* Manage · 管理端 */}
+          {/* 设置二级区（偏后台的能力；左下角「设置」进入） */}
           <Route path="/manage" element={<AdminLayout />}>
-            <Route index element={<Navigate to="/manage/workflows" replace />} />
-            <Route path="workflows" element={<WorkflowManagement />} />
+            <Route index element={<Navigate to="/manage/templates" replace />} />
             <Route path="templates" element={<TemplateManagement />} />
             <Route path="agent-config" element={<AgentConfigManagement />} />
-            <Route path="models" element={<ModelManagement />} />
           </Route>
 
           {/* 专家模式 */}
@@ -142,7 +150,7 @@ function App() {
           <Route path="/editor/:workflowCode" element={<Editor />} />
           <Route path="/template-editor/:templateCode" element={<TemplateEditor />} />
 
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to="/chat" replace />} />
           </Routes>
         </RouteErrorBoundary>
       </div>

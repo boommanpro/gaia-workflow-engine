@@ -1,10 +1,9 @@
 /**
- * WorkRail —— Work 模式左栏（文件夹手风琴）。
+ * ProjectRail —— 侧边栏项目区（对话优先 IA）。
  *
- * 与 Codex 一致：文件夹行点击展开 / 再次点击折叠，其对话历史嵌套在文件夹下方；
- * 行 hover 时右侧露出「更多（…）／新建任务（⊕）」两个按钮，
- * 「更多」弹出菜单：创建新任务 / 重命名 / 删除。
- * 整个左栏只有一个滚动容器，多个文件夹可同时展开。
+ * 任务（会话）按项目（agent_work_folder）手风琴分组；不再区分 chat/work scope。
+ * 未归属项目的会话收进「未分组」区。项目行 hover 露出「更多（…）/ 新建任务（⊕）」，
+ * 「更多」菜单：在此项目新建任务 / 重命名 / 删除。整个区域一个滚动容器。
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -13,12 +12,12 @@ import { SessionList } from '../../agent/SessionList';
 import { useAgent } from '../../agent/AgentContext';
 import { CHAT } from '../../chat/theme';
 import { useLanguage, t } from '../../i18n';
-import { IconFolder } from './icons';
+import { IconChatLine, IconFolder } from './icons';
 
-interface WorkRailProps {
+interface ProjectRailProps {
   onSelect: (sessionKey: string) => void;
-  /** 在指定文件夹内新建对话 */
-  onCreateInFolder: (folderId: number) => void;
+  /** 在指定项目内新建任务（打开新建任务弹窗并预选该项目）；null = 未分组起点 */
+  onNewTask: (folderId: number | null) => void;
 }
 
 const PlusIcon: React.FC<{ size?: number }> = ({ size = 13 }) => (
@@ -27,7 +26,7 @@ const PlusIcon: React.FC<{ size?: number }> = ({ size = 13 }) => (
   </svg>
 );
 
-/** 圆形加号：文件夹行右侧的「新建任务」 */
+/** 圆形加号：项目行右侧的「新建任务」 */
 const CirclePlusIcon: React.FC<{ size?: number }> = ({ size = 15 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="8.5" />
@@ -101,12 +100,13 @@ const MenuItem: React.FC<{ danger?: boolean; onClick: () => void; children: Reac
   </button>
 );
 
-export const WorkRail: React.FC<WorkRailProps> = ({ onSelect, onCreateInFolder }) => {
+export const ProjectRail: React.FC<ProjectRailProps> = ({ onSelect, onNewTask }) => {
   useLanguage();
   const { folders, createFolder, renameFolder, deleteFolder, sessions, currentSessionKey } = useAgent();
 
-  // 展开的文件夹（手风琴，可多个同时展开）
+  // 展开的项目（手风琴，可多个同时展开）；未分组区独立开关
   const [expanded, setExpanded] = useState<Set<number>>(() => new Set());
+  const [unfiledOpen, setUnfiledOpen] = useState(false);
   const toggleFolder = useCallback((id: number) => {
     setExpanded((prev) => {
       const next = new Set(prev);
@@ -119,7 +119,7 @@ export const WorkRail: React.FC<WorkRailProps> = ({ onSelect, onCreateInFolder }
     setExpanded((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
   }, []);
 
-  // 新建文件夹内联输入
+  // 新建项目内联输入
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
   const newInputRef = useRef<HTMLInputElement>(null);
@@ -127,18 +127,22 @@ export const WorkRail: React.FC<WorkRailProps> = ({ onSelect, onCreateInFolder }
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingName, setEditingName] = useState('');
   const editInputRef = useRef<HTMLInputElement>(null);
-  // 防止「回车 + 失焦」把同一次提交触发两遍（会重复建文件夹）
+  // 防止「回车 + 失焦」把同一次提交触发两遍（会重复建项目）
   const committedRef = useRef(false);
 
   // 「更多」弹出菜单（portal 到 body，避免被滚动容器裁切）
   const [menu, setMenu] = useState<{ folderId: number; pos: { top: number; left: number } } | null>(null);
   const anchorRef = useRef<HTMLElement | null>(null);
 
-  // 当前会话所在的文件夹默认展开，避免「正在进行的对话」被折叠看不见
+  const unfiledSessions = sessions.filter((s) => s.folderId == null);
+
+  // 当前会话所在的项目默认展开，避免「正在进行的任务」被折叠看不见
   useEffect(() => {
     if (!currentSessionKey) return;
     const cur = sessions.find((s) => s.sessionKey === currentSessionKey);
-    if (cur && cur.folderId != null) expandFolder(cur.folderId);
+    if (!cur) return;
+    if (cur.folderId != null) expandFolder(cur.folderId);
+    else setUnfiledOpen(true);
   }, [currentSessionKey, sessions, expandFolder]);
 
   useEffect(() => {
@@ -158,7 +162,7 @@ export const WorkRail: React.FC<WorkRailProps> = ({ onSelect, onCreateInFolder }
     const onDown = (e: MouseEvent) => {
       const target = e.target as Node;
       if (anchorRef.current?.contains(target)) return;
-      const el = document.getElementById('folder-menu');
+      const el = document.getElementById('project-menu');
       if (el?.contains(target)) return;
       setMenu(null);
     };
@@ -221,7 +225,7 @@ export const WorkRail: React.FC<WorkRailProps> = ({ onSelect, onCreateInFolder }
   }, [editingId, editingName, renameFolder]);
 
   const handleDelete = useCallback(async (id: number) => {
-    if (!window.confirm(t('shell.deleteFolderConfirm'))) return;
+    if (!window.confirm(t('shell.deleteProjectConfirm'))) return;
     try {
       await deleteFolder(id);
     } catch { /* ignore */ }
@@ -243,7 +247,7 @@ export const WorkRail: React.FC<WorkRailProps> = ({ onSelect, onCreateInFolder }
     fontFamily: 'inherit',
   };
 
-  /** 行 hover 露出的方形小按钮（与图中「… / ⊕」同款） */
+  /** 行 hover 露出的方形小按钮 */
   const rowBtnStyle: React.CSSProperties = {
     display: 'inline-flex',
     alignItems: 'center',
@@ -273,9 +277,61 @@ export const WorkRail: React.FC<WorkRailProps> = ({ onSelect, onCreateInFolder }
     marginBottom: 4,
   };
 
+  /** 分组行：项目 / 未分组 共用骨架 */
+  const renderGroupRow = (
+    key: string,
+    isOpen: boolean,
+    onToggle: () => void,
+    icon: React.ReactNode,
+    label: string,
+    actions?: React.ReactNode,
+    extraStyle?: React.CSSProperties,
+  ) => (
+    <div
+      key={key}
+      role="button"
+      aria-expanded={isOpen}
+      onClick={onToggle}
+      style={{
+        ...rowStyle,
+        ...(isOpen ? { background: CHAT.hover, color: CHAT.text } : null),
+        marginBottom: 1,
+        ...extraStyle,
+      }}
+      onMouseEnter={(e) => {
+        if (!isOpen) e.currentTarget.style.background = CHAT.hover;
+        const acts = e.currentTarget.querySelector('.group-actions') as HTMLElement | null;
+        if (acts) acts.style.opacity = '1';
+      }}
+      onMouseLeave={(e) => {
+        if (!isOpen) e.currentTarget.style.background = 'transparent';
+        const acts = e.currentTarget.querySelector('.group-actions') as HTMLElement | null;
+        if (acts) acts.style.opacity = '0';
+      }}
+    >
+      <span style={{ display: 'flex', flexShrink: 0, color: CHAT.textMuted, width: 12 }}>
+        <ChevronIcon open={isOpen} />
+      </span>
+      <span style={{ display: 'flex', flexShrink: 0, color: isOpen ? CHAT.text : CHAT.textMuted }}>
+        {icon}
+      </span>
+      <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {label}
+      </span>
+      {actions && (
+        <span
+          className="group-actions"
+          style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0, opacity: 0, transition: 'opacity .12s' }}
+        >
+          {actions}
+        </span>
+      )}
+    </div>
+  );
+
   return (
     <div style={{ height: '100%', overflowY: 'auto', padding: '2px 8px 10px' }}>
-      {/* 文件夹区标题 */}
+      {/* 项目区标题 */}
       <div
         style={{
           display: 'flex',
@@ -289,11 +345,11 @@ export const WorkRail: React.FC<WorkRailProps> = ({ onSelect, onCreateInFolder }
         }}
       >
         <IconFolder />
-        <span style={{ flex: 1 }}>{t('shell.workFolders')}</span>
+        <span style={{ flex: 1 }}>{t('shell.projects')}</span>
         <button
           type="button"
-          aria-label={t('shell.newFolder')}
-          title={t('shell.newFolder')}
+          aria-label={t('shell.newProject')}
+          title={t('shell.newProject')}
           onClick={openCreate}
           style={rowBtnStyle}
           onMouseEnter={(e) => { e.currentTarget.style.background = CHAT.hover; e.currentTarget.style.color = CHAT.textSub; }}
@@ -313,12 +369,12 @@ export const WorkRail: React.FC<WorkRailProps> = ({ onSelect, onCreateInFolder }
             if (e.key === 'Enter') void commitCreate();
             else if (e.key === 'Escape') { committedRef.current = true; setCreating(false); setNewName(''); }
           }}
-          placeholder={t('shell.folderNamePlaceholder')}
+          placeholder={t('shell.projectNamePlaceholder')}
           style={inputStyle}
         />
       )}
 
-      {/* 文件夹手风琴 */}
+      {/* 项目手风琴 */}
       {folders.map((f) => {
         const isOpen = expanded.has(f.id);
         const isEditing = editingId === f.id;
@@ -340,40 +396,14 @@ export const WorkRail: React.FC<WorkRailProps> = ({ onSelect, onCreateInFolder }
         }
         return (
           <div key={f.id}>
-            <div
-              role="button"
-              aria-expanded={isOpen}
-              onClick={() => toggleFolder(f.id)}
-              style={{
-                ...rowStyle,
-                ...(isOpen ? { background: CHAT.hover, color: CHAT.text } : null),
-                marginBottom: 1,
-              }}
-              onMouseEnter={(e) => {
-                if (!isOpen) e.currentTarget.style.background = CHAT.hover;
-                const acts = e.currentTarget.querySelector('.folder-actions') as HTMLElement | null;
-                if (acts) acts.style.opacity = '1';
-              }}
-              onMouseLeave={(e) => {
-                if (!isOpen) e.currentTarget.style.background = 'transparent';
-                const acts = e.currentTarget.querySelector('.folder-actions') as HTMLElement | null;
-                if (acts) acts.style.opacity = '0';
-              }}
-            >
-              <span style={{ display: 'flex', flexShrink: 0, color: CHAT.textMuted, width: 12 }}>
-                <ChevronIcon open={isOpen} />
-              </span>
-              <span style={{ display: 'flex', flexShrink: 0, color: isOpen ? CHAT.text : CHAT.textMuted }}>
-                <IconFolder size={13} />
-              </span>
-              <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {f.name}
-              </span>
-              <span
-                className="folder-actions"
-                style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0, opacity: 0, transition: 'opacity .12s' }}
-              >
-                {/* 更多：创建新任务 / 重命名 / 删除 */}
+            {renderGroupRow(
+              `folder-${f.id}`,
+              isOpen,
+              () => toggleFolder(f.id),
+              <IconFolder size={13} />,
+              f.name,
+              <>
+                {/* 更多：在此项目新建任务 / 重命名 / 删除 */}
                 <button
                   type="button"
                   aria-label={t('shell.moreActions')}
@@ -385,28 +415,28 @@ export const WorkRail: React.FC<WorkRailProps> = ({ onSelect, onCreateInFolder }
                 >
                   <MoreIcon />
                 </button>
-                {/* 在文件夹内新建对话 */}
+                {/* 在此项目新建任务 */}
                 <button
                   type="button"
-                  aria-label={t('shell.newSessionInFolder')}
-                  title={t('shell.newSessionInFolder')}
-                  onClick={(e) => { e.stopPropagation(); expandFolder(f.id); onCreateInFolder(f.id); }}
+                  aria-label={t('shell.newTaskInProject')}
+                  title={t('shell.newTaskInProject')}
+                  onClick={(e) => { e.stopPropagation(); expandFolder(f.id); onNewTask(f.id); }}
                   style={rowBtnStyle}
                   onMouseEnter={(e) => { e.currentTarget.style.background = CHAT.bgRaised; e.currentTarget.style.color = CHAT.textSub; }}
                   onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = CHAT.textMuted; }}
                 >
                   <CirclePlusIcon />
                 </button>
-              </span>
-            </div>
+              </>,
+            )}
 
-            {/* 展开时的嵌套会话历史 */}
+            {/* 展开时的嵌套任务（会话）列表：不再区分 scope，按项目归属展示 */}
             {isOpen && (
               <SessionList
                 hideChrome
                 variant="nested"
                 onSelect={onSelect}
-                filter={(s) => (s.scope || 'chat') === 'work' && s.folderId === f.id}
+                filter={(s) => s.folderId === f.id}
               />
             )}
           </div>
@@ -415,7 +445,28 @@ export const WorkRail: React.FC<WorkRailProps> = ({ onSelect, onCreateInFolder }
 
       {folders.length === 0 && !creating && (
         <div style={{ padding: '10px 8px', fontSize: 12, color: CHAT.textFaint }}>
-          {t('shell.workNoFolder')}
+          {t('shell.noProject')}
+        </div>
+      )}
+
+      {/* 未分组：没有归属项目的任务（含历史的 chat 会话） */}
+      {unfiledSessions.length > 0 && (
+        <div style={{ marginTop: 6 }}>
+          {renderGroupRow(
+            'unfiled',
+            unfiledOpen,
+            () => setUnfiledOpen((v) => !v),
+            <IconChatLine size={13} />,
+            t('shell.ungrouped'),
+          )}
+          {unfiledOpen && (
+            <SessionList
+              hideChrome
+              variant="nested"
+              onSelect={onSelect}
+              filter={(s) => s.folderId == null}
+            />
+          )}
         </div>
       )}
 
@@ -423,7 +474,7 @@ export const WorkRail: React.FC<WorkRailProps> = ({ onSelect, onCreateInFolder }
       {menu &&
         createPortal(
           <div
-            id="folder-menu"
+            id="project-menu"
             onClick={(e) => e.stopPropagation()}
             style={{
               position: 'fixed',
@@ -443,7 +494,7 @@ export const WorkRail: React.FC<WorkRailProps> = ({ onSelect, onCreateInFolder }
                 const id = menu.folderId;
                 setMenu(null);
                 expandFolder(id);
-                onCreateInFolder(id);
+                onNewTask(id);
               }}
             >
               <span style={{ display: 'flex', color: CHAT.textMuted }}><PlusIcon size={14} /></span>
@@ -478,4 +529,4 @@ export const WorkRail: React.FC<WorkRailProps> = ({ onSelect, onCreateInFolder }
   );
 };
 
-export default WorkRail;
+export default ProjectRail;

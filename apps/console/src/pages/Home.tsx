@@ -254,7 +254,7 @@ export const Home = () => {
             </svg>
           </a>
           <button
-            onClick={() => navigate('/manage/workflows')}
+            onClick={() => navigate('/workflows')}
             style={{
               padding: '7px 16px',
               background: 'transparent',
@@ -564,7 +564,7 @@ export const Home = () => {
           </h2>
           <p style={{ fontSize: '16px', opacity: 0.9, marginBottom: '28px' }}>{t('cta.subtitle')}</p>
           <button
-            onClick={() => navigate('/admin/workflows')}
+            onClick={() => navigate('/workflows')}
             style={{
               padding: '14px 36px',
               background: '#fff',

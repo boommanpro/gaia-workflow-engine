@@ -1,7 +1,9 @@
 package cn.boommanpro.gaia.workflow.app.agent.session;
 
 import cn.boommanpro.gaia.workflow.app.service.WorkflowDslApplyService;
+import cn.boommanpro.gaia.workflow.infra.manage.entity.AgentSession;
 import cn.boommanpro.gaia.workflow.infra.manage.entity.GaiaWorkflow;
+import cn.boommanpro.gaia.workflow.infra.manage.service.AgentSessionService;
 import cn.boommanpro.gaia.workflow.infra.manage.service.GaiaWorkflowService;
 import cn.boommanpro.gaia.workflow.infra.manage.service.WorkflowTestCaseService;
 import cn.hutool.json.JSONObject;
@@ -26,15 +28,18 @@ public class SessionDraftPublishService {
     private final WorkflowDslApplyService dslApplyService;
     private final GaiaWorkflowService workflowService;
     private final WorkflowTestCaseService testCaseService;
+    private final AgentSessionService agentSessionService;
 
     public SessionDraftPublishService(SessionWorkflowDraftService draftService,
                                       WorkflowDslApplyService dslApplyService,
                                       GaiaWorkflowService workflowService,
-                                      WorkflowTestCaseService testCaseService) {
+                                      WorkflowTestCaseService testCaseService,
+                                      AgentSessionService agentSessionService) {
         this.draftService = draftService;
         this.dslApplyService = dslApplyService;
         this.workflowService = workflowService;
         this.testCaseService = testCaseService;
+        this.agentSessionService = agentSessionService;
     }
 
     /** 落版结果（message 给前端 toast/卡片用） */
@@ -88,6 +93,10 @@ public class SessionDraftPublishService {
         options.setVersionDesc(versionDesc != null ? versionDesc : "用户保存为版本");
         options.setCreateIfMissing(true);
         options.setExpectedRevision(baseRevision);
+        // 落版新建的工作流继承会话所在项目：产物和产出它的对话归在一起
+        AgentSession session = agentSessionService.getOne(
+            new QueryWrapper<AgentSession>().eq("session_key", sessionKey).last("LIMIT 1"));
+        options.setFolderId(session != null ? session.getFolderId() : null);
 
         WorkflowDslApplyService.ApplyResult apply = dslApplyService.apply(code, doc, options);
         if (!apply.isSuccess()) {

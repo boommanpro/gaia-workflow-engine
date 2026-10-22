@@ -370,11 +370,11 @@ export const UserMenu: React.FC = () => {
             )}
           </div>
 
-          {/* 设置 */}
+          {/* 设置：进入设置二级区（模板管理 / Agent 配置中心；侧边栏顶部出现「返回 App」） */}
           <HoverRow
             onClick={() => {
               setOpen(false);
-              navigate('/manage/agent-config');
+              navigate('/manage/templates');
             }}
           >
             <span style={{ display: 'flex', color: CHAT.textSub }}>

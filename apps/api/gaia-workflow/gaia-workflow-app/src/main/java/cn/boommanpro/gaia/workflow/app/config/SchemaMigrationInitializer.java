@@ -50,7 +50,9 @@ public class SchemaMigrationInitializer implements CommandLineRunner {
         new String[]{"gaia_workflow_log", "invoke_channel", "VARCHAR(32)"},
         new String[]{"gaia_workflow_log", "api_path", "VARCHAR(128)"},
         new String[]{"gaia_workflow_log", "api_key_prefix", "VARCHAR(32)"},
-        new String[]{"gaia_workflow_log", "created_at", "TEXT"}
+        new String[]{"gaia_workflow_log", "created_at", "TEXT"},
+        // 工作流按项目归组（对话优先 IA 重构）：工作流归属 agent_work_folder
+        new String[]{"gaia_workflow", "folder_id", "BIGINT"}
     );
 
     private final DataSource dataSource;

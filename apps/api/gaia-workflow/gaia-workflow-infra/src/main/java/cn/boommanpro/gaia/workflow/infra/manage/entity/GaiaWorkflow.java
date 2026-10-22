@@ -58,6 +58,13 @@ public class GaiaWorkflow {
     private String source;
 
     /**
+     * 所属项目（agent_work_folder.id）：工作流按项目归组展示；null=未分组。
+     * 会话落版新建的工作流自动继承会话所在项目。
+     */
+    @TableField("folder_id")
+    private Long folderId;
+
+    /**
      * 创建时间
      */
     @TableField(value = "created_at", fill = FieldFill.INSERT)

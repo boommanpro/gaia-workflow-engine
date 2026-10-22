@@ -42,6 +42,8 @@ export interface GaiaWorkflow {
   workflowDesc?: string;
   currentVersionId?: number;
   templateCode?: string;
+  /** 所属项目（agent_work_folder.id）；null=未分组。会话落版新建的工作流自动继承会话所在项目 */
+  folderId?: number | null;
   createdAt?: string;
   updatedAt?: string;
 }

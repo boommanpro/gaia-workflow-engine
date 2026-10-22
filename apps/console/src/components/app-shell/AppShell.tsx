@@ -1,10 +1,10 @@
 /**
- * AppShell —— 全站统一外壳（Codex 式三区）。
+ * AppShell —— 全站统一外壳（三区）。
  *
  * 布局：【左栏 Rail】｜【中区（TopBar + 内容）】｜【右栏 Inspector】
  *
- * 左栏内容随 SectionSwitcher 选择的模式变化（Chat 会话 / Work 文件夹 / Manage 导航），
- * 三块中区与右栏由页面通过 props 注入内容。
+ * 左栏内容随页面注入变化：应用态是 AppRail（新建任务 / 工作流管理 / 项目列表），
+ * 设置二级区是 AdminLayout 的返回按钮 + 后台导航。
  *
  * 折叠能力（Codex 一致）：
  *   · ⌘/Ctrl + B      左栏整体隐藏 / 唤回（PanelLeft 图标）
@@ -22,7 +22,6 @@ import { publicPath } from '../../utils/public-path';
 import { useLanguage, t } from '../../i18n';
 import { GlobalSearch } from './GlobalSearch';
 import { UserMenu } from './UserMenu';
-import { SectionSwitcher, type SectionMode } from './SectionSwitcher';
 import { IconPanelLeft, IconPanelRight } from './icons';
 
 const RAIL_DEFAULT_WIDTH = 252;
@@ -66,11 +65,9 @@ const writeStoredNumber = (key: string, value: number): void => {
 };
 
 export interface AppShellProps {
-  /** 当前所在的模式（决定左栏切换器高亮与整体语境） */
-  mode: SectionMode;
   /** 品牌右侧小徽标（如「通用模式」） */
   brandBadge?: string;
-  /** 左栏顶部主操作（如「新建对话」） */
+  /** 左栏顶部主操作（应用态的新建任务在 AppRail 内部） */
   railTop?: React.ReactNode;
   /** 左栏主体（会话列表 / 文件夹树 / 管理导航） */
   railMiddle?: React.ReactNode;
@@ -219,7 +216,6 @@ const ResizeHandle: React.FC<{
 };
 
 export const AppShell: React.FC<AppShellProps> = ({
-  mode,
   brandBadge,
   railTop,
   railMiddle,
@@ -425,10 +421,6 @@ export const AppShell: React.FC<AppShellProps> = ({
           <IconButton label={t('shell.search')} onClick={() => setSearchOpen(true)}>
             <IconSearch size="default" />
           </IconButton>
-        </div>
-
-        <div style={{ padding: '0 12px 8px', flexShrink: 0 }}>
-          <SectionSwitcher mode={mode} />
         </div>
 
         {railTop && <div style={{ padding: '0 12px 8px', flexShrink: 0 }}>{railTop}</div>}

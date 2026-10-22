@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS gaia_workflow (
     revision INTEGER DEFAULT 0,
     template_code VARCHAR(64),
     source VARCHAR(16) DEFAULT 'user',   -- user=用户工作流 / session=会话草稿工作流（draft_<sessionKey>，不进列表）
+    folder_id BIGINT,                    -- 所属项目（agent_work_folder.id），null=未分组
     created_at TEXT,
     updated_at TEXT,
     is_deleted TINYINT DEFAULT 0

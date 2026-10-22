@@ -115,7 +115,7 @@ export const Releases = () => {
             {lang === 'en' ? '中文' : 'EN'}
           </button>
           <button
-            onClick={() => navigate('/admin/workflows')}
+            onClick={() => navigate('/workflows')}
             style={{
               padding: '8px 20px',
               background: ACCENT,

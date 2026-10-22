@@ -1,16 +1,18 @@
 /**
- * WorkflowManagement — 工作流管理页面
- * 表格展示工作流列表，支持新建、编辑、删除、跳转编辑器
+ * WorkflowManagement — 工作流管理页面（应用态一级页面）
+ *
+ * 表格展示工作流列表（含所属项目列）；行操作收进「更多」菜单：
+ * 打开编辑器 / 编辑信息 / API 文档 / 删除。
+ * 「发起会话」已移除——携带工作流开新会话统一走对话页的「新建任务 → 继承已有工作流」。
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
-import { Modal, Toast } from '@douyinfe/semi-ui';
+import { Modal, Toast, Dropdown } from '@douyinfe/semi-ui';
+import { IconMore } from '@douyinfe/semi-icons';
 import { workflowApi, type GaiaWorkflow, type GaiaWorkflowTemplate } from '../../services/workflow-api';
-import type { CSSProperties } from 'react';
+import { useAgent } from '../../agent/AgentContext';
 import { useLanguage, t } from '../../i18n';
 import { ApiDocModal } from '../../components/ApiDocModal';
-import { agentApi } from '../../agent/api';
-import { bindSessionToWorkflow } from '../../ai-workspace/session-scope';
 import type { AdminOutletContext } from './AdminLayout';
 
 const ACCENT = 'var(--g-accent)';
@@ -20,6 +22,7 @@ interface WorkflowForm {
   workflowCode: string;
   workflowDesc: string;
   templateCode: string;
+  folderId: number | null;
 }
 
 const EMPTY_FORM: WorkflowForm = {
@@ -27,6 +30,7 @@ const EMPTY_FORM: WorkflowForm = {
   workflowCode: '',
   workflowDesc: '',
   templateCode: '',
+  folderId: null,
 };
 
 /* ---------------- Helpers ---------------- */
@@ -44,6 +48,7 @@ const formatDateTime = (iso?: string): string => {
 export const WorkflowManagement = () => {
   const navigate = useNavigate();
   useLanguage();
+  const { folders } = useAgent();
   const [workflows, setWorkflows] = useState<GaiaWorkflow[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingWorkflow, setEditingWorkflow] = useState<GaiaWorkflow | null>(null);
@@ -53,6 +58,9 @@ export const WorkflowManagement = () => {
   const [templates, setTemplates] = useState<GaiaWorkflowTemplate[]>([]);
   // 「API 文档」行内弹窗：选中的工作流；null 表示关闭
   const [apiDocsWorkflow, setApiDocsWorkflow] = useState<GaiaWorkflow | null>(null);
+
+  const folderName = (folderId?: number | null): string =>
+    folderId == null ? t('admin.workflow.unfiled') : folders.find((f) => f.id === folderId)?.name || t('admin.workflow.unfiled');
 
   const loadData = async () => {
     setLoading(true);
@@ -92,6 +100,7 @@ export const WorkflowManagement = () => {
       workflowCode: wf.workflowCode || '',
       workflowDesc: wf.workflowDesc || '',
       templateCode: '',
+      folderId: wf.folderId ?? null,
     });
     setShowCreateModal(true);
   };
@@ -115,6 +124,8 @@ export const WorkflowManagement = () => {
           workflowCode: editingWorkflow.workflowCode,
           workflowName: workflowForm.workflowName.trim(),
           workflowDesc: workflowForm.workflowDesc.trim(),
+          // 编辑弹窗始终携带 folderId（含 null=移出项目）：后端据此显式 set folder_id
+          folderId: workflowForm.folderId,
         });
       } else {
         await workflowApi.createWorkflow({
@@ -122,6 +133,7 @@ export const WorkflowManagement = () => {
           workflowCode: workflowForm.workflowCode.trim(),
           workflowDesc: workflowForm.workflowDesc.trim(),
           templateCode: workflowForm.templateCode || undefined,
+          folderId: workflowForm.folderId,
         });
       }
       closeModal();
@@ -154,30 +166,13 @@ export const WorkflowManagement = () => {
   };
 
   const handleOpenEditor = (wf: GaiaWorkflow) => {
-    // 带上来源，编辑器「返回」才知道该回到工作流库还是 AI 工作区
-    navigate(`/editor/${wf.workflowCode}`, { state: { from: '/admin/workflows' } });
+    // 带上来源，编辑器「返回」才知道回到哪里
+    navigate(`/editor/${wf.workflowCode}`, { state: { from: '/workflows' } });
   };
 
   const handleOpenApiDocs = (wf: GaiaWorkflow) => {
     // 原位打开 API 文档弹窗，不再跳转到独立 /docs 页面
     setApiDocsWorkflow(wf);
-  };
-
-  /** 基于该工作流发起 AI 会话（D2）：会话草稿从当前落版复制，迭代 + 确认落版才生效新版本 */
-  const [startingChatFor, setStartingChatFor] = useState<string | null>(null);
-  const handleStartChat = async (wf: GaiaWorkflow) => {
-    if (startingChatFor) return;
-    setStartingChatFor(wf.workflowCode);
-    try {
-      const session = await agentApi.createSession(`迭代 ${wf.workflowName || wf.workflowCode}`, { scope: 'chat' });
-      await agentApi.seedDraft(session.sessionKey, wf.workflowCode);
-      bindSessionToWorkflow(session.sessionKey, wf.workflowCode);
-      navigate(`/chat/${session.sessionKey}`);
-    } catch (err) {
-      Toast.error(t('admin.startChatFailed') + (err as Error).message);
-    } finally {
-      setStartingChatFor(null);
-    }
   };
 
   // 将「新建」按钮注册到顶栏标题右侧
@@ -190,6 +185,22 @@ export const WorkflowManagement = () => {
     return () => setHeaderAction(null);
   }, [setHeaderAction, createLabel]);
 
+  /** 行「更多」菜单：低频操作收在这里；「打开编辑器」是高频动作，直接露在行内 */
+  const rowMenu = (wf: GaiaWorkflow) => (
+    <Dropdown.Menu>
+      <Dropdown.Item onClick={() => openEditModal(wf)}>
+        {t('admin.editMeta')}
+      </Dropdown.Item>
+      <Dropdown.Item onClick={() => handleOpenApiDocs(wf)}>
+        {t('admin.apiDocs')}
+      </Dropdown.Item>
+      <Dropdown.Divider />
+      <Dropdown.Item type="danger" onClick={() => handleDelete(wf)}>
+        {t('Delete')}
+      </Dropdown.Item>
+    </Dropdown.Menu>
+  );
+
   return (
     <div style={{ color: 'var(--g-text)' }}>
       {/* ---------- Table card ---------- */}
@@ -200,7 +211,7 @@ export const WorkflowManagement = () => {
               {[
                 t('admin.workflow.name'),
                 t('admin.workflow.code'),
-                t('admin.workflow.desc'),
+                t('admin.workflow.project'),
                 t('admin.workflow.createdAt'),
                 t('admin.workflow.actions'),
               ].map((h) => (
@@ -222,14 +233,34 @@ export const WorkflowManagement = () => {
                 <tr key={wf.id ?? wf.workflowCode} style={{ borderTop: '1px solid var(--g-line-soft)' }}>
                   <td style={tdStyle}>{wf.workflowName}</td>
                   <td style={{ ...tdStyle, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 13, color: 'var(--g-text-sub)' }}>{wf.workflowCode}</td>
-                  <td style={{ ...tdStyle, color: 'var(--g-text-sub)', maxWidth: 220 }}>{wf.workflowDesc || '—'}</td>
+                  <td style={{ ...tdStyle, color: 'var(--g-text-sub)' }}>{folderName(wf.folderId)}</td>
                   <td style={{ ...tdStyle, color: 'var(--g-text-sub)', whiteSpace: 'nowrap' }}>{formatDateTime(wf.createdAt)}</td>
-                  <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
-                    <button onClick={() => openEditModal(wf)} style={actionBtnBlueStyle}>{t('Edit')}</button>
-                    <button onClick={() => handleStartChat(wf)} style={actionBtnPurpleStyle} disabled={startingChatFor === wf.workflowCode}>{t('admin.startChat')}</button>
-                    <button onClick={() => handleOpenEditor(wf)} style={actionBtnPurpleStyle}>{t('admin.openEditor')}</button>
-                    <button onClick={() => handleOpenApiDocs(wf)} style={actionBtnPurpleStyle}>{t('admin.apiDocs')}</button>
-                    <button onClick={() => handleDelete(wf)} style={actionBtnRedStyle}>{t('Delete')}</button>
+                  <td style={{ ...tdStyle, whiteSpace: 'nowrap', textAlign: 'right' }}>
+                    <button onClick={() => handleOpenEditor(wf)} style={actionBtnBlueStyle}>{t('admin.openEditor')}</button>
+                    <Dropdown trigger="click" position="bottomRight" render={rowMenu(wf)}>
+                      <button
+                        type="button"
+                        onClick={(e) => e.stopPropagation()}
+                        aria-label={t('shell.moreActions')}
+                        title={t('shell.moreActions')}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: 28,
+                          height: 28,
+                          border: 'none',
+                          borderRadius: 7,
+                          background: 'transparent',
+                          color: 'var(--g-text-muted)',
+                          cursor: 'pointer',
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--g-bg-sunken)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                      >
+                        <IconMore />
+                      </button>
+                    </Dropdown>
                   </td>
                 </tr>
               ))
@@ -267,6 +298,20 @@ export const WorkflowManagement = () => {
                 placeholder={t('admin.modal.placeholder.code')}
                 disabled={!!editingWorkflow}
               />
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={fieldLabelStyle}>{t('admin.workflow.project')}</label>
+              <select
+                value={workflowForm.folderId == null ? '' : String(workflowForm.folderId)}
+                onChange={(e) => setWorkflowForm({ ...workflowForm, folderId: e.target.value === '' ? null : Number(e.target.value) })}
+                style={inputStyle}
+              >
+                <option value="">{t('admin.workflow.unfiled')}</option>
+                {folders.map((f) => (
+                  <option key={f.id} value={f.id}>{f.name}</option>
+                ))}
+              </select>
             </div>
 
             <div style={{ marginBottom: 16 }}>
@@ -331,7 +376,7 @@ const tableCardStyle: CSSProperties = {
   border: '1px solid var(--g-line)',
   borderRadius: 12,
   boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)',
-  overflow: 'hidden',
+  overflow: 'visible',
 };
 
 const thStyle: CSSProperties = {
@@ -357,19 +402,16 @@ const emptyTdStyle: CSSProperties = {
   fontSize: 14,
 };
 
-const actionBtnBase: CSSProperties = {
+const actionBtnBlueStyle: CSSProperties = {
   background: 'transparent',
   border: 'none',
   padding: '4px 8px',
   fontSize: 13,
   fontWeight: 500,
   cursor: 'pointer',
-  marginRight: 4,
+  color: 'var(--g-link)',
+  marginRight: 8,
 };
-
-const actionBtnBlueStyle: CSSProperties = { ...actionBtnBase, color: 'var(--g-link)' };
-const actionBtnPurpleStyle: CSSProperties = { ...actionBtnBase, color: ACCENT };
-const actionBtnRedStyle: CSSProperties = { ...actionBtnBase, color: 'var(--g-danger)', marginRight: 0 };
 
 const modalOverlayStyle: CSSProperties = {
   position: 'fixed',
