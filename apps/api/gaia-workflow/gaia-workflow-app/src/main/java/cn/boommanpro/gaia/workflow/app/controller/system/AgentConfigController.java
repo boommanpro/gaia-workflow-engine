@@ -33,15 +33,18 @@ public class AgentConfigController {
     private final AgentConfigHistoryService historyService;
     private final AgentToolDefinitionService toolDefinitionService;
     private final LlmCompletionService completionService;
+    private final cn.boommanpro.gaia.workflow.infra.manage.mapper.AgentConfigMapper configMapper;
 
     public AgentConfigController(AgentConfigService configService,
                                  AgentConfigHistoryService historyService,
                                  AgentToolDefinitionService toolDefinitionService,
-                                 LlmCompletionService completionService) {
+                                 LlmCompletionService completionService,
+                                 cn.boommanpro.gaia.workflow.infra.manage.mapper.AgentConfigMapper configMapper) {
         this.configService = configService;
         this.historyService = historyService;
         this.toolDefinitionService = toolDefinitionService;
         this.completionService = completionService;
+        this.configMapper = configMapper;
     }
 
     /**
@@ -96,6 +99,8 @@ public class AgentConfigController {
             log.info("Saved new version for agent config [{}] (effective unchanged)", config.getConfigKey());
             return existing;
         } else {
+            // 软删残留占着 config_key 的 UNIQUE 索引（删除后重存的场景）——先物理清掉再插
+            configMapper.physicalDeleteByKey(config.getConfigKey());
             config.setCreatedAt(now);
             config.setUpdatedAt(now);
             configService.save(config);

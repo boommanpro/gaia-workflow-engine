@@ -24,6 +24,7 @@ import type { ColumnProps } from '@douyinfe/semi-ui/lib/es/table';
 import { IconHelpCircle, IconInfoCircle } from '@douyinfe/semi-icons';
 import { agentApi } from '../../agent/api';
 import { ModelManagement } from './ModelManagement';
+import { McpServerSection } from './McpServerSection';
 import { t, useLanguage } from '../../i18n';
 import { getApiBaseUrl } from '../../utils/apiConfig';
 import { SkillLibraryEditor } from './SkillLibraryEditor';
@@ -50,8 +51,14 @@ const ToolDefinitionTab: React.FC = () => {
   useLanguage();
   const [loading, setLoading] = useState(false);
   const [list, setList] = useState<ToolDefItem[]>([]);
-  const [groupFilter, setGroupFilter] = useState<string>('');
+  /** 分组过滤（多选）：默认只看内置两组；mcp:服务器名 为 MCP 细分项 */
+  const [groupFilter, setGroupFilter] = useState<string[]>(['common', 'workflow']);
   const [modalVisible, setModalVisible] = useState(false);
+  // web_search 密钥配置（agent_config: tool:web_search → {apiKey}）
+  const [keyVisible, setKeyVisible] = useState(false);
+  const [apiKeyValue, setApiKeyValue] = useState('');
+  const [apiKeyConfigured, setApiKeyConfigured] = useState(false);
+  const [savingKey, setSavingKey] = useState(false);
   const [form, setForm] = useState<ToolDefItem>({
     toolName: '',
     toolGroup: '',
@@ -72,25 +79,41 @@ const ToolDefinitionTab: React.FC = () => {
     } finally {
       setLoading(false);
     }
+    // web_search 密钥配置状态（不阻塞主列表）
+    agentApi.getConfig('tool:web_search')
+      .then((cfg) => {
+        const key = cfg?.configData ? (() => { try { return JSON.parse(cfg.configData).apiKey; } catch { return null; } })() : null;
+        setApiKeyConfigured(!!(key && String(key).trim()));
+      })
+      .catch(() => setApiKeyConfigured(false));
   }, []);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  // 提取所有分组（去重）
-  const groups = useMemo(() => {
+  // 已接入的 MCP 服务器（从工具名前缀 mcp__<server>__ 提取），作为过滤细分项
+  const mcpServers = useMemo(() => {
     const set = new Set<string>();
     list.forEach((item) => {
-      if (item.toolGroup) set.add(item.toolGroup);
+      if (item.toolName && item.toolName.startsWith('mcp__')) {
+        const parts = item.toolName.split('__');
+        if (parts.length >= 3) set.add(parts[1]);
+      }
     });
     return Array.from(set).sort();
   }, [list]);
 
-  // 按分组过滤
+  // 按分组过滤（多选）：组级 common/workflow/mcp + 服务器级 mcp:<name>
   const filteredList = useMemo(() => {
-    if (!groupFilter) return list;
-    return list.filter((item) => item.toolGroup === groupFilter);
+    if (groupFilter.length === 0) return list; // 未选 = 全部
+    return list.filter((item) =>
+      groupFilter.some((v) => {
+        if (v === 'mcp') return item.toolGroup === 'mcp';
+        if (v.startsWith('mcp:')) return (item.toolName || '').startsWith(`mcp__${v.slice(4)}__`);
+        return item.toolGroup === v;
+      }),
+    );
   }, [list, groupFilter]);
 
   const openEdit = (item: ToolDefItem) => {
@@ -127,47 +150,125 @@ const ToolDefinitionTab: React.FC = () => {
     }
   }, [form, load]);
 
+  /** MCP 工具的来源徽标：mcp__server__tool → server */
+  const sourceOf = (toolName: string): string | null => {
+    if (!toolName || !toolName.startsWith('mcp__')) return null;
+    const parts = toolName.split('__');
+    return parts.length >= 3 ? parts[1] : 'mcp';
+  };
+
+  const toggleEnabled = async (item: ToolDefItem) => {
+    // web_search 未配密钥就开启：给出配置入口提示（不阻止，调用时会得到可读指引）
+    if (item.toolName === 'web_search' && !item.enabled && !apiKeyConfigured) {
+      Toast.warning('web_search 需要 Tavily API Key（操作列「配置」），未配置时调用会返回开启指引');
+    }
+    try {
+      await agentApi.setToolDefinitionEnabled(item.toolName, !item.enabled);
+      setList((prev) => prev.map((x) => (x.toolName === item.toolName ? { ...x, enabled: !item.enabled } : x)));
+    } catch (e) {
+      Toast.error(`启停失败: ${(e as Error).message}`);
+    }
+  };
+
+  const openKeyConfig = () => {
+    setApiKeyValue('');
+    setKeyVisible(true);
+  };
+
+  const saveApiKey = async () => {
+    const key = apiKeyValue.trim();
+    if (!key) {
+      Toast.warning('请填写 Tavily API Key');
+      return;
+    }
+    setSavingKey(true);
+    try {
+      await agentApi.saveConfig({
+        configType: 'tool_config',
+        configKey: 'tool:web_search',
+        title: 'web_search · Tavily',
+        configData: JSON.stringify({ apiKey: key }),
+      });
+      Toast.success('密钥已保存，立即生效（工具开关仍需开启才可用）');
+      setKeyVisible(false);
+      setApiKeyConfigured(true);
+    } catch (e) {
+      Toast.error(`保存失败: ${(e as Error).message}`);
+    } finally {
+      setSavingKey(false);
+    }
+  };
+
   const columns: ColumnProps<ToolDefItem>[] = [
-    { title: 'ToolName', dataIndex: 'toolName', key: 'toolName', width: 180 },
-    { title: '分组', dataIndex: 'toolGroup', key: 'toolGroup', width: 100 },
-    { title: '描述', dataIndex: 'description', key: 'description', width: 240 },
+    { title: 'ToolName', dataIndex: 'toolName', key: 'toolName', width: 260 },
+    { title: '分组', dataIndex: 'toolGroup', key: 'toolGroup', width: 90 },
+    {
+      title: '来源',
+      key: 'source',
+      width: 110,
+      render: (_text: any, record: ToolDefItem) => {
+        const src = sourceOf(record.toolName);
+        return src ? (
+          <Tag size="small" color="violet">{src}</Tag>
+        ) : (
+          <Tag size="small" color="grey">内置</Tag>
+        );
+      },
+    },
+    { title: '描述', dataIndex: 'description', key: 'description', width: 220, ellipsis: true },
     {
       title: '启用',
       dataIndex: 'enabled',
       key: 'enabled',
       width: 80,
-      render: (val: boolean) => (val ? <Tag color="green" size="small">{t('common.enabled')}</Tag> : <Tag color="grey" size="small">{t('common.disabled')}</Tag>),
+      render: (val: boolean, record: ToolDefItem) => (
+        <Switch checked={!!val} onChange={() => void toggleEnabled(record)} />
+      ),
     },
     {
       title: '操作',
       key: 'actions',
-      width: 100,
+      width: 120,
       render: (_text: any, record: ToolDefItem) => (
-        <Button size="small" theme="borderless" style={{ color: ACCENT }} onClick={() => openEdit(record)}>
-          编辑
-        </Button>
+        <span style={{ display: 'inline-flex', gap: 4 }}>
+          {record.toolName === 'web_search' && (
+            <Button size="small" theme="borderless" style={{ color: apiKeyConfigured ? 'var(--g-success, #1f9d61)' : 'var(--g-warn, #c98a0a)' }} onClick={openKeyConfig}>
+              配置{apiKeyConfigured ? '✓' : ''}
+            </Button>
+          )}
+          <Button size="small" theme="borderless" style={{ color: ACCENT }} onClick={() => openEdit(record)}>
+            编辑
+          </Button>
+        </span>
       ),
     },
   ];
 
   return (
     <div>
-      {/* 工具栏：仅分组过滤 + 刷新 */}
+      {/* MCP 服务器小节：外部工具来源（连接后工具自动进入下方目录） */}
+      <McpServerSection onToolsChanged={() => void load()} />
+
+      {/* 工具栏：分组多选过滤（含 MCP 服务器细分）+ 刷新 */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' }}>
         <span style={{ fontSize: 13, color: '#666', flexShrink: 0 }}>{t('agent.config.filterGroup')}：</span>
         <Select
-          value={groupFilter || undefined}
-          onChange={(v) => setGroupFilter(v as string || '')}
-          style={{ width: 180 }}
-          placeholder={t('agent.config.allGroups')}
+          multiple
+          value={groupFilter}
+          onChange={(v) => setGroupFilter((v as string[]) || [])}
+          style={{ width: 340 }}
+          placeholder="全部"
+          maxTagCount={3}
           optionList={[
-            { value: '', label: t('agent.config.allGroups') },
-            ...groups.map((g) => ({ value: g, label: g })),
+            { value: 'common', label: '公共工具 (common)' },
+            { value: 'workflow', label: '工作流工具 (workflow)' },
+            ...(mcpServers.length > 0 ? [{ value: 'mcp', label: 'MCP 工具（全部）' }] : []),
+            ...mcpServers.map((s) => ({ value: `mcp:${s}`, label: `MCP · ${s}` })),
           ]}
         />
         <Button onClick={() => void load()}>{t('agent.config.refresh')}</Button>
         <span style={{ fontSize: 12, color: '#aaa', marginLeft: 'auto' }}>
-          共 {filteredList.length} 个工具
+          共 {filteredList.length} 个工具{filteredList.length !== list.length ? ` / 总 ${list.length}` : ''}
         </span>
       </div>
 
@@ -239,6 +340,41 @@ const ToolDefinitionTab: React.FC = () => {
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
             <Button onClick={() => setModalVisible(false)}>{t('common.cancel')}</Button>
             <Button theme="solid" style={{ background: ACCENT }} loading={saving} onClick={handleSave}>
+              保存
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* web_search · Tavily API Key 配置（存 agent_config，保存即生效） */}
+      <Modal
+        title="web_search · Tavily API Key"
+        visible={keyVisible}
+        onCancel={() => setKeyVisible(false)}
+        footer={null}
+        width={480}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ fontSize: 12.5, color: 'var(--g-text-muted, #666)', lineHeight: 1.7 }}>
+            密钥保存到数据库（agent_config），立即生效；也兼容服务端环境变量 TAVILY_API_KEY（库配置优先）。
+            获取密钥：<a href="https://app.tavily.com" target="_blank" rel="noreferrer">app.tavily.com</a>
+          </div>
+          <div>
+            <Typography.Text strong style={{ fontSize: 13 }}>API Key</Typography.Text>
+            <Input
+              mode="password"
+              value={apiKeyValue}
+              onChange={(v) => setApiKeyValue(v)}
+              placeholder={apiKeyConfigured ? '已配置（输入以覆盖）' : 'tvly-…'}
+              style={{ marginTop: 6 }}
+            />
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--g-text-muted)' }}>
+            当前状态：{apiKeyConfigured ? '✓ 已配置' : '未配置 —— web_search 默认关闭，配置后请在列表中开启'}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <Button onClick={() => setKeyVisible(false)}>{t('common.cancel')}</Button>
+            <Button theme="solid" style={{ background: ACCENT }} loading={savingKey} onClick={() => void saveApiKey()}>
               保存
             </Button>
           </div>

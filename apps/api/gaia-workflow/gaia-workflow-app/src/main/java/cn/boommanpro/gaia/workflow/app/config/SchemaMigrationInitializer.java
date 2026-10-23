@@ -52,7 +52,9 @@ public class SchemaMigrationInitializer implements CommandLineRunner {
         new String[]{"gaia_workflow_log", "api_key_prefix", "VARCHAR(32)"},
         new String[]{"gaia_workflow_log", "created_at", "TEXT"},
         // 工作流按项目归组（对话优先 IA 重构）：工作流归属 agent_work_folder
-        new String[]{"gaia_workflow", "folder_id", "BIGINT"}
+        new String[]{"gaia_workflow", "folder_id", "BIGINT"},
+        // MCP 服务器断开时的启停快照：重连按快照恢复工具开关（保留手工禁用项）
+        new String[]{"agent_mcp_server", "enabled_tools", "TEXT"}
     );
 
     private final DataSource dataSource;

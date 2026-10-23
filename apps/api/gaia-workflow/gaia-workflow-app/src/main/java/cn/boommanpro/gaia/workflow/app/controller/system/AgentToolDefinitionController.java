@@ -81,6 +81,26 @@ public class AgentToolDefinitionController {
     }
 
     /**
+     * 仅切换启停（其余字段不动）：工具目录行开关与 MCP 工具管理共用。
+     * 不走 /save —— 那是整实体 upsert，只传 enabled 会把 NOT NULL 的 parameters 冲掉。
+     */
+    @PutMapping("/{toolName}/enabled")
+    public java.util.Map<String, Object> toggleEnabled(@PathVariable String toolName,
+                                                       @RequestBody java.util.Map<String, Object> body) {
+        boolean enabled = Boolean.TRUE.equals(body.get("enabled"));
+        AgentToolDefinition existing = toolDefinitionService.getOne(
+            new QueryWrapper<AgentToolDefinition>().eq("tool_name", toolName));
+        if (existing == null) {
+            return java.util.Map.of("ok", false, "error", "工具不存在: " + toolName);
+        }
+        existing.setEnabled(enabled ? 1 : 0);
+        existing.setUpdatedAt(java.time.LocalDateTime.now().toString());
+        toolDefinitionService.updateById(existing);
+        toolRegistry.refresh();
+        return java.util.Map.of("ok", true, "enabled", enabled);
+    }
+
+    /**
      * 按 toolName 软删除，删除后热刷新注册中心
      */
     @DeleteMapping("/{toolName}")

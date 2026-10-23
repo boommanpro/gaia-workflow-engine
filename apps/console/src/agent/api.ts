@@ -5,6 +5,42 @@ import { getApiBaseUrl } from '../utils/apiConfig';
 import { isReplayActive, replayRequest } from './replay/replay-driver';
 import type { AgentSession, AgentMessage, WorkFolder } from './types';
 
+/** MCP 服务器运行态（/agent/mcp-server/list 数据项） */
+export interface McpServerItem {
+  serverName: string;
+  transport: 'stdio' | 'sse' | 'http';
+  command?: string | null;
+  args?: string[] | null;
+  env?: Record<string, string> | null;
+  url?: string | null;
+  headers?: Record<string, string> | null;
+  enabled: boolean;
+  status: 'connected' | 'error' | 'stopped';
+  lastError?: string | null;
+  toolCount: number;
+}
+
+/** MCP 服务器保存请求（与 Claude Desktop 的 mcpServers 配置同构） */
+export interface McpServerSaveInput {
+  serverName: string;
+  transport: 'stdio' | 'sse' | 'http';
+  command?: string;
+  args?: string[];
+  env?: Record<string, string>;
+  url?: string;
+  headers?: Record<string, string>;
+  enabled?: boolean;
+}
+
+/** MCP 服务器发现的工具（含目录启停状态） */
+export interface McpServerTool {
+  name: string;
+  fullName: string;
+  description?: string;
+  inputSchema?: Record<string, unknown>;
+  enabled: boolean;
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   if (isReplayActive()) {
     return replayRequest<T>(path);
@@ -301,6 +337,8 @@ export const agentApi = {
   // Agent 配置
   listConfigs: (configType?: string) =>
     request<any[]>(`/agent/config/list${configType ? `?configType=${configType}` : ''}`),
+  getConfig: (configKey: string) =>
+    request<any>(`/agent/config/${encodeURIComponent(configKey)}`),
   saveConfig: (config: any, applyImmediately = false) =>
     request<any>(`/agent/config/save${applyImmediately ? '?applyImmediately=true' : ''}`, {
       method: 'POST',
@@ -312,6 +350,36 @@ export const agentApi = {
     request<any[]>(`/agent/tool-definition/list${toolGroup ? `?toolGroup=${toolGroup}` : ''}`),
   saveToolDefinition: (def: any) =>
     request<any>('/agent/tool-definition/save', { method: 'POST', body: JSON.stringify(def) }),
+  /** 仅切换工具启停（其余字段不动；工具目录行开关与 MCP 工具管理共用） */
+  setToolDefinitionEnabled: (toolName: string, enabled: boolean) =>
+    request<{ ok: boolean; error?: string }>(`/agent/tool-definition/${encodeURIComponent(toolName)}/enabled`, {
+      method: 'PUT',
+      body: JSON.stringify({ enabled }),
+    }),
+
+  // MCP 服务器（自定义外部工具来源）
+  listMcpServers: () =>
+    request<McpServerItem[]>('/agent/mcp-server/list'),
+  saveMcpServer: (body: McpServerSaveInput) =>
+    request<{ ok: boolean; status?: string; toolCount?: number; error?: string }>('/agent/mcp-server/save', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  deleteMcpServer: (serverName: string) =>
+    request<{ ok: boolean }>(`/agent/mcp-server/${encodeURIComponent(serverName)}`, { method: 'DELETE' }),
+  connectMcpServer: (serverName: string) =>
+    request<{ ok: boolean; status?: string; toolCount?: number; error?: string; lastError?: string }>(
+      `/agent/mcp-server/${encodeURIComponent(serverName)}/connect`, { method: 'POST' }),
+  disconnectMcpServer: (serverName: string) =>
+    request<any>(`/agent/mcp-server/${encodeURIComponent(serverName)}/disconnect`, { method: 'POST' }),
+  listMcpServerTools: (serverName: string) =>
+    request<McpServerTool[]>(`/agent/mcp-server/${encodeURIComponent(serverName)}/tools`),
+  callMcpTool: (serverName: string, body: { tool: string; arguments?: Record<string, unknown> }) =>
+    request<{ ok: boolean; payload?: string; error?: string }>(
+      `/agent/mcp-server/${encodeURIComponent(serverName)}/call`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
 
   // 配置导出/导入（用于线上升级迁移）
   exportConfig: async (): Promise<string> => {

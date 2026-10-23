@@ -18,9 +18,11 @@ import static org.mockito.Mockito.mock;
 @DisplayName("工具注册表 ↔ 执行器一致性守卫（16→8 合并版）")
 class ToolRegistryConsistencyTest {
 
+    // web_search / web_fetch 为联网工具组新增（工具定义页可启停；web_search 默认关闭）
     private static final Set<String> EXPECTED_TOOLS = new HashSet<>(List.of(
         "skill", "ask_user", "todo_write",
-        "get", "node", "edge", "run", "test_case"));
+        "get", "node", "edge", "run", "test_case",
+        "web_search", "web_fetch"));
 
     private static final Set<String> REMOVED_TOOLS = new HashSet<>(List.of(
         "write_workflow", "edit_workflow", "delete_workflow",

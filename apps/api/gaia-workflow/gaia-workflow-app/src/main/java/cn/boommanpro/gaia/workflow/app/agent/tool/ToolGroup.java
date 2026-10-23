@@ -10,7 +10,10 @@ public enum ToolGroup {
     COMMON("common", "公共工具"),
 
     /** 工作流工具：操作会话画布 */
-    WORKFLOW("workflow", "工作流工具");
+    WORKFLOW("workflow", "工作流工具"),
+
+    /** MCP 工具：来自外部 MCP 服务器（mcp__服务器名__工具名），随服务器连接动态增删 */
+    MCP("mcp", "MCP 工具");
 
     private final String code;
     private final String label;

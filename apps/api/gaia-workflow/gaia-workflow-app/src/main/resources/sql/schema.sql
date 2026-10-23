@@ -209,6 +209,23 @@ CREATE TABLE IF NOT EXISTS agent_tool_definition (
     is_deleted TINYINT DEFAULT 0
 );
 
+-- MCP 服务器（自定义外部工具来源）：连接后工具自动同步进 agent_tool_definition（tool_group='mcp'）
+CREATE TABLE IF NOT EXISTS agent_mcp_server (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    server_name VARCHAR(64) NOT NULL UNIQUE,   -- 工具命名空间：mcp__<server_name>__<tool>
+    transport VARCHAR(16) NOT NULL,            -- stdio | sse | http(streamable)
+    command VARCHAR(256),                      -- stdio: 可执行命令（npx/uvx/node…）
+    args TEXT,                                 -- stdio: JSON 字符串数组
+    env TEXT,                                  -- stdio: JSON 对象（环境变量）
+    url VARCHAR(512),                          -- sse/http: 服务地址
+    headers TEXT,                              -- sse/http: JSON 对象（鉴权等请求头）
+    enabled_tools TEXT,                        -- 断开时的启停快照（JSON 数组；重连按此恢复，保留手工禁用项）
+    enabled TINYINT DEFAULT 1,
+    created_at TEXT,
+    updated_at TEXT,
+    is_deleted TINYINT DEFAULT 0
+);
+
 -- Agent 会话持久事件日志（追加只写，v2）：turn/llm_end/tool_call/tool_result/knowledge_retrieved/confirm 等
 CREATE TABLE IF NOT EXISTS agent_session_event (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -49,11 +49,16 @@ public class AgentToolRegistry {
     /** 工具目录中每个工具的一句话说明（与 schema 的长 description 互补，保持目录紧凑） */
     private static final Map<String, String> TOOL_SUMMARIES = buildToolSummaries();
 
+    /** 首次种入工具目录时默认关闭的工具：需要外部密钥或有调用成本，配好再开 */
+    private static final java.util.Set<String> DEFAULT_DISABLED_TOOLS = java.util.Set.of("web_search");
+
     private static Map<String, String> buildToolSummaries() {
         Map<String, String> m = new java.util.LinkedHashMap<>();
         m.put("skill", "按名称加载技能全文；`skill(\"name/path\")` 取引用文件。开工第一步加载 gaia-workflow-assistant");
         m.put("ask_user", "向用户提问并等待回答（点选/自由输入，答案成为新一轮对话；只问缺了会白做的关键信息；超时自动选 recommended 项继续）");
         m.put("todo_write", "任务进度清单（3 步以上任务先列清单，完成一项勾一项）");
+        m.put("web_search", "联网搜索（Tavily）：关键词 → 标题+摘要+链接；密钥在 Agent 配置中心·工具定义页配置，默认关闭，配好密钥后开启");
+        m.put("web_fetch", "抓取网页：http/https 地址 → 页面文本（30s 超时、10 万字符上限）");
         m.put("get", "四合一查询：target=canvas 画布核心视图 / node 单节点配置+入出边 / variables 可引用变量 / knowledge 节点类型知识");
         m.put("node", "节点增改删：action=add（items 批量，connect 用 $ref 接线）/ update（data 深合并）/ remove（级联连线）");
         m.put("edge", "连线/断线：action=connect / remove；分支出边必须带 fromPort");
@@ -210,7 +215,7 @@ public class AgentToolRegistry {
             def.setDescription(desc);
             def.setParameters(params != null ? params.toString() : new JSONObject().toString());
             def.setPageContexts(null);
-            def.setEnabled(1);
+            def.setEnabled(DEFAULT_DISABLED_TOOLS.contains(name) ? 0 : 1);
             def.setSortOrder(order++);
             String now = LocalDateTime.now().toString();
             def.setCreatedAt(now);
@@ -268,7 +273,8 @@ public class AgentToolRegistry {
             def.setToolGroup(toolGroupOf(name));
             def.setDescription(desc);
             def.setParameters(paramsJson);
-            def.setEnabled(1);
+            // 首次种入默认关闭的工具（需外部密钥/有成本，配好再开）
+            def.setEnabled(DEFAULT_DISABLED_TOOLS.contains(name) ? 0 : 1);
             def.setSortOrder(++maxOrder);
             String now = LocalDateTime.now().toString();
             def.setCreatedAt(now);
@@ -403,6 +409,9 @@ public class AgentToolRegistry {
     private static String groupHeader(String group) {
         if (ToolGroup.COMMON.getCode().equals(group)) {
             return "### 公共工具（任何任务都用得上）";
+        }
+        if (ToolGroup.MCP.getCode().equals(group)) {
+            return "### MCP 工具（外部 MCP 服务器提供，名称形如 mcp__服务器__工具）";
         }
         return "### 工作流工具（操作会话画布：先 get(target=canvas) 再按需下钻）";
     }
@@ -541,8 +550,10 @@ public class AgentToolRegistry {
 
     private String toolGroupOf(String toolName) {
         if (toolName == null) return ToolGroup.WORKFLOW.getCode();
+        if (toolName.startsWith("mcp__")) return ToolGroup.MCP.getCode();
         switch (toolName) {
             case "skill": case "ask_user": case "todo_write":
+            case "web_search": case "web_fetch":
                 return ToolGroup.COMMON.getCode();
             default:
                 return ToolGroup.WORKFLOW.getCode();
@@ -577,6 +588,17 @@ public class AgentToolRegistry {
                 arrProp("steps", "全量重写", obj(new String[]{"content"}, new JSONObject[]{
                     str("id", "步骤ID", null), str("content", "内容", null),
                     str("status", "状态", enumVal("pending","in_progress","completed","blocked")) }))})));
+
+        // 联网能力（common 组，工具定义页可启停；web_search 默认关闭，密钥前端配置）
+        tools.add(func("web_search", "联网搜索：关键词 → 标题+摘要+链接列表。需要 Tavily API Key（Agent 配置中心·工具定义页配置），未配置时调用会返回开启指引", obj(
+            new String[]{"query"}, new JSONObject[]{
+                str("query", "搜索关键词", null),
+                intProp("max_results", "返回条数（缺省 5，上限 10）", null) })));
+
+        tools.add(func("web_fetch", "抓取网页内容：http/https 地址 → 页面文本（30s 超时，上限 10 万字符）", obj(
+            new String[]{"url"}, new JSONObject[]{
+                str("url", "目标地址（http/https）", null),
+                intProp("max_length", "返回文本最大长度（缺省不限制）", null) })));
 
         // ===== 工作流组 =====
         tools.add(func("get", "查询画布/单节点配置/变量/节点知识（四合一查询）。一切操作的起点；改节点前先 target=node 看现状", obj(
