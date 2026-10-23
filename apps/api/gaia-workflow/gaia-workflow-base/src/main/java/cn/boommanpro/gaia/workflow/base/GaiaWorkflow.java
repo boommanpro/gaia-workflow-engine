@@ -109,6 +109,20 @@ public class GaiaWorkflow {
     }
 
     /**
+     * 请求协作式取消（chain 未构建时为无操作——尚未开始执行）。
+     */
+    public void requestCancel() {
+        if (chain != null) {
+            chain.requestCancel();
+        }
+    }
+
+    /** 是否已请求取消 */
+    public boolean isCancelRequested() {
+        return chain != null && chain.isCancelRequested();
+    }
+
+    /**
      * 获取节点执行报告
      *
      * @return 节点执行报告

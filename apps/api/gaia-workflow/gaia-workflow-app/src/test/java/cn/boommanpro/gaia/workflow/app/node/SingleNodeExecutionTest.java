@@ -110,21 +110,50 @@ class SingleNodeExecutionTest extends AbstractNodeTest {
     }
 
     @Test
-    @DisplayName("http: 不可达服务时优雅降级（不抛异常，捕获 error）")
+    @DisplayName("http: 不可达服务时报失败（新错误语义：不再吞成 error 字段假成功）")
     void executeHttpNodeGracefulFailure() {
-        SingleNodeRunOutput out = run("http", "http", null);
-        // HttpNode 内部 catch 异常并写入 error，不会让 executor 失败
-        assertTrue(out.isSuccess(), "http 节点应内部捕获异常而非抛出");
-        assertNotNull(out.getExecuteResult());
+        // fixture 打真实 httpbin.org（网络通时是成功用例），不可达场景用本地保留端口构造
+        SingleNodeRunInput input = new SingleNodeRunInput();
+        input.setNode(unreachableHttpNode().toString());
+        input.setInputs(null);
+        SingleNodeRunOutput out = new SingleNodeExecutor().execute(input);
+        // 第一档 A：节点失败必须失败——executor 捕获后 success=false + error 文案
+        assertFalse(out.isSuccess(), "http 不可达时节点应判定失败");
+        assertNotNull(out.getError());
+    }
+
+    /** 指向本地保留端口（连接必被拒绝）的 http 节点 */
+    private static cn.hutool.json.JSONObject unreachableHttpNode() {
+        return cn.hutool.json.JSONUtil.createObj()
+            .set("id", "http_unreachable")
+            .set("type", "http")
+            .set("data", cn.hutool.json.JSONUtil.createObj()
+                .set("title", "HTTP请求")
+                .set("api", cn.hutool.json.JSONUtil.createObj()
+                    .set("method", "GET")
+                    .set("url", cn.hutool.json.JSONUtil.createObj()
+                        .set("type", "constant")
+                        .set("content", "http://127.0.0.1:1/ping")))
+                .set("headersValues", cn.hutool.json.JSONUtil.createObj())
+                .set("paramsValues", cn.hutool.json.JSONUtil.createObj())
+                .set("body", cn.hutool.json.JSONUtil.createObj().set("bodyType", "none"))
+                .set("timeout", cn.hutool.json.JSONUtil.createObj()
+                    .set("timeout", 3000)
+                    .set("retryTimes", 0))
+                .set("outputs", cn.hutool.json.JSONUtil.createObj()
+                    .set("type", "object")
+                    .set("properties", cn.hutool.json.JSONUtil.createObj()
+                        .set("body", cn.hutool.json.JSONUtil.createObj().set("type", "string"))
+                        .set("headers", cn.hutool.json.JSONUtil.createObj().set("type", "object"))
+                        .set("statusCode", cn.hutool.json.JSONUtil.createObj().set("type", "number")))));
     }
 
     @Test
-    @DisplayName("llm: 不可达服务时优雅降级（捕获 error）")
+    @DisplayName("llm: 不可达服务时报失败（新错误语义）")
     void executeLlmNodeGracefulFailure() {
         SingleNodeRunOutput out = run("llm", "llm", DOWNSTREAM_INPUTS);
-        assertTrue(out.isSuccess(), "llm 节点应内部捕获异常而非抛出");
-        // 不可达时 result 含 error
-        assertNotNull(out.getExecuteResult().get("error"));
+        assertFalse(out.isSuccess(), "llm 不可达时节点应判定失败");
+        assertNotNull(out.getError());
     }
 
     @Test

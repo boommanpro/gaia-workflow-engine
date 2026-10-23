@@ -19,7 +19,6 @@ import { CommentNodeRegistry } from './comment';
 import { CodeNodeRegistry } from './code';
 import { BreakNodeRegistry } from './break';
 import { BranchNodeRegistry } from './branches';
-import { MultiConditionNodeRegistry } from './multi-condition';
 import { BlockStartNodeRegistry } from './block-start';
 import { BlockEndNodeRegistry } from './block-end';
 import { AssigneeNodeRegistry } from './assignee';
@@ -42,7 +41,8 @@ export const nodeRegistries: FlowNodeRegistry[] = [
   VariableNodeRegistry,
   GroupNodeRegistry,
   BranchNodeRegistry,
-  MultiConditionNodeRegistry,
+  // multi-condition 已清退：后端从未实现解析器，节点面板不再提供；
+  // 存量数据由 document/migrations.ts 载入时迁移为 branches
   StringFormatNodeRegistry,
   WorkflowNodeRegistry,
   AssigneeNodeRegistry,

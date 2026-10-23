@@ -40,6 +40,13 @@ public class Chain extends ChainNode {
     private Exception exception;
     private String message;
 
+    /**
+     * 协作式取消标志（第一档 G）：requestCancel 后，未开始的节点在派发检查点
+     * 直接标 CANCELED 不再执行；正在执行的节点不硬中断（受其请求超时约束），
+     * 跑完后下一个检查点收敛。整链以 ChainStatus.CANCELED 终结。
+     */
+    private volatile boolean cancelRequested = false;
+
     // 事件监听器管理
     private Map<Class<?>, List<ChainEventListener>> eventListeners = new HashMap<>();
     private List<ChainOutputListener> outputListeners = new CopyOnWriteArrayList<>();
@@ -328,6 +335,17 @@ public class Chain extends ChainNode {
         }
     }
 
+    /**
+     * 请求协作式取消：已派发节点跑完当前动作（受超时约束），未开始节点标记 CANCELED。
+     */
+    public void requestCancel() {
+        this.cancelRequested = true;
+    }
+
+    public boolean isCancelRequested() {
+        return cancelRequested;
+    }
+
     protected void doExecuteNode(ExecuteNode executeNode) {
         doExecuteNodeInternal(executeNode.currentNode, false);
     }
@@ -340,6 +358,31 @@ public class Chain extends ChainNode {
      */
     private void doExecuteNodeInternal(ChainNode chainNode, boolean isAsync) {
         synchronized (chainNode) {
+            // 取消检查点：未开始的节点不再派发，直接标 CANCELED（终态节点不动）
+            if (cancelRequested
+                    && chainNode.getStatus() != ChainNodeStatus.FINISHED
+                    && chainNode.getStatus() != ChainNodeStatus.FAILED
+                    && chainNode.getStatus() != ChainNodeStatus.CANCELED) {
+                chainNode.setStatus(ChainNodeStatus.CANCELED);
+                ChainNodeExecuteInfo cancelInfo = executeInfoMap.computeIfAbsent(chainNode.getId(), id -> {
+                    ChainNodeExecuteInfo info = new ChainNodeExecuteInfo();
+                    info.setId(id);
+                    info.setType(chainNode.getNodeType());
+                    info.setExecuteInfoId(id + "_cancel");
+                    return info;
+                });
+                cancelInfo.setStatus(ChainNodeStatus.CANCELED);
+                cancelInfo.setEndTime(System.currentTimeMillis());
+                if (isAsync) {
+                    notifyNodeStatusChanged(chainNode.getId(), cancelInfo);
+                }
+                // 级联取消下游：否则未派发的下游永远停在 READY，waitForCompletion 不收敛
+                for (ChainEdge outwardEdge : chainNode.getOutwardEdges()) {
+                    outwardEdge.setStatus(ChainEdgeStatus.SKIPPED);
+                    executeNextNode(outwardEdge.getTarget(), isAsync);
+                }
+                return;
+            }
             updateCurrentNodeStatus(chainNode);
             ChainNodeExecuteInfo chainNodeExecuteInfo = executeInfoMap.get(chainNode.getId());
             chainNode.setStatus(chainNodeExecuteInfo.getStatus());
@@ -471,7 +514,11 @@ public class Chain extends ChainNode {
                     executeNextNode(outwardEdge.getTarget(), isAsync);
                 }
             }
-        } else if (chainNode.getStatus() == ChainNodeStatus.SKIPPED) {
+        } else if (chainNode.getStatus() == ChainNodeStatus.SKIPPED
+                || chainNode.getStatus() == ChainNodeStatus.FAILED) {
+            // FAILED 与 SKIPPED 同样向下游传播跳过：失败节点的下游不应停留在
+            // READY（报告里看起来"没跑到"却无任何标记）——级联标 SKIPPED，
+            // 让整张图的每个节点都有明确终态。多入边节点若还有 TRUE 入边仍会执行
             for (ChainEdge outwardEdge : chainNode.getOutwardEdges()) {
                 outwardEdge.setStatus(ChainEdgeStatus.SKIPPED);
                 executeNextNode(outwardEdge.getTarget(), isAsync);
@@ -915,7 +962,7 @@ public class Chain extends ChainNode {
                 }
 
                 asyncExecutionCompleted = true;
-                chainStatus = ChainStatus.FINISHED_NORMAL;
+                chainStatus = cancelRequested ? ChainStatus.CANCELED : ChainStatus.FINISHED_NORMAL;
                 notifyExecutionComplete(outputResult, null);
 
                 return outputResult;
@@ -960,10 +1007,16 @@ public class Chain extends ChainNode {
     }
 
     /**
-     * 等待工作流执行完成
+     * 等待工作流执行完成。
+     *
+     * <p>失败（FINISHED_ABNORMAL）不再立即退出：失败节点对下游的级联标记
+     * （SKIPPED/CANCELED）在其他执行线程上同步进行，与本轮询存在竞态——
+     * 立即 break 会在报告里把下游节点留成 pending。改为最多再等 2s
+     * 让全部节点到达终态（宽限上限防悬挂）。</p>
      */
     private void waitForCompletion() {
-        while (!asyncExecutionCompleted && chainStatus != ChainStatus.FINISHED_ABNORMAL) {
+        long abnormalGraceDeadline = -1;
+        while (!asyncExecutionCompleted) {
             try {
                 // 检查是否所有节点都已完成
                 boolean allCompleted = true;
@@ -980,6 +1033,15 @@ public class Chain extends ChainNode {
                 if (allCompleted) {
                     asyncExecutionCompleted = true;
                     break;
+                }
+
+                if (chainStatus == ChainStatus.FINISHED_ABNORMAL) {
+                    if (abnormalGraceDeadline < 0) {
+                        abnormalGraceDeadline = System.currentTimeMillis() + 2_000;
+                    } else if (System.currentTimeMillis() > abnormalGraceDeadline) {
+                        // 宽限耗尽仍有节点未终态：按旧语义退出，防悬挂
+                        break;
+                    }
                 }
 
                 Thread.sleep(50); // 短暂休眠避免CPU占用过高

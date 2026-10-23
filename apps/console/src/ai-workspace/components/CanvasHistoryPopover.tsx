@@ -19,6 +19,7 @@ import { useAgent } from '../../agent/AgentContext';
 import { rollbackCanvasTo } from '../../agent/canvas-draft-sync';
 import { agentApi } from '../../agent/api';
 import { workflowApi, type GaiaWorkflowVersion } from '../../services/workflow-api';
+import { VersionDiffModal } from './VersionDiffModal';
 import { useLanguage, t } from '../../i18n';
 import { CHAT } from '../../chat/theme';
 
@@ -113,6 +114,8 @@ export const CanvasHistoryPopover: React.FC<CanvasHistoryPopoverProps> = ({
   const [versions, setVersions] = useState<GaiaWorkflowVersion[]>([]);
   const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
+  /** 版本对比弹层：正在对比的版本 */
+  const [diffVersion, setDiffVersion] = useState<{ id: number; versionNumber?: string } | null>(null);
   /** AI 摘要（snapshot.id → 一句话）：懒加载，打开面板时才批量总结 */
   const [aiSummaries, setAiSummaries] = useState<Record<string, string>>({});
   const summarizingRef = useRef(new Set<string>());
@@ -399,6 +402,17 @@ export const CanvasHistoryPopover: React.FC<CanvasHistoryPopoverProps> = ({
                 {t('chat.snapshotView')}
               </Button>
             )}
+            {version.id && (
+              <Button
+                size="small"
+                theme="borderless"
+                type="tertiary"
+                onClick={() => setDiffVersion({ id: version.id!, versionNumber: version.versionNumber })}
+                style={{ borderRadius: 7, flexShrink: 0 }}
+              >
+                {t('editor.versionDiff')}
+              </Button>
+            )}
             {version.isCurrent !== 1 && (
               <Button
                 size="small"
@@ -434,15 +448,23 @@ export const CanvasHistoryPopover: React.FC<CanvasHistoryPopoverProps> = ({
   );
 
   return (
-    <Popover
-      content={content}
-      trigger="click"
-      position="bottomRight"
-      visible={visible}
-      onVisibleChange={setVisible}
-    >
-      {children}
-    </Popover>
+    <>
+      <Popover
+        content={content}
+        trigger="click"
+        position="bottomRight"
+        visible={visible}
+        onVisibleChange={setVisible}
+      >
+        {children}
+      </Popover>
+      <VersionDiffModal
+        visible={diffVersion !== null}
+        versionId={diffVersion?.id ?? null}
+        versionNumber={diffVersion?.versionNumber}
+        onClose={() => setDiffVersion(null)}
+      />
+    </>
   );
 };
 

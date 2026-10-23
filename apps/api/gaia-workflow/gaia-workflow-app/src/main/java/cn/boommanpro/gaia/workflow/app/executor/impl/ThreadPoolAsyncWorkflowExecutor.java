@@ -49,11 +49,16 @@ public class ThreadPoolAsyncWorkflowExecutor implements AsyncWorkflowExecutor, A
     private ExecutorService executorService;
 
     private final TaskRepository taskRepository;
+    /** 运行历史落库（第一档 B）：替代此前反射调用不存在的 testCallLogRecorderImpl 的死代码 */
+    private final cn.boommanpro.gaia.workflow.app.service.WorkflowRunHistoryService runHistoryService;
     private ApplicationContext applicationContext;
 
     @Autowired
-    public ThreadPoolAsyncWorkflowExecutor(TaskRepository taskRepository) {
+    public ThreadPoolAsyncWorkflowExecutor(
+            TaskRepository taskRepository,
+            cn.boommanpro.gaia.workflow.app.service.WorkflowRunHistoryService runHistoryService) {
         this.taskRepository = taskRepository;
+        this.runHistoryService = runHistoryService;
     }
 
     @Override
@@ -92,6 +97,8 @@ public class ThreadPoolAsyncWorkflowExecutor implements AsyncWorkflowExecutor, A
 
                 long startTime = System.currentTimeMillis();
                 GaiaWorkflow workflow = new GaiaWorkflow(input.getSchema());
+                // 供 cancelTask 发起协作式取消（transient 引用，不序列化）
+                taskInfo.setWorkflowRef(workflow);
 
                 ChainExecutionListener listener = new ChainExecutionListener() {
                     @Override
@@ -276,6 +283,9 @@ public class ThreadPoolAsyncWorkflowExecutor implements AsyncWorkflowExecutor, A
                 return NodeStatus.FAILED.getValue();
             case "SKIPPED":
                 return NodeStatus.CANCELED.getValue();
+            case "CANCELED":
+                // 协作式取消的检查点标记（此前落 default 变 pending，取消节点显示成"等待中"）
+                return NodeStatus.CANCELED.getValue();
             default:
                 return NodeStatus.PENDING.getValue();
         }
@@ -293,47 +303,12 @@ public class ThreadPoolAsyncWorkflowExecutor implements AsyncWorkflowExecutor, A
      */
     private void recordTestCallLog(String taskId, TaskInfo taskInfo, TaskRunInput input,
                                    Map<String, Object> outputs, long costTime, Exception exception) {
-        try {
-            String schema = input.getSchema();
-            Map<String, Object> inputs = input.getInputs();
-
-            // 解析工作流编码和版本ID（从schema中获取）
-            String workflowCode = parseWorkflowCodeFromSchema(schema);
-            Long versionId = parseVersionIdFromSchema(schema);
-            String workflowContent = schema;
-
-            // 准备日志字段
-            String execParam = JSONUtil.toJsonStr(inputs);
-            String execStatus = (exception == null) ? "SUCCESS" : "FAILED";
-            String reports = "";
-            // 注意：这里我们不重新执行工作流来获取报告，而是从taskInfo中获取
-            if (taskInfo.getNodeReports() != null) {
-                reports = JSONUtil.toJsonStr(taskInfo.getNodeReports());
-            }
-            String callResult = (outputs != null) ? JSONUtil.toJsonStr(outputs) : "";
-            String errorMessage = (exception != null) ? exception.getMessage() : "";
-
-            // 通过ApplicationContext获取TestCallLogRecorder并记录日志
-            try {
-                Object testCallLogRecorder = applicationContext.getBean("testCallLogRecorderImpl");
-                if (testCallLogRecorder != null) {
-                    testCallLogRecorder.getClass().getMethod("recordTestCallLog",
-                                    String.class, Long.class, String.class, Long.class,
-                                    String.class, String.class, String.class, String.class, String.class)
-                            .invoke(testCallLogRecorder,
-                                    workflowCode, versionId, workflowContent,
-                                    costTime, execParam, execStatus,
-                                    reports, callResult, errorMessage);
-                }
-            } catch (Exception e) {
-                // 如果获取或调用Bean失败，则仅记录到日志中
-                logger.info("Test call log - TaskId: {}, WorkflowCode: {}, VersionId: {}, CostTime: {}ms, Status: {}, Error: {}",
-                        taskId, workflowCode, versionId, costTime, execStatus, errorMessage);
-            }
-
-        } catch (Exception e) {
-            logger.error("记录测试调用日志失败, taskId: {}", taskId, e);
-        }
+        // 运行历史落库（第一档 B）：直接调服务持久化 run + 节点明细。
+        // 旧实现反射取 "testCallLogRecorderImpl" bean——该 bean 从未存在，异常被吞后
+        // 回退 slf4j，编辑器运行的节点报告从未落库（重启即丢）。
+        runHistoryService.recordEditorRun(taskId,
+            input != null ? input.getWorkflowCode() : null,
+            taskInfo, input, costTime);
     }
 
     /**
@@ -567,7 +542,10 @@ public class ThreadPoolAsyncWorkflowExecutor implements AsyncWorkflowExecutor, A
             processNodeReports(taskId, taskInfo, workflow);
 
             // 根据是否有异常设置工作流状态
-            if (exception == null) {
+            if (workflow != null && workflow.isCancelRequested()) {
+                // 协作式取消已生效：终态 CANCELED（不被下面的成功/失败覆盖）
+                taskInfo.getWorkflowStatus().setStatus(NodeStatus.CANCELED.getValue());
+            } else if (exception == null) {
                 // 没有异常，设置为成功状态
                 taskInfo.getWorkflowStatus().setStatus(NodeStatus.SUCCESS.getValue());
             } else {

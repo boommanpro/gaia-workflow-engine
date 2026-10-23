@@ -69,6 +69,69 @@ export interface GaiaWorkflowVersion {
   isCurrent?: number;
 }
 
+/** 子流程节点可嵌入的工作流选项（GET /workflow/subflow-options） */
+export interface SubflowOption {
+  code: string;
+  name: string;
+  description?: string;
+  currentVersionId?: number;
+  /** 工作流入参 schema（来自 start 节点 outputs） */
+  inputs?: { type?: string; properties?: Record<string, { type?: string; title?: string }> };
+  /** 工作流出参 schema（来自 end 节点 inputs） */
+  outputs?: { type?: string; properties?: Record<string, { type?: string; title?: string }> };
+}
+
+/** 版本差异响应（GET /workflow-version/diff/{id}）：diff 数组是 id/边键列表，标题看 nodeTitles */
+export interface WorkflowVersionDiffResponse {
+  /** 版本不存在时的错误标记 */
+  error?: string;
+  workflowCode: string;
+  versionNumber: string;
+  previousVersionNumber?: string | null;
+  diff: {
+    nodes: { added?: string[]; removed?: string[]; changed?: string[] };
+    edges: { added?: string[]; removed?: string[] };
+  };
+  nodeTitles?: Record<string, string>;
+}
+
+/** 运行历史记录（GET /task/runs，第一档 B：持久化的试运行实例） */
+export interface WorkflowRunRecord {
+  id: number;
+  taskId: string;
+  workflowCode?: string | null;
+  status: string;
+  errorMessage?: string | null;
+  inputsJson?: string | null;
+  outputsJson?: string | null;
+  nodeCount?: number | null;
+  durationMs?: number | null;
+  triggerChannel?: string | null;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+  createdAt?: string | null;
+}
+
+/** 节点级执行明细（GET /task/runs/{taskId} 的 nodes 项） */
+export interface WorkflowNodeRunRecord {
+  id: number;
+  runTaskId: string;
+  nodeId: string;
+  nodeType?: string | null;
+  title?: string | null;
+  status?: string | null;
+  errorMessage?: string | null;
+  inputsJson?: string | null;
+  outputJson?: string | null;
+  timeCostMs?: number | null;
+}
+
+/** 运行详情响应 */
+export interface WorkflowRunDetailResponse {
+  run: WorkflowRunRecord;
+  nodes: WorkflowNodeRunRecord[];
+}
+
 export interface GaiaWorkflowLog {
   id?: number;
   workflowCode: string;
@@ -136,6 +199,8 @@ export const workflowApi = {
   listWorkflows: () => request<GaiaWorkflow[]>('/workflow/list'),
   getWorkflowById: (id: number) => request<GaiaWorkflow>(`/workflow/${id}`),
   getWorkflowByCode: (code: string) => request<GaiaWorkflow>(`/workflow/code/${code}`),
+  /** 子流程（workflow 节点）可选清单：含当前生效版的入参(start.outputs)/出参(end.inputs) schema */
+  listSubflowOptions: () => request<SubflowOption[]>('/workflow/subflow-options'),
   createWorkflow: (workflow: GaiaWorkflow) =>
     request<boolean>('/workflow/create', { method: 'POST', body: JSON.stringify(workflow) }),
   updateWorkflow: (workflow: GaiaWorkflow) =>
@@ -157,6 +222,8 @@ export const workflowApi = {
   listVersions: (workflowCode: string) =>
     request<GaiaWorkflowVersion[]>(`/workflow-version/list/${workflowCode}`),
   getVersionById: (id: number) => request<GaiaWorkflowVersion>(`/workflow-version/${id}`),
+  /** 版本差异（与上一版对比）：后端落版时已算好存 diff_json，旧版本现场计算 */
+  getVersionDiff: (id: number) => request<WorkflowVersionDiffResponse>(`/workflow-version/diff/${id}`),
   createVersion: (version: GaiaWorkflowVersion) =>
     request<boolean>('/workflow-version/create', { method: 'POST', body: JSON.stringify(version) }),
   updateVersion: (version: GaiaWorkflowVersion) =>
@@ -172,6 +239,18 @@ export const workflowApi = {
   getLogById: (id: number) => request<GaiaWorkflowLog>(`/workflow-log/${id}`),
   deleteLog: (id: number) =>
     request<boolean>(`/workflow-log/delete/${id}`, { method: 'DELETE' }),
+
+  // 运行历史（持久化的试运行记录，第一档 B）
+  listTaskRuns: async (workflowCode?: string, page = 1, size = 20): Promise<WorkflowRunRecord[]> => {
+    const qs = new URLSearchParams({ page: String(page), size: String(size) });
+    if (workflowCode) qs.set('workflowCode', workflowCode);
+    const res = await request<{ records?: WorkflowRunRecord[]; total?: number }>(
+      `/task/runs?${qs.toString()}`
+    );
+    return res?.records ?? [];
+  },
+  getTaskRunDetail: (taskId: string) =>
+    request<WorkflowRunDetailResponse>(`/task/runs/${taskId}`),
 
   /**
    * AI 一次成型通道：把整份 DSL 直接写成一个新版本并设为生效版本。

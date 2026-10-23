@@ -60,8 +60,9 @@ interface AgentContextValue {
   refreshFolders: () => Promise<void>;
   /** 重新拉取会话列表（外部入口新建会话后左栏对齐；不改动 currentSessionKey） */
   refreshSessions: () => Promise<void>;
-  /** 新任务草稿（draft- 会话）的选项：欢迎页「任务设置」面板读写；非草稿会话为 null */
-  draftSetup: { folderId: number | null; inheritWorkflowCode: string | null } | null;
+  /** 新任务草稿（draft- 会话）的选项：欢迎页「任务设置」面板读写；非草稿会话为 null。
+   *  carryDraft = 「换新会话继续」携带的草稿快照待生效（物化时 pushDraft，优先于按工作流继承）。 */
+  draftSetup: { folderId: number | null; inheritWorkflowCode: string | null; carryDraft?: boolean } | null;
   updateDraftSetup: (patch: { folderId?: number | null; inheritWorkflowCode?: string | null }) => void;
   createFolder: (name: string) => Promise<WorkFolder | void>;
   renameFolder: (id: number, name: string) => Promise<void>;
@@ -89,7 +90,14 @@ interface AgentContextValue {
   clearDebugEntries: () => void;
 
 
-  createSession: (title?: string, opts?: { scope?: 'chat' | 'work'; folderId?: number | null }) => Promise<string>;
+  createSession: (title?: string, opts?: {
+    scope?: 'chat' | 'work';
+    folderId?: number | null;
+    /** 预选「继承已有工作流」（欢迎页可改；首条消息时 seedDraft 其当前落版） */
+    inheritWorkflowCode?: string | null;
+    /** 携带当前画布草稿 DSL（「换新会话继续」；首条消息时 pushDraft 原样带过去） */
+    inheritDsl?: boolean;
+  }) => Promise<string>;
   switchSession: (sessionKey: string) => Promise<void>;
   renameSession: (sessionKey: string, title: string) => Promise<void>;
   deleteSession: (sessionKey: string) => Promise<void>;
@@ -604,11 +612,14 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 /**
  * 草稿会话（draft- 前缀的本地 key）的元信息：首条消息发送时据此物化真实会话。
  * inheritWorkflowCode = 新建任务选择的「继承已有工作流」：物化后 seedDraft 带上其当前落版。
+ * inheritDslJson = 「换新会话继续」携带的当前草稿 DSL 快照：物化后 pushDraft 原样带到新会话
+ * （比 seedDraft 更保真——未保存的手改也在内）。
  */
 interface DraftMeta {
   scope: 'chat' | 'work';
   folderId: number | null;
   inheritWorkflowCode?: string | null;
+  inheritDslJson?: string | null;
 }
 
 export function AgentProvider({ children }: { children: React.ReactNode }) {
@@ -623,7 +634,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   // 工作空间文件夹
   const [folders, setFolders] = useState<WorkFolder[]>([]);
   /** 新任务草稿的选项（所属项目 / 继承工作流）；仅 currentSessionKey 是 draft- 时非空 */
-  const [draftSetup, setDraftSetup] = useState<{ folderId: number | null; inheritWorkflowCode: string | null } | null>(null);
+  const [draftSetup, setDraftSetup] = useState<{ folderId: number | null; inheritWorkflowCode: string | null; carryDraft?: boolean } | null>(null);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -888,16 +899,42 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     return JSON.stringify(ctx);
   }, [location.pathname]);
 
-  const createSession = useCallback(async (title?: string, opts?: { scope?: 'chat' | 'work'; folderId?: number | null }) => {
+  const createSession = useCallback(async (title?: string, opts?: {
+    scope?: 'chat' | 'work';
+    folderId?: number | null;
+    /** 预选「继承已有工作流」（欢迎页可改；首条消息时 seedDraft 其当前落版） */
+    inheritWorkflowCode?: string | null;
+    /** 携带当前画布草稿 DSL（「换新会话继续」；首条消息时 pushDraft 原样带过去） */
+    inheritDsl?: boolean;
+  }) => {
     // 新建对话只生成本地草稿 key，不请求后端；首条消息发送时（postMessage）才真正创建会话。
     // 归属项目 / 继承工作流等「新任务选项」在欢迎页调整，由 updateDraftSetup 写回元信息。
     const key = `draft-${nanoid(8)}`;
+    let inheritDslJson: string | null = null;
+    let inheritCode = opts?.inheritWorkflowCode ?? null;
+    if (opts?.inheritDsl) {
+      // 「换新会话继续」：把当前画布（含未保存手改）快照进草稿元信息
+      try {
+        const snap = workflowDocumentStore.getSnapshot();
+        if (!snap.doc.isEmpty) {
+          inheritDslJson = JSON.stringify(snap.doc.toJSON());
+          if (snap.meta.workflowCode) inheritCode = snap.meta.workflowCode;
+        }
+      } catch { /* 快照失败退化为普通新任务 */ }
+    }
     draftMetaRef.current.set(key, {
       scope: opts?.scope || 'chat',
       folderId: opts?.folderId ?? null,
-      inheritWorkflowCode: null,
+      inheritWorkflowCode: inheritCode,
+      inheritDslJson,
     });
-    setDraftSetup({ folderId: opts?.folderId ?? null, inheritWorkflowCode: null });
+    // inheritDsl 携带了草稿快照但可能没有绑定工作流：用 '' 表示「继承态、待选/无编码」，
+    // 保证欢迎页起点落在「继承已有工作流」，物化时按 DSL 快照走
+    setDraftSetup({
+      folderId: opts?.folderId ?? null,
+      inheritWorkflowCode: inheritDslJson != null ? (inheritCode ?? '') : inheritCode,
+      carryDraft: inheritDslJson != null,
+    });
     setCurrentSessionKey(key);
     setMessages([]);
     setDockOpen(true);
@@ -912,6 +949,8 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       const next = {
         folderId: patch.folderId !== undefined ? patch.folderId : prev?.folderId ?? null,
         inheritWorkflowCode: patch.inheritWorkflowCode !== undefined ? patch.inheritWorkflowCode : prev?.inheritWorkflowCode ?? null,
+        // 用户动了工作流选择/起点 → 放弃「换新会话继续」的携带语义
+        carryDraft: patch.inheritWorkflowCode !== undefined ? false : prev?.carryDraft ?? false,
       };
       const meta = draftMetaRef.current.get(key);
       if (meta) {
@@ -919,6 +958,8 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
           scope: next.folderId != null ? 'work' : 'chat',
           folderId: next.folderId,
           inheritWorkflowCode: next.inheritWorkflowCode,
+          // 用户手动改了工作流选择 → 放弃「换新会话继续」带来的 DSL 快照，按新选择走
+          inheritDslJson: patch.inheritWorkflowCode !== undefined ? null : meta.inheritDslJson ?? null,
         });
       }
       return next;
@@ -1043,15 +1084,17 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       let sessionKey = currentSessionKeyRef.current;
       if (!sessionKey) return false;
 
-      // 草稿会话：发送前先创建正式会话（scope/folderId 来自草稿元信息），失败则不发送
+      // 草稿会话：发送前先创建正式会话（scope/folderId 来自草稿元信息），失败则不发送。
+      // 元信息只在物化成功后删除：失败时保留 —— 否则原地重试会带着 draft- 伪键裸发，
+      // 后端拒收/孤儿会话 + SSE 不订阅 draft 键 = 回复永不渲染的静默失败（3.3 遗留根因）
       const draft = draftMetaRef.current.get(sessionKey);
       if (draft) {
-        draftMetaRef.current.delete(sessionKey);
         try {
           const real = await agentApi.createSession(text.slice(0, 30), {
             scope: draft.scope,
             folderId: draft.folderId,
           });
+          draftMetaRef.current.delete(sessionKey);
           sessionKey = real.sessionKey;
           currentSessionKeyRef.current = sessionKey;
           setCurrentSessionKey(sessionKey);
@@ -1062,9 +1105,27 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
           setSessions((prev) => [real, ...prev]);
           if (draft.scope === 'work') void refreshFolders();
           setDraftSetup(null);
-          // 「继承已有工作流」：物化后把所选工作流当前落版 seed 进会话草稿，
-          // AI 的上下文起点即该工作流（服务端草稿，本地空画布不会覆盖它）
-          if (draft.inheritWorkflowCode) {
+          // 「换新会话继续」：把快照的草稿 DSL 原样 push 成新会话的服务端草稿（含未保存手改）；
+          // 普通「继承已有工作流」：seedDraft 取该工作流当前落版。
+          if (draft.inheritDslJson) {
+            try {
+              await agentApi.pushDraft(sessionKey, {
+                dsl: JSON.parse(draft.inheritDslJson),
+                workflowCode: draft.inheritWorkflowCode || undefined,
+              });
+              if (draft.inheritWorkflowCode) bindSessionToWorkflow(sessionKey, draft.inheritWorkflowCode);
+            } catch (e) {
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: nanoid(),
+                  role: 'assistant',
+                  content: `[提示] 草稿携带失败：${(e as Error).message}。任务已创建，可继续对话。`,
+                  timestamp: Date.now(),
+                },
+              ]);
+            }
+          } else if (draft.inheritWorkflowCode) {
             try {
               await agentApi.seedDraft(sessionKey, draft.inheritWorkflowCode);
               bindSessionToWorkflow(sessionKey, draft.inheritWorkflowCode);
@@ -1074,7 +1135,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
                 {
                   id: nanoid(),
                   role: 'assistant',
-                  content: `[提示] 工作流继承失败：${(e as Error).message}。任务已创建，可继续对话，或在任务列表重新发起。`,
+                  content: `[提示] 工作流继承失败：${(e as Error).message}。任务已创建，可继续对话。`,
                   timestamp: Date.now(),
                 },
               ]);
@@ -1087,6 +1148,21 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
           ]);
           return false;
         }
+      }
+
+      // 防御：没有草稿元信息却还是 draft- 伪键（历史失败残留）——伪键无法被 SSE 订阅，
+      // 发出去的 run 回复永不渲染。这里明确拦下并提示，杜绝静默失败
+      if (sessionKey.startsWith('draft-')) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: nanoid(),
+            role: 'assistant',
+            content: '[错误] 会话尚未创建成功，请新建任务后重新发送。',
+            timestamp: Date.now(),
+          },
+        ]);
+        return false;
       }
 
       // 提问前同步（阶段 2.1 → 全会话）：AI 读的是服务端会话草稿，而用户手改可能

@@ -368,3 +368,42 @@ CREATE TABLE IF NOT EXISTS agent_skill_history (
     created_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_agent_skill_history_name ON agent_skill_history(skill_name, version);
+
+-- ====================================================================
+-- 运行历史持久化（第一档 B：运行即证据——编辑器试运行的 run/节点级明细，
+-- 替换只存在于内存、重启即丢的 InMemoryTaskRepository 报告）
+-- ====================================================================
+
+-- 运行实例（一次试运行一行）
+CREATE TABLE IF NOT EXISTS workflow_run (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id VARCHAR(64) NOT NULL UNIQUE,
+    workflow_code VARCHAR(64),
+    status VARCHAR(32) NOT NULL,
+    error_message TEXT,
+    inputs_json TEXT,
+    outputs_json TEXT,
+    node_count INTEGER,
+    duration_ms BIGINT,
+    trigger_channel VARCHAR(32) DEFAULT 'editor',
+    started_at TEXT,
+    finished_at TEXT,
+    created_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_workflow_run_code ON workflow_run(workflow_code, id);
+
+-- 节点级执行明细（一次运行 N 行）
+CREATE TABLE IF NOT EXISTS workflow_node_run (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_task_id VARCHAR(64) NOT NULL,
+    node_id VARCHAR(64) NOT NULL,
+    node_type VARCHAR(32),
+    title VARCHAR(128),
+    status VARCHAR(32),
+    error_message TEXT,
+    inputs_json TEXT,
+    output_json TEXT,
+    time_cost_ms BIGINT,
+    created_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_workflow_node_run_task ON workflow_node_run(run_task_id);

@@ -14,4 +14,6 @@ import java.util.Map;
 public class TaskRunInput {
     private String schema;
     private Map<String, Object> inputs;
+    /** 可选：编辑器试运行时携带工作流编码（运行历史按它归档；缺省从 schema 兜底解析） */
+    private String workflowCode;
 }

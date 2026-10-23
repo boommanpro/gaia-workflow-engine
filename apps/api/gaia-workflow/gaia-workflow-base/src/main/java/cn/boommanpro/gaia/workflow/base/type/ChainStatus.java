@@ -13,6 +13,7 @@ public enum ChainStatus {
     FINISHED_NORMAL("finished_normal", "正常结束"),
     FINISHED_ABNORMAL("finished_abnormal", "错误结束"),
     SUSPEND("suspend", "暂停执行"),
+    CANCELED("canceled", "已取消（协作式：运行中节点受超时约束自然结束，未开始节点不再派发）"),
     ;
 
     private final String code;

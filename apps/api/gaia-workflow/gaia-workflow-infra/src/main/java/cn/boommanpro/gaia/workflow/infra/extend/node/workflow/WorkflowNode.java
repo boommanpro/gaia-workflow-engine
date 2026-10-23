@@ -118,8 +118,10 @@ public class WorkflowNode extends BaseNode {
             log.debug("工作流节点执行完成: {}, 输出: {}", getId(), result);
 
         } catch (Exception e) {
+            // 失败必须上抛（引擎置节点 FAILED + 工作流终态 FAILED）：
+            // 旧行为吞成 error 字段、节点 FINISHED、父流程继续跑——假成功
             log.error("工作流节点执行失败: {}", getId(), e);
-            result.put("error", e.getMessage());
+            throw (e instanceof RuntimeException) ? (RuntimeException) e : new RuntimeException(e);
         }
 
         return result;

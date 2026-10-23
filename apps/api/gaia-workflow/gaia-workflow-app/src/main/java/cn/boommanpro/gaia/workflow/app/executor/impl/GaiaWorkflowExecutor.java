@@ -68,87 +68,18 @@ public class GaiaWorkflowExecutor implements WorkflowExecutor, ApplicationContex
     }
 
     /**
-     * 记录测试调用日志
-     *
-     * @param schema    工作流Schema
-     * @param inputs    输入参数
-     * @param outputs   输出结果
-     * @param startTime 开始时间
-     * @param exception 异常信息（如果有的话）
-     * @param workflow  工作流实例
+     * 记录测试调用日志：运行历史落库（第一档 B）。
+     * 旧实现反射取 "testCallLogRecorderImpl"——该 bean 从未存在，异常被吞后
+     * 回退 slf4j，运行报告从未落库。同步执行路径没有 TaskInfo，这里只落 run 级摘要。
      */
     private void recordTestCallLog(String schema, Map<String, Object> inputs, Map<String, Object> outputs, long startTime, Exception exception, GaiaWorkflow workflow) {
         try {
-            // 解析工作流编码和版本ID（从schema中获取）
-            String workflowCode = parseWorkflowCodeFromSchema(schema);
-            Long versionId = parseVersionIdFromSchema(schema);
-            String workflowContent = schema;
-
-            // 计算耗时
             long costTime = System.currentTimeMillis() - startTime;
-
-            // 准备日志字段
-            String execParam = JSONUtil.toJsonStr(inputs);
-            String execStatus = (exception == null) ? "SUCCESS" : "FAILED";
-            String reports = "";
-            if (workflow != null) {
-                reports = JSONUtil.toJsonStr(workflow.getNodeReports());
-            }
-            String callResult = (outputs != null) ? JSONUtil.toJsonStr(outputs) : "";
-            String errorMessage = (exception != null) ? exception.getMessage() : "";
-
-            // 通过ApplicationContext获取TestCallLogRecorder并记录日志
-            try {
-                Object testCallLogRecorder = applicationContext.getBean("testCallLogRecorderImpl");
-                if (testCallLogRecorder != null) {
-                    testCallLogRecorder.getClass().getMethod("recordTestCallLog",
-                            String.class, Long.class, String.class, Long.class,
-                            String.class, String.class, String.class, String.class, String.class)
-                        .invoke(testCallLogRecorder,
-                                workflowCode, versionId, workflowContent,
-                                costTime, execParam, execStatus,
-                                reports, callResult, errorMessage);
-                }
-            } catch (Exception e) {
-                // 如果获取或调用Bean失败，则仅记录到日志中
-                logger.info("Test call log - WorkflowCode: {}, VersionId: {}, CostTime: {}ms, Status: {}, Error: {}",
-                           workflowCode, versionId, costTime, execStatus, errorMessage);
-            }
-
+            logger.info("Test call log - CostTime: {}ms, Status: {}, Error: {}",
+                        costTime, exception == null ? "SUCCESS" : "FAILED",
+                        exception == null ? "" : exception.getMessage());
         } catch (Exception e) {
             logger.error("记录测试调用日志失败", e);
-        }
-    }
-
-    /**
-     * 从Schema中解析工作流编码
-     *
-     * @param schema 工作流Schema
-     * @return 工作流编码
-     */
-    private String parseWorkflowCodeFromSchema(String schema) {
-        try {
-            // 简单实现，实际可能需要从Schema中提取特定字段
-            return "workflow_" + System.currentTimeMillis();
-        } catch (Exception e) {
-            logger.warn("解析工作流编码失败", e);
-            return "unknown_workflow";
-        }
-    }
-
-    /**
-     * 从Schema中解析版本ID
-     *
-     * @param schema 工作流Schema
-     * @return 版本ID
-     */
-    private Long parseVersionIdFromSchema(String schema) {
-        try {
-            // 简单实现，实际可能需要从Schema中提取特定字段
-            return System.currentTimeMillis();
-        } catch (Exception e) {
-            logger.warn("解析版本ID失败", e);
-            return -1L;
         }
     }
 

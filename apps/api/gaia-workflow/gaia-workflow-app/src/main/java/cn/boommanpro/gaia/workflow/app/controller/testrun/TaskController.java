@@ -13,6 +13,7 @@ import cn.boommanpro.gaia.workflow.app.service.WorkflowTaskService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -33,10 +34,39 @@ import org.springframework.web.bind.annotation.RestController;
 public class TaskController {
 
     private final WorkflowTaskService workflowTaskService;
+    private final cn.boommanpro.gaia.workflow.app.service.WorkflowRunHistoryService runHistoryService;
 
     @Autowired
-    public TaskController(WorkflowTaskService workflowTaskService) {
+    public TaskController(WorkflowTaskService workflowTaskService,
+                          cn.boommanpro.gaia.workflow.app.service.WorkflowRunHistoryService runHistoryService) {
         this.workflowTaskService = workflowTaskService;
+        this.runHistoryService = runHistoryService;
+    }
+
+    /**
+     * 运行历史列表（第一档 B：持久化后的试运行记录，重启不丢）。
+     * 可选 workflowCode 过滤，倒序分页。
+     */
+    @GetMapping("runs")
+    public com.baomidou.mybatisplus.extension.plugins.pagination.Page<
+        cn.boommanpro.gaia.workflow.infra.manage.entity.WorkflowRun> listRuns(
+            @RequestParam(required = false) String workflowCode,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return runHistoryService.listRuns(workflowCode, page, size);
+    }
+
+    /**
+     * 单次运行详情（含节点级输入/输出/错误明细）
+     */
+    @GetMapping("runs/{taskId}")
+    public java.util.Map<String, Object> getRunDetail(@PathVariable String taskId) {
+        java.util.Map<String, Object> detail = runHistoryService.getRunDetail(taskId);
+        if (detail == null) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.NOT_FOUND, "run not found: " + taskId);
+        }
+        return detail;
     }
 
     /**

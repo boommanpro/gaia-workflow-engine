@@ -45,11 +45,12 @@ public class HttpNode extends BaseNode {
     public Map<String, Object> execute(Chain chain) {
         Map<String, Object> result = new HashMap<>();
 
-        // 空配置兜底：缺失 api 或 url 时不应抛 NPE，应优雅降级到 error
+        // 空配置兜底：缺失 api 或 url 时抛明确配置错误（运行前门禁也会拦，
+        // 这里防直调路径）；旧行为吞成 error 字段继续跑 = 假成功
         if (api == null || api.getUrl() == null || StrUtil.isBlank(api.getMethod())) {
             log.warn("HTTP节点缺少有效的 api/url/method 配置，id={}", this.getId());
-            result.put("error", "HTTP节点缺少有效的 api 配置（url/method 未设置）");
-            return result;
+            throw new IllegalArgumentException(
+                "HTTP节点 " + getId() + " 缺少有效的 api 配置（url/method 未设置）");
         }
 
         // 重试次数：timeout.retryTimes > 0 时生效，否则默认 1 次（无重试）
@@ -79,8 +80,10 @@ public class HttpNode extends BaseNode {
             } catch (Exception e) {
                 log.warn("HTTP请求执行失败(第{}/{}次): {}", attempt, retryTimes, e.getMessage());
                 if (attempt >= retryTimes) {
+                    // 重试耗尽必须上抛：引擎置节点 FAILED + 工作流终态 FAILED
+                    //（旧行为吞成 error 字段、节点 FINISHED、下游继续跑——假成功）
                     log.error("HTTP请求重试{}次后仍失败", retryTimes, e);
-                    result.put("error", e.getMessage());
+                    throw (e instanceof RuntimeException) ? (RuntimeException) e : new RuntimeException(e);
                 }
             }
         }

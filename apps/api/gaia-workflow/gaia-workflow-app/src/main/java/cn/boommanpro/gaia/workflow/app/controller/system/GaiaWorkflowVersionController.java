@@ -59,6 +59,9 @@ public class GaiaWorkflowVersionController {
 
     /**
      * 版本差异（v2）：落版时已计算存 diff_json；为空（旧版本）时现场计算。
+     *
+     * <p>响应附带 nodeTitles（前后两版合并的 nodeId→标题映射）：diff 数组只存 id 列表，
+     * 前端渲染明细需要标题（removed 节点的标题只存在于旧版数据里）。</p>
      */
     @GetMapping("/diff/{id}")
     public Map<String, Object> versionDiff(@PathVariable Long id) {
@@ -70,28 +73,67 @@ public class GaiaWorkflowVersionController {
         }
         result.put("workflowCode", version.getWorkflowCode());
         result.put("versionNumber", version.getVersionNumber());
-        if (version.getDiffJson() != null && !version.getDiffJson().isEmpty()) {
-            result.put("diff", cn.hutool.json.JSONUtil.parseObj(version.getDiffJson()));
-            return result;
-        }
-        // 旧版本无存档 diff：现场与上一版本对比
+
+        // 找上一版数据：优先给 diff 明细提供 removed 节点的标题来源
         List<GaiaWorkflowVersion> versions = workflowVersionService.list(
             new QueryWrapper<GaiaWorkflowVersion>()
                 .eq("workflow_code", version.getWorkflowCode())
                 .orderByDesc("created_at"));
         String previous = null;
+        String previousVersionNumber = null;
         boolean seenSelf = false;
         for (GaiaWorkflowVersion v : versions) {
             if (seenSelf) {
                 previous = v.getWorkflowData();
+                previousVersionNumber = v.getVersionNumber();
                 break;
             }
             if (v.getId().equals(version.getId())) {
                 seenSelf = true;
             }
         }
-        result.put("diff", diffService.diff(previous, version.getWorkflowData()));
+        result.put("previousVersionNumber", previousVersionNumber);
+
+        if (version.getDiffJson() != null && !version.getDiffJson().isEmpty()) {
+            result.put("diff", cn.hutool.json.JSONUtil.parseObj(version.getDiffJson()));
+        } else {
+            // 旧版本无存档 diff：现场与上一版本对比
+            result.put("diff", diffService.diff(previous, version.getWorkflowData()));
+        }
+
+        Map<String, String> titles = new HashMap<>();
+        collectNodeTitles(previous, titles);
+        collectNodeTitles(version.getWorkflowData(), titles);
+        result.put("nodeTitles", titles);
         return result;
+    }
+
+    /** 从 DSL 提取 nodeId→标题（data.title 缺省回退 id），收集进 titles */
+    private void collectNodeTitles(String dsl, Map<String, String> titles) {
+        if (dsl == null || dsl.trim().isEmpty()) {
+            return;
+        }
+        try {
+            cn.hutool.json.JSONArray nodes = cn.hutool.json.JSONUtil.parseObj(dsl).getJSONArray("nodes");
+            if (nodes == null) {
+                return;
+            }
+            for (int i = 0; i < nodes.size(); i++) {
+                cn.hutool.json.JSONObject node = nodes.getJSONObject(i);
+                if (node == null || node.getStr("id") == null) {
+                    continue;
+                }
+                String id = node.getStr("id");
+                String title = id;
+                cn.hutool.json.JSONObject data = node.getJSONObject("data");
+                if (data != null && data.getStr("title") != null && !data.getStr("title").trim().isEmpty()) {
+                    title = data.getStr("title");
+                }
+                titles.putIfAbsent(id, title);
+            }
+        } catch (Exception ignore) {
+            // 不可解析按无标题处理，明细渲染回退 id
+        }
     }
 
     /**

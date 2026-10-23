@@ -190,6 +190,12 @@ public class AgentSessionRunService {
         if (sessionKey == null || sessionKey.isEmpty()) {
             return StartResult.conflict("sessionKey is required");
         }
+        if (sessionKey.startsWith("draft-")) {
+            // 前端本地伪会话键：ensureSession 会把它建成无归属的孤儿会话，
+            // 且前端 SSE 不订阅 draft- 键，回复永不渲染（表现为发送静默失败）。
+            // 正式会话必须先走 /agent/session/create 物化。
+            return StartResult.conflict("draft session key must be materialized before run");
+        }
         if (message == null || message.trim().isEmpty()) {
             return StartResult.conflict("message is required");
         }

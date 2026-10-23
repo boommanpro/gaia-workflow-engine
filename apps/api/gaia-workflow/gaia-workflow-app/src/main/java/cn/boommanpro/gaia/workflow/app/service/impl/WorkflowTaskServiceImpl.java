@@ -62,6 +62,22 @@ public class WorkflowTaskServiceImpl implements WorkflowTaskService {
     @Override
     public TaskRunOutput runWorkflow(TaskRunInput input) {
         logger.info("运行工作流: {}", input);
+        // 运行前预检（与 /task/validate 同一道门禁）：直调本端点的调用方没有前端
+        // validate 挡在前面，带未知类型/坏结构的 schema 进 ChainParser 会直接 NPE
+        if (input.getSchema() == null || input.getSchema().isEmpty()) {
+            logger.warn("运行被拒绝：工作流Schema为空");
+            return TaskRunOutput.fail(Arrays.asList("Schema不能为空"), null);
+        }
+        java.util.List<WorkflowDslValidator.Issue> issues = WorkflowDslValidator.validate(input.getSchema());
+        java.util.List<String> errors = issues.stream()
+                .filter(issue -> "error".equals(issue.getLevel()))
+                .map(WorkflowDslValidator.Issue::getMessage)
+                .collect(java.util.stream.Collectors.toList());
+        if (!errors.isEmpty()) {
+            logger.warn("运行被拒绝：工作流校验未通过, {} 个 error 级问题", errors.size());
+            return TaskRunOutput.fail(errors, issues);
+        }
+
         // 生成任务ID
         String taskId = generateTaskId();
         logger.debug("生成任务ID: {}", taskId);
@@ -142,6 +158,14 @@ public class WorkflowTaskServiceImpl implements WorkflowTaskService {
 
         // 设置任务状态为已取消
         updateTaskStatusToCanceled(taskId, taskInfo);
+
+        // 协作式取消（第一档 G）：通知运行中的工作流——未开始节点标 CANCELED、
+        // 不再派发；正在执行的节点受其请求超时约束自然结束后收敛。
+        // 旧实现只翻内存状态标志，执行线程毫无感知，跑完还会把状态改回成功
+        if (taskInfo.getWorkflowRef() != null) {
+            taskInfo.getWorkflowRef().requestCancel();
+            logger.info("已请求任务协作式取消: {}", taskId);
+        }
 
         return new TaskCancelOutput(true);
     }

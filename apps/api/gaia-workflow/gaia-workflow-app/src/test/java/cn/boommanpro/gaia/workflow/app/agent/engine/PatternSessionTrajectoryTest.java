@@ -132,12 +132,14 @@ class PatternSessionTrajectoryTest {
         when(modelConfigService.getLlmConfig(anyString()))
             .thenReturn(mock(AgentModelConfigService.LlmConfig.class));
         DraftRunService draftRunService = new DraftRunService(modelConfigService);
-        stubExecutor(executors, "get", new GetToolExecutor(draftService, mock(AgentSkillCatalog.class)));
+        stubExecutor(executors, "get", new GetToolExecutor(draftService, mock(AgentSkillCatalog.class),
+            mock(cn.boommanpro.gaia.workflow.infra.manage.service.GaiaWorkflowService.class)));
         stubExecutor(executors, "node", new NodeToolExecutor(draftService));
         stubExecutor(executors, "edge", new EdgeToolExecutor(draftService));
         stubExecutor(executors, "run", new RunToolExecutor(
             draftService, new SingleNodeExecutor(), draftRunService,
-            mock(WorkflowTestCaseOrchestrator.class)));
+            mock(WorkflowTestCaseOrchestrator.class),
+            mock(cn.boommanpro.gaia.workflow.app.agent.session.SessionArtifactStore.class)));
 
         cn.boommanpro.gaia.workflow.app.agent.runtime.SystemPromptResolver promptResolver =
             mock(cn.boommanpro.gaia.workflow.app.agent.runtime.SystemPromptResolver.class);

@@ -14,6 +14,7 @@ public enum ChainNodeStatus {
     FINISHED_ABNORMAL("finished_abnormal", "异常完成"),
     FAILED("failed", "执行失败"),
     SKIPPED("skipped", "跳过执行"),
+    CANCELED("canceled", "已取消"),
     ;
 
     private final String code;

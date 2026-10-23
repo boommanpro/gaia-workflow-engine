@@ -38,10 +38,12 @@ public final class WorkflowDslCanonicalizer {
      *  注意：multi-condition 不在其中 —— 运行时没有它的解析器（NodeTypeEnum/ChainParser 均无），
      *  出现即 fatal 打回（2026-10-16 起不再静默降级 variable）；多条件互斥分支用 branches，
      *  单条件用 condition。assignee 是画布标注节点（无执行语义），2026-10-16 起移出 agent
-     *  可建清单（存量文档仍保留不执行）；note/group 同理不在 agent 可建清单。 */
+     *  可建清单（存量文档仍保留不执行）；note/group 同理不在 agent 可建清单。
+     *  workflow（子流程）有真实解析器（infra WorkflowNodeParser）且契约文件齐备，
+     *  2026-10-23 起加入白名单——此前被 fatal 打回导致子流程永远无法落版。 */
     private static final Set<String> SUPPORTED_TYPES = new HashSet<>(Arrays.asList(
         "start", "end", "llm", "code", "http", "condition",
-        "branches", "loop", "variable", "string-format", "comment"));
+        "branches", "loop", "variable", "string-format", "comment", "workflow"));
 
     /** 不属于业务数据的节点保留键 */
     private static final Set<String> RESERVED_NODE_KEYS = new HashSet<>(Arrays.asList(
@@ -671,6 +673,16 @@ public final class WorkflowDslCanonicalizer {
                             + "修复：node 传 {\"action\":\"update\",\"nodeId\":\"" + id
                             + "\",\"data\":{\"script\":{\"language\":\"java\",\"content\":\"return Map.of(\\\"result\\\", input.get(\\\"text\\\"));\"}}}"
                             + "（content 写 java 语句，input 是上游输出 Map）");
+                    }
+                    break;
+                }
+                case "workflow": {
+                    String targetCode = data.getStr("workflowId");
+                    if (targetCode == null || targetCode.trim().isEmpty()) {
+                        fatalIssues.add("节点 " + id + "（子流程）缺少 workflowId：没有目标工作流无法执行。"
+                            + "修复：先 get(target=canvas) 确认可用的 workflowCode，再 node 传 "
+                            + "{\"action\":\"update\",\"nodeId\":\"" + id
+                            + "\",\"data\":{\"workflowId\":\"<目标工作流code>\"}}");
                     }
                     break;
                 }

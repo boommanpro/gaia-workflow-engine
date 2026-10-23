@@ -1,5 +1,6 @@
 package cn.boommanpro.gaia.workflow.app.domain.testrun.model;
 
+import cn.boommanpro.gaia.workflow.base.GaiaWorkflow;
 import lombok.Data;
 
 import java.util.HashMap;
@@ -19,6 +20,12 @@ public class TaskInfo {
     private final WorkflowStatus workflowStatus;
     private Map<String, NodeReport> nodeReports;
     private Messages messages;
+
+    /**
+     * 运行中的工作流实例（transient：仅供 cancelTask 发起协作式取消与完成回调
+     * 判定取消态，不参与任何序列化）。
+     */
+    private transient GaiaWorkflow workflowRef;
 
     public TaskInfo(String schema, Map<String, Object> inputs) {
         this.schema = schema;

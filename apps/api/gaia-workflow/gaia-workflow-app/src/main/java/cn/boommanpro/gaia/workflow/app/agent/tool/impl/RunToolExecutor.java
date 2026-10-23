@@ -2,6 +2,7 @@ package cn.boommanpro.gaia.workflow.app.agent.tool.impl;
 
 import cn.boommanpro.gaia.workflow.app.agent.core.AgentRunContext;
 import cn.boommanpro.gaia.workflow.app.agent.core.ExecutionSurface;
+import cn.boommanpro.gaia.workflow.app.agent.session.SessionArtifactStore;
 import cn.boommanpro.gaia.workflow.app.agent.session.SessionWorkflowDraftService;
 import cn.boommanpro.gaia.workflow.app.agent.tool.ToolExecutor;
 import cn.boommanpro.gaia.workflow.app.agent.tool.ToolResult;
@@ -25,15 +26,18 @@ public class RunToolExecutor implements ToolExecutor {
     private final SingleNodeExecutor singleNodeExecutor;
     private final DraftRunService draftRunService;
     private final WorkflowTestCaseOrchestrator testCaseOrchestrator;
+    private final SessionArtifactStore artifactStore;
 
     public RunToolExecutor(SessionWorkflowDraftService draftService,
                            SingleNodeExecutor singleNodeExecutor,
                            DraftRunService draftRunService,
-                           WorkflowTestCaseOrchestrator testCaseOrchestrator) {
+                           WorkflowTestCaseOrchestrator testCaseOrchestrator,
+                           SessionArtifactStore artifactStore) {
         this.draftService = draftService;
         this.singleNodeExecutor = singleNodeExecutor;
         this.draftRunService = draftRunService;
         this.testCaseOrchestrator = testCaseOrchestrator;
+        this.artifactStore = artifactStore;
     }
 
     @Override public String name() { return "run"; }
@@ -66,10 +70,13 @@ public class RunToolExecutor implements ToolExecutor {
         return ToolResult.ok(payload.toString(), out.isSuccess() ? "节点试跑通过" : "节点试跑失败: " + out.getError());
     }
 
-    /** 整流试跑：真正执行会话草稿（同步、60s 超时），回 end 输出 + 每节点状态 */
+    /** 整流试跑：真正执行会话草稿（同步、60s 超时），回 end 输出 + 每节点状态。
+     * 每次整流试跑落一条 test_report 产物（成功/失败都记）——产物面板此前定义了
+     * 该类型却无任何写入方，对话内试跑历史无处可查。 */
     private ToolResult runWorkflow(JSONObject args, AgentRunContext ctx) {
         JSONObject doc = draftService.publicDoc(ctx.getSessionKey());
         DraftRunService.RunReport report = draftRunService.run(doc, args.getJSONObject("inputs"));
+        recordTestReport(ctx, report);
         JSONObject payload = report.toJson();
         if (!report.success) {
             if (report.issues != null && !report.issues.isEmpty()) {
@@ -85,6 +92,38 @@ public class RunToolExecutor implements ToolExecutor {
         }
         payload.set("hint", "换一组反向输入再跑一次，正反都过再提醒用户保存");
         return ToolResult.ok(payload.toString(), "整流试跑通过（" + report.timeCostMs + "ms）");
+    }
+
+    /** 试跑结果落 test_report 产物（失败不阻塞工具结果，只 warn） */
+    private void recordTestReport(AgentRunContext ctx, DraftRunService.RunReport report) {
+        try {
+            String runId = ctx.getRequest() != null ? ctx.getRequest().getRunId() : null;
+            // payload.status 与外层 status 一致：前端产物面板按 payload.status 判失败样式
+            JSONObject payload = new JSONObject()
+                .set("status", report.success ? "passed" : "failed")
+                .set("success", report.success)
+                .set("outputs", report.outputs)
+                .set("failedNodes", report.failedNodes)
+                .set("notExecuted", report.notExecuted)
+                .set("issues", report.issues)
+                .set("timeCostMs", report.timeCostMs);
+            if (report.error != null) {
+                payload.set("error", report.error);
+            }
+            String summary = report.success
+                ? "输出 " + (report.outputs == null ? 0 : report.outputs.size()) + " 项，" + report.timeCostMs + "ms"
+                : (report.error != null ? report.error
+                    : (report.issues != null && !report.issues.isEmpty() ? report.issues.get(0) : "试跑失败"));
+            artifactStore.appendArtifact(ctx.getSessionKey(), runId,
+                SessionArtifactStore.TYPE_TEST_REPORT,
+                report.success ? "passed" : "failed",
+                "试运行 " + (report.success ? "通过" : "失败"),
+                summary,
+                payload);
+        } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger(RunToolExecutor.class)
+                .warn("[run] test_report 产物记录失败: {}", e.getMessage());
+        }
     }
 
     private ToolResult runTests(JSONObject args, AgentRunContext ctx) {

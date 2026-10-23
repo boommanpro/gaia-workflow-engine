@@ -31,7 +31,13 @@ public class ChainParser {
             if (NodeTypeEnum.notParse(type)) {
                 continue;
             }
-            ChainNode node = nodeParserMap.get(type).parse(nodeJSONObject, workflow);
+            NodeParser parser = nodeParserMap.get(type);
+            if (parser == null) {
+                throw new IllegalArgumentException(String.format(
+                        "不支持的节点类型: %s（节点 %s）——引擎没有该类型的解析器，请删除或替换该节点",
+                        type, nodeJSONObject.getStr("id")));
+            }
+            ChainNode node = parser.parse(nodeJSONObject, workflow);
             chain.addNode(node);
         }
         for (int i = 0; i < edges.size(); i++) {

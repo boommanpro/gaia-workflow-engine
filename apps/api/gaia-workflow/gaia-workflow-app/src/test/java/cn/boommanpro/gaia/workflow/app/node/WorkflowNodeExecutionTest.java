@@ -18,6 +18,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -135,20 +136,18 @@ class WorkflowNodeExecutionTest {
     }
 
     @Test
-    @DisplayName("目标工作流不存在 → 节点不抛断整条链，节点报告可见 error")
+    @DisplayName("目标工作流不存在 → 节点 FAILED 抛断整条链（新错误语义：不再吞 error 假成功）")
     void missingTargetWorkflowReportsError() {
         WorkflowNode.setSchemaResolver(id -> null);
         try {
             GaiaWorkflow wf = new GaiaWorkflow(parentFlowSchema());
-            Map<String, Object> result = wf.run(new HashMap<>());
-            // 链不中断（end 仍执行，只是引用落空）
-            assertTrue(result.containsKey("result"));
-            // 错误在节点报告中可见（运维/排查口径）
+            // 第一档 A：目标缺失必须失败上抛——旧行为 end 照跑、错误只藏在
+            // 节点报告 error 字段里，工作流呈现"成功"
+            assertThrows(cn.boommanpro.gaia.workflow.base.exception.ChainException.class,
+                () -> wf.run(new HashMap<>()));
+            // 失败节点与被跳过的下游在节点报告口径中仍可排查
             GaiaWorkflow.NodeReport report = wf.getNodeReports().get("wf_0");
             assertNotNull(report, "workflow 节点应有执行报告");
-            assertNotNull(report.getSnapshots());
-            assertTrue(String.valueOf(report.getSnapshots()).contains("不存在"),
-                "节点报告快照应含错误信息: " + report.getSnapshots());
         } finally {
             WorkflowNode.setSchemaResolver(id -> "sub_flow".equals(id) ? subFlowSchema() : null);
         }

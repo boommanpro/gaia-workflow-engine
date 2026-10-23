@@ -1,26 +1,38 @@
 /**
- * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * Copyright (c) 2025 Bytedance Ltd. and its affiliates
  * SPDX-License-Identifier: MIT
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import { PanelFactory, usePanelManager } from '@flowgram.ai/panel-manager-plugin';
 import { useService } from '@flowgram.ai/free-layout-editor';
+import { useParams } from 'react-router-dom';
 import { IconButton, Tag } from '@douyinfe/semi-ui';
 import { IconUploadError, IconClose } from '@douyinfe/semi-icons';
 
+import { WorkflowRuntimeService } from '../../plugins/runtime-plugin/runtime-service';
 import {
-  WorkflowRuntimeService,
-  TestRunRecord,
-} from '../../plugins/runtime-plugin/runtime-service';
+  workflowApi,
+  type WorkflowRunRecord,
+  type WorkflowNodeRunRecord,
+} from '../../services/workflow-api';
 import { useLanguage, t, getCurrentLocale } from '../../i18n';
 
 import styles from './index.module.less';
 
 export const RUN_HISTORY_PANEL = 'run-history-panel';
 
-const formatTime = (timestamp: number): string => {
-  const date = new Date(timestamp);
+/**
+ * 运行历史（第一档 B 改造）：
+ * - 数据源从"内存最近 50 条"改为后端持久化记录（GET /task/runs），重启不丢；
+ * - 详情为只读报告（run 级入参/返回/错误 + 节点级明细）；
+ * - 旧版"双击用历史 schema 整图 reload 覆盖当前画布"已删除——那是数据丢失风险，
+ *   不是回放能力。
+ */
+const formatTime = (iso?: string | null): string => {
+  if (!iso) return '-';
+  const date = new Date(iso.replace(' ', 'T'));
+  if (Number.isNaN(date.getTime())) return iso;
   return date.toLocaleString(getCurrentLocale(), {
     month: '2-digit',
     day: '2-digit',
@@ -30,10 +42,24 @@ const formatTime = (timestamp: number): string => {
   });
 };
 
-const formatJson = (data: unknown): string => {
-  if (!data || (typeof data === 'object' && Object.keys(data).length === 0)) {
-    return '{}';
+const formatDuration = (ms?: number | null): string => {
+  if (ms == null) return '-';
+  if (ms < 1000) return `${ms}ms`;
+  return `${(ms / 1000).toFixed(1)}s`;
+};
+
+const parseJsonText = (text?: string | null): unknown => {
+  if (!text) return undefined;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
   }
+};
+
+const formatJson = (data: unknown): string => {
+  if (data === undefined || data === null) return '-';
+  if (typeof data === 'string') return data;
   try {
     return JSON.stringify(data, null, 2);
   } catch {
@@ -41,31 +67,55 @@ const formatJson = (data: unknown): string => {
   }
 };
 
-interface SelectedRecordState {
-  record: TestRunRecord;
-  activeTab: 'inputs' | 'outputs' | 'errors';
-}
+const statusColor = (status?: string | null): 'green' | 'red' | 'grey' => {
+  if (status === 'success') return 'green';
+  if (status === 'canceled') return 'grey';
+  return 'red';
+};
+
+const statusLabel = (status?: string | null): string => {
+  if (status === 'success') return t('runHistory.success');
+  if (status === 'canceled') return t('runHistory.canceled');
+  return t('runHistory.failure');
+};
 
 export const RunHistoryPanel = () => {
   const panelManager = usePanelManager();
   const runtimeService = useService(WorkflowRuntimeService);
+  const { workflowCode } = useParams<{ workflowCode: string }>();
   useLanguage();
 
-  const [history, setHistory] = useState<TestRunRecord[]>([]);
-  const [selectedRecord, setSelectedRecord] = useState<SelectedRecordState | null>(null);
+  const [runs, setRuns] = useState<WorkflowRunRecord[]>([]);
+  const [loadingFailed, setLoadingFailed] = useState(false);
+  const [selectedRun, setSelectedRun] = useState<WorkflowRunRecord | null>(null);
+  const [nodes, setNodes] = useState<WorkflowNodeRunRecord[]>([]);
+  const [expandedNode, setExpandedNode] = useState<number | null>(null);
+
+  const loadRuns = useCallback(async () => {
+    try {
+      // 会话草稿（__draft__）不携带编码：查全量最近记录
+      const list = await workflowApi.listTaskRuns(
+        workflowCode && workflowCode !== '__draft__' ? workflowCode : undefined,
+        1,
+        50
+      );
+      setRuns(list);
+      setLoadingFailed(false);
+    } catch {
+      setLoadingFailed(true);
+    }
+  }, [workflowCode]);
 
   useEffect(() => {
-    const initialHistory = runtimeService.getHistory();
-    setHistory(initialHistory);
-
-    const disposer = runtimeService.onHistoryChanged((newHistory) => {
-      setHistory(newHistory);
+    void loadRuns();
+    // 内存历史变化（新的一次试运行结束）→ 重新拉持久化列表
+    const disposer = runtimeService.onHistoryChanged(() => {
+      void loadRuns();
     });
-
     return () => {
       disposer.dispose();
     };
-  }, [runtimeService]);
+  }, [runtimeService, loadRuns]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -73,62 +123,30 @@ export const RunHistoryPanel = () => {
         panelManager.close(RUN_HISTORY_PANEL);
       }
     };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [panelManager]);
 
-  const handleRecordDoubleClick = useCallback(
-    (record: TestRunRecord) => {
-      const document = runtimeService.document;
-      let nodeCreateCount = 0;
-      const schemaNodes = (record.schema as Record<string, unknown>).nodes as
-        | Array<unknown>
-        | undefined;
-      const targetNodeCount = schemaNodes?.length || 0;
-
-      const updateReportData = () => {
-        runtimeService.clearResult();
-        if (record.report) {
-          runtimeService.reset();
-          runtimeService.updateReport(record.report);
-        }
-        setSelectedRecord({
-          record,
-          activeTab: record.status === 'error' ? 'errors' : 'inputs',
-        });
-      };
-
-      if (targetNodeCount === 0) {
-        updateReportData();
-        return;
-      }
-
-      const nodeCreateDisposer = document.onNodeCreate(() => {
-        nodeCreateCount++;
-        if (nodeCreateCount >= targetNodeCount) {
-          nodeCreateDisposer.dispose();
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              updateReportData();
-            });
-          });
-        }
-      });
-
-      document.reload(record.schema as any).then(() => {
-        document.fitView();
-      });
-    },
-    [runtimeService]
-  );
-
-  const handleTabChange = useCallback((tab: 'inputs' | 'outputs' | 'errors') => {
-    setSelectedRecord((prev) => (prev ? { ...prev, activeTab: tab } : null));
+  const handleSelectRun = useCallback(async (run: WorkflowRunRecord) => {
+    setSelectedRun(run);
+    setExpandedNode(null);
+    try {
+      const detail = await workflowApi.getTaskRunDetail(run.taskId);
+      setNodes(detail?.nodes ?? []);
+    } catch {
+      setNodes([]);
+    }
   }, []);
 
   const renderTable = () => {
-    if (history.length === 0) {
+    if (loadingFailed) {
+      return (
+        <div className={styles.emptyTableState}>
+          <div className={styles.emptyText}>{t('runHistory.loadFailed')}</div>
+        </div>
+      );
+    }
+    if (runs.length === 0) {
       return (
         <div className={styles.emptyTableState}>
           <div className={styles.emptyText}>{t('runHistory.noRecords')}</div>
@@ -143,29 +161,23 @@ export const RunHistoryPanel = () => {
             <tr>
               <th>{t('runHistory.time')}</th>
               <th>{t('runHistory.status')}</th>
+              <th>{t('runHistory.duration')}</th>
             </tr>
           </thead>
           <tbody>
-            {history.map((record) => (
+            {runs.map((run) => (
               <tr
-                key={record.id}
+                key={run.taskId}
                 className={`${styles.tableRow} ${
-                  selectedRecord?.record.id === record.id ? styles.selected : ''
+                  selectedRun?.taskId === run.taskId ? styles.selected : ''
                 }`}
-                onClick={() =>
-                  setSelectedRecord({
-                    record,
-                    activeTab: record.status === 'error' ? 'errors' : 'inputs',
-                  })
-                }
-                onDoubleClick={() => handleRecordDoubleClick(record)}
+                onClick={() => void handleSelectRun(run)}
               >
-                <td>{formatTime(record.timestamp)}</td>
+                <td>{formatTime(run.finishedAt || run.createdAt)}</td>
                 <td>
-                  <Tag color={record.status === 'success' ? 'green' : 'red'}>
-                    {record.status === 'success' ? t('runHistory.success') : t('runHistory.failure')}
-                  </Tag>
+                  <Tag color={statusColor(run.status)}>{statusLabel(run.status)}</Tag>
                 </td>
+                <td>{formatDuration(run.durationMs)}</td>
               </tr>
             ))}
           </tbody>
@@ -174,8 +186,53 @@ export const RunHistoryPanel = () => {
     );
   };
 
+  const renderNodeRow = (node: WorkflowNodeRunRecord) => {
+    const expanded = expandedNode === node.id;
+    const label = node.title || node.nodeId;
+    return (
+      <div key={node.id} style={{ marginBottom: 4 }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '4px 6px',
+            borderRadius: 6,
+            cursor: 'pointer',
+            background: expanded ? 'var(--semi-color-fill-0)' : 'transparent',
+          }}
+          onClick={() => setExpandedNode(expanded ? null : node.id)}
+        >
+          <Tag size="small" color={statusColor(node.status)}>
+            {node.status || '-'}
+          </Tag>
+          <span style={{ fontSize: 12, fontWeight: 600, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {label}
+          </span>
+          {node.nodeType && (
+            <span style={{ fontSize: 11, opacity: 0.55 }}>{node.nodeType}</span>
+          )}
+          <span style={{ fontSize: 11, opacity: 0.55 }}>{formatDuration(node.timeCostMs)}</span>
+        </div>
+        {expanded && (
+          <div style={{ padding: '4px 10px' }}>
+            {node.errorMessage && (
+              <div style={{ fontSize: 11.5, color: 'var(--semi-color-danger)', marginBottom: 4 }}>
+                {node.errorMessage}
+              </div>
+            )}
+            <div style={{ fontSize: 10.5, opacity: 0.6, marginTop: 2 }}>{t('runHistory.nodeInputs')}</div>
+            <pre className={styles.jsonContent}>{formatJson(parseJsonText(node.inputsJson))}</pre>
+            <div style={{ fontSize: 10.5, opacity: 0.6, marginTop: 2 }}>{t('runHistory.nodeOutputs')}</div>
+            <pre className={styles.jsonContent}>{formatJson(parseJsonText(node.outputJson))}</pre>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderDetail = () => {
-    if (!selectedRecord) {
+    if (!selectedRun) {
       return (
         <div className={styles.emptyState}>
           <div className={styles.emptyText}>{t('runHistory.selectRecord')}</div>
@@ -183,57 +240,35 @@ export const RunHistoryPanel = () => {
       );
     }
 
-    const { record, activeTab } = selectedRecord;
-
     return (
       <div className={styles.detail}>
         <div className={styles.detailHeader}>
           <span className={styles.detailTitle}>{t('runHistory.detail')}</span>
-          <Tag color={record.status === 'success' ? 'green' : 'red'}>
-            {record.status === 'success' ? t('runHistory.success') : t('runHistory.failure')}
-          </Tag>
-        </div>
-
-        <div className={styles.tabs}>
-          {record.errors && record.errors.length > 0 && (
-            <span
-              className={`${styles.tab} ${activeTab === 'errors' ? styles.active : ''}`}
-              onClick={() => handleTabChange('errors')}
-            >
-              {t('runHistory.errorInfo')}
-            </span>
-          )}
-          <span
-            className={`${styles.tab} ${activeTab === 'inputs' ? styles.active : ''}`}
-            onClick={() => handleTabChange('inputs')}
-          >
-            {t('runHistory.inputs')}
+          <Tag color={statusColor(selectedRun.status)}>{statusLabel(selectedRun.status)}</Tag>
+          <span style={{ fontSize: 11, opacity: 0.55, marginLeft: 'auto' }}>
+            {formatDuration(selectedRun.durationMs)}
           </span>
-          {record.status === 'success' && (
-            <span
-              className={`${styles.tab} ${activeTab === 'outputs' ? styles.active : ''}`}
-              onClick={() => handleTabChange('outputs')}
-            >
-              {t('runHistory.outputs')}
-            </span>
-          )}
         </div>
 
         <div className={styles.detailContent}>
-          {activeTab === 'errors' && (
-            <div className={styles.errorList}>
-              {record.errors?.map((error, index) => (
-                <div key={index} className={styles.errorItem}>
-                  {error}
-                </div>
-              ))}
-            </div>
+          {selectedRun.errorMessage && (
+            <>
+              <div style={{ fontSize: 10.5, opacity: 0.6 }}>{t('runHistory.errorInfo')}</div>
+              <div style={{ fontSize: 11.5, color: 'var(--semi-color-danger)', marginBottom: 6 }}>
+                {selectedRun.errorMessage}
+              </div>
+            </>
           )}
-          {activeTab === 'inputs' && (
-            <pre className={styles.jsonContent}>{formatJson(record.inputs)}</pre>
-          )}
-          {activeTab === 'outputs' && (
-            <pre className={styles.jsonContent}>{formatJson(record.outputs)}</pre>
+          <div style={{ fontSize: 10.5, opacity: 0.6 }}>{t('runHistory.inputs')}</div>
+          <pre className={styles.jsonContent}>{formatJson(parseJsonText(selectedRun.inputsJson))}</pre>
+          <div style={{ fontSize: 10.5, opacity: 0.6, marginTop: 4 }}>{t('runHistory.outputs')}</div>
+          <pre className={styles.jsonContent}>{formatJson(parseJsonText(selectedRun.outputsJson))}</pre>
+
+          <div style={{ fontSize: 10.5, opacity: 0.6, margin: '8px 0 4px' }}>{t('runHistory.nodes')}</div>
+          {nodes.length === 0 ? (
+            <div style={{ fontSize: 11.5, opacity: 0.55 }}>{t('runHistory.noRecords')}</div>
+          ) : (
+            nodes.map(renderNodeRow)
           )}
         </div>
       </div>

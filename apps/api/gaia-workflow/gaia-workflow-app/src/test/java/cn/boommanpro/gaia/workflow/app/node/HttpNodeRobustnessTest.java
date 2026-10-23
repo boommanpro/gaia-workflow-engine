@@ -90,18 +90,17 @@ class HttpNodeRobustnessTest extends AbstractNodeTest {
     }
 
     @Test
-    @DisplayName("api 配置缺失时应优雅降级，而非抛出 NPE")
+    @DisplayName("api 配置缺失时应明确失败（新错误语义：不再吞成 error 字段假成功）")
     void missingApiShouldDegradeGracefully() {
         SingleNodeRunInput input = new SingleNodeRunInput();
         input.setNode(httpNodeWithApi(false).toString());
         input.setInputs(null);
 
         SingleNodeRunOutput out = executor.execute(input);
-        assertTrue(out.isSuccess(), "api 缺失不应导致节点失败, error=" + out.getError());
-        assertNotNull(out.getExecuteResult());
-        // 降级语义：result 中包含 error 说明，而非逻辑结果
-        assertNotNull(out.getExecuteResult().get("error"),
-                "api 缺失时应输出 error 字段，实际结果=" + out.getExecuteResult());
+        // 第一档 A：配置错误必须失败可见——executor 捕获后 success=false + 明确 error 文案
+        assertFalse(out.isSuccess(), "api 缺失时节点应判定失败");
+        assertNotNull(out.getError());
+        assertTrue(out.getError().contains("api"), "错误文案应指向 api 配置缺失: " + out.getError());
     }
 
     // ==================== 辅助 ====================

@@ -1,8 +1,9 @@
 /**
- * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * Copyright (c) 2025 Bytedance Ltd. and its affiliates
  * SPDX-License-Identifier: MIT
  */
 
+import { useParams } from 'react-router-dom';
 import {
   Field,
   FieldRenderProps,
@@ -31,6 +32,7 @@ const { Text } = Typography;
 
 export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => {
   const isSidebar = useIsSidebar();
+  const { workflowCode } = useParams<{ workflowCode: string }>();
   useLanguage();
 
   if (isSidebar) {
@@ -43,24 +45,22 @@ export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => {
             render={({ field: { value, onChange } }: FieldRenderProps<string>) => (
               <WorkflowListSelectorField
                 value={value}
-                onWorkflowChange={(workflowId, workflow) => {
+                excludeCode={workflowCode}
+                onWorkflowChange={(workflowCode, workflow) => {
                   // 当选择 workflow 时，自动填充其输入输出参数
-                  if (workflow && workflow.inputs && workflow.outputs) {
-                    // 使用正确的表单 API
-                    form.setValueIn('workflowId', workflowId);
+                  if (workflow) {
+                    form.setValueIn('workflowId', workflowCode);
                     form.setValueIn('workflowName', workflow.name);
-                    form.setValueIn('workflowDescription', workflow.description);
-                    // 更新 inputs schema
-                    form.setValueIn('inputs', workflow.inputs);
-                    // 根据 workflow 的 schema 设置默认参数值
-                    const defaultInputsValues: Record<string, any> = {};
-
-                    form.setValueIn('inputsValues', defaultInputsValues);
+                    form.setValueIn('workflowDescription', workflow.description || '');
+                    // 更新 inputs schema（后端从目标工作流当前生效版提取）
+                    form.setValueIn('inputs', workflow.inputs || { type: 'object', properties: {} });
+                    form.setValueIn('inputsValues', {});
                     // 更新 outputs schema
-                    form.setValueIn('outputs', workflow.outputs);
+                    form.setValueIn('outputs', workflow.outputs || { type: 'object', properties: {} });
+                    onChange?.(workflowCode);
                   } else {
                     // 清除选择时，重置相关字段
-                    form.setValueIn('workflowId', workflowId);
+                    form.setValueIn('workflowId', workflowCode);
                     form.setValueIn('workflowName', '');
                     form.setValueIn('workflowDescription', '');
                     form.setValueIn('inputs', { type: 'object', properties: {} });
@@ -79,17 +79,16 @@ export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => {
     );
   }
 
-  // 添加一个字段来显示选择的workflow信息
-  const selectedWorkflowId = form.getValueIn('workflowId');
-  const availableWorkflows = form.getValueIn('availableWorkflows') || [];
-  const selectedWorkflow = availableWorkflows.find((w: any) => w.id === selectedWorkflowId);
+  // 画布态：直接读表单里已存的选择信息（workflowId 即目标工作流 code）
+  const selectedWorkflowCode = form.getValueIn('workflowId');
+  const selectedWorkflowName = form.getValueIn('workflowName');
 
   return (
     <>
       <FormHeader />
       <FormContent>
         {/* 显示已选择的workflow信息 */}
-        {selectedWorkflow && (
+        {selectedWorkflowCode && (
           <>
             <div
               style={{
@@ -110,19 +109,21 @@ export const renderForm = ({ form }: FormRenderProps<FlowNodeJSON>) => {
                     size="small"
                     icon={<IconPlayCircle />}
                     onClick={() => {
-                      console.log('查看workflow详情:', selectedWorkflow.id);
+                      // 新标签打开目标工作流编辑器
+                      const base = (process.env.ASSET_PREFIX || '').replace(/\/+$/, '');
+                      window.open(`${base}/editor/${selectedWorkflowCode}`, '_blank', 'noopener');
                     }}
                   >
                     {t('workflow.viewDetails')}
                   </Button>
                 </div>
-                <Text>ID: </Text>
-                <Text code>{selectedWorkflow.id}</Text>
-                <Text>{t('workflow.name')}</Text>
-                <Text>{selectedWorkflow.name}</Text>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  {selectedWorkflow.description}
-                </Text>
+                {selectedWorkflowName && (
+                  <Text>
+                    {t('workflow.name')}
+                    {selectedWorkflowName}
+                  </Text>
+                )}
+                <Text code>{selectedWorkflowCode}</Text>
               </Space>
             </div>
             <Divider />

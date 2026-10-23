@@ -65,6 +65,68 @@ public class GaiaWorkflowController {
     }
 
     /**
+     * 子流程（workflow 节点）可选工作流清单。
+     *
+     * <p>返回每个正式工作流的 code/name/description + 从当前生效版本提取的入出参 schema：
+     * 入参 = start 节点 data.outputs（工作流的输入参数定义），
+     * 出参 = end 节点 data.inputs（工作流的输出参数声明）。
+     * 前端子流程节点选择器此前打的是不存在的 GET /workflows（永远 404 空列表），
+     * 本端点是它的正式替代。</p>
+     */
+    @GetMapping("/subflow-options")
+    public List<Map<String, Object>> subflowOptions() {
+        List<Map<String, Object>> options = new java.util.ArrayList<>();
+        for (GaiaWorkflow workflow : listWorkflows()) {
+            Map<String, Object> option = new java.util.LinkedHashMap<>();
+            option.put("code", workflow.getWorkflowCode());
+            option.put("name", workflow.getWorkflowName());
+            option.put("description", workflow.getWorkflowDesc());
+            option.put("currentVersionId", workflow.getCurrentVersionId());
+            option.put("inputs", extractNodeSchema(workflow, "start", "outputs"));
+            option.put("outputs", extractNodeSchema(workflow, "end", "inputs"));
+            options.add(option);
+        }
+        return options;
+    }
+
+    /**
+     * 从工作流当前生效版本数据里提取指定类型节点的 schema 字段。
+     * 找不到节点或字段时返回空 object schema（选择器侧统一按无参数处理）。
+     */
+    private Object extractNodeSchema(GaiaWorkflow workflow, String nodeType, String schemaField) {
+        try {
+            if (workflow.getCurrentVersionId() == null) {
+                return EMPTY_OBJECT_SCHEMA;
+            }
+            GaiaWorkflowVersion version = versionService.getById(workflow.getCurrentVersionId());
+            if (version == null || version.getWorkflowData() == null) {
+                return EMPTY_OBJECT_SCHEMA;
+            }
+            cn.hutool.json.JSONArray nodes = cn.hutool.json.JSONUtil.parseObj(version.getWorkflowData())
+                .getJSONArray("nodes");
+            if (nodes == null) {
+                return EMPTY_OBJECT_SCHEMA;
+            }
+            for (int i = 0; i < nodes.size(); i++) {
+                cn.hutool.json.JSONObject node = nodes.getJSONObject(i);
+                if (node != null && nodeType.equals(node.getStr("type"))) {
+                    cn.hutool.json.JSONObject data = node.getJSONObject("data");
+                    if (data != null && data.get(schemaField) != null) {
+                        return data.get(schemaField);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // 单个工作流解析失败不拖垮整份清单，按无参数处理
+        }
+        return EMPTY_OBJECT_SCHEMA;
+    }
+
+    private static final Map<String, Object> EMPTY_OBJECT_SCHEMA =
+        Map.of("type", "object", "properties", Map.of());
+
+
+    /**
      * 创建新工作流
      * 始终创建初始版本：有模板则用模板数据，无模板则用最小默认数据
      */

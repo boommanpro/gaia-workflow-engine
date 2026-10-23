@@ -27,6 +27,15 @@ import { WorkflowNodeType } from '../../../nodes';
 const SYNC_TASK_REPORT_INTERVAL = 500;
 const MAX_HISTORY_SIZE = 50;
 
+/** 编辑器试运行的工作流上下文（路由参数），随 TaskRun 上报供运行历史归档 */
+export function setRunWorkflowContext(workflowCode: string | null): void {
+  (window as any).WORKFLOW_RUN_CONTEXT = workflowCode ? { workflowCode } : null;
+}
+
+function getRunWorkflowCode(): string | undefined {
+  return (window as any).WORKFLOW_RUN_CONTEXT?.workflowCode || undefined;
+}
+
 interface NodeRunningStatus {
   nodeID: string;
   status: WorkflowStatus;
@@ -190,20 +199,23 @@ export class WorkflowRuntimeService {
     this.reset();
     let taskID: string | undefined;
     try {
-      const output = await this.runtimeClient.TaskRun({
+      const output = (await this.runtimeClient.TaskRun({
         schema: JSON.stringify(schema),
         inputs,
-      });
+        // 运行历史按工作流归档（B 项）：编辑器路由携带的编码随请求上报
+        workflowCode: getRunWorkflowCode(),
+      } as never)) as { taskID?: string; errors?: string[] } | undefined;
       taskID = output?.taskID;
+      // 后端运行前预检失败时回 { errors, issues }（无 taskID）——透出具体校验错误
+      if (!taskID) {
+        this.resultEmitter.fire({
+          errors: output?.errors ?? ['Task run failed'],
+        });
+        return;
+      }
     } catch (e) {
       this.resultEmitter.fire({
         errors: [(e as Error)?.message],
-      });
-      return;
-    }
-    if (!taskID) {
-      this.resultEmitter.fire({
-        errors: ['Task run failed'],
       });
       return;
     }

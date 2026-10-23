@@ -47,8 +47,8 @@ public class LlmNode extends BaseNode {
             // 解析输入参数
             LlmRequest request = buildLlmRequest(chain);
 
-            // 调用LLM API
-            String response = callLlmApi(request);
+            // 调用LLM API（retryTimes 生效：失败按线性退避重试，此前字段解析了但从未消费）
+            String response = callLlmApiWithRetry(request);
 
             // 解析响应
             String llmResult = parseLlmResponse(response);
@@ -57,11 +57,40 @@ public class LlmNode extends BaseNode {
             result.put("result", llmResult);
 
         } catch (Exception e) {
+            // 失败必须上抛（引擎置节点 FAILED + 工作流终态 FAILED）：
+            // 旧行为把异常吞成 result.error 字段、节点仍 FINISHED、下游继续跑——假成功
             log.error("LLM调用执行失败", e);
-            result.put("error", e.getMessage());
+            throw (e instanceof RuntimeException) ? (RuntimeException) e : new RuntimeException(e);
         }
 
         return result;
+    }
+
+    /**
+     * 带重试的 LLM 调用：retryTimes 为失败后的额外尝试次数（0=不重试），
+     * 间隔线性退避（1s × 第几次重试）。全部尝试失败抛最后一次异常。
+     */
+    String callLlmApiWithRetry(LlmRequest request) {
+        int retries = timeout != null ? Math.max(0, timeout.getRetryTimes()) : 0;
+        RuntimeException lastError = null;
+        for (int attempt = 0; attempt <= retries; attempt++) {
+            if (attempt > 0) {
+                log.warn("LLM调用失败，{}ms 后进行第 {}/{} 次重试（节点 {}）",
+                    1000L * attempt, attempt, retries, getId());
+                try {
+                    Thread.sleep(1000L * attempt);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException("LLM 重试等待被中断", ie);
+                }
+            }
+            try {
+                return callLlmApi(request);
+            } catch (RuntimeException e) {
+                lastError = e;
+            }
+        }
+        throw lastError;
     }
 
     /**

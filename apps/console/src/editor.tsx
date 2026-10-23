@@ -27,6 +27,7 @@ import { useLanguage, t } from './i18n';
 import { LanguageToggle } from './components/language-toggle';
 import { EditorCanvasBridge } from './agent';
 import { pushCanvasDraftToSession } from './agent/canvas-draft-sync';
+import { setRunWorkflowContext } from './plugins/runtime-plugin/runtime-service';
 import { WorkflowDocument, workflowDocumentStore, useWorkflowDocumentState } from './document';
 import { getSessionKeyForWorkflow } from './ai-workspace/session-scope';
 import { useWorkflowArtifactSync } from './ai-workspace/artifact/useWorkflowArtifactSync';
@@ -161,6 +162,10 @@ export const Editor = () => {
     const firstRun = handledCodeRef.current === undefined;
     if (handledCodeRef.current === workflowCode) return;
     handledCodeRef.current = workflowCode;
+
+    // 运行历史归档上下文（B 项）：试运行请求携带当前工作流编码
+    // （会话草稿模式没有正式编码，传 null → 后端按无关联归档）
+    setRunWorkflowContext(workflowCode && workflowCode !== DRAFT_CODE ? workflowCode : null);
 
     // —— 1) 内存承接：仅 AI 工作区来源；工作流库入口一律加载落版版本 ——
     const carried = readCarriedDsl(workflowCode, cameFromWorkspace);
