@@ -11,6 +11,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 import { ProjectRail } from './ProjectRail';
 import { useAgent } from '../../agent/AgentContext';
+import { getWorkflowOfSession } from '../../ai-workspace/session-scope';
 import { CHAT } from '../../chat/theme';
 import { useLanguage, t } from '../../i18n';
 
@@ -53,17 +54,31 @@ export const AppRail: React.FC = () => {
   useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
-  const { createSession } = useAgent();
+  const { createSession, sessions, currentSessionKey } = useAgent();
   const workflowsActive = location.pathname.startsWith('/workflows');
 
   /**
-   * 新建任务：建一个 draft- 草稿会话并跳到对话页（URL 归到 /chat，
-   * 避免旧会话地址把刚建的草稿抢回去）。选项在欢迎页「任务设置」调整，
-   * 首条消息发送时物化生效。
+   * 新建任务：建一个 draft- 草稿会话并跳到对话页。默认携带上一次对话的上下文——
+   *   顶部入口：当前对话（若是真实会话）的项目 + 其绑定的工作流；
+   *   项目 ⊕ ：该项目最近一次对话的工作流；
+   * 选项在欢迎页「任务设置」可改，首条消息发送时才物化生效。
    */
   const startNewTask = (folderId: number | null) => {
+    let ref = null;
+    if (folderId != null) {
+      ref = sessions.find((s) => s.folderId === folderId) || null;
+    } else if (currentSessionKey && !currentSessionKey.startsWith('draft-')) {
+      ref = sessions.find((s) => s.sessionKey === currentSessionKey) || null;
+    }
+    if (!ref) ref = sessions[0] || null;
+    const resolvedFolder = folderId != null ? folderId : ref?.folderId ?? null;
+    const inheritCode = ref ? getWorkflowOfSession(ref.sessionKey) : null;
     if (location.pathname !== '/chat') navigate('/chat');
-    void createSession(undefined, { scope: folderId != null ? 'work' : 'chat', folderId });
+    void createSession(undefined, {
+      scope: resolvedFolder != null ? 'work' : 'chat',
+      folderId: resolvedFolder,
+      inheritWorkflowCode: inheritCode,
+    });
   };
 
   /** 与主导航行同款的按钮样式（active = 选中态底色） */

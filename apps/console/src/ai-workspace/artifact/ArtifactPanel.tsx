@@ -38,7 +38,7 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
   const { doc, meta, revision } = useWorkflowDocumentState();
   const navigate = useNavigate();
   const location = useLocation();
-  const { currentSessionKey, sessions, streaming } = useAgent();
+  const { currentSessionKey, sessions, streaming, createSession } = useAgent();
   const artifactState = useArtifactState();
 
   const [saveVisible, setSaveVisible] = useState(false);
@@ -172,33 +172,21 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
   }, [dsl, meta.workflowCode, navigate, location.pathname, currentSessionKey]);
 
   /**
-   * 换新会话继续（产运多版本迭代）：新建会话并把当前草稿原样推过去（pushDraft），
-   * 不走 seedDraft——后者只带工作流已落版的版本，会丢掉本会话未保存的草稿修改。
-   * 新会话归入与当前会话相同的项目。
+   * 换新会话继续（产运多版本迭代）：不调后端——直接进入新任务草稿态，
+   * 把当前草稿 DSL 快照带过去（含未保存手改），发出第一条消息时才物化生效
+   * （pushDraft 原样推给新会话，比按工作流落版继承更保真）。
    */
-  const [forking, setForking] = useState(false);
-  const handleForkSession = useCallback(async () => {
-    if (!currentSessionKey || forking) return;
+  const handleForkSession = useCallback(() => {
+    if (!currentSessionKey) return;
     const cur = sessions.find((s) => s.sessionKey === currentSessionKey);
-    setForking(true);
-    try {
-      const next = await agentApi.createSession(
-        meta.workflowCode ? `迭代 ${meta.workflowName || meta.workflowCode}` : undefined,
-        cur?.folderId != null ? { scope: 'work', folderId: cur.folderId } : { scope: 'chat' },
-      );
-      await agentApi.pushDraft(next.sessionKey, {
-        dsl,
-        workflowCode: meta.workflowCode || undefined,
-      });
-      if (meta.workflowCode) bindSessionToWorkflow(next.sessionKey, meta.workflowCode);
-      Toast.success(t('workspace.forkSuccess'));
-      navigate(`/chat/${next.sessionKey}`);
-    } catch (err) {
-      Toast.error(t('workspace.forkFailed') + (err as Error).message);
-    } finally {
-      setForking(false);
-    }
-  }, [currentSessionKey, forking, sessions, dsl, meta.workflowCode, meta.workflowName, navigate]);
+    void createSession(undefined, {
+      scope: cur?.folderId != null ? 'work' : 'chat',
+      folderId: cur?.folderId ?? null,
+      inheritDsl: true,
+    });
+    navigate('/chat');
+    Toast.success(t('workspace.forkQueued'));
+  }, [currentSessionKey, sessions, createSession, navigate]);
 
   const formatTime = (iso?: string) => {
     if (!iso) return '';
@@ -421,8 +409,7 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
               <Button
                 theme="light"
                 type="primary"
-                loading={forking}
-                onClick={() => void handleForkSession()}
+                onClick={handleForkSession}
                 icon={<IconCopy />}
                 style={{ borderRadius: 9 }}
               >
