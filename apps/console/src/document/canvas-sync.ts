@@ -126,6 +126,16 @@ class CanvasSyncEngine {
   /** 画布正在回流给 store */
   private pulling = false;
   private lastSyncedRevision = -1;
+  /**
+   * 已推送过的节点 data 签名（nodeId → store data JSON）。
+   *
+   * 画布表单引擎会按自己的模型规整序列化（如实测中 end_1.inputs 的 shape），
+   * 「store → 画布」的数据回写永远无法让两边 toJSON 完全一致 —— 若不记账，
+   * 每次 store 写入后 diff 都会报同一个节点「updated」，进而反复 updateNode
+   * 并触发 fitView，把用户刚调整好的缩放/视野拽回全图（2026-10-26 缩放闪回）。
+   * 记账后：store 侧数据没变就不重推；数据真的变了（AI 改配置）签名不同，照常推送。
+   */
+  private pushedNodeSigs = new Map<string, string>();
 
   get isAttached(): boolean {
     return this.binding !== null;
@@ -134,7 +144,9 @@ class CanvasSyncEngine {
   attach(binding: CanvasBinding): void {
     this.binding = binding;
     this.lastSyncedRevision = -1;
-    // 首次挂载：以 store 为准（AI 可能已经在没有画布的情况下产出了 DSL）
+    // 首次挂载：以 store 为准（AI 可能已经在没有画布的情况下产出了 DSL）。
+    // pushedNodeSigs 刻意不清空：StrictMode 下画布会连续挂载数次，
+    // 首轮已推送（且被表单引擎规整掉）的节点不该在后续挂载里再触发推送。
     this.pushToCanvas(true);
     this.unsubscribe = workflowDocumentStore.subscribe(() => {
       this.pushToCanvas(false);
@@ -220,18 +232,38 @@ class CanvasSyncEngine {
       // 直接整份重建，语义上更干净。
       if (diff.changeRatio > 0.6 && (diff.removedNodeIds.length > 0 || diff.addedNodes.length > 3)) {
         binding.replaceAll(target);
+        this.pushedNodeSigs.clear();
         this.lastSyncedRevision = state.revision;
         binding.fitView();
         return;
       }
 
-      for (const id of diff.removedNodeIds) binding.deleteNode(id);
+      for (const id of diff.removedNodeIds) {
+        binding.deleteNode(id);
+        this.pushedNodeSigs.delete(id);
+      }
       for (const edge of diff.removedEdges) binding.removeEdge(edge);
 
-      for (const node of diff.addedNodes) binding.createNode(node);
-      for (const id of diff.updatedNodeIds) {
+      for (const node of diff.addedNodes) {
+        binding.createNode(node);
+        // 新增即记账：画布表单引擎随后会规整序列化，若不记下「推过什么」，
+        // 下一轮 diff 会把这个节点当「更新」再空推一遍（2026-10-26 缩放闪回）。
+        this.pushedNodeSigs.set(node.id, JSON.stringify(node.data ?? {}));
+      }
+      // 只推「store 侧数据确实变了」的节点：画布表单引擎规整导致的永久性
+      // 序列化差异不重推（见 pushedNodeSigs 注释），否则每次 store 写入都会
+      // 空转一轮 updateNode 并把视野拽回全图。
+      const changedUpdatedIds = diff.updatedNodeIds.filter((id) => {
         const node = target.nodes.find((n) => n.id === id);
-        if (node) binding.updateNode(id, node.data || {});
+        if (!node) return false;
+        return this.pushedNodeSigs.get(id) !== JSON.stringify(node.data ?? {});
+      });
+      for (const id of changedUpdatedIds) {
+        const node = target.nodes.find((n) => n.id === id);
+        if (node) {
+          binding.updateNode(id, node.data || {});
+          this.pushedNodeSigs.set(id, JSON.stringify(node.data ?? {}));
+        }
       }
       for (const edge of diff.addedEdges) binding.addEdge(edge);
 
@@ -239,8 +271,9 @@ class CanvasSyncEngine {
 
       // 不做「AI 改动自动选中」：用户从对话进编辑器时 store 里正是 AI 生成的内容，
       // 全图会被设成选中态（2026-10-25 用户反馈：不需要该功能，已移除）。
-      // 仅保留视野适配：有变更时把视野收敛到全图。
-      if (diff.addedNodes.length > 0 || diff.updatedNodeIds.length > 0) {
+      // 视野适配只跟随「新增节点」：仅配置变化（updated）不该动用户视口——
+      // 否则 AI 改一个参数也会把用户刚调好的缩放拽回全图（2026-10-26 缩放闪回）。
+      if (diff.addedNodes.length > 0) {
         binding.fitView();
       }
     } catch (error) {

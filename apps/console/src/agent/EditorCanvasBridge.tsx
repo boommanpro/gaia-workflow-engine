@@ -277,7 +277,10 @@ export const EditorCanvasBridge: React.FC<{ sync?: boolean }> = ({ sync = true }
       autoLayout: () => canvasContext.autoLayout(),
 
       fitView: () => {
-        void tools.fitView();
+        // 数据推送后的视野收敛必须瞬时（easing=false）：canvas-sync 在挂载/对账/
+        // AI 推送时都会走到这里，带动画的 fitView 会与用户正在进行的缩放叠加，
+        // 表现为「画布慢慢漂移回全图」（2026-10-26 放大后漂移）。
+        void tools.fitView(false);
       },
 
       selectNode: (id) => {

@@ -42,6 +42,7 @@ import { runHistoryPanelFactory } from '../components/run-history';
 import { singleNodeTestPanelFactory } from '../components/run-node-panel';
 import { BaseNode, CommentRender, GroupNodeRender, LineAddButton, NodePanel } from '../components';
 import { getApiBaseUrl } from '../utils/apiConfig';
+import { trackAndRestoreViewport } from '../utils/viewport-restore';
 import { getCurrentLocale } from '../i18n';
 import { canvasSync, type CanvasChangeType } from '../document';
 import { scheduleManualDraftPush } from '../agent/canvas-draft-sync';
@@ -279,12 +280,21 @@ export function useEditorProps(
        * Playground init
        */
       onInit(ctx) {
+        trackAndRestoreViewport(ctx);
         console.log('--- Playground init ---');
       },
       /**
        * Playground render
        */
       onAllLayersRendered(ctx) {
+        // 本回调是「任意图层完成首帧」就触发一次（图层多、StrictMode 重放时实测
+        // 连发 9 次），且编辑器整体重挂（remountKey）会换新管线 —— 守卫必须挂在
+        // 管线实例（ctx）上：同一条管线只认第一朵火焰，新管线仍有自己的首帧收敛。
+        // 收敛动作走「恢复用户视口或重新适配」：重挂风暴期间内容未变时恢复用户
+        // 刚调好的缩放，而不是打回全图（2026-10-26 首次放大闪回）。
+        const flag = ctx as any;
+        if (flag.__didInitialFitView) return;
+        flag.__didInitialFitView = true;
         // ctx.tools.autoLayout(); // init auto layout
         ctx.tools.fitView(false);
         if (readonly) {

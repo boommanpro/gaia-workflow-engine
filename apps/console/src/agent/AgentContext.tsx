@@ -25,7 +25,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { nanoid } from 'nanoid';
 
 import { agentApi } from './api';
-import { pushCanvasDraftToSession, hasUnsyncedLocalEdits } from './canvas-draft-sync';
+import { pushCanvasDraftToSession, hasUnsyncedLocalEdits, isEchoOfLastPush } from './canvas-draft-sync';
 import { getWorkflowOfSession, bindSessionToWorkflow } from '../ai-workspace/session-scope';
 import { aiPendingChangeStore } from './ai-pending-change';
 import { sessionEventStore } from './session-event-store';
@@ -692,6 +692,14 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
           const base = workflowDocumentStore.getSnapshot().doc.toJSON();
           aiPendingChangeStore.set(data.dsl, base, sessionRuntime.getState().liveMessageId ?? undefined);
         } catch { /* ignore */ }
+        return;
+      }
+      // 自己刚推上去的草稿被服务端广播回来（manual-edit/rollback 推送的回声）：
+      // 内容与本地一致，只需对齐版本号。整份 applyServerDoc 会平白推进 store 修订，
+      // 让 canvas-sync 重推一轮并把用户视野拽回全图（2026-10-26 缩放闪回诱因之一）。
+      if (isEchoOfLastPush(data.dsl)) {
+        workflowDocumentStore.alignServerDocVersion(version);
+        sessionRuntime.dispatch({ type: 'doc-synced', version });
         return;
       }
       workflowDocumentStore.applyServerDoc(data.dsl, version);
