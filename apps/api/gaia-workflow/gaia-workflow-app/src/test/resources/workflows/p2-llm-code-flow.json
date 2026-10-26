@@ -22,7 +22,7 @@
         "title": "大模型处理",
         "inputsValues": {
           "modelName": { "type": "constant", "content": "glm-4-flash" },
-          "apiKey": { "type": "constant", "content": "sk-SnEd69fzfoB1Ffwzd1pVRXkxzD7dSvpeyFtcdiJWetZLnS39" },
+          "apiKey": { "type": "constant", "content": "" },
           "apiHost": { "type": "constant", "content": "https://www.dmxapi.cn/v1" },
           "temperature": { "type": "constant", "content": 0.3 },
           "systemPrompt": { "type": "template", "content": "你是严谨的中文助手，用一句话直接回答，不添加多余内容。" },

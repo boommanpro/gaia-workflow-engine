@@ -81,11 +81,16 @@ class PatternP2LlmCodeFlowTest extends AbstractNodeTest {
     }
 
     @Test
-    @DisplayName("真实免费 API：glm-4-flash @ dmxapi 端到端（离线自动跳过）")
+    @DisplayName("真实免费 API：glm-4-flash @ dmxapi 端到端（无 GAIA_LLM_API_KEY 或离线自动跳过）")
     void llmThenCodeWithFreeRealApi() {
-        assumeTrue(FreeLlmContract.reachable(), "dmxapi 不可达，跳过真实 API 用例");
+        assumeTrue(FreeLlmContract.reachable(), "无 GAIA_LLM_API_KEY 或 dmxapi 不可达，跳过真实 API 用例");
 
-        GaiaWorkflow wf = new GaiaWorkflow(loadWorkflowJson("p2-llm-code-flow"));
+        // 夹具不携带凭证（key 从环境变量注入）；apiHost/model 用契约默认值
+        JSONObject doc = JSONUtil.parseObj(loadWorkflowJson("p2-llm-code-flow"));
+        JSONObject llm = doc.getJSONArray("nodes").getJSONObject(1);
+        llm.getJSONObject("data").getJSONObject("inputsValues")
+            .set("apiKey", new JSONObject().set("type", "constant").set("content", FreeLlmContract.API_KEY));
+        GaiaWorkflow wf = new GaiaWorkflow(doc.toString());
         Map<String, Object> result = wf.run(new HashMap<>());
 
         assertNotNull(result, "真实 API 工作流应正常返回");

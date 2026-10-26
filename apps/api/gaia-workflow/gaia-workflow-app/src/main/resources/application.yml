@@ -26,12 +26,21 @@ mybatis-plus:
 
 agent:
   llm:
-    # 平台默认模型（会话 Agent 与 llm 节点凭据兜底）：dmxapi 免费 glm-4-flash，
-    # 该 key 仅可调用此免费模型；管理后台 manage/agent-config 的 llm_config 可在线覆盖
+    # 平台默认模型（会话 Agent 与 llm 节点凭据兜底）：dmxapi 免费 glm-4-flash。
+    # 凭证不入库（首次部署二选一，改完即生效）：
+    #   ① 环境变量 GAIA_LLM_API_KEY（启动前设置，会随 seedModelConfig 灌入数据库）；
+    #   ② 部署后登录管理后台 manage/agent-config → llm_config 在线填写（推荐，即时生效）。
+    # 不设置则 llm 凭证为空：llm 节点/对话引擎在首次调用时报「缺少 apiKey 配置」并带修复指引。
     api-host: https://www.dmxapi.cn/v1
-    api-key: sk-SnEd69fzfoB1Ffwzd1pVRXkxzD7dSvpeyFtcdiJWetZLnS39
+    api-key: ${GAIA_LLM_API_KEY:}
     model: glm-4-flash
     temperature: 0.5
+    # 平台默认上下文窗口（token）：条目级模型可在模型管理页单独配 context_window 覆盖；
+    # 历史压缩线 = 窗口 × 阈值%（阈值全局可配：DB model.compaction → run.compaction-threshold-percent）
+    context-window: 32768
+  # 跨 run 历史压缩触发线（相对窗口的百分比，10-95）：模型管理页全局设置在线覆盖（DB model.compaction）
+  run:
+    compaction-threshold-percent: 80
   # ask_user 提问的挂起等待上限（秒）：全局默认，模型可用工具参数 timeoutSeconds（5-300）按次覆盖；
   # 超时自动替用户选择 recommended 选项（无则第一个），答案作为新一轮对话继续。
   # max-auto-answers：同一会话连续自动代答的上限（防「追问→超时→自答→再追问」自驱循环），
