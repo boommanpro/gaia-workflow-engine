@@ -5,13 +5,52 @@
  * outputs.properties 声明的字段即运行时输出（引擎把模型 JSON 解析成声明字段，
  * 机制与 code 节点一致，下游可直接引用 llm_x.<字段>）。
  * 切回 text 时旧声明暂不清除（落库时后端 normalize 压回固定 result）。
+ *
+ * 模型凭证（modelName / apiHost / apiKey，2026-10-26）：必填（契约 x-gaia-form-inputs.required），
+ * 表单打开时空位自动带入平台默认模型——与 AI 生成节点取值同源（/api/agent/models/node-default），
+ * 手动节点和 AI 节点形状一致；原先顶部那条「由 AI 自动填入 / 手动请自行填写」说明随之撤掉。
  */
+import { useEffect } from 'react';
 import { Field, FormMeta, FormRenderProps } from '@flowgram.ai/free-layout-editor';
 import { Divider, RadioGroup } from '@douyinfe/semi-ui';
 
 import { defaultFormMeta } from '../default-form-meta';
 import { Outputs } from '../code/components/outputs';
 import { FormHeader, FormContent, FormInputs } from '../../form-components';
+import { formInputOrderOf } from '../../agent/node-templates';
+import { useNodeRenderContext } from '../../hooks';
+import { LLM_CREDENTIAL_KEYS, isBlankCredential, loadPlatformLlmDefault } from './platform-default';
+
+/** 表单行序以契约声明顺序为准（存量数据键序不可控） */
+const LLM_FORM_INPUT_ORDER = formInputOrderOf('llm');
+
+/**
+ * 空凭证位预填平台默认：只填打开时为空的位，用户已填/AI 已填的一律不动；
+ * 只读（历史版本查看等）不写。
+ */
+function usePlatformCredentialPrefill(form: FormRenderProps<any>['form']) {
+  const { readonly } = useNodeRenderContext();
+  useEffect(() => {
+    if (readonly) return;
+    const missing = LLM_CREDENTIAL_KEYS.filter((key) =>
+      isBlankCredential(form.getValueIn(`inputsValues.${key}`))
+    );
+    if (missing.length === 0) return;
+    let cancelled = false;
+    void loadPlatformLlmDefault().then((defaults) => {
+      if (cancelled || !defaults) return;
+      for (const key of missing) {
+        const value = defaults[key];
+        // 请求在途期间用户可能已手填：再查一次空位
+        if (!value || !isBlankCredential(form.getValueIn(`inputsValues.${key}`))) continue;
+        form.setValueIn(`inputsValues.${key}`, { type: 'constant', content: value });
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [form, readonly]);
+}
 
 /** 输出模式切换 + json 模式下的输出声明编辑器（复用 code 的 Outputs 组件，字段同为 outputs） */
 function OutputModeSwitch() {
@@ -45,32 +84,18 @@ function OutputModeSwitch() {
   );
 }
 
-export const FormRender = ({ form }: FormRenderProps<any>) => (
-  <>
-    <FormHeader />
-    <FormContent>
-      {/* 凭证三字段留空是设计内行为（平台运行时注入），但空输入框会被理解为「没配置完」——
-          显式说明（2026-10-25 用户反馈） */}
-      <div
-        style={{
-          margin: '0 0 8px',
-          padding: '6px 10px',
-          borderRadius: 6,
-          background: 'rgba(77,83,232,0.06)',
-          border: '1px solid rgba(77,83,232,0.18)',
-          fontSize: 11,
-          lineHeight: 1.6,
-          color: 'rgba(77,83,232,0.9)',
-        }}
-      >
-        apiKey / apiHost / modelName 由 AI 生成时自动填入平台默认模型配置（表单可见、随草稿保存）；
-        手动创建的节点请自行填写（与「模型配置」页一致），缺失会导致运行失败。
-      </div>
-      <FormInputs />
-      <OutputModeSwitch />
-    </FormContent>
-  </>
-);
+export const FormRender = ({ form }: FormRenderProps<any>) => {
+  usePlatformCredentialPrefill(form);
+  return (
+    <>
+      <FormHeader />
+      <FormContent>
+        <FormInputs order={LLM_FORM_INPUT_ORDER} />
+        <OutputModeSwitch />
+      </FormContent>
+    </>
+  );
+};
 
 export const formMeta: FormMeta = {
   render: (props) => <FormRender {...props} />,

@@ -10,8 +10,11 @@ import { FormItem } from '../form-item';
 import { Feedback } from '../feedback';
 import { JsonSchema } from '../../typings';
 import { useNodeRenderContext } from '../../hooks';
+import { orderInputKeys } from './order';
 
-export function FormInputs() {
+export { orderInputKeys };
+
+export function FormInputs({ order }: { /** 渲染顺序（契约声明顺序）；缺省按 data.inputs.properties 键序 */ order?: string[] } = {}) {
   const { readonly } = useNodeRenderContext();
 
   return (
@@ -22,7 +25,8 @@ export function FormInputs() {
         if (!properties) {
           return <></>;
         }
-        const content = Object.keys(properties).map((key) => {
+        // 存量数据的键序不可控（后端 JSONObject 不保序），同一类型的表单行序以契约顺序为准
+        const content = orderInputKeys(Object.keys(properties), order).map((key) => {
           const property = properties[key];
 
           const formComponent = property.extra?.formComponent;
@@ -37,6 +41,7 @@ export function FormInputs() {
                   vertical={vertical}
                   type={property.type as string}
                   required={required.includes(key)}
+                  description={property.description}
                 >
                   {formComponent === 'prompt-editor' && (
                     <PromptEditorWithVariables

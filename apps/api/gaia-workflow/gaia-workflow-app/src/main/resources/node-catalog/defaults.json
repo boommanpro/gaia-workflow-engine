@@ -31,29 +31,6 @@
         "content": ""
       }
     },
-    "inputs": {
-      "type": "object",
-      "properties": {
-        "modelName": {
-          "type": "string"
-        },
-        "apiKey": {
-          "type": "string"
-        },
-        "apiHost": {
-          "type": "string"
-        },
-        "temperature": {
-          "type": "number"
-        },
-        "systemPrompt": {
-          "type": "string"
-        },
-        "prompt": {
-          "type": "string"
-        }
-      }
-    },
     "outputs": {
       "type": "object",
       "properties": {

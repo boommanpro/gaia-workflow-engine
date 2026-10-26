@@ -9,12 +9,16 @@
  * · 模板 token 带空格（{{ a.b }}）时官方渲染层（form-materials variable-tag）按 `.` 拆段
  *   不 trim，合法引用显示 Unknown。后端 canonicalizeTemplateTokens 同口径收敛；
  *   这里在接入侧对已是包装形状的 template 值补同样收敛。
- * · llm 表单 required 旧口径（modelName/apiKey/apiHost/temperature 全必填）与后端
- *   「仅 prompt 必填、凭证运行时注入」矛盾（llm.schema.json x-gaia-form-inputs 2026-10-25
- *   起仅 prompt）——存量草稿 data.inputs.required 还是 5 项，接入时对齐。
+ * · llm 表单 schema（data.inputs）以 llm.schema.json 的 x-gaia-form-inputs 为单一事实源
+ *   （required / extra.formComponent / description 均来自它，后端 NodeDataNormalizer.alignFormInputs
+ *   同源）——存量草稿里的旧口径（5 项全必填 / 仅 prompt 必填 / 裸 inputs 无 formComponent）接入时整体对齐，
+ *   内容相同只是键序不同的不动（渲染顺序由表单按 schema 顺序决定）。
  *
  * 全部转换语义无损、幂等；不改 id/type/meta/连线结构。
  */
+import { isEqual } from 'lodash-es';
+
+import { formInputsSchemaOf } from '../agent/node-templates';
 import { canonicalizeTemplateTokens } from '../agent/node-templates/normalize';
 
 /** 裸字符串 → template 包装（含 token 空格收敛）；已是包装/缺失的原样返回 */
@@ -65,12 +69,12 @@ function normalizeNodeData(type: string, data: any): any {
     }
   }
 
-  if (type === 'llm' && next.inputs && Array.isArray(next.inputs.required)) {
-    const required = next.inputs.required as string[];
-    if (required.length > 1 || required[0] !== 'prompt') {
-      // 后端契约（llm.schema.json x-gaia-form-inputs）：仅 prompt 必填，
-      // modelName/apiKey/apiHost/temperature 运行时由平台注入
-      next = { ...next, inputs: { ...next.inputs, required: ['prompt'] } };
+  if (type === 'llm') {
+    // 表单 schema 整体对齐契约（与后端 alignFormInputs 同源）；isEqual 不比键序，
+    // 只有 required / 字段声明 / formComponent 实际不同的存量数据才被替换
+    const canonical = formInputsSchemaOf('llm');
+    if (canonical && !isEqual(next.inputs, canonical)) {
+      next = { ...next, inputs: canonical };
     }
   }
 

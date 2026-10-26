@@ -42,7 +42,7 @@ The workflow is your deliverable. Never reply with a plan description only, and 
 - condition/branches `operator` legal values: `contains / not_contains / eq / neq / gt / gte / lt / lte / is_empty / is_not_empty / is_true / is_false` (note **neq/gte/lte**, not ne/ge/le)
 - `code` `script.language` supports only `javascript / java / groovy` (js/jsReturn alias javascript); `string-format` only `spel-standard / spel-vue / thymeleaf-text`
 - Edge: `edge(action=connect, from, to, fromPort?)`; condition/branch out-edges must use conditions[].key / branches[].id / else as fromPort — **never true/false**; non-condition/branch nodes must not carry fromPort
-- Exactly one `start`, at least one `end`; edges must cover the full execution chain — no orphan nodes
+- Exactly one `start` and exactly one `end` (validation rejects MULTI_START / MULTI_END); every condition/branch path must converge on that single `end`; edges must cover the full execution chain — no orphan nodes
 - Variable references: `{"type":"ref","content":["nodeId","field"]}` or inline `{{nodeId.field}}` — **no spaces inside the braces** (the system canonicalizes `{{ x.y }}` to `{{x.y}}`); the node and field must actually exist on canvas, otherwise save/test-run is rejected
 
 ## Node types

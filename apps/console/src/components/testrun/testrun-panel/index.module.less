@@ -26,6 +26,53 @@
     font-size: 14px;
   }
 
+  .error-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 4px 0;
+  }
+
+  .error-item {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: rgba(237, 43, 43, 0.06);
+
+    .error-item-text {
+      color: #b91c1c;
+      font-size: 13px;
+      line-height: 18px;
+      word-break: break-all;
+      flex: 1;
+    }
+
+    .error-item-locate {
+      flex-shrink: 0;
+      font-size: 12px;
+    }
+  }
+
+  .warning-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 4px 0;
+  }
+
+  .warning-item {
+    color: #b45309;
+    font-size: 13px;
+    line-height: 18px;
+    word-break: break-all;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: rgba(245, 158, 11, 0.08);
+  }
+
   .code-editor-container {
     min-height: 200px;
     max-height: 400px;

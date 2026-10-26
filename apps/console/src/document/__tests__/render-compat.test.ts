@@ -2,12 +2,13 @@
  * render-compat 回归（2026-10-25 会话 b9019b24 实证驱动）：
  * · http api.url / body.json 裸字符串 → template 包装（表单控件按包装形状读取，裸串显示空）；
  * · 已是包装形状的 template 值收敛 {{ a.b }} → {{a.b}}（官方渲染层拆段不 trim，带空格显示 Unknown）；
- * · llm 存量 inputs.required（5 项全必填旧口径）对齐为仅 prompt（凭证运行时注入）；
+ * · llm 存量 inputs（旧 5 项必填 / 仅 prompt / 裸声明）整体对齐契约 x-gaia-form-inputs（凭证三字段必填）；
  * · 全程不可变 + 幂等：无变化返回原引用，不修改输入对象。
  */
 import { describe, expect, it } from 'vitest';
 
 import { applyRenderCompat } from '../render-compat';
+import { formInputsSchemaOf } from '../../agent/node-templates';
 
 describe('applyRenderCompat', () => {
   it('http 裸字符串 url / body.json 包装为 template', () => {
@@ -64,7 +65,12 @@ describe('applyRenderCompat', () => {
     expect(out.nodes[1].data.headersValues['X-K'].content).toBe('pre {{code_1.result}} post');
   });
 
-  it('llm 存量 required（modelName 等全必填）对齐为仅 prompt；已是仅 prompt 的不动', () => {
+  it('llm 表单 schema 整体对齐契约 x-gaia-form-inputs：旧 5 项 required / 仅 prompt / 裸 inputs 都收敛；键序不同但内容相同的不动', () => {
+    const canonical = formInputsSchemaOf('llm')!;
+    const reversedProperties = Object.fromEntries(
+      Object.keys(canonical.properties).reverse().map((key) => [key, canonical.properties[key]])
+    );
+    const sameContentDifferentOrder = { ...canonical, properties: reversedProperties };
     const dsl = {
       nodes: [
         {
@@ -91,12 +97,27 @@ describe('applyRenderCompat', () => {
             },
           },
         },
+        {
+          id: 'llm_3',
+          type: 'llm',
+          data: {
+            inputsValues: { prompt: { type: 'template', content: 'r' } },
+            inputs: sameContentDifferentOrder,
+          },
+        },
       ],
       edges: [],
     };
     const out: any = applyRenderCompat(dsl);
-    expect(out.nodes[0].data.inputs.required).toEqual(['prompt']);
-    expect(out.nodes[1].data.inputs.required).toEqual(['prompt']);
+    expect(out.nodes[0].data.inputs).toEqual(canonical);
+    expect(out.nodes[1].data.inputs).toEqual(canonical);
+    // 凭证三字段必填 + prompt 大编辑器：手动节点与 AI 归一化节点同一形状
+    expect(out.nodes[0].data.inputs.required).toEqual(
+      expect.arrayContaining(['modelName', 'apiKey', 'apiHost', 'prompt'])
+    );
+    expect(out.nodes[0].data.inputs.properties.prompt.extra.formComponent).toBe('prompt-editor');
+    // 后端 JSONObject 不保序：内容相同只是键序不同的不改数据（渲染顺序由表单按契约顺序决定）
+    expect(out.nodes[2]).toBe(dsl.nodes[2]);
   });
 
   it('不可变：不改输入对象；无关节点返回原引用；幂等', () => {

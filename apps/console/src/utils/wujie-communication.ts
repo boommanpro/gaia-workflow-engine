@@ -131,6 +131,24 @@ const handleAddComponentInternal = (componentData: any) => {
     }
 
     console.log('Found node registry for type:', nodeType, nodeRegistry);
+
+    // start/end 顶层唯一（与节点面板 canAdd=false、后端 MULTI_START/MULTI_END 同口径）：
+    // 宿主侧是唯一绕过节点面板的创建入口，这里必须自己把关
+    if (nodeType === WorkflowNodeType.Start || nodeType === WorkflowNodeType.End) {
+      const existing = (globalDocument.toJSON()?.nodes || []).find((n: any) => n?.type === nodeType);
+      if (existing) {
+        const message = `添加组件失败: 工作流只允许一个 ${nodeType} 节点（已有 ${existing.id}）`;
+        console.error(message);
+        if (window.$wujie && typeof window.$wujie.bus !== 'undefined') {
+          window.$wujie.bus.$emit('componentAdded', {
+            success: false,
+            error: `Duplicate ${nodeType} node: ${existing.id}`,
+            message,
+          });
+        }
+        return;
+      }
+    }
     
     // 获取默认节点配置
     const defaultNodeConfig = nodeRegistry.onAdd?.({} as any);

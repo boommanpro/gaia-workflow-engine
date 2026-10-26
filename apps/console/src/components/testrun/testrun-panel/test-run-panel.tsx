@@ -15,9 +15,10 @@ import { IconClose, IconPlay, IconSpin } from '@douyinfe/semi-icons';
 import { TestRunJsonInput } from '../testrun-json-input';
 import { TestRunForm } from '../testrun-form';
 import { NodeStatusGroup } from '../node-status-bar/group';
+import { itemText, type TestRunErrorItem } from '../../../plugins/runtime-plugin/validation-errors';
 import { WorkflowRuntimeService } from '../../../plugins/runtime-plugin/runtime-service';
-import { IconCancel } from '../../../assets/icon-cancel';
 import { useLanguage, t } from '../../../i18n';
+import { IconCancel } from '../../../assets/icon-cancel';
 
 import styles from './index.module.less';
 
@@ -32,6 +33,8 @@ export const TestRunSidePanel: FC<TestRunSidePanelProps> = () => {
   const [hasStoredResult, setHasStoredResult] = useState(false);
   const [values, setValues] = useState<Record<string, unknown>>({});
   const [errors, setErrors] = useState<string[]>();
+  const [errorItems, setErrorItems] = useState<TestRunErrorItem[]>();
+  const [warnings, setWarnings] = useState<string[]>();
   const [result, setResult] = useState<
     | {
         inputs: WorkflowInputs;
@@ -62,6 +65,8 @@ export const TestRunSidePanel: FC<TestRunSidePanelProps> = () => {
       setHasStoredResult(false);
       setResult(undefined);
       setErrors(undefined);
+      setErrorItems(undefined);
+      setWarnings(undefined);
     }
 
     if (runtimeService.isTaskRunning()) {
@@ -71,6 +76,8 @@ export const TestRunSidePanel: FC<TestRunSidePanelProps> = () => {
 
     setResult(undefined);
     setErrors(undefined);
+    setErrorItems(undefined);
+    setWarnings(undefined);
     setHasStoredResult(false);
 
     const taskID = await runtimeService.taskRun(values, true);
@@ -108,13 +115,50 @@ export const TestRunSidePanel: FC<TestRunSidePanelProps> = () => {
       ) : (
         <TestRunForm values={values} setValues={setValues} />
       )}
-      {errors?.map((e) => (
-        <div className={styles.error} key={e}>
-          {e}
+      {errorItems?.length || errors?.length ? (
+        <div className={styles['error-list']}>
+          {(errorItems?.length
+            ? errorItems
+            : (errors ?? []).map((message) => ({ message } as TestRunErrorItem))
+          ).map((item, index) => (
+            <div className={styles['error-item']} key={`${item.nodeId ?? 'global'}-${index}`}>
+              <div className={styles['error-item-text']}>{itemText(item)}</div>
+              {item.nodeId && (
+                <Button
+                  size="small"
+                  theme="borderless"
+                  className={styles['error-item-locate']}
+                  onClick={() => runtimeService.focusNode(item.nodeId!)}
+                >
+                  {t('testRun.locate')}
+                </Button>
+              )}
+            </div>
+          ))}
         </div>
-      ))}
-      <NodeStatusGroup title={t('testRun.inputsResult')} data={result?.inputs} optional disableCollapse />
-      <NodeStatusGroup title={t('testRun.outputsResult')} data={result?.outputs} optional disableCollapse />
+      ) : null}
+      {warnings?.length ? (
+        <div className={styles['warning-list']}>
+          <div className={styles['warning-item']}>{t('testRun.warnings')}</div>
+          {warnings.map((warning, index) => (
+            <div className={styles['warning-item']} key={index}>
+              {warning}
+            </div>
+          ))}
+        </div>
+      ) : null}
+      <NodeStatusGroup
+        title={t('testRun.inputsResult')}
+        data={result?.inputs}
+        optional
+        disableCollapse
+      />
+      <NodeStatusGroup
+        title={t('testRun.outputsResult')}
+        data={result?.outputs}
+        optional
+        disableCollapse
+      />
     </div>
   );
 
@@ -143,14 +187,18 @@ export const TestRunSidePanel: FC<TestRunSidePanelProps> = () => {
   }, [runtimeService]);
 
   useEffect(() => {
-    const disposer = runtimeService.onResultChanged(({ result, errors }) => {
+    const disposer = runtimeService.onResultChanged(({ result, errors, errorItems, warnings }) => {
       setRunning(false);
       setResult(result);
       setHasStoredResult(!!result);
-      if (errors) {
+      if (errors || errorItems?.length || warnings?.length) {
         setErrors(errors);
+        setErrorItems(errorItems?.length ? errorItems : undefined);
+        setWarnings(warnings?.length ? warnings : undefined);
       } else {
         setErrors(undefined);
+        setErrorItems(undefined);
+        setWarnings(undefined);
       }
     });
     return () => disposer.dispose();

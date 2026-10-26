@@ -43,7 +43,7 @@
 - **LLM 节点要被下游引用具体字段**（分类标签、抽取实体、评分等）时，必须 `"outputMode":"json"` + `outputs.properties` 声明字段 + prompt 末尾要求「只输出这些字段的 JSON 对象，不要输出任何其他文字」，下游直接引用 `llm_节点id.字段`；打标/分级/情感类任务必须在 prompt 里写明判定标准（例：出现抱怨、催促、威胁投诉 → negative；纯咨询 → neutral；表扬感谢 → positive），只给枚举不给标准会被大量误判成 neutral
 - `code` 的 `script.language` 只支持 `javascript / java / groovy`（简写 js/jsReturn 同 javascript）；`string-format` 只支持 `spel-standard / spel-vue / thymeleaf-text`
 - 连线：`edge(action=connect, from, to, fromPort?)`；条件/分支节点的出边 fromPort 必须用 conditions[].key / branches[].id / else，**绝不能写 true/false**；非条件/分支节点不能带 fromPort
-- 必须有且仅有一个 `start` 节点，至少一个 `end` 节点；连线必须覆盖完整执行链路，不留孤立节点
+- 必须有且仅有一个 `start` 节点和一个 `end` 节点（校验 MULTI_START / MULTI_END 直接打回）；条件/分支的各路径最终汇合到同一个 `end`；连线必须覆盖完整执行链路，不留孤立节点
 - 变量引用统一使用引用形式：`{"type":"ref","content":["节点id","字段名"]}` 或模板内联 `{{nodeId.field}}`——**花括号内侧不加空格**（系统会把 `{{ x.y }}` 归一为 `{{x.y}}`），引用的节点和字段必须在画布上真实存在，否则保存/试跑会被打回
 
 ## 可用节点类型

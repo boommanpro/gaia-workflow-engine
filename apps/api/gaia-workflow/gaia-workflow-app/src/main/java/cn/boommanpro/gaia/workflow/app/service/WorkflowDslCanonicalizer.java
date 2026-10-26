@@ -612,18 +612,25 @@ public final class WorkflowDslCanonicalizer {
                         warnings.add("节点 " + id + "（LLM）的提示词是系统生成的占位内容（按标题派生），"
                             + "请改为真实业务提示词");
                     }
-                    if (iv == null || iv.get("modelName") == null) {
-                        warnings.add("节点 " + id + "（LLM）未指定 modelName，节点运行时将缺少模型配置");
+                    // 模型凭证三字段统一必填（2026-10-26 用户决策「强制必填」，llm.schema.json
+                    // x-gaia-form-inputs.required 同口径）：apiKey 空运行必然 401（10-25 C06 实证），
+                    // apiHost/modelName 空 LlmNode 直接抛缺配置——此前 modelName 只给 warning、apiHost 不查，
+                    // 空值要到试跑才暴露。一次点名全部缺项，回执带精确修复指引。
+                    List<String> missingCredentials = new ArrayList<>();
+                    for (String key : new String[]{"modelName", "apiHost", "apiKey"}) {
+                        String value = constantContentOf(iv, key);
+                        if (value == null || value.trim().isEmpty()) {
+                            missingCredentials.add(key);
+                        }
                     }
-                    // apiKey 为空运行时必然 401：2026-10-25 C06 实证模型把 key 留空、
-                    // 试跑在远端 401 上打转。fatal 化后 add 回执与 run 预检都会带精确修复指引
-                    String apiKeyValue = constantContentOf(iv, "apiKey");
-                    if (apiKeyValue == null || apiKeyValue.trim().isEmpty()) {
-                        fatalIssues.add("节点 " + id + "（LLM）apiKey 为空：运行时无法调用模型（必然 401）。"
-                            + "修复：先 get(target=knowledge, nodeType=llm) 取 platformDefaultModel 三个值，"
+                    if (!missingCredentials.isEmpty()) {
+                        fatalIssues.add("节点 " + id + "（LLM）模型凭证缺失：" + String.join("/", missingCredentials)
+                            + " 为空，运行时无法调用模型。"
+                            + "修复：先 get(target=knowledge, nodeType=llm) 取 platformDefaultModel 三个值原样填入，"
                             + "node 传 {\"action\":\"update\",\"nodeId\":\"" + id + "\",\"data\":{\"inputsValues\":"
-                            + "{\"apiKey\":{\"type\":\"constant\",\"content\":\"<platformDefaultModel.apiKey>\"}}}}"
-                            + "（modelName/apiHost 也要一并原样填入）");
+                            + "{\"modelName\":{\"type\":\"constant\",\"content\":\"<platformDefaultModel.modelName>\"},"
+                            + "\"apiHost\":{\"type\":\"constant\",\"content\":\"<platformDefaultModel.apiHost>\"},"
+                            + "\"apiKey\":{\"type\":\"constant\",\"content\":\"<platformDefaultModel.apiKey>\"}}}}");
                     }
                     // json 输出模式必须声明输出字段（运行时按声明解析模型 JSON，缺声明=无输出进 memory）
                     if ("json".equalsIgnoreCase(data.getStr("outputMode"))) {

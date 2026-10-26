@@ -68,6 +68,24 @@ public class AgentModelConfigService {
         return getLlmConfig();
     }
 
+    /**
+     * 平台默认模型 —— llm 节点凭证（modelName/apiHost/apiKey）的唯一来源，AI 生成填入
+     * （get(target=knowledge) 的 platformDefaultModel）与前端手动新建预填共用，两路产出同一套值。
+     * 解析序与会话级一致、只去掉会话绑定：模型管理的全局默认条目（启用）> 旧 llm_config > yml。
+     * 此前知识查询直接读 llm_config，用户在模型管理里换默认模型后 AI 填的仍是旧值（status.md 记录的两条配置链）。
+     */
+    public LlmConfig getPlatformDefaultLlmConfig() {
+        Long modelId = getActiveModelId();
+        if (modelId != null) {
+            LlmModel entry = llmModelService.getById(modelId);
+            if (entry != null && entry.getEnabled() != null && entry.getEnabled() == 1) {
+                return fromEntry(entry, null);
+            }
+            log.warn("[model-resolver] global default model {} missing/disabled, falling back to llm_config/yml", modelId);
+        }
+        return getLlmConfig();
+    }
+
     /** 全局默认模型 id（llm_model 表）；未设置返回 null */
     public Long getActiveModelId() {
         AgentConfig config = configService.getOne(

@@ -106,6 +106,40 @@
   前端 Playwright 实证 C07/C15/C24 编辑器 0 Unknown/0 Undefined。
   验证：`mvn -B -pl gaia-workflow-app -am test`（322 通过，1 既有跳过）。
 
+- 2026-10-26（用户反馈「前端和后端都能出现多个 end」，变更记录 [changes/archive/2026-10-26-end-node-uniqueness](../changes/archive/2026-10-26-end-node-uniqueness/proposal.md)）：
+  end 顶层唯一与 start 对称——后端 `WorkflowDslValidator` 新增 `MULTI_END` error（nodeId 点名全部 end、文案指引分支汇合）、
+  `SessionWorkflowDraftService.addNode` 对第二个 start/end 当场拒绝并指引改接（批量 add 路径作为 items[i] 警告回执）；
+  前端 `document/validate.ts` 新增 `MULTI_END`、`wujie-communication` 宿主添加入口加守卫；
+  架构师提示词（zh/en）与知识种子 end 条目由「至少一个 / 可以多个」改为「有且仅有一个」。
+  不新增 node-catalog 基数字段（图语义沿用 MULTI_START 实现位置）；存量多 end 草稿不自动改写，下次保存/试跑/落版被打回。
+  验证：`mvn -B -pl gaia-workflow-app -am test`（334 通过，1 既有跳过；新增 WorkflowDslValidatorTest.multiEnd、
+  SessionDraftStartEndUniquenessTest 4 项）；前端 `vitest run`（129 通过，新增 document/validate.test.ts 5 项）；
+  `tsc --noEmit` 改动文件 0 错误（29 个既有错误均在未改动文件）。未验证：浏览器端到端、存量库多 end 版本统计。
+
+- 2026-10-26（用户反馈：llm 表单顶部蓝色说明要去掉、凭证三字段强制必填、手动添加的 llm 节点与 AI 添加的看起来不一样且无默认值）：
+  · 根因：后端 `NodeDataNormalizer.alignFormInputs` 把 AI 节点的 `data.inputs` 整体替换为 llm.schema.json 的
+    `x-gaia-form-inputs`（带 required / extra.formComponent），而前端手动添加走 defaults.json 里另存的一份裸 `inputs`
+    （无 required、无 formComponent）——两份拷贝漂移（P-01 违背），手动节点 prompt 不是大编辑器、无必填星、凭证为空；
+    后端 Hutool JSONObject 不保序，AI 节点表单行序还被打乱。
+  · 单一事实源收口：前端 `agent/node-templates` 的 `cloneDefaultData` 对有 `x-gaia-form-inputs` 扩展的类型由扩展派生
+    `inputs`（`formInputsSchemaOf/formInputOrderOf`），defaults.json 删除 llm `inputs` 副本；`render-compat` 对存量 llm
+    inputs 按内容（不比键序）整体对齐契约；`FormInputs` 新增 `order` 按契约顺序渲染行（数据键序不再影响显示），并透出
+    schema description 做字段 tooltip。
+  · 凭证必填：llm.schema.json `x-gaia-form-inputs.required` = modelName/apiKey/apiHost/prompt，描述改为「必填、新建自动带入
+    平台默认」；后端 canonicalizer 三字段统一 fatal（此前 modelName 仅 warning、apiHost 不查），一次点名全部缺项并附 update 修复示例。
+  · 默认值同源：`AgentModelConfigService.getPlatformDefaultLlmConfig()`（模型管理全局默认条目 > llm_config > yml）成为 llm
+    节点凭证唯一来源——AI `get(target=knowledge)` 的 platformDefaultModel 改用它（修掉 status 里记录的「两条配置链」），
+    新增 `GET /api/agent/models/node-default` 给前端；llm 表单打开时空凭证位自动带入（只填空位、只读不写），`onAdd`
+    命中缓存时直接带入；顶部蓝色说明撤掉。注意该端点返回明文 apiKey——与节点 inputsValues 明文携带凭证（10-25 决策）同一暴露面。
+  · 知识种子 llm 条目：「凭证不填、落版注入」改为「必填、取 platformDefaultModel 原样填入」，示例去掉手写 `inputs`
+    （平台自动对齐，不再要求模型照抄字段表，NC-04）。
+  验证：`mvn -B -pl gaia-workflow-app -am test`（342 通过，1 既有跳过；新增 WorkflowDslCanonicalizerLlmCredentialTest 5 项、
+  AgentModelConfigServicePlatformDefaultTest 3 项）；前端 `vitest run`（151 通过；contract 测试改为 inputs 逐字段等于扩展 +
+  登记守卫 + defaults 无副本，新增 platform-default 7 项、orderInputKeys 3 项，render-compat llm 用例改为整体对齐）；
+  `tsc --noEmit` 改动文件 0 错误（基线 29 不变）。临时 SQLite 真实启动实测：node-default 返回已注册的 yml 模型；在模型管理
+  新建条目并设为默认后 node-default 立即跟随；禁用该条目后回退不返回空凭证。未验证：浏览器内手动添加 llm 节点的实际渲染
+  （预填闪动、必填星、行序）；存量多 end / 旧 inputs 草稿在真实库上的回归。
+
 ## 未完成及注意事项
 
 | 规范 | 当前边界 | 后续验收 |

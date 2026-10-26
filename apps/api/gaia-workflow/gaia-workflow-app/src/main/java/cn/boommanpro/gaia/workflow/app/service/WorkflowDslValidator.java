@@ -167,6 +167,10 @@ public final class WorkflowDslValidator {
         }
         if (endCount == 0) {
             issues.add(new Issue("error", "NO_END", null, "缺少 end 节点：工作流没有产出出口"));
+        } else if (endCount > 1) {
+            issues.add(new Issue("error", "MULTI_END", String.join(",", endIds),
+                "存在 " + endCount + " 个 end 节点（" + String.join(", ", endIds) + "）：出口必须唯一，"
+                    + "条件/分支的各路径请汇合到同一个 end"));
         }
 
         List<String[]> edgeList = new ArrayList<>();

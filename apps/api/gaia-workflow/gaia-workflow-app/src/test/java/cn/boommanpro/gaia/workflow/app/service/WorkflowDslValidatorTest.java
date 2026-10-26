@@ -123,6 +123,42 @@ class WorkflowDslValidatorTest {
     }
 
     @Test
+    @DisplayName("S2: 两个 end → MULTI_END（出口唯一，与 start 对称；分支各接一个 end 的旧写法必须打回）")
+    void multiEnd() {
+        String dsl = doc(
+            start() + ","
+                + "{\"id\":\"condition_0\",\"type\":\"condition\",\"data\":{\"title\":\"判断\",\"conditions\":[{\"key\":\"if_match\","
+                + "\"value\":{\"left\":{\"type\":\"ref\",\"content\":[\"start_0\",\"q\"]},\"operator\":\"contains\","
+                + "\"right\":{\"type\":\"constant\",\"content\":\"x\"}}}]},\"meta\":{\"position\":{\"x\":1,\"y\":0}}},"
+                + endWithRef("start_0", "q") + ","
+                + endWithRef("start_0", "q").replace("\"end_0\"", "\"end_1\"").replace("\"x\":9", "\"x\":10"),
+            "{\"sourceNodeID\":\"start_0\",\"targetNodeID\":\"condition_0\"},"
+                + "{\"sourceNodeID\":\"condition_0\",\"sourcePortID\":\"if_match\",\"targetNodeID\":\"end_0\"},"
+                + "{\"sourceNodeID\":\"condition_0\",\"sourcePortID\":\"else\",\"targetNodeID\":\"end_1\"}");
+        List<WorkflowDslValidator.Issue> issues = WorkflowDslValidator.validate(dsl);
+        assertTrue(codes(issues).contains("MULTI_END"), "两个 end 必须被打回: " + issues);
+        WorkflowDslValidator.Issue multiEnd = issues.stream()
+            .filter(i -> "MULTI_END".equals(i.getCode())).findFirst().orElseThrow();
+        assertEquals("error", multiEnd.getLevel());
+        assertEquals("end_0,end_1", multiEnd.getNodeId(), "nodeId 要点名全部 end，便于前端定位");
+        assertTrue(multiEnd.getMessage().contains("汇合"), "打回信息要指引分支汇合到同一个 end");
+        assertTrue(WorkflowDslValidator.hasErrors(issues));
+        // 对照：单 end 的同一张图零 error
+        String single = doc(
+            start() + ","
+                + "{\"id\":\"condition_0\",\"type\":\"condition\",\"data\":{\"title\":\"判断\",\"conditions\":[{\"key\":\"if_match\","
+                + "\"value\":{\"left\":{\"type\":\"ref\",\"content\":[\"start_0\",\"q\"]},\"operator\":\"contains\","
+                + "\"right\":{\"type\":\"constant\",\"content\":\"x\"}}}]},\"meta\":{\"position\":{\"x\":1,\"y\":0}}},"
+                + endWithRef("start_0", "q"),
+            "{\"sourceNodeID\":\"start_0\",\"targetNodeID\":\"condition_0\"},"
+                + "{\"sourceNodeID\":\"condition_0\",\"sourcePortID\":\"if_match\",\"targetNodeID\":\"end_0\"},"
+                + "{\"sourceNodeID\":\"condition_0\",\"sourcePortID\":\"else\",\"targetNodeID\":\"end_0\"}");
+        List<WorkflowDslValidator.Issue> singleIssues = WorkflowDslValidator.validate(single);
+        assertFalse(codes(singleIssues).contains("MULTI_END"));
+        assertFalse(WorkflowDslValidator.hasErrors(singleIssues), "分支汇合到同一 end 应零 error: " + singleIssues);
+    }
+
+    @Test
     @DisplayName("S2: 悬空边 → DANGLING_EDGE")
     void danglingEdge() {
         String dsl = doc(start() + "," + endWithRef("start_0", "q"),

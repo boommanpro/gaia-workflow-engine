@@ -235,20 +235,23 @@
   "x-gaia-form-inputs": {
     "type": "object",
     "required": [
+      "modelName",
+      "apiKey",
+      "apiHost",
       "prompt"
     ],
     "properties": {
       "modelName": {
         "type": "string",
-        "description": "运行时由平台自动注入，可不填"
+        "description": "必填。新建节点自动带入平台默认模型（模型管理页标记为默认的条目），可改"
       },
       "apiKey": {
         "type": "string",
-        "description": "运行时由平台自动注入，可不填"
+        "description": "必填。新建节点自动带入平台默认模型的密钥，随草稿保存；为空运行必然 401"
       },
       "apiHost": {
         "type": "string",
-        "description": "运行时由平台自动注入，可不填"
+        "description": "必填。OpenAI 兼容接口地址（如 https://host/v1），新建节点自动带入平台默认"
       },
       "temperature": {
         "type": "number",

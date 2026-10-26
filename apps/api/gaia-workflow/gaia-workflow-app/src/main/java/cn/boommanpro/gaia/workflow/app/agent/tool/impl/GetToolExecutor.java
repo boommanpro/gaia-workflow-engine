@@ -234,9 +234,10 @@ public class GetToolExecutor implements ToolExecutor {
             if (outputs != null) payload.set("staticOutputs", new JSONArray(outputs));
             if ("llm".equals(nodeType)) {
                 // 平台默认模型配置（2026-10-25 用户决策）：运行时不再隐式注入凭证，
-                // AI 生成时必须把这三个值原样填进 inputsValues——配置在表单可见、随草稿持久化
+                // AI 生成时必须把这三个值原样填进 inputsValues——配置在表单可见、随草稿持久化。
+                // 来源与前端手动新建的预填同一方法（模型管理全局默认 > llm_config > yml）
                 try {
-                    var llm = modelConfigService.getLlmConfig();
+                    var llm = modelConfigService.getPlatformDefaultLlmConfig();
                     if (llm != null) {
                         payload.set("platformDefaultModel", new JSONObject()
                             .set("modelName", llm.getModel())

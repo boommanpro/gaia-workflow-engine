@@ -56,6 +56,8 @@ export function validateDsl(dsl: WorkflowDsl | null | undefined): DslValidationR
   }
   if (ends.length === 0) {
     push('warning', 'NO_END', '缺少 end 节点');
+  } else if (ends.length > 1) {
+    push('error', 'MULTI_END', `存在 ${ends.length} 个 end 节点，只允许一个（条件/分支的各路径汇合到同一个 end）`);
   }
 
   // ---- 连线 ----

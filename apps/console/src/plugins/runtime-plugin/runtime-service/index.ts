@@ -18,8 +18,19 @@ import {
   WorkflowDocument,
   WorkflowLineEntity,
   WorkflowNodeEntity,
+  WorkflowSelectService,
 } from '@flowgram.ai/free-layout-editor';
+import { FlowNodeFormData } from '@flowgram.ai/form-core';
 
+import {
+  backendIssuesToItems,
+  formFeedbackToItem,
+  itemText,
+  messageToItem,
+  type BackendIssue,
+  type FormFeedbackLike,
+  type TestRunErrorItem,
+} from '../validation-errors';
 import { WorkflowRuntimeClient } from '../client';
 import { GetGlobalVariableSchema } from '../../variable-panel-plugin';
 import { WorkflowNodeType } from '../../../nodes';
@@ -61,6 +72,8 @@ export class WorkflowRuntimeService {
 
   @inject(WorkflowRuntimeClient) runtimeClient: WorkflowRuntimeClient;
 
+  @inject(WorkflowSelectService) selectService: WorkflowSelectService;
+
   @inject(GetGlobalVariableSchema) getGlobalVariableSchema: GetGlobalVariableSchema;
 
   private runningNodes: WorkflowNodeEntity[] = [];
@@ -75,6 +88,10 @@ export class WorkflowRuntimeService {
 
   private resultEmitter = new Emitter<{
     errors?: string[];
+    /** 结构化错误（带 nodeId），面板渲染定位按钮、画布自动聚焦 */
+    errorItems?: TestRunErrorItem[];
+    /** 校验放行但应关注的告警（后端 warning 级） */
+    warnings?: string[];
     result?: {
       inputs: WorkflowInputs;
       outputs: WorkflowOutputs;
@@ -173,11 +190,9 @@ export class WorkflowRuntimeService {
     if (cancelExisting && this.taskID) {
       await this.taskCancel();
     }
-    const isFormValid = await this.validateForm();
-    if (!isFormValid) {
-      this.resultEmitter.fire({
-        errors: ['Form validation failed'],
-      });
+    const formErrors = await this.validateForm();
+    if (formErrors.length > 0) {
+      this.fireValidationBlocked(formErrors, []);
       return;
     }
     const schema = {
@@ -186,14 +201,22 @@ export class WorkflowRuntimeService {
     };
     this.currentRunSchema = schema;
 
-    const validateResult = await this.runtimeClient.TaskValidate({
+    // 后端在 errors 之外还返回结构化 issues（level/code/nodeId/message），
+    // runtime-interface 的 TS 类型没声明，但线上 JSON 确实带——按扩展形状读取
+    const validateResult = (await this.runtimeClient.TaskValidate({
       schema: JSON.stringify(schema),
       inputs,
-    });
+    })) as
+      | { valid: boolean; errors?: string[]; issues?: BackendIssue[]; warnings?: string[] }
+      | undefined;
     if (!validateResult?.valid) {
-      this.resultEmitter.fire({
-        errors: validateResult?.errors ?? ['Internal Server Error'],
-      });
+      const titleOf = this.buildTitleLookup();
+      const { errors } = backendIssuesToItems(validateResult?.issues, titleOf);
+      const errorItems =
+        errors.length > 0
+          ? errors
+          : (validateResult?.errors ?? ['Internal Server Error']).map(messageToItem);
+      this.fireValidationBlocked(errorItems, validateResult?.warnings ?? []);
       return;
     }
     this.reset();
@@ -204,13 +227,15 @@ export class WorkflowRuntimeService {
         inputs,
         // 运行历史按工作流归档（B 项）：编辑器路由携带的编码随请求上报
         workflowCode: getRunWorkflowCode(),
-      } as never)) as { taskID?: string; errors?: string[] } | undefined;
+      } as never)) as { taskID?: string; errors?: string[]; issues?: BackendIssue[] } | undefined;
       taskID = output?.taskID;
       // 后端运行前预检失败时回 { errors, issues }（无 taskID）——透出具体校验错误
       if (!taskID) {
-        this.resultEmitter.fire({
-          errors: output?.errors ?? ['Task run failed'],
-        });
+        const titleOf = this.buildTitleLookup();
+        const { errors } = backendIssuesToItems(output?.issues, titleOf);
+        const errorItems =
+          errors.length > 0 ? errors : (output?.errors ?? ['Task run failed']).map(messageToItem);
+        this.fireValidationBlocked(errorItems, []);
         return;
       }
     } catch (e) {
@@ -235,12 +260,103 @@ export class WorkflowRuntimeService {
     });
   }
 
-  private async validateForm(): Promise<boolean> {
-    const allForms = this.document.getAllNodes().map((node) => node.form);
-    const formValidations = await Promise.all(allForms.map(async (form) => form?.validate()));
-    const validations = formValidations.filter((validation) => validation !== undefined);
-    const isValid = validations.every((validation) => validation);
-    return isValid;
+  /**
+   * 表单校验：返回带节点定位的明细，而不是把结果压成一个 boolean。
+   * 表单模型必须从 FlowNodeFormData 取：node.form（NodeFormProps）没有
+   * validateWithFeedbacks，那是 FormModel 的方法；拿错对象会让整个明细
+   * 收集静默空转（已踩坑：拦截门失效，角标报错但试运行照常放行）。
+   * validateWithFeedbacks 内部先跑 validate()（红框/行内错误/状态更新照常触发），
+   * 再返回 {path, feedbackStatus, feedbackText} 明细。
+   */
+  private async validateForm(): Promise<TestRunErrorItem[]> {
+    const nodes = this.document.getAllNodes();
+    const titleOf = this.buildTitleLookup();
+    const perNode = await Promise.all(
+      nodes.map(async (node) => {
+        let feedbacks: FormFeedbackLike[] = [];
+        try {
+          const formData = node.getData?.(FlowNodeFormData);
+          const formModel = formData?.formModel;
+          if (formData?.formModel?.initialized && formModel?.validateWithFeedbacks) {
+            feedbacks = (await formModel.validateWithFeedbacks().catch(() => [])) ?? [];
+          }
+        } catch {
+          return [];
+        }
+        const items: TestRunErrorItem[] = [];
+        for (const feedback of feedbacks || []) {
+          const item = formFeedbackToItem(node.id, titleOf(node.id), feedback);
+          if (item) {
+            items.push(item);
+          }
+        }
+        return items;
+      })
+    );
+    return perNode.flat();
+  }
+
+  /** 校验被拦下：面板展示可定位的错误列表，画布同时选中并滚到出错节点 */
+  private fireValidationBlocked(items: TestRunErrorItem[], warnings: string[]): void {
+    this.resultEmitter.fire({
+      errors: items.map(itemText),
+      errorItems: items,
+      warnings: warnings.length > 0 ? warnings : undefined,
+    });
+    this.focusErrorNodes(items);
+  }
+
+  /** 选中所有出错节点并滚动到第一个，用户不用自己在画布上找红框 */
+  private focusErrorNodes(items: TestRunErrorItem[]): void {
+    const ids = [...new Set(items.map((item) => item.nodeId).filter(Boolean))] as string[];
+    if (ids.length === 0) {
+      return;
+    }
+    const entities = ids
+      .map((id) => this.document.getNode(id))
+      .filter((n): n is WorkflowNodeEntity => !!n);
+    if (entities.length === 0) {
+      return;
+    }
+    this.selectService.selection = entities;
+    void this.playground.scrollToView({
+      entities: [entities[0]],
+      scrollToCenter: true,
+      easing: true,
+    });
+  }
+
+  /** 面板「定位」按钮：选中单个出错节点并滚动到中央 */
+  public focusNode(nodeId: string): void {
+    const entity = this.document.getNode(nodeId);
+    if (!entity) {
+      return;
+    }
+    this.selectService.selection = [entity];
+    void this.playground.scrollToView({ entities: [entity], scrollToCenter: true, easing: true });
+  }
+
+  /** 一次性构建 nodeId → data.title 查询函数（toJSON 是整份序列化，别按错误条数重复调） */
+  private buildTitleLookup(): (nodeId: string) => string | undefined {
+    let cache: Map<string, string> | undefined;
+    return (nodeId: string) => {
+      if (!cache) {
+        cache = new Map();
+        try {
+          const nodes =
+            (this.document.toJSON() as { nodes?: { id?: string; data?: { title?: string } }[] })
+              ?.nodes ?? [];
+          for (const n of nodes) {
+            if (n?.id) {
+              cache.set(String(n.id), n?.data?.title || '');
+            }
+          }
+        } catch {
+          /* 忽略：标题缺失时回落展示裸 id */
+        }
+      }
+      return cache.get(String(nodeId)) || undefined;
+    };
   }
 
   public reset(): void {
@@ -272,20 +388,34 @@ export class WorkflowRuntimeService {
       clearInterval(this.syncTaskReportIntervalID);
       this.taskID = undefined;
       const hasOutputs = outputs && Object.keys(outputs).length > 0;
-      const errors = messages?.error
-        ?.filter((message) => message.message)
-        .map((message) =>
-          message.nodeID && message.nodeID !== 'undefined'
-            ? `${message.nodeID}: ${message.message}`
-            : message.message
-        );
+      const errorMessages = messages?.error?.filter((message) => message.message) ?? [];
+      const titleOf = this.buildTitleLookup();
+      const errorItems: TestRunErrorItem[] = errorMessages.map((message) => {
+        const nodeId =
+          message.nodeID && message.nodeID !== 'undefined' ? String(message.nodeID) : undefined;
+        return {
+          nodeId,
+          nodeTitle: nodeId ? titleOf(nodeId) : undefined,
+          message: message.message!,
+        };
+      });
+      const errors = errorMessages.map((message) =>
+        message.nodeID && message.nodeID !== 'undefined'
+          ? `${message.nodeID}: ${message.message}`
+          : message.message
+      );
       if (hasOutputs) {
         const result = { inputs, outputs };
-        this.resultEmitter.fire({ result, errors: errors && errors.length ? errors : undefined });
+        this.resultEmitter.fire({
+          result,
+          errors: errors.length ? errors : undefined,
+          errorItems: errorItems.length ? errorItems : undefined,
+        });
         this.saveResult(result, report);
-      } else if (errors && errors.length > 0) {
-        this.resultEmitter.fire({ errors });
+      } else if (errors.length > 0) {
+        this.resultEmitter.fire({ errors, errorItems });
         this.saveError(errors);
+        this.focusErrorNodes(errorItems);
       } else {
         // 运行成功但没有产出：明确提示去查 end 的引用，而不是伪装成 Unknown error
         const notes = [
@@ -319,7 +449,11 @@ export class WorkflowRuntimeService {
         const nodeReport = reports[nodeID];
         if (!nodeReport) {
           if (Object.keys(reports).length > 0) {
-            console.debug('[runtime] report has no entry for node', nodeID, '— canvas ids may diverge from run schema');
+            console.debug(
+              '[runtime] report has no entry for node',
+              nodeID,
+              '— canvas ids may diverge from run schema'
+            );
           }
           return;
         }

@@ -72,8 +72,17 @@ export function reduce(state: RuntimeState, action: RuntimeAction): RuntimeState
       if (state.connection === 'reconnecting') return state;
       return { ...state, connection: 'reconnecting' };
     case 'run-accepted':
+      // run 进行中再发 = steering（同一 run 的 turn 边界注入），现场不动
       if (state.streaming) return { ...state, stopping: false };
-      return { ...state, streaming: true, stopping: false, startedAt: state.startedAt || Date.now(), lastEventAt: Date.now() };
+      // 新 run 起点：上一轮的流式现场必须清空（timeline/content/thinking 属于上一个 run），
+      // 否则本轮 live 行一建立就把上一轮回复原样渲染出来（用户实测：第二轮回复 = 上一轮内容）
+      return {
+        ...freshRunScene(state),
+        streaming: true,
+        stopping: false,
+        startedAt: Date.now(),
+        lastEventAt: Date.now(),
+      };
     case 'begin-stop':
       if (!state.streaming || state.stopping) return state;
       return { ...state, stopping: true };
@@ -90,6 +99,9 @@ export function reduce(state: RuntimeState, action: RuntimeAction): RuntimeState
       };
     case 'live-clear': {
       if (!state.liveMessageId) return state;
+      // 上一轮的 settle 晚于新一轮起跑（steering 链式起跑 / 快速连发）：新 run 正在复用这条
+      // live 行流式输出，此时摘除会让进行中的回复从对话流消失——留给本轮自己的 settle 摘
+      if (state.streaming) return state;
       const messages = state.messages.filter((m) => m.id !== state.liveMessageId);
       return { ...state, messages, liveMessageId: null };
     }
@@ -164,8 +176,12 @@ export function reduce(state: RuntimeState, action: RuntimeAction): RuntimeState
 function reduceEvent(state: RuntimeState, action: Extract<RuntimeAction, { type: 'event' }>): RuntimeState {
   const { name, data, seq } = action;
   // seq 单调去重：断线重放的旧事件直接忽略（未带 seq 的旧协议帧放行）
-  if (seq != null && Number.isFinite(seq)) {
-    if (seq <= state.lastSeq) return state;
+  if (seq != null && Number.isFinite(seq) && seq <= state.lastSeq) {
+    // run_state 从不入缓冲重放（只有 setState 广播 + 订阅快照），其 seq 回退只可能是服务端
+    // 频道已重建（后端重启 / 空闲回收）从头计数——不对齐游标，这条频道之后的所有事件都会
+    // 被当作旧帧丢弃，表现为「刷新前永远收不到新回复」
+    const channelRebuilt = name === 'run_state' && seq < state.lastSeq;
+    if (!channelRebuilt) return state;
   }
   let next: RuntimeState = { ...state, lastEventAt: Date.now() };
   if (seq != null && Number.isFinite(seq)) {
@@ -336,8 +352,14 @@ function reduceRunState(state: RuntimeState, data: any): RuntimeState {
   let next = state;
   const status = data?.status;
   if (status === 'running') {
+    const incomingRunId = data?.runId != null ? String(data.runId) : null;
+    if (incomingRunId && incomingRunId !== state.runId) {
+      // 新 run 边界：起跑快照没有 timeline（后端 startExecution 建的是空现场），
+      // 沿用旧现场等于把上一轮回复带进本轮 live 行；同 runId 的重连快照不走这里
+      next = freshRunScene(next);
+    }
     next.streaming = true;
-    next.runId = data?.runId ?? next.runId;
+    next.runId = incomingRunId ?? next.runId;
     const startedAt = Number(data?.startedAt);
     if (Number.isFinite(startedAt) && startedAt > 0) next.startedAt = startedAt;
     if (data?.turn != null) next.turn = Number(data.turn);
@@ -424,6 +446,15 @@ function reduceRunState(state: RuntimeState, data: any): RuntimeState {
 }
 
 // ---------------- 时间线工具（沿承 live-stream-store 语义） ----------------
+
+/**
+ * 新 run 的空现场：流式现场（timeline/content/thinking/currentTool/turn）属于单个 run，
+ * 跨 run 复用会把上一轮回复渲染进本轮 live 行。消息列表、产物、seq 游标、连接状态
+ * 都是会话级的，这里不动；live 行 id 也不动（stale 行由 live-clear 按 settle 协议摘除）。
+ */
+function freshRunScene(state: RuntimeState): RuntimeState {
+  return { ...state, timeline: [], content: '', thinking: '', currentTool: null, turn: 0 };
+}
 
 function closeOpenTail(timeline: TimelineItem[]): TimelineItem[] {
   const last = timeline[timeline.length - 1];

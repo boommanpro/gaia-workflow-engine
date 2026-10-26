@@ -273,3 +273,160 @@ describe('run_end 时间账小结', () => {
     expect((item as any).meta).toMatchObject({ turns: 3 });
   });
 });
+
+describe('run 边界：同一会话连续两轮（第二轮回复 = 上一轮内容 回归钉子）', () => {
+  /** 跑完一整轮并按 settle 协议收口（end-run → 历史重载 → live-clear） */
+  function finishedFirstRun(d: ReturnType<typeof driver>): void {
+    d.ev('run_state', { status: 'running', runId: 'r1', startedAt: Date.now() - 5000 }, 1);
+    d.ev('thinking', { content: '想一想。' }, 2);
+    d.ev('tool_call', { id: 't1', name: 'get', args: {} }, 3);
+    d.ev('tool_result', { toolCallId: 't1', payload: '{}' }, 4);
+    d.ev('token', { content: '第一轮的回答。' }, 5);
+    d.ev('done', {}, 6);
+    d.dispatch({ type: 'end-run' });
+    d.dispatch({ type: 'live-clear' });
+    expect(d.s.liveMessageId).toBeNull();
+    expect(d.s.streaming).toBe(false);
+    // 修复前：现场在这里原样残留，第二轮 live 行一建立就把它渲染出来
+  }
+
+  it('第二轮起跑快照（后端无 timeline）建立的 live 行必须是空现场，不得渲染第一轮正文', () => {
+    const d = driver();
+    finishedFirstRun(d);
+
+    d.dispatch({ type: 'optimistic-user', text: '第二个问题' });
+    d.dispatch({ type: 'run-accepted' });
+    d.ev('run_state', { status: 'running', runId: 'r2', turn: 0, assistantContent: '', toolCalls: [], startedAt: Date.now() }, 7);
+
+    expect(d.timeline()).toEqual([]);
+    expect(d.s.content).toBe('');
+    expect(d.s.thinking).toBe('');
+    expect(d.s.currentTool).toBeNull();
+    expect(d.s.runId).toBe('r2');
+    // 新 live 行建立在用户消息之后（不是复用/串到上一轮）
+    const ids = d.s.messages.map((m) => m.id);
+    expect(ids[ids.length - 1]).toBe('live-r2');
+    expect(ids[ids.length - 2]).toMatch(/^local-/);
+
+    d.ev('token', { content: '第二轮的回答。' }, 8);
+    expect(d.s.content).toBe('第二轮的回答。');
+    expect(d.timeline()).toHaveLength(1);
+    expect(d.timeline().some((i) => i.kind === 'tool' && i.id === 't1')).toBe(false);
+  });
+
+  it('SSE 起跑快照先于 POST 回执到达：现场由快照重置一次，run-accepted 不得再抹掉已流入的正文', () => {
+    const d = driver();
+    finishedFirstRun(d);
+
+    d.ev('run_state', { status: 'running', runId: 'r2', startedAt: Date.now() }, 7);
+    d.ev('token', { content: '抢先到的正文' }, 8);
+    d.dispatch({ type: 'run-accepted' });
+
+    expect(d.s.content).toBe('抢先到的正文');
+    expect(d.timeline()).toHaveLength(1);
+    expect(d.s.streaming).toBe(true);
+  });
+
+  it('run-accepted 单独也重置现场（起跑快照被丢/晚到时的兜底）；秒表从本轮起点重计', () => {
+    const d = driver();
+    finishedFirstRun(d);
+    const firstStart = d.s.startedAt;
+
+    d.dispatch({ type: 'run-accepted' });
+
+    expect(d.timeline()).toEqual([]);
+    expect(d.s.content).toBe('');
+    expect(d.s.thinking).toBe('');
+    expect(d.s.streaming).toBe(true);
+    expect(d.s.startedAt).toBeGreaterThan(firstStart);
+  });
+
+  it('steering：run 进行中再发消息不是新 run，现场保持', () => {
+    const d = driver();
+    d.ev('run_state', { status: 'running', runId: 'r1' }, 1);
+    d.ev('token', { content: '进行中的正文' }, 2);
+
+    d.dispatch({ type: 'optimistic-user', text: '补充一句' });
+    d.dispatch({ type: 'run-accepted' });
+
+    expect(d.s.content).toBe('进行中的正文');
+    expect(d.timeline()).toHaveLength(1);
+  });
+
+  it('同 runId 的重连快照不算新 run：无 timeline 的快照不得清空本地现场', () => {
+    const d = driver();
+    d.ev('run_state', { status: 'running', runId: 'r1' }, 1);
+    d.ev('token', { content: '已经输出的内容' }, 2);
+
+    d.ev('run_state', { status: 'running', runId: 'r1' }, 3);
+
+    expect(d.s.content).toBe('已经输出的内容');
+    expect(d.timeline()).toHaveLength(1);
+  });
+
+  it('上一轮 settle 晚于新一轮起跑（链式起跑）：live-clear 不得摘掉新 run 正在用的 live 行', () => {
+    const d = driver();
+    d.ev('run_state', { status: 'running', runId: 'r1' }, 1);
+    d.ev('token', { content: '第一轮' }, 2);
+    d.ev('done', {}, 3);
+    d.dispatch({ type: 'end-run' });
+    // 历史还没回来，后端已链式起跑第二轮
+    d.ev('run_state', { status: 'running', runId: 'r2' }, 4);
+    d.ev('token', { content: '第二轮' }, 5);
+    const liveId = d.s.liveMessageId;
+    expect(liveId).toBeTruthy();
+
+    d.dispatch({ type: 'live-clear' });
+
+    expect(d.s.liveMessageId).toBe(liveId);
+    expect(d.s.messages.some((m) => m.id === liveId)).toBe(true);
+    expect(d.s.content).toBe('第二轮');
+
+    // 第二轮自己收尾后才摘
+    d.ev('done', {}, 6);
+    d.dispatch({ type: 'end-run' });
+    d.dispatch({ type: 'live-clear' });
+    expect(d.s.liveMessageId).toBeNull();
+  });
+});
+
+describe('频道重建（后端重启 / 空闲回收）后的 seq 游标对齐', () => {
+  it('run_state 快照 seq 回退 = 频道从头计数：接受并对齐游标，后续低 seq 事件照常流入', () => {
+    const d = driver();
+    d.ev('run_state', { status: 'running', runId: 'r1' }, 300);
+    d.ev('token', { content: '重启前' }, 350);
+    d.ev('done', {}, 351);
+    expect(d.s.lastSeq).toBe(351);
+
+    // 后端重启：新频道订阅快照 seq=0（idle），随后新 run 从 1 开始计数
+    d.ev('run_state', { status: 'idle' }, 0);
+    expect(d.s.lastSeq).toBe(0);
+    d.dispatch({ type: 'run-accepted' });
+    d.ev('run_state', { status: 'running', runId: 'r2' }, 1);
+    d.ev('token', { content: '重启后' }, 2);
+
+    expect(d.s.runId).toBe('r2');
+    expect(d.s.content).toBe('重启后');
+    expect(d.s.lastSeq).toBe(2);
+  });
+
+  it('非 run_state 事件的 seq 回退仍是旧帧，照旧丢弃（去重语义不放松）', () => {
+    const d = driver();
+    d.ev('run_state', { status: 'running', runId: 'r1' }, 10);
+    d.ev('token', { content: '新' }, 12);
+    d.ev('token', { content: '旧' }, 3);
+    d.ev('tool_call', { id: 'old', name: 'x', args: {} }, 2);
+    expect(d.s.content).toBe('新');
+    expect(d.timeline().some((i) => i.kind === 'tool')).toBe(false);
+    expect(d.s.lastSeq).toBe(12);
+  });
+
+  it('同频道重连快照 seq 与游标相等：无新事件，照旧忽略', () => {
+    const d = driver();
+    d.ev('run_state', { status: 'running', runId: 'r1' }, 5);
+    d.ev('token', { content: '正文' }, 6);
+    const before = d.s;
+    d.ev('run_state', { status: 'running', runId: 'r1' }, 6);
+    expect(d.s).toBe(before);
+  });
+});

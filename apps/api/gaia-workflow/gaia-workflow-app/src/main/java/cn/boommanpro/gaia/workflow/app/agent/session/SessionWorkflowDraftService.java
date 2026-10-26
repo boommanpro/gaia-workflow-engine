@@ -155,6 +155,18 @@ public class SessionWorkflowDraftService {
         JSONObject doc = getOrCreate(sessionKey);
         JSONArray nodes = doc.getJSONArray("nodes");
 
+        // start/end 顶层唯一（与 WorkflowDslValidator 的 MULTI_START/MULTI_END 同口径）：写入当场拒绝，
+        // 不等落版才暴露；回执指引模型改接已有节点而不是再堆一个
+        if ("start".equals(type) || "end".equals(type)) {
+            String existingId = findTopLevelIdByType(nodes, type);
+            if (existingId != null) {
+                return err("画布已有 " + type + " 节点「" + existingId + "」：工作流有且仅有一个 " + type + "。"
+                    + ("end".equals(type)
+                        ? "条件/分支的各路径请用 edge(action=connect) 汇合到它，输出字段用 node(action=update) 改它的 inputsValues"
+                        : "入口只能有一个，请直接使用已有 start"));
+            }
+        }
+
         String id = args.getStr("id");
         if (id == null || id.isEmpty()) {
             AtomicInteger counter = idCounters.computeIfAbsent(sessionKey, k -> new AtomicInteger(0));
@@ -1159,6 +1171,20 @@ public class SessionWorkflowDraftService {
             JSONObject node = nodes.getJSONObject(i);
             if (nodeId.equals(node.getStr("id"))) {
                 return node;
+            }
+        }
+        return null;
+    }
+
+    /** 顶层节点里第一个指定类型的 id（start/end 唯一性检查；loop 体内的 block-start/block-end 不在此列） */
+    private static String findTopLevelIdByType(JSONArray nodes, String type) {
+        if (nodes == null || type == null) {
+            return null;
+        }
+        for (int i = 0; i < nodes.size(); i++) {
+            JSONObject node = nodes.getJSONObject(i);
+            if (node != null && type.equals(node.getStr("type"))) {
+                return node.getStr("id");
             }
         }
         return null;

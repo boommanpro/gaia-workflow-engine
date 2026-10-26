@@ -252,6 +252,8 @@ export const enUS: I18nLanguage = {
     'testRun.placeholder.number': 'Please input number',
     'testRun.placeholder.text': 'Please input text',
     'testRun.copied': 'Copied',
+    'testRun.locate': 'Locate',
+    'testRun.warnings': 'Warnings (not blocking, worth fixing)',
 
     /* ---------- Node status ---------- */
     'nodeStatus.running': 'Running',

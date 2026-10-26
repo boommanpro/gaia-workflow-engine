@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 
-import { cloneDefaultData, createNodeByType, getSupportedNodeTypes } from '../index';
+import { cloneDefaultData, createNodeByType, formInputOrderOf, formInputsSchemaOf, getSupportedNodeTypes } from '../index';
 import { normalizeNodeData } from '../normalize';
 import { GENERATABLE_NODE_TYPES } from '../../../document/types';
 
@@ -300,14 +300,48 @@ describe('llm 模板契约', () => {
     expect(node.data.inputsValues.prompt).toMatchObject({ type: 'template', content: '总结：{{start_0.text}}' });
   });
 
-  it('llm 模板 inputs 与后端 x-gaia-form-inputs 扩展一致（表单 schema 单一事实源防漂移）', () => {
+  it('llm 模板 inputs 逐字段等于后端 x-gaia-form-inputs 扩展（表单 schema 单一事实源防漂移）', () => {
     const schema = schemaOf('llm');
     const formInputs = schema['x-gaia-form-inputs'];
     expect(formInputs, 'llm.schema.json 缺少 x-gaia-form-inputs 扩展').toBeDefined();
     const node = createNodeByType('llm', {});
-    expect(Object.keys(node.data.inputs.properties).sort()).toEqual(Object.keys(formInputs.properties).sort());
-    // 后端 NodeDataNormalizer 用同一扩展对齐 AI 生成的 llm 节点——
-    // 模板（手工添加）、schema 扩展（AI 归一化）两路产出必须逐字段一致，
-    // 否则画布表单展示分叉
+    // 后端 NodeDataNormalizer.alignFormInputs 用同一扩展整体替换 AI 生成的 llm 节点 inputs——
+    // 模板（手工添加）、schema 扩展（AI 归一化）两路产出必须逐字段一致（含 required / extra.formComponent /
+    // description），否则画布表单分叉：2026-10-26 用户实证手动节点 prompt 不是大编辑器、无必填星
+    expect(node.data.inputs).toEqual(formInputs);
+    expect(formInputsSchemaOf('llm')).toEqual(formInputs);
+    expect(formInputOrderOf('llm')).toEqual(Object.keys(formInputs.properties));
+  });
+
+  it('llm 凭证三字段 + prompt 必填（契约 required），prompt/systemPrompt 走提示词编辑器', () => {
+    const node = createNodeByType('llm', {});
+    expect(node.data.inputs.required).toEqual(
+      expect.arrayContaining(['modelName', 'apiKey', 'apiHost', 'prompt'])
+    );
+    expect(node.data.inputs.required).not.toContain('temperature');
+    expect(node.data.inputs.properties.prompt.extra.formComponent).toBe('prompt-editor');
+    expect(node.data.inputs.properties.systemPrompt.extra.formComponent).toBe('prompt-editor');
+  });
+
+  it('每个带 x-gaia-form-inputs 扩展的 schema 都已在前端模板登记（新增扩展不登记 = 表单再次分叉）', () => {
+    for (const file of readdirSync(SCHEMAS_DIR)) {
+      if (!file.endsWith('.schema.json')) continue;
+      const type = file.replace(/\.schema\.json$/, '');
+      const schema = JSON.parse(readFileSync(new URL(file, SCHEMAS_DIR), 'utf-8'));
+      if (schema['x-gaia-form-inputs']) {
+        expect(formInputsSchemaOf(type), `${file} 有 x-gaia-form-inputs 但前端 FORM_INPUTS_BY_TYPE 未登记`).toEqual(
+          schema['x-gaia-form-inputs']
+        );
+      } else {
+        expect(formInputsSchemaOf(type)).toBeNull();
+      }
+    }
+  });
+
+  it('共享模板目录（defaults.json）不再另存 llm inputs 副本：inputs 只由 schema 扩展派生', () => {
+    const raw = JSON.parse(
+      readFileSync(new URL('../../../../../../apps/api/gaia-workflow/gaia-workflow-app/src/main/resources/node-catalog/defaults.json', import.meta.url), 'utf-8')
+    );
+    expect(raw.llm.inputs).toBeUndefined();
   });
 });

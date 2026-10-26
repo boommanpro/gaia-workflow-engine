@@ -252,6 +252,8 @@ export const zhCN: I18nLanguage = {
     'testRun.placeholder.number': '请输入数字',
     'testRun.placeholder.text': '请输入文本',
     'testRun.copied': '已复制',
+    'testRun.locate': '定位节点',
+    'testRun.warnings': '警告（不拦运行，建议处理）',
 
     /* ---------- Node status ---------- */
     'nodeStatus.running': '运行中',

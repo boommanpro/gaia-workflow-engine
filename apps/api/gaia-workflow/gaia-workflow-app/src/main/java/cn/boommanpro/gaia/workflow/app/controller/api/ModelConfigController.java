@@ -32,6 +32,7 @@ import java.util.Map;
  * POST   /api/agent/models/thinking               设全局思考档位 {level}
  * POST   /api/agent/models/compaction-threshold   设全局历史压缩阈值 {percent}
  * GET    /api/agent/models/thinking-levels        五档能力（按模型逐档算 supported/note）
+ * GET    /api/agent/models/node-default           llm 节点凭证预填值（明文，与 AI 知识查询同源）
  * POST   /api/agent/session/{key}/model           会话绑定模型 {modelId|null}
  * </pre>
  */
@@ -75,6 +76,25 @@ public class ModelConfigController {
             .set("compactionThreshold", modelConfigService.globalCompactionThreshold())
             // 模型管理仅自研引擎（local）有意义：方舟托管的模型由远端 Agent 管理
             .set("engineMode", providerConfigService.getDefaultEngineMode());
+        return result;
+    }
+
+    /**
+     * llm 节点凭证（modelName/apiHost/apiKey）的平台默认值 —— 前端手动新建 llm 节点时预填，
+     * 与 AI get(target=knowledge, nodeType=llm) 拿到的 platformDefaultModel 同一方法同一套值，
+     * 手动节点和 AI 节点形状一致。
+     * <p>返回明文 apiKey：节点 inputsValues 本就以明文携带凭证并在表单可见、随草稿保存
+     * （2026-10-25 决策，移除运行时注入），这里不比会话草稿接口暴露更多。</p>
+     */
+    @GetMapping("/models/node-default")
+    public Map<String, Object> nodeDefault() {
+        JSONObject result = new JSONObject().set("success", true);
+        AgentModelConfigService.LlmConfig llm = modelConfigService.getPlatformDefaultLlmConfig();
+        if (llm != null) {
+            result.set("modelName", llm.getModel())
+                .set("apiHost", llm.getApiHost())
+                .set("apiKey", llm.getApiKey());
+        }
         return result;
     }
 

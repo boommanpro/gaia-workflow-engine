@@ -180,6 +180,10 @@ export const agentApi = {
   modelHealth: () =>
     request<{ items: { model: string; total: number; errors: number; successRate: number; avgLatencyMs: number; healthy: boolean }[] }>(
       '/agent/models/health'),
+  /** llm 节点凭证预填值（平台默认模型，与 AI get(knowledge) 的 platformDefaultModel 同源；apiKey 明文） */
+  getLlmNodeDefault: () =>
+    request<{ success: boolean; modelName?: string; apiHost?: string; apiKey?: string }>(
+      '/agent/models/node-default'),
   getSessionModel: (sessionKey: string) =>
     request<{ modelId: number | null; activeModelId: number | null; model?: any }>(
       `/agent/session/${sessionKey}/model`),
