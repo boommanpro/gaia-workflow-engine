@@ -1,0 +1,458 @@
+{
+  "caseId": "C12",
+  "sessionKey": "b068cb4de6624ae29eb3b388390d29b8",
+  "elapsedSec": 85,
+  "turns": [
+    {
+      "utterance": "财务每周给我一张销售额数组，我要一个汇总：总销售额、平均数、最高单、最低单，一次算出来。这个计算逻辑要跑在 JVM 那套脚本引擎上，别用浏览器那套脚本。",
+      "runStatus": "done",
+      "asksAnswered": [],
+      "lastAssistant": "用户要求用 JVM 脚本引擎（Java/Groovy），不是 GraalJS。我来创建一个 Java 代码节点，接收销售额数组，计算总销售额、平均数、最高单、最低单。\n\n连线有点问题，系统自动把 code_1 连到自己了。让我重新接：start_1 → code_1，然后 code_1 → end_1。\n\n现在需要配置 end_1 的输出引用，把 code_1 的结果映射到 end 输出。\n\n现在来试跑。先配置 start_1 的入参，然后整流跑一次。\n\n输出为空？让我检查一下 end_1 的配置。\n\nend_1 的 inputs 类型被自动推断成了 string，但实际引用的是 number 类型。让我修正 end_1 的 inputs 定义。\n\n输出还是空的。让我检查 code_1 的实际输出。\n\ncode_1 输出为空，可能是 Java 代码执行有问题。让我检查 code_1 的配置。\n\n配置看起来没问题。可能是 mockInputs 的引用方式问题。让我用按节点 ID 分组的 mockInputs 再试一次。\n\n还是空输出。可能是 Java 代码执行时抛了异常但没被捕获。让我加个 try-catch 看看。\n\nJava 引擎执行了但输出为空。可能是 List<Double> 类型转换问题（实际传入的是 List<Number>）。让我改用更通用的方式处理。\n\nJava 引擎执行了但输出还是空的。让我试试 Groovy 引擎，可能更兼容。\n\nGroovy 执行失败。让我看看错误详情，可能是 inputs 变量名的问题。\n\nGroovy 还是失败。让我试试 JavaScript 引擎，确认流程没问题，然后再排查 Java/Groovy。\n\nJS 引擎也返回空。问题可能在 inputs 的引用方式。让我检查 code_1 的 inputsValues 配置。\n\ncode_1 没有 inputsValues，所以 inputs 是空的。mockInputs 需要按入参名直给。让我修正 mockInputs 格式。\n\n还是空。让我看看 code_1 的完整配置，确认 inputsValues 和 inputs 的关系。\n\n我看到问题了：代码里用的是 `inputs.sales`，但 mockInputs 传入的 `sales` 应该直接注入为顶层变量（GraalJS 特性）。让我改代码用顶层变量方式。\n\n还是空。让我看看 run 返回的完整输出，可能 outputs 字段名不对。\n\n输出确实是空的。让我检查一下 outputs 的声明是否正确，以及代码返回的对象键是否匹配。\n\n关键信息：**outputs.properties 是输出白名单——只有这里声明的键才会进入节点输出**。当前 outputs 声明了 totalSales, averageSales, maxSale, minSale, count，代码返回的也是这些键，应该没问题。\n\n但问题是 mockInputs 传入的 `sales` 变量是否被正确注入为 GraalJS 的顶层变量。让我用 inputsValues 来显式引用。\n\n等等，start_1 的字段是 `input`（单数），但 start 的 outputs 应该由用户定义。让我先看看 start_1 的配置。\n\nstart_1 的 outputs 只有 `input` 字段（string 类型）。我需要修改 start_1 的 outputs 来接受 sales 数组。\n\n现在整流试跑：\n\ncode_1 失败了，错误"
+    }
+  ],
+  "pass": false,
+  "checks": [
+    {
+      "case": "C12",
+      "name": "存在 code 节点",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "case": "C12",
+      "name": "language 为 java/groovy",
+      "pass": false,
+      "detail": "language=javascript"
+    },
+    {
+      "case": "C12",
+      "name": "脚本含 execute(Map)",
+      "pass": false,
+      "detail": "var sales = sales || [];\nvar result = {};\n\nif (sales.length === 0) {\n    result.error = \"销售额数组为空数组\";\n    result;\n}\n\nvar total = 0;\nvar max = sales[0];"
+    },
+    {
+      "case": "C12",
+      "name": "试运行成功",
+      "pass": true,
+      "detail": "status=success"
+    },
+    {
+      "case": "C12",
+      "name": "total=750",
+      "pass": true,
+      "detail": "{\"minSale\":80,\"maxSale\":320,\"averageSales\":187.5,\"count\":4,\"totalSales\":750}"
+    },
+    {
+      "case": "C12",
+      "name": "avg=187.5",
+      "pass": true,
+      "detail": "{\"minSale\":80,\"maxSale\":320,\"averageSales\":187.5,\"count\":4,\"totalSales\":750}"
+    },
+    {
+      "case": "C12",
+      "name": "max=320",
+      "pass": true,
+      "detail": "{\"minSale\":80,\"maxSale\":320,\"averageSales\":187.5,\"count\":4,\"totalSales\":750}"
+    },
+    {
+      "case": "C12",
+      "name": "min=80",
+      "pass": true,
+      "detail": "{\"minSale\":80,\"maxSale\":320,\"averageSales\":187.5,\"count\":4,\"totalSales\":750}"
+    }
+  ],
+  "doc": {
+    "edges": [
+      {
+        "sourceNodeID": "start_1",
+        "targetNodeID": "code_1"
+      },
+      {
+        "sourceNodeID": "code_1",
+        "targetNodeID": "end_1"
+      }
+    ],
+    "version": 14,
+    "nodes": [
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "sales": {
+                "description": "sales",
+                "type": "array",
+                "default": [],
+                "items": {
+                  "type": "number"
+                }
+              },
+              "input": {
+                "description": "input",
+                "type": "string",
+                "default": ""
+              }
+            }
+          },
+          "title": "开始"
+        },
+        "type": "start",
+        "meta": {
+          "position": {
+            "x": 180,
+            "y": 180
+          }
+        },
+        "id": "start_1"
+      },
+      {
+        "data": {
+          "inputsValues": {
+            "maxSale": {
+              "type": "ref",
+              "content": [
+                "code_1",
+                "maxSale"
+              ]
+            },
+            "count": {
+              "type": "ref",
+              "content": [
+                "code_1",
+                "count"
+              ]
+            },
+            "totalSales": {
+              "type": "ref",
+              "content": [
+                "code_1",
+                "totalSales"
+              ]
+            },
+            "minSale": {
+              "type": "ref",
+              "content": [
+                "code_1",
+                "minSale"
+              ]
+            },
+            "averageSales": {
+              "type": "ref",
+              "content": [
+                "code_1",
+                "averageSales"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "maxSale": {
+                "type": "number"
+              },
+              "count": {
+                "type": "number"
+              },
+              "totalSales": {
+                "type": "number"
+              },
+              "minSale": {
+                "type": "number"
+              },
+              "averageSales": {
+                "type": "number"
+              }
+            }
+          },
+          "title": "结束"
+        },
+        "type": "end",
+        "meta": {
+          "position": {
+            "x": 500,
+            "y": 180
+          }
+        },
+        "id": "end_1"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "maxSale": {
+                "type": "number"
+              },
+              "count": {
+                "type": "number"
+              },
+              "totalSales": {
+                "type": "number"
+              },
+              "minSale": {
+                "type": "number"
+              },
+              "averageSales": {
+                "type": "number"
+              }
+            }
+          },
+          "inputsValues": {
+            "sales": {
+              "type": "ref",
+              "content": [
+                "start_1",
+                "sales"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "sales": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "title": "销售额统计",
+          "script": {
+            "language": "javascript",
+            "content": "var sales = sales || [];\nvar result = {};\n\nif (sales.length === 0) {\n    result.error = \"销售额数组为空数组\";\n    result;\n}\n\nvar total = 0;\nvar max = sales[0];\nvar min = sales[0];\n\nfor (var i = 0; i < sales.length; i++) {\n    var s = Number(sales[i]);\n    total += s;\n    if (s > max) max = s;\n    if (s < min) min = s;\n}\n\nvar average = total / sales.length;\n\nresult.totalSales = total;\nresult.averageSales = average;\nresult.maxSale = max;\nresult.minSale = min;\nresult.count = sales.length;\nresult;"
+          }
+        },
+        "type": "code",
+        "meta": {
+          "position": {
+            "x": 500,
+            "y": 380
+          }
+        },
+        "id": "code_1"
+      }
+    ]
+  },
+  "trialRuns": [
+    {
+      "ok": true,
+      "taskId": "46505fd3-c043-4a48-9dec-36ea8964fb09",
+      "workflowStatus": "success",
+      "outputs": {
+        "minSale": 80,
+        "maxSale": 320,
+        "averageSales": 187.5,
+        "count": 4,
+        "totalSales": 750
+      },
+      "nodes": {
+        "code_1": {
+          "id": "code_1",
+          "status": "succeeded",
+          "startTime": 1792941382189,
+          "endTime": 1792941382197,
+          "timeCost": 8,
+          "snapshots": [
+            {
+              "nodeID": "code_1",
+              "inputs": {
+                "sales": [
+                  100,
+                  250,
+                  80,
+                  320
+                ]
+              },
+              "outputs": {
+                "maxSale": 320,
+                "count": 4,
+                "totalSales": 750,
+                "minSale": 80,
+                "averageSales": 187.5
+              },
+              "data": {
+                "maxSale": 320,
+                "count": 4,
+                "totalSales": 750,
+                "minSale": 80,
+                "averageSales": 187.5
+              },
+              "branch": "",
+              "error": "",
+              "id": "code_1"
+            }
+          ]
+        },
+        "start_1": {
+          "id": "start_1",
+          "status": "succeeded",
+          "startTime": 1792941382189,
+          "endTime": 1792941382189,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "start_1",
+              "inputs": {
+                "sales": [
+                  100,
+                  250,
+                  80,
+                  320
+                ]
+              },
+              "outputs": {
+                "sales": [
+                  100,
+                  250,
+                  80,
+                  320
+                ],
+                "input": ""
+              },
+              "data": {
+                "sales": [
+                  100,
+                  250,
+                  80,
+                  320
+                ]
+              },
+              "branch": "",
+              "error": "",
+              "id": "start_1"
+            }
+          ]
+        },
+        "end_1": {
+          "id": "end_1",
+          "status": "succeeded",
+          "startTime": 1792941382197,
+          "endTime": 1792941382197,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "end_1",
+              "inputs": {
+                "code_1": {
+                  "maxSale": 320,
+                  "count": 4,
+                  "totalSales": 750,
+                  "minSale": 80,
+                  "averageSales": 187.5
+                },
+                "sales": [
+                  100,
+                  250,
+                  80,
+                  320
+                ],
+                "start_1": {
+                  "sales": [
+                    100,
+                    250,
+                    80,
+                    320
+                  ],
+                  "input": ""
+                }
+              },
+              "outputs": {
+                "maxSale": 320,
+                "count": 4,
+                "totalSales": 750,
+                "minSale": 80,
+                "averageSales": 187.5
+              },
+              "data": {
+                "code_1": {
+                  "maxSale": 320,
+                  "count": 4,
+                  "totalSales": 750,
+                  "minSale": 80,
+                  "averageSales": 187.5
+                },
+                "sales": [
+                  100,
+                  250,
+                  80,
+                  320
+                ],
+                "start_1": {
+                  "sales": [
+                    100,
+                    250,
+                    80,
+                    320
+                  ],
+                  "input": ""
+                }
+              },
+              "branch": "",
+              "error": "",
+              "id": "end_1"
+            }
+          ]
+        }
+      },
+      "runDetail": {
+        "nodes": [
+          {
+            "id": 175,
+            "runTaskId": "46505fd3-c043-4a48-9dec-36ea8964fb09",
+            "nodeId": "code_1",
+            "nodeType": "code",
+            "title": "销售额统计",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"sales\":[100,250,80,320]}",
+            "outputJson": "{\"maxSale\":320,\"count\":4,\"totalSales\":750,\"minSale\":80,\"averageSales\":187.5}",
+            "timeCostMs": 8,
+            "createdAt": "2026-10-25T23:16:22.249562"
+          },
+          {
+            "id": 176,
+            "runTaskId": "46505fd3-c043-4a48-9dec-36ea8964fb09",
+            "nodeId": "start_1",
+            "nodeType": "start",
+            "title": "开始",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"sales\":[100,250,80,320]}",
+            "outputJson": "{\"sales\":[100,250,80,320],\"input\":\"\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:16:22.249562"
+          },
+          {
+            "id": 177,
+            "runTaskId": "46505fd3-c043-4a48-9dec-36ea8964fb09",
+            "nodeId": "end_1",
+            "nodeType": "end",
+            "title": "结束",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"code_1\":{\"maxSale\":320,\"count\":4,\"totalSales\":750,\"minSale\":80,\"averageSales\":187.5},\"sales\":[100,250,80,320],\"start_1\":{\"sales\":[100,250,80,320],\"input\":\"\"}}",
+            "outputJson": "{\"maxSale\":320,\"count\":4,\"totalSales\":750,\"minSale\":80,\"averageSales\":187.5}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:16:22.249562"
+          }
+        ],
+        "run": {
+          "id": 48,
+          "taskId": "46505fd3-c043-4a48-9dec-36ea8964fb09",
+          "workflowCode": null,
+          "status": "success",
+          "errorMessage": null,
+          "inputsJson": "{\"sales\":[100,250,80,320]}",
+          "outputsJson": "{\"maxSale\":320,\"count\":4,\"totalSales\":750,\"minSale\":80,\"averageSales\":187.5}",
+          "nodeCount": 3,
+          "durationMs": 61,
+          "triggerChannel": "editor",
+          "startedAt": "2026-10-25T23:16:22.188562",
+          "finishedAt": "2026-10-25T23:16:22.249562",
+          "createdAt": "2026-10-25T23:16:22.249562"
+        }
+      }
+    }
+  ]
+}

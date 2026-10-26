@@ -1,0 +1,174 @@
+{
+  "caseId": "C22",
+  "sessionKey": "687747d9b6fa4220b289617462dcf17d",
+  "elapsedSec": 34,
+  "turns": [
+    {
+      "utterance": "做个慢接口探测工具：请求 http://httpbin.org/delay/5（它会拖 5 秒才响应），给我配置单次最多等 3 秒、失败自动重试 2 次的保护，然后试跑一次，我要看到它按配置失败。",
+      "runStatus": "done",
+      "asksAnswered": [],
+      "lastAssistant": "慢接口探测工具已配置完成，试跑结果符合预期：\n\n**配置说明：**\n- HTTP 节点 `http_1` 请求 `http://httpbin.org/delay/5`\n- 超时时间：**3000ms**（3秒）\n- 重试次数：**2次**\n\n**试跑结果：**\n- 总耗时约 **9 秒**（3次尝试 × 3秒超时 ≈ 9秒）\n- `http_1` 状态：**FAILED** — `Read timed out`（读取超时）\n- `end_1` 状态：**SKIPPED**（上游失败，下游跳过）\n\n**验证逻辑：**\nhttpbin 的 `/delay/5` 会等 5 秒才返回，而我们的超时设为 3 秒。HTTP 节点先尝试第 1 次（3秒超时失败）→ 自动重试第 2 次（3秒超时失败）→ 再重试第 3 次（3秒超时失败，2次重试用完）→ 最终标记 FAILED。\n\n> 草稿已验证通过，请在界面**保存为版本**以生效。"
+    }
+  ],
+  "pass": true,
+  "checks": [
+    {
+      "case": "C22",
+      "name": "存在 http 节点",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "case": "C22",
+      "name": "timeout=3000 已配置",
+      "pass": true,
+      "detail": "{\"timeout\":3000,\"retryTimes\":2}"
+    },
+    {
+      "case": "C22",
+      "name": "retryTimes=2 已配置",
+      "pass": true,
+      "detail": "{\"timeout\":3000,\"retryTimes\":2}"
+    },
+    {
+      "case": "C22",
+      "name": "试跑呈现超时失败",
+      "pass": true,
+      "detail": "未发现超时表述"
+    },
+    {
+      "case": "C22",
+      "name": "无假成功",
+      "pass": true,
+      "detail": ""
+    }
+  ],
+  "doc": {
+    "edges": [
+      {
+        "sourceNodeID": "start_1",
+        "targetNodeID": "http_1"
+      },
+      {
+        "sourceNodeID": "http_1",
+        "targetNodeID": "end_1"
+      }
+    ],
+    "version": 5,
+    "nodes": [
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "input": {
+                "type": "string",
+                "default": ""
+              }
+            }
+          },
+          "title": "开始"
+        },
+        "type": "start",
+        "meta": {
+          "position": {
+            "x": 180,
+            "y": 180
+          }
+        },
+        "id": "start_1"
+      },
+      {
+        "data": {
+          "inputsValues": {
+            "headers": {
+              "type": "ref",
+              "content": [
+                "http_1",
+                "headers"
+              ]
+            },
+            "body": {
+              "type": "ref",
+              "content": [
+                "http_1",
+                "body"
+              ]
+            },
+            "statusCode": {
+              "type": "ref",
+              "content": [
+                "http_1",
+                "statusCode"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "headers": {
+                "type": "string"
+              },
+              "body": {
+                "type": "string"
+              },
+              "statusCode": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "结束"
+        },
+        "type": "end",
+        "meta": {
+          "position": {
+            "x": 500,
+            "y": 180
+          }
+        },
+        "id": "end_1"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "headers": {
+                "type": "object"
+              },
+              "body": {
+                "type": "string"
+              },
+              "statusCode": {
+                "type": "number"
+              }
+            }
+          },
+          "title": "慢接口探测",
+          "headersValues": {},
+          "timeout": {
+            "timeout": 3000,
+            "retryTimes": 2
+          },
+          "paramsValues": {},
+          "api": {
+            "method": "GET",
+            "url": {
+              "type": "template",
+              "content": "http://httpbin.org/delay/5"
+            }
+          }
+        },
+        "type": "http",
+        "meta": {
+          "position": {
+            "x": 500,
+            "y": 380
+          }
+        },
+        "id": "http_1"
+      }
+    ]
+  },
+  "trialRuns": []
+}

@@ -102,7 +102,7 @@ public class WorkflowTestCaseOrchestrator {
                 DraftRunService.RunReport report = draftRunService.run(JSONUtil.parseObj(schema), inputs);
                 actual = report.outputs;
                 if (!report.success) {
-                    error = report.error;
+                    error = describeRunFailure(report);
                 }
             }
         } catch (Exception e) {
@@ -122,18 +122,66 @@ public class WorkflowTestCaseOrchestrator {
             boolean allPass = !results.isEmpty() && results.stream().allMatch(r -> r.pass);
             JSONArray resultsJson = new JSONArray();
             for (TestAssertEvaluator.AssertResult r : results) {
-                resultsJson.add(new JSONObject()
+                JSONObject one = new JSONObject()
                     .set("field", r.field)
                     .set("op", r.op)
                     .set("expected", r.expected)
                     .set("actual", r.actual)
-                    .set("pass", r.pass));
+                    .set("pass", r.pass);
+                // 断言的字段根本不是输出字段（模型常把运行报告字段 failedNodes/success 当输出断言）：
+                // 点名可用输出字段，否则模型只看到 actual=null 不知道该改字段名还是改工作流
+                if (!r.pass && actual != null && !hasTopLevelField(actual, r.field)) {
+                    one.set("hint", "字段 " + r.field + " 不是工作流输出字段（本次输出字段："
+                        + String.join(", ", actual.keySet())
+                        + "）。断言只能针对 end 节点的输出字段；运行报告字段（failedNodes/success 等）不能作为断言字段");
+                }
+                resultsJson.add(one);
             }
             run.setStatus(allPass ? "passed" : "failed");
             run.setAssertResultsJson(resultsJson.toString());
         }
         runService.save(run);
         return run;
+    }
+
+    /**
+     * 整流失败的可行动描述：点名失败节点与真实异常，而不是 Chain 外层的「Chain execute error」。
+     * 2026-10-24 实证：只给外层文案时模型定位不到节点，反复重建同名用例空转直至超时。
+     */
+    static String describeRunFailure(DraftRunService.RunReport report) {
+        StringBuilder sb = new StringBuilder();
+        if (report.timedOut) {
+            sb.append("整流试跑超时");
+        }
+        if (report.failedNodes != null && !report.failedNodes.isEmpty()) {
+            for (int i = 0; i < report.failedNodes.size(); i++) {
+                JSONObject failed = report.failedNodes.getJSONObject(i);
+                if (sb.length() > 0) {
+                    sb.append("；");
+                }
+                String detail = failed.getStr("error");
+                if (detail != null && detail.length() > 400) {
+                    detail = detail.substring(0, 400) + "…";
+                }
+                sb.append("节点 ").append(failed.getStr("id")).append(" 运行失败：").append(detail);
+            }
+        }
+        if (sb.length() == 0) {
+            sb.append(report.error != null ? report.error : "Chain execute error");
+        }
+        if (report.notExecuted != null && !report.notExecuted.isEmpty()) {
+            sb.append("；因此未执行到 ").append(report.notExecuted.size()).append(" 个下游节点");
+        }
+        return sb.toString();
+    }
+
+    /** 断言字段的顶层键（a.b 取 a）是否存在于输出 */
+    private static boolean hasTopLevelField(Map<String, Object> actual, String field) {
+        if (field == null) {
+            return false;
+        }
+        int dot = field.indexOf('.');
+        return actual.containsKey(dot > 0 ? field.substring(0, dot) : field);
     }
 
     public List<WorkflowTestCase> listCases(String workflowCode, String nodeId) {
@@ -164,6 +212,52 @@ public class WorkflowTestCaseOrchestrator {
         testCase.setUpdatedAt(LocalDateTime.now().toString());
         caseService.save(testCase);
         return testCase;
+    }
+
+    /** upsert 结果：用例 + 是否为覆盖更新 */
+    public static final class UpsertResult {
+        public final WorkflowTestCase testCase;
+        public final boolean updated;
+
+        UpsertResult(WorkflowTestCase testCase, boolean updated) {
+            this.testCase = testCase;
+            this.updated = updated;
+        }
+    }
+
+    /**
+     * 同名用例 upsert：同 workflow + 同层级（nodeId）+ 同 name 已存在则覆盖更新
+     * inputs/expected/description，并把更早的同名重复项逻辑删除（一名一例）；否则新建。
+     * 2026-10-24 实证：模型把「重新沉淀用例」当成修复手段，一轮里堆出 8 个重复用例，
+     * run(tests) 的失败数随之翻倍，进一步误导模型。
+     */
+    public UpsertResult upsertCase(String workflowCode, String nodeId, String name, String description,
+                                   JSONObject inputs, JSONArray expected, String createdBy) {
+        QueryWrapper<WorkflowTestCase> wrapper = new QueryWrapper<WorkflowTestCase>()
+            .eq("is_deleted", 0)
+            .eq("workflow_code", workflowCode)
+            .eq("name", name)
+            .orderByDesc("id");
+        if (nodeId != null && !nodeId.isEmpty()) {
+            wrapper.eq("node_id", nodeId);
+        } else {
+            wrapper.and(w -> w.isNull("node_id").or().eq("node_id", ""));
+        }
+        List<WorkflowTestCase> sameName = caseService.list(wrapper);
+        if (sameName.isEmpty()) {
+            return new UpsertResult(createCase(workflowCode, nodeId, name, description, inputs, expected, createdBy), false);
+        }
+        WorkflowTestCase keep = sameName.get(0);
+        keep.setDescription(description);
+        keep.setInputsJson(inputs != null ? inputs.toString() : "{}");
+        keep.setExpectedJson(expected != null ? expected.toString() : "[]");
+        keep.setEnabled(1);
+        keep.setUpdatedAt(LocalDateTime.now().toString());
+        caseService.updateById(keep);
+        for (int i = 1; i < sameName.size(); i++) {
+            caseService.removeById(sameName.get(i).getId());
+        }
+        return new UpsertResult(keep, true);
     }
 
     private String currentVersionSchema(String workflowCode) {

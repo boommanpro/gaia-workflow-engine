@@ -28,7 +28,7 @@ import { LanguageToggle } from './components/language-toggle';
 import { EditorCanvasBridge } from './agent';
 import { pushCanvasDraftToSession } from './agent/canvas-draft-sync';
 import { setRunWorkflowContext } from './plugins/runtime-plugin/runtime-service';
-import { WorkflowDocument, workflowDocumentStore, useWorkflowDocumentState } from './document';
+import { WorkflowDocument, workflowDocumentStore, useWorkflowDocumentState, applyRenderCompat } from './document';
 import { getSessionKeyForWorkflow } from './ai-workspace/session-scope';
 import { useWorkflowArtifactSync } from './ai-workspace/artifact/useWorkflowArtifactSync';
 import { CanvasHistoryPopover } from './ai-workspace/components/CanvasHistoryPopover';
@@ -42,13 +42,14 @@ const ACCENT = '#4d53e8';
  */
 const DRAFT_CODE = '__draft__';
 
-/** 读取 AI 工作区交接过来的草稿 DSL（刷新页面时的兜底，正常走 store） */
+/** 读取 AI 工作区交接过来的草稿 DSL（刷新页面时的兜底，正常走 store）；
+ *  过展示层兼容归一（裸 url / token 空格 / llm required，见 document/render-compat） */
 function readDraftDsl(): any {
   try {
     const raw = sessionStorage.getItem('gaia.artifactDraft');
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    return parsed?.nodes?.length ? parsed : null;
+    return parsed?.nodes?.length ? applyRenderCompat(parsed) : null;
   } catch {
     return null;
   }
@@ -176,6 +177,9 @@ export const Editor = () => {
       if (meta.workflowCode && meta.workflowCode !== DRAFT_CODE) {
         setWorkflowInfo((prev: any) => prev || { workflowCode: meta.workflowCode, workflowName: meta.workflowName });
         void loadVersions(meta.workflowCode);
+      } else if (typeof (location.state as any)?.workflowName === 'string' && (location.state as any).workflowName.trim()) {
+        // 草稿承接（未落版）：标题用跳转带来的会话标题兜底（F1，2026-10-25）
+        setWorkflowInfo((prev: any) => prev || { workflowName: (location.state as any).workflowName });
       }
       if (!firstRun) setRemountKey((k) => k + 1);
       return;
@@ -196,6 +200,13 @@ export const Editor = () => {
             workflowDocumentStore.setMeta({ producedBy: 'import' });
           }
         } catch { /* ignore */ }
+      }
+      // 标题兜底：草稿未落版时 store meta 没有工作流名，用跳转带来的会话标题，
+      // 否则编辑器一直显示「新建工作流」（F1，2026-10-25）
+      const carriedName = (location.state as any)?.workflowName;
+      const meta = workflowDocumentStore.getSnapshot().meta;
+      if (!meta.workflowName && typeof carriedName === 'string' && carriedName.trim()) {
+        setWorkflowInfo((prev: any) => prev || { workflowName: carriedName });
       }
       setLoading(false);
       if (!firstRun) setRemountKey((k) => k + 1);
@@ -241,9 +252,11 @@ export const Editor = () => {
       let nextData: any = emptyWorkflowData;
       if (versionData && versionData.workflowData) {
         try {
-          nextData = typeof versionData.workflowData === 'string'
+          const raw = typeof versionData.workflowData === 'string'
             ? JSON.parse(versionData.workflowData)
             : versionData.workflowData;
+          // 版本历史可能存有裸字符串 url / 带空格 token 的旧形状——过展示层兼容归一
+          nextData = applyRenderCompat(raw);
           setCurrentVersionId(versionData.id);
         } catch {
           nextData = emptyWorkflowData;
@@ -267,6 +280,8 @@ export const Editor = () => {
   // 运行时往 flowgram 塞实体不会走渲染层（实测 model 有节点而 DOM 零实体），
   // provider 以 initialData 重新挂载是本应用里唯一被验证可靠的整份刷新路径。
   // 用户在画布上的直接操作不重挂（画布自己就是渲染方，回滚除外——它由 store 发起）。
+  // AI 连续变更（document 事件洪峰）走 1.2s 尾沿去抖：一次搭建高峰只重挂一次，
+  // 而不是每个节点变更重挂一只完整编辑器（连环重挂曾是编辑器页卡死的直接来源）。
   useEffect(() => {
     const structureKeyOf = (dsl: any): string => {
       if (!dsl || !Array.isArray(dsl.nodes)) return 'empty';
@@ -277,18 +292,30 @@ export const Editor = () => {
       return `${nodes}|${edges}`;
     };
     let lastKey = structureKeyOf(workflowDocumentStore.getSnapshot().doc.toJSON());
-    const syncFromStore = (key: string) => {
-      lastKey = key;
+    const applyNow = () => {
+      lastKey = structureKeyOf(workflowDocumentStore.getSnapshot().doc.toJSON());
       const dsl = workflowDocumentStore.getSnapshot().doc.toJSON();
       setWorkflowData(dsl);
       setRemountKey((k) => k + 1);
     };
-    // 订阅建立时 store 可能已经先一步拿到了数据（后端加载竞态）：补一次对齐
+    let pendingKey: string | null = null;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const syncFromStore = (key: string) => {
+      pendingKey = key;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        if (pendingKey === null) return;
+        pendingKey = null;
+        applyNow();
+      }, 1200);
+    };
+    // 订阅建立时 store 可能已经先一步拿到了数据（后端加载竞态）：立即对齐一次
     const currentKey = structureKeyOf(workflowDataRef.current);
     if (currentKey !== lastKey && lastKey !== 'empty') {
-      syncFromStore(lastKey);
+      applyNow();
     }
-    return workflowDocumentStore.subscribe(() => {
+    const unsubscribe = workflowDocumentStore.subscribe(() => {
       const snap = workflowDocumentStore.getSnapshot();
       const change = snap.lastChange;
       if (change && change.source === 'user' && change.reason !== 'rollback') return;
@@ -296,18 +323,22 @@ export const Editor = () => {
       if (nextKey === lastKey) return;
       syncFromStore(nextKey);
     });
+    return () => {
+      unsubscribe();
+      if (timer) clearTimeout(timer);
+    };
   }, []);
 
   const handleSwitchVersion = useCallback(async (versionId: number) => {
     try {
       const version = await workflowApi.getVersionById(versionId);
       if (version && version.workflowData) {
-        const parsed = typeof version.workflowData === 'string'
+        const raw = typeof version.workflowData === 'string'
           ? JSON.parse(version.workflowData)
           : version.workflowData;
-        setWorkflowData(parsed);
+        setWorkflowData(applyRenderCompat(raw));
         setCurrentVersionId(versionId);
-        adoptIntoStore(parsed, workflowCode, workflowInfo?.workflowName);
+        adoptIntoStore(raw, workflowCode, workflowInfo?.workflowName);
         setRemountKey(k => k + 1); // Force remount to reload editor
       }
     } catch (error) {

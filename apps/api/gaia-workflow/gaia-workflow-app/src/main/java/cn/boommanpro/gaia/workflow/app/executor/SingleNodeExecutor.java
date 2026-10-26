@@ -115,6 +115,7 @@ public class SingleNodeExecutor {
             Chain chain = new Chain();
             if (input.getInputs() != null) {
                 chain.getMemory().putAll(input.getInputs());
+                bridgeFlatMockInputs(chain, chainNode, input.getInputs());
             }
 
             // 容器节点（loop 是 Chain 子类）需要 parent 链：迭代时复制上下文、
@@ -140,6 +141,38 @@ public class SingleNodeExecutor {
             log.error("单节点执行失败: type={}", nodeType, e);
             String errorMsg = e.getMessage() != null ? e.getMessage() : ExceptionUtil.stacktraceToString(e);
             return SingleNodeRunOutput.fail(nodeType, errorMsg, timeCost);
+        }
+    }
+
+    /**
+     * mockInputs 兼容两种形态：按上游节点 id 分组（{"http_1":{"body":…}}，引用解析的正规形态）
+     * 与按本节点入参名直给（{"rates":…}，模型最自然的写法）。入参 ref 指向的上游值缺失、
+     * 而 mockInputs 顶层恰有同名键时，把它搬到引用位置。
+     * 2026-10-24 实证：模型按入参名给值，引用解析不到 → ReferenceError: rates is not defined → 盲猜 8 轮。
+     */
+    @SuppressWarnings("unchecked")
+    static void bridgeFlatMockInputs(Chain chain, ChainNode node, Map<String, Object> inputs) {
+        List<Parameter> parameters = node.getParameters();
+        if (parameters == null || inputs == null || inputs.isEmpty()) {
+            return;
+        }
+        Map<String, Object> memory = chain.getMemory();
+        for (Parameter parameter : parameters) {
+            List<String> ref = parameter.getRefValue();
+            if (parameter.getRefType() != RefType.REF || ref == null || ref.size() < 2
+                || !inputs.containsKey(parameter.getName())) {
+                continue;
+            }
+            String upstream = ref.get(0);
+            String field = ref.get(1);
+            Object existing = memory.get(upstream);
+            if (existing instanceof Map && ((Map<?, ?>) existing).containsKey(field)) {
+                continue;
+            }
+            Map<String, Object> bucket = existing instanceof Map
+                ? (Map<String, Object>) existing : new HashMap<>();
+            bucket.put(field, inputs.get(parameter.getName()));
+            memory.put(upstream, bucket);
         }
     }
 
@@ -197,4 +230,5 @@ public class SingleNodeExecutor {
         return nodeType != null && !UNSUPPORTED_TYPES.contains(nodeType)
                 && new ChainParser().getNodeParserMap().containsKey(nodeType);
     }
+
 }

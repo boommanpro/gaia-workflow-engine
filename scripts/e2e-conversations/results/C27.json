@@ -1,0 +1,587 @@
+{
+  "caseId": "C27",
+  "sessionKey": "2337362f67d147199d93c786c5e7c27c",
+  "elapsedSec": 269,
+  "turns": [
+    {
+      "utterance": "做一个订单处理流水线：输入客户等级（金卡/银卡/普通）和商品清单（每件有名称、单价、数量）。折扣：普通无折扣、银卡 95 折、金卡 9 折。逐个商品算折后小计，最后汇总订单总额；总额超过 1000 的话，再让 AI 写一句个性化的感谢语附在订单上。输出：每件商品的小计明细、订单总额、折扣说明、感谢语（不够 1000 就给空字符串）。先用金卡、两件商品（键盘 300 元×2、鼠标 100 元×1）试跑。",
+      "runStatus": "done",
+      "asksAnswered": [],
+      "lastAssistant": "我来创建这个订单处理流水线。先加载搭建手册，然后查看画布现状。\n\n先查看 code 节点的知识，确认输出格式。\n\n现在查看 start 节点的知识，确认输入输出定义方式。\n\n好的，现在我已经了解了所有节点类型的契约。让我设计整体流程：\n\n**流程设计：**\n1. `start_1` - 输入：customerLevel, items\n2. `loop_1` - 遍历 items，循环体内：`code_1` 计算单件折后小计\n3. `code_2` - 汇总所有小计，计算总额\n4. `condition_1` - 判断总额是否 > 1000\n5. `llm_1` (if_match) - 生成感谢语\n6. `code_3` - 组装最终输出\n7. `end_1` - 输出结果\n\n先创建所有节点：\n\n现在批量创建 loop、循环体内的 code、汇总 code、condition、llm、组装 code 节点：\n\n现在创建 LLM 节点和最终的 code 节点：\n\n现在接线：condition_1 的两个分支分别连 llm_1 和 code_3，然后 llm_1 和 code_3 都连到 code_3（需要调整）。\n\n让我重新设计：condition_1 的 if_match 连 llm_1，else 连 code_3（跳过感谢语），然后 llm_1 和 code_3 的输出都汇入 code_3（组装）。\n\n实际上更好的设计是：condition_1 的 if_match 连 llm_1，else 连 code_3（空感谢语），然后 llm_1 和 code_3 都连到一个汇聚的 code_4。\n\n让我简化：condition_1 的 if_match 连 llm_1，else 连 code_3（生成空感谢语），然后 llm_1 和 code_3 都连到 code_4（组装最终输出）。\n\n先连 condition_1 → llm_1（if_match）和 condition_1 → code_3（else）：\n\n现在需要把 llm_1 的输出也汇聚到 code_3。但 code_3 已经在 else 分支了。让我加一个 code_4 来汇聚：\n\n现在配置 loop_1 的 data（循环遍历 items，循环体内 code_1 计算每件商品的小计）：\n\n现在配置循环体内的 code_1（计算单件折后小计）。先查看 code_1 的变量：\n\n在循环体内，当前商品通过 `loop_1_locals.item` 引用。让我配置 code_1：\n\n现在配置 code_2（汇总所有小计，计算总额）：\n\n现在配置 condition_1（判断总额是否 > 1000）：\n\ncondition 节点没有 outputs 字段，去掉：\n\n现在配置 llm_1（生成个性化感谢语）：\n\n现在配置 code_3（else 分支，总额不足1000时生成空感谢语）：\n\n现在配置 code_4（组装最终输出）：\n\n现在配置 end_1：\n\n现在整流试跑，用金卡、两件商品的测试数据：\n\n从 start 无法到达任何 end 节点。让我检查画布的连线情况：\n\n我看到连线有 `start_1 → loop_1`，但 loop_1 内部的 code_1 和 loop_1 之间的连线可能有问题。让我检查 loop_1 的 blocks：\n\nloop_1 没有 outEdges，说明循环体内的 code_1 没有连到 block_end。让我检查 code_1 的入边：\n\ncode_1 没有"
+    }
+  ],
+  "pass": false,
+  "checks": [
+    {
+      "case": "C27",
+      "name": "存在分支结构",
+      "pass": false,
+      "detail": ""
+    },
+    {
+      "case": "C27",
+      "name": "存在 llm 节点",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "case": "C27",
+      "name": "金卡小单被接受",
+      "pass": false,
+      "detail": "存在循环连线：loop_1 → code_1 → loop_1（循环节点请用 loop 容器表达）"
+    },
+    {
+      "case": "C27",
+      "name": "普通大单被接受",
+      "pass": false,
+      "detail": "存在循环连线：loop_1 → code_1 → loop_1（循环节点请用 loop 容器表达）"
+    }
+  ],
+  "doc": {
+    "edges": [
+      {
+        "sourceNodeID": "start_1",
+        "targetNodeID": "loop_1"
+      },
+      {
+        "sourceNodeID": "condition_1",
+        "sourcePortID": "if_match",
+        "targetNodeID": "llm_1"
+      },
+      {
+        "sourceNodeID": "condition_1",
+        "sourcePortID": "else",
+        "targetNodeID": "code_3"
+      },
+      {
+        "sourceNodeID": "llm_1",
+        "targetNodeID": "code_4"
+      },
+      {
+        "sourceNodeID": "code_3",
+        "targetNodeID": "code_4"
+      },
+      {
+        "sourceNodeID": "code_4",
+        "targetNodeID": "end_1"
+      },
+      {
+        "sourceNodeID": "code_1",
+        "targetNodeID": "loop_1"
+      },
+      {
+        "sourceNodeID": "loop_1",
+        "targetNodeID": "code_2"
+      },
+      {
+        "sourceNodeID": "code_2",
+        "targetNodeID": "condition_1"
+      },
+      {
+        "sourceNodeID": "loop_1",
+        "targetNodeID": "code_1"
+      }
+    ],
+    "version": 42,
+    "nodes": [
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "required": [
+              "customerLevel",
+              "items"
+            ],
+            "properties": {
+              "customerLevel": {
+                "description": "客户等级：金卡/银卡/普通",
+                "type": "string",
+                "default": ""
+              },
+              "input": {
+                "description": "input",
+                "type": "string",
+                "default": ""
+              },
+              "items": {
+                "description": "商品清单",
+                "type": "array",
+                "default": [],
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "name",
+                    "unitPrice",
+                    "quantity"
+                  ],
+                  "properties": {
+                    "unitPrice": {
+                      "type": "number"
+                    },
+                    "quantity": {
+                      "type": "number"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "title": "开始"
+        },
+        "type": "start",
+        "meta": {
+          "position": {
+            "x": 180,
+            "y": 180
+          }
+        },
+        "id": "start_1"
+      },
+      {
+        "data": {
+          "inputsValues": {
+            "itemDetails": {
+              "type": "ref",
+              "content": [
+                "code_4",
+                "itemDetails"
+              ]
+            },
+            "thankYouNote": {
+              "type": "ref",
+              "content": [
+                "code_4",
+                "thankYouNote"
+              ]
+            },
+            "totalAmount": {
+              "type": "ref",
+              "content": [
+                "code_4",
+                "totalAmount"
+              ]
+            },
+            "discountInfo": {
+              "type": "ref",
+              "content": [
+                "code_4",
+                "discountInfo"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "itemDetails": {
+                "type": "string"
+              },
+              "thankYouNote": {
+                "type": "string"
+              },
+              "totalAmount": {
+                "type": "string"
+              },
+              "discountInfo": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "结束"
+        },
+        "type": "end",
+        "meta": {
+          "position": {
+            "x": 6580,
+            "y": 180
+          }
+        },
+        "id": "end_1"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "itemResults": {
+                "type": "array"
+              }
+            }
+          },
+          "loopOutputs": {
+            "itemResults": {
+              "type": "ref",
+              "content": [
+                "code_1",
+                "result"
+              ]
+            }
+          },
+          "title": "遍历商品",
+          "loopFor": {
+            "type": "ref",
+            "content": [
+              "start_1",
+              "items"
+            ]
+          }
+        },
+        "type": "loop",
+        "meta": {
+          "position": {
+            "x": 6260,
+            "y": 180
+          }
+        },
+        "id": "loop_1"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "unitPrice": {
+                "type": "number"
+              },
+              "quantity": {
+                "type": "number"
+              },
+              "productName": {
+                "type": "string"
+              },
+              "result": {
+                "type": "object"
+              },
+              "discountLabel": {
+                "type": "string"
+              },
+              "subtotal": {
+                "type": "number"
+              }
+            }
+          },
+          "inputsValues": {
+            "item": {
+              "type": "ref",
+              "content": [
+                "loop_1_locals",
+                "item"
+              ]
+            },
+            "customerLevel": {
+              "type": "ref",
+              "content": [
+                "start_1",
+                "customerLevel"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "item": {
+                "type": "object"
+              },
+              "customerLevel": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "计算单件折后小计",
+          "script": {
+            "language": "javascript",
+            "content": "var level = customerLevel;\nvar discount = 1.0;\nvar discountLabel = \"无折扣\";\nif (level === \"金卡\") {\n    discount = 0.9;\n    discountLabel = \"金卡9折\";\n} else if (level === \"银卡\") {\n    discount = 0.95;\n    discountLabel = \"银卡95折\";\n}\nvar subtotal = item.unitPrice * item.quantity * discount;\nvar detail = new Object();\ndetail.productName = item.name;\ndetail.unitPrice = item.unitPrice;\ndetail.quantity = item.quantity;\ndetail.discountLabel = discountLabel;\ndetail.subtotal = Math.round(subtotal * 100) / 100;\nvar output = new Object();\noutput.result = detail;\noutput;"
+          }
+        },
+        "type": "code",
+        "meta": {
+          "position": {
+            "x": 6580,
+            "y": 380
+          }
+        },
+        "id": "code_1"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "itemDetails": {
+                "type": "array"
+              },
+              "customerLevel": {
+                "type": "string"
+              },
+              "totalAmount": {
+                "type": "number"
+              },
+              "discountLabel": {
+                "type": "string"
+              }
+            }
+          },
+          "inputsValues": {
+            "customerLevel": {
+              "type": "ref",
+              "content": [
+                "start_1",
+                "customerLevel"
+              ]
+            },
+            "itemResults": {
+              "type": "ref",
+              "content": [
+                "loop_1",
+                "itemResults"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "customerLevel": {
+                "type": "string"
+              },
+              "itemResults": {
+                "type": "array"
+              }
+            }
+          },
+          "title": "汇总订单总额",
+          "script": {
+            "language": "javascript",
+            "content": "var level = customerLevel;\nvar discount = 1.0;\nvar discountLabel = \"无折扣\";\nif (level === \"金卡\") {\n    discount = 0.9;\n    discountLabel = \"金卡9折\";\n} else if (level === \"银卡\") {\n    discount = 0.95;\n    discountLabel = \"银卡95折\";\n}\nvar items = itemResults;\nvar total = 0;\nfor (var i = 0; i < items.length; i++) {\n    total += items[i].subtotal;\n}\ntotal = Math.round(total * 100) / 100;\nvar output = new Object();\noutput.itemDetails = items;\noutput.totalAmount = total;\noutput.discountLabel = discountLabel;\noutput.customerLevel = level;\noutput;"
+          }
+        },
+        "type": "code",
+        "meta": {
+          "position": {
+            "x": 6580,
+            "y": 580
+          }
+        },
+        "id": "code_2"
+      },
+      {
+        "data": {
+          "title": "判断总额是否超过1000",
+          "conditions": [
+            {
+              "value": {
+                "right": {
+                  "type": "constant",
+                  "content": 1000
+                },
+                "operator": "gt",
+                "left": {
+                  "type": "ref",
+                  "content": [
+                    "code_2",
+                    "totalAmount"
+                  ]
+                }
+              },
+              "key": "if_match"
+            }
+          ]
+        },
+        "type": "condition",
+        "meta": {
+          "position": {
+            "x": 6260,
+            "y": 380
+          }
+        },
+        "id": "condition_1"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "result": {
+                "type": "string"
+              }
+            }
+          },
+          "inputsValues": {
+            "apiKey": {
+              "type": "constant",
+              "content": "sk-REDACTED"
+            },
+            "apiHost": {
+              "type": "constant",
+              "content": "https://www.dmxapi.cn/v1"
+            },
+            "modelName": {
+              "type": "constant",
+              "content": "glm-4-flash"
+            },
+            "prompt": {
+              "type": "template",
+              "content": "客户等级：{{code_2.customerLevel}}，订单总额：{{code_2.totalAmount}}元，折扣：{{code_2.discountLabel}}。请写一句简短的个性化感谢语（20字以内），只输出感谢语文本，不要输出其他内容。"
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "required": [
+              "prompt"
+            ],
+            "properties": {
+              "apiKey": {
+                "description": "运行时由平台自动注入，可不填",
+                "type": "string"
+              },
+              "apiHost": {
+                "description": "运行时由平台自动注入，可不填",
+                "type": "string"
+              },
+              "modelName": {
+                "description": "运行时由平台自动注入，可不填",
+                "type": "string"
+              },
+              "systemPrompt": {
+                "type": "string",
+                "extra": {
+                  "formComponent": "prompt-editor"
+                }
+              },
+              "temperature": {
+                "description": "0-2，缺省按平台默认",
+                "type": "number"
+              },
+              "prompt": {
+                "type": "string",
+                "extra": {
+                  "formComponent": "prompt-editor"
+                }
+              }
+            }
+          },
+          "title": "生成感谢语"
+        },
+        "type": "llm",
+        "meta": {
+          "position": {
+            "x": 6580,
+            "y": 780
+          }
+        },
+        "id": "llm_1"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "thankYouNote": {
+                "type": "string"
+              }
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {}
+          },
+          "title": "空感谢语",
+          "script": {
+            "language": "javascript",
+            "content": "{\n    \"thankYouNote\": \"\"\n};"
+          }
+        },
+        "type": "code",
+        "meta": {
+          "position": {
+            "x": 6580,
+            "y": 980
+          }
+        },
+        "id": "code_3"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "itemDetails": {
+                "type": "array"
+              },
+              "thankYouNote": {
+                "type": "string"
+              },
+              "totalAmount": {
+                "type": "number"
+              },
+              "discountInfo": {
+                "type": "string"
+              }
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "itemDetails": {
+                "type": "array"
+              },
+              "thankYouNote": {
+                "type": "string"
+              },
+              "totalAmount": {
+                "type": "number"
+              },
+              "discountLabel": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "组装最终输出",
+          "script": {
+            "language": "javascript",
+            "content": "{\n    \"itemDetails\": code_2.itemDetails,\n    \"totalAmount\": code_2.totalAmount,\n    \"discountInfo\": code_2.discountLabel,\n    \"thankYouNote\": code_3.thankYouNote\n};"
+          }
+        },
+        "type": "code",
+        "meta": {
+          "position": {
+            "x": 6900,
+            "y": 180
+          }
+        },
+        "id": "code_4"
+      }
+    ]
+  },
+  "trialRuns": [
+    {
+      "ok": false,
+      "errors": [
+        "存在循环连线：loop_1 → code_1 → loop_1（循环节点请用 loop 容器表达）"
+      ],
+      "issues": [
+        {
+          "level": "error",
+          "code": "CYCLE",
+          "nodeId": "loop_1",
+          "message": "存在循环连线：loop_1 → code_1 → loop_1（循环节点请用 loop 容器表达）"
+        }
+      ]
+    },
+    {
+      "ok": false,
+      "errors": [
+        "存在循环连线：loop_1 → code_1 → loop_1（循环节点请用 loop 容器表达）"
+      ],
+      "issues": [
+        {
+          "level": "error",
+          "code": "CYCLE",
+          "nodeId": "loop_1",
+          "message": "存在循环连线：loop_1 → code_1 → loop_1（循环节点请用 loop 容器表达）"
+        }
+      ]
+    }
+  ]
+}

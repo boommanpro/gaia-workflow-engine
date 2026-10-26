@@ -48,6 +48,15 @@ public class SessionCompactionService {
     }
 
     public JSONObject compact(String sessionKey) {
+        return compact(sessionKey, false);
+    }
+
+    /**
+     * @param force 手动触发：忽略阈值（用户主动要求压缩就执行，仍需满足最少消息数与安全切分点）。
+     *              1M 窗口的本地模型 25 万 token 的历史永远到不了 80% 线，但单轮推理已慢到 2 分钟
+     *              （2026-10-24 会话 b6e34195 实证），必须允许人工压缩。
+     */
+    public JSONObject compact(String sessionKey, boolean force) {
         // 会话绑定模型优先：条目级 context_window 决定压缩线，未绑定/缺省回退平台默认
         int contextWindow = modelConfigService.getLlmConfig(sessionKey).getContextWindow();
         if (contextWindow <= 0) {
@@ -65,7 +74,7 @@ public class SessionCompactionService {
         // 触发线全局可配（DB model.compaction → yml run.compaction-threshold-percent → 80），
         // 与前端「上下文容量」药丸的告警线同源（AgentObservabilityController 同一取值）
         int thresholdPercent = modelConfigService.globalCompactionThreshold();
-        if (msgs.size() < MIN_MESSAGES || percentage < thresholdPercent) {
+        if (msgs.size() < MIN_MESSAGES || (!force && percentage < thresholdPercent)) {
             return new JSONObject()
                 .set("compacted", false)
                 .set("message", "No compaction needed")

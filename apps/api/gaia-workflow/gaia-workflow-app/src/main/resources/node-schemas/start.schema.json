@@ -3,27 +3,150 @@
   "$id": "https://gaia.workflow/schemas/node/start",
   "title": "start",
   "type": "object",
+  "description": "开始节点：声明工作流输入参数。outputs.properties 即输入参数 schema，下游经 {type:'ref',content:['<start节点id>','<字段>']} 或模板 {{ <start节点id>.<字段> }} 引用。每个属性可带 type(string/number/boolean/object/array)/default/description。",
+  "definitions": {
+    "constantValue": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "constant"
+          ]
+        },
+        "content": {},
+        "schema": {
+          "type": "object"
+        },
+        "extra": {}
+      },
+      "required": [
+        "type",
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "refValue": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "ref"
+          ]
+        },
+        "content": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 2
+        },
+        "schema": {
+          "type": "object"
+        },
+        "extra": {}
+      },
+      "required": [
+        "type",
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "templateValue": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "template"
+          ]
+        },
+        "content": {
+          "type": "string"
+        },
+        "schema": {
+          "type": "object"
+        },
+        "extra": {}
+      },
+      "required": [
+        "type",
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "expressionValue": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "expression"
+          ]
+        },
+        "content": {
+          "type": "string"
+        },
+        "schema": {
+          "type": "object"
+        },
+        "extra": {}
+      },
+      "required": [
+        "type",
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "timeout": {
+      "type": "object",
+      "properties": {
+        "timeout": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 600000
+        },
+        "retryTimes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10
+        }
+      },
+      "additionalProperties": false
+    }
+  },
   "properties": {
     "title": {
       "type": "string"
     },
     "outputs": {
-      "type": [
-        "object",
-        "null"
-      ],
+      "type": "object",
       "properties": {
         "type": {
-          "type": "string"
+          "type": "string",
+          "enum": [
+            "object"
+          ]
         },
         "properties": {
           "type": "object"
+        },
+        "required": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
-      }
+      },
+      "required": [
+        "type",
+        "properties"
+      ]
     }
   },
   "required": [
     "outputs"
   ],
-  "additionalProperties": true
+  "additionalProperties": false
 }

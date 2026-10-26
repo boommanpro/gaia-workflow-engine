@@ -101,6 +101,7 @@ function markdownToHtml(md: string): string {
   let i = 0;
 
   while (i < lines.length) {
+    const iterStart = i;
     const line = lines[i];
 
     // 代码块 ```（带头部：语言标识 + 复制按钮，复制走容器级事件委托）
@@ -124,11 +125,13 @@ function markdownToHtml(md: string): string {
       continue;
     }
 
-    // 标题
-    const h = line.match(/^(#{1,6})\s+(.*)$/);
+    // 标题（只按前缀判定，与下方段落循环的守卫同一口径：`(.*)$` 对含 \r/\u2028 的行
+    // 会匹配失败而前缀仍匹配，两处不一致曾是主循环不推进 i 的死循环来源）
+    const h = line.match(/^(#{1,6})\s+/);
     if (h) {
       const level = h[1].length;
-      html.push(`<h${level} class="md-h md-h${level}">${renderInline(h[2])}</h${level}>`);
+      const headingText = line.slice(h[0].length).replace(/[\r\u2028\u2029].*$/s, '');
+      html.push(`<h${level} class="md-h md-h${level}">${renderInline(headingText)}</h${level}>`);
       i++;
       continue;
     }
@@ -222,6 +225,9 @@ function markdownToHtml(md: string): string {
       const rendered = renderInline(para.join('\n')).replace(/\n/g, '<br>');
       html.push(`<p class="md-p">${rendered}</p>`);
     }
+
+    // 防御：任何分支组合导致本轮未推进 i 时强制前进，主循环永不卡死
+    if (i === iterStart) i++;
   }
 
   return html.join('');

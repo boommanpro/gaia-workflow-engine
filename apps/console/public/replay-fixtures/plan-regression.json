@@ -1,0 +1,26 @@
+{
+  "name": "plan-regression",
+  "description": "P0 死循环回归：流式中 plan 事件（todo_write）upsert plan-live 行，hidePlanCards 的消息列表必须正常消费（2026-10-24 页面冻死事故的钉子）",
+  "session": { "sessionKey": "replay-plan", "title": "回放：plan 行回归", "scope": "chat" },
+  "messages": [
+    { "id": 1, "sessionKey": "replay-plan", "role": "user", "content": "帮我搭一个复杂工作流", "createdAt": "2026-10-24T10:00:00" },
+    { "id": 2, "sessionKey": "replay-plan", "role": "assistant", "content": "已列出 3 步清单并开始执行。", "createdAt": "2026-10-24T10:00:20", "timeline": "[{\"kind\":\"thinking\",\"id\":\"thk-1\",\"text\":\"先看画布骨架，再列清单。\"},{\"kind\":\"tool\",\"id\":\"c1\",\"call\":{\"id\":\"c1\",\"name\":\"skill\",\"args\":{\"name\":\"gaia-workflow-assistant\"},\"result\":\"{\\\"ok\\\":true}\"}},{\"kind\":\"tool\",\"id\":\"c2\",\"call\":{\"id\":\"c2\",\"name\":\"node\",\"args\":{\"action\":\"add\",\"type\":\"llm\"},\"result\":\"{\\\"success\\\":true,\\\"nodeId\\\":\\\"llm_1\\\"}\"}},{\"kind\":\"text\",\"id\":\"txt-1\",\"text\":\"已列出 3 步清单并开始执行。\"}]" }
+  ],
+  "artifacts": [],
+  "document": { "nodes": [], "edges": [], "version": 0 },
+  "events": [
+    { "event": "run_state", "data": { "status": "running", "runId": "pr1", "startedAt": 1792800000000 }, "delay": 60 },
+    { "event": "turn", "data": { "turn": 1, "maxTurns": 38 }, "delay": 80 },
+    { "event": "thinking", "data": { "content": "先看画布骨架，再列清单。" }, "delay": 120 },
+    { "event": "tool_call", "data": { "id": "c1", "name": "skill", "args": { "name": "gaia-workflow-assistant" } }, "delay": 200 },
+    { "event": "tool_result", "data": { "toolCallId": "c1", "payload": "{\"ok\":true}" }, "delay": 150 },
+    { "event": "plan", "data": { "kind": "todo", "steps": [ { "id": "s1", "intent": "查看画布骨架", "status": "completed" }, { "id": "s2", "intent": "创建全部节点", "status": "running" }, { "id": "s3", "intent": "连线与校验", "status": "pending" } ] }, "delay": 150 },
+    { "event": "tool_call", "data": { "id": "c2", "name": "node", "args": { "action": "add", "type": "llm", "title": "风险评估" } }, "delay": 200 },
+    { "event": "document", "data": { "version": 1, "dsl": { "nodes": [ { "id": "start_1", "type": "start", "data": { "title": "开始" }, "meta": { "position": { "x": 180, "y": 220 } } }, { "id": "llm_1", "type": "llm", "data": { "title": "风险评估" }, "meta": { "position": { "x": 460, "y": 220 } } } ], "edges": [ { "sourceNodeID": "start_1", "targetNodeID": "llm_1" } ] } }, "delay": 180 },
+    { "event": "tool_result", "data": { "toolCallId": "c2", "payload": "{\"success\":true,\"nodeId\":\"llm_1\"}" }, "delay": 120 },
+    { "event": "token", "data": { "content": "清单已列出，" }, "delay": 90 },
+    { "event": "token", "data": { "content": "正在创建节点。" }, "delay": 90 },
+    { "event": "run_end", "data": { "outcome": "done", "turns": 2, "durationMs": 2100, "toolTimeMs": 640, "promptTokens": 5200, "completionTokens": 310 }, "delay": 160 },
+    { "event": "done", "data": { "turns": 2 }, "delay": 160 }
+  ]
+}

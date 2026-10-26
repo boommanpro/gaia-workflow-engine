@@ -3,12 +3,217 @@
   "$id": "https://gaia.workflow/schemas/node/llm",
   "title": "llm",
   "type": "object",
+  "description": "LLM 节点。inputsValues 固定六字段：prompt/systemPrompt 必须用 {type:'template',content:'...{{ 上游id.字段 }}...'}；modelName/apiKey/apiHost/temperature 用 constant（modelName/apiHost/apiKey 必填：从 get(target=knowledge, nodeType=llm) 的 platformDefaultModel 原样填入（平台不再运行时隐式注入），勿自编）。支持扁平简写（data.systemPrompt='系统提示词' 与 data.prompt='用户提示词模板' 两个独立字符串字段、data.temperature=0.3 自动归一）；不要把提示词写成 {system:..., user:...} 这类对象。输出模式 outputMode：text（默认）= 固定输出 result 字符串；json = 结构化输出，outputs.properties 声明的字段即输出字段（引擎解析模型 JSON，失败则节点 FAILED）。",
+  "definitions": {
+    "constantValue": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "constant"
+          ]
+        },
+        "content": {},
+        "schema": {
+          "type": "object"
+        },
+        "extra": {}
+      },
+      "required": [
+        "type",
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "refValue": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "ref"
+          ]
+        },
+        "content": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 2
+        },
+        "schema": {
+          "type": "object"
+        },
+        "extra": {}
+      },
+      "required": [
+        "type",
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "templateValue": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "template"
+          ]
+        },
+        "content": {
+          "type": "string"
+        },
+        "schema": {
+          "type": "object"
+        },
+        "extra": {}
+      },
+      "required": [
+        "type",
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "expressionValue": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "expression"
+          ]
+        },
+        "content": {
+          "type": "string"
+        },
+        "schema": {
+          "type": "object"
+        },
+        "extra": {}
+      },
+      "required": [
+        "type",
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "timeout": {
+      "type": "object",
+      "properties": {
+        "timeout": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 600000
+        },
+        "retryTimes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10
+        }
+      },
+      "additionalProperties": false
+    }
+  },
   "properties": {
     "title": {
       "type": "string"
     },
+    "outputMode": {
+      "type": "string",
+      "enum": [
+        "text",
+        "json"
+      ],
+      "description": "输出模式：text=固定输出 result 字符串（默认）；json=结构化输出——outputs.properties 声明的字段即运行时输出（引擎把模型输出的 JSON 解析成声明字段供下游引用，解析失败节点 FAILED）。json 模式必须在 outputs.properties 声明至少一个字段，且 prompt 里要求模型只输出 JSON 对象"
+    },
     "inputsValues": {
-      "type": "object"
+      "type": "object",
+      "properties": {
+        "prompt": {
+          "$ref": "#/definitions/templateValue"
+        },
+        "systemPrompt": {
+          "$ref": "#/definitions/templateValue"
+        },
+        "modelName": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/constantValue"
+            },
+            {
+              "$ref": "#/definitions/refValue"
+            },
+            {
+              "$ref": "#/definitions/expressionValue"
+            }
+          ]
+        },
+        "apiKey": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/constantValue"
+            },
+            {
+              "$ref": "#/definitions/refValue"
+            },
+            {
+              "$ref": "#/definitions/expressionValue"
+            }
+          ]
+        },
+        "apiHost": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/constantValue"
+            },
+            {
+              "$ref": "#/definitions/refValue"
+            },
+            {
+              "$ref": "#/definitions/expressionValue"
+            }
+          ]
+        },
+        "temperature": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "constant"
+              ]
+            },
+            "content": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 2
+                },
+                {
+                  "type": "string",
+                  "pattern": "^[0-9]+(\\.[0-9]+)?$"
+                }
+              ]
+            },
+            "schema": {
+              "type": "object"
+            },
+            "extra": {}
+          },
+          "required": [
+            "type",
+            "content"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "prompt"
+      ],
+      "additionalProperties": false
     },
     "inputs": {
       "type": "object"
@@ -17,37 +222,50 @@
       "type": "object"
     },
     "timeout": {
-      "type": [
-        "object",
-        "null"
-      ],
-      "properties": {
-        "timeout": {
-          "type": "integer"
-        },
-        "retryTimes": {
-          "type": "integer"
-        }
-      }
+      "$ref": "#/definitions/timeout"
     }
   },
   "required": [
     "inputsValues"
   ],
-  "additionalProperties": true,
+  "additionalProperties": false,
   "x-gaia-outputs": [
     "result"
   ],
   "x-gaia-form-inputs": {
     "type": "object",
-    "required": ["modelName", "apiKey", "apiHost", "temperature", "prompt"],
+    "required": [
+      "prompt"
+    ],
     "properties": {
-      "modelName": { "type": "string" },
-      "apiKey": { "type": "string" },
-      "apiHost": { "type": "string" },
-      "temperature": { "type": "number" },
-      "systemPrompt": { "type": "string", "extra": { "formComponent": "prompt-editor" } },
-      "prompt": { "type": "string", "extra": { "formComponent": "prompt-editor" } }
+      "modelName": {
+        "type": "string",
+        "description": "运行时由平台自动注入，可不填"
+      },
+      "apiKey": {
+        "type": "string",
+        "description": "运行时由平台自动注入，可不填"
+      },
+      "apiHost": {
+        "type": "string",
+        "description": "运行时由平台自动注入，可不填"
+      },
+      "temperature": {
+        "type": "number",
+        "description": "0-2，缺省按平台默认"
+      },
+      "systemPrompt": {
+        "type": "string",
+        "extra": {
+          "formComponent": "prompt-editor"
+        }
+      },
+      "prompt": {
+        "type": "string",
+        "extra": {
+          "formComponent": "prompt-editor"
+        }
+      }
     }
   }
 }

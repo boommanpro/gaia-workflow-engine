@@ -129,7 +129,7 @@ class AskUserToolExecutorTest {
             String askId = events.get(0).getData().getStr("askId");
             // ask_resolved 经事件总线广播（收敛所有打开窗口的卡片），订阅总线验证
             List<String> busEvents = new ArrayList<>();
-            bus.subscribe("s2", (type, data) -> {
+            bus.subscribe("s2", null, (seq, type, data) -> {
                 busEvents.add(type);
                 return true;
             });

@@ -1,0 +1,524 @@
+{
+  "caseId": "C10",
+  "sessionKey": "9b6322a412d44cb69809b0e66d16f1d6",
+  "elapsedSec": 147,
+  "turns": [
+    {
+      "utterance": "做个库存扫描器：输入一串商品记录（名字和库存数量），按顺序检查，一旦发现任何一个库存为 0 的商品就立刻停下来，输出它的名字和它是第几个；如果一个都没有，就输出“全部有货”。",
+      "runStatus": "done",
+      "asksAnswered": [],
+      "lastAssistant": "⚠️ 系统护栏：你已连续 5 轮只调用 get 重复读取同样的内容而没有任何其他操作，本轮执行已被终止以避免空转。\n\n已生效的改动保持有效。下一轮请直接执行计划里的第一步实际操作（node / edge 改结构，test_case / run 验证），不要再整轮重复读取或重复运行；若不知道该做什么，直接向用户说明当前状态并提问。"
+    }
+  ],
+  "pass": false,
+  "checks": [
+    {
+      "case": "C10",
+      "name": "存在 loop 容器",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "case": "C10",
+      "name": "体内含 break",
+      "pass": false,
+      "detail": "[]"
+    },
+    {
+      "case": "C10",
+      "name": "命中场景被接受",
+      "pass": false,
+      "detail": "从 start 无法到达任何 end 节点：即使执行也不会有产出;节点 code_2（code）参数结构不合法：: property 'type' is not defined in the schema and the schema does not allow additional properties;节点 code_2（code）参数结构不合法：: property 'id' is not defined in the schema and the schema does not allow additional properties;节点 code_2（code）参数结构不合法：: property 'connect' is not defined in the schema and the schema does not allow additional properties;节点 cond_stock（条件/分支）没有任何出边：分支后的路径没有接到任何节点，下游会全部照跑、条件等于没配。修复：edge 传 {\"action\":\"connect\",\"from\":\"cond_"
+    },
+    {
+      "case": "C10",
+      "name": "全部有货场景被接受",
+      "pass": false,
+      "detail": "从 start 无法到达任何 end 节点：即使执行也不会有产出;节点 code_2（code）参数结构不合法：: property 'type' is not defined in the schema and the schema does not allow additional properties;节点 code_2（code）参数结构不合法：: property 'id' is not defined in the schema and the schema does not allow additional properties;节点 code_2（code）参数结构不合法：: property 'connect' is not defined in the schema and the schema does not allow additional properties;节点 cond_stock（条件/分支）没有任何出边：分支后的路径没有接到任何节点，下游会全部照跑、条件等于没配。修复：edge 传 {\"action\":\"connect\",\"from\":\"cond_"
+    }
+  ],
+  "doc": {
+    "edges": [
+      {
+        "sourceNodeID": "code_1",
+        "targetNodeID": "end_1"
+      },
+      {
+        "sourceNodeID": "start_1",
+        "targetNodeID": "loop_4"
+      },
+      {
+        "sourceNodeID": "loop_4",
+        "targetNodeID": "code_check"
+      },
+      {
+        "sourceNodeID": "code_check",
+        "targetNodeID": "cond_stock"
+      }
+    ],
+    "version": 39,
+    "nodes": [
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "input": {
+                "description": "input",
+                "type": "string",
+                "default": ""
+              },
+              "items": {
+                "description": "商品列表，每项包含 name(商品名) 和 stock(库存数量)",
+                "type": "array",
+                "default": []
+              }
+            }
+          },
+          "title": "开始"
+        },
+        "type": "start",
+        "meta": {
+          "position": {
+            "x": 180,
+            "y": 180
+          }
+        },
+        "id": "start_1"
+      },
+      {
+        "data": {
+          "inputsValues": {
+            "result": {
+              "type": "ref",
+              "content": [
+                "code_1",
+                "result"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "result": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "结束"
+        },
+        "type": "end",
+        "meta": {
+          "position": {
+            "x": 500,
+            "y": 180
+          }
+        },
+        "id": "end_1"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "result": {
+                "type": "string"
+              }
+            }
+          },
+          "inputsValues": {
+            "all_items": {
+              "type": "ref",
+              "content": [
+                "loop_1",
+                "all_items"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "all_items": {
+                "type": "array"
+              }
+            }
+          },
+          "title": "处理结果",
+          "script": {
+            "language": "javascript",
+            "content": "var results = all_items || [];\nvar found = null;\nfor (var i = 0; i < results.length; i++) {\n    var item = JSON.parse(results[i]);\n    if (item.stock === 0) {\n        found = { name: item.name, position: i + 1 };\n        break;\n    }\n}\nvar result;\nif (found) {\n    result = \"⚠️ 发现缺货商品：\" + found.name + \"（第\" + found.position + \"个）\";\n} else {\n    result = \"✅ 全部有货\";\n}\n({ result: result })"
+          }
+        },
+        "type": "code",
+        "meta": {
+          "position": {
+            "x": 820,
+            "y": 580
+          }
+        },
+        "id": "code_1"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "item_json": {
+                "type": "string"
+              }
+            }
+          },
+          "inputsValues": {
+            "item": {
+              "type": "ref",
+              "content": [
+                "loop_1_locals",
+                "item"
+              ]
+            },
+            "index": {
+              "type": "ref",
+              "content": [
+                "loop_1_locals",
+                "index"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "item": {
+                "type": "object"
+              },
+              "index": {
+                "type": "number"
+              }
+            }
+          },
+          "title": "检查库存",
+          "type": "code",
+          "script": {
+            "language": "javascript",
+            "content": "({ item_json: JSON.stringify({ name: item.name, stock: item.stock, index: index }) })"
+          },
+          "id": "code_check",
+          "connect": {
+            "from": "$block_start",
+            "to": "$code_check"
+          }
+        },
+        "type": "code",
+        "meta": {
+          "position": {
+            "x": 1460,
+            "y": 380
+          }
+        },
+        "id": "code_2"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "all_items": {
+                "type": "array"
+              }
+            }
+          },
+          "loopOutputs": {
+            "all_items": {
+              "type": "ref",
+              "content": [
+                "code_check",
+                "name"
+              ]
+            }
+          },
+          "title": "遍历商品",
+          "loopFor": {
+            "type": "ref",
+            "content": [
+              "start_1",
+              "items"
+            ]
+          }
+        },
+        "type": "loop",
+        "meta": {
+          "position": {
+            "x": 500,
+            "y": 380
+          }
+        },
+        "id": "loop_4"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "index": {
+                "type": "number"
+              },
+              "name": {
+                "type": "string"
+              },
+              "stock": {
+                "type": "number"
+              }
+            }
+          },
+          "inputsValues": {
+            "item": {
+              "type": "ref",
+              "content": [
+                "loop_4_locals",
+                "item"
+              ]
+            },
+            "index": {
+              "type": "ref",
+              "content": [
+                "loop_4_locals",
+                "index"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "item": {
+                "type": "object"
+              },
+              "index": {
+                "type": "number"
+              }
+            }
+          },
+          "title": "检查库存",
+          "script": {
+            "language": "javascript",
+            "content": "({ name: item.name, stock: item.stock, index: index })"
+          }
+        },
+        "type": "code",
+        "meta": {
+          "position": {
+            "x": 1780,
+            "y": 380
+          }
+        },
+        "id": "code_check"
+      },
+      {
+        "data": {
+          "title": "库存为零?",
+          "conditions": [
+            {
+              "value": {
+                "right": {
+                  "type": "constant",
+                  "content": 0
+                },
+                "operator": "eq",
+                "left": {
+                  "type": "ref",
+                  "content": [
+                    "code_check",
+                    "stock"
+                  ]
+                }
+              },
+              "key": "is_zero"
+            }
+          ]
+        },
+        "type": "condition",
+        "meta": {
+          "position": {
+            "x": 2100,
+            "y": 380
+          }
+        },
+        "id": "cond_stock"
+      }
+    ]
+  },
+  "trialRuns": [
+    {
+      "ok": false,
+      "errors": [
+        "从 start 无法到达任何 end 节点：即使执行也不会有产出",
+        "节点 code_2（code）参数结构不合法：: property 'type' is not defined in the schema and the schema does not allow additional properties",
+        "节点 code_2（code）参数结构不合法：: property 'id' is not defined in the schema and the schema does not allow additional properties",
+        "节点 code_2（code）参数结构不合法：: property 'connect' is not defined in the schema and the schema does not allow additional properties",
+        "节点 cond_stock（条件/分支）没有任何出边：分支后的路径没有接到任何节点，下游会全部照跑、条件等于没配。修复：edge 传 {\"action\":\"connect\",\"from\":\"cond_stock\",\"to\":\"<下游节点id>\",\"fromPort\":\"is_zero|else\"}（每个 key/else 至少一条出边）",
+        "节点 code_1 引用了不存在的节点 \"loop_1\"（ref 引用指向的节点必须在画布上）",
+        "节点 code_2 引用了不存在的节点 \"loop_1_locals\"（ref 引用指向的节点必须在画布上）",
+        "节点 code_2 引用了不存在的节点 \"loop_1_locals\"（ref 引用指向的节点必须在画布上）"
+      ],
+      "issues": [
+        {
+          "level": "error",
+          "code": "NO_PATH_TO_END",
+          "nodeId": "start_1",
+          "message": "从 start 无法到达任何 end 节点：即使执行也不会有产出"
+        },
+        {
+          "level": "warning",
+          "code": "UNREACHABLE_NODE",
+          "nodeId": "end_1",
+          "message": "节点 end_1（end）从 start 不可达，永远不会执行"
+        },
+        {
+          "level": "warning",
+          "code": "UNREACHABLE_NODE",
+          "nodeId": "code_1",
+          "message": "节点 code_1（code）从 start 不可达，永远不会执行"
+        },
+        {
+          "level": "warning",
+          "code": "UNREACHABLE_NODE",
+          "nodeId": "code_2",
+          "message": "节点 code_2（code）从 start 不可达，永远不会执行"
+        },
+        {
+          "level": "warning",
+          "code": "ISOLATED_NODE",
+          "nodeId": "code_2",
+          "message": "节点 code_2（code）没有任何连线，不会被执行"
+        },
+        {
+          "level": "error",
+          "code": "INVALID_PARAM",
+          "nodeId": "code_2",
+          "message": "节点 code_2（code）参数结构不合法：: property 'type' is not defined in the schema and the schema does not allow additional properties"
+        },
+        {
+          "level": "error",
+          "code": "INVALID_PARAM",
+          "nodeId": "code_2",
+          "message": "节点 code_2（code）参数结构不合法：: property 'id' is not defined in the schema and the schema does not allow additional properties"
+        },
+        {
+          "level": "error",
+          "code": "INVALID_PARAM",
+          "nodeId": "code_2",
+          "message": "节点 code_2（code）参数结构不合法：: property 'connect' is not defined in the schema and the schema does not allow additional properties"
+        },
+        {
+          "level": "error",
+          "code": "SEMANTIC",
+          "nodeId": "cond_stock",
+          "message": "节点 cond_stock（条件/分支）没有任何出边：分支后的路径没有接到任何节点，下游会全部照跑、条件等于没配。修复：edge 传 {\"action\":\"connect\",\"from\":\"cond_stock\",\"to\":\"<下游节点id>\",\"fromPort\":\"is_zero|else\"}（每个 key/else 至少一条出边）"
+        },
+        {
+          "level": "error",
+          "code": "DANGLING_REF",
+          "nodeId": "code_1",
+          "message": "节点 code_1 引用了不存在的节点 \"loop_1\"（ref 引用指向的节点必须在画布上）"
+        },
+        {
+          "level": "error",
+          "code": "DANGLING_REF",
+          "nodeId": "code_2",
+          "message": "节点 code_2 引用了不存在的节点 \"loop_1_locals\"（ref 引用指向的节点必须在画布上）"
+        },
+        {
+          "level": "error",
+          "code": "DANGLING_REF",
+          "nodeId": "code_2",
+          "message": "节点 code_2 引用了不存在的节点 \"loop_1_locals\"（ref 引用指向的节点必须在画布上）"
+        }
+      ]
+    },
+    {
+      "ok": false,
+      "errors": [
+        "从 start 无法到达任何 end 节点：即使执行也不会有产出",
+        "节点 code_2（code）参数结构不合法：: property 'type' is not defined in the schema and the schema does not allow additional properties",
+        "节点 code_2（code）参数结构不合法：: property 'id' is not defined in the schema and the schema does not allow additional properties",
+        "节点 code_2（code）参数结构不合法：: property 'connect' is not defined in the schema and the schema does not allow additional properties",
+        "节点 cond_stock（条件/分支）没有任何出边：分支后的路径没有接到任何节点，下游会全部照跑、条件等于没配。修复：edge 传 {\"action\":\"connect\",\"from\":\"cond_stock\",\"to\":\"<下游节点id>\",\"fromPort\":\"is_zero|else\"}（每个 key/else 至少一条出边）",
+        "节点 code_1 引用了不存在的节点 \"loop_1\"（ref 引用指向的节点必须在画布上）",
+        "节点 code_2 引用了不存在的节点 \"loop_1_locals\"（ref 引用指向的节点必须在画布上）",
+        "节点 code_2 引用了不存在的节点 \"loop_1_locals\"（ref 引用指向的节点必须在画布上）"
+      ],
+      "issues": [
+        {
+          "level": "error",
+          "code": "NO_PATH_TO_END",
+          "nodeId": "start_1",
+          "message": "从 start 无法到达任何 end 节点：即使执行也不会有产出"
+        },
+        {
+          "level": "warning",
+          "code": "UNREACHABLE_NODE",
+          "nodeId": "end_1",
+          "message": "节点 end_1（end）从 start 不可达，永远不会执行"
+        },
+        {
+          "level": "warning",
+          "code": "UNREACHABLE_NODE",
+          "nodeId": "code_1",
+          "message": "节点 code_1（code）从 start 不可达，永远不会执行"
+        },
+        {
+          "level": "warning",
+          "code": "UNREACHABLE_NODE",
+          "nodeId": "code_2",
+          "message": "节点 code_2（code）从 start 不可达，永远不会执行"
+        },
+        {
+          "level": "warning",
+          "code": "ISOLATED_NODE",
+          "nodeId": "code_2",
+          "message": "节点 code_2（code）没有任何连线，不会被执行"
+        },
+        {
+          "level": "error",
+          "code": "INVALID_PARAM",
+          "nodeId": "code_2",
+          "message": "节点 code_2（code）参数结构不合法：: property 'type' is not defined in the schema and the schema does not allow additional properties"
+        },
+        {
+          "level": "error",
+          "code": "INVALID_PARAM",
+          "nodeId": "code_2",
+          "message": "节点 code_2（code）参数结构不合法：: property 'id' is not defined in the schema and the schema does not allow additional properties"
+        },
+        {
+          "level": "error",
+          "code": "INVALID_PARAM",
+          "nodeId": "code_2",
+          "message": "节点 code_2（code）参数结构不合法：: property 'connect' is not defined in the schema and the schema does not allow additional properties"
+        },
+        {
+          "level": "error",
+          "code": "SEMANTIC",
+          "nodeId": "cond_stock",
+          "message": "节点 cond_stock（条件/分支）没有任何出边：分支后的路径没有接到任何节点，下游会全部照跑、条件等于没配。修复：edge 传 {\"action\":\"connect\",\"from\":\"cond_stock\",\"to\":\"<下游节点id>\",\"fromPort\":\"is_zero|else\"}（每个 key/else 至少一条出边）"
+        },
+        {
+          "level": "error",
+          "code": "DANGLING_REF",
+          "nodeId": "code_1",
+          "message": "节点 code_1 引用了不存在的节点 \"loop_1\"（ref 引用指向的节点必须在画布上）"
+        },
+        {
+          "level": "error",
+          "code": "DANGLING_REF",
+          "nodeId": "code_2",
+          "message": "节点 code_2 引用了不存在的节点 \"loop_1_locals\"（ref 引用指向的节点必须在画布上）"
+        },
+        {
+          "level": "error",
+          "code": "DANGLING_REF",
+          "nodeId": "code_2",
+          "message": "节点 code_2 引用了不存在的节点 \"loop_1_locals\"（ref 引用指向的节点必须在画布上）"
+        }
+      ]
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 /**
- * 时间线渲染契约测试（jsdom）：store 状态 → shimmer 类名的映射即「闪烁」的验收面。
+ * 时间线渲染契约测试（jsdom）：状态 → shimmer 类名的映射即「闪烁」的验收面。
+ * 时间线数据由 reducer 事件序列驱动（与线上完全同一条换算路径）。
  *
  * 契约（对标 dsh ReasoningRow）：
  *  · 打开的 thinking 条目 + connected → dsh-shimmer
@@ -10,7 +11,7 @@ import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import { act } from 'react-dom/test-utils';
 import { createRoot, type Root } from 'react-dom/client';
 
-import { liveStreamStore } from '../live-stream-store';
+import { RuntimeStateInitial, reduce } from '../runtime/reducer';
 import { TimelineView } from '../LiveAssistantMessage';
 import type { TimelineItem } from '../types';
 
@@ -21,13 +22,22 @@ beforeEach(() => {
   container = document.createElement('div');
   document.body.appendChild(container);
   root = createRoot(container);
-  liveStreamStore.reset();
 });
 
 afterEach(() => {
   act(() => root.unmount());
   container.remove();
 });
+
+/** 事件序列 → reducer 状态里的时间线（与线上同一条换算路径） */
+function timelineFrom(events: Array<{ name: string; data?: any; seq?: number }>): TimelineItem[] {
+  let state = RuntimeStateInitial('test');
+  state = reduce(state, { type: 'event', name: 'run_state', data: { status: 'running', runId: 'r' }, seq: 1 });
+  for (const [i, ev] of events.entries()) {
+    state = reduce(state, { type: 'event', name: ev.name, data: ev.data ?? {}, seq: i + 2 });
+  }
+  return state.timeline;
+}
 
 function renderTimeline(timeline: TimelineItem[], streaming: boolean, connected = true): void {
   act(() => {
@@ -38,15 +48,22 @@ function renderTimeline(timeline: TimelineItem[], streaming: boolean, connected 
 const shimmerCount = (): number => container.querySelectorAll('.dsh-shimmer').length;
 
 describe('thinking 条目 shimmer 生命周期（闪烁回归钉子）', () => {
-  it('打开的思考条目 + streaming → shimmer；closed 翻转 → 摘除', () => {
-    renderTimeline([{ kind: 'thinking', id: 'a', text: '第一段思考', closed: false }], true);
+  it('打开的思考条目 + streaming → shimmer；工具入场关闭 → 摘除', () => {
+    const tl = timelineFrom([
+      { name: 'thinking', data: { content: '第一段思考' } },
+    ]);
+    renderTimeline(tl, true);
     expect(shimmerCount()).toBe(1);
 
-    renderTimeline([{ kind: 'thinking', id: 'a', text: '第一段思考', closed: true }], true);
-    expect(shimmerCount()).toBe(0);
+    const closed = timelineFrom([
+      { name: 'thinking', data: { content: '第一段思考' } },
+      { name: 'tool_call', data: { id: 't1', name: 'read_workflow', args: {} } },
+    ]);
+    renderTimeline(closed, true);
+    expect(shimmerCount()).toBe(1); // 只剩工具行的 running shimmer
   });
 
-  it('run 级 streaming=true 但条目已收尾 → 不闪（run 级透传回归钉子）', () => {
+  it('run 级 streaming=true 但思考条目已收尾 → 思考不闪（run 级透传回归钉子）', () => {
     renderTimeline(
       [
         { kind: 'thinking', id: 'a', text: '已收尾思考', closed: true },
@@ -69,17 +86,16 @@ describe('thinking 条目 shimmer 生命周期（闪烁回归钉子）', () => {
 });
 
 describe('工具行与通知', () => {
-  it('工具行 running → shimmer；结果回填（endedAt）→ 摘除', () => {
-    renderTimeline(
-      [{ kind: 'tool', id: 't1', call: { id: 't1', action: 'read_workflow', args: {} } }],
-      true
-    );
+  it('工具行 running → shimmer；结果回填 → 摘除', () => {
+    const running = timelineFrom([{ name: 'tool_call', data: { id: 't1', name: 'read_workflow', args: {} } }]);
+    renderTimeline(running, true);
     expect(shimmerCount()).toBe(1);
 
-    renderTimeline(
-      [{ kind: 'tool', id: 't1', call: { id: 't1', action: 'read_workflow', args: {}, result: '{"ok":1}' }, endedAt: Date.now() }],
-      true
-    );
+    const done = timelineFrom([
+      { name: 'tool_call', data: { id: 't1', name: 'read_workflow', args: {} } },
+      { name: 'tool_result', data: { toolCallId: 't1', payload: '{"ok":1}' } },
+    ]);
+    renderTimeline(done, true);
     expect(shimmerCount()).toBe(0);
   });
 

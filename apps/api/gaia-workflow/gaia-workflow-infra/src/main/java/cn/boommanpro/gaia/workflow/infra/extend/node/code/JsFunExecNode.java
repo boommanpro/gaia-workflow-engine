@@ -6,7 +6,6 @@ import org.graalvm.polyglot.Value;
 
 import javax.script.Bindings;
 import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 import java.util.HashMap;
 import java.util.Map;
@@ -32,27 +31,29 @@ public class JsFunExecNode extends CodeNode {
 
     @Override
     public Map<String, Object> execute(Chain chain) {
-        ScriptEngine engine = (new ScriptEngineManager()).getEngineByName("graal.js");
-        if (engine == null) {
-            throw new RuntimeException("未找到 GraalJS 引擎，请确认依赖配置");
-        }
+        // 引擎构造与 eval 的服务发现都依赖线程 CCL——全程切到应用类加载器（fat jar 修复）
+        return GraalJsEngines.underAppLoader(() -> doExecute(chain));
+    }
+
+    private Map<String, Object> doExecute(Chain chain) {
+        ScriptEngine engine = GraalJsEngines.resolve();
         Bindings bindings = engine.createBindings();
         bindings.put("polyglot.js.allowHostAccess", true);
         bindings.put("polyglot.js.allowHostClassLookup", true);
         Map<String, Object> parameterValues = chain.getParametersData(this);
-        if (parameterValues != null) {
-            bindings.putAll(parameterValues);
-        }
+        // 入参经 JSON 还原为原生 JS 值（含 input / inputs 别名）：模型按 JS 习惯写的 items.map(...) 直接可用
+        String prologue = GraalJsEngines.prepareParameters(bindings, parameterValues);
 
         Map<String, Object> tempResult = new HashMap<>();
         bindings.put("_chain", chain);
         bindings.put("_result", tempResult);
 
         try {
+            engine.eval(prologue, bindings);
             Object evalResult = engine.eval(code, bindings);
             return convertToMap(evalResult);
         } catch (ScriptException e) {
-            throw new RuntimeException("GraalJS 执行失败", e);
+            throw new RuntimeException("GraalJS 执行失败: " + GraalJsEngines.describe(e), e);
         }
     }
 
@@ -70,22 +71,15 @@ public class JsFunExecNode extends CodeNode {
         if (result == null) {
             return new HashMap<>();
         }
-        if (result instanceof Map) {
-            return (Map<String, Object>) result;
-        }
-        // GraalJS 返回 Value 对象，通过 polyglot member API 转换
-        Value value = Value.asValue(result);
-        if (value.hasMembers()) {
-            Map<String, Object> map = new HashMap<>();
-            for (String key : value.getMemberKeys()) {
-                Value val = value.getMember(key);
-                map.put(key, val.as(Object.class));
-            }
-            return map;
+        // 统一经 polyglot Value 深度转回 Java：JS 数组 / 代理数组 → List，JS 对象 / 代理对象 → Map，
+        // 否则注入时的 ProxyArray / ProxyObject 会原样外泄到下游（模板渲染 / JSON 序列化拿不到元素）
+        Object java = GraalJsEngines.toJavaValue(Value.asValue(result));
+        if (java instanceof Map) {
+            return new HashMap<>((Map<String, Object>) java);
         }
         // 标量结果包装为 result 字段
         Map<String, Object> map = new HashMap<>();
-        map.put("result", result);
+        map.put("result", java);
         return map;
     }
 

@@ -83,8 +83,9 @@ public class BranchesNode extends BaseNode {
             return false;
         }
 
-        // 默认返回false
-        return false;
+        // 2026-10-24 起不再静默按 false 处理：logic 缺失或拼错会让该分支永远不命中且无任何报错
+        throw new IllegalArgumentException("分支节点 " + getId() + " 的分支 \"" + branch.getId()
+            + "\" 的 logic \"" + logic + "\" 非法（只认 and / or）");
     }
 
     /**

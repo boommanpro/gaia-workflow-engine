@@ -72,7 +72,6 @@ public class Chain extends ChainNode {
 
     public Chain() {
         this.id = UUID.randomUUID().toString();
-        this.nodeType = NodeTypeEnum.CHAIN;
     }
 
     // ==================== 节点管理 ====================

@@ -237,6 +237,7 @@ CREATE TABLE IF NOT EXISTS agent_session_event (
     created_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_agent_session_event ON agent_session_event(session_key, id);
+CREATE INDEX IF NOT EXISTS idx_agent_session_folder ON agent_session(folder_id);
 
 -- 工具调用指标（v2）：每次调用一行的结局码/耗时/参数摘要
 CREATE TABLE IF NOT EXISTS agent_tool_call_log (

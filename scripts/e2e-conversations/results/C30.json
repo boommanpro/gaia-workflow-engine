@@ -1,0 +1,519 @@
+{
+  "caseId": "C30",
+  "sessionKey": "20c0b5e3fc184c7bb76301e217fd2fb6",
+  "elapsedSec": 97,
+  "turns": [
+    {
+      "utterance": "做一个简单可靠的订单金额计算器：输入单价和数量，输出总价（单价×数量）和一件的单价。搭好试跑一遍。",
+      "runStatus": "done",
+      "asksAnswered": [],
+      "lastAssistant": "画布上有 `start_1` 和 `end_1` 骨架，没有连线。我来添加一个 code 节点做计算，并接好线。\n\n现在把 `code_1` 连到 `end_1`，并配置 `end_1` 的输出。\n\n需要给 `start_1` 添加 `unitPrice` 和 `quantity` 输入字段，然后配置 `end_1` 的输出引用。\n\nstart 节点用 `outputs.properties` 声明输入参数。\n\n现在配置 `end_1` 的输出，引用 `code_1` 的结果。\n\n现在整流试跑。\n\ncode 节点语法问题，需要修正为最后一个表达式返回对象。\n\nworkflow 运行时 code 节点内引用的是上游输出变量名，不是节点 ID。先看下 code_1 的可引用变量。\n\n在 code 脚本中，`start_1` 作为变量名不可用，需要用 `inputs` 对象或直接引用字段。让我用正确的变量名重写。\n\n`parseFloat` 可能返回了非有限数。改用直接数值运算。\n\n先单节点试跑，看看 inputs 实际传了什么。\n\ncode_1 返回空 outputs，说明脚本执行了但返回值没被正确捕获。让我看下 code 节点的 outputs 定义。\n\ncode 节点没有声明 outputs schema，导致返回值无法被正确序列化。需要补上 outputs 定义。\n\n单节点试跑成功，但没看到 outputs 内容。再跑一次整流。\n\n还是同样的错误。可能是 `unitPrice` 在 code 输出后被 end_1 的 ref 引用时，序列化有问题。让我检查 end_1 的 inputsValues 配置。\n\n`end_1` 的 `inputs` 里 `unitPrice` 和 `total` 被声明为 `string`，但 code_1 输出的是 `number`，序列化时可能出问题。修正 end_1 的 inputs 类型声明。\n\n还是同样的错误。问题可能在 code_1 的 outputs 定义里 `unitPrice` 类型和实际值不匹配。让我用单节点试跑看看 code_1 实际输出。\n\n单节点试跑成功但没看到 outputs。让我检查 code 节点的 outputs 定义是否正确。\n\noutputs 定义看起来没问题。问题可能是 code 脚本中 `unitPrice` 变量名和输出字段名冲突了。让我改一下变量名。\n\n还是同样的错误。让我用单节点试跑看看 code_1 的实际输出。\n\n单节点试跑成功但没看到 outputs。问题可能是 code 节点没有正确声明 outputs 导致序列化失败。让我检查 code 节点的 outputs 定义。\n\n关键发现：code 节点需要 `inputsValues` 来接收上游数据，而不仅仅是 `inputs.properties`。`inputs.properties` 只是声明，`inputsValues` 才是真正接上游数据的字段。\n\n**整流通过！** 再跑一组反向输入验证。\n\n两组输入都通过了。沉淀测试用例。\n\n两个测试用例全部通过。\n\n---\n\n**已完成：订单金额计算器工作流**\n\n| 节点 | 作用 |\n|---|---|\n| `start_1` | 输入：`unitPrice`（单价，number）、`quantity`（数量，number） |\n| `code_1` | 计算：`total = unitPrice × quantity`，输出 `total` 和 `unitP"
+    },
+    {
+      "utterance": "我改主意了：把“单价”这个输出去掉，只保留总价，并且确保整个流程没有引用到已删除的内容，跑一遍确认没问题。",
+      "runStatus": "done",
+      "asksAnswered": [],
+      "lastAssistant": "需要改两处：1) `end_1` 的 inputsValues 去掉 `unitPrice` 只保留 `total`；2) `code_1` 的 outputs 去掉 `unitPrice`。\n\n输出里还有 `unitPrice`，说明 `end_1` 的 `inputs` schema 里还保留着 `unitPrice` 字段声明，导致引擎继续输出。需要清理 `end_1` 的 `inputs.properties`。\n\n`end_1` 的 `inputsValues` 里 `unitPrice` 还没被清除（之前 update 只合并了 `inputsValues.total`，没覆盖整个对象）。需要完整重写 `inputsValues`。\n\n输出里还有 `unitPrice`。`end_1` 的 `inputs` 里 `unitPrice` 被自动补上了。需要把 `inputs.properties` 里 `unitPrice` 也去掉。\n\n`inputsValues` 里 `unitPrice` 还在——说明之前的 update 没有正确覆盖。需要完整替换 `inputsValues`。\n\n循环警报。`inputsValues` 的 `unitPrice` 还在。让我直接看 `end_1` 的 inputsValues 是否生效。\n\n`inputsValues` 里 `unitPrice` 还在，说明深合并没有删除旧字段。需要显式把 `unitPrice` 设为 `null` 来删除。\n\nnull 不行。需要完整重写整个 `inputsValues` 对象。用 `inputs` 的 `properties` 来声明输出字段，`inputsValues` 只保留 `total`。\n\n`inputsValues` 是对象类型，不能设 null。需要把整个 `inputsValues` 替换掉。\n\n`inputsValues` 里的 `unitPrice` 还在。深合并时 `inputsValues` 字段没有被完全替换。尝试用 `inputsValues` 的完整对象来更新。\n\n`inputsValues` 始终没变。可能是 `inputsValues` 字段在 update 时有特殊处理。让我尝试把整个 `data` 重新赋值——先删掉 `end_1` 再重建。\n\n输出只有 `total: 76.5`，`unitPrice` 已清除。跑反向输入确认。\n\n两组输入都通过，输出只有 `total`。更新测试用例。\n\n**已完成：移除 `unitPrice` 输出**\n\n- `end_1` 重建后只引用 `code_1.total`，不再引用 `unitPrice`\n- 整流验证：两组输入均只输出 `total`，无残留字段\n- 测试用例已更新并全部通过\n\n请保存为版本。"
+    }
+  ],
+  "pass": true,
+  "checks": [
+    {
+      "case": "C30",
+      "name": "首轮成功",
+      "pass": true,
+      "detail": "status=success"
+    },
+    {
+      "case": "C30",
+      "name": "总价 60",
+      "pass": true,
+      "detail": "{\"total\":60}"
+    },
+    {
+      "case": "C30",
+      "name": "删字段后成功",
+      "pass": true,
+      "detail": "status=success"
+    },
+    {
+      "case": "C30",
+      "name": "总价仍 60",
+      "pass": true,
+      "detail": "{\"total\":60}"
+    },
+    {
+      "case": "C30",
+      "name": "无断裂引用",
+      "pass": true,
+      "detail": "草稿结构层面无断裂标记"
+    }
+  ],
+  "doc": {
+    "edges": [
+      {
+        "sourceNodeID": "start_1",
+        "targetNodeID": "code_1"
+      },
+      {
+        "sourceNodeID": "code_1",
+        "targetNodeID": "end_1"
+      }
+    ],
+    "version": 16,
+    "nodes": [
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "unitPrice": {
+                "description": "商品单价",
+                "type": "number",
+                "default": 0
+              },
+              "quantity": {
+                "description": "购买数量",
+                "type": "number",
+                "default": 0
+              },
+              "input": {
+                "description": "input",
+                "type": "string",
+                "default": ""
+              }
+            }
+          },
+          "title": "开始"
+        },
+        "type": "start",
+        "meta": {
+          "position": {
+            "x": 180,
+            "y": 180
+          }
+        },
+        "id": "start_1"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "unitPrice": {
+                "type": "number"
+              },
+              "total": {
+                "type": "number"
+              }
+            }
+          },
+          "inputsValues": {
+            "unitPrice": {
+              "type": "ref",
+              "content": [
+                "start_1",
+                "unitPrice"
+              ]
+            },
+            "quantity": {
+              "type": "ref",
+              "content": [
+                "start_1",
+                "quantity"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "unitPrice": {
+                "type": "number"
+              },
+              "quantity": {
+                "type": "number"
+              }
+            }
+          },
+          "script": {
+            "language": "javascript",
+            "content": "const price = Number(inputs.unitPrice);\nconst qty = Number(inputs.quantity);\nconst total = price * qty;\n({ total, unitPrice: price })"
+          }
+        },
+        "type": "code",
+        "meta": {
+          "position": {
+            "x": 500,
+            "y": 380
+          }
+        },
+        "id": "code_1"
+      },
+      {
+        "data": {
+          "inputsValues": {
+            "total": {
+              "type": "ref",
+              "content": [
+                "code_1",
+                "total"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "total": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "type": "end",
+        "meta": {
+          "position": {
+            "x": 820,
+            "y": 380
+          }
+        },
+        "id": "end_1"
+      }
+    ]
+  },
+  "trialRuns": [
+    {
+      "ok": true,
+      "taskId": "89daa773-d5cf-4d1c-ac0d-7e82b7d700b3",
+      "workflowStatus": "success",
+      "outputs": {
+        "total": 60
+      },
+      "nodes": {
+        "code_1": {
+          "id": "code_1",
+          "status": "succeeded",
+          "startTime": 1792944506223,
+          "endTime": 1792944506229,
+          "timeCost": 6,
+          "snapshots": [
+            {
+              "nodeID": "code_1",
+              "inputs": {
+                "unitPrice": 20,
+                "quantity": 3
+              },
+              "outputs": {
+                "unitPrice": 20,
+                "total": 60
+              },
+              "data": {
+                "unitPrice": 20,
+                "total": 60
+              },
+              "branch": "",
+              "error": "",
+              "id": "code_1"
+            }
+          ]
+        },
+        "start_1": {
+          "id": "start_1",
+          "status": "succeeded",
+          "startTime": 1792944506223,
+          "endTime": 1792944506223,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "start_1",
+              "inputs": {
+                "unitPrice": 20,
+                "quantity": 3
+              },
+              "outputs": {
+                "unitPrice": 20,
+                "quantity": 3,
+                "input": ""
+              },
+              "data": {
+                "unitPrice": 20,
+                "quantity": 3
+              },
+              "branch": "",
+              "error": "",
+              "id": "start_1"
+            }
+          ]
+        },
+        "end_1": {
+          "id": "end_1",
+          "status": "succeeded",
+          "startTime": 1792944506230,
+          "endTime": 1792944506230,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "end_1",
+              "inputs": {
+                "unitPrice": 20,
+                "quantity": 3,
+                "code_1": {
+                  "unitPrice": 20,
+                  "total": 60
+                },
+                "start_1": {
+                  "unitPrice": 20,
+                  "quantity": 3,
+                  "input": ""
+                }
+              },
+              "outputs": {
+                "total": 60
+              },
+              "data": {
+                "unitPrice": 20,
+                "quantity": 3,
+                "code_1": {
+                  "unitPrice": 20,
+                  "total": 60
+                },
+                "start_1": {
+                  "unitPrice": 20,
+                  "quantity": 3,
+                  "input": ""
+                }
+              },
+              "branch": "",
+              "error": "",
+              "id": "end_1"
+            }
+          ]
+        }
+      },
+      "runDetail": {
+        "nodes": [
+          {
+            "id": 296,
+            "runTaskId": "89daa773-d5cf-4d1c-ac0d-7e82b7d700b3",
+            "nodeId": "code_1",
+            "nodeType": "code",
+            "title": null,
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"unitPrice\":20,\"quantity\":3}",
+            "outputJson": "{\"unitPrice\":20,\"total\":60}",
+            "timeCostMs": 6,
+            "createdAt": "2026-10-26T00:08:26.283982"
+          },
+          {
+            "id": 297,
+            "runTaskId": "89daa773-d5cf-4d1c-ac0d-7e82b7d700b3",
+            "nodeId": "start_1",
+            "nodeType": "start",
+            "title": "开始",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"unitPrice\":20,\"quantity\":3}",
+            "outputJson": "{\"unitPrice\":20,\"quantity\":3,\"input\":\"\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-26T00:08:26.283982"
+          },
+          {
+            "id": 298,
+            "runTaskId": "89daa773-d5cf-4d1c-ac0d-7e82b7d700b3",
+            "nodeId": "end_1",
+            "nodeType": "end",
+            "title": null,
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"unitPrice\":20,\"quantity\":3,\"code_1\":{\"unitPrice\":20,\"total\":60},\"start_1\":{\"unitPrice\":20,\"quantity\":3,\"input\":\"\"}}",
+            "outputJson": "{\"total\":60}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-26T00:08:26.283982"
+          }
+        ],
+        "run": {
+          "id": 71,
+          "taskId": "89daa773-d5cf-4d1c-ac0d-7e82b7d700b3",
+          "workflowCode": null,
+          "status": "success",
+          "errorMessage": null,
+          "inputsJson": "{\"unitPrice\":20,\"quantity\":3}",
+          "outputsJson": "{\"total\":60}",
+          "nodeCount": 3,
+          "durationMs": 60,
+          "triggerChannel": "editor",
+          "startedAt": "2026-10-26T00:08:26.223982",
+          "finishedAt": "2026-10-26T00:08:26.283982",
+          "createdAt": "2026-10-26T00:08:26.283982"
+        }
+      }
+    },
+    {
+      "ok": true,
+      "taskId": "2ca3b7ae-080d-4669-8fbd-dafefd25ca54",
+      "workflowStatus": "success",
+      "outputs": {
+        "total": 60
+      },
+      "nodes": {
+        "code_1": {
+          "id": "code_1",
+          "status": "succeeded",
+          "startTime": 1792944507245,
+          "endTime": 1792944507250,
+          "timeCost": 5,
+          "snapshots": [
+            {
+              "nodeID": "code_1",
+              "inputs": {
+                "unitPrice": 20,
+                "quantity": 3
+              },
+              "outputs": {
+                "unitPrice": 20,
+                "total": 60
+              },
+              "data": {
+                "unitPrice": 20,
+                "total": 60
+              },
+              "branch": "",
+              "error": "",
+              "id": "code_1"
+            }
+          ]
+        },
+        "start_1": {
+          "id": "start_1",
+          "status": "succeeded",
+          "startTime": 1792944507245,
+          "endTime": 1792944507245,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "start_1",
+              "inputs": {
+                "unitPrice": 20,
+                "quantity": 3
+              },
+              "outputs": {
+                "unitPrice": 20,
+                "quantity": 3,
+                "input": ""
+              },
+              "data": {
+                "unitPrice": 20,
+                "quantity": 3
+              },
+              "branch": "",
+              "error": "",
+              "id": "start_1"
+            }
+          ]
+        },
+        "end_1": {
+          "id": "end_1",
+          "status": "succeeded",
+          "startTime": 1792944507250,
+          "endTime": 1792944507250,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "end_1",
+              "inputs": {
+                "unitPrice": 20,
+                "quantity": 3,
+                "code_1": {
+                  "unitPrice": 20,
+                  "total": 60
+                },
+                "start_1": {
+                  "unitPrice": 20,
+                  "quantity": 3,
+                  "input": ""
+                }
+              },
+              "outputs": {
+                "total": 60
+              },
+              "data": {
+                "unitPrice": 20,
+                "quantity": 3,
+                "code_1": {
+                  "unitPrice": 20,
+                  "total": 60
+                },
+                "start_1": {
+                  "unitPrice": 20,
+                  "quantity": 3,
+                  "input": ""
+                }
+              },
+              "branch": "",
+              "error": "",
+              "id": "end_1"
+            }
+          ]
+        }
+      },
+      "runDetail": {
+        "nodes": [
+          {
+            "id": 299,
+            "runTaskId": "2ca3b7ae-080d-4669-8fbd-dafefd25ca54",
+            "nodeId": "code_1",
+            "nodeType": "code",
+            "title": null,
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"unitPrice\":20,\"quantity\":3}",
+            "outputJson": "{\"unitPrice\":20,\"total\":60}",
+            "timeCostMs": 5,
+            "createdAt": "2026-10-26T00:08:27.303203"
+          },
+          {
+            "id": 300,
+            "runTaskId": "2ca3b7ae-080d-4669-8fbd-dafefd25ca54",
+            "nodeId": "start_1",
+            "nodeType": "start",
+            "title": "开始",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"unitPrice\":20,\"quantity\":3}",
+            "outputJson": "{\"unitPrice\":20,\"quantity\":3,\"input\":\"\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-26T00:08:27.303203"
+          },
+          {
+            "id": 301,
+            "runTaskId": "2ca3b7ae-080d-4669-8fbd-dafefd25ca54",
+            "nodeId": "end_1",
+            "nodeType": "end",
+            "title": null,
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"unitPrice\":20,\"quantity\":3,\"code_1\":{\"unitPrice\":20,\"total\":60},\"start_1\":{\"unitPrice\":20,\"quantity\":3,\"input\":\"\"}}",
+            "outputJson": "{\"total\":60}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-26T00:08:27.303203"
+          }
+        ],
+        "run": {
+          "id": 72,
+          "taskId": "2ca3b7ae-080d-4669-8fbd-dafefd25ca54",
+          "workflowCode": null,
+          "status": "success",
+          "errorMessage": null,
+          "inputsJson": "{\"unitPrice\":20,\"quantity\":3}",
+          "outputsJson": "{\"total\":60}",
+          "nodeCount": 3,
+          "durationMs": 59,
+          "triggerChannel": "editor",
+          "startedAt": "2026-10-26T00:08:27.244203",
+          "finishedAt": "2026-10-26T00:08:27.303203",
+          "createdAt": "2026-10-26T00:08:27.303203"
+        }
+      }
+    }
+  ]
+}

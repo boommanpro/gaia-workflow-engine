@@ -12,7 +12,6 @@ export enum WorkflowNodeType {
   Code = 'code',
   Variable = 'variable',
   Condition = 'condition',
-  MultiCondition = 'multi-condition',
   Branches = 'branches',
   Loop = 'loop',
   BlockStart = 'block-start',

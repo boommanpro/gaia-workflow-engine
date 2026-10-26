@@ -8,7 +8,7 @@
  * 旧的「预览」tab 已移除：执行路径与节点构成和对话流卡片、画布重复；
  * 「DSL」tab 收进弹层，不再占一个常驻页签。
  */
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button, Input, Modal, Toast, Tooltip } from '@douyinfe/semi-ui';
 import {
@@ -23,8 +23,7 @@ import {
 import { useWorkflowDocumentState, workflowDocumentStore } from '../../document';
 import { t } from '../../i18n';
 import { workflowApi, type GaiaWorkflow } from '../../services/workflow-api';
-import { useAgent } from '../../agent/AgentContext';
-import { useArtifactState } from '../../agent/artifact-store';
+import { useAgent, useRunStreaming, useSessionArtifacts } from '../../agent/AgentContext';
 import type { AgentArtifactDto } from '../../agent/types';
 import { agentApi } from '../../agent/api';
 import { pushCanvasDraftToSession } from '../../agent/canvas-draft-sync';
@@ -32,14 +31,17 @@ import { bindSessionToWorkflow } from '../session-scope';
 import { openEditorWithDraft } from '../openEditorWithDraft';
 import { CHAT } from '../../chat/theme';
 import { IconPanelRight } from '../../components/app-shell/icons';
-import { ReadonlyCanvas } from './ReadonlyCanvas';
+import { LightCanvas } from './LightCanvas';
 
 export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollapse }) => {
-  const { doc, meta, revision } = useWorkflowDocumentState();
+  const { doc, meta } = useWorkflowDocumentState();
   const navigate = useNavigate();
   const location = useLocation();
-  const { currentSessionKey, sessions, streaming, createSession } = useAgent();
-  const artifactState = useArtifactState();
+  const { currentSessionKey, sessions, createSession } = useAgent();
+  const streaming = useRunStreaming();
+  const artifactState = { bySession: {} as Record<string, AgentArtifactDto[]> };
+  const sessionArtifacts = useSessionArtifacts();
+  artifactState.bySession[currentSessionKey || ''] = sessionArtifacts;
 
   const [saveVisible, setSaveVisible] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -55,26 +57,9 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
   const dsl = useMemo(() => doc.toJSON(), [doc]);
   const isEmpty = doc.isEmpty;
 
-  // 流式期间的画布刷新节流：document 事件高频到达，逐次 remount 整只 flowgram
-  // 编辑器会打挂主线程（实测「页面无响应」的元凶）。3 秒采样一次最新画布 ——
-  // 预览保持准实时、remount 成本有界；流式结束立即收敛到最终版
-  const dslRef = useRef(dsl);
-  dslRef.current = dsl;
-  const revisionRef = useRef(revision);
-  revisionRef.current = revision;
-  const [liveSample, setLiveSample] = useState<{ dsl: any; rev: number } | null>(null);
-  useEffect(() => {
-    if (!streaming) {
-      setLiveSample(null);
-      return;
-    }
-    const timer = setInterval(() => {
-      setLiveSample({ dsl: dslRef.current, rev: revisionRef.current });
-    }, 3000);
-    return () => clearInterval(timer);
-  }, [streaming]);
-  const canvasDsl = liveSample ? liveSample.dsl : dsl;
-  const canvasKey = liveSample ? `canvas-live-${liveSample.rev}` : `canvas-${revision}`;
+  // LightCanvas（纯 SVG）全量重绘成本毫秒级：document 事件直接刷新，
+  // 不再需要旧 ReadonlyCanvas（整只 flowgram 编辑器）的 3 秒采样节流
+  const canvasDsl = dsl;
 
   /** 会话产物记录：试运行 / 发布 / 计划（workflow 即当前画布，不进列表） */
   const records = useMemo(() => {
@@ -162,14 +147,16 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
     // 同标签页跳转，而不是新开一个标签：
     // workflowDocumentStore 是模块级单例，同标签页里 AI 刚生成的那份 DSL 原样承接，
     // 对话会话也不会断（AgentContext 全局）。带 state.from 让编辑器「返回」回到本会话。
+    const cur = sessions.find((s) => s.sessionKey === currentSessionKey);
     openEditorWithDraft({
       dsl,
       workflowCode: meta.workflowCode,
+      workflowName: meta.workflowName || cur?.title,
       navigate,
       from: location.pathname,
       sessionKey: currentSessionKey,
     });
-  }, [dsl, meta.workflowCode, navigate, location.pathname, currentSessionKey]);
+  }, [dsl, meta.workflowCode, meta.workflowName, navigate, location.pathname, currentSessionKey, sessions]);
 
   /**
    * 换新会话继续（产运多版本迭代）：不调后端——直接进入新任务草稿态，
@@ -279,11 +266,9 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
           {/* 主位：实时预览画布。flowgram 内部是 absolute 定位层，容器必须自带
               relative + overflow hidden，否则画布会逃逸占满整个视口。
               key 变化 = remount 重载（flowgram 只在初始化时消费 initialData）。
-              流式期间走 3 秒节流采样（canvasDsl/canvasKey，见组件头部）：
-              document 事件每个节点变更都到，逐次 remount 会连环重挂打挂主线程，
-              节流后预览准实时、成本有界；流式一结束立即收敛到最终版 */}
+              LightCanvas 轻量重绘（见组件头部），document 事件直接跟随 */}
           <div style={{ flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden' }}>
-            <ReadonlyCanvas key={canvasKey} dsl={canvasDsl} />
+            <LightCanvas dsl={canvasDsl} />
             {streaming && (
               <div
                 style={{

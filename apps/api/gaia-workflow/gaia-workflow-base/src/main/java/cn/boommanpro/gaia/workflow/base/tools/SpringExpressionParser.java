@@ -91,9 +91,15 @@ public class SpringExpressionParser   {
             context.addPropertyAccessor(new BeanFactoryAccessor());
             // 使用自定义的 SafeMapAccessor 替代默认的 MapAccessor
             context.addPropertyAccessor(new SafeMapAccessor());
+            // 集合/数组/字符串的 length/size 属性（模型按 JS 习惯写 items.length），须在反射访问器之前
+            context.addPropertyAccessor(new CollectionLengthAccessor());
             // 使用安全的反射属性访问器处理链式访问
             context.addPropertyAccessor(new SafeReflectivePropertyAccessor());
             context.addPropertyAccessor(new EnvironmentAccessor());
+            // 模板渲染的字符串转换：数组 / 集合 / Map 直接序列化为 JSON 文本。
+            // 2026-10-24 会话 b6e34195 实证：{{start_1.items}} 这类模板引用整段触发
+            // EL1001E cannot convert JSONArray to String，整流反复失败
+            context.setTypeConverter(new JsonStringTypeConverter());
             context.setBeanResolver(new BeanFactoryResolver(ac.getBeanFactory()));
             context.setTypeLocator(new StandardTypeLocator(ac.getBeanFactory().getBeanClassLoader()));
             //初始化上下文

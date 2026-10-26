@@ -99,13 +99,15 @@ class SessionEventBusTest {
     }
 
     @Test
-    @DisplayName("订阅回放包含完整快照（刷新恢复入口）")
+    @DisplayName("订阅回放包含完整快照（刷新恢复入口，seq 内嵌）")
     void subscribeReplaysSnapshot() {
         SessionEventBus bus = new SessionEventBus();
         bus.publish("s", "turn", new JSONObject().set("turn", 1));
         bus.publish("s", "token", new JSONObject().set("content", "进度"));
         final JSONObject[] replayed = new JSONObject[1];
-        bus.subscribe("s", (type, data) -> {
+        final long[] seqSeen = new long[1];
+        bus.subscribe("s", null, (seq, type, data) -> {
+            seqSeen[0] = seq;
             if ("run_state".equals(type)) {
                 replayed[0] = data;
             }
@@ -114,6 +116,46 @@ class SessionEventBusTest {
         assertNotNull(replayed[0]);
         assertEquals("running", replayed[0].getStr("status"));
         assertTrue(replayed[0].getJSONArray("timeline").size() > 0);
+        assertEquals(2, seqSeen[0]); // turn=1, token=2 → 快照携带当前 seq
+    }
+
+    @Test
+    @DisplayName("Last-Event-ID 重连：缓冲覆盖时精确重放缺失事件，不丢不重")
+    void lastEventIdReplaysExactly() {
+        SessionEventBus bus = new SessionEventBus();
+        bus.publish("s", "turn", new JSONObject().set("turn", 1));                 // seq 1
+        bus.publish("s", "tool_call", new JSONObject().set("id", "c1").set("name", "node")); // seq 2
+        bus.publish("s", "tool_result", new JSONObject().set("toolCallId", "c1")); // seq 3
+        java.util.List<String> seen = new java.util.ArrayList<>();
+        java.util.List<Long> seqs = new java.util.ArrayList<>();
+        bus.subscribe("s", 1L, (seq, type, data) -> {
+            seen.add(type);
+            seqs.add(seq);
+            return true;
+        });
+        // 只重放 seq>1 的两条；不带快照（前端已有现场）
+        assertEquals(2, seen.size());
+        assertEquals("tool_call", seen.get(0));
+        assertEquals("tool_result", seen.get(1));
+        assertEquals(java.util.Arrays.asList(2L, 3L), seqs);
+    }
+
+    @Test
+    @DisplayName("Last-Event-ID 过旧（缓冲覆盖不到）：退化为快照回放")
+    void staleLastEventIdFallsBackToSnapshot() {
+        SessionEventBus bus = new SessionEventBus();
+        // 超出 BUFFER_CAP(500)：缓冲最旧 seq 已越过重连点
+        for (int i = 0; i < 505; i++) {
+            bus.publish("s", "turn", new JSONObject().set("turn", i));
+        }
+        final String[] first = new String[1];
+        bus.subscribe("s", 0L, (seq, type, data) -> {
+            if (first[0] == null) {
+                first[0] = type;
+            }
+            return true;
+        });
+        assertEquals("run_state", first[0]);
     }
 
     @Test
@@ -134,7 +176,7 @@ class SessionEventBusTest {
 
         // 订阅回放能拿到挂起中的提问（刷新/断线重连恢复提问卡的依据）
         final JSONObject[] replayed = new JSONObject[1];
-        bus.subscribe("s", (type, data) -> {
+        bus.subscribe("s", null, (seq, type, data) -> {
             if ("run_state".equals(type)) {
                 replayed[0] = data;
             }

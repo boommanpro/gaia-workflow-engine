@@ -20,8 +20,9 @@ public class VariableNodeParser extends BaseNodeParser<VariableNode> {
     public VariableNode buildInstance(JSONObject nodeJSONObject, GaiaWorkflow workflow) {
         VariableNode variableNode = new VariableNode();
 
-        // 解析assign数组
-        JSONArray assignArray = nodeJSONObject.getJSONObject("data").getJSONArray("assign");
+        // 解析assign数组（data 缺失时按空 assign 处理，不再 NPE）
+        JSONObject data = nodeJSONObject.getJSONObject("data");
+        JSONArray assignArray = data == null ? null : data.getJSONArray("assign");
         if (assignArray != null) {
             List<VariableNode.VariableAssign> assigns = new ArrayList<>();
             for (int i = 0; i < assignArray.size(); i++) {

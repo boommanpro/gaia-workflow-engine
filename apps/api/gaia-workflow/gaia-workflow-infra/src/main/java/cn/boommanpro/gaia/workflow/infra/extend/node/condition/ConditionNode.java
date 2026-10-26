@@ -73,8 +73,11 @@ public class ConditionNode extends BaseNode {
         // 使用策略模式处理操作符
         ConditionOperator<Object> operatorHandler = ConditionOperatorFactory.getOperator(operator);
         if (operatorHandler == null) {
-            log.warn("不支持的操作符: {}", operator);
-            return false;
+            // 2026-10-24 起不再静默按 false 处理：拼错 operator（如 ne/ge/le——知识库曾误写，
+            // 引擎真值是 neq/gte/lte）会让分支永远不命中且无任何报错。抛错让运行报告显式暴露
+            throw new IllegalArgumentException("条件节点 " + getId()
+                + " 的条件 \"" + condition.getKey() + "\" 使用了不支持的 operator: \"" + operator
+                + "\"（合法值: contains/not_contains/eq/neq/gt/gte/lt/lte/is_empty/is_not_empty/is_true/is_false）");
         }
 
         Object leftValue = getExpressionValue(expression.getLeft(), chain);

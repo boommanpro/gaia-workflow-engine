@@ -53,6 +53,10 @@ function declaredOutputFields(data: Record<string, any> | undefined): UpstreamFi
 }
 
 function fieldsOf(type: string, data: Record<string, any>): UpstreamField[] | null {
+  // llm json 输出模式：输出=outputs.properties 声明集（引擎解析模型 JSON 后按声明写入）
+  if (type === 'llm' && data?.outputMode === 'json') {
+    return declaredOutputFields(data);
+  }
   const staticOut = STATIC_OUTPUTS[type];
   if (staticOut) {
     return staticOut.map((name) => ({ name, type: name === 'headers' ? 'object' : 'string' }));

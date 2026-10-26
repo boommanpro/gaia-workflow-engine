@@ -39,9 +39,15 @@ public class CodeNodeParser extends BaseNodeParser<CodeNode> {
         if (isJavaScript(scriptLanguage)) {
             // JavaScript（含 null/jsReturn/javascript/js）统一走 GraalJS 引擎
             codeNode = new JsFunExecNode(scriptContent);
-        } else {
-            // 其他语言（java/groovy）使用 DynamicCompileNode 动态编译
+        } else if ("java".equalsIgnoreCase(scriptLanguage) || "groovy".equalsIgnoreCase(scriptLanguage)) {
+            // java/groovy 使用 DynamicCompileNode 动态编译
             codeNode = new DynamicCompileNode(scriptContent, scriptLanguage);
+        } else {
+            // 2026-10-24 起未知语言 parse 期即报（此前放行到运行期才炸，错误暴露太晚；
+            // python 等未接入的语言曾因此「过校验、运行必失败」）
+            throw new IllegalArgumentException("节点 " + nodeJSONObject.getStr("id")
+                + "（code）的 script.language \"" + scriptLanguage + "\" 不受支持，"
+                + "只支持 javascript / js / jsReturn / java / groovy");
         }
 
         // 使用通用工具类解析参数
@@ -77,6 +83,11 @@ public class CodeNodeParser extends BaseNodeParser<CodeNode> {
         List<Parameter> parameters = new ArrayList<>();
 
         for (Map.Entry<String, Object> entry : schemaObject.entrySet()) {
+            if (!(entry.getValue() instanceof JSONObject)) {
+                // 声明值不是对象是配置错误（此前直接强转 ClassCastException）
+                throw new IllegalArgumentException("参数声明 " + entry.getKey()
+                    + " 必须是对象，实际是: " + entry.getValue().getClass().getSimpleName());
+            }
             JSONObject paramJson = (JSONObject) entry.getValue();
             String key = entry.getKey();
             Parameter parameter = new Parameter();

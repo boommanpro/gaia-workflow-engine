@@ -17,7 +17,7 @@ class SessionDraftGetOrCreateTest {
     @Test
     @DisplayName("空会话首个 add_node 后，get/getNode/get_canvas 视角必须可见")
     void firstAddNodeIsVisible() {
-        SessionWorkflowDraftService service = new SessionWorkflowDraftService(new SessionArtifactStore(org.mockito.Mockito.mock(AgentArtifactService.class), null), org.mockito.Mockito.mock(SessionWorkflowStore.class));
+        SessionWorkflowDraftService service = new SessionWorkflowDraftService(new SessionArtifactStore(org.mockito.Mockito.mock(AgentArtifactService.class), null), org.mockito.Mockito.mock(SessionWorkflowStore.class), new SessionEventBus());
         JSONObject result = service.addNode("s-orphan", new JSONObject()
             .set("type", "start")
             .set("title", "开始"));
@@ -32,7 +32,7 @@ class SessionDraftGetOrCreateTest {
     @Test
     @DisplayName("后续 connect/remove 等操作在同一草稿上持续生效")
     void subsequentOpsShareDraft() {
-        SessionWorkflowDraftService service = new SessionWorkflowDraftService(new SessionArtifactStore(org.mockito.Mockito.mock(AgentArtifactService.class), null), org.mockito.Mockito.mock(SessionWorkflowStore.class));
+        SessionWorkflowDraftService service = new SessionWorkflowDraftService(new SessionArtifactStore(org.mockito.Mockito.mock(AgentArtifactService.class), null), org.mockito.Mockito.mock(SessionWorkflowStore.class), new SessionEventBus());
         JSONObject n1 = service.addNode("s-share", new JSONObject().set("type", "start"));
         JSONObject n2 = service.addNode("s-share", new JSONObject().set("type", "end"));
         service.connect("s-share", new JSONObject()

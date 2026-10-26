@@ -1,0 +1,374 @@
+{
+  "caseId": "C21",
+  "sessionKey": "79e48c42b5394d7384e5cabccaea9860",
+  "elapsedSec": 79,
+  "turns": [
+    {
+      "utterance": "做个提取器：输入一段话，输出里面出现的姓名和城市两个字段，结构化输出。哦对，让它结果里顺便带一句不超过十个字的吉祥话。",
+      "runStatus": "done",
+      "asksAnswered": [],
+      "lastAssistant": "两个问题需要修正：1) `outputMode` 不能放在 `inputsValues` 里；2) `start_1` 的输入字段是 `input` 不是 `text`。\n\n`outputMode` 还在 `inputsValues` 里残留。先看下当前配置：\n\n看到了，`outputMode` 还在 `inputsValues` 里，且 `outputs` 还是默认的 `{result}`。需要把 `outputMode` 移到顶层，并更新 `outputs` 和 `prompt` 引用。\n\n深合并时 `outputMode` 还在旧的 `inputsValues` 里残留。需要把 `inputsValues` 整体替换掉：\n\n看起来 `outputMode` 在旧数据里作为 `inputsValues` 的子字段残留，深合并时无法移除。需要把 `outputMode` 从 `inputsValues` 中清除。让我先看看完整的 data 结构：\n\n`outputMode` 在 `inputsValues` 里一直报错。根据 schema，`outputMode` 是 `llm` 节点的顶层字段，不在 `inputsValues` 里。但深合并时旧数据里的 `outputMode` 还在 `inputsValues` 中。让我把 `inputsValues` 里的 `outputMode` 显式设为空来清除：\n\n需要换个做法。先删掉 llm_1，重新创建一个干净的节点。\n\n现在重新创建 llm 节点，把 `outputMode` 放在顶层，`inputsValues` 里不包含它：\n\n节点创建成功，无警告。现在接线：start_1 → llm_2 → end_1。\n\n现在配置 end_1 的输出引用，把 llm_2 提取的 name、city、blessing 映射到 end 输出：\n\n现在整流试跑，用两组输入验证：\n\n第一组通过。再跑一组反向输入（无姓名无城市）：\n\n两组都跑通了。沉淀一个测试用例：\n\n✅ 提取器已完成，草稿验证通过。\n\n**工作流结构：**\n- `start_1`（输入 `input`）→ `llm_2`（LLM 信息提取）→ `end_1`（输出）\n\n**功能：**\n- 输入一段文本，自动提取其中的**姓名**和**城市**\n- 未找到时填 `\"未知\"`\n- 额外生成一句**不超过10字的吉祥话**\n- 输出为结构化 JSON：`{ name, city, blessing }`\n\n**验证结果：**\n- ✅ 有数据场景：`\"张三昨天从北京来到上海出差\"` → `name: \"张三\"`, `city: \"上海\"`, `blessing: \"一路顺风\"`\n- ✅ 无数据场景：`\"今天天气不错\"` → `name: \"未知\"`, `city: \"未知\"`, `blessing: \"出门遇好运\"`\n- 2 个测试用例全部通过\n\n请**保存为版本**以生效。"
+    }
+  ],
+  "pass": true,
+  "checks": [
+    {
+      "case": "C21",
+      "name": "存在 llm 节点",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "case": "C21",
+      "name": "结构化输出可用（或带原始文本）",
+      "pass": true,
+      "detail": "{\"city\":\"未知\",\"name\":\"未知\",\"blessing\":\"吉祥如意\"}"
+    }
+  ],
+  "doc": {
+    "edges": [
+      {
+        "sourceNodeID": "start_1",
+        "targetNodeID": "llm_2"
+      },
+      {
+        "sourceNodeID": "llm_2",
+        "targetNodeID": "end_1"
+      }
+    ],
+    "version": 8,
+    "nodes": [
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "input": {
+                "type": "string",
+                "default": ""
+              }
+            }
+          },
+          "title": "开始"
+        },
+        "type": "start",
+        "meta": {
+          "position": {
+            "x": 180,
+            "y": 180
+          }
+        },
+        "id": "start_1"
+      },
+      {
+        "data": {
+          "inputsValues": {
+            "city": {
+              "type": "ref",
+              "content": [
+                "llm_2",
+                "city"
+              ]
+            },
+            "name": {
+              "type": "ref",
+              "content": [
+                "llm_2",
+                "name"
+              ]
+            },
+            "blessing": {
+              "type": "ref",
+              "content": [
+                "llm_2",
+                "blessing"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "city": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "blessing": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "结束"
+        },
+        "type": "end",
+        "meta": {
+          "position": {
+            "x": 820,
+            "y": 180
+          }
+        },
+        "id": "end_1"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "city": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "blessing": {
+                "type": "string"
+              }
+            }
+          },
+          "inputsValues": {
+            "apiKey": {
+              "type": "constant",
+              "content": "sk-REDACTED"
+            },
+            "apiHost": {
+              "type": "constant",
+              "content": "https://www.dmxapi.cn/v1"
+            },
+            "modelName": {
+              "type": "constant",
+              "content": "glm-4-flash"
+            },
+            "systemPrompt": {
+              "type": "template",
+              "content": "你是一个信息提取助手，擅长从文本中提取结构化信息。"
+            },
+            "temperature": {
+              "type": "constant",
+              "content": 0.3
+            },
+            "prompt": {
+              "type": "template",
+              "content": "你是一个信息提取助手。请从以下文本中提取姓名和城市，并生成一句不超过10个字的吉祥话。\n\n要求：\n1. 只输出 JSON 对象，不要输出任何其他文字\n2. 如果文本中没有找到姓名，name 字段填 \"未知\"\n3. 如果文本中没有找到城市，city 字段填 \"未知\"\n4. blessing 字段生成一句不超过10个字的吉祥话\n\n请输出如下格式的 JSON：\n{\"name\": \"提取到的姓名或未知\", \"city\": \"提取到的城市或未知\", \"blessing\": \"吉祥话\"}\n\n文本：{{start_1.input}}"
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "required": [
+              "prompt"
+            ],
+            "properties": {
+              "apiKey": {
+                "description": "运行时由平台自动注入，可不填",
+                "type": "string"
+              },
+              "apiHost": {
+                "description": "运行时由平台自动注入，可不填",
+                "type": "string"
+              },
+              "modelName": {
+                "description": "运行时由平台自动注入，可不填",
+                "type": "string"
+              },
+              "systemPrompt": {
+                "type": "string",
+                "extra": {
+                  "formComponent": "prompt-editor"
+                }
+              },
+              "temperature": {
+                "description": "0-2，缺省按平台默认",
+                "type": "number"
+              },
+              "prompt": {
+                "type": "string",
+                "extra": {
+                  "formComponent": "prompt-editor"
+                }
+              }
+            }
+          },
+          "outputMode": "json",
+          "title": "信息提取"
+        },
+        "type": "llm",
+        "meta": {
+          "position": {
+            "x": 500,
+            "y": 180
+          }
+        },
+        "id": "llm_2"
+      }
+    ]
+  },
+  "trialRuns": [
+    {
+      "ok": true,
+      "taskId": "44b88f38-b5f3-44ab-ba3a-bc9a008d8e81",
+      "workflowStatus": "success",
+      "outputs": {
+        "city": "未知",
+        "name": "未知",
+        "blessing": "吉祥如意"
+      },
+      "nodes": {
+        "llm_2": {
+          "id": "llm_2",
+          "status": "succeeded",
+          "startTime": 1792943090942,
+          "endTime": 1792943092214,
+          "timeCost": 1272,
+          "snapshots": [
+            {
+              "nodeID": "llm_2",
+              "inputs": {
+                "text": "王五住在上海，麻烦顺便讲个笑话",
+                "start_1": {
+                  "input": ""
+                }
+              },
+              "outputs": {
+                "city": "未知",
+                "name": "未知",
+                "blessing": "吉祥如意"
+              },
+              "data": {
+                "city": "未知",
+                "name": "未知",
+                "blessing": "吉祥如意"
+              },
+              "branch": "",
+              "error": "",
+              "id": "llm_2"
+            }
+          ]
+        },
+        "start_1": {
+          "id": "start_1",
+          "status": "succeeded",
+          "startTime": 1792943090942,
+          "endTime": 1792943090942,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "start_1",
+              "inputs": {
+                "text": "王五住在上海，麻烦顺便讲个笑话"
+              },
+              "outputs": {
+                "input": ""
+              },
+              "data": {
+                "text": "王五住在上海，麻烦顺便讲个笑话"
+              },
+              "branch": "",
+              "error": "",
+              "id": "start_1"
+            }
+          ]
+        },
+        "end_1": {
+          "id": "end_1",
+          "status": "succeeded",
+          "startTime": 1792943092214,
+          "endTime": 1792943092214,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "end_1",
+              "inputs": {
+                "llm_2": {
+                  "city": "未知",
+                  "name": "未知",
+                  "blessing": "吉祥如意"
+                },
+                "text": "王五住在上海，麻烦顺便讲个笑话",
+                "start_1": {
+                  "input": ""
+                }
+              },
+              "outputs": {
+                "city": "未知",
+                "name": "未知",
+                "blessing": "吉祥如意"
+              },
+              "data": {
+                "llm_2": {
+                  "city": "未知",
+                  "name": "未知",
+                  "blessing": "吉祥如意"
+                },
+                "text": "王五住在上海，麻烦顺便讲个笑话",
+                "start_1": {
+                  "input": ""
+                }
+              },
+              "branch": "",
+              "error": "",
+              "id": "end_1"
+            }
+          ]
+        }
+      },
+      "runDetail": {
+        "nodes": [
+          {
+            "id": 244,
+            "runTaskId": "44b88f38-b5f3-44ab-ba3a-bc9a008d8e81",
+            "nodeId": "llm_2",
+            "nodeType": "llm",
+            "title": "信息提取",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"text\":\"王五住在上海，麻烦顺便讲个笑话\",\"start_1\":{\"input\":\"\"}}",
+            "outputJson": "{\"city\":\"未知\",\"name\":\"未知\",\"blessing\":\"吉祥如意\"}",
+            "timeCostMs": 1272,
+            "createdAt": "2026-10-25T23:44:52.253325"
+          },
+          {
+            "id": 245,
+            "runTaskId": "44b88f38-b5f3-44ab-ba3a-bc9a008d8e81",
+            "nodeId": "start_1",
+            "nodeType": "start",
+            "title": "开始",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"text\":\"王五住在上海，麻烦顺便讲个笑话\"}",
+            "outputJson": "{\"input\":\"\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:44:52.253325"
+          },
+          {
+            "id": 246,
+            "runTaskId": "44b88f38-b5f3-44ab-ba3a-bc9a008d8e81",
+            "nodeId": "end_1",
+            "nodeType": "end",
+            "title": "结束",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"llm_2\":{\"city\":\"未知\",\"name\":\"未知\",\"blessing\":\"吉祥如意\"},\"text\":\"王五住在上海，麻烦顺便讲个笑话\",\"start_1\":{\"input\":\"\"}}",
+            "outputJson": "{\"city\":\"未知\",\"name\":\"未知\",\"blessing\":\"吉祥如意\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:44:52.253325"
+          }
+        ],
+        "run": {
+          "id": 64,
+          "taskId": "44b88f38-b5f3-44ab-ba3a-bc9a008d8e81",
+          "workflowCode": null,
+          "status": "success",
+          "errorMessage": null,
+          "inputsJson": "{\"text\":\"王五住在上海，麻烦顺便讲个笑话\"}",
+          "outputsJson": "{\"city\":\"未知\",\"name\":\"未知\",\"blessing\":\"吉祥如意\"}",
+          "nodeCount": 3,
+          "durationMs": 1312,
+          "triggerChannel": "editor",
+          "startedAt": "2026-10-25T23:44:50.941325",
+          "finishedAt": "2026-10-25T23:44:52.253325",
+          "createdAt": "2026-10-25T23:44:52.253325"
+        }
+      }
+    }
+  ]
+}

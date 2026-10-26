@@ -28,10 +28,16 @@ public class StringFormatCodeParser extends BaseNodeParser<StringFormatCode> {
             stringFormatCode.setFormatString(scriptContentObj.toString());
         }
 
-        // 设置语言类型
+        // 设置语言类型；非法值 parse 期即报（此前要等运行期 RuntimeException，错误暴露太晚）
         Object languageObj = nodeJSONObject.getByPath(SCRIPT_LANGUAGE_PATH);
         if (languageObj != null) {
-            stringFormatCode.setLanguage(languageObj.toString());
+            String language = languageObj.toString();
+            if (!"spel-standard".equals(language) && !"spel-vue".equals(language) && !"thymeleaf-text".equals(language)) {
+                throw new IllegalArgumentException("节点 " + nodeJSONObject.getStr("id")
+                    + "（string-format）的 script.language \"" + language + "\" 不受支持，"
+                    + "只支持 spel-standard（${a.b}）/ spel-vue（{{ a.b }}）/ thymeleaf-text（[(${a.b})]）");
+            }
+            stringFormatCode.setLanguage(language);
         }
 
         // 解析输入参数

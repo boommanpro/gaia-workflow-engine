@@ -5,64 +5,104 @@ import cn.hutool.json.JSONObject;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 会话级事件总线 —— 多窗口 / 断线重连的基石。
  *
- * <p>一次后端自治运行的每个事件都会进这里：既追加到「事件缓冲」供后来订阅的窗口回放，
- * 又实时推给当前所有订阅者。这样：</p>
+ * <p>一次后端自治运行的每个事件都会进这里：既分配单调递增的 {@code seq} 追加到
+ * 「事件缓冲」供断线重连按 Last-Event-ID 精确重放，又实时推给当前所有订阅者：</p>
  * <ul>
  *   <li>同时打开多个窗口 → 各自订阅同一会话流，看到完全一致的进展</li>
- *   <li>中途加入 / 刷新页面 → 订阅时先回放最近事件 + 当前运行快照，立即接上</li>
- *   <li>所有窗口都关闭 → 后端运行照常继续，事件落缓冲，下次订阅再回放</li>
+ *   <li>断线重连（带 Last-Event-ID 且缓冲覆盖）→ 精确重放缺失事件，不丢不重</li>
+ *   <li>新窗口 / 缓冲覆盖不到的连接 → 回放「当前运行快照」（run_state，含快照序号）</li>
+ *   <li>所有窗口都关闭 → 后端运行照常继续，事件落缓冲，下次订阅再重放</li>
  * </ul>
  *
- * <p>事件与传输解耦：订阅者只是 {@link Subscriber}，由调用方决定怎么送出
- * （SSE / WebSocket / 轮询快照都可以）。</p>
+ * <p>事件与传输解耦：订阅者只是 {@link Subscriber}（拿到 seq），由调用方决定怎么送出
+ * （{@code SseStreamWriter} 为每个连接提供有界队列 + 独立写出线程，发布永不阻塞）。</p>
  */
 @Slf4j
 @Component
 public class SessionEventBus {
 
-    /** 每个会话保留的最近事件条数（够新窗口「接上进度」即可，历史以 DB 消息为准） */
+    /** 每个会话保留的最近事件条数（够重连窗口「接上进度」即可，历史以 DB 消息为准） */
     private static final int BUFFER_CAP = 500;
 
-    private final ConcurrentMap<String, Channel> channels = new ConcurrentHashMap<>();
+    /** 空闲频道回收：无订阅者且超过该时长无活动的频道整体丢弃（防内存泄漏） */
+    private static final long PRUNE_IDLE_MILLIS = TimeUnit.MINUTES.toMillis(30);
+
+    private final ConcurrentHashMap<String, Channel> channels = new ConcurrentHashMap<>();
 
     /** 可选录制器（agent.dev.record-events-dir 配置后装配）；录制失败不影响主链路 */
     private volatile SessionEventRecorder recorder;
+
+    /** 频道回收调度器（守护线程，低频） */
+    private ScheduledExecutorService pruner;
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     public void setEventRecorder(SessionEventRecorder recorder) {
         this.recorder = recorder;
     }
 
+    @PostConstruct
+    public void start() {
+        pruner = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "event-bus-pruner");
+            t.setDaemon(true);
+            return t;
+        });
+        pruner.scheduleWithFixedDelay(() -> {
+            try {
+                pruneIdle(PRUNE_IDLE_MILLIS);
+            } catch (Exception e) {
+                log.debug("[event-bus] prune failed (ignored): {}", e.getMessage());
+            }
+        }, 5, 5, TimeUnit.MINUTES);
+    }
+
+    @PreDestroy
+    public void stop() {
+        if (pruner != null) {
+            pruner.shutdownNow();
+        }
+    }
+
     /** 订阅者：返回 false 表示连接已失效，总线会将其移除 */
     public interface Subscriber {
-        boolean send(String type, JSONObject data);
+        boolean send(long seq, String type, JSONObject data);
     }
 
     /** 缓冲中的一条事件 */
     private static final class BufferedEvent {
+        final long seq;
         final String type;
         final JSONObject data;
 
-        BufferedEvent(String type, JSONObject data) {
+        BufferedEvent(long seq, String type, JSONObject data) {
+            this.seq = seq;
             this.type = type;
             this.data = data;
         }
     }
 
-    /** 一个会话的独立频道 */
+    /** 一个会话的独立频道（seq 分配 / 快照 / 缓冲的全部变更都在 channel 锁内完成） */
     private static final class Channel {
         final String key;
         final CopyOnWriteArrayList<Subscriber> subscribers = new CopyOnWriteArrayList<>();
-        final List<BufferedEvent> buffer = new ArrayList<>();
+        /** 事件缓冲（含 seq）；队列首元素即最旧保留事件 */
+        final ArrayDeque<BufferedEvent> buffer = new ArrayDeque<>();
+        /** 已分配的最大事件序号（0 = 尚无事件） */
+        long seq = 0;
         volatile JSONObject latestState = new JSONObject().set("status", "idle");
         volatile long lastActiveAt = System.currentTimeMillis();
 
@@ -74,8 +114,8 @@ public class SessionEventBus {
     // ---------------- 发布 ----------------
 
     /**
-     * 发布一条事件：更新运行快照 → 入缓冲 → 广播给所有订阅者。
-     * 运行快照让新订阅者无需重放整段 token 流，直接拿到当前画面。
+     * 发布一条事件：分配 seq → 更新运行快照 → 入缓冲 → 广播给所有订阅者。
+     * 订阅者的 send 只是入队（见 SseStreamWriter），本方法不会因慢客户端而阻塞。
      */
     public void publish(String sessionKey, String type, JSONObject data) {
         if (sessionKey == null || sessionKey.isEmpty() || type == null) {
@@ -83,17 +123,16 @@ public class SessionEventBus {
         }
         Channel channel = channel(sessionKey);
         channel.lastActiveAt = System.currentTimeMillis();
-        // 快照与缓冲的写入串行化：run 线程与 controller 线程（startRun/stop）会并发发布
+        long seq;
         synchronized (channel) {
+            seq = ++channel.seq;
             applyToSnapshot(channel, type, data);
-            synchronized (channel.buffer) {
-                channel.buffer.add(new BufferedEvent(type, data));
-                if (channel.buffer.size() > BUFFER_CAP) {
-                    channel.buffer.remove(0);
-                }
+            channel.buffer.addLast(new BufferedEvent(seq, type, data));
+            while (channel.buffer.size() > BUFFER_CAP) {
+                channel.buffer.removeFirst();
             }
         }
-        broadcast(channel, type, data);
+        broadcast(channel, seq, type, data);
         SessionEventRecorder sink = recorder;
         if (sink != null) {
             try {
@@ -105,17 +144,21 @@ public class SessionEventBus {
     }
 
     /**
-     * 直接设置会话运行快照（不追加事件到缓冲，也不作为普通事件广播给后来者）。
-     * 用于 run 开始 / 结束等状态跃迁。
+     * 直接设置会话运行快照（不作为普通事件入缓冲）。用于 run 开始 / 结束等状态跃迁；
+     * 广播时同样分配 seq，前端按 seq 单调性对齐现场。
      */
     public void setState(String sessionKey, JSONObject state) {
-        if (sessionKey == null || sessionKey.isEmpty()) {
+        if (sessionKey == null || sessionKey.isEmpty() || state == null) {
             return;
         }
         Channel channel = channel(sessionKey);
-        channel.latestState = state;
         channel.lastActiveAt = System.currentTimeMillis();
-        broadcast(channel, "run_state", state);
+        long seq;
+        synchronized (channel) {
+            seq = ++channel.seq;
+            channel.latestState = state;
+        }
+        broadcast(channel, seq, "run_state", state);
     }
 
     /** 读取当前快照（轮询兜底 / 初始渲染用） */
@@ -139,24 +182,58 @@ public class SessionEventBus {
     // ---------------- 订阅 ----------------
 
     /**
-     * 订阅一个会话的事件流。
+     * 订阅一个会话的事件流（带断线续传）。
      *
-     * <p>订阅建立时只回放「当前运行快照」（run_state）：
-     * 历史消息由前端从 DB 重新加载，中间过程（token / tool_call）由快照
-     * 直接给出当前画面，避免重放整段事件造成重复渲染。订阅建立后的实时事件照常推送。</p>
+     * <p>连接语义按 {@code lastEventId} 分两档：</p>
+     * <ul>
+     *   <li><b>重连且缓冲覆盖</b>（lastEventId &ge; 缓冲最旧 seq - 1）：
+     *       精确重放 seq &gt; lastEventId 的缓冲事件 —— 前端按 seq 去重，不丢不重；</li>
+     *   <li><b>新窗口 / 缓冲覆盖不到</b>：回放一条 run_state 快照（内嵌当前 seq），
+     *       历史消息由前端从 DB 加载，中间过程（token / tool_call）由快照直接给出当前画面。</li>
+     * </ul>
+     *
+     * <p>初始帧的投递与订阅注册同在 channel 锁内完成，保证与后续实时事件严格有序。</p>
      *
      * @return 取消订阅的句柄
      */
-    public Runnable subscribe(String sessionKey, Subscriber subscriber) {
+    public Runnable subscribe(String sessionKey, Long lastEventId, Subscriber subscriber) {
         if (sessionKey == null || sessionKey.isEmpty() || subscriber == null) {
             return () -> { };
         }
         Channel channel = channel(sessionKey);
-        // 回放快照（让订阅者立刻知道此刻进行到哪一步）
-        if (!subscriber.send("run_state", channel.latestState)) {
-            return () -> { };
+        List<BufferedEvent> replay = null;
+        JSONObject snapshot = null;
+        synchronized (channel) {
+            if (lastEventId != null && !channel.buffer.isEmpty()
+                && channel.buffer.peekFirst().seq <= lastEventId + 1) {
+                replay = new ArrayList<>();
+                for (BufferedEvent event : channel.buffer) {
+                    if (event.seq > lastEventId) {
+                        replay.add(event);
+                    }
+                }
+            } else {
+                // 快照带当前 seq：前端据此校准续传游标（后续事件 seq 必然更大）
+                snapshot = new JSONObject(channel.latestState.toString());
+            }
+            channel.subscribers.add(subscriber);
+            // 仍在锁内投递初始帧：实时广播无法插队，帧序严格单调
+            boolean alive = true;
+            if (snapshot != null) {
+                alive = subscriber.send(channel.seq, "run_state", snapshot);
+            } else {
+                for (BufferedEvent event : replay) {
+                    if (!subscriber.send(event.seq, event.type, event.data)) {
+                        alive = false;
+                        break;
+                    }
+                }
+            }
+            if (!alive) {
+                channel.subscribers.remove(subscriber);
+                return () -> { };
+            }
         }
-        channel.subscribers.add(subscriber);
         return () -> channel.subscribers.remove(subscriber);
     }
 
@@ -171,7 +248,7 @@ public class SessionEventBus {
         }
     }
 
-    /** 惰性清掉「无订阅 + 长时间无活动」的空频道，避免内存泄漏 */
+    /** 清掉「无订阅 + 长时间无活动」的空频道，避免内存泄漏 */
     public void pruneIdle(long idleMillis) {
         long now = System.currentTimeMillis();
         channels.forEach((key, channel) -> {
@@ -187,9 +264,9 @@ public class SessionEventBus {
         return channels.computeIfAbsent(sessionKey, Channel::new);
     }
 
-    private void broadcast(Channel channel, String type, JSONObject data) {
+    private void broadcast(Channel channel, long seq, String type, JSONObject data) {
         for (Subscriber subscriber : channel.subscribers) {
-            if (!subscriber.send(type, data)) {
+            if (!subscriber.send(seq, type, data)) {
                 channel.subscribers.remove(subscriber);
             }
         }
@@ -329,6 +406,14 @@ public class SessionEventBus {
                 }
                 break;
             }
+            case "document": {
+                // 画布版本反哺快照：新窗口据此知道自己手里的 doc 版本是否落后
+                Long version = data.getLong("version");
+                if (version != null) {
+                    state.set("docVersion", version);
+                }
+                break;
+            }
             case "done":
                 state.set("status", "done");
                 state.set("phase", "done");
@@ -375,7 +460,7 @@ public class SessionEventBus {
                 break;
             }
             default:
-                // document / ui_action / plan 等不影响运行快照，只进缓冲与实时广播
+                // ui_action / plan 等不影响运行快照，只进缓冲与实时广播
                 break;
         }
     }

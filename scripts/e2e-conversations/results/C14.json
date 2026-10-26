@@ -1,0 +1,1174 @@
+{
+  "caseId": "C14",
+  "sessionKey": "908359effb034714846d73b0a85c4e5a",
+  "elapsedSec": 226,
+  "turns": [
+    {
+      "utterance": "做个成绩小助手：输入一个 0 到 100 的分数，60 分及以上输出“及格”，否则输出“不及格”，并附上分数本身。",
+      "runStatus": "done",
+      "asksAnswered": [],
+      "lastAssistant": "先确认 start_1 的输入字段名，然后修正 condition 配置。\n\nstart_1 的输入字段叫 `input`。我需要先修改 start_1 的 outputs 字段名为 `score`，然后修正 condition 的引用。\n\n现在修正 condition_1 的引用，并添加 string-format 节点和连线。\n\ncondition 的 schema 不允许 outputs 字段。先删掉 condition_1，重新添加。\n\nconnect 的 to 用了节点自己的 id 导致自环。需要改用 edge 来连线。先配置 condition_1，再逐个配置 string-format，最后连线到 end_1。\n\n现在配置 string-format 节点。先查一下 string-format 的 schema。\n\n现在配置四个 string-format 节点，然后连线到 end_1。\n\n现在需要把四个 string-format 节点都连到 end_1。但 end_1 只能接受一个输入。我需要用 variable 节点来汇聚，或者用 branches 节点。更简单的方式：用一个 variable 节点来接收所有分支的结果。\n\n实际上，更简洁的方案是：四个分支都指向同一个 variable 节点，用 branches 做汇聚。但 branches 是用于多路分支的。让我换个思路——用一个 variable 节点，让四个 string-format 都输出到它，end_1 引用这个 variable。\n\n不过 variable 节点一次只能存一个值。最简单的方案：四个分支都连到 end_1，end_1 用 condition 的 pass/fail 布尔值来区分。但这样无法传递字符串。\n\n让我用 code 节点来汇聚：\n\n用 edge 来连线。\n\n现在需要把四个 variable 节点汇聚到一个输出。用一个 code 节点来取最后一个非空值，或者更简单：用一个 code 节点，通过 condition 的布尔值来判断哪个分支命中。\n\n让我换个更简洁的方案：用一个 code 节点，接收 condition 的四个布尔输出，根据哪个为 true 来返回对应的 string-format 结果。\n\n现在需要把 condition_1 的布尔输出和四个 variable 的值都传给 code_2。\n\n等等，condition 的 pass 端口应该只连到 sf_pass，现在又连到 code_2 了。让我理清逻辑：condition 的每个 key 端口只能连一个下游。所以 pass 端口连 sf_pass，然后 sf_pass → var_1，最后 var_1 → code_2。\n\n让我重新连线：\n\n现在配置 end_1，引用 code_2 的结果。\n\n现在需要确认 code_2 能正确引用到 var_1/2/3/4 的 value 字段。先查 code_2 的可引用变量。\n\nvar_1/2/3/4 没有出现在上游变量中，说明 code_2 没有直接引用到它们。这是因为 code_2 的入边是从 var_1 来的，但 code_2 的 inputs 需要声明。让我检查 code_2 的 inputs 配置。\n\n实际上，code 节点的 script 中可以直接用节点 id 访问其输出。但 var_1 的输出字段名是什么？让我查一下 variable 节点的 outputs。\n\nvariable 节点需要配置 assign 来声明变量。让我"
+    },
+    {
+      "utterance": "这个流程搭好了，帮我在关键步骤旁边加上说明注释（比如为什么以 60 分为界），让同事打开画布能看懂。另外我想确认：加了注释之后，流程运行会不会受影响？",
+      "runStatus": "done",
+      "asksAnswered": [],
+      "lastAssistant": "注释节点不影响流程运行，我来添加。\n\ncomment 节点只有 `title` 字段，内容直接写在 title 里。\n\n现在验证一下加了注释后流程是否正常运行：\n\n注释节点导致连线异常。检查 comment_1 的连线：\n\n问题找到了：`start_1 → comment_1` 这条连线导致引擎尝试把 comment_1 当作执行节点。comment_1 没有出边，引擎找不到 downstreamNode。删掉这条连线：\n\n再跑不及格和边界用例确认：\n\n全部通过。总结一下：\n\n**已完成：**\n- 添加了两个注释节点：\n  - `comment_1`：说明 60 分作为及格线的依据（中国教育体系通用标准）\n  - `comment_2`：说明 0-100 范围外为无效输入的处理逻辑\n- 注释节点不参与执行，不影响流程运行\n\n**验证结果：**\n- 80分 → \"80分，及格\" ✓\n- 40分 → \"40分，不及格\" ✓\n- -5分 → \"-5分，低于0分，无效\" ✓\n- 105分 → \"105分，超过100分，无效\" ✓\n\n**关于注释对流程的影响：**\n- comment 节点本身不参与执行，不会增加运行时开销\n- 唯一需要注意的是：如果给 comment 节点加了入边/出边，引擎会尝试把它当作执行节点。如果 comment 没有出边，会导致 `downstreamNode is null` 错误。当前已修复（删除了 `start_1 → comment_1` 的连线），流程正常运行。\n\n建议保存为版本。"
+    }
+  ],
+  "pass": true,
+  "checks": [
+    {
+      "case": "C14",
+      "name": "添加了 comment 节点",
+      "pass": true,
+      "detail": "comment 数量=2"
+    },
+    {
+      "case": "C14",
+      "name": "注释有内容",
+      "pass": true,
+      "detail": "[\"60分是中国教育体系通用的及格线。根据《国家学生体质健康标准》和教育部相关规定，60分及以上为及格，低于60分为不及格。这个阈值广泛应用于各类考试和评估中。\",\"分数必须在0-100范围内。低于0分或超过100分都属于无效输入，会分别提示具体原因。\"]"
+    },
+    {
+      "case": "C14",
+      "name": "业务结构仍在",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "case": "C14",
+      "name": "加注释后试运行成功",
+      "pass": true,
+      "detail": "status=success"
+    },
+    {
+      "case": "C14",
+      "name": "85 输出及格",
+      "pass": true,
+      "detail": "{\"result\":\"85分，及格\"}"
+    }
+  ],
+  "doc": {
+    "edges": [
+      {
+        "sourceNodeID": "start_1",
+        "targetNodeID": "condition_1"
+      },
+      {
+        "sourceNodeID": "condition_1",
+        "sourcePortID": "pass",
+        "targetNodeID": "code_2"
+      },
+      {
+        "sourceNodeID": "var_1",
+        "targetNodeID": "code_2"
+      },
+      {
+        "sourceNodeID": "var_2",
+        "targetNodeID": "code_2"
+      },
+      {
+        "sourceNodeID": "var_3",
+        "targetNodeID": "code_2"
+      },
+      {
+        "sourceNodeID": "var_4",
+        "targetNodeID": "code_2"
+      },
+      {
+        "sourceNodeID": "condition_1",
+        "sourcePortID": "fail",
+        "targetNodeID": "code_2"
+      },
+      {
+        "sourceNodeID": "condition_1",
+        "sourcePortID": "invalid",
+        "targetNodeID": "code_2"
+      },
+      {
+        "sourceNodeID": "condition_1",
+        "sourcePortID": "invalid2",
+        "targetNodeID": "code_2"
+      },
+      {
+        "sourceNodeID": "code_2",
+        "targetNodeID": "end_1"
+      },
+      {
+        "sourceNodeID": "condition_1",
+        "sourcePortID": "pass",
+        "targetNodeID": "code_3"
+      },
+      {
+        "sourceNodeID": "condition_1",
+        "sourcePortID": "fail",
+        "targetNodeID": "code_4"
+      },
+      {
+        "sourceNodeID": "condition_1",
+        "sourcePortID": "invalid",
+        "targetNodeID": "code_5"
+      },
+      {
+        "sourceNodeID": "condition_1",
+        "sourcePortID": "invalid2",
+        "targetNodeID": "code_6"
+      }
+    ],
+    "version": 55,
+    "nodes": [
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "input": {
+                "description": "input",
+                "type": "string",
+                "default": ""
+              },
+              "score": {
+                "description": "score",
+                "type": "string",
+                "default": "0"
+              }
+            }
+          },
+          "title": "开始"
+        },
+        "type": "start",
+        "meta": {
+          "position": {
+            "x": 180,
+            "y": 180
+          }
+        },
+        "id": "start_1"
+      },
+      {
+        "data": {
+          "inputsValues": {
+            "result": {
+              "type": "ref",
+              "content": [
+                "code_2",
+                "result"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "result": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "结束"
+        },
+        "type": "end",
+        "meta": {
+          "position": {
+            "x": 500,
+            "y": 180
+          }
+        },
+        "id": "end_1"
+      },
+      {
+        "data": {
+          "title": "成绩判断",
+          "conditions": [
+            {
+              "value": {
+                "right": {
+                  "type": "constant",
+                  "content": 0
+                },
+                "operator": "lt",
+                "left": {
+                  "type": "ref",
+                  "content": [
+                    "start_1",
+                    "score"
+                  ]
+                }
+              },
+              "key": "invalid"
+            },
+            {
+              "value": {
+                "right": {
+                  "type": "constant",
+                  "content": 100
+                },
+                "operator": "gt",
+                "left": {
+                  "type": "ref",
+                  "content": [
+                    "start_1",
+                    "score"
+                  ]
+                }
+              },
+              "key": "invalid2"
+            },
+            {
+              "value": {
+                "right": {
+                  "type": "constant",
+                  "content": 60
+                },
+                "operator": "gte",
+                "left": {
+                  "type": "ref",
+                  "content": [
+                    "start_1",
+                    "score"
+                  ]
+                }
+              },
+              "key": "pass"
+            },
+            {
+              "value": {
+                "right": {
+                  "type": "constant",
+                  "content": 60
+                },
+                "operator": "lt",
+                "left": {
+                  "type": "ref",
+                  "content": [
+                    "start_1",
+                    "score"
+                  ]
+                }
+              },
+              "key": "fail"
+            }
+          ]
+        },
+        "type": "condition",
+        "meta": {
+          "position": {
+            "x": 500,
+            "y": 380
+          }
+        },
+        "id": "condition_1"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "result": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "结果汇聚",
+          "assign": [
+            {
+              "right": {
+                "type": "ref",
+                "content": [
+                  "code_3",
+                  "result"
+                ]
+              },
+              "operator": "declare",
+              "left": "result"
+            }
+          ]
+        },
+        "type": "variable",
+        "meta": {
+          "position": {
+            "x": 1140,
+            "y": 380
+          }
+        },
+        "id": "var_1"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "result": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "结果汇聚2",
+          "assign": [
+            {
+              "right": {
+                "type": "ref",
+                "content": [
+                  "code_4",
+                  "result"
+                ]
+              },
+              "operator": "declare",
+              "left": "result"
+            }
+          ]
+        },
+        "type": "variable",
+        "meta": {
+          "position": {
+            "x": 1140,
+            "y": 580
+          }
+        },
+        "id": "var_2"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "result": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "结果汇聚3",
+          "assign": [
+            {
+              "right": {
+                "type": "ref",
+                "content": [
+                  "code_5",
+                  "result"
+                ]
+              },
+              "operator": "declare",
+              "left": "result"
+            }
+          ]
+        },
+        "type": "variable",
+        "meta": {
+          "position": {
+            "x": 1140,
+            "y": 780
+          }
+        },
+        "id": "var_3"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "result": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "结果汇聚4",
+          "assign": [
+            {
+              "right": {
+                "type": "ref",
+                "content": [
+                  "code_6",
+                  "result"
+                ]
+              },
+              "operator": "declare",
+              "left": "result"
+            }
+          ]
+        },
+        "type": "variable",
+        "meta": {
+          "position": {
+            "x": 1140,
+            "y": 980
+          }
+        },
+        "id": "var_4"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "result": {
+                "type": "string"
+              }
+            }
+          },
+          "inputsValues": {
+            "invalid2Result": {
+              "type": "ref",
+              "content": [
+                "code_6",
+                "result"
+              ]
+            },
+            "pass": {
+              "type": "ref",
+              "content": [
+                "condition_1",
+                "pass"
+              ]
+            },
+            "fail": {
+              "type": "ref",
+              "content": [
+                "condition_1",
+                "fail"
+              ]
+            },
+            "invalid2": {
+              "type": "ref",
+              "content": [
+                "condition_1",
+                "invalid2"
+              ]
+            },
+            "invalid": {
+              "type": "ref",
+              "content": [
+                "condition_1",
+                "invalid"
+              ]
+            },
+            "passResult": {
+              "type": "ref",
+              "content": [
+                "code_3",
+                "result"
+              ]
+            },
+            "invalidResult": {
+              "type": "ref",
+              "content": [
+                "code_5",
+                "result"
+              ]
+            },
+            "failResult": {
+              "type": "ref",
+              "content": [
+                "code_4",
+                "result"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "invalid2Result": {
+                "type": "string"
+              },
+              "pass": {
+                "type": "boolean"
+              },
+              "fail": {
+                "type": "boolean"
+              },
+              "invalid2": {
+                "type": "boolean"
+              },
+              "invalid": {
+                "type": "boolean"
+              },
+              "passResult": {
+                "type": "string"
+              },
+              "invalidResult": {
+                "type": "string"
+              },
+              "failResult": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "结果选择",
+          "script": {
+            "language": "javascript",
+            "content": "const result = inputs.pass ? inputs.passResult : inputs.fail ? inputs.failResult : inputs.invalid ? inputs.invalidResult : inputs.invalid2Result;\n({ result })"
+          }
+        },
+        "type": "code",
+        "meta": {
+          "position": {
+            "x": 1460,
+            "y": 580
+          }
+        },
+        "id": "code_2"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "result": {
+                "type": "string"
+              }
+            }
+          },
+          "inputsValues": {
+            "score": {
+              "type": "ref",
+              "content": [
+                "start_1",
+                "score"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "score": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "及格结果",
+          "script": {
+            "language": "javascript",
+            "content": "({ result: score + '分，及格' })"
+          }
+        },
+        "type": "code",
+        "meta": {
+          "position": {
+            "x": 820,
+            "y": 380
+          }
+        },
+        "id": "code_3"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "result": {
+                "type": "string"
+              }
+            }
+          },
+          "inputsValues": {
+            "score": {
+              "type": "ref",
+              "content": [
+                "start_1",
+                "score"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "score": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "不及格结果",
+          "script": {
+            "language": "javascript",
+            "content": "({ result: score + '分，不及格' })"
+          }
+        },
+        "type": "code",
+        "meta": {
+          "position": {
+            "x": 820,
+            "y": 580
+          }
+        },
+        "id": "code_4"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "result": {
+                "type": "string"
+              }
+            }
+          },
+          "inputsValues": {
+            "score": {
+              "type": "ref",
+              "content": [
+                "start_1",
+                "score"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "score": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "无效结果(低于0)",
+          "script": {
+            "language": "javascript",
+            "content": "({ result: score + '分，低于0分，无效' })"
+          }
+        },
+        "type": "code",
+        "meta": {
+          "position": {
+            "x": 820,
+            "y": 780
+          }
+        },
+        "id": "code_5"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "result": {
+                "type": "string"
+              }
+            }
+          },
+          "inputsValues": {
+            "score": {
+              "type": "ref",
+              "content": [
+                "start_1",
+                "score"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "score": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "无效结果(超过100)",
+          "script": {
+            "language": "javascript",
+            "content": "({ result: score + '分，超过100分，无效' })"
+          }
+        },
+        "type": "code",
+        "meta": {
+          "position": {
+            "x": 820,
+            "y": 980
+          }
+        },
+        "id": "code_6"
+      },
+      {
+        "data": {
+          "title": "60分是中国教育体系通用的及格线。根据《国家学生体质健康标准》和教育部相关规定，60分及以上为及格，低于60分为不及格。这个阈值广泛应用于各类考试和评估中。"
+        },
+        "type": "comment",
+        "meta": {
+          "position": {
+            "x": 500,
+            "y": 580
+          }
+        },
+        "id": "comment_1"
+      },
+      {
+        "data": {
+          "title": "分数必须在0-100范围内。低于0分或超过100分都属于无效输入，会分别提示具体原因。"
+        },
+        "type": "comment",
+        "meta": {
+          "position": {
+            "x": 820,
+            "y": 1180
+          }
+        },
+        "id": "comment_2"
+      }
+    ]
+  },
+  "trialRuns": [
+    {
+      "ok": true,
+      "taskId": "4a4ef06c-5314-462b-83ef-5685a3731c60",
+      "workflowStatus": "success",
+      "outputs": {
+        "result": "85分，及格"
+      },
+      "nodes": {
+        "condition_1": {
+          "id": "condition_1",
+          "status": "succeeded",
+          "startTime": 1792941921642,
+          "endTime": 1792941921642,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "condition_1",
+              "inputs": {
+                "score": 85,
+                "start_1": {
+                  "input": "",
+                  "score": 85
+                }
+              },
+              "outputs": {
+                "pass": true,
+                "invalid2": false,
+                "invalid": false
+              },
+              "data": {
+                "pass": true,
+                "invalid2": false,
+                "invalid": false
+              },
+              "branch": "",
+              "error": "",
+              "id": "condition_1"
+            }
+          ]
+        },
+        "end_1": {
+          "id": "end_1",
+          "status": "succeeded",
+          "startTime": 1792941921646,
+          "endTime": 1792941921649,
+          "timeCost": 3,
+          "snapshots": [
+            {
+              "nodeID": "end_1",
+              "inputs": {
+                "condition_1": {
+                  "pass": true,
+                  "invalid2": false,
+                  "invalid": false
+                },
+                "end_1": {},
+                "var_4": {},
+                "score": 85,
+                "var_1": {},
+                "var_2": {},
+                "var_3": {},
+                "code_2": {},
+                "start_1": {
+                  "input": "",
+                  "score": 85
+                }
+              },
+              "outputs": {},
+              "data": {
+                "condition_1": {
+                  "pass": true,
+                  "invalid2": false,
+                  "invalid": false
+                },
+                "end_1": {},
+                "var_4": {},
+                "score": 85,
+                "var_1": {},
+                "var_2": {},
+                "var_3": {},
+                "code_2": {},
+                "start_1": {
+                  "input": "",
+                  "score": 85
+                }
+              },
+              "branch": "",
+              "error": "",
+              "id": "end_1"
+            }
+          ]
+        },
+        "var_4": {
+          "id": "var_4",
+          "status": "succeeded",
+          "startTime": 1792941921642,
+          "endTime": 1792941921642,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "var_4",
+              "inputs": {},
+              "outputs": {},
+              "data": {},
+              "branch": "",
+              "error": "",
+              "id": "var_4"
+            }
+          ]
+        },
+        "var_1": {
+          "id": "var_1",
+          "status": "succeeded",
+          "startTime": 1792941921642,
+          "endTime": 1792941921642,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "var_1",
+              "inputs": {},
+              "outputs": {},
+              "data": {},
+              "branch": "",
+              "error": "",
+              "id": "var_1"
+            }
+          ]
+        },
+        "var_2": {
+          "id": "var_2",
+          "status": "succeeded",
+          "startTime": 1792941921642,
+          "endTime": 1792941921642,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "var_2",
+              "inputs": {},
+              "outputs": {},
+              "data": {},
+              "branch": "",
+              "error": "",
+              "id": "var_2"
+            }
+          ]
+        },
+        "var_3": {
+          "id": "var_3",
+          "status": "succeeded",
+          "startTime": 1792941921642,
+          "endTime": 1792941921642,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "var_3",
+              "inputs": {},
+              "outputs": {},
+              "data": {},
+              "branch": "",
+              "error": "",
+              "id": "var_3"
+            }
+          ]
+        },
+        "code_4": {
+          "id": "code_4",
+          "status": "canceled",
+          "startTime": 1792941921652,
+          "endTime": 1792941921652,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "code_4",
+              "inputs": {},
+              "outputs": {},
+              "data": {},
+              "branch": "",
+              "error": "",
+              "id": "code_4"
+            }
+          ]
+        },
+        "code_5": {
+          "id": "code_5",
+          "status": "canceled",
+          "startTime": 1792941921652,
+          "endTime": 1792941921652,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "code_5",
+              "inputs": {},
+              "outputs": {},
+              "data": {},
+              "branch": "",
+              "error": "",
+              "id": "code_5"
+            }
+          ]
+        },
+        "code_2": {
+          "id": "code_2",
+          "status": "succeeded",
+          "startTime": 1792941921642,
+          "endTime": 1792941921649,
+          "timeCost": 7,
+          "snapshots": [
+            {
+              "nodeID": "code_2",
+              "inputs": {
+                "pass": true,
+                "invalid2": false,
+                "invalid": false
+              },
+              "outputs": {},
+              "data": {},
+              "branch": "",
+              "error": "",
+              "id": "code_2"
+            }
+          ]
+        },
+        "code_3": {
+          "id": "code_3",
+          "status": "succeeded",
+          "startTime": 1792941921649,
+          "endTime": 1792941921652,
+          "timeCost": 3,
+          "snapshots": [
+            {
+              "nodeID": "code_3",
+              "inputs": {
+                "score": 85
+              },
+              "outputs": {
+                "result": "85分，及格"
+              },
+              "data": {
+                "result": "85分，及格"
+              },
+              "branch": "",
+              "error": "",
+              "id": "code_3"
+            }
+          ]
+        },
+        "code_6": {
+          "id": "code_6",
+          "status": "canceled",
+          "startTime": 1792941921652,
+          "endTime": 1792941921652,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "code_6",
+              "inputs": {},
+              "outputs": {},
+              "data": {},
+              "branch": "",
+              "error": "",
+              "id": "code_6"
+            }
+          ]
+        },
+        "start_1": {
+          "id": "start_1",
+          "status": "succeeded",
+          "startTime": 1792941921642,
+          "endTime": 1792941921642,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "start_1",
+              "inputs": {
+                "score": 85
+              },
+              "outputs": {
+                "input": "",
+                "score": 85
+              },
+              "data": {
+                "score": 85
+              },
+              "branch": "",
+              "error": "",
+              "id": "start_1"
+            }
+          ]
+        }
+      },
+      "runDetail": {
+        "nodes": [
+          {
+            "id": 181,
+            "runTaskId": "4a4ef06c-5314-462b-83ef-5685a3731c60",
+            "nodeId": "condition_1",
+            "nodeType": "condition",
+            "title": "成绩判断",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"score\":85,\"start_1\":{\"input\":\"\",\"score\":85}}",
+            "outputJson": "{\"pass\":true,\"invalid2\":false,\"invalid\":false}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:25:21.702355"
+          },
+          {
+            "id": 182,
+            "runTaskId": "4a4ef06c-5314-462b-83ef-5685a3731c60",
+            "nodeId": "end_1",
+            "nodeType": "end",
+            "title": "结束",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"condition_1\":{\"pass\":true,\"invalid2\":false,\"invalid\":false},\"end_1\":{},\"var_4\":{},\"score\":85,\"var_1\":{},\"var_2\":{},\"var_3\":{},\"code_2\":{},\"start_1\":{\"input\":\"\",\"score\":85}}",
+            "outputJson": "{}",
+            "timeCostMs": 3,
+            "createdAt": "2026-10-25T23:25:21.702355"
+          },
+          {
+            "id": 183,
+            "runTaskId": "4a4ef06c-5314-462b-83ef-5685a3731c60",
+            "nodeId": "var_4",
+            "nodeType": "variable",
+            "title": "结果汇聚4",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{}",
+            "outputJson": "{}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:25:21.702355"
+          },
+          {
+            "id": 184,
+            "runTaskId": "4a4ef06c-5314-462b-83ef-5685a3731c60",
+            "nodeId": "var_1",
+            "nodeType": "variable",
+            "title": "结果汇聚",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{}",
+            "outputJson": "{}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:25:21.702355"
+          },
+          {
+            "id": 185,
+            "runTaskId": "4a4ef06c-5314-462b-83ef-5685a3731c60",
+            "nodeId": "var_2",
+            "nodeType": "variable",
+            "title": "结果汇聚2",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{}",
+            "outputJson": "{}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:25:21.702355"
+          },
+          {
+            "id": 186,
+            "runTaskId": "4a4ef06c-5314-462b-83ef-5685a3731c60",
+            "nodeId": "var_3",
+            "nodeType": "variable",
+            "title": "结果汇聚3",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{}",
+            "outputJson": "{}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:25:21.702355"
+          },
+          {
+            "id": 187,
+            "runTaskId": "4a4ef06c-5314-462b-83ef-5685a3731c60",
+            "nodeId": "code_4",
+            "nodeType": "code",
+            "title": "不及格结果",
+            "status": "canceled",
+            "errorMessage": "",
+            "inputsJson": "{}",
+            "outputJson": "{}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:25:21.702355"
+          },
+          {
+            "id": 188,
+            "runTaskId": "4a4ef06c-5314-462b-83ef-5685a3731c60",
+            "nodeId": "code_5",
+            "nodeType": "code",
+            "title": "无效结果(低于0)",
+            "status": "canceled",
+            "errorMessage": "",
+            "inputsJson": "{}",
+            "outputJson": "{}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:25:21.702355"
+          },
+          {
+            "id": 189,
+            "runTaskId": "4a4ef06c-5314-462b-83ef-5685a3731c60",
+            "nodeId": "code_2",
+            "nodeType": "code",
+            "title": "结果选择",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"pass\":true,\"invalid2\":false,\"invalid\":false}",
+            "outputJson": "{}",
+            "timeCostMs": 7,
+            "createdAt": "2026-10-25T23:25:21.702355"
+          },
+          {
+            "id": 190,
+            "runTaskId": "4a4ef06c-5314-462b-83ef-5685a3731c60",
+            "nodeId": "code_3",
+            "nodeType": "code",
+            "title": "及格结果",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"score\":85}",
+            "outputJson": "{\"result\":\"85分，及格\"}",
+            "timeCostMs": 3,
+            "createdAt": "2026-10-25T23:25:21.702355"
+          },
+          {
+            "id": 191,
+            "runTaskId": "4a4ef06c-5314-462b-83ef-5685a3731c60",
+            "nodeId": "code_6",
+            "nodeType": "code",
+            "title": "无效结果(超过100)",
+            "status": "canceled",
+            "errorMessage": "",
+            "inputsJson": "{}",
+            "outputJson": "{}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:25:21.702355"
+          },
+          {
+            "id": 192,
+            "runTaskId": "4a4ef06c-5314-462b-83ef-5685a3731c60",
+            "nodeId": "start_1",
+            "nodeType": "start",
+            "title": "开始",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"score\":85}",
+            "outputJson": "{\"input\":\"\",\"score\":85}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:25:21.702355"
+          }
+        ],
+        "run": {
+          "id": 50,
+          "taskId": "4a4ef06c-5314-462b-83ef-5685a3731c60",
+          "workflowCode": null,
+          "status": "success",
+          "errorMessage": null,
+          "inputsJson": "{\"score\":85}",
+          "outputsJson": "{\"result\":\"85分，及格\"}",
+          "nodeCount": 12,
+          "durationMs": 61,
+          "triggerChannel": "editor",
+          "startedAt": "2026-10-25T23:25:21.641355",
+          "finishedAt": "2026-10-25T23:25:21.702355",
+          "createdAt": "2026-10-25T23:25:21.702355"
+        }
+      }
+    }
+  ]
+}

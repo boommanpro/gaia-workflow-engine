@@ -60,6 +60,8 @@ public class ChainParser {
 
         // 构建节点依赖关系
         List<ChainEdge> edges = chain.getEdges();
+        // 带端口条件的出边（condition / branches 的互斥路由）：源节点集合
+        Set<String> exclusiveRouters = new HashSet<>();
         if (edges != null) {
             for (ChainEdge edge : edges) {
                 String sourceId = edge.getSource();
@@ -69,6 +71,9 @@ public class ChainParser {
                 nodeDownstreams.computeIfAbsent(sourceId, k -> new HashSet<>()).add(targetId);
                 // 记录上游节点
                 nodeUpstreams.computeIfAbsent(targetId, k -> new HashSet<>()).add(sourceId);
+                if (StrUtil.isNotBlank(edge.getSourcePortID())) {
+                    exclusiveRouters.add(sourceId);
+                }
             }
         }
 
@@ -78,22 +83,24 @@ public class ChainParser {
             throw new IllegalStateException("No start node found in the chain");
         }
 
-        //并发分支的出线不允许进入另一个并发分支
-
-        // 设置并行执行标记并验证多输入节点
-        for (Map.Entry<String, Set<String>> entry : nodeDownstreams.entrySet()) {
-            String nodeId = entry.getKey();
-            Set<String> downstreams = entry.getValue();
-
-            // 如果一个节点有多个下游，将下游节点设置为异步执行
-            if (downstreams.size() > 1) {
-                for (String downstreamId : downstreams) {
-                    ChainNode downstreamNode = nodeMap.get(downstreamId);
-                    if (nodeMap.get(nodeId).isParallel() && downstreamNode.isParallel()) {
-                        throw new RuntimeException("并发分支的出线不允许进入另一个并发分支");
-                    }
-                    downstreamNode.setParallel(true);
+        // 并发分支的出线不允许进入另一个并发分支。
+        // 只针对「无条件多出边」（真正的并发扇出）；condition / branches 的多出边是互斥路由，
+        // 运行期只走一条、汇合点按 ChainDepStatus（任一入边为真即 READY）正常执行——
+        // 2026-10-24 实证：「低风险并入自动分支」这类两个条件节点汇到同一下游的合法拓扑
+        // 被误判为并发交叉，模型反复重连 40 余次无解。按节点声明顺序遍历，裁决不再依赖 HashMap 顺序。
+        for (ChainNode source : nodes) {
+            Set<String> downstreams = nodeDownstreams.get(source.getId());
+            if (downstreams == null || downstreams.size() <= 1 || exclusiveRouters.contains(source.getId())) {
+                continue;
+            }
+            for (String downstreamId : downstreams) {
+                ChainNode downstreamNode = nodeMap.get(downstreamId);
+                if (source.isParallel() && downstreamNode.isParallel()) {
+                    throw new RuntimeException("并发分支的出线不允许进入另一个并发分支（"
+                        + source.getId() + " → " + downstreamId + "）：并行扇出的各分支之间不能交叉连线，"
+                        + "需要汇合时让各分支都连到同一个汇合节点，由它再往下接");
                 }
+                downstreamNode.setParallel(true);
             }
         }
     }

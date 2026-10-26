@@ -6,12 +6,13 @@
  * URL 即状态：会话 key 永远落在地址栏，可收藏、可分享、可前进后退。
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { takeInitialPrompt, peekInitialPrompt } from '../agent/initialPrompt';
 import { Tag } from '@douyinfe/semi-ui';
 import { IconHistory } from '@douyinfe/semi-icons';
 
-import { useAgent } from '../agent/AgentContext';
+import { useAgent, useRunStreaming } from '../agent/AgentContext';
+import { useRuntime } from '../agent/runtime/store';
 import { useLanguage, t } from '../i18n';
 import { useWorkflowDocumentState } from '../document';
 import { TodoCard, extractLatestTodoSteps } from './components/TodoCard';
@@ -20,7 +21,7 @@ import {
   ChatComposer,
   ChatMessageList,
   ChatStyles,
-  ChatWelcome,
+  WelcomeGreeting,
 } from '../chat';
 import { AppShell, AppRail } from '../components/app-shell';
 import { ArtifactPanel } from './artifact/ArtifactPanel';
@@ -30,19 +31,20 @@ import { CanvasHistoryPopover } from './components/CanvasHistoryPopover';
 import { TrajectoryPanel } from './components/TrajectoryPanel';
 import { ModelPicker } from './components/ModelPicker';
 import { StatsPills } from '../chat/StatsPills';
-import { NewTaskSetupPanel } from './components/NewTaskSetupPanel';
+import { NewTaskChips } from './components/NewTaskChips';
 
 export const AiWorkspace: React.FC = () => {
   useLanguage();
   const navigate = useNavigate();
   const { sessionKey: routeSessionKey } = useParams<{ sessionKey?: string }>();
+  // 查询串随路由归一保留：?replay=（回放模式）等参数不能在 /chat → /chat/<key> 时被丢掉，
+  // 否则刷新页面后回放失效、退回真实后端（e2e 刷新一致性场景的前提）
+  const search = useLocation().search;
 
   /** 会话 URL 前缀（统一任务模式只有一套地址空间） */
   const sessionBase = '/chat';
 
   const {
-    messages,
-    streaming,
     sessions,
     currentSessionKey,
     switchSession,
@@ -50,6 +52,8 @@ export const AiWorkspace: React.FC = () => {
     draftSetup,
     updateDraftSetup,
   } = useAgent();
+  const messages = useRuntime((s) => s.messages);
+  const streaming = useRunStreaming();
 
   /** 新任务草稿（draft-）：欢迎页显示「任务设置」面板，首条消息时选项生效 */
   const isNewTaskDraft = currentSessionKey?.startsWith('draft-') || false;
@@ -64,8 +68,11 @@ export const AiWorkspace: React.FC = () => {
   /** 对话区视图（dsh 式：对话 | Trajectory），切会话不重置 —— Trajectory 是查看视角不是会话状态 */
   const [chatView, setChatView] = useState<'chat' | 'trajectory'>('chat');
 
+  // 产物面板默认开合跟随产物有无：AI 产出首个产物自动展开，
+  // 新建任务/切到无产物的会话自动收起；用户手动开过后（toggled）交给用户
   useEffect(() => {
-    if (hasArtifact && !userToggledRef.current) setInspectorOpen(true);
+    if (userToggledRef.current) return;
+    setInspectorOpen(hasArtifact);
   }, [hasArtifact]);
 
   // ---------- 会话与 URL 双向对齐 ----------
@@ -83,16 +90,16 @@ export const AiWorkspace: React.FC = () => {
   useEffect(() => {
     if (routeSessionKey || !currentSessionKey) return;
     if (currentSessionKey.startsWith('draft-')) return;
-    navigate(`${sessionBase}/${currentSessionKey}`, { replace: true });
-  }, [routeSessionKey, currentSessionKey, navigate]);
+    navigate(`${sessionBase}/${currentSessionKey}${search}`, { replace: true });
+  }, [routeSessionKey, currentSessionKey, navigate, search]);
 
   // 草稿路由跟随物化：草稿会话 commit 后，地址栏从 draft-xxx 换成真实 key，
   // 避免浏览器从编辑器「后退」落在一个不存在的草稿地址上，会话恢复错位。
   useEffect(() => {
     if (!routeSessionKey?.startsWith('draft-')) return;
     if (!currentSessionKey || currentSessionKey.startsWith('draft-')) return;
-    navigate(`${sessionBase}/${currentSessionKey}`, { replace: true });
-  }, [routeSessionKey, currentSessionKey, navigate]);
+    navigate(`${sessionBase}/${currentSessionKey}${search}`, { replace: true });
+  }, [routeSessionKey, currentSessionKey, navigate, search]);
 
   // 首页对话入口带过来的「首条消息」：等 URL 落到目标会话后消费一次并自动发送。
   // 依赖只挂 routeSessionKey，避免 sendMessage/messages 变化导致 effect 重跑把定时器清掉；
@@ -116,16 +123,6 @@ export const AiWorkspace: React.FC = () => {
   const currentSession = useMemo(
     () => sessions.find((s) => s.sessionKey === currentSessionKey),
     [sessions, currentSessionKey]
-  );
-
-  const suggestions = useMemo(
-    () => [
-      t('workspace.example1'),
-      t('workspace.example2'),
-      t('workspace.example3'),
-      t('workspace.example4'),
-    ],
-    []
   );
 
   const showWelcome = messages.length === 0 && !streaming;
@@ -174,7 +171,8 @@ export const AiWorkspace: React.FC = () => {
               }}
               title={currentSession?.title}
             >
-              {currentSession?.title || t('workspace.brand')}
+              {currentSession?.title
+                || (isNewTaskDraft ? t('shell.newTask') : t('workspace.brand'))}
             </span>
             {currentSession?.engine === 'ark' && (
               <Tag
@@ -224,8 +222,10 @@ export const AiWorkspace: React.FC = () => {
         inspectorOpen={inspectorOpen}
         onToggleInspector={toggleInspectorFromShell}
       >
-        {/* 消息区：dsh 式视图标签（对话 | Trajectory）——同一会话的两种投影，互斥切换 */}
+        {/* 消息区：dsh 式视图标签（对话 | Trajectory）——同一会话的两种投影，互斥切换。
+            空会话（新建任务欢迎态）没有任何投影可切，不显示标签 */}
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+          {!showWelcome && (
           <div className="ws-view-tabs" role="tablist">
             <style>{`
               .ws-view-tabs { display: flex; gap: 28px; padding: 4px 20px 0; border-bottom: 1px solid var(--g-line); }
@@ -261,22 +261,51 @@ export const AiWorkspace: React.FC = () => {
               {t('trace.view.trajectory')}
             </button>
           </div>
+          )}
           <div style={{ flex: 1, minHeight: 0 }}>
-            {chatView === 'trajectory' ? (
+            {!showWelcome && chatView === 'trajectory' ? (
               <TrajectoryPanel sessionKey={currentSessionKey || undefined} streaming={streaming} />
             ) : showWelcome ? (
+              /* 欢迎态：输入卡是主角，问候在其上；任务选项收敛进卡顶 chips（draft 会话才有） */
               <div className="chat-scroll" style={{ height: '100%', overflowY: 'auto' }}>
-                <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 20px', boxSizing: 'border-box' }}>
-                  {isNewTaskDraft && draftSetup && (
-                    <NewTaskSetupPanel setup={draftSetup} onChange={updateDraftSetup} />
-                  )}
-                  <ChatWelcome
-                    title={t('workspace.greeting')}
-                    description={t('workspace.greetingDesc')}
-                    suggestions={suggestions}
-                    onPick={(text) => void sendMessage(text)}
-                    disabled={streaming || !currentSessionKey}
-                  />
+                <div
+                  style={{
+                    minHeight: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '24px 20px 48px',
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  {/* 大屏自适应：hero 卡随视口伸缩，1080p/2K 上撑满到 1200px，小屏回落 820 */}
+                  <div style={{ width: '100%', maxWidth: 'clamp(820px, 62vw, 1200px)' }}>
+                    <WelcomeGreeting />
+                    <ChatComposer
+                      variant="hero"
+                      maxWidth="clamp(820px, 62vw, 1200px)"
+                      disabled={!currentSessionKey}
+                      placeholder={t('workspace.inputPlaceholder')}
+                      hint={t('workspace.inputHint')}
+                      headerSlot={
+                        isNewTaskDraft && draftSetup ? (
+                          <div style={{ padding: '14px 16px 0' }}>
+                            <NewTaskChips setup={draftSetup} onChange={updateDraftSetup} />
+                          </div>
+                        ) : undefined
+                      }
+                      toolbarSlot={
+                        <>
+                          <StatsPills
+                            sessionKey={currentSessionKey || undefined}
+                            refreshTick={capacityTick}
+                          />
+                          <ModelPicker />
+                        </>
+                      }
+                    />
+                  </div>
                 </div>
               </div>
             ) : (
@@ -291,20 +320,23 @@ export const AiWorkspace: React.FC = () => {
           </div>
         </div>
 
-        <ChatComposer
-          disabled={!currentSessionKey}
-          placeholder={t('workspace.inputPlaceholder')}
-          hint={t('workspace.inputHint')}
-          toolbarSlot={
-            <>
-              <StatsPills
-                sessionKey={currentSessionKey || undefined}
-                refreshTick={capacityTick}
-              />
-              <ModelPicker />
-            </>
-          }
-        />
+        {/* 底部常驻输入：欢迎态已由居中 hero 输入卡承担，不重复渲染 */}
+        {!showWelcome && (
+          <ChatComposer
+            disabled={!currentSessionKey}
+            placeholder={t('workspace.inputPlaceholder')}
+            hint={t('workspace.inputHint')}
+            toolbarSlot={
+              <>
+                <StatsPills
+                  sessionKey={currentSessionKey || undefined}
+                  refreshTick={capacityTick}
+                />
+                <ModelPicker />
+              </>
+            }
+          />
+        )}
       </AppShell>
     </>
   );

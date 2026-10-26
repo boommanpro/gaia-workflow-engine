@@ -1,0 +1,528 @@
+{
+  "caseId": "C06",
+  "sessionKey": "39b6b99a869b46679263afa3ee748100",
+  "elapsedSec": 154,
+  "turns": [
+    {
+      "utterance": "客服每天收到很多工单，我想先自动打标：输入一条工单描述，输出三个东西——情感倾向（positive/neutral/negative）、问题类别（账务/物流/产品/其他）、紧急程度（1-5 的数字）。后面的同事要按这几个标签分派。",
+      "runStatus": "done",
+      "asksAnswered": [],
+      "lastAssistant": "⚠️ 系统护栏：你已连续 5 轮只调用 skill 重复读取同样的内容而没有任何其他操作，本轮执行已被终止以避免空转。\n\n已生效的改动保持有效。下一轮请直接执行计划里的第一步实际操作（node / edge 改结构，test_case / run 验证），不要再整轮重复读取或重复运行；若不知道该做什么，直接向用户说明当前状态并提问。"
+    },
+    {
+      "utterance": "[推动] 请直接按合理假设完成搭建",
+      "runStatus": "done",
+      "asksAnswered": [],
+      "lastAssistant": ""
+    }
+  ],
+  "pass": false,
+  "checks": [
+    {
+      "case": "C06",
+      "name": "存在 llm 节点",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "case": "C06",
+      "name": "outputMode=json",
+      "pass": false,
+      "detail": "outputMode=undefined"
+    },
+    {
+      "case": "C06",
+      "name": "声明了 sentiment/category/紧急度",
+      "pass": false,
+      "detail": "[\"result\"]"
+    },
+    {
+      "case": "C06",
+      "name": "负面工单试运行成功",
+      "pass": true,
+      "detail": "status=success"
+    },
+    {
+      "case": "C06",
+      "name": "负向识别",
+      "pass": false,
+      "detail": "{\"result\":\"```json\\n{\\n  \\\"sentiment\\\": \\\"neutral\\\",\\n  \\\"category\\\": \\\"产品\\\",\\n  \\\"urgency\\\": 3\\n}\\n```\"}"
+    },
+    {
+      "case": "C06",
+      "name": "紧急度为数字",
+      "pass": false,
+      "detail": "[]"
+    },
+    {
+      "case": "C06",
+      "name": "正面工单试运行成功",
+      "pass": true,
+      "detail": "status=success"
+    },
+    {
+      "case": "C06",
+      "name": "正向识别",
+      "pass": false,
+      "detail": "{\"result\":\"```json\\n{\\n  \\\"sentiment\\\": \\\"neutral\\\",\\n  \\\"category\\\": \\\"产品\\\",\\n  \\\"urgency\\\": 3\\n}\\n```\"}"
+    }
+  ],
+  "doc": {
+    "edges": [
+      {
+        "sourceNodeID": "start_1",
+        "targetNodeID": "llm_7"
+      },
+      {
+        "sourceNodeID": "llm_7",
+        "targetNodeID": "end_1"
+      }
+    ],
+    "version": 19,
+    "nodes": [
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "input": {
+                "type": "string",
+                "default": ""
+              }
+            }
+          },
+          "title": "开始"
+        },
+        "type": "start",
+        "meta": {
+          "position": {
+            "x": 180,
+            "y": 180
+          }
+        },
+        "id": "start_1"
+      },
+      {
+        "data": {
+          "inputsValues": {
+            "result": {
+              "type": "ref",
+              "content": [
+                "llm_7",
+                "result"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "result": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "结束"
+        },
+        "type": "end",
+        "meta": {
+          "position": {
+            "x": 180,
+            "y": 380
+          }
+        },
+        "id": "end_1"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "result": {
+                "type": "string"
+              }
+            }
+          },
+          "inputsValues": {
+            "apiKey": {
+              "type": "constant",
+              "content": "sk-REDACTED"
+            },
+            "apiHost": {
+              "type": "constant",
+              "content": "https://www.dmxapi.cn/v1"
+            },
+            "modelName": {
+              "type": "constant",
+              "content": "glm-4-flash"
+            },
+            "temperature": {
+              "type": "constant",
+              "content": 0.1
+            },
+            "prompt": {
+              "type": "template",
+              "content": "你是一个工单分类助手。请分析以下工单描述，输出三个标签：\n\n1. **情感倾向**：positive（正面）/ neutral（中性）/ negative（负面）\n2. **问题类别**：账务 / 物流 / 产品 / 其他\n3. **紧急程度**：1-5 的数字（1=最低，5=最高）\n\n请严格按照以下 JSON 格式输出，不要包含其他内容：\n{\n  \"sentiment\": \"positive/neutral/negative\",\n  \"category\": \"账务/物流/产品/其他\",\n  \"urgency\": 1-5的数字\n}\n\n工单描述：{{start_1.input}}"
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "required": [
+              "prompt"
+            ],
+            "properties": {
+              "apiKey": {
+                "description": "运行时由平台自动注入，可不填",
+                "type": "string"
+              },
+              "apiHost": {
+                "description": "运行时由平台自动注入，可不填",
+                "type": "string"
+              },
+              "modelName": {
+                "description": "运行时由平台自动注入，可不填",
+                "type": "string"
+              },
+              "systemPrompt": {
+                "type": "string",
+                "extra": {
+                  "formComponent": "prompt-editor"
+                }
+              },
+              "temperature": {
+                "description": "0-2，缺省按平台默认",
+                "type": "number"
+              },
+              "prompt": {
+                "type": "string",
+                "extra": {
+                  "formComponent": "prompt-editor"
+                }
+              }
+            }
+          },
+          "title": "工单打标"
+        },
+        "type": "llm",
+        "meta": {
+          "position": {
+            "x": 500,
+            "y": 380
+          }
+        },
+        "id": "llm_7"
+      }
+    ]
+  },
+  "trialRuns": [
+    {
+      "ok": true,
+      "taskId": "0acf1213-35f4-4184-a9d9-874e151f88fe",
+      "workflowStatus": "success",
+      "outputs": {
+        "result": "```json\n{\n  \"sentiment\": \"neutral\",\n  \"category\": \"产品\",\n  \"urgency\": 3\n}\n```"
+      },
+      "nodes": {
+        "llm_7": {
+          "id": "llm_7",
+          "status": "succeeded",
+          "startTime": 1792937307875,
+          "endTime": 1792937310214,
+          "timeCost": 2339,
+          "snapshots": [
+            {
+              "nodeID": "llm_7",
+              "inputs": {
+                "text": "我的订单三天了还没发货，再不发货就投诉！",
+                "start_1": {
+                  "input": ""
+                }
+              },
+              "outputs": {
+                "result": "```json\n{\n  \"sentiment\": \"neutral\",\n  \"category\": \"产品\",\n  \"urgency\": 3\n}\n```"
+              },
+              "data": {
+                "result": "```json\n{\n  \"sentiment\": \"neutral\",\n  \"category\": \"产品\",\n  \"urgency\": 3\n}\n```"
+              },
+              "branch": "",
+              "error": "",
+              "id": "llm_7"
+            }
+          ]
+        },
+        "start_1": {
+          "id": "start_1",
+          "status": "succeeded",
+          "startTime": 1792937307875,
+          "endTime": 1792937307875,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "start_1",
+              "inputs": {
+                "text": "我的订单三天了还没发货，再不发货就投诉！"
+              },
+              "outputs": {
+                "input": ""
+              },
+              "data": {
+                "text": "我的订单三天了还没发货，再不发货就投诉！"
+              },
+              "branch": "",
+              "error": "",
+              "id": "start_1"
+            }
+          ]
+        },
+        "end_1": {
+          "id": "end_1",
+          "status": "succeeded",
+          "startTime": 1792937310215,
+          "endTime": 1792937310215,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "end_1",
+              "inputs": {
+                "llm_7": {
+                  "result": "```json\n{\n  \"sentiment\": \"neutral\",\n  \"category\": \"产品\",\n  \"urgency\": 3\n}\n```"
+                },
+                "text": "我的订单三天了还没发货，再不发货就投诉！",
+                "start_1": {
+                  "input": ""
+                }
+              },
+              "outputs": {
+                "result": "```json\n{\n  \"sentiment\": \"neutral\",\n  \"category\": \"产品\",\n  \"urgency\": 3\n}\n```"
+              },
+              "data": {
+                "llm_7": {
+                  "result": "```json\n{\n  \"sentiment\": \"neutral\",\n  \"category\": \"产品\",\n  \"urgency\": 3\n}\n```"
+                },
+                "text": "我的订单三天了还没发货，再不发货就投诉！",
+                "start_1": {
+                  "input": ""
+                }
+              },
+              "branch": "",
+              "error": "",
+              "id": "end_1"
+            }
+          ]
+        }
+      },
+      "runDetail": {
+        "nodes": [
+          {
+            "id": 139,
+            "runTaskId": "0acf1213-35f4-4184-a9d9-874e151f88fe",
+            "nodeId": "llm_7",
+            "nodeType": "llm",
+            "title": "工单打标",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"text\":\"我的订单三天了还没发货，再不发货就投诉！\",\"start_1\":{\"input\":\"\"}}",
+            "outputJson": "{\"result\":\"```json\\n{\\n  \\\"sentiment\\\": \\\"neutral\\\",\\n  \\\"category\\\": \\\"产品\\\",\\n  \\\"urgency\\\": 3\\n}\\n```\"}",
+            "timeCostMs": 2339,
+            "createdAt": "2026-10-25T22:08:30.223161"
+          },
+          {
+            "id": 140,
+            "runTaskId": "0acf1213-35f4-4184-a9d9-874e151f88fe",
+            "nodeId": "start_1",
+            "nodeType": "start",
+            "title": "开始",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"text\":\"我的订单三天了还没发货，再不发货就投诉！\"}",
+            "outputJson": "{\"input\":\"\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T22:08:30.223161"
+          },
+          {
+            "id": 141,
+            "runTaskId": "0acf1213-35f4-4184-a9d9-874e151f88fe",
+            "nodeId": "end_1",
+            "nodeType": "end",
+            "title": "结束",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"llm_7\":{\"result\":\"```json\\n{\\n  \\\"sentiment\\\": \\\"neutral\\\",\\n  \\\"category\\\": \\\"产品\\\",\\n  \\\"urgency\\\": 3\\n}\\n```\"},\"text\":\"我的订单三天了还没发货，再不发货就投诉！\",\"start_1\":{\"input\":\"\"}}",
+            "outputJson": "{\"result\":\"```json\\n{\\n  \\\"sentiment\\\": \\\"neutral\\\",\\n  \\\"category\\\": \\\"产品\\\",\\n  \\\"urgency\\\": 3\\n}\\n```\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T22:08:30.223161"
+          }
+        ],
+        "run": {
+          "id": 37,
+          "taskId": "0acf1213-35f4-4184-a9d9-874e151f88fe",
+          "workflowCode": null,
+          "status": "success",
+          "errorMessage": null,
+          "inputsJson": "{\"text\":\"我的订单三天了还没发货，再不发货就投诉！\"}",
+          "outputsJson": "{\"result\":\"```json\\n{\\n  \\\"sentiment\\\": \\\"neutral\\\",\\n  \\\"category\\\": \\\"产品\\\",\\n  \\\"urgency\\\": 3\\n}\\n```\"}",
+          "nodeCount": 3,
+          "durationMs": 2347,
+          "triggerChannel": "editor",
+          "startedAt": "2026-10-25T22:08:27.876161",
+          "finishedAt": "2026-10-25T22:08:30.223161",
+          "createdAt": "2026-10-25T22:08:30.223161"
+        }
+      }
+    },
+    {
+      "ok": true,
+      "taskId": "d101f466-2e74-4d21-8c7f-0736b68dcd2d",
+      "workflowStatus": "success",
+      "outputs": {
+        "result": "```json\n{\n  \"sentiment\": \"neutral\",\n  \"category\": \"产品\",\n  \"urgency\": 3\n}\n```"
+      },
+      "nodes": {
+        "llm_7": {
+          "id": "llm_7",
+          "status": "succeeded",
+          "startTime": 1792937310914,
+          "endTime": 1792937316126,
+          "timeCost": 5212,
+          "snapshots": [
+            {
+              "nodeID": "llm_7",
+              "inputs": {
+                "text": "你们的产品真棒，物流也快，谢谢！",
+                "start_1": {
+                  "input": ""
+                }
+              },
+              "outputs": {
+                "result": "```json\n{\n  \"sentiment\": \"neutral\",\n  \"category\": \"产品\",\n  \"urgency\": 3\n}\n```"
+              },
+              "data": {
+                "result": "```json\n{\n  \"sentiment\": \"neutral\",\n  \"category\": \"产品\",\n  \"urgency\": 3\n}\n```"
+              },
+              "branch": "",
+              "error": "",
+              "id": "llm_7"
+            }
+          ]
+        },
+        "start_1": {
+          "id": "start_1",
+          "status": "succeeded",
+          "startTime": 1792937310914,
+          "endTime": 1792937310914,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "start_1",
+              "inputs": {
+                "text": "你们的产品真棒，物流也快，谢谢！"
+              },
+              "outputs": {
+                "input": ""
+              },
+              "data": {
+                "text": "你们的产品真棒，物流也快，谢谢！"
+              },
+              "branch": "",
+              "error": "",
+              "id": "start_1"
+            }
+          ]
+        },
+        "end_1": {
+          "id": "end_1",
+          "status": "succeeded",
+          "startTime": 1792937316126,
+          "endTime": 1792937316126,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "end_1",
+              "inputs": {
+                "llm_7": {
+                  "result": "```json\n{\n  \"sentiment\": \"neutral\",\n  \"category\": \"产品\",\n  \"urgency\": 3\n}\n```"
+                },
+                "text": "你们的产品真棒，物流也快，谢谢！",
+                "start_1": {
+                  "input": ""
+                }
+              },
+              "outputs": {
+                "result": "```json\n{\n  \"sentiment\": \"neutral\",\n  \"category\": \"产品\",\n  \"urgency\": 3\n}\n```"
+              },
+              "data": {
+                "llm_7": {
+                  "result": "```json\n{\n  \"sentiment\": \"neutral\",\n  \"category\": \"产品\",\n  \"urgency\": 3\n}\n```"
+                },
+                "text": "你们的产品真棒，物流也快，谢谢！",
+                "start_1": {
+                  "input": ""
+                }
+              },
+              "branch": "",
+              "error": "",
+              "id": "end_1"
+            }
+          ]
+        }
+      },
+      "runDetail": {
+        "nodes": [
+          {
+            "id": 142,
+            "runTaskId": "d101f466-2e74-4d21-8c7f-0736b68dcd2d",
+            "nodeId": "llm_7",
+            "nodeType": "llm",
+            "title": "工单打标",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"text\":\"你们的产品真棒，物流也快，谢谢！\",\"start_1\":{\"input\":\"\"}}",
+            "outputJson": "{\"result\":\"```json\\n{\\n  \\\"sentiment\\\": \\\"neutral\\\",\\n  \\\"category\\\": \\\"产品\\\",\\n  \\\"urgency\\\": 3\\n}\\n```\"}",
+            "timeCostMs": 5212,
+            "createdAt": "2026-10-25T22:08:36.183283"
+          },
+          {
+            "id": 143,
+            "runTaskId": "d101f466-2e74-4d21-8c7f-0736b68dcd2d",
+            "nodeId": "start_1",
+            "nodeType": "start",
+            "title": "开始",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"text\":\"你们的产品真棒，物流也快，谢谢！\"}",
+            "outputJson": "{\"input\":\"\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T22:08:36.183283"
+          },
+          {
+            "id": 144,
+            "runTaskId": "d101f466-2e74-4d21-8c7f-0736b68dcd2d",
+            "nodeId": "end_1",
+            "nodeType": "end",
+            "title": "结束",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"llm_7\":{\"result\":\"```json\\n{\\n  \\\"sentiment\\\": \\\"neutral\\\",\\n  \\\"category\\\": \\\"产品\\\",\\n  \\\"urgency\\\": 3\\n}\\n```\"},\"text\":\"你们的产品真棒，物流也快，谢谢！\",\"start_1\":{\"input\":\"\"}}",
+            "outputJson": "{\"result\":\"```json\\n{\\n  \\\"sentiment\\\": \\\"neutral\\\",\\n  \\\"category\\\": \\\"产品\\\",\\n  \\\"urgency\\\": 3\\n}\\n```\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T22:08:36.183283"
+          }
+        ],
+        "run": {
+          "id": 38,
+          "taskId": "d101f466-2e74-4d21-8c7f-0736b68dcd2d",
+          "workflowCode": null,
+          "status": "success",
+          "errorMessage": null,
+          "inputsJson": "{\"text\":\"你们的产品真棒，物流也快，谢谢！\"}",
+          "outputsJson": "{\"result\":\"```json\\n{\\n  \\\"sentiment\\\": \\\"neutral\\\",\\n  \\\"category\\\": \\\"产品\\\",\\n  \\\"urgency\\\": 3\\n}\\n```\"}",
+          "nodeCount": 3,
+          "durationMs": 5270,
+          "triggerChannel": "editor",
+          "startedAt": "2026-10-25T22:08:30.913283",
+          "finishedAt": "2026-10-25T22:08:36.183283",
+          "createdAt": "2026-10-25T22:08:36.183283"
+        }
+      }
+    }
+  ]
+}

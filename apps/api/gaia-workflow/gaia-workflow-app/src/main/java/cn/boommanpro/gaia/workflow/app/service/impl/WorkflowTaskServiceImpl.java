@@ -78,6 +78,7 @@ public class WorkflowTaskServiceImpl implements WorkflowTaskService {
             return TaskRunOutput.fail(errors, issues);
         }
 
+
         // 生成任务ID
         String taskId = generateTaskId();
         logger.debug("生成任务ID: {}", taskId);
@@ -100,6 +101,7 @@ public class WorkflowTaskServiceImpl implements WorkflowTaskService {
     private String generateTaskId() {
         return UUID.randomUUID().toString();
     }
+
 
     /**
      * 创建任务信息

@@ -1,0 +1,184 @@
+{
+  "caseId": "C20",
+  "sessionKey": "510be50419a748aabf63a5438034edcb",
+  "elapsedSec": 50,
+  "turns": [
+    {
+      "utterance": "做个通知转发器备用：把一段文字提交到我们网关的 /notify 接口，地址先用 http://127.0.0.1:1/notify 占位（联调环境还没起，肯定调不通）。我要的就是确认：调不通的时候，流程的状态是清清楚楚的失败，而不是假装成功。搭好后直接试跑一次给我看结果。",
+      "runStatus": "done",
+      "asksAnswered": [],
+      "lastAssistant": "先删除默认的 end_1，然后添加 HTTP 节点和新的 end 节点，接好线。\n\n需要修正：1) api 用 url 字段；2) 去掉 fromPort；3) 修正 body 引用。\n\n明白了，body 需要是对象结构，headers 用 headersValues。重新配置：\n\nonError 还在残留，先看看当前配置：\n\n需要把 onError 设为 null 来清除，同时补全 url：\n\nonError 字段在 schema 里不存在，需要整体替换 data 来清除它。同时修正 body 引用：\n\nonError 似乎被持久化了。需要把整个 data 重写：\n\nonError 一直残留，先删掉重建：\n\n现在重新添加 HTTP 节点，并一次性配好所有字段，同时添加 end 节点并接线：\n\n节点 ID 变成了 http_2。需要修正 body 引用，并添加 end 节点接线：\n\n现在添加 end 节点，把 http 的结果输出出来：\n\nend 节点的 inputsValues 需要 ref 格式。先看看 end 节点的 schema：\n\n明白了，end 的 inputsValues 要用 ref 格式。重新配置 end_3：\n\n`__status__` 不是 http 节点的输出字段。用 statusCode 来判断是否成功。重新配置：\n\n还是有 __status__ 残留。看看当前 end_3 配置：\n\nstatus 字段还在。需要整体替换 inputsValues 来清除：\n\nstatus 字段还在深合并中残留。用 null 显式清除：\n\nnull 不被允许。直接删掉 end_3 重建：\n\nID 是 end_4。现在接线：\n\n现在整流试跑，用一段测试文字提交：\n\n试跑完成，结果如下：\n\n**工作流结构**：`start_1` → `http_2`（POST → `http://127.0.0.1:1/notify`）→ `end_4`\n\n**试跑结果**（输入：`\"这是一条测试通知，请转发到网关。\"`）：\n\n| 节点 | 状态 | 说明 |\n|------|------|------|\n| `start_1` | FINISHED | 正常接收输入 |\n| `http_2` | **FAILED** | `ConnectException: Connection refused` — 网关没起，连接被拒 |\n| `end_4` | SKIPPED | 上游失败，跳过 |\n\n**失败状态清晰可见**：\n- `failedNodes` 明确列出 `http_2` 节点，错误信息为 `ConnectException: Connection refused`\n- `end_4` 被标记为 `SKIPPED`，不会假装成功\n- 工作流整体 `success: false`\n\n**输出字段**（end_4 会产出）：\n- `httpBody` — HTTP 响应体（失败时为 null）\n- `httpStatus` — HTTP 状态码（失败时为 null）\n- `httpHeaders` — HTTP 响应头（失败时为 null）\n- `success` — 状态码值（失败时为 null）\n\n草稿已验证通过，**建议保存为版本**。联调环境起来后，只需把 `http_2` 的 URL 改成真实地址即可。"
+    }
+  ],
+  "pass": true,
+  "checks": [
+    {
+      "case": "C20",
+      "name": "存在 http 节点且指向占位地址",
+      "pass": true,
+      "detail": "{\"method\":\"POST\",\"url\":{\"type\":\"template\",\"content\":\"http://127.0.0.1:1/notify\"}}"
+    },
+    {
+      "case": "C20",
+      "name": "run 工具结果如实失败",
+      "pass": true,
+      "detail": "{\"success\":false,\"timeCostMs\":4,\"nodes\":{\"end_4\":{\"status\":\"SKIPPED\",\"timeCostMs\":0},\"http_2\":{\"status\":\"FAILED\",\"timeCostMs\":3},\"start_1\":{\"status\":\"FINISHED\",\"timeCostMs\":0}},\"failedNodes\":[{\"id\":\"h"
+    },
+    {
+      "case": "C20",
+      "name": "无假成功 run 结果",
+      "pass": true,
+      "detail": ""
+    }
+  ],
+  "doc": {
+    "edges": [
+      {
+        "sourceNodeID": "start_1",
+        "targetNodeID": "http_2"
+      },
+      {
+        "sourceNodeID": "http_2",
+        "targetNodeID": "end_4"
+      }
+    ],
+    "version": 11,
+    "nodes": [
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "input": {
+                "type": "string",
+                "default": ""
+              }
+            }
+          },
+          "title": "开始"
+        },
+        "type": "start",
+        "meta": {
+          "position": {
+            "x": 180,
+            "y": 180
+          }
+        },
+        "id": "start_1"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "headers": {
+                "type": "string"
+              },
+              "body": {
+                "type": "string"
+              },
+              "statusCode": {
+                "type": "string"
+              }
+            }
+          },
+          "body": {
+            "bodyType": "JSON",
+            "json": {
+              "type": "template",
+              "content": "{{start_1.input}}"
+            }
+          },
+          "title": "调用通知网关",
+          "headersValues": {
+            "Content-Type": {
+              "type": "constant",
+              "content": "application/json"
+            }
+          },
+          "timeout": {
+            "timeout": 10000,
+            "retryTimes": 1
+          },
+          "paramsValues": {},
+          "api": {
+            "method": "POST",
+            "url": {
+              "type": "template",
+              "content": "http://127.0.0.1:1/notify"
+            }
+          }
+        },
+        "type": "http",
+        "meta": {
+          "position": {
+            "x": 500,
+            "y": 180
+          }
+        },
+        "id": "http_2"
+      },
+      {
+        "data": {
+          "inputsValues": {
+            "httpBody": {
+              "type": "ref",
+              "content": [
+                "http_2",
+                "body"
+              ]
+            },
+            "httpHeaders": {
+              "type": "ref",
+              "content": [
+                "http_2",
+                "headers"
+              ]
+            },
+            "success": {
+              "type": "ref",
+              "content": [
+                "http_2",
+                "statusCode"
+              ]
+            },
+            "httpStatus": {
+              "type": "ref",
+              "content": [
+                "http_2",
+                "statusCode"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "httpBody": {
+                "type": "string"
+              },
+              "httpHeaders": {
+                "type": "object"
+              },
+              "success": {
+                "type": "integer"
+              },
+              "httpStatus": {
+                "type": "integer"
+              }
+            }
+          },
+          "title": "结束"
+        },
+        "type": "end",
+        "meta": {
+          "position": {
+            "x": 820,
+            "y": 180
+          }
+        },
+        "id": "end_4"
+      }
+    ]
+  },
+  "trialRuns": []
+}

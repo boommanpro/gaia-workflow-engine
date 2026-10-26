@@ -1,0 +1,230 @@
+{
+  "caseId": "C25",
+  "sessionKey": "7aaab74fc5934870b11db1acb2005e26",
+  "elapsedSec": 289,
+  "turns": [
+    {
+      "utterance": "公司年会要发邀请函：给一份嘉宾名单（每人有姓名和公司两项信息），名单是：张三（A科技）、李四（B集团）。每位嘉宾单独生成一封“尊敬的 {name}（{company}），诚邀您出席 2026 年会”。注意：文案模板是我们市场部维护的，会经常改，所以不要把文案写死在代码里，用模板能力逐位生成。最后把所有邀请函按名单顺序合成一个列表输出。",
+      "runStatus": "done",
+      "asksAnswered": [],
+      "lastAssistant": "⚠️ 系统护栏：你在已被提醒后仍第 2 次原样重复同一组工具调用序列（周期 2：node → get），每一步参数与上一轮完全相同、结果不会有任何变化，本轮执行已被终止以避免空转。\n\n已生效的改动保持有效。继续推进请换一种做法：按最近一次结果里的 failReason / error / failedNodes 定位到具体节点或字段去修，或 get(target=canvas) 核对现状；若无法修正，直接说明你需要用户提供什么。"
+    },
+    {
+      "utterance": "[推动] 请直接按合理假设完成搭建",
+      "runStatus": "done",
+      "asksAnswered": [],
+      "lastAssistant": ""
+    }
+  ],
+  "pass": false,
+  "checks": [
+    {
+      "case": "C25",
+      "name": "存在 loop 容器",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "case": "C25",
+      "name": "试运行被接受",
+      "pass": false,
+      "detail": "从 start 无法到达任何 end 节点：即使执行也不会有产出"
+    }
+  ],
+  "doc": {
+    "edges": [],
+    "version": 76,
+    "nodes": [
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "guestList": {
+                "description": "guestList",
+                "type": "array",
+                "default": [],
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "company": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "type": "start",
+        "meta": {
+          "position": {
+            "x": 180,
+            "y": 180
+          }
+        },
+        "id": "start_1"
+      },
+      {
+        "data": {
+          "inputsValues": {
+            "invitations": {
+              "type": "ref",
+              "content": [
+                "loop_1",
+                "invitations"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "invitations": {
+                "type": "array"
+              }
+            }
+          }
+        },
+        "type": "end",
+        "meta": {
+          "position": {
+            "x": 180,
+            "y": 380
+          }
+        },
+        "id": "end_1"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "invitations": {
+                "type": "array"
+              }
+            }
+          },
+          "loopOutputs": {
+            "invitation": {
+              "type": "ref",
+              "content": [
+                "sf_1",
+                "formatStringResult"
+              ]
+            }
+          }
+        },
+        "type": "loop",
+        "meta": {
+          "position": {
+            "x": 180,
+            "y": 580
+          }
+        },
+        "id": "loop_1"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "formatStringResult": {
+                "type": "string"
+              }
+            }
+          },
+          "inputsValues": {
+            "name": {
+              "type": "ref",
+              "content": [
+                "loop_1_locals",
+                "item",
+                "name"
+              ]
+            },
+            "company": {
+              "type": "ref",
+              "content": [
+                "loop_1_locals",
+                "item",
+                "company"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "company": {
+                "type": "string"
+              }
+            }
+          },
+          "script": {
+            "language": "spel-standard",
+            "content": "尊敬的 ${name}（${company}），诚邀您出席 2026 年会"
+          }
+        },
+        "type": "string-format",
+        "meta": {
+          "position": {
+            "x": 180,
+            "y": 780
+          }
+        },
+        "id": "sf_1"
+      }
+    ]
+  },
+  "trialRuns": [
+    {
+      "ok": false,
+      "errors": [
+        "从 start 无法到达任何 end 节点：即使执行也不会有产出"
+      ],
+      "issues": [
+        {
+          "level": "error",
+          "code": "NO_PATH_TO_END",
+          "nodeId": "start_1",
+          "message": "从 start 无法到达任何 end 节点：即使执行也不会有产出"
+        },
+        {
+          "level": "warning",
+          "code": "UNREACHABLE_NODE",
+          "nodeId": "end_1",
+          "message": "节点 end_1（end）从 start 不可达，永远不会执行"
+        },
+        {
+          "level": "warning",
+          "code": "UNREACHABLE_NODE",
+          "nodeId": "loop_1",
+          "message": "节点 loop_1（loop）从 start 不可达，永远不会执行"
+        },
+        {
+          "level": "warning",
+          "code": "UNREACHABLE_NODE",
+          "nodeId": "sf_1",
+          "message": "节点 sf_1（string-format）从 start 不可达，永远不会执行"
+        },
+        {
+          "level": "warning",
+          "code": "ISOLATED_NODE",
+          "nodeId": "loop_1",
+          "message": "节点 loop_1（loop）没有任何连线，不会被执行"
+        },
+        {
+          "level": "warning",
+          "code": "ISOLATED_NODE",
+          "nodeId": "sf_1",
+          "message": "节点 sf_1（string-format）没有任何连线，不会被执行"
+        }
+      ]
+    }
+  ]
+}

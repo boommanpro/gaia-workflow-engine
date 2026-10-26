@@ -1,0 +1,351 @@
+{
+  "caseId": "C13",
+  "sessionKey": "f01cce2516384f3887767fdcc171fb6a",
+  "elapsedSec": 51,
+  "turns": [
+    {
+      "utterance": "用户在表单里填的联系方式是一整段文本，比如“张三，住在北京市朝阳区，邮箱 zhangsan@example.com，电话 13800000001”。帮我从中解析出姓名、城市、邮箱、电话四个字段，后面的流程还要单独用每一个。",
+      "runStatus": "done",
+      "asksAnswered": [],
+      "lastAssistant": "空画布，只有 start_1 和 end_1。我来用 LLM 节点做 JSON 结构化解析，把一段文本拆成四个字段。\n\nLLM 节点已加入，需要补齐配置。先查 LLM 的 platformDefaultModel：\n\n拿到 platformDefaultModel。现在配置 LLM 节点，用 JSON 输出模式解析文本：\n\nLLM 节点配置完成，但提示 start_1 缺少 `contactText` 输出字段。需要配置 start 节点的输出：\n\n现在配置 end_1，把 LLM 解析出的四个字段作为输出：\n\n现在整流试跑，用用户给的示例文本：\n\n连线可能有问题，检查一下：\n\nllm_1 到 end_1 的连线缺失了。补上：\n\n再跑一次：\n\n解析成功！再跑一组反向测试，验证边界情况：\n\n两组都通过了。沉淀测试用例：\n\n两个测试用例全部通过。\n\n---\n\n**已完成的工作流：**\n\n| 节点 | 作用 |\n|------|------|\n| `start_1` | 接收输入 `contactText`（完整联系方式文本） |\n| `llm_1` | 调用 LLM 以 JSON 模式解析，输出 `name`、`city`、`email`、`phone` 四个字段 |\n| `end_1` | 输出四个解析后的字段，供下游单独引用 |\n\n**验证结果：** 正反两组输入均通过，测试用例已沉淀。\n\n**下游引用方式：** 后续节点可直接引用 `llm_1.name`、`llm_1.city`、`llm_1.email`、`llm_1.phone`。\n\n请保存为版本。"
+    }
+  ],
+  "pass": false,
+  "checks": [
+    {
+      "case": "C13",
+      "name": "存在 code 节点",
+      "pass": false,
+      "detail": ""
+    }
+  ],
+  "doc": {
+    "edges": [
+      {
+        "sourceNodeID": "start_1",
+        "targetNodeID": "llm_1"
+      },
+      {
+        "sourceNodeID": "llm_1",
+        "targetNodeID": "end_1"
+      }
+    ],
+    "version": 6,
+    "nodes": [
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "required": [
+              "contactText"
+            ],
+            "properties": {
+              "contactText": {
+                "description": "用户填写的完整联系方式文本",
+                "type": "string",
+                "default": ""
+              },
+              "input": {
+                "description": "input",
+                "type": "string",
+                "default": ""
+              }
+            }
+          },
+          "title": "开始"
+        },
+        "type": "start",
+        "meta": {
+          "position": {
+            "x": 180,
+            "y": 180
+          }
+        },
+        "id": "start_1"
+      },
+      {
+        "data": {
+          "inputsValues": {
+            "city": {
+              "type": "ref",
+              "content": [
+                "llm_1",
+                "city"
+              ]
+            },
+            "phone": {
+              "type": "ref",
+              "content": [
+                "llm_1",
+                "phone"
+              ]
+            },
+            "name": {
+              "type": "ref",
+              "content": [
+                "llm_1",
+                "name"
+              ]
+            },
+            "email": {
+              "type": "ref",
+              "content": [
+                "llm_1",
+                "email"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "city": {
+                "type": "string"
+              },
+              "phone": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "结束"
+        },
+        "type": "end",
+        "meta": {
+          "position": {
+            "x": 500,
+            "y": 180
+          }
+        },
+        "id": "end_1"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "city": {
+                "type": "string"
+              },
+              "phone": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string"
+              }
+            }
+          },
+          "inputsValues": {
+            "apiKey": {
+              "type": "constant",
+              "content": "sk-REDACTED"
+            },
+            "apiHost": {
+              "type": "constant",
+              "content": "https://www.dmxapi.cn/v1"
+            },
+            "modelName": {
+              "type": "constant",
+              "content": "glm-4-flash"
+            },
+            "temperature": {
+              "type": "constant",
+              "content": 0
+            },
+            "prompt": {
+              "type": "template",
+              "content": "从用户输入的文本中提取以下信息，只输出 JSON 对象，不要输出任何其他文字：\n\n{{start_1.contactText}}\n\n请严格按照以下 JSON 格式输出：\n{\n  \"name\": \"姓名\",\n  \"city\": \"城市\",\n  \"email\": \"邮箱地址\",\n  \"phone\": \"电话号码\"\n}"
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "required": [
+              "prompt"
+            ],
+            "properties": {
+              "apiKey": {
+                "description": "运行时由平台自动注入，可不填",
+                "type": "string"
+              },
+              "apiHost": {
+                "description": "运行时由平台自动注入，可不填",
+                "type": "string"
+              },
+              "modelName": {
+                "description": "运行时由平台自动注入，可不填",
+                "type": "string"
+              },
+              "systemPrompt": {
+                "type": "string",
+                "extra": {
+                  "formComponent": "prompt-editor"
+                }
+              },
+              "temperature": {
+                "description": "0-2，缺省按平台默认",
+                "type": "number"
+              },
+              "prompt": {
+                "type": "string",
+                "extra": {
+                  "formComponent": "prompt-editor"
+                }
+              }
+            }
+          },
+          "outputMode": "json"
+        },
+        "type": "llm",
+        "meta": {
+          "position": {
+            "x": 500,
+            "y": 380
+          }
+        },
+        "id": "llm_1"
+      }
+    ]
+  },
+  "trialRuns": [
+    {
+      "ok": true,
+      "taskId": "08d35970-0408-437d-a457-abc89a6d94de",
+      "workflowStatus": "fail",
+      "outputs": {},
+      "nodes": {
+        "llm_1": {
+          "id": "llm_1",
+          "status": "failed",
+          "startTime": 1792941683330,
+          "endTime": 1792941695753,
+          "timeCost": 12423,
+          "snapshots": [
+            {
+              "nodeID": "llm_1",
+              "inputs": {
+                "raw": "张三，住在北京市朝阳区，邮箱 zhangsan@example.com，电话 13800000001",
+                "start_1": {
+                  "contactText": "",
+                  "input": ""
+                }
+              },
+              "outputs": {},
+              "data": {},
+              "branch": "",
+              "error": "java.lang.IllegalArgumentException: LLM节点 llm_1（json 输出模式）模型输出无法解析为 JSON 对象，原始输出前 200 字符: ```python\nimport json\nimport re\n\n# 用户输入的文本\nuser_input = input()\n\n# 正则表达式匹配信息\nname_match = re.search(r\"姓名：(\\S+)\", user_input)\ncity_match = re.search(r\"城市：(\\S+)\", user_input)\nemail_match = re.search(r\"邮。修复：prompt 里要求只输出 JSON 对象（不要包 markdown 围栏/解释文字）后重试\n\tat cn.boommanpro.gaia.workflow.infra.extend.node.llm.LlmNode.parseStructuredOutput(LlmNode.java:97)\n\tat cn.boommanpro.gaia.workflow.infra.extend.node.llm.LlmNode.execute(LlmNode.java:68)\n\tat cn.boommanpro.gaia.workflow.base.model.Chain.doExecuteNodeInternal(Chain.java:432)\n\tat cn.boommanpro.gaia.workflow.base.model.Chain.executeNextNode(Chain.java:536)\n\tat cn.boommanpro.gaia.workflow.base.model.Chain.processSubsequentNodes(Chain.java:501)\n\tat cn.boommanpro.gaia.workflow.base.model.Chain.doExecuteNodeInternal(Chain.java:484)\n\tat cn.boommanpro.gaia.workflow.base.model.Chain.doExecuteChainNodeAsync(Chain.java:1077)\n\tat cn.boommanpro.gaia.workflow.base.model.Chain.lambda$doExecuteChainNodesAsync$13(Chain.java:1063)\n\tat java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)\n\tat java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)\n\tat java.base/java.lang.Thread.run(Thread.java:1583)\n",
+              "id": "llm_1"
+            }
+          ]
+        },
+        "start_1": {
+          "id": "start_1",
+          "status": "succeeded",
+          "startTime": 1792941683330,
+          "endTime": 1792941683330,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "start_1",
+              "inputs": {
+                "raw": "张三，住在北京市朝阳区，邮箱 zhangsan@example.com，电话 13800000001"
+              },
+              "outputs": {
+                "contactText": "",
+                "input": ""
+              },
+              "data": {
+                "raw": "张三，住在北京市朝阳区，邮箱 zhangsan@example.com，电话 13800000001"
+              },
+              "branch": "",
+              "error": "",
+              "id": "start_1"
+            }
+          ]
+        },
+        "end_1": {
+          "id": "end_1",
+          "status": "canceled",
+          "startTime": 1792941695753,
+          "endTime": 1792941695753,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "end_1",
+              "inputs": {},
+              "outputs": {},
+              "data": {},
+              "branch": "",
+              "error": "",
+              "id": "end_1"
+            }
+          ]
+        }
+      },
+      "runDetail": {
+        "nodes": [
+          {
+            "id": 178,
+            "runTaskId": "08d35970-0408-437d-a457-abc89a6d94de",
+            "nodeId": "llm_1",
+            "nodeType": "llm",
+            "title": null,
+            "status": "failed",
+            "errorMessage": "java.lang.IllegalArgumentException: LLM节点 llm_1（json 输出模式）模型输出无法解析为 JSON 对象，原始输出前 200 字符: ```python\nimport json\nimport re\n\n# 用户输入的文本\nuser_input = input()\n\n# 正则表达式匹配信息\nname_match = re.search(r\"姓名：(\\S+)\", user_input)\ncity_match = re.search(r\"城市：(\\S+)\", user_input)\nemail_match = re.search(r\"邮。修复：prompt 里要求只输出 JSON 对象（不要包 markdown 围栏/解释文字）后重试\n\tat cn.boommanpro.gaia.workflow.infra.extend.node.llm.LlmNode.parseStructuredOutput(LlmNode.java:97)\n\tat cn.boommanpro.gaia.workflow.infra.extend.node.llm.LlmNode.execute(LlmNode.java:68)\n\tat cn.boommanpro.gaia.workflow.base.model.Chain.doExecuteNodeInternal(Chain.java:432)\n\tat cn.boommanpro.gaia.workflow.base.model.Chain.executeNextNode(Chain.java:536)\n\tat cn.boommanpro.gaia.workflow.base.model.Chain.processSubsequentNodes(Chain.java:501)\n\tat cn.boommanpro.gaia.workflow.base.model.Chain.doExecuteNodeInternal(Chain.java:484)\n\tat cn.boommanpro.gaia.workflow.base.model.Chain.doExecuteChainNodeAsync(Chain.java:1077)\n\tat cn.boommanpro.gaia.workflow.base.model.Chain.lambda$doExecuteChainNodesAsync$13(Chain.java:1063)\n\tat java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)\n\tat java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)\n\tat java.base/java.lang.Thread.run(Thread.java:1583)\n",
+            "inputsJson": "{\"raw\":\"张三，住在北京市朝阳区，邮箱 zhangsan@example.com，电话 13800000001\",\"start_1\":{\"contactText\":\"\",\"input\":\"\"}}",
+            "outputJson": "{}",
+            "timeCostMs": 12423,
+            "createdAt": "2026-10-25T23:21:35.789499"
+          },
+          {
+            "id": 179,
+            "runTaskId": "08d35970-0408-437d-a457-abc89a6d94de",
+            "nodeId": "start_1",
+            "nodeType": "start",
+            "title": "开始",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"raw\":\"张三，住在北京市朝阳区，邮箱 zhangsan@example.com，电话 13800000001\"}",
+            "outputJson": "{\"contactText\":\"\",\"input\":\"\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:21:35.789499"
+          },
+          {
+            "id": 180,
+            "runTaskId": "08d35970-0408-437d-a457-abc89a6d94de",
+            "nodeId": "end_1",
+            "nodeType": "end",
+            "title": "结束",
+            "status": "canceled",
+            "errorMessage": "",
+            "inputsJson": "{}",
+            "outputJson": "{}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:21:35.789499"
+          }
+        ],
+        "run": {
+          "id": 49,
+          "taskId": "08d35970-0408-437d-a457-abc89a6d94de",
+          "workflowCode": null,
+          "status": "failed",
+          "errorMessage": "Chain execute error",
+          "inputsJson": "{\"raw\":\"张三，住在北京市朝阳区，邮箱 zhangsan@example.com，电话 13800000001\"}",
+          "outputsJson": null,
+          "nodeCount": 3,
+          "durationMs": 12459,
+          "triggerChannel": "editor",
+          "startedAt": "2026-10-25T23:21:23.330499",
+          "finishedAt": "2026-10-25T23:21:35.789499",
+          "createdAt": "2026-10-25T23:21:35.789499"
+        }
+      }
+    }
+  ]
+}

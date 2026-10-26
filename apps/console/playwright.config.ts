@@ -18,9 +18,9 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   webServer: {
-    command: 'cross-env PORT=3111 node_modules/.bin/rsbuild dev',
+    command: 'node_modules/.bin/rsbuild dev --port 3111',
     url: 'http://127.0.0.1:3111',
-    reuseExistingServer: false,
-    timeout: 120_000,
+    reuseExistingServer: !process.env.CI,
+    timeout: 300_000,
   },
 });

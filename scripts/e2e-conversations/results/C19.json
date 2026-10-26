@@ -1,0 +1,634 @@
+{
+  "caseId": "C19",
+  "sessionKey": "9d2bf513a7ad414ba4a3b136e7121a39",
+  "elapsedSec": 67,
+  "turns": [
+    {
+      "utterance": "做个称呼生成器：输入名字，输出“{名字}您好”。名字有时候会漏填，漏填的时候统一叫“朋友”。",
+      "runStatus": "done",
+      "asksAnswered": [],
+      "lastAssistant": "我来创建一个称呼生成器工作流。先加载搭建手册，然后查看当前画布状态。\n\n画布已有 start_1 和 end_1 骨架，没有连线。需求很简单：输入名字，判断是否为空，空则用\"朋友\"，否则用输入的名字，输出\"{名字}您好\"。\n\n用 condition 节点判断名字是否为空，配合 string-format 生成最终称呼。\n\n节点已添加，但接线需要修正。condition 的出边 fromPort 需要用 conditions 的 key。现在来配置各节点：\n\n1. start_1 - 添加输入参数 name\n2. condition_1 - 判断 name 是否为空\n3. code_2 - 空名字分支，输出\"朋友\"\n4. code_1 - 非空分支，输出原名字\n5. 修正连线\n\n节点配置完成。现在修正连线：start_1 → condition_1，condition_1 的 empty 分支 → code_2，condition_1 的 not_empty 分支 → code_1，两个 code 都 → end_1。\n\n连线完成。现在整流试跑，用两组输入验证：有名字和没名字。\n\nend_1 的 inputsValues 需要引用上游输出。但这里有个问题：两个 code 节点都输出到 end_1，需要合并。用 variable 节点来汇聚结果。\n\nvariable_1 已添加。现在需要把 code_1 也连到 variable_1，然后 end_1 引用 variable_1。\n\n现在需要配置 variable_1 的 outputs 和变量定义。让我先看看 variable 节点的知识。\n\n明白了。variable 节点用 assign 来接收上游输出。但这里有个问题：两个 code 节点都连到 variable_1，variable 需要处理两个输入。让我换个思路——用 code 节点直接拼接最终结果，简化流程。\n\n让我重新设计：condition 的 empty 分支走 code_2 输出\"朋友\"，not_empty 分支走 code_1 输出名字，然后两个 code 都输出到 variable_1 汇聚。\n\n现在试跑：\n\n从 start 无法到达 end，说明连线有问题。让我检查画布连线情况。\n\n看到问题了：start_1 没有出边连到 condition_1。之前添加节点时 connect 的接线没有生效。需要手动连线。\n\n现在整流试跑两组：\n\ncode_1 的 JavaScript 脚本语法有误。code 节点要求最后一个表达式是对象字面量，不能用 return 语句。修正 code_1：\n\n同样修正 code_2：\n\n现在重新试跑：\n\n有名字的情况跑通了，但 outputs 为空。让我检查 end_1 的 inputsValues 是否正确引用了 variable_1 的 greeting 字段。\n\nend_1 的 inputsValues 看起来正确，引用了 variable_1.greeting。但 outputs 为空，可能是 variable_1 没有正确输出 greeting。让我检查 variable_1 的输出：\n\n问题找到了：variable_1 的 assign 只引用了 code_2 的 result，但实际走的是 code_1 分支（有名字时）。variable 节点需要同时接收两个 code 的输出。\n\n让我换个思路：用 code 节点做最终拼接，简化流程。删除 variable_1，让两个 code 的输出通"
+    }
+  ],
+  "pass": false,
+  "checks": [
+    {
+      "case": "C19",
+      "name": "存在分支判断",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "case": "C19",
+      "name": "有名字成功",
+      "pass": true,
+      "detail": "status=success"
+    },
+    {
+      "case": "C19",
+      "name": "正常称呼",
+      "pass": false,
+      "detail": "{\"result\":\"王先生\"}"
+    },
+    {
+      "case": "C19",
+      "name": "空名字成功",
+      "pass": true,
+      "detail": "status=success"
+    },
+    {
+      "case": "C19",
+      "name": "空名兜底",
+      "pass": false,
+      "detail": "{\"result\":\"朋友\"}"
+    },
+    {
+      "case": "C19",
+      "name": "缺参成功",
+      "pass": true,
+      "detail": "status=success"
+    },
+    {
+      "case": "C19",
+      "name": "缺参不炸",
+      "pass": false,
+      "detail": "{\"result\":\"朋友\"}"
+    }
+  ],
+  "doc": {
+    "edges": [
+      {
+        "sourceNodeID": "code_1",
+        "targetNodeID": "end_1"
+      },
+      {
+        "sourceNodeID": "start_1",
+        "targetNodeID": "code_1"
+      }
+    ],
+    "version": 22,
+    "nodes": [
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "input": {
+                "description": "input",
+                "type": "string",
+                "default": ""
+              },
+              "name": {
+                "description": "name",
+                "type": "string",
+                "title": "名字",
+                "default": ""
+              }
+            }
+          },
+          "title": "开始"
+        },
+        "type": "start",
+        "meta": {
+          "position": {
+            "x": 180,
+            "y": 180
+          }
+        },
+        "id": "start_1"
+      },
+      {
+        "data": {
+          "inputsValues": {
+            "result": {
+              "type": "ref",
+              "content": [
+                "code_1",
+                "result"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "result": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "结束"
+        },
+        "type": "end",
+        "meta": {
+          "position": {
+            "x": 820,
+            "y": 180
+          }
+        },
+        "id": "end_1"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "result": {
+                "type": "string"
+              }
+            }
+          },
+          "inputsValues": {
+            "name": {
+              "type": "ref",
+              "content": [
+                "start_1",
+                "name"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "script": {
+            "language": "javascript",
+            "content": "({ result: (input.name && input.name.trim() !== '') ? input.name : '朋友' })"
+          }
+        },
+        "type": "code",
+        "meta": {
+          "position": {
+            "x": 500,
+            "y": 180
+          }
+        },
+        "id": "code_1"
+      }
+    ]
+  },
+  "trialRuns": [
+    {
+      "ok": true,
+      "taskId": "922defd6-4cf5-431e-8e3a-a5a2c2a394e4",
+      "workflowStatus": "success",
+      "outputs": {
+        "result": "王先生"
+      },
+      "nodes": {
+        "code_1": {
+          "id": "code_1",
+          "status": "succeeded",
+          "startTime": 1792942912788,
+          "endTime": 1792942912792,
+          "timeCost": 4,
+          "snapshots": [
+            {
+              "nodeID": "code_1",
+              "inputs": {
+                "name": "王先生"
+              },
+              "outputs": {
+                "result": "王先生"
+              },
+              "data": {
+                "result": "王先生"
+              },
+              "branch": "",
+              "error": "",
+              "id": "code_1"
+            }
+          ]
+        },
+        "start_1": {
+          "id": "start_1",
+          "status": "succeeded",
+          "startTime": 1792942912788,
+          "endTime": 1792942912788,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "start_1",
+              "inputs": {
+                "name": "王先生"
+              },
+              "outputs": {
+                "input": "",
+                "name": "王先生"
+              },
+              "data": {
+                "name": "王先生"
+              },
+              "branch": "",
+              "error": "",
+              "id": "start_1"
+            }
+          ]
+        },
+        "end_1": {
+          "id": "end_1",
+          "status": "succeeded",
+          "startTime": 1792942912793,
+          "endTime": 1792942912793,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "end_1",
+              "inputs": {
+                "code_1": {
+                  "result": "王先生"
+                },
+                "name": "王先生",
+                "start_1": {
+                  "input": "",
+                  "name": "王先生"
+                }
+              },
+              "outputs": {
+                "result": "王先生"
+              },
+              "data": {
+                "code_1": {
+                  "result": "王先生"
+                },
+                "name": "王先生",
+                "start_1": {
+                  "input": "",
+                  "name": "王先生"
+                }
+              },
+              "branch": "",
+              "error": "",
+              "id": "end_1"
+            }
+          ]
+        }
+      },
+      "runDetail": {
+        "nodes": [
+          {
+            "id": 232,
+            "runTaskId": "922defd6-4cf5-431e-8e3a-a5a2c2a394e4",
+            "nodeId": "code_1",
+            "nodeType": "code",
+            "title": null,
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"name\":\"王先生\"}",
+            "outputJson": "{\"result\":\"王先生\"}",
+            "timeCostMs": 4,
+            "createdAt": "2026-10-25T23:41:52.848897"
+          },
+          {
+            "id": 233,
+            "runTaskId": "922defd6-4cf5-431e-8e3a-a5a2c2a394e4",
+            "nodeId": "start_1",
+            "nodeType": "start",
+            "title": "开始",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"name\":\"王先生\"}",
+            "outputJson": "{\"input\":\"\",\"name\":\"王先生\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:41:52.848897"
+          },
+          {
+            "id": 234,
+            "runTaskId": "922defd6-4cf5-431e-8e3a-a5a2c2a394e4",
+            "nodeId": "end_1",
+            "nodeType": "end",
+            "title": "结束",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"code_1\":{\"result\":\"王先生\"},\"name\":\"王先生\",\"start_1\":{\"input\":\"\",\"name\":\"王先生\"}}",
+            "outputJson": "{\"result\":\"王先生\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:41:52.848897"
+          }
+        ],
+        "run": {
+          "id": 60,
+          "taskId": "922defd6-4cf5-431e-8e3a-a5a2c2a394e4",
+          "workflowCode": null,
+          "status": "success",
+          "errorMessage": null,
+          "inputsJson": "{\"name\":\"王先生\"}",
+          "outputsJson": "{\"result\":\"王先生\"}",
+          "nodeCount": 3,
+          "durationMs": 60,
+          "triggerChannel": "editor",
+          "startedAt": "2026-10-25T23:41:52.788897",
+          "finishedAt": "2026-10-25T23:41:52.848897",
+          "createdAt": "2026-10-25T23:41:52.848897"
+        }
+      }
+    },
+    {
+      "ok": true,
+      "taskId": "f7abef87-6f35-4b2b-912c-7e57ffbc4bce",
+      "workflowStatus": "success",
+      "outputs": {
+        "result": "朋友"
+      },
+      "nodes": {
+        "code_1": {
+          "id": "code_1",
+          "status": "succeeded",
+          "startTime": 1792942913807,
+          "endTime": 1792942913811,
+          "timeCost": 4,
+          "snapshots": [
+            {
+              "nodeID": "code_1",
+              "inputs": {
+                "name": ""
+              },
+              "outputs": {
+                "result": "朋友"
+              },
+              "data": {
+                "result": "朋友"
+              },
+              "branch": "",
+              "error": "",
+              "id": "code_1"
+            }
+          ]
+        },
+        "start_1": {
+          "id": "start_1",
+          "status": "succeeded",
+          "startTime": 1792942913807,
+          "endTime": 1792942913807,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "start_1",
+              "inputs": {
+                "name": ""
+              },
+              "outputs": {
+                "input": "",
+                "name": ""
+              },
+              "data": {
+                "name": ""
+              },
+              "branch": "",
+              "error": "",
+              "id": "start_1"
+            }
+          ]
+        },
+        "end_1": {
+          "id": "end_1",
+          "status": "succeeded",
+          "startTime": 1792942913811,
+          "endTime": 1792942913811,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "end_1",
+              "inputs": {
+                "code_1": {
+                  "result": "朋友"
+                },
+                "name": "",
+                "start_1": {
+                  "input": "",
+                  "name": ""
+                }
+              },
+              "outputs": {
+                "result": "朋友"
+              },
+              "data": {
+                "code_1": {
+                  "result": "朋友"
+                },
+                "name": "",
+                "start_1": {
+                  "input": "",
+                  "name": ""
+                }
+              },
+              "branch": "",
+              "error": "",
+              "id": "end_1"
+            }
+          ]
+        }
+      },
+      "runDetail": {
+        "nodes": [
+          {
+            "id": 235,
+            "runTaskId": "f7abef87-6f35-4b2b-912c-7e57ffbc4bce",
+            "nodeId": "code_1",
+            "nodeType": "code",
+            "title": null,
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"name\":\"\"}",
+            "outputJson": "{\"result\":\"朋友\"}",
+            "timeCostMs": 4,
+            "createdAt": "2026-10-25T23:41:53.867293"
+          },
+          {
+            "id": 236,
+            "runTaskId": "f7abef87-6f35-4b2b-912c-7e57ffbc4bce",
+            "nodeId": "start_1",
+            "nodeType": "start",
+            "title": "开始",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"name\":\"\"}",
+            "outputJson": "{\"input\":\"\",\"name\":\"\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:41:53.867293"
+          },
+          {
+            "id": 237,
+            "runTaskId": "f7abef87-6f35-4b2b-912c-7e57ffbc4bce",
+            "nodeId": "end_1",
+            "nodeType": "end",
+            "title": "结束",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"code_1\":{\"result\":\"朋友\"},\"name\":\"\",\"start_1\":{\"input\":\"\",\"name\":\"\"}}",
+            "outputJson": "{\"result\":\"朋友\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:41:53.867293"
+          }
+        ],
+        "run": {
+          "id": 61,
+          "taskId": "f7abef87-6f35-4b2b-912c-7e57ffbc4bce",
+          "workflowCode": null,
+          "status": "success",
+          "errorMessage": null,
+          "inputsJson": "{\"name\":\"\"}",
+          "outputsJson": "{\"result\":\"朋友\"}",
+          "nodeCount": 3,
+          "durationMs": 61,
+          "triggerChannel": "editor",
+          "startedAt": "2026-10-25T23:41:53.806293",
+          "finishedAt": "2026-10-25T23:41:53.867293",
+          "createdAt": "2026-10-25T23:41:53.867293"
+        }
+      }
+    },
+    {
+      "ok": true,
+      "taskId": "5d227033-39fb-4211-9669-53893084da25",
+      "workflowStatus": "success",
+      "outputs": {
+        "result": "朋友"
+      },
+      "nodes": {
+        "code_1": {
+          "id": "code_1",
+          "status": "succeeded",
+          "startTime": 1792942914825,
+          "endTime": 1792942914830,
+          "timeCost": 5,
+          "snapshots": [
+            {
+              "nodeID": "code_1",
+              "inputs": {
+                "name": ""
+              },
+              "outputs": {
+                "result": "朋友"
+              },
+              "data": {
+                "result": "朋友"
+              },
+              "branch": "",
+              "error": "",
+              "id": "code_1"
+            }
+          ]
+        },
+        "start_1": {
+          "id": "start_1",
+          "status": "succeeded",
+          "startTime": 1792942914825,
+          "endTime": 1792942914825,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "start_1",
+              "inputs": {},
+              "outputs": {
+                "input": "",
+                "name": ""
+              },
+              "data": {},
+              "branch": "",
+              "error": "",
+              "id": "start_1"
+            }
+          ]
+        },
+        "end_1": {
+          "id": "end_1",
+          "status": "succeeded",
+          "startTime": 1792942914830,
+          "endTime": 1792942914830,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "end_1",
+              "inputs": {
+                "code_1": {
+                  "result": "朋友"
+                },
+                "start_1": {
+                  "input": "",
+                  "name": ""
+                }
+              },
+              "outputs": {
+                "result": "朋友"
+              },
+              "data": {
+                "code_1": {
+                  "result": "朋友"
+                },
+                "start_1": {
+                  "input": "",
+                  "name": ""
+                }
+              },
+              "branch": "",
+              "error": "",
+              "id": "end_1"
+            }
+          ]
+        }
+      },
+      "runDetail": {
+        "nodes": [
+          {
+            "id": 238,
+            "runTaskId": "5d227033-39fb-4211-9669-53893084da25",
+            "nodeId": "code_1",
+            "nodeType": "code",
+            "title": null,
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"name\":\"\"}",
+            "outputJson": "{\"result\":\"朋友\"}",
+            "timeCostMs": 5,
+            "createdAt": "2026-10-25T23:41:54.885786"
+          },
+          {
+            "id": 239,
+            "runTaskId": "5d227033-39fb-4211-9669-53893084da25",
+            "nodeId": "start_1",
+            "nodeType": "start",
+            "title": "开始",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{}",
+            "outputJson": "{\"input\":\"\",\"name\":\"\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:41:54.885786"
+          },
+          {
+            "id": 240,
+            "runTaskId": "5d227033-39fb-4211-9669-53893084da25",
+            "nodeId": "end_1",
+            "nodeType": "end",
+            "title": "结束",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"code_1\":{\"result\":\"朋友\"},\"start_1\":{\"input\":\"\",\"name\":\"\"}}",
+            "outputJson": "{\"result\":\"朋友\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:41:54.885786"
+          }
+        ],
+        "run": {
+          "id": 62,
+          "taskId": "5d227033-39fb-4211-9669-53893084da25",
+          "workflowCode": null,
+          "status": "success",
+          "errorMessage": null,
+          "inputsJson": "{}",
+          "outputsJson": "{\"result\":\"朋友\"}",
+          "nodeCount": 3,
+          "durationMs": 60,
+          "triggerChannel": "editor",
+          "startedAt": "2026-10-25T23:41:54.825786",
+          "finishedAt": "2026-10-25T23:41:54.885786",
+          "createdAt": "2026-10-25T23:41:54.885786"
+        }
+      }
+    }
+  ]
+}

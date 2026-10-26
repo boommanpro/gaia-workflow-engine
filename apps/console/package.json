@@ -19,6 +19,7 @@
   "dependencies": {
     "@douyinfe/semi-icons": "^2.80.0",
     "@douyinfe/semi-ui": "^2.80.0",
+    "@flowgram.ai/editor": "1.0.12",
     "@flowgram.ai/form-core": "1.0.12",
     "@flowgram.ai/form-materials": "1.0.12",
     "@flowgram.ai/free-container-plugin": "1.0.12",

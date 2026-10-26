@@ -1,0 +1,476 @@
+{
+  "caseId": "C01",
+  "sessionKey": "65a850958e004288bc9637cf7ea9bb23",
+  "elapsedSec": 53,
+  "turns": [
+    {
+      "utterance": "帮我做一个活动报名的信息卡工具：提交姓名、年龄和邮箱，跑完输出一张卡片——姓名、邮箱原样带上，再拼一句“欢迎张三，今年 28 岁”这样的问候语。",
+      "runStatus": "done",
+      "asksAnswered": [],
+      "lastAssistant": "现在添加 code 节点，用于拼接问候语：\n\n现在需要把 start_1 连到 code_1，并配置 end_1 的输出：\n\n现在配置 end_1 的输出，引用 code_1 的 card 字段：\n\n现在整流试跑：\n\n输出为空，检查一下 end_1 的 inputsValues 是否生效：\n\ninputsValues 已配置。可能是 inputs 声明和 inputsValues 的映射问题，尝试去掉 inputs 声明，只保留 inputsValues：\n\n还是空输出。看看 code_1 的实际输出字段：\n\ncode_1 输出也是空的，可能是 script 格式问题。看看 code 节点的知识：\n\n关键发现：code 节点需要配置 `inputsValues` 来接收上游输入，以及 `outputs` 声明输出白名单。当前 code_1 缺少这两个配置。\n\n变量名冲突，`name` 在 GraalJS 中是保留的。改用其他变量名：\n\n还是空输出。检查 inputsValues 是否正确写入：\n\ninputsValues 已配置。试跑时没有传 mockInputs，可能 inputsValues 没生效。用 workflow 级别试跑：\n\n还是空输出。可能是 inputs 和 inputsValues 的 key 层级问题。看文档示例，inputs 和 inputsValues 是同级字段。让我检查 data 结构是否正确——当前 inputs 和 inputsValues 被嵌套在同一个对象里了。\n\n输出正常了！再跑一组反向测试：\n\n两组都通过。沉淀测试用例：\n\n✅ 活动报名信息卡工具已完成，草稿验证通过。\n\n## 做了什么\n\n| 节点 | 作用 |\n|------|------|\n| **start_1（开始）** | 接收三个输入：姓名、年龄、邮箱 |\n| **code_1（生成活动卡片）** | 拼接问候语 `欢迎{姓名}，今年{年龄}岁`，生成完整卡片 |\n| **end_1（结束）** | 输出卡片内容、姓名、邮箱、问候语 |\n\n## 输出示例\n\n输入 `张三, 28, zhangsan@example.com` → 输出：\n- **greeting**: `欢迎张三，今年28岁`\n- **card**: 包含姓名、邮箱、问候语的完整卡片文本\n- **name**: `张三`\n- **email**: `zhangsan@example.com`\n\n## 测试\n\n两组测试用例（张三/李四）均已通过。\n\n**请保存为版本**，草稿已就绪。"
+    }
+  ],
+  "pass": true,
+  "checks": [
+    {
+      "case": "C01",
+      "name": "草稿存在 end 且有产出",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "case": "C01",
+      "name": "未滥用 llm",
+      "pass": true,
+      "detail": "llm 数量=0"
+    },
+    {
+      "case": "C01",
+      "name": "试运行成功",
+      "pass": true,
+      "detail": "status=success"
+    },
+    {
+      "case": "C01",
+      "name": "outputs.name 原样",
+      "pass": true,
+      "detail": "\"张三\""
+    },
+    {
+      "case": "C01",
+      "name": "outputs.email 原样",
+      "pass": true,
+      "detail": "\"z@x.com\""
+    },
+    {
+      "case": "C01",
+      "name": "问候语含姓名与年龄",
+      "pass": true,
+      "detail": "\"欢迎张三，今年28岁\""
+    },
+    {
+      "case": "C01",
+      "name": "数字渲染无 28.0",
+      "pass": true,
+      "detail": "\"欢迎张三，今年28岁\""
+    }
+  ],
+  "doc": {
+    "edges": [
+      {
+        "sourceNodeID": "code_1",
+        "targetNodeID": "end_1"
+      },
+      {
+        "sourceNodeID": "start_1",
+        "targetNodeID": "code_1"
+      }
+    ],
+    "version": 8,
+    "nodes": [
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "input": {
+                "description": "input",
+                "type": "string",
+                "default": ""
+              },
+              "name": {
+                "description": "name",
+                "type": "string",
+                "title": "姓名",
+                "default": ""
+              },
+              "age": {
+                "description": "age",
+                "type": "string",
+                "title": "年龄",
+                "default": ""
+              },
+              "email": {
+                "description": "email",
+                "type": "string",
+                "title": "邮箱",
+                "default": ""
+              }
+            }
+          },
+          "title": "开始"
+        },
+        "type": "start",
+        "meta": {
+          "position": {
+            "x": 180,
+            "y": 180
+          }
+        },
+        "id": "start_1"
+      },
+      {
+        "data": {
+          "inputsValues": {
+            "greeting": {
+              "type": "ref",
+              "content": [
+                "code_1",
+                "greeting"
+              ]
+            },
+            "name": {
+              "type": "ref",
+              "content": [
+                "code_1",
+                "name"
+              ]
+            },
+            "card": {
+              "type": "ref",
+              "content": [
+                "code_1",
+                "card"
+              ]
+            },
+            "email": {
+              "type": "ref",
+              "content": [
+                "code_1",
+                "email"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "greeting": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "card": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "结束"
+        },
+        "type": "end",
+        "meta": {
+          "position": {
+            "x": 500,
+            "y": 180
+          }
+        },
+        "id": "end_1"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "greeting": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "card": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string"
+              }
+            }
+          },
+          "inputsValues": {
+            "name": {
+              "type": "ref",
+              "content": [
+                "start_1",
+                "name"
+              ]
+            },
+            "age": {
+              "type": "ref",
+              "content": [
+                "start_1",
+                "age"
+              ]
+            },
+            "email": {
+              "type": "ref",
+              "content": [
+                "start_1",
+                "email"
+              ]
+            }
+          },
+          "inputs": {
+            "outputs": {
+              "type": "object",
+              "properties": {
+                "greeting": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "email": {
+                  "type": "string"
+                },
+                "card": {
+                  "type": "string"
+                }
+              }
+            },
+            "inputsValues": {
+              "name": {
+                "type": "ref",
+                "content": [
+                  "start_1",
+                  "name"
+                ]
+              },
+              "age": {
+                "type": "ref",
+                "content": [
+                  "start_1",
+                  "age"
+                ]
+              },
+              "email": {
+                "type": "ref",
+                "content": [
+                  "start_1",
+                  "email"
+                ]
+              }
+            },
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "age": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "生成活动卡片",
+          "script": {
+            "language": "javascript",
+            "content": "const userName = name;\nconst userAge = age;\nconst userEmail = email;\n\nconst greeting = `欢迎${userName}，今年${userAge}岁`;\n\n({\n  name: userName,\n  email: userEmail,\n  greeting: greeting,\n  card: `🎉 活动报名卡片\\n\\n姓名：${userName}\\n邮箱：${userEmail}\\n\\n${greeting}`\n})"
+          }
+        },
+        "type": "code",
+        "meta": {
+          "position": {
+            "x": 820,
+            "y": 180
+          }
+        },
+        "id": "code_1"
+      }
+    ]
+  },
+  "trialRuns": [
+    {
+      "ok": true,
+      "taskId": "27583895-d860-48b2-906c-f52d0cd643b9",
+      "workflowStatus": "success",
+      "outputs": {
+        "greeting": "欢迎张三，今年28岁",
+        "name": "张三",
+        "card": "🎉 活动报名卡片\n\n姓名：张三\n邮箱：z@x.com\n\n欢迎张三，今年28岁",
+        "email": "z@x.com"
+      },
+      "nodes": {
+        "code_1": {
+          "id": "code_1",
+          "status": "succeeded",
+          "startTime": 1792933362207,
+          "endTime": 1792933362214,
+          "timeCost": 7,
+          "snapshots": [
+            {
+              "nodeID": "code_1",
+              "inputs": {
+                "name": "张三",
+                "age": 28,
+                "email": "z@x.com"
+              },
+              "outputs": {
+                "greeting": "欢迎张三，今年28岁",
+                "name": "张三",
+                "card": "🎉 活动报名卡片\n\n姓名：张三\n邮箱：z@x.com\n\n欢迎张三，今年28岁",
+                "email": "z@x.com"
+              },
+              "data": {
+                "greeting": "欢迎张三，今年28岁",
+                "name": "张三",
+                "email": "z@x.com",
+                "card": "🎉 活动报名卡片\n\n姓名：张三\n邮箱：z@x.com\n\n欢迎张三，今年28岁"
+              },
+              "branch": "",
+              "error": "",
+              "id": "code_1"
+            }
+          ]
+        },
+        "start_1": {
+          "id": "start_1",
+          "status": "succeeded",
+          "startTime": 1792933362207,
+          "endTime": 1792933362207,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "start_1",
+              "inputs": {
+                "name": "张三",
+                "age": 28,
+                "email": "z@x.com"
+              },
+              "outputs": {
+                "input": "",
+                "name": "张三",
+                "age": 28,
+                "email": "z@x.com"
+              },
+              "data": {
+                "name": "张三",
+                "age": 28,
+                "email": "z@x.com"
+              },
+              "branch": "",
+              "error": "",
+              "id": "start_1"
+            }
+          ]
+        },
+        "end_1": {
+          "id": "end_1",
+          "status": "succeeded",
+          "startTime": 1792933362214,
+          "endTime": 1792933362214,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "end_1",
+              "inputs": {
+                "code_1": {
+                  "greeting": "欢迎张三，今年28岁",
+                  "name": "张三",
+                  "card": "🎉 活动报名卡片\n\n姓名：张三\n邮箱：z@x.com\n\n欢迎张三，今年28岁",
+                  "email": "z@x.com"
+                },
+                "name": "张三",
+                "age": 28,
+                "email": "z@x.com",
+                "start_1": {
+                  "input": "",
+                  "name": "张三",
+                  "age": 28,
+                  "email": "z@x.com"
+                }
+              },
+              "outputs": {
+                "greeting": "欢迎张三，今年28岁",
+                "name": "张三",
+                "card": "🎉 活动报名卡片\n\n姓名：张三\n邮箱：z@x.com\n\n欢迎张三，今年28岁",
+                "email": "z@x.com"
+              },
+              "data": {
+                "code_1": {
+                  "greeting": "欢迎张三，今年28岁",
+                  "name": "张三",
+                  "card": "🎉 活动报名卡片\n\n姓名：张三\n邮箱：z@x.com\n\n欢迎张三，今年28岁",
+                  "email": "z@x.com"
+                },
+                "name": "张三",
+                "age": 28,
+                "email": "z@x.com",
+                "start_1": {
+                  "input": "",
+                  "name": "张三",
+                  "age": 28,
+                  "email": "z@x.com"
+                }
+              },
+              "branch": "",
+              "error": "",
+              "id": "end_1"
+            }
+          ]
+        }
+      },
+      "runDetail": {
+        "nodes": [
+          {
+            "id": 37,
+            "runTaskId": "27583895-d860-48b2-906c-f52d0cd643b9",
+            "nodeId": "code_1",
+            "nodeType": "code",
+            "title": "生成活动卡片",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"name\":\"张三\",\"age\":28,\"email\":\"z@x.com\"}",
+            "outputJson": "{\"greeting\":\"欢迎张三，今年28岁\",\"name\":\"张三\",\"card\":\"🎉 活动报名卡片\\n\\n姓名：张三\\n邮箱：z@x.com\\n\\n欢迎张三，今年28岁\",\"email\":\"z@x.com\"}",
+            "timeCostMs": 7,
+            "createdAt": "2026-10-25T21:02:42.267866"
+          },
+          {
+            "id": 38,
+            "runTaskId": "27583895-d860-48b2-906c-f52d0cd643b9",
+            "nodeId": "start_1",
+            "nodeType": "start",
+            "title": "开始",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"name\":\"张三\",\"age\":28,\"email\":\"z@x.com\"}",
+            "outputJson": "{\"input\":\"\",\"name\":\"张三\",\"age\":28,\"email\":\"z@x.com\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T21:02:42.267866"
+          },
+          {
+            "id": 39,
+            "runTaskId": "27583895-d860-48b2-906c-f52d0cd643b9",
+            "nodeId": "end_1",
+            "nodeType": "end",
+            "title": "结束",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"code_1\":{\"greeting\":\"欢迎张三，今年28岁\",\"name\":\"张三\",\"card\":\"🎉 活动报名卡片\\n\\n姓名：张三\\n邮箱：z@x.com\\n\\n欢迎张三，今年28岁\",\"email\":\"z@x.com\"},\"name\":\"张三\",\"age\":28,\"email\":\"z@x.com\",\"start_1\":{\"input\":\"\",\"name\":\"张三\",\"age\":28,\"email\":\"z@x.com\"}}",
+            "outputJson": "{\"greeting\":\"欢迎张三，今年28岁\",\"name\":\"张三\",\"card\":\"🎉 活动报名卡片\\n\\n姓名：张三\\n邮箱：z@x.com\\n\\n欢迎张三，今年28岁\",\"email\":\"z@x.com\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T21:02:42.267866"
+          }
+        ],
+        "run": {
+          "id": 8,
+          "taskId": "27583895-d860-48b2-906c-f52d0cd643b9",
+          "workflowCode": null,
+          "status": "success",
+          "errorMessage": null,
+          "inputsJson": "{\"name\":\"张三\",\"age\":28,\"email\":\"z@x.com\"}",
+          "outputsJson": "{\"greeting\":\"欢迎张三，今年28岁\",\"name\":\"张三\",\"card\":\"🎉 活动报名卡片\\n\\n姓名：张三\\n邮箱：z@x.com\\n\\n欢迎张三，今年28岁\",\"email\":\"z@x.com\"}",
+          "nodeCount": 3,
+          "durationMs": 61,
+          "triggerChannel": "editor",
+          "startedAt": "2026-10-25T21:02:42.206866",
+          "finishedAt": "2026-10-25T21:02:42.267866",
+          "createdAt": "2026-10-25T21:02:42.267866"
+        }
+      }
+    }
+  ]
+}

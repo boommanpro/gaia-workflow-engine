@@ -176,8 +176,11 @@ class WorkflowDslValidatorTest {
     void unreachableNodeIsWarning() {
         String dsl = doc(
             start() + ","
+                // llm 凭证三件套必填化（2026-10-25 C06 契约）：不带凭证会引入无关 SEMANTIC error
                 + "{\"id\":\"llm_0\",\"type\":\"llm\",\"data\":{\"inputsValues\":{\"prompt\":{\"type\":\"template\","
-                + "\"content\":\"hi\"}}},\"meta\":{\"position\":{\"x\":1,\"y\":1}}},"
+                + "\"content\":\"hi\"},\"modelName\":{\"type\":\"constant\",\"content\":\"m\"},"
+                + "\"apiHost\":{\"type\":\"constant\",\"content\":\"https://x\"},"
+                + "\"apiKey\":{\"type\":\"constant\",\"content\":\"sk-test\"}}},\"meta\":{\"position\":{\"x\":1,\"y\":1}}},"
                 + endWithRef("start_0", "q"),
             "{\"sourceNodeID\":\"start_0\",\"targetNodeID\":\"end_0\"}");
         List<WorkflowDslValidator.Issue> issues = WorkflowDslValidator.validate(dsl);
@@ -206,7 +209,8 @@ class WorkflowDslValidatorTest {
             "{\"sourceNodeID\":\"start_0\",\"targetNodeID\":\"llm_0\"},"
                 + "{\"sourceNodeID\":\"llm_0\",\"targetNodeID\":\"end_0\"}");
         List<WorkflowDslValidator.Issue> issues = WorkflowDslValidator.validate(dsl);
-        assertFalse(WorkflowDslValidator.hasErrors(issues), "模板引用只警告: " + issues);
+        // 2026-10-24 升 error：模板引用未知节点必须三方可感知（模型 violations / 前端弹错 / 后端拦截）
+        assertTrue(WorkflowDslValidator.hasErrors(issues), "模板引用未知节点必须是 error: " + issues);
         assertTrue(codes(issues).contains("TEMPLATE_REF_UNKNOWN"));
     }
 
@@ -258,7 +262,9 @@ class WorkflowDslValidatorTest {
         String good = doc(
             start() + ","
                 + "{\"id\":\"br_0\",\"type\":\"branches\",\"data\":{\"branches\":[{\"id\":\"if_big\",\"title\":\"大\","
-                + "\"logic\":\"and\",\"conditions\":[{\"key\":\"c1\",\"value\":{}}]}]},"
+                + "\"logic\":\"and\",\"conditions\":[{\"key\":\"c1\",\"value\":{\"operator\":\"contains\","
+                + "\"left\":{\"type\":\"ref\",\"content\":[\"start_0\",\"q\"]},"
+                + "\"right\":{\"type\":\"constant\",\"content\":\"x\"}}}]}]},"
                 + "\"meta\":{\"position\":{\"x\":1,\"y\":0}}},"
                 + endWithRef("br_0", "if_big"),
             "{\"sourceNodeID\":\"start_0\",\"targetNodeID\":\"br_0\"},"

@@ -1,0 +1,319 @@
+{
+  "caseId": "C15",
+  "sessionKey": "ea5123008c37401e8d89e256aaae0c06",
+  "elapsedSec": 136,
+  "turns": [
+    {
+      "utterance": "我之前发布过一个“成绩判定器”的工作流。现在做一个新工具：输入一个分数，先复用之前那个判定器拿到结果文案，再把结果文案原样输出给我。",
+      "runStatus": "done",
+      "asksAnswered": [
+        {
+          "askId": "ask-9e5ff9e8",
+          "question": "已发布的工作流中，哪个是\"成绩判定器\"？以下是候选：\n- wf_ebc3ea84e1fc\n- wf_754674bc0a2c\n或者你有其他工作流 code？",
+          "answer": "按你推荐的口径继续，并在回复里说明你采用的假设。"
+        }
+      ],
+      "lastAssistant": "⚠️ 系统护栏：你已连续 6 次调用 run（同一目标，参数反复微调）且一直失败，本轮执行已被终止以避免空转。\n\n已生效的改动保持有效。继续推进请换一种方式：先用 get(target=canvas) / get(target=variables) 核对现状，或把回执里的可抄示例逐字段比对后一次性修正重发；若仍无法修正，直接说明你需要用户提供什么。"
+    },
+    {
+      "utterance": "[推动] 请直接按合理假设完成搭建",
+      "runStatus": "done",
+      "asksAnswered": [],
+      "lastAssistant": ""
+    }
+  ],
+  "pass": true,
+  "checks": [
+    {
+      "case": "C15",
+      "name": "存在子流程节点",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "case": "C15",
+      "name": "workflowId 已填",
+      "pass": true,
+      "detail": "\"wf_ebc3ea84e1fc\""
+    },
+    {
+      "case": "C15",
+      "name": "试运行成功",
+      "pass": true,
+      "detail": "status=success"
+    },
+    {
+      "case": "C15",
+      "name": "复用结果输出",
+      "pass": true,
+      "detail": "{\"result\":\"及格，分数：85\"}"
+    }
+  ],
+  "doc": {
+    "edges": [
+      {
+        "sourceNodeID": "start_1",
+        "sourcePortID": "",
+        "targetNodeID": "workflow_1"
+      },
+      {
+        "sourceNodeID": "workflow_1",
+        "targetNodeID": "end_1"
+      }
+    ],
+    "version": 5,
+    "nodes": [
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "input": {
+                "description": "input",
+                "type": "string",
+                "default": ""
+              },
+              "score": {
+                "description": "输入分数",
+                "type": "number",
+                "default": 0
+              }
+            }
+          },
+          "title": "开始"
+        },
+        "type": "start",
+        "meta": {
+          "position": {
+            "x": 180,
+            "y": 180
+          }
+        },
+        "id": "start_1"
+      },
+      {
+        "data": {
+          "inputsValues": {
+            "result": {
+              "type": "ref",
+              "content": [
+                "workflow_1",
+                "result"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "result": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "结束"
+        },
+        "type": "end",
+        "meta": {
+          "position": {
+            "x": 500,
+            "y": 180
+          }
+        },
+        "id": "end_1"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "result": {
+                "type": "string"
+              }
+            }
+          },
+          "inputsValues": {
+            "score": {
+              "type": "ref",
+              "content": [
+                "start_1",
+                "score"
+              ]
+            }
+          },
+          "workflowName": "成绩判定器",
+          "title": "成绩判定器",
+          "workflowId": "wf_ebc3ea84e1fc"
+        },
+        "type": "workflow",
+        "meta": {
+          "position": {
+            "x": 500,
+            "y": 380
+          }
+        },
+        "id": "workflow_1"
+      }
+    ]
+  },
+  "trialRuns": [
+    {
+      "ok": true,
+      "taskId": "7430d593-458f-4fcf-b28a-bb7ae052fd03",
+      "workflowStatus": "success",
+      "outputs": {
+        "result": "及格，分数：85"
+      },
+      "nodes": {
+        "workflow_1": {
+          "id": "workflow_1",
+          "status": "succeeded",
+          "startTime": 1792942691108,
+          "endTime": 1792942691115,
+          "timeCost": 7,
+          "snapshots": [
+            {
+              "nodeID": "workflow_1",
+              "inputs": {
+                "score": 85,
+                "start_1": {
+                  "input": "",
+                  "score": 85
+                }
+              },
+              "outputs": {
+                "result": "及格，分数：85"
+              },
+              "data": {
+                "result": "及格，分数：85"
+              },
+              "branch": "",
+              "error": "",
+              "id": "workflow_1"
+            }
+          ]
+        },
+        "start_1": {
+          "id": "start_1",
+          "status": "succeeded",
+          "startTime": 1792942691107,
+          "endTime": 1792942691107,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "start_1",
+              "inputs": {
+                "score": 85
+              },
+              "outputs": {
+                "input": "",
+                "score": 85
+              },
+              "data": {
+                "score": 85
+              },
+              "branch": "",
+              "error": "",
+              "id": "start_1"
+            }
+          ]
+        },
+        "end_1": {
+          "id": "end_1",
+          "status": "succeeded",
+          "startTime": 1792942691115,
+          "endTime": 1792942691115,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "end_1",
+              "inputs": {
+                "score": 85,
+                "workflow_1": {
+                  "result": "及格，分数：85"
+                },
+                "start_1": {
+                  "input": "",
+                  "score": 85
+                }
+              },
+              "outputs": {
+                "result": "及格，分数：85"
+              },
+              "data": {
+                "score": 85,
+                "workflow_1": {
+                  "result": "及格，分数：85"
+                },
+                "start_1": {
+                  "input": "",
+                  "score": 85
+                }
+              },
+              "branch": "",
+              "error": "",
+              "id": "end_1"
+            }
+          ]
+        }
+      },
+      "runDetail": {
+        "nodes": [
+          {
+            "id": 220,
+            "runTaskId": "7430d593-458f-4fcf-b28a-bb7ae052fd03",
+            "nodeId": "workflow_1",
+            "nodeType": "workflow",
+            "title": "成绩判定器",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"score\":85,\"start_1\":{\"input\":\"\",\"score\":85}}",
+            "outputJson": "{\"result\":\"及格，分数：85\"}",
+            "timeCostMs": 7,
+            "createdAt": "2026-10-25T23:38:11.168205"
+          },
+          {
+            "id": 221,
+            "runTaskId": "7430d593-458f-4fcf-b28a-bb7ae052fd03",
+            "nodeId": "start_1",
+            "nodeType": "start",
+            "title": "开始",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"score\":85}",
+            "outputJson": "{\"input\":\"\",\"score\":85}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:38:11.168205"
+          },
+          {
+            "id": 222,
+            "runTaskId": "7430d593-458f-4fcf-b28a-bb7ae052fd03",
+            "nodeId": "end_1",
+            "nodeType": "end",
+            "title": "结束",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"score\":85,\"workflow_1\":{\"result\":\"及格，分数：85\"},\"start_1\":{\"input\":\"\",\"score\":85}}",
+            "outputJson": "{\"result\":\"及格，分数：85\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:38:11.168205"
+          }
+        ],
+        "run": {
+          "id": 56,
+          "taskId": "7430d593-458f-4fcf-b28a-bb7ae052fd03",
+          "workflowCode": null,
+          "status": "success",
+          "errorMessage": null,
+          "inputsJson": "{\"score\":85}",
+          "outputsJson": "{\"result\":\"及格，分数：85\"}",
+          "nodeCount": 3,
+          "durationMs": 61,
+          "triggerChannel": "editor",
+          "startedAt": "2026-10-25T23:38:11.107205",
+          "finishedAt": "2026-10-25T23:38:11.168205",
+          "createdAt": "2026-10-25T23:38:11.168205"
+        }
+      }
+    }
+  ]
+}

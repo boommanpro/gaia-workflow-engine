@@ -15,7 +15,6 @@ import cn.hutool.json.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import javax.annotation.PreDestroy;
 import java.time.LocalDateTime;
@@ -23,8 +22,6 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -133,6 +130,7 @@ public class AgentSessionRunService {
     public static final String DEFAULT_AGENT_ID = "workspace-backend";
 
     private final AgentExecutionRouter executionRouter;
+    private final SessionWorkflowDraftService draftService;
     private final SessionEventBus eventBus;
     private final ConversationStore conversationStore;
     private final AgentSessionService sessionService;
@@ -140,27 +138,40 @@ public class AgentSessionRunService {
     private final AgentProviderConfigService providerConfigService;
     private final cn.boommanpro.gaia.workflow.infra.manage.service.AgentSessionEventService sessionEventService;
     private final SessionCompactionService compactionService;
+    private final SessionEventDbWriter eventDbWriter;
 
     private final ConcurrentMap<String, RunHandle> runs = new ConcurrentHashMap<>();
     /** 会话级 steering 收件箱：run 进行中的新消息在 turn 边界注入；run 结束后残留消息链接成新 run */
     private final ConcurrentMap<String, cn.boommanpro.gaia.workflow.app.agent.core.SteeringInbox> steeringInboxes =
         new ConcurrentHashMap<>();
 
-    private final ExecutorService executor = Executors.newCachedThreadPool(r -> {
-        Thread t = new Thread(r, "agent-session-run");
-        t.setDaemon(true);
-        return t;
-    });
+    /**
+     * 有界运行线程池：runs 是分钟级长任务，无界 cachedThreadPool 会在并发会话风暴时
+     * 无限开线程（架构评审 P0-2）。饱和时明确拒绝（返回 accepted:false），不假装受理。
+     */
+    private final java.util.concurrent.ThreadPoolExecutor executor =
+        new java.util.concurrent.ThreadPoolExecutor(
+            4, 8, 60L, java.util.concurrent.TimeUnit.SECONDS,
+            new java.util.concurrent.LinkedBlockingQueue<>(32),
+            r -> {
+                Thread t = new Thread(r, "agent-session-run");
+                t.setDaemon(true);
+                return t;
+            },
+            new java.util.concurrent.ThreadPoolExecutor.AbortPolicy());
 
     public AgentSessionRunService(AgentExecutionRouter executionRouter,
+                                  SessionWorkflowDraftService draftService,
                                   SessionEventBus eventBus,
                                   ConversationStore conversationStore,
                                   AgentSessionService sessionService,
                                   AgentProviderConfigService providerConfigService,
                                   cn.boommanpro.gaia.workflow.infra.manage.service.AgentSessionEventService sessionEventService,
                                   SessionCompactionService compactionService,
-                                  cn.boommanpro.gaia.workflow.infra.manage.service.AgentToolCallLogService toolCallLogService) {
+                                  cn.boommanpro.gaia.workflow.infra.manage.service.AgentToolCallLogService toolCallLogService,
+                                  SessionEventDbWriter eventDbWriter) {
         this.executionRouter = executionRouter;
+        this.draftService = draftService;
         this.eventBus = eventBus;
         this.conversationStore = conversationStore;
         this.sessionService = sessionService;
@@ -168,6 +179,7 @@ public class AgentSessionRunService {
         this.sessionEventService = sessionEventService;
         this.compactionService = compactionService;
         this.toolCallLogService = toolCallLogService;
+        this.eventDbWriter = eventDbWriter;
     }
 
     @PreDestroy
@@ -225,16 +237,20 @@ public class AgentSessionRunService {
             // 用户消息入库（含多模态图片）
             conversationStore.saveMessage(sessionKey, "user", message, null, null, images);
 
-            startExecution(sessionKey, message, pageContext, locale,
+            boolean accepted = startExecution(sessionKey, message, pageContext, locale,
                 (agentId != null && !agentId.isEmpty()) ? agentId : resolveDefaultAgentId(), images, true);
+            if (!accepted) {
+                return StartResult.conflict("系统繁忙：运行队列已满，请稍后重试");
+            }
         }
 
         return StartResult.accepted(sessionKey, currentRunId(sessionKey));
     }
 
-    /** 内部：把一次执行挂到线程池（persistedUserMessage 表示用户消息已入库，避免链接式重复落） */
-    private void startExecution(String sessionKey, String message, String pageContext, String locale,
-                                String agent, List<String> images, boolean persistedUserMessage) {
+    /** 内部：把一次执行挂到线程池（persistedUserMessage 表示用户消息已入库，避免链接式重复落）。
+     *  返回 false = 线程池饱和被拒（调用方据此向用户明确报错）。 */
+    private boolean startExecution(String sessionKey, String message, String pageContext, String locale,
+                                   String agent, List<String> images, boolean persistedUserMessage) {
         String runId = UUID.randomUUID().toString().replace("-", "").substring(0, 12);
         RunHandle handle = new RunHandle(runId, sessionKey);
         runs.put(sessionKey, handle);
@@ -251,9 +267,22 @@ public class AgentSessionRunService {
             .set("startedAt", System.currentTimeMillis());
         eventBus.setState(sessionKey, runningState);
 
-        executor.execute(() -> runAsync(sessionKey, message, pageContext, locale, agent, handle, persistedUserMessage));
+        try {
+            executor.execute(() -> runAsync(sessionKey, message, pageContext, locale, agent, handle, persistedUserMessage));
+        } catch (java.util.concurrent.RejectedExecutionException saturated) {
+            // 线程池饱和：摘除句柄、快照归位为明确错误（不假装受理）
+            runs.remove(sessionKey, handle);
+            eventBus.setState(sessionKey, new JSONObject()
+                .set("status", "error")
+                .set("phase", "error")
+                .set("sessionKey", sessionKey)
+                .set("error", "系统繁忙：运行队列已满"));
+            log.warn("[session-run] rejected session={} runId={} (executor saturated)", sessionKey, runId);
+            return false;
+        }
         log.info("[session-run] accepted session={} runId={} agent={} persistedUserMessage={}",
             sessionKey, runId, agent, persistedUserMessage);
+        return true;
     }
 
     private String currentRunId(String sessionKey) {
@@ -322,8 +351,14 @@ public class AgentSessionRunService {
 
     // ---------------- 订阅 / 状态 ----------------
 
-    /** 订阅会话事件流（SSE 用），返回取消句柄 */
-    public Runnable subscribe(String sessionKey, SseEmitter emitter) {
+    /**
+     * 订阅会话事件流（SSE 用），返回取消句柄。
+     *
+     * <p>断线续传：{@code lastEventId} 非空且总线缓冲覆盖时，精确重放缺失事件；
+     * 否则回放当前运行快照。订阅者应是异步写出器（{@code SseStreamWriter}），
+     * 慢客户端不会阻塞 run 线程。</p>
+     */
+    public Runnable subscribe(String sessionKey, Long lastEventId, SessionEventBus.Subscriber subscriber) {
         // 僵尸快照归位：进程重启 / 线程被杀等情况下 latestState 可能停留在 "running"，
         // 回放给新订阅窗口会被当成 live 消息，把旧 token 流（含模型回显的工具输出）
         // 整段注入对话框。凡是没有活跃 run 却自称 running 的，一律改写为 idle 再回放。
@@ -332,14 +367,7 @@ public class AgentSessionRunService {
             stale.set("status", "idle").set("phase", "idle");
             eventBus.setState(sessionKey, stale);
         }
-        return eventBus.subscribe(sessionKey, (type, data) -> {
-            try {
-                emitter.send(SseEmitter.event().name(type).data(data.toString()));
-                return true;
-            } catch (Exception e) {
-                return false; // 连接断开，总线会移除该订阅者
-            }
-        });
+        return eventBus.subscribe(sessionKey, lastEventId, subscriber);
     }
 
     /** 当前运行快照（轮询兜底 / 初始渲染用） */
@@ -386,7 +414,7 @@ public class AgentSessionRunService {
         // 调用日志录制器：旁路记录 llm_end / tool_call / tool_result，结束后并入 debug_data（会话审查数据源）
         ToolLogRecorder recorder = new ToolLogRecorder(
             new BusAgentEventSink(sessionKey, eventBus, handle), sessionService,
-            sessionEventService, handle.getRunId(), sessionKey, message);
+            sessionEventService, eventDbWriter, handle.getRunId(), sessionKey, message);
         AgentRunResult result = null;
         // run_end 是否已发（正常路径在 done 之前先发；finally 兜底 stop/异常路径）
         boolean runEndEmitted = false;
@@ -394,7 +422,9 @@ public class AgentSessionRunService {
             // run 的触发输入随事件流落库（TrajectoryPanel 据此渲染用户输入行，
             // 「任务输入（完整提示词）」与任务名回退；SSE 侧前端不认识该事件，自然忽略）
             recorder.emit(cn.boommanpro.gaia.workflow.app.agent.event.AgentEvent.of(
-                "run_input", new JSONObject().set("content", message)));
+                "run_input", new JSONObject()
+                    .set("content", message)
+                    .set("draftRevision", draftService.getDraftRevision(sessionKey))));
             AgentRequest request = new AgentRequest(
                 sessionKey, message, locale != null ? locale : "zh-CN", pageContext,
                 agentId, ToolExecutionMode.BACKEND, null, handle.getRunId());
@@ -485,7 +515,15 @@ public class AgentSessionRunService {
             if (!runEndEmitted) {
                 emitRunEnd(sessionKey, handle, result, recorder);
             }
-            recorder.flush(sessionKey);
+            // 先同步等事件账落库（终态 durable），再并 debug_data —— 事件表与消息表同批可见
+            recorder.flushAndWait(sessionKey, 3000);
+            // AI 构建完成后的自动分层布局（一字长蛇阵修复）：用户手动摆过则永久让位；
+            // 放在终态落库之后——布局广播触发的 document 事件属于下一观测窗口
+            try {
+                draftService.autoLayoutIfUntouched(sessionKey);
+            } catch (Exception e) {
+                log.debug("[session-run] auto-layout skipped: {}", e.getMessage());
+            }
             // 交错时间线持久化（对标 dsh「快照即结构」）：把本次 run 的真实调用链路
             // （思考 → 工具 → 思考 → … → 正文）附到本 run 的 assistant 行上 ——
             // 刷新后前端按原样还原，不再退化成「合并思考+合并正文+工具链」。
@@ -531,7 +569,9 @@ public class AgentSessionRunService {
                 : (result != null && result.isError() ? "error" : "done");
             JSONObject runEnd = new JSONObject()
                 .set("outcome", outcome)
-                .set("turns", result != null ? result.getTurns() : 0);
+                .set("turns", result != null ? result.getTurns() : 0)
+                // 观测与版本绑定（2026-10-25 用户要求）：run 结果必须能对上「跑的是哪版草稿」
+                .set("draftRevision", draftService.getDraftRevision(sessionKey));
             if (result != null) {
                 runEnd.set("engine", result.getEngine())
                     .set("durationMs", result.getDurationMs())
@@ -616,7 +656,11 @@ public class AgentSessionRunService {
             String agent = next.agentId != null && !next.agentId.isEmpty()
                 ? next.agentId : resolveDefaultAgentId();
             log.info("[session-run] chaining steering message session={}: {}", sessionKey, next.content);
-            startExecution(sessionKey, next.content, next.pageContext, next.locale, agent, next.images, false);
+            if (!startExecution(sessionKey, next.content, next.pageContext, next.locale, agent, next.images, false)) {
+                // 链接被拒（线程池饱和）：消息保留在收件箱，用户重发或下次触发时继续
+                inbox.offer(next);
+                log.warn("[session-run] steering chain rejected (executor saturated), message kept session={}", sessionKey);
+            }
         }
     }
 

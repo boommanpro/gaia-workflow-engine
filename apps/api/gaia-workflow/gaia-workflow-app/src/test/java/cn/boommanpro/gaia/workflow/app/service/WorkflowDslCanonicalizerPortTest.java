@@ -127,4 +127,21 @@ class WorkflowDslCanonicalizerPortTest {
         WorkflowDslCanonicalizer.Result result = WorkflowDslCanonicalizer.canonicalize(doc.toString());
         assertThat(result.getFatalIssues()).anyMatch(i -> i.contains("fromPort") && i.contains("if_match"));
     }
+
+    @org.junit.jupiter.api.Test
+    void llmJsonModeWithoutDeclaredOutputsIsFatal() {
+        // llm json 输出模式缺 outputs 声明：运行时无法把模型 JSON 解析成可引用字段，落版前 fatal
+        JSONObject doc = JSONUtil.parseObj("""
+            {
+              "nodes": [
+                {"id":"start_1","type":"start","data":{"outputs":{"type":"object","properties":{"q":{"type":"string"}}}}},
+                {"id":"llm_1","type":"llm","data":{"outputMode":"json","inputsValues":{"prompt":{"type":"template","content":"评估 {{start_1.q}}"}}}},
+                {"id":"end_1","type":"end","data":{"inputsValues":{"a":{"type":"ref","content":["llm_1","result"]}}}}
+              ],
+              "edges": []
+            }
+            """);
+        List<String> issues = WorkflowDslCanonicalizer.businessFieldIssues(doc);
+        assertThat(issues).anyMatch(i -> i.contains("llm_1") && i.contains("json") && i.contains("outputs"));
+    }
 }

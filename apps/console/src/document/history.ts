@@ -78,6 +78,8 @@ export interface CanvasSnapshot {
   /** 该快照是否已被后续编辑覆盖（仍可回滚，只是不在当前链路上） */
   superseded?: boolean;
   dsl: WorkflowDsl;
+  /** dsl 的序列化缓存（快照比对/持久化不再反复 stringify） */
+  dslJson?: string;
   /**
    * 上一版的 DSL（第一版为 undefined）。
    * 只存引用不复制：快照里的 dsl 是不可变对象，共享引用即可，省内存。
@@ -403,7 +405,6 @@ export function thumbTone(type: string): string {
     case 'llm':
       return '#4d53e8';
     case 'condition':
-    case 'multi-condition':
     case 'branches':
       return '#b7791f';
     case 'loop':

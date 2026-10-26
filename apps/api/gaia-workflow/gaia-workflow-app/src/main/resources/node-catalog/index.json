@@ -1,0 +1,21 @@
+{
+  "catalogVersion": 1,
+  "nodes": [
+    {"type":"start","version":1,"schema":"node-schemas/start.schema.json","defaults":"start","capabilities":{"executable":true,"aiCreatable":true,"container":false,"internal":false}},
+    {"type":"end","version":1,"schema":"node-schemas/end.schema.json","defaults":"end","capabilities":{"executable":true,"aiCreatable":true,"container":false,"internal":false}},
+    {"type":"llm","version":1,"schema":"node-schemas/llm.schema.json","defaults":"llm","capabilities":{"executable":true,"aiCreatable":true,"container":false,"internal":false}},
+    {"type":"code","version":1,"schema":"node-schemas/code.schema.json","defaults":"code","capabilities":{"executable":true,"aiCreatable":true,"container":false,"internal":false}},
+    {"type":"http","version":1,"schema":"node-schemas/http.schema.json","defaults":"http","capabilities":{"executable":true,"aiCreatable":true,"container":false,"internal":false}},
+    {"type":"condition","version":1,"schema":"node-schemas/condition.schema.json","defaults":"condition","capabilities":{"executable":true,"aiCreatable":true,"container":false,"internal":false}},
+    {"type":"branches","version":1,"schema":"node-schemas/branches.schema.json","defaults":"branches","capabilities":{"executable":true,"aiCreatable":true,"container":false,"internal":false}},
+    {"type":"loop","version":1,"schema":"node-schemas/loop.schema.json","defaults":"loop","capabilities":{"executable":true,"aiCreatable":true,"container":true,"internal":false}},
+    {"type":"variable","version":1,"schema":"node-schemas/variable.schema.json","defaults":"variable","capabilities":{"executable":true,"aiCreatable":true,"container":false,"internal":false}},
+    {"type":"string-format","version":1,"schema":"node-schemas/string-format.schema.json","defaults":"string-format","capabilities":{"executable":true,"aiCreatable":true,"container":false,"internal":false}},
+    {"type":"workflow","version":1,"schema":"node-schemas/workflow.schema.json","defaults":"workflow","capabilities":{"executable":true,"aiCreatable":true,"container":false,"internal":false}},
+    {"type":"comment","version":1,"schema":"node-schemas/comment.schema.json","defaults":"comment","capabilities":{"executable":false,"aiCreatable":true,"container":false,"internal":false}},
+    {"type":"block-start","version":1,"schema":"node-schemas/block-start.schema.json","capabilities":{"executable":true,"aiCreatable":false,"container":false,"internal":true}},
+    {"type":"block-end","version":1,"schema":"node-schemas/block-end.schema.json","capabilities":{"executable":true,"aiCreatable":false,"container":false,"internal":true}},
+    {"type":"break","version":1,"schema":"node-schemas/break.schema.json","capabilities":{"executable":true,"aiCreatable":false,"container":false,"internal":true}},
+    {"type":"continue","version":1,"schema":"node-schemas/continue.schema.json","capabilities":{"executable":true,"aiCreatable":false,"container":false,"internal":true}}
+  ]
+}

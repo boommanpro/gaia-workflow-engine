@@ -11,7 +11,7 @@ import { Button, Modal, Toast } from '@douyinfe/semi-ui';
 import { IconTick, IconClose, IconEyeOpened } from '@douyinfe/semi-icons';
 
 import { t } from '../../i18n';
-import { useAgent } from '../../agent/AgentContext';
+import { useRunStreaming } from '../../agent/AgentContext';
 import { aiPendingChangeStore, useAiPendingChange } from '../../agent/ai-pending-change';
 import {
   WorkflowDocument,
@@ -25,7 +25,7 @@ const ACCENT = '#4d53e8';
 
 export const AiPendingBanner: React.FC = () => {
   const pending = useAiPendingChange();
-  const { streaming } = useAgent();
+  const streaming = useRunStreaming();
   const [diffOpen, setDiffOpen] = useState(false);
   const [conflict, setConflict] = useState<DslChangeDetails | null>(null);
   const [applying, setApplying] = useState(false);

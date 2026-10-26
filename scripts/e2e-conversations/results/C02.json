@@ -1,0 +1,397 @@
+{
+  "caseId": "C02",
+  "sessionKey": "da0c3c615d3348ddbe4077ff1044bb05",
+  "elapsedSec": 29,
+  "turns": [
+    {
+      "utterance": "我每周要给客户发发货通知，内容基本固定：“亲爱的 {name}，您的订单 {orderNo} 已于 {date} 发出，预计 {days} 天内送达。”做个工具把这几个信息填进去生成最终文案。就是纯文本替换，别浪费 token 让大模型写。",
+      "runStatus": "done",
+      "asksAnswered": [],
+      "lastAssistant": "需求很明确：纯文本替换，用 `string-format` 节点即可，不需要 LLM。\n\n需要补齐 start 的输出参数和 string-format 的 script 配置。\n\n现在配置 string-format 节点，使用 `spel-vue` 语法（`{{}}` 占位），绑定 start 的四个输入变量：\n\n现在整流试跑，验证正反两组输入：\n\nend 节点需要引用 string-format 的输出：\n\n输出为空值，说明 `spel-vue` 的 `{{}}` 语法和 `inputsValues` 的 ref 绑定可能不匹配。让我改用 `spel-standard` 语法（`${}`）：\n\n还是空值。可能是 `spel-standard` 的 `${}` 和 `inputsValues` 的 ref 绑定方式不兼容。让我改用 `inputs` 声明变量，模板直接引用：\n\n正向通过。再跑一组反向输入验证：\n\n两组都通过。沉淀测试用例：\n\n两个测试用例全部通过 ✅\n\n## 完成总结\n\n已搭建好发货通知模板替换工作流：\n\n| 节点 | 作用 |\n|------|------|\n| `start_1` | 接收 4 个输入：`name`（客户姓名）、`orderNo`（订单编号）、`date`（发货日期）、`days`（预计送达天数） |\n| `string_format_1` | 用 `spel-standard` 语法 `${变量名}` 做纯文本替换，输出 `formatStringResult` |\n| `end_1` | 输出最终文案 |\n\n**输入示例**：\n```json\n{\"name\": \"张三\", \"orderNo\": \"ORD-2025-001\", \"date\": \"2025-06-15\", \"days\": \"3\"}\n```\n\n**输出**：\n```\n亲爱的 张三，您的订单 ORD-2025-001 已于 2025-06-15 发出，预计 3 天内送达。\n```\n\n草稿已验证通过，请**保存为版本**。"
+    }
+  ],
+  "pass": true,
+  "checks": [
+    {
+      "case": "C02",
+      "name": "未滥用 llm",
+      "pass": true,
+      "detail": "llm 数量=0"
+    },
+    {
+      "case": "C02",
+      "name": "试运行成功",
+      "pass": true,
+      "detail": "status=success"
+    },
+    {
+      "case": "C02",
+      "name": "姓名替换",
+      "pass": true,
+      "detail": "{\"result\":\"亲爱的 李雷，您的订单 SO-1001 已于 2026-10-25 发出，预计 3 天内送达。\"}"
+    },
+    {
+      "case": "C02",
+      "name": "单号替换",
+      "pass": true,
+      "detail": "{\"result\":\"亲爱的 李雷，您的订单 SO-1001 已于 2026-10-25 发出，预计 3 天内送达。\"}"
+    },
+    {
+      "case": "C02",
+      "name": "天数替换无 3.0",
+      "pass": true,
+      "detail": "{\"result\":\"亲爱的 李雷，您的订单 SO-1001 已于 2026-10-25 发出，预计 3 天内送达。\"}"
+    },
+    {
+      "case": "C02",
+      "name": "无残留占位符",
+      "pass": true,
+      "detail": "{\"result\":\"亲爱的 李雷，您的订单 SO-1001 已于 2026-10-25 发出，预计 3 天内送达。\"}"
+    }
+  ],
+  "doc": {
+    "edges": [
+      {
+        "sourceNodeID": "start_1",
+        "targetNodeID": "string_format_1"
+      },
+      {
+        "sourceNodeID": "string_format_1",
+        "targetNodeID": "end_1"
+      }
+    ],
+    "version": 7,
+    "nodes": [
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "date": {
+                "description": "date",
+                "type": "string",
+                "title": "发货日期",
+                "default": ""
+              },
+              "orderNo": {
+                "description": "orderNo",
+                "type": "string",
+                "title": "订单编号",
+                "default": ""
+              },
+              "input": {
+                "description": "input",
+                "type": "string",
+                "default": ""
+              },
+              "name": {
+                "description": "name",
+                "type": "string",
+                "title": "客户姓名",
+                "default": ""
+              },
+              "days": {
+                "description": "days",
+                "type": "string",
+                "title": "预计送达天数",
+                "default": ""
+              }
+            }
+          },
+          "title": "开始"
+        },
+        "type": "start",
+        "meta": {
+          "position": {
+            "x": 180,
+            "y": 180
+          }
+        },
+        "id": "start_1"
+      },
+      {
+        "data": {
+          "inputsValues": {
+            "result": {
+              "type": "ref",
+              "content": [
+                "string_format_1",
+                "formatStringResult"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "result": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "结束"
+        },
+        "type": "end",
+        "meta": {
+          "position": {
+            "x": 500,
+            "y": 180
+          }
+        },
+        "id": "end_1"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "formatStringResult": {
+                "type": "string"
+              }
+            }
+          },
+          "inputsValues": {
+            "date": {
+              "type": "ref",
+              "content": [
+                "start_1",
+                "date"
+              ]
+            },
+            "orderNo": {
+              "type": "ref",
+              "content": [
+                "start_1",
+                "orderNo"
+              ]
+            },
+            "name": {
+              "type": "ref",
+              "content": [
+                "start_1",
+                "name"
+              ]
+            },
+            "days": {
+              "type": "ref",
+              "content": [
+                "start_1",
+                "days"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "date": {
+                "type": "string"
+              },
+              "orderNo": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "days": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "模板替换",
+          "script": {
+            "language": "spel-standard",
+            "content": "亲爱的 ${name}，您的订单 ${orderNo} 已于 ${date} 发出，预计 ${days} 天内送达。"
+          }
+        },
+        "type": "string-format",
+        "meta": {
+          "position": {
+            "x": 500,
+            "y": 380
+          }
+        },
+        "id": "string_format_1"
+      }
+    ]
+  },
+  "trialRuns": [
+    {
+      "ok": true,
+      "taskId": "e151bb6c-00e3-4e6e-a665-ec43696599bb",
+      "workflowStatus": "success",
+      "outputs": {
+        "result": "亲爱的 李雷，您的订单 SO-1001 已于 2026-10-25 发出，预计 3 天内送达。"
+      },
+      "nodes": {
+        "string_format_1": {
+          "id": "string_format_1",
+          "status": "succeeded",
+          "startTime": 1792933657093,
+          "endTime": 1792933657094,
+          "timeCost": 1,
+          "snapshots": [
+            {
+              "nodeID": "string_format_1",
+              "inputs": {
+                "date": "2026-10-25",
+                "orderNo": "SO-1001",
+                "name": "李雷",
+                "days": 3
+              },
+              "outputs": {
+                "formatStringResult": "亲爱的 李雷，您的订单 SO-1001 已于 2026-10-25 发出，预计 3 天内送达。"
+              },
+              "data": {
+                "formatStringResult": "亲爱的 李雷，您的订单 SO-1001 已于 2026-10-25 发出，预计 3 天内送达。"
+              },
+              "branch": "",
+              "error": "",
+              "id": "string_format_1"
+            }
+          ]
+        },
+        "start_1": {
+          "id": "start_1",
+          "status": "succeeded",
+          "startTime": 1792933657093,
+          "endTime": 1792933657093,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "start_1",
+              "inputs": {
+                "date": "2026-10-25",
+                "orderNo": "SO-1001",
+                "name": "李雷",
+                "days": 3
+              },
+              "outputs": {
+                "date": "2026-10-25",
+                "orderNo": "SO-1001",
+                "input": "",
+                "name": "李雷",
+                "days": 3
+              },
+              "data": {
+                "date": "2026-10-25",
+                "orderNo": "SO-1001",
+                "name": "李雷",
+                "days": 3
+              },
+              "branch": "",
+              "error": "",
+              "id": "start_1"
+            }
+          ]
+        },
+        "end_1": {
+          "id": "end_1",
+          "status": "succeeded",
+          "startTime": 1792933657094,
+          "endTime": 1792933657094,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "end_1",
+              "inputs": {
+                "date": "2026-10-25",
+                "orderNo": "SO-1001",
+                "string_format_1": {
+                  "formatStringResult": "亲爱的 李雷，您的订单 SO-1001 已于 2026-10-25 发出，预计 3 天内送达。"
+                },
+                "name": "李雷",
+                "days": 3,
+                "start_1": {
+                  "date": "2026-10-25",
+                  "orderNo": "SO-1001",
+                  "input": "",
+                  "name": "李雷",
+                  "days": 3
+                }
+              },
+              "outputs": {
+                "result": "亲爱的 李雷，您的订单 SO-1001 已于 2026-10-25 发出，预计 3 天内送达。"
+              },
+              "data": {
+                "date": "2026-10-25",
+                "orderNo": "SO-1001",
+                "string_format_1": {
+                  "formatStringResult": "亲爱的 李雷，您的订单 SO-1001 已于 2026-10-25 发出，预计 3 天内送达。"
+                },
+                "name": "李雷",
+                "days": 3,
+                "start_1": {
+                  "date": "2026-10-25",
+                  "orderNo": "SO-1001",
+                  "input": "",
+                  "name": "李雷",
+                  "days": 3
+                }
+              },
+              "branch": "",
+              "error": "",
+              "id": "end_1"
+            }
+          ]
+        }
+      },
+      "runDetail": {
+        "nodes": [
+          {
+            "id": 40,
+            "runTaskId": "e151bb6c-00e3-4e6e-a665-ec43696599bb",
+            "nodeId": "string_format_1",
+            "nodeType": "string-format",
+            "title": "模板替换",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"date\":\"2026-10-25\",\"orderNo\":\"SO-1001\",\"name\":\"李雷\",\"days\":3}",
+            "outputJson": "{\"formatStringResult\":\"亲爱的 李雷，您的订单 SO-1001 已于 2026-10-25 发出，预计 3 天内送达。\"}",
+            "timeCostMs": 1,
+            "createdAt": "2026-10-25T21:07:37.153991"
+          },
+          {
+            "id": 41,
+            "runTaskId": "e151bb6c-00e3-4e6e-a665-ec43696599bb",
+            "nodeId": "start_1",
+            "nodeType": "start",
+            "title": "开始",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"date\":\"2026-10-25\",\"orderNo\":\"SO-1001\",\"name\":\"李雷\",\"days\":3}",
+            "outputJson": "{\"date\":\"2026-10-25\",\"orderNo\":\"SO-1001\",\"input\":\"\",\"name\":\"李雷\",\"days\":3}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T21:07:37.153991"
+          },
+          {
+            "id": 42,
+            "runTaskId": "e151bb6c-00e3-4e6e-a665-ec43696599bb",
+            "nodeId": "end_1",
+            "nodeType": "end",
+            "title": "结束",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"date\":\"2026-10-25\",\"orderNo\":\"SO-1001\",\"string_format_1\":{\"formatStringResult\":\"亲爱的 李雷，您的订单 SO-1001 已于 2026-10-25 发出，预计 3 天内送达。\"},\"name\":\"李雷\",\"days\":3,\"start_1\":{\"date\":\"2026-10-25\",\"orderNo\":\"SO-1001\",\"input\":\"\",\"name\":\"李雷\",\"days\":3}}",
+            "outputJson": "{\"result\":\"亲爱的 李雷，您的订单 SO-1001 已于 2026-10-25 发出，预计 3 天内送达。\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T21:07:37.153991"
+          }
+        ],
+        "run": {
+          "id": 9,
+          "taskId": "e151bb6c-00e3-4e6e-a665-ec43696599bb",
+          "workflowCode": null,
+          "status": "success",
+          "errorMessage": null,
+          "inputsJson": "{\"date\":\"2026-10-25\",\"orderNo\":\"SO-1001\",\"name\":\"李雷\",\"days\":3}",
+          "outputsJson": "{\"result\":\"亲爱的 李雷，您的订单 SO-1001 已于 2026-10-25 发出，预计 3 天内送达。\"}",
+          "nodeCount": 3,
+          "durationMs": 61,
+          "triggerChannel": "editor",
+          "startedAt": "2026-10-25T21:07:37.092991",
+          "finishedAt": "2026-10-25T21:07:37.153991",
+          "createdAt": "2026-10-25T21:07:37.153991"
+        }
+      }
+    }
+  ]
+}

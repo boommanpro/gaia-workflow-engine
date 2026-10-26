@@ -237,18 +237,10 @@ class CanvasSyncEngine {
 
       this.lastSyncedRevision = state.revision;
 
-      // AI 刚动过的地方，给个视觉反馈（选中高亮）。
-      // 只对 AI 变更生效：落版加载/首灌（source='system'）时全图节点都是
-      // 「新增/更新」，不区分来源会把整张图设成选中态——用户一进页面
-      // 就看到节点被自动选中、对话侧栏凭空出现「已选中某节点」引用条。
-      const touched = [
-        ...diff.addedNodes.map((n) => n.id),
-        ...diff.updatedNodeIds,
-      ];
-      if (touched.length > 0 && state.lastChange?.source === 'ai') {
-        binding.highlightNodes?.(touched);
-      }
-      if (touched.length > 0) {
+      // 不做「AI 改动自动选中」：用户从对话进编辑器时 store 里正是 AI 生成的内容，
+      // 全图会被设成选中态（2026-10-25 用户反馈：不需要该功能，已移除）。
+      // 仅保留视野适配：有变更时把视野收敛到全图。
+      if (diff.addedNodes.length > 0 || diff.updatedNodeIds.length > 0) {
         binding.fitView();
       }
     } catch (error) {

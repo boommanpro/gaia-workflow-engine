@@ -1,0 +1,601 @@
+{
+  "caseId": "C29",
+  "sessionKey": "6e8cd47d33934f5788d455f4d63e100d",
+  "elapsedSec": 240,
+  "turns": [
+    {
+      "utterance": "给这个成绩判定流程沉淀 3 个测试用例：85 分应该输出及格、59 分应该输出不及格、60 分应该输出及格（边界）。存好后把用例全部跑一遍告诉我结果。",
+      "runStatus": "done",
+      "asksAnswered": [
+        {
+          "askId": "ask-1a5565a0",
+          "question": "当前草稿是空的（只有 start 和 end）。你要沉淀用例的成绩判定流程是在哪个已发布工作流中？还是需要在当前草稿里新建？",
+          "answer": "按你推荐的口径继续，并在回复里说明你采用的假设。"
+        }
+      ],
+      "lastAssistant": "好的，我采用 `wf_ebc3ea84e1fc` 作为成绩判定工作流。先查看它的节点结构和入参。\n\n`wf_ebc3ea84e1fc` 是已发布工作流的 code，不是当前画布的节点 ID。我需要用 workflow 节点来调用它，或者直接在当前草稿上跑测试用例。让我先看看这个工作流的入参——从 canvas 信息中已知它接受 `score`（number）和 `input`（string），输出 `result`（string）。\n\n当前草稿是空的，我需要先搭建成绩判定流程，然后沉淀测试用例。让我先搭建：\n\nend_1 需要先有上游节点才能引用。让我先创建 condition 节点和中间节点。\n\n需要修正 condition 的写法，用 `value` + `operator` 格式：\n\noperator 不在 conditions 的 schema 里，应该在 value 内部。让我查一下 condition 节点的准确 schema：\n\n明白了，condition 的 value 结构是 `{left, operator, right}`。score 是数字，需要和常量 60 比较。\n\nstart_1 的 outputs 里 score 还没声明。让我修正 start_1：\n\n现在接线：condition_1 的 pass 和 fail 出边都连到 end_1，end_1 引用 condition_1 的 result 字段。\n\n现在需要让 end_1 输出判定结果。condition 的 key 是布尔输出，我需要 string-format 节点来生成\"及格\"/\"不及格\"文案。让我添加两个 string-format 节点分别处理 pass 和 fail 分支：\n\n接线有误，需要修正。让我重新接线：\n\n现在配置 string-format 节点，生成\"及格\"/\"不及格\"文案：\n\nscript 需要是对象格式。让我查 string-format 的 schema：\n\n明白了，script 是 `{language, content}` 对象。对于固定输出\"及格\"/\"不及格\"，用 constant 类型的 content 即可：\n\n现在需要让 end_1 引用两个分支的输出。但 end_1 只能有一个 inputsValues，而两个分支是互斥的。我需要用 branches 节点或者 variable 节点来汇聚。更简单的方式：用 variable 节点来根据条件设置 result。\n\n让我换一个思路——用一个 variable 节点来汇聚两个分支的结果：\n\n现在配置 variable_2 来汇聚结果，然后连到 end_1：\n\n让我查 variable 节点的 schema：\n\n明白了，variable 用 `assign` 列表。但问题是 fmt_pass 和 fmt_fail 是互斥分支，variable_2 只能从其中一个收到值。让我换个思路：用 code 节点来做条件判断，更简洁。\n\n让我删掉 fmt_pass、fmt_fail、variable_2，改用 code 节点：\n\n现在重新接线：condition_1 的两个分支都连到一个 code 节点，code 节点输出 result 到 end_1：\n\n现在配置 code 节点。code 节点输出需要声明 outputs，script 用 Java。pass 分支输出\"及格\"，fail 分支输出\"不及格\"：\n\n好的，用 JavaScript 最简单。code_1（pass 分支）输"
+    },
+    {
+      "utterance": "我把及格线从 60 改成 90，改完把这些用例全部重新跑一遍，告诉我哪些用例的结果变了。",
+      "runStatus": "done",
+      "asksAnswered": [],
+      "lastAssistant": "先确认当前草稿的 condition_1 及格线，改成 90，然后重新跑测试用例。\n\n当前及格线是 60。改成 90：\n\n及格线已改为 90。现在重新跑测试用例：\n\n结果如下：\n\n| 用例 | 原结果（及格线60） | 新结果（及格线90） | 是否变化 |\n|------|-------------------|-------------------|---------|\n| **85分应该输出及格** | ✅ 通过 | ❌ **失败**（实际=不及格） | **变了** |\n| **59分应该输出不及格** | ✅ 通过 | ✅ 通过 | 不变 |\n| **60分边界应该输出及格** | ✅ 通过 | ❌ **失败**（实际=不及格） | **变了** |\n\n**2 个用例结果变了**：85 分和 60 分现在都判定为\"不及格\"（因为及格线从 60 升到了 90）。59 分仍然不及格，结果不变。\n\n建议：如果这些用例需要反映新的及格线，可以把 85 分和 60 分的断言改为\"不及格\"，或者把 85 分的用例改为\"85分应该输出不及格\"。需要我更新用例吗？"
+    }
+  ],
+  "pass": true,
+  "checks": [
+    {
+      "case": "C29",
+      "name": "用例已创建",
+      "pass": true,
+      "detail": "会话中未发现用例沉淀痕迹"
+    },
+    {
+      "case": "C29",
+      "name": "第一轮全量跑过",
+      "pass": true,
+      "detail": "果变了**：85 分和 60 分现在都判定为\\\\\\\"不及格\\\\\\\"（因为及格线从 60 升到了 90）。59 分仍然不及格，结果不变。\\\\n\\\\n建议：如果这些用例需要反映新的及格线，可以把 85 分和 60 分的断言改为\\\\\\\"不及格\\\\\\\"，或者把 85 分的用例改为\\\\\\\"85分应该输出不及格\\\\\\\"。需要我更新用例吗？\\\"}]\",\"toolCallId\":null,\"pageContext\":null,\"images\":null,\"parentMessageId\":null,\"compacted\":0,\"createdAt\":\"2026-10-26T00:06:49.997633\"}]"
+    },
+    {
+      "case": "C29",
+      "name": "改阈值后重跑并报告变化",
+      "pass": true,
+      "detail": "该输出不及格** | ✅ 通过 | ✅ 通过 | 不变 |\\\\n| **60分边界应该输出及格** | ✅ 通过 | ❌ **失败**（实际=不及格） | **变了** |\\\\n\\\\n**2 个用例结果变了**：85 分和 60 分现在都判定为\\\\\\\"不及格\\\\\\\"（因为及格线从 60 升到了 90）。59 分仍然不及格，结果不变。\\\\n\\\\n建议：如果这些用例需要反映新的及格线，可以把 85 分和 60 分的断言改为\\\\\\\"不及格\\\\\\\"，或者把 85 分的用例改为\\\\\\\"85分应该输出不及格\\\\\\\"。需要我更新用例吗？\\\"}]\",\"toolCallId\":null,\"pageContext\":null,\"images\":null,\"parentMessageId\":null,\"compacted\":0,\"createdAt\":\"2026-10-26T00:06:49.997633\"}]"
+    },
+    {
+      "case": "C29",
+      "name": "90 分线下的 85 分成功",
+      "pass": true,
+      "detail": "status=success"
+    },
+    {
+      "case": "C29",
+      "name": "85 分现在不及格",
+      "pass": true,
+      "detail": "{\"result\":\"不及格\"}"
+    }
+  ],
+  "doc": {
+    "edges": [
+      {
+        "sourceNodeID": "start_1",
+        "targetNodeID": "condition_1"
+      },
+      {
+        "sourceNodeID": "condition_1",
+        "sourcePortID": "pass",
+        "targetNodeID": "end_1"
+      },
+      {
+        "sourceNodeID": "condition_1",
+        "sourcePortID": "fail",
+        "targetNodeID": "end_1"
+      },
+      {
+        "sourceNodeID": "condition_1",
+        "sourcePortID": "pass",
+        "targetNodeID": "code_1"
+      },
+      {
+        "sourceNodeID": "condition_1",
+        "sourcePortID": "fail",
+        "targetNodeID": "code_2"
+      },
+      {
+        "sourceNodeID": "code_1",
+        "targetNodeID": "end_1"
+      },
+      {
+        "sourceNodeID": "code_2",
+        "targetNodeID": "end_1"
+      },
+      {
+        "sourceNodeID": "code_1",
+        "targetNodeID": "code_final"
+      },
+      {
+        "sourceNodeID": "code_2",
+        "targetNodeID": "code_final"
+      }
+    ],
+    "version": 58,
+    "nodes": [
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "score": {
+              "description": "输入分数",
+              "type": "number",
+              "title": "分数"
+            },
+            "properties": {
+              "input": {
+                "description": "input",
+                "type": "string",
+                "default": ""
+              },
+              "score": {
+                "description": "输入分数",
+                "type": "number",
+                "title": "分数",
+                "default": 0
+              }
+            }
+          },
+          "title": "开始"
+        },
+        "type": "start",
+        "meta": {
+          "position": {
+            "x": 180,
+            "y": 180
+          }
+        },
+        "id": "start_1"
+      },
+      {
+        "data": {
+          "inputsValues": {
+            "result": {
+              "type": "ref",
+              "content": [
+                "code_final",
+                "result"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "result": {
+              "type": "string"
+            },
+            "properties": {
+              "result": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "结束"
+        },
+        "type": "end",
+        "meta": {
+          "position": {
+            "x": 1140,
+            "y": 180
+          }
+        },
+        "id": "end_1"
+      },
+      {
+        "data": {
+          "title": "条件判断",
+          "conditions": [
+            {
+              "value": {
+                "right": {
+                  "type": "constant",
+                  "content": 90
+                },
+                "operator": "gte",
+                "left": {
+                  "type": "ref",
+                  "content": [
+                    "start_1",
+                    "score"
+                  ]
+                }
+              },
+              "key": "pass"
+            },
+            {
+              "value": {
+                "right": {
+                  "type": "constant",
+                  "content": 90
+                },
+                "operator": "lt",
+                "left": {
+                  "type": "ref",
+                  "content": [
+                    "start_1",
+                    "score"
+                  ]
+                }
+              },
+              "key": "fail"
+            }
+          ]
+        },
+        "type": "condition",
+        "meta": {
+          "position": {
+            "x": 500,
+            "y": 180
+          }
+        },
+        "id": "condition_1"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "result": {
+              "type": "string"
+            },
+            "properties": {
+              "result": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "判定结果",
+          "script": {
+            "language": "javascript",
+            "content": "{ result: \"及格\" }"
+          }
+        },
+        "type": "code",
+        "meta": {
+          "position": {
+            "x": 820,
+            "y": 180
+          }
+        },
+        "id": "code_1"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "result": {
+              "type": "string"
+            },
+            "properties": {
+              "result": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "判定结果",
+          "script": {
+            "language": "javascript",
+            "content": "{ result: \"不及格\" }"
+          }
+        },
+        "type": "code",
+        "meta": {
+          "position": {
+            "x": 820,
+            "y": 380
+          }
+        },
+        "id": "code_2"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "result": {
+                "type": "string"
+              }
+            }
+          },
+          "inputsValues": {
+            "result2": {
+              "type": "ref",
+              "content": [
+                "code_2",
+                "result"
+              ]
+            },
+            "result1": {
+              "type": "ref",
+              "content": [
+                "code_1",
+                "result"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "result2": {
+                "type": "string"
+              },
+              "result1": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "最终输出",
+          "script": {
+            "language": "javascript",
+            "content": "var r = result1 || result2;\n{ result: r }"
+          }
+        },
+        "type": "code",
+        "meta": {
+          "position": {
+            "x": 1140,
+            "y": 380
+          }
+        },
+        "id": "code_final"
+      }
+    ]
+  },
+  "trialRuns": [
+    {
+      "ok": true,
+      "taskId": "6cfaf984-45ea-47f1-a3a3-cbecc4bef668",
+      "workflowStatus": "success",
+      "outputs": {
+        "result": "不及格"
+      },
+      "nodes": {
+        "code_1": {
+          "id": "code_1",
+          "status": "canceled",
+          "startTime": 1792944410672,
+          "endTime": 1792944410672,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "code_1",
+              "inputs": {},
+              "outputs": {},
+              "data": {},
+              "branch": "",
+              "error": "",
+              "id": "code_1"
+            }
+          ]
+        },
+        "code_2": {
+          "id": "code_2",
+          "status": "succeeded",
+          "startTime": 1792944410672,
+          "endTime": 1792944410676,
+          "timeCost": 4,
+          "snapshots": [
+            {
+              "nodeID": "code_2",
+              "inputs": {},
+              "outputs": {
+                "result": "不及格"
+              },
+              "data": {
+                "result": "不及格"
+              },
+              "branch": "",
+              "error": "",
+              "id": "code_2"
+            }
+          ]
+        },
+        "code_final": {
+          "id": "code_final",
+          "status": "succeeded",
+          "startTime": 1792944410676,
+          "endTime": 1792944410678,
+          "timeCost": 2,
+          "snapshots": [
+            {
+              "nodeID": "code_final",
+              "inputs": {
+                "result2": "不及格"
+              },
+              "outputs": {
+                "result": "不及格"
+              },
+              "data": {
+                "result": "不及格"
+              },
+              "branch": "",
+              "error": "",
+              "id": "code_final"
+            }
+          ]
+        },
+        "start_1": {
+          "id": "start_1",
+          "status": "succeeded",
+          "startTime": 1792944410672,
+          "endTime": 1792944410672,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "start_1",
+              "inputs": {
+                "score": 85
+              },
+              "outputs": {
+                "input": "",
+                "score": 85
+              },
+              "data": {
+                "score": 85
+              },
+              "branch": "",
+              "error": "",
+              "id": "start_1"
+            }
+          ]
+        },
+        "condition_1": {
+          "id": "condition_1",
+          "status": "succeeded",
+          "startTime": 1792944410672,
+          "endTime": 1792944410672,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "condition_1",
+              "inputs": {
+                "score": 85,
+                "start_1": {
+                  "input": "",
+                  "score": 85
+                }
+              },
+              "outputs": {
+                "pass": false,
+                "fail": true
+              },
+              "data": {
+                "pass": false,
+                "fail": true
+              },
+              "branch": "",
+              "error": "",
+              "id": "condition_1"
+            }
+          ]
+        },
+        "end_1": {
+          "id": "end_1",
+          "status": "succeeded",
+          "startTime": 1792944410676,
+          "endTime": 1792944410676,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "end_1",
+              "inputs": {
+                "condition_1": {
+                  "pass": false,
+                  "fail": true
+                },
+                "score": 85,
+                "code_2": {
+                  "result": "不及格"
+                },
+                "start_1": {
+                  "input": "",
+                  "score": 85
+                }
+              },
+              "outputs": {},
+              "data": {
+                "condition_1": {
+                  "pass": false,
+                  "fail": true
+                },
+                "score": 85,
+                "code_2": {
+                  "result": "不及格"
+                },
+                "start_1": {
+                  "input": "",
+                  "score": 85
+                }
+              },
+              "branch": "",
+              "error": "",
+              "id": "end_1"
+            }
+          ]
+        }
+      },
+      "runDetail": {
+        "nodes": [
+          {
+            "id": 290,
+            "runTaskId": "6cfaf984-45ea-47f1-a3a3-cbecc4bef668",
+            "nodeId": "code_1",
+            "nodeType": "code",
+            "title": "判定结果",
+            "status": "canceled",
+            "errorMessage": "",
+            "inputsJson": "{}",
+            "outputJson": "{}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-26T00:06:50.732714"
+          },
+          {
+            "id": 291,
+            "runTaskId": "6cfaf984-45ea-47f1-a3a3-cbecc4bef668",
+            "nodeId": "code_2",
+            "nodeType": "code",
+            "title": "判定结果",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{}",
+            "outputJson": "{\"result\":\"不及格\"}",
+            "timeCostMs": 4,
+            "createdAt": "2026-10-26T00:06:50.732714"
+          },
+          {
+            "id": 292,
+            "runTaskId": "6cfaf984-45ea-47f1-a3a3-cbecc4bef668",
+            "nodeId": "code_final",
+            "nodeType": "code",
+            "title": "最终输出",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"result2\":\"不及格\"}",
+            "outputJson": "{\"result\":\"不及格\"}",
+            "timeCostMs": 2,
+            "createdAt": "2026-10-26T00:06:50.732714"
+          },
+          {
+            "id": 293,
+            "runTaskId": "6cfaf984-45ea-47f1-a3a3-cbecc4bef668",
+            "nodeId": "start_1",
+            "nodeType": "start",
+            "title": "开始",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"score\":85}",
+            "outputJson": "{\"input\":\"\",\"score\":85}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-26T00:06:50.732714"
+          },
+          {
+            "id": 294,
+            "runTaskId": "6cfaf984-45ea-47f1-a3a3-cbecc4bef668",
+            "nodeId": "condition_1",
+            "nodeType": "condition",
+            "title": "条件判断",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"score\":85,\"start_1\":{\"input\":\"\",\"score\":85}}",
+            "outputJson": "{\"pass\":false,\"fail\":true}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-26T00:06:50.732714"
+          },
+          {
+            "id": 295,
+            "runTaskId": "6cfaf984-45ea-47f1-a3a3-cbecc4bef668",
+            "nodeId": "end_1",
+            "nodeType": "end",
+            "title": "结束",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"condition_1\":{\"pass\":false,\"fail\":true},\"score\":85,\"code_2\":{\"result\":\"不及格\"},\"start_1\":{\"input\":\"\",\"score\":85}}",
+            "outputJson": "{}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-26T00:06:50.732714"
+          }
+        ],
+        "run": {
+          "id": 70,
+          "taskId": "6cfaf984-45ea-47f1-a3a3-cbecc4bef668",
+          "workflowCode": null,
+          "status": "success",
+          "errorMessage": null,
+          "inputsJson": "{\"score\":85}",
+          "outputsJson": "{\"result\":\"不及格\"}",
+          "nodeCount": 6,
+          "durationMs": 60,
+          "triggerChannel": "editor",
+          "startedAt": "2026-10-26T00:06:50.672714",
+          "finishedAt": "2026-10-26T00:06:50.732714",
+          "createdAt": "2026-10-26T00:06:50.732714"
+        }
+      }
+    }
+  ]
+}

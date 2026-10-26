@@ -1,0 +1,479 @@
+{
+  "caseId": "C04",
+  "sessionKey": "3740ab8db7e14f1ba3ef47e8de6cd962",
+  "elapsedSec": 39,
+  "turns": [
+    {
+      "utterance": "帮我对接一个回显测试接口：把标题和内容以 JSON 发过去，再带上一个自定义请求头 X-Trace-Id 做链路追踪，最后把接口返回的内容原样给我。",
+      "runStatus": "done",
+      "asksAnswered": [
+        {
+          "askId": "ask-b00452bf",
+          "question": "回显测试接口的 URL 是什么？（例如 httpbin.org/post 或其他地址）",
+          "answer": "按你推荐的口径继续，并在回复里说明你采用的假设。"
+        }
+      ],
+      "lastAssistant": "好的，采用 `https://httpbin.org/post` 作为回显接口。现在创建 HTTP 节点并配置：\n\n- **方法**: POST\n- **URL**: `https://httpbin.org/post`\n- **请求头**: `X-Trace-Id`（用变量引用，运行时传入）\n- **请求体**: JSON，包含 `title` 和 `content`（引用 start 输入）\n- **输出**: 原样返回接口返回的 body\n\n模板引用和 ref 引用需要修正——模板用 `{{start_1.xxx}}`，ref 指向 `start_1`。同时 start_1 需要定义输出字段。\n\n现在修正 start_1 的输入参数，以及 http_1 的引用：\n\n现在接线并配置 end_1 输出：\n\n现在整流试跑：\n\n整流通过！再跑一组反向输入验证：\n\n两组输入全部通过。沉淀测试用例：\n\n✅ **完成。工作流草稿已验证通过。**\n\n---\n\n### 做了什么\n\n| 节点 | 作用 |\n|------|------|\n| **start_1** | 输入参数：`title`（字符串）、`content`（字符串）、`traceId`（字符串） |\n| **http_1** | POST 请求 `https://httpbin.org/post`，JSON body 含 `title`+`content`，请求头 `X-Trace-Id` 传入 traceId |\n| **end_1** | 输出接口返回的完整响应 body |\n\n### 验证结果\n\n- 正向输入（\"测试标题\"/\"测试内容\"/\"trace-abc-123\"）→ ✅ 返回 httpbin 回显，`X-Trace-Id: trace-abc-123` 出现在响应 headers 中\n- 反向输入（\"订单回显\"/\"订单号ORD-2024-001\"/\"trace-xyz-789\"）→ ✅ 同样正确回显\n\n### 假设说明\n\n采用 `https://httpbin.org/post` 作为回显接口（你确认按推荐选项继续）。\n\n---\n\n**请保存为版本**，草稿已就绪。"
+    }
+  ],
+  "pass": true,
+  "checks": [
+    {
+      "case": "C04",
+      "name": "存在 http 节点",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "case": "C04",
+      "name": "method 为 POST",
+      "pass": true,
+      "detail": "{\"method\":\"POST\",\"url\":{\"type\":\"template\",\"content\":\"https://httpbin.org/post\"}}"
+    },
+    {
+      "case": "C04",
+      "name": "自定义请求头存在",
+      "pass": true,
+      "detail": "{\"OUTPUTS\":{\"TYPE\":\"OBJECT\",\"PROPERTIES\":{\"HEADERS\":{\"TYPE\":\"STRING\"},\"BODY\":{\"TYPE\":\"STRING\"},\"STATUSCODE\":{\"TYPE\":\"STRING\"}}},\"TITLE\":\"HTTP 回显请求\",\"BODY\":{\"BODYTYPE\":\"JSON\",\"JSON\":{\"TYPE\":\"TEMPLATE\",\"CONTENT\":\"{\\\"TITLE\\\": \\\"{{START_1.TITLE}}\\\", \\\"CONTENT\\\": \\\"{{START_1.CONTENT}}\\\"}\"}},\"HEADERSVALUE"
+    },
+    {
+      "case": "C04",
+      "name": "试运行成功",
+      "pass": true,
+      "detail": "status=success"
+    },
+    {
+      "case": "C04",
+      "name": "回显体可解析",
+      "pass": true,
+      "detail": "{\"result\":\"{\\n  \\\"args\\\": {}, \\n  \\\"data\\\": \\\"{\\\\\\\"title\\\\\\\": \\\\\\\"\\\\u4e0a\\\\u7ebf\\\\u516c\\\\u544a\\\\\\\", \\\\\\\"content\\\\\\\": \\\\\\\"v2.0 \\\\u53d1\\\\u5e03\\\\\\\"}\\\", \\n  \\\"files\\\": {}, \\n  \\\"form\\\": {}, \\n  \\\"headers\\"
+    },
+    {
+      "case": "C04",
+      "name": "回显含标题",
+      "pass": true,
+      "detail": "{\"title\": \"上线公告\", \"content\": \"v2.0 发布\"}"
+    },
+    {
+      "case": "C04",
+      "name": "回显含内容",
+      "pass": true,
+      "detail": "{\"title\": \"上线公告\", \"content\": \"v2.0 发布\"}"
+    },
+    {
+      "case": "C04",
+      "name": "自定义请求头已发送",
+      "pass": true,
+      "detail": "\"X-Trace-Id\""
+    }
+  ],
+  "doc": {
+    "edges": [
+      {
+        "sourceNodeID": "start_1",
+        "sourcePortID": "",
+        "targetNodeID": "http_1"
+      },
+      {
+        "sourceNodeID": "http_1",
+        "targetNodeID": "end_1"
+      }
+    ],
+    "version": 6,
+    "nodes": [
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "required": [
+              "title",
+              "content",
+              "traceId"
+            ],
+            "properties": {
+              "traceId": {
+                "description": "traceId",
+                "type": "string",
+                "default": ""
+              },
+              "title": {
+                "description": "title",
+                "type": "string",
+                "default": ""
+              },
+              "content": {
+                "description": "content",
+                "type": "string",
+                "default": ""
+              },
+              "input": {
+                "description": "input",
+                "type": "string",
+                "default": ""
+              }
+            }
+          },
+          "title": "开始"
+        },
+        "type": "start",
+        "meta": {
+          "position": {
+            "x": 180,
+            "y": 180
+          }
+        },
+        "id": "start_1"
+      },
+      {
+        "data": {
+          "inputsValues": {
+            "result": {
+              "type": "ref",
+              "content": [
+                "http_1",
+                "body"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "result": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "结束"
+        },
+        "type": "end",
+        "meta": {
+          "position": {
+            "x": 500,
+            "y": 180
+          }
+        },
+        "id": "end_1"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "headers": {
+                "type": "string"
+              },
+              "body": {
+                "type": "string"
+              },
+              "statusCode": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "HTTP 回显请求",
+          "body": {
+            "bodyType": "JSON",
+            "json": {
+              "type": "template",
+              "content": "{\"title\": \"{{start_1.title}}\", \"content\": \"{{start_1.content}}\"}"
+            }
+          },
+          "headersValues": {
+            "X-Trace-Id": {
+              "type": "ref",
+              "content": [
+                "start_1",
+                "traceId"
+              ]
+            }
+          },
+          "timeout": {
+            "timeout": 10000,
+            "retryTimes": 1
+          },
+          "paramsValues": {},
+          "api": {
+            "method": "POST",
+            "url": {
+              "type": "template",
+              "content": "https://httpbin.org/post"
+            }
+          }
+        },
+        "type": "http",
+        "meta": {
+          "position": {
+            "x": 500,
+            "y": 380
+          }
+        },
+        "id": "http_1"
+      }
+    ]
+  },
+  "trialRuns": [
+    {
+      "ok": true,
+      "taskId": "646dd1f5-5267-4092-8fb3-99055d0549e4",
+      "workflowStatus": "success",
+      "outputs": {
+        "result": "{\n  \"args\": {}, \n  \"data\": \"{\\\"title\\\": \\\"\\u4e0a\\u7ebf\\u516c\\u544a\\\", \\\"content\\\": \\\"v2.0 \\u53d1\\u5e03\\\"}\", \n  \"files\": {}, \n  \"form\": {}, \n  \"headers\": {\n    \"Accept\": \"text/html,application/json,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\", \n    \"Accept-Encoding\": \"gzip\", \n    \"Accept-Language\": \"zh-CN,zh;q=0.8\", \n    \"Cache-Control\": \"no-cache\", \n    \"Content-Length\": \"51\", \n    \"Content-Type\": \"application/json;charset=UTF-8\", \n    \"Host\": \"httpbin.org\", \n    \"Pragma\": \"no-cache\", \n    \"User-Agent\": \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.142 Safari/537.36 Hutool\", \n    \"X-Amzn-Trace-Id\": \"Root=1-6ade05ef-421a071b498332fa13c21dfc\", \n    \"X-Trace-Id\": \"trace-abc-123\"\n  }, \n  \"json\": {\n    \"content\": \"v2.0 \\u53d1\\u5e03\", \n    \"title\": \"\\u4e0a\\u7ebf\\u516c\\u544a\"\n  }, \n  \"origin\": \"123.123.43.166\", \n  \"url\": \"https://httpbin.org/post\"\n}\n"
+      },
+      "nodes": {
+        "http_1": {
+          "id": "http_1",
+          "status": "succeeded",
+          "startTime": 1792935407078,
+          "endTime": 1792935407873,
+          "timeCost": 795,
+          "snapshots": [
+            {
+              "nodeID": "http_1",
+              "inputs": {},
+              "outputs": {
+                "headers": {
+                  "Server": [
+                    "gunicorn/19.9.0"
+                  ],
+                  "Access-Control-Allow-Origin": [
+                    "*"
+                  ],
+                  "Connection": [
+                    "keep-alive"
+                  ],
+                  "Date": [
+                    "Sun, 25 Oct 2026 13:36:47 GMT"
+                  ],
+                  "Access-Control-Allow-Credentials": [
+                    "true"
+                  ],
+                  "Content-Length": [
+                    "918"
+                  ],
+                  "Content-Type": [
+                    "application/json"
+                  ]
+                },
+                "body": "{\n  \"args\": {}, \n  \"data\": \"{\\\"title\\\": \\\"\\u4e0a\\u7ebf\\u516c\\u544a\\\", \\\"content\\\": \\\"v2.0 \\u53d1\\u5e03\\\"}\", \n  \"files\": {}, \n  \"form\": {}, \n  \"headers\": {\n    \"Accept\": \"text/html,application/json,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\", \n    \"Accept-Encoding\": \"gzip\", \n    \"Accept-Language\": \"zh-CN,zh;q=0.8\", \n    \"Cache-Control\": \"no-cache\", \n    \"Content-Length\": \"51\", \n    \"Content-Type\": \"application/json;charset=UTF-8\", \n    \"Host\": \"httpbin.org\", \n    \"Pragma\": \"no-cache\", \n    \"User-Agent\": \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.142 Safari/537.36 Hutool\", \n    \"X-Amzn-Trace-Id\": \"Root=1-6ade05ef-421a071b498332fa13c21dfc\", \n    \"X-Trace-Id\": \"trace-abc-123\"\n  }, \n  \"json\": {\n    \"content\": \"v2.0 \\u53d1\\u5e03\", \n    \"title\": \"\\u4e0a\\u7ebf\\u516c\\u544a\"\n  }, \n  \"origin\": \"123.123.43.166\", \n  \"url\": \"https://httpbin.org/post\"\n}\n",
+                "statusCode": 200
+              },
+              "data": {
+                "headers": {
+                  "Server": [
+                    "gunicorn/19.9.0"
+                  ],
+                  "Access-Control-Allow-Origin": [
+                    "*"
+                  ],
+                  "Connection": [
+                    "keep-alive"
+                  ],
+                  "Date": [
+                    "Sun, 25 Oct 2026 13:36:47 GMT"
+                  ],
+                  "Access-Control-Allow-Credentials": [
+                    "true"
+                  ],
+                  "Content-Length": [
+                    "918"
+                  ],
+                  "Content-Type": [
+                    "application/json"
+                  ]
+                },
+                "body": "{\n  \"args\": {}, \n  \"data\": \"{\\\"title\\\": \\\"\\u4e0a\\u7ebf\\u516c\\u544a\\\", \\\"content\\\": \\\"v2.0 \\u53d1\\u5e03\\\"}\", \n  \"files\": {}, \n  \"form\": {}, \n  \"headers\": {\n    \"Accept\": \"text/html,application/json,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\", \n    \"Accept-Encoding\": \"gzip\", \n    \"Accept-Language\": \"zh-CN,zh;q=0.8\", \n    \"Cache-Control\": \"no-cache\", \n    \"Content-Length\": \"51\", \n    \"Content-Type\": \"application/json;charset=UTF-8\", \n    \"Host\": \"httpbin.org\", \n    \"Pragma\": \"no-cache\", \n    \"User-Agent\": \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.142 Safari/537.36 Hutool\", \n    \"X-Amzn-Trace-Id\": \"Root=1-6ade05ef-421a071b498332fa13c21dfc\", \n    \"X-Trace-Id\": \"trace-abc-123\"\n  }, \n  \"json\": {\n    \"content\": \"v2.0 \\u53d1\\u5e03\", \n    \"title\": \"\\u4e0a\\u7ebf\\u516c\\u544a\"\n  }, \n  \"origin\": \"123.123.43.166\", \n  \"url\": \"https://httpbin.org/post\"\n}\n",
+                "statusCode": 200
+              },
+              "branch": "",
+              "error": "",
+              "id": "http_1"
+            }
+          ]
+        },
+        "start_1": {
+          "id": "start_1",
+          "status": "succeeded",
+          "startTime": 1792935407078,
+          "endTime": 1792935407078,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "start_1",
+              "inputs": {
+                "traceId": "trace-abc-123",
+                "title": "上线公告",
+                "content": "v2.0 发布"
+              },
+              "outputs": {
+                "traceId": "trace-abc-123",
+                "title": "上线公告",
+                "content": "v2.0 发布",
+                "input": ""
+              },
+              "data": {
+                "traceId": "trace-abc-123",
+                "title": "上线公告",
+                "content": "v2.0 发布"
+              },
+              "branch": "",
+              "error": "",
+              "id": "start_1"
+            }
+          ]
+        },
+        "end_1": {
+          "id": "end_1",
+          "status": "succeeded",
+          "startTime": 1792935407873,
+          "endTime": 1792935407873,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "end_1",
+              "inputs": {
+                "traceId": "trace-abc-123",
+                "http_1": {
+                  "headers": {
+                    "Server": [
+                      "gunicorn/19.9.0"
+                    ],
+                    "Access-Control-Allow-Origin": [
+                      "*"
+                    ],
+                    "Connection": [
+                      "keep-alive"
+                    ],
+                    "Date": [
+                      "Sun, 25 Oct 2026 13:36:47 GMT"
+                    ],
+                    "Access-Control-Allow-Credentials": [
+                      "true"
+                    ],
+                    "Content-Length": [
+                      "918"
+                    ],
+                    "Content-Type": [
+                      "application/json"
+                    ]
+                  },
+                  "body": "{\n  \"args\": {}, \n  \"data\": \"{\\\"title\\\": \\\"\\u4e0a\\u7ebf\\u516c\\u544a\\\", \\\"content\\\": \\\"v2.0 \\u53d1\\u5e03\\\"}\", \n  \"files\": {}, \n  \"form\": {}, \n  \"headers\": {\n    \"Accept\": \"text/html,application/json,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\", \n    \"Accept-Encoding\": \"gzip\", \n    \"Accept-Language\": \"zh-CN,zh;q=0.8\", \n    \"Cache-Control\": \"no-cache\", \n    \"Content-Length\": \"51\", \n    \"Content-Type\": \"application/json;charset=UTF-8\", \n    \"Host\": \"httpbin.org\", \n    \"Pragma\": \"no-cache\", \n    \"User-Agent\": \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.142 Safari/537.36 Hutool\", \n    \"X-Amzn-Trace-Id\": \"Root=1-6ade05ef-421a071b498332fa13c21dfc\", \n    \"X-Trace-Id\": \"trace-abc-123\"\n  }, \n  \"json\": {\n    \"content\": \"v2.0 \\u53d1\\u5e03\", \n    \"title\": \"\\u4e0a\\u7ebf\\u516c\\u544a\"\n  }, \n  \"origin\": \"123.123.43.166\", \n  \"url\": \"https://httpbin.org/post\"\n}\n",
+                  "statusCode": 200
+                },
+                "title": "上线公告",
+                "content": "v2.0 发布",
+                "start_1": {
+                  "traceId": "trace-abc-123",
+                  "title": "上线公告",
+                  "content": "v2.0 发布",
+                  "input": ""
+                }
+              },
+              "outputs": {
+                "result": "{\n  \"args\": {}, \n  \"data\": \"{\\\"title\\\": \\\"\\u4e0a\\u7ebf\\u516c\\u544a\\\", \\\"content\\\": \\\"v2.0 \\u53d1\\u5e03\\\"}\", \n  \"files\": {}, \n  \"form\": {}, \n  \"headers\": {\n    \"Accept\": \"text/html,application/json,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\", \n    \"Accept-Encoding\": \"gzip\", \n    \"Accept-Language\": \"zh-CN,zh;q=0.8\", \n    \"Cache-Control\": \"no-cache\", \n    \"Content-Length\": \"51\", \n    \"Content-Type\": \"application/json;charset=UTF-8\", \n    \"Host\": \"httpbin.org\", \n    \"Pragma\": \"no-cache\", \n    \"User-Agent\": \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.142 Safari/537.36 Hutool\", \n    \"X-Amzn-Trace-Id\": \"Root=1-6ade05ef-421a071b498332fa13c21dfc\", \n    \"X-Trace-Id\": \"trace-abc-123\"\n  }, \n  \"json\": {\n    \"content\": \"v2.0 \\u53d1\\u5e03\", \n    \"title\": \"\\u4e0a\\u7ebf\\u516c\\u544a\"\n  }, \n  \"origin\": \"123.123.43.166\", \n  \"url\": \"https://httpbin.org/post\"\n}\n"
+              },
+              "data": {
+                "traceId": "trace-abc-123",
+                "http_1": {
+                  "headers": {
+                    "Server": [
+                      "gunicorn/19.9.0"
+                    ],
+                    "Access-Control-Allow-Origin": [
+                      "*"
+                    ],
+                    "Connection": [
+                      "keep-alive"
+                    ],
+                    "Date": [
+                      "Sun, 25 Oct 2026 13:36:47 GMT"
+                    ],
+                    "Access-Control-Allow-Credentials": [
+                      "true"
+                    ],
+                    "Content-Length": [
+                      "918"
+                    ],
+                    "Content-Type": [
+                      "application/json"
+                    ]
+                  },
+                  "body": "{\n  \"args\": {}, \n  \"data\": \"{\\\"title\\\": \\\"\\u4e0a\\u7ebf\\u516c\\u544a\\\", \\\"content\\\": \\\"v2.0 \\u53d1\\u5e03\\\"}\", \n  \"files\": {}, \n  \"form\": {}, \n  \"headers\": {\n    \"Accept\": \"text/html,application/json,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\", \n    \"Accept-Encoding\": \"gzip\", \n    \"Accept-Language\": \"zh-CN,zh;q=0.8\", \n    \"Cache-Control\": \"no-cache\", \n    \"Content-Length\": \"51\", \n    \"Content-Type\": \"application/json;charset=UTF-8\", \n    \"Host\": \"httpbin.org\", \n    \"Pragma\": \"no-cache\", \n    \"User-Agent\": \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.142 Safari/537.36 Hutool\", \n    \"X-Amzn-Trace-Id\": \"Root=1-6ade05ef-421a071b498332fa13c21dfc\", \n    \"X-Trace-Id\": \"trace-abc-123\"\n  }, \n  \"json\": {\n    \"content\": \"v2.0 \\u53d1\\u5e03\", \n    \"title\": \"\\u4e0a\\u7ebf\\u516c\\u544a\"\n  }, \n  \"origin\": \"123.123.43.166\", \n  \"url\": \"https://httpbin.org/post\"\n}\n",
+                  "statusCode": 200
+                },
+                "title": "上线公告",
+                "content": "v2.0 发布",
+                "start_1": {
+                  "traceId": "trace-abc-123",
+                  "title": "上线公告",
+                  "content": "v2.0 发布",
+                  "input": ""
+                }
+              },
+              "branch": "",
+              "error": "",
+              "id": "end_1"
+            }
+          ]
+        }
+      },
+      "runDetail": {
+        "nodes": [
+          {
+            "id": 74,
+            "runTaskId": "646dd1f5-5267-4092-8fb3-99055d0549e4",
+            "nodeId": "http_1",
+            "nodeType": "http",
+            "title": "HTTP 回显请求",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{}",
+            "outputJson": "{\"headers\":{\"Server\":[\"gunicorn/19.9.0\"],\"Access-Control-Allow-Origin\":[\"*\"],\"Connection\":[\"keep-alive\"],\"Date\":[\"Sun, 25 Oct 2026 13:36:47 GMT\"],\"Access-Control-Allow-Credentials\":[\"true\"],\"Content-Length\":[\"918\"],\"Content-Type\":[\"application/json\"]},\"body\":\"{\\n  \\\"args\\\": {}, \\n  \\\"data\\\": \\\"{\\\\\\\"title\\\\\\\": \\\\\\\"\\\\u4e0a\\\\u7ebf\\\\u516c\\\\u544a\\\\\\\", \\\\\\\"content\\\\\\\": \\\\\\\"v2.0 \\\\u53d1\\\\u5e03\\\\\\\"}\\\", \\n  \\\"files\\\": {}, \\n  \\\"form\\\": {}, \\n  \\\"headers\\\": {\\n    \\\"Accept\\\": \\\"text/html,application/json,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\\\", \\n    \\\"Accept-Encoding\\\": \\\"gzip\\\", \\n    \\\"Accept-Language\\\": \\\"zh-CN,zh;q=0.8\\\", \\n    \\\"Cache-Control\\\": \\\"no-cache\\\", \\n    \\\"Content-Length\\\": \\\"51\\\", \\n    \\\"Content-Type\\\": \\\"application/json;charset=UTF-8\\\", \\n    \\\"Host\\\": \\\"httpbin.org\\\", \\n    \\\"Pragma\\\": \\\"no-cache\\\", \\n    \\\"User-Agent\\\": \\\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.142 Safari/537.36 Hutool\\\", \\n    \\\"X-Amzn-Trace-Id\\\": \\\"Root=1-6ade05ef-421a071b498332fa13c21dfc\\\", \\n    \\\"X-Trace-Id\\\": \\\"trace-abc-123\\\"\\n  }, \\n  \\\"json\\\": {\\n    \\\"content\\\": \\\"v2.0 \\\\u53d1\\\\u5e03\\\", \\n    \\\"title\\\": \\\"\\\\u4e0a\\\\u7ebf\\\\u516c\\\\u544a\\\"\\n  }, \\n  \\\"origin\\\": \\\"123.123.43.166\\\", \\n  \\\"url\\\": \\\"https://httpbin.org/post\\\"\\n}\\n\",\"statusCode\":200}",
+            "timeCostMs": 795,
+            "createdAt": "2026-10-25T21:36:47.880402"
+          },
+          {
+            "id": 75,
+            "runTaskId": "646dd1f5-5267-4092-8fb3-99055d0549e4",
+            "nodeId": "start_1",
+            "nodeType": "start",
+            "title": "开始",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"traceId\":\"trace-abc-123\",\"title\":\"上线公告\",\"content\":\"v2.0 发布\"}",
+            "outputJson": "{\"traceId\":\"trace-abc-123\",\"title\":\"上线公告\",\"content\":\"v2.0 发布\",\"input\":\"\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T21:36:47.880402"
+          },
+          {
+            "id": 76,
+            "runTaskId": "646dd1f5-5267-4092-8fb3-99055d0549e4",
+            "nodeId": "end_1",
+            "nodeType": "end",
+            "title": "结束",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"traceId\":\"trace-abc-123\",\"http_1\":{\"headers\":{\"Server\":[\"gunicorn/19.9.0\"],\"Access-Control-Allow-Origin\":[\"*\"],\"Connection\":[\"keep-alive\"],\"Date\":[\"Sun, 25 Oct 2026 13:36:47 GMT\"],\"Access-Control-Allow-Credentials\":[\"true\"],\"Content-Length\":[\"918\"],\"Content-Type\":[\"application/json\"]},\"body\":\"{\\n  \\\"args\\\": {}, \\n  \\\"data\\\": \\\"{\\\\\\\"title\\\\\\\": \\\\\\\"\\\\u4e0a\\\\u7ebf\\\\u516c\\\\u544a\\\\\\\", \\\\\\\"content\\\\\\\": \\\\\\\"v2.0 \\\\u53d1\\\\u5e03\\\\\\\"}\\\", \\n  \\\"files\\\": {}, \\n  \\\"form\\\": {}, \\n  \\\"headers\\\": {\\n    \\\"Accept\\\": \\\"text/html,application/json,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\\\", \\n    \\\"Accept-Encoding\\\": \\\"gzip\\\", \\n    \\\"Accept-Language\\\": \\\"zh-CN,zh;q=0.8\\\", \\n    \\\"Cache-Control\\\": \\\"no-cache\\\", \\n    \\\"Content-Length\\\": \\\"51\\\", \\n    \\\"Content-Type\\\": \\\"application/json;charset=UTF-8\\\", \\n    \\\"Host\\\": \\\"httpbin.org\\\", \\n    \\\"Pragma\\\": \\\"no-cache\\\", \\n    \\\"User-Agent\\\": \\\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.142 Safari/537.36 Hutool\\\", \\n    \\\"X-Amzn-Trace-Id\\\": \\\"Root=1-6ade05ef-421a071b498332fa13c21dfc\\\", \\n    \\\"X-Trace-Id\\\": \\\"trace-abc-123\\\"\\n  }, \\n  \\\"json\\\": {\\n    \\\"content\\\": \\\"v2.0 \\\\u53d1\\\\u5e03\\\", \\n    \\\"title\\\": \\\"\\\\u4e0a\\\\u7ebf\\\\u516c\\\\u544a\\\"\\n  }, \\n  \\\"origin\\\": \\\"123.123.43.166\\\", \\n  \\\"url\\\": \\\"https://httpbin.org/post\\\"\\n}\\n\",\"statusCode\":200},\"title\":\"上线公告\",\"content\":\"v2.0 发布\",\"start_1\":{\"traceId\":\"trace-abc-123\",\"title\":\"上线公告\",\"content\":\"v2.0 发布\",\"input\":\"\"}}",
+            "outputJson": "{\"result\":\"{\\n  \\\"args\\\": {}, \\n  \\\"data\\\": \\\"{\\\\\\\"title\\\\\\\": \\\\\\\"\\\\u4e0a\\\\u7ebf\\\\u516c\\\\u544a\\\\\\\", \\\\\\\"content\\\\\\\": \\\\\\\"v2.0 \\\\u53d1\\\\u5e03\\\\\\\"}\\\", \\n  \\\"files\\\": {}, \\n  \\\"form\\\": {}, \\n  \\\"headers\\\": {\\n    \\\"Accept\\\": \\\"text/html,application/json,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\\\", \\n    \\\"Accept-Encoding\\\": \\\"gzip\\\", \\n    \\\"Accept-Language\\\": \\\"zh-CN,zh;q=0.8\\\", \\n    \\\"Cache-Control\\\": \\\"no-cache\\\", \\n    \\\"Content-Length\\\": \\\"51\\\", \\n    \\\"Content-Type\\\": \\\"application/json;charset=UTF-8\\\", \\n    \\\"Host\\\": \\\"httpbin.org\\\", \\n    \\\"Pragma\\\": \\\"no-cache\\\", \\n    \\\"User-Agent\\\": \\\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.142 Safari/537.36 Hutool\\\", \\n    \\\"X-Amzn-Trace-Id\\\": \\\"Root=1-6ade05ef-421a071b498332fa13c21dfc\\\", \\n    \\\"X-Trace-Id\\\": \\\"trace-abc-123\\\"\\n  }, \\n  \\\"json\\\": {\\n    \\\"content\\\": \\\"v2.0 \\\\u53d1\\\\u5e03\\\", \\n    \\\"title\\\": \\\"\\\\u4e0a\\\\u7ebf\\\\u516c\\\\u544a\\\"\\n  }, \\n  \\\"origin\\\": \\\"123.123.43.166\\\", \\n  \\\"url\\\": \\\"https://httpbin.org/post\\\"\\n}\\n\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T21:36:47.880402"
+          }
+        ],
+        "run": {
+          "id": 19,
+          "taskId": "646dd1f5-5267-4092-8fb3-99055d0549e4",
+          "workflowCode": null,
+          "status": "success",
+          "errorMessage": null,
+          "inputsJson": "{\"traceId\":\"trace-abc-123\",\"title\":\"上线公告\",\"content\":\"v2.0 发布\"}",
+          "outputsJson": "{\"result\":\"{\\n  \\\"args\\\": {}, \\n  \\\"data\\\": \\\"{\\\\\\\"title\\\\\\\": \\\\\\\"\\\\u4e0a\\\\u7ebf\\\\u516c\\\\u544a\\\\\\\", \\\\\\\"content\\\\\\\": \\\\\\\"v2.0 \\\\u53d1\\\\u5e03\\\\\\\"}\\\", \\n  \\\"files\\\": {}, \\n  \\\"form\\\": {}, \\n  \\\"headers\\\": {\\n    \\\"Accept\\\": \\\"text/html,application/json,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\\\", \\n    \\\"Accept-Encoding\\\": \\\"gzip\\\", \\n    \\\"Accept-Language\\\": \\\"zh-CN,zh;q=0.8\\\", \\n    \\\"Cache-Control\\\": \\\"no-cache\\\", \\n    \\\"Content-Length\\\": \\\"51\\\", \\n    \\\"Content-Type\\\": \\\"application/json;charset=UTF-8\\\", \\n    \\\"Host\\\": \\\"httpbin.org\\\", \\n    \\\"Pragma\\\": \\\"no-cache\\\", \\n    \\\"User-Agent\\\": \\\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.142 Safari/537.36 Hutool\\\", \\n    \\\"X-Amzn-Trace-Id\\\": \\\"Root=1-6ade05ef-421a071b498332fa13c21dfc\\\", \\n    \\\"X-Trace-Id\\\": \\\"trace-abc-123\\\"\\n  }, \\n  \\\"json\\\": {\\n    \\\"content\\\": \\\"v2.0 \\\\u53d1\\\\u5e03\\\", \\n    \\\"title\\\": \\\"\\\\u4e0a\\\\u7ebf\\\\u516c\\\\u544a\\\"\\n  }, \\n  \\\"origin\\\": \\\"123.123.43.166\\\", \\n  \\\"url\\\": \\\"https://httpbin.org/post\\\"\\n}\\n\"}",
+          "nodeCount": 3,
+          "durationMs": 802,
+          "triggerChannel": "editor",
+          "startedAt": "2026-10-25T21:36:47.078402",
+          "finishedAt": "2026-10-25T21:36:47.880402",
+          "createdAt": "2026-10-25T21:36:47.880402"
+        }
+      }
+    }
+  ]
+}

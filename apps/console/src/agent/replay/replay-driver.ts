@@ -10,16 +10,19 @@
  *     events: [{ event, data, delay }] }
  *
  * 事件序列与后端 SessionEventBus 录制（agent.dev.record-events-dir）的 ndjson
- * 同构：录出来的文件稍作包裹即可直接当 fixture 用。
+ * 同构：录出来的文件稍作包裹即可直接当 fixture 用。帧分发与真实 SSE 同一条路径
+ * （SseFrame → runtime），保证回放场景与线上行为逐字节一致。
  */
-import { handleEvent } from '../sse-protocol';
-import type { SseHandlers } from '../types';
+import type { SseFrame } from '../runtime/sse-reader';
+import type { SessionStreamCallbacks } from '../sse-client';
 
 export interface ReplayEvent {
   event: string;
   data?: any;
-  /** 距上一事件的间隔毫秒（缺省按事件类型推断） */
+  /** 距上一事件的间隔毫秒（缺省按事件类型推断；0 = 同任务内连发，模拟突发） */
   delay?: number;
+  /** 可选事件序号（模拟 seq 去重路径；缺省不带） */
+  seq?: number;
 }
 
 export interface ReplayFixture {
@@ -84,17 +87,25 @@ function defaultDelay(event: string): number {
   return 250;
 }
 
-/** 回放 SSE 会话流：按 fixture 顺序、按 delay 节奏分发事件（signal 可中断） */
-export async function replaySessionStream(handlers: SseHandlers, signal?: AbortSignal): Promise<void> {
+/** 回放 SSE 会话流：按 fixture 顺序、按 delay 节奏分发帧（signal 可中断） */
+export async function replaySessionStream(
+  callbacks: SessionStreamCallbacks,
+  signal?: AbortSignal
+): Promise<void> {
   const fixture = active;
   if (!fixture) return;
-  handlers.onOpen?.();
+  callbacks.onOpen?.();
   for (const ev of fixture.events) {
     if (signal?.aborted) return;
     const delay = Math.max(0, (ev.delay ?? defaultDelay(ev.event)) / speed);
     if (delay > 0) await sleep(delay);
     if (signal?.aborted) return;
-    handleEvent(ev.event, ev.data ?? {}, handlers);
+    const frame: SseFrame = {
+      event: ev.event,
+      data: ev.data != null ? JSON.stringify(ev.data) : '{}',
+      ...(ev.seq != null ? { id: String(ev.seq) } : {}),
+    };
+    callbacks.onFrame(frame);
   }
 }
 

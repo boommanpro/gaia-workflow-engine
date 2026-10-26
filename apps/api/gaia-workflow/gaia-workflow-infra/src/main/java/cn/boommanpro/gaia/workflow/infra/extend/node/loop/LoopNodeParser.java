@@ -52,10 +52,15 @@ public class LoopNodeParser extends BaseNodeParser<LoopNode> {
             loopNode.setLoopOutputs(loopOutputs);
         }
 
-        // 解析迭代上限（0 表示不限制）
+        // 解析迭代上限（0 表示不限制）；非数字直接报配置错误，而不是抛裸 NumberFormatException
         Object maxLoopCountValue = nodeJSONObject.getByPath(MAX_LOOP_COUNT_PATH);
         if (maxLoopCountValue != null) {
-            loopNode.setMaxLoopCount(Integer.parseInt(maxLoopCountValue.toString()));
+            try {
+                loopNode.setMaxLoopCount(Integer.parseInt(maxLoopCountValue.toString().trim()));
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("循环节点 " + nodeJSONObject.getStr("id")
+                    + " 的 maxLoopCount 不是整数: \"" + maxLoopCountValue + "\"（应为 0-10000 的整数，0=不限）");
+            }
         }
 
         // 解析输出定义

@@ -8,6 +8,7 @@ import { FlowNodeRegistry } from '../../typings';
 import iconHTTP from '../../assets/icon-http.svg';
 import { formMeta } from './form-meta';
 import { generateValidId } from '../utils';
+import { cloneDefaultData } from '../../agent/node-templates';
 
 let index = 0;
 
@@ -27,25 +28,7 @@ export const HTTPNodeRegistry: FlowNodeRegistry = {
     return {
       id: generateValidId('http', 5),
       type: 'http',
-      data: {
-        title: `HTTP_${++index}`,
-        api: {
-          method: 'GET',
-        },
-        body: {
-          bodyType: 'JSON',
-        },
-        headers: {},
-        params: {},
-        outputs: {
-          type: 'object',
-          properties: {
-            body: { type: 'string' },
-            headers: { type: 'object' },
-            statusCode: { type: 'integer' },
-          },
-        },
-      },
+      data: { ...cloneDefaultData('http'), title: `HTTP_${++index}` },
     };
   },
   formMeta: formMeta,

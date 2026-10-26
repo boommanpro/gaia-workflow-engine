@@ -3,6 +3,119 @@
   "$id": "https://gaia.workflow/schemas/node/code",
   "title": "code",
   "type": "object",
+  "description": "代码节点。script.language 仅支持 javascript/js/jsReturn（GraalJS，顶层可直接用上游变量名，最后一个表达式必须是对象字面量）、java/groovy（动态编译，需 execute(Map) 方法）。inputs.properties 是入参声明（声明后代码里直接用变量名），outputs.properties 是输出白名单——未声明的输出键会被丢弃（下游引用为 null）。",
+  "definitions": {
+    "constantValue": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "constant"
+          ]
+        },
+        "content": {},
+        "schema": {
+          "type": "object"
+        },
+        "extra": {}
+      },
+      "required": [
+        "type",
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "refValue": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "ref"
+          ]
+        },
+        "content": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 2
+        },
+        "schema": {
+          "type": "object"
+        },
+        "extra": {}
+      },
+      "required": [
+        "type",
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "templateValue": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "template"
+          ]
+        },
+        "content": {
+          "type": "string"
+        },
+        "schema": {
+          "type": "object"
+        },
+        "extra": {}
+      },
+      "required": [
+        "type",
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "expressionValue": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "expression"
+          ]
+        },
+        "content": {
+          "type": "string"
+        },
+        "schema": {
+          "type": "object"
+        },
+        "extra": {}
+      },
+      "required": [
+        "type",
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "timeout": {
+      "type": "object",
+      "properties": {
+        "timeout": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 600000
+        },
+        "retryTimes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10
+        }
+      },
+      "additionalProperties": false
+    }
+  },
   "properties": {
     "title": {
       "type": "string"
@@ -11,7 +124,14 @@
       "type": "object",
       "properties": {
         "language": {
-          "type": "string"
+          "type": "string",
+          "enum": [
+            "javascript",
+            "js",
+            "jsReturn",
+            "java",
+            "groovy"
+          ]
         },
         "content": {
           "type": "string"
@@ -19,20 +139,37 @@
       },
       "required": [
         "content"
-      ]
+      ],
+      "additionalProperties": false
     },
     "inputsValues": {
-      "type": "object"
+      "type": "object",
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "$ref": "#/definitions/constantValue"
+          },
+          {
+            "$ref": "#/definitions/refValue"
+          },
+          {
+            "$ref": "#/definitions/expressionValue"
+          }
+        ]
+      }
     },
     "inputs": {
       "type": "object"
     },
     "outputs": {
       "type": "object"
+    },
+    "outputsValues": {
+      "type": "object"
     }
   },
   "required": [
     "script"
   ],
-  "additionalProperties": true
+  "additionalProperties": false
 }

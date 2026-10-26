@@ -68,7 +68,7 @@ class WorkflowDslApplyCasTest {
     /** 合法可执行的最小 DSL——2026-10-16 起 apply 在 CAS 后还要过统一校验门禁，夹具必须是真数据 */
     private static final String DSL = "{\"nodes\":["
         + "{\"id\":\"start_0\",\"type\":\"start\",\"data\":{\"outputs\":{\"type\":\"object\",\"properties\":{\"text\":{\"type\":\"string\"}}}}},"
-        + "{\"id\":\"llm_0\",\"type\":\"llm\",\"data\":{\"prompt\":\"总结：{{ start_0.text }}\",\"modelName\":\"m\"}},"
+        + "{\"id\":\"llm_0\",\"type\":\"llm\",\"data\":{\"prompt\":\"总结：{{ start_0.text }}\",\"modelName\":\"m\",\"apiHost\":\"https://x\",\"apiKey\":\"sk-test\"}},"
         + "{\"id\":\"end_0\",\"type\":\"end\",\"data\":{\"inputsValues\":{\"out\":{\"type\":\"ref\",\"content\":[\"llm_0\",\"result\"]}}}}"
         + "],\"edges\":[{\"sourceNodeID\":\"start_0\",\"targetNodeID\":\"llm_0\"},"
         + "{\"sourceNodeID\":\"llm_0\",\"targetNodeID\":\"end_0\"}]}";

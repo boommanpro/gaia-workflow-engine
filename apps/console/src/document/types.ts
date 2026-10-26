@@ -5,6 +5,8 @@
  * 画布（flowgram）退化为一个「视图/编辑器」，不再是数据的宿主。
  */
 
+import catalog from '../../../api/gaia-workflow/gaia-workflow-app/src/main/resources/node-catalog/index.json';
+
 /** 节点坐标 */
 export interface NodePosition {
   x: number;
@@ -94,19 +96,8 @@ export type SnapshotReason =
   | 'init';
 
 /** 支持被 LLM 生成的节点类型 */
-export const GENERATABLE_NODE_TYPES = [
-  'start',
-  'end',
-  'llm',
-  'code',
-  'http',
-  'condition',
-  'branches',
-  'loop',
-  'variable',
-  'string-format',
-  'assignee',
-  'comment',
-] as const;
+export const GENERATABLE_NODE_TYPES = catalog.nodes
+  .filter((node) => node.capabilities.aiCreatable)
+  .map((node) => node.type);
 
 export type GeneratableNodeType = (typeof GENERATABLE_NODE_TYPES)[number];

@@ -3,10 +3,15 @@
  *
  * 关键点：
  *  1. 它是 **唯一的** 工作流数据持有者，画布只是它的一个渲染/编辑端。
- *  2. AI（tool 执行器）和用户（画布）都写这个 store，互不感知对方是否存在。
- *  3. 通过 useSyncExternalStore 接入 React，避免 context 层层透传。
+ *  2. AI（document 事件，全量或增量 ops）和用户（画布）都写这个 store。
+ *  3. 通过 useSyncExternalStore 接入 React；细粒度消费方自己 memo。
  *  4. 每次实质变更都会留下一个 **快照**（CanvasSnapshot），因此画布是有版本、
  *     可回滚的 —— AI 一整轮改错了，用户一键就能回到这一轮之前。
+ *
+ * v3 性能契约（长会话不卡的关键）：
+ *  · 快照比对用创建时缓存的 dslJson 字符串（不再对全部历史快照反复 JSON.stringify）；
+ *  · 持久化走 IndexedDB 异步写（防抖 800ms），不再同步塞 sessionStorage；
+ *  · 服务端 document 事件支持增量 ops（版本对齐时应用，失步由宿主拉全量）。
  */
 import { useSyncExternalStore } from 'react';
 import { nanoid } from 'nanoid';
@@ -18,6 +23,7 @@ import {
   type CanvasSnapshot,
   type SnapshotOutcome,
 } from './history';
+import { loadSnapshots, saveSnapshots } from './idb';
 import type { DslChange, SnapshotReason, WorkflowDsl } from './types';
 
 export interface WorkflowMeta {
@@ -26,20 +32,18 @@ export interface WorkflowMeta {
   versionNumber?: string;
   /** 最近一次已保存的 DSL，用于计算 dirty 与 Diff */
   savedDsl?: WorkflowDsl;
+  /** savedDsl 的序列化缓存（isDirty 不再反复 stringify） */
+  savedDslJson?: string;
   /** 这份产物是谁产出的 */
   producedBy?: 'ai' | 'user' | 'import';
   /**
    * 这份画布内容归属的会话 key。显式所有权是跨会话清空的唯一判据——
-   * producedBy/lastChange 启发式会被草稿恢复、版本定格等路径污染
-   * （2026-10-11「新建对话产物残留」根因）。编辑器/工作流库载入为页面级内容，
-   * 不设 ownerSession，任何会话切换都不会清掉它。
+   * producedBy/lastChange 启发式会被草稿恢复、版本定格等路径污染。
    */
   ownerSession?: string | null;
   /**
-   * 自上次 markSaved 以来画布是否发生内容级变化（阶段 1.3「未保存」标记）。
-   * 按变更来源维护：用户/AI 的结构变化与回滚置 true；纯拖动（layout）、
-   * 系统加载（import）不置——首挂时 flowgram 会规整序列化产生派生字段差异，
-   * 用「对比序列化」判定会稳定误报。
+   * 自上次 markSaved 以来画布是否发生内容级变化。按变更来源维护：
+   * 用户/AI 的结构变化与回滚置 true；纯拖动（layout）、系统加载（import）不置。
    */
   dirtySinceSave?: boolean;
   updatedAt?: number;
@@ -57,15 +61,16 @@ export interface WorkflowDocumentState {
   cursor: number;
   /** 最近一次回滚，用于给用户一个「你刚回到了 vN」的提示 */
   lastRollback?: { fromId: string; toId: string; at: number };
+  /** 服务端画布版本（document 事件 / GET /document 对齐；0 = 未知） */
+  serverDocVersion: number;
 }
 
 type Listener = () => void;
 
 /** 快照数量上限（防止长对话把内存吃满） */
 const SNAPSHOT_LIMIT = 60;
-/** sessionStorage 里的持久化上限（超过就放弃持久化，避免超配额） */
-const PERSIST_BUDGET = 1_400_000;
-const PERSIST_KEY = 'gaia.canvasSnapshots';
+/** 持久化预算：超过就裁剪旧快照（字节计） */
+const PERSIST_BUDGET = 2_400_000;
 
 const EMPTY_DELTA = {
   addedNodes: 0,
@@ -75,6 +80,20 @@ const EMPTY_DELTA = {
   removedEdges: 0,
 };
 
+/** 服务端 document 事件的增量 op（与后端 SessionWorkflowDraftService.diffOps 对齐） */
+export type DocumentOp =
+  | { op: 'node_set'; node: any }
+  | { op: 'node_remove'; id: string }
+  | { op: 'edge_set'; edge: any }
+  | { op: 'edge_remove'; key: string };
+
+function edgeKeyOf(edge: { sourceNodeID?: string; targetNodeID?: string; sourcePortID?: string }): string {
+  const from = edge.sourceNodeID || '';
+  const to = edge.targetNodeID || '';
+  const port = edge.sourcePortID;
+  return port ? `${from}->${to}#${port}` : `${from}->${to}`;
+}
+
 class WorkflowDocumentStore {
   private state: WorkflowDocumentState = {
     doc: WorkflowDocument.empty(),
@@ -82,6 +101,7 @@ class WorkflowDocumentStore {
     revision: 0,
     snapshots: [],
     cursor: -1,
+    serverDocVersion: 0,
   };
 
   private listeners = new Set<Listener>();
@@ -92,19 +112,17 @@ class WorkflowDocumentStore {
   private scope: string | null = null;
 
   /**
-   * 当前生成轮对应的 assistant 消息 id。
-   * AgentContext 在一轮对话开始时写入，工具执行（applyWorkflow 等）写 store 时
-   * 没有消息上下文，靠它把「AI 改动画布」的那条快照挂到正确的助手消息下，
-   * 于是对话栏里才会出现对应的画布快照卡。
+   * 当前生成轮对应的 assistant 消息 id（AI 改动画布的快照归属）。
    */
   private activeMessageId: string | null = null;
 
   /**
-   * run 粒度会话版本的「待定格」标记：AI 来源的变更不立即落版本（一轮 run 里
-   * 模型可能调十几次工具，逐次记版本会把版本轴刷成 v27、v33 这种碎片），
-   * 只记「本轮有结构变更 + 首个原因」，run 结束由 captureAiRunSnapshot 定格一版。
+   * run 粒度会话版本的「待定格」标记：一轮 run 里模型可能调十几次工具，
+   * 只在 run 结束由 captureAiRunSnapshot 定格一版。
    */
   private pendingAiChange: { reason: SnapshotReason } | null = null;
+
+  private persistTimer: ReturnType<typeof setTimeout> | null = null;
 
   // ---------------- React 绑定 ----------------
 
@@ -124,12 +142,7 @@ class WorkflowDocumentStore {
   // ---------------- 快照 ----------------
 
   /**
-   * 落一条快照。三种情况会直接跳过：
-   *   · 内容和当前快照完全一致（例如刷新后重新应用同一份产物）
-   *   · 空文档
-   * 命中更早的快照时，说明这是一次「回到旧版」的操作，标成 rollback 更好读。
-   *
-   * AI 来源的变更在这里只做「待定格」标记（run 粒度合并，见 pendingAiChange），
+   * 落一条快照。AI 来源的变更只做「待定格」标记（run 粒度合并），
    * 用户/系统来源照常立即落版本。
    */
   private recordSnapshot(change: DslChange, outcome: SnapshotOutcome = 'ok'): void {
@@ -154,17 +167,20 @@ class WorkflowDocumentStore {
   }
 
   private recordSnapshotImmediate(change: DslChange, outcome: SnapshotOutcome = 'ok'): void {
-    const dsl = this.state.doc.toJSON();
+    const dslJson = JSON.stringify(this.state.doc.toJSON());
+    const dsl = JSON.parse(dslJson) as WorkflowDsl;
     if (!dsl.nodes.length) return;
 
     const current = this.state.snapshots[this.state.cursor];
-    if (current && sameJson(current.dsl, dsl)) return;
+    if (current && current.dslJson === dslJson) return;
 
-    // 更早的快照里存在同一条内容 → 用户在回退，而不是在前进
+    // 更早的快照里存在同一条内容 → 用户在回退，而不是在前进（字符串比对，不再逐条 stringify）
     let rollbackFrom: string | undefined;
     for (let i = 0; i < this.state.cursor; i += 1) {
-      if (sameJson(this.state.snapshots[i].dsl, dsl)) {
-        rollbackFrom = this.state.snapshots[i].id;
+      const prev = this.state.snapshots[i];
+      const prevJson = prev.dslJson ?? JSON.stringify(prev.dsl);
+      if (prevJson === dslJson) {
+        rollbackFrom = prev.id;
         break;
       }
     }
@@ -173,10 +189,7 @@ class WorkflowDocumentStore {
     const delta = computeSnapshotDelta(dsl, prev?.dsl);
     if (!rollbackFrom && !hasStructuralDelta(delta) && prev) return;
 
-    // 手动编辑合并（少记版本）：连续手改更新同一条快照，而不是每步一条 ——
-    // 用户在编辑器里操作几步，历史只留一条「手动编辑」，回滚目标仍是这批
-    // 改动之前的状态。AI 变更已按 run 粒度归并（见 recordSnapshot/captureAiRunSnapshot），
-    // 两类都归并后，历史条目 = 用户操作批次 + AI 轮次，用户才真的会用回滚。
+    // 手动编辑合并（少记版本）：连续手改更新同一条快照，而不是每步一条
     if (
       !rollbackFrom
       && change.source === 'user'
@@ -190,14 +203,14 @@ class WorkflowDocumentStore {
       snapshots[this.state.snapshots.length - 1] = {
         ...prev,
         at: Date.now(),
-        dsl: clone(dsl),
-        // 累计增量：与本条快照最初的前置版对比，整批手改一屏看完
+        dsl,
+        dslJson,
         delta: computeSnapshotDelta(dsl, prev.prevDsl),
         nodeCount: dsl.nodes.length,
         edgeCount: (dsl.edges || []).length,
       };
       this.state = { ...this.state, snapshots };
-      this.persist();
+      this.schedulePersist();
       return;
     }
 
@@ -205,8 +218,6 @@ class WorkflowDocumentStore {
       ? 'rollback'
       : change.reason || deriveReason(change, current);
 
-    // AI 来源的快照若调用方没带 messageId，则回落到当前生成轮（activeMessageId），
-    // 这样对话栏里这张卡才能正确挂到那条助手消息下面。
     const messageId =
       change.messageId ?? (change.source === 'ai' ? this.activeMessageId ?? undefined : undefined);
 
@@ -223,7 +234,8 @@ class WorkflowDocumentStore {
       outcome,
       ...(messageId ? { messageId } : {}),
       ...(rollbackFrom ? { rollbackFrom } : {}),
-      dsl: clone(dsl),
+      dsl,
+      dslJson,
       ...(prev ? { prevDsl: prev.dsl } : {}),
       delta,
       nodeCount: dsl.nodes.length,
@@ -241,15 +253,15 @@ class WorkflowDocumentStore {
         ? { lastRollback: { fromId: current?.id || '', toId: snapshot.id, at: Date.now() } }
         : {}),
     };
-    this.persist();
+    this.schedulePersist();
   }
 
   /**
    * 记录一次「失败轮」：模型产出的东西不合法，没有写入画布。
-   * 不落画布，只留一条记录 —— 对话里那张卡会因此显示成红色的「已保护」。
    */
   captureFailure(messageId: string | undefined, note: string): void {
     const failureMessageId = messageId ?? this.activeMessageId ?? undefined;
+    const dsl = JSON.parse(JSON.stringify(this.state.doc.toJSON())) as WorkflowDsl;
     const snapshot: CanvasSnapshot = {
       id: `snap_fail_${nanoid(6)}`,
       at: Date.now(),
@@ -258,13 +270,13 @@ class WorkflowDocumentStore {
       outcome: 'failed',
       ...(failureMessageId ? { messageId: failureMessageId } : {}),
       failureNote: note,
-      dsl: clone(this.state.doc.toJSON()),
+      dsl,
       delta: { ...EMPTY_DELTA },
-      nodeCount: this.state.doc.toJSON().nodes.length,
-      edgeCount: this.state.doc.toJSON().edges.length,
+      nodeCount: dsl.nodes.length,
+      edgeCount: (dsl.edges || []).length,
     };
     this.state = { ...this.state, snapshots: [...this.state.snapshots, snapshot] };
-    this.persist();
+    this.schedulePersist();
     this.emit();
   }
 
@@ -278,14 +290,14 @@ class WorkflowDocumentStore {
     const fromId = this.state.snapshots[this.state.cursor]?.id || '';
     this.state = {
       ...this.state,
-      doc: WorkflowDocument.fromJSON(clone(target.dsl)),
+      doc: WorkflowDocument.fromJSON(JSON.parse(JSON.stringify(target.dsl)) as WorkflowDsl),
       meta: { ...this.state.meta, updatedAt: Date.now(), dirtySinceSave: true },
       lastChange: { kind: 'replace', source: 'user', reason: 'rollback' },
       revision: this.state.revision + 1,
       cursor: index,
       lastRollback: { fromId, toId: snapshotId, at: Date.now() },
     };
-    this.persist();
+    this.schedulePersist();
     this.emit();
     return true;
   }
@@ -302,63 +314,34 @@ class WorkflowDocumentStore {
     this.activeMessageId = id ?? null;
   }
 
-
-
   /**
-   * 切换历史归属。换上下文就换一套版本记录，并尝试把该上下文上次的历史捞回来，
-   * 这样刷新页面 / 切走再切回来，撤销深度还在。
-   *
-   * 若新上下文没有任何历史，就把「眼前这份内容」当作它的起点记一笔 ——
-   * 想想这个场景：先在工作流库打开一个工作流进了编辑器，会话身份随后才确定下来；
-   * 如果这时把画布内容丢掉，用户会看到刚打开的工作流凭空消失。
+   * 切换历史归属。换上下文就换一套版本记录；快照从 IndexedDB 异步拾回
+   * （只服务「空画布」：异步晚到时不顶掉眼前已承接的内容）。
    */
   setScope(key: string | null): void {
     if (key === this.scope) return;
-    // 只搬「页面级内容」（编辑器/库导入，无 ownerSession）。会话-owned 的画布
-    // 决不能跟着搬进另一段会话——那正是「新建对话产物残留」的搬运通道；
-    // 它由 AgentContext 的归属清空逻辑在切会话时清掉。
     const carryDoc = this.state.doc.isEmpty || this.state.meta.ownerSession ? null : this.state.doc;
     this.scope = key;
-
-    const restored = key ? this.loadPersisted(key) : null;
-    // 快照恢复只服务「空画布」：currentSessionKey 是异步恢复的，setScope 往往在
-    // 编辑器承接草稿（__draft__）/ 载入正式版之后才触发，无条件 restore 会把
-    // 眼前刚承接的内容用旧会话快照顶掉（2026-10-20 精修草稿竞争实证）。
-    if (restored && this.state.doc.isEmpty) {
-      this.state = {
-        ...this.state,
-        doc: WorkflowDocument.fromJSON(restored.dsl),
-        snapshots: restored.snapshots,
-        cursor: restored.cursor,
-        revision: this.state.revision + 1,
-      };
-      this.emit();
-      return;
-    }
-
     this.state = { ...this.state, snapshots: [], cursor: -1 };
     if (carryDoc) {
       this.state = { ...this.state, doc: carryDoc };
       this.recordSnapshot({ kind: 'replace', source: 'system', reason: 'import' });
     }
     this.emit();
-  }
-
-  private loadPersisted(
-    key: string
-  ): { dsl: WorkflowDsl; snapshots: CanvasSnapshot[]; cursor: number } | null {
-    try {
-      const raw = sessionStorage.getItem(`${PERSIST_KEY}:${key}`);
-      if (!raw) return null;
-      const parsed = JSON.parse(raw) as { snapshots?: CanvasSnapshot[]; cursor?: number };
-      const snapshots = Array.isArray(parsed.snapshots) ? parsed.snapshots : [];
-      if (snapshots.length === 0) return null;
-      const cursor = Math.max(0, Math.min(parsed.cursor ?? snapshots.length - 1, snapshots.length - 1));
-      const dsl = snapshots[cursor]?.dsl;
-      if (!dsl?.nodes?.length) return null;
-      return { dsl, snapshots, cursor };
-    } catch {
-      return null;
+    if (key) {
+      const scopeKey = key;
+      void loadSnapshots(scopeKey).then((restored) => {
+        if (this.scope !== scopeKey || !restored) return;
+        if (!this.state.doc.isEmpty) return;
+        this.state = {
+          ...this.state,
+          doc: WorkflowDocument.fromJSON(restored.dsl),
+          snapshots: restored.snapshots,
+          cursor: restored.cursor,
+          revision: this.state.revision + 1,
+        };
+        this.emit();
+      });
     }
   }
 
@@ -371,9 +354,9 @@ class WorkflowDocumentStore {
   ): void {
     if (doc === this.state.doc) return; // 无变更
 
-    // 内容级变化才置「未保存」：拖动（layout）与系统加载不算
     const affectsContent = change.kind !== 'layout' && change.source !== 'system';
     this.state = {
+      ...this.state,
       doc,
       meta: {
         ...this.state.meta,
@@ -386,14 +369,13 @@ class WorkflowDocumentStore {
       cursor: this.state.cursor,
     };
 
-    // 纯坐标变化（拖节点）不该污染版本历史
     if (options.snapshot !== false && change.kind !== 'layout') {
       this.recordSnapshot(change);
     }
     this.emit();
   }
 
-  /** 全量替换（AI 一次成型 / 加载版本 / 导入） */
+  /** 全量替换（AI document 全量 / 加载版本 / 导入） */
   replace(
     doc: WorkflowDocument,
     change: Omit<DslChange, 'kind'> & { kind?: DslChange['kind'] }
@@ -406,6 +388,92 @@ class WorkflowDocumentStore {
     this.commit(mutator(this.state.doc), change);
   }
 
+  /**
+   * 服务端 document 增量 ops 应用（版本对齐时）。
+   * baseVersion 传入时做门禁：与本地 serverDocVersion 不符返回 false（调用方应拉全量）——
+   * 契约此前只写在注释里、实现在调用方，任何新调用点漏检都会把增量写到错误基线上（静默丢更新）。
+   * 返回 false = 版本不符或内容无变化。
+   */
+  applyServerOps(ops: DocumentOp[], version: number, baseVersion?: number): boolean {
+    if (baseVersion != null && baseVersion > 0 && this.state.serverDocVersion !== baseVersion) {
+      return false;
+    }
+    if (!Array.isArray(ops) || ops.length === 0) {
+      if (version > 0) this.state = { ...this.state, serverDocVersion: version };
+      return true;
+    }
+    const json = this.state.doc.toJSON() as WorkflowDsl & { edges: any[] };
+    const nodes = [...(json.nodes || [])];
+    const edges = [...(json.edges || [])];
+    let changed = false;
+    for (const op of ops) {
+      if (op.op === 'node_set') {
+        const id = op.node?.id;
+        if (!id) continue;
+        const idx = nodes.findIndex((n: any) => n.id === id);
+        if (idx >= 0) nodes[idx] = op.node;
+        else nodes.push(op.node);
+        changed = true;
+      } else if (op.op === 'node_remove') {
+        const before = nodes.length;
+        const filtered = nodes.filter((n: any) => n.id !== op.id);
+        if (filtered.length !== before) changed = true;
+        nodes.length = 0;
+        nodes.push(...filtered);
+      } else if (op.op === 'edge_set') {
+        const key = edgeKeyOf(op.edge);
+        const idx = edges.findIndex((e: any) => edgeKeyOf(e) === key);
+        if (idx >= 0) edges[idx] = op.edge;
+        else edges.push(op.edge);
+        changed = true;
+      } else if (op.op === 'edge_remove') {
+        const before = edges.length;
+        const filtered = edges.filter((e: any) => edgeKeyOf(e) !== op.key);
+        if (filtered.length !== before) changed = true;
+        edges.length = 0;
+        edges.push(...filtered);
+      }
+    }
+    this.state = { ...this.state, serverDocVersion: version > 0 ? version : this.state.serverDocVersion };
+    if (!changed) {
+      this.emit();
+      return true;
+    }
+    const next = { ...json, nodes, edges };
+    this.replace(WorkflowDocument.fromJSON(next), {
+      kind: 'replace',
+      source: 'ai',
+      reason: 'ai-edit',
+    });
+    return true;
+  }
+
+  /** 服务端全量文档应用（含版本号） */
+  applyServerDoc(dsl: WorkflowDsl, version: number): void {
+    this.state = { ...this.state, serverDocVersion: version > 0 ? version : this.state.serverDocVersion };
+    this.replace(WorkflowDocument.fromJSON(dsl), {
+      kind: 'replace',
+      source: 'ai',
+      reason: 'ai-edit',
+    });
+  }
+
+  /**
+   * 仅对齐服务端文档版本号（不触内容）：连接对账发现结构与本地一致时使用——
+   * 后端重启会重置草稿版本计数，不重对齐的话后续增量 ops 的 baseVersion 永远对不上，
+   * 每条 op 都触发一次全量拉取兜底。
+   */
+  alignServerDocVersion(version: number): void {
+    if (version > 0 && version !== this.state.serverDocVersion) {
+      this.state = { ...this.state, serverDocVersion: version };
+      this.emit();
+    }
+  }
+
+  get serverDocVersion(): number {
+    return this.state.serverDocVersion;
+  }
+
   setMeta(meta: Partial<WorkflowMeta>): void {
     this.state = { ...this.state, meta: { ...this.state.meta, ...meta } };
     this.emit();
@@ -413,12 +481,14 @@ class WorkflowDocumentStore {
 
   /** 标记为已保存：把当前 DSL 记为基线，同时清除「未保存」标记 */
   markSaved(meta: Partial<WorkflowMeta> = {}): void {
+    const dsl = this.state.doc.toJSON() as WorkflowDsl;
     this.state = {
       ...this.state,
       meta: {
         ...this.state.meta,
         ...meta,
-        savedDsl: clone(this.state.doc.toJSON()),
+        savedDsl: dsl,
+        savedDslJson: JSON.stringify(dsl),
         dirtySinceSave: false,
         updatedAt: Date.now(),
       },
@@ -433,12 +503,9 @@ class WorkflowDocumentStore {
       revision: this.state.revision + 1,
       snapshots: [],
       cursor: -1,
+      serverDocVersion: 0,
     };
-    try {
-      if (this.scope) sessionStorage.removeItem(`${PERSIST_KEY}:${this.scope}`);
-    } catch {
-      /* 隐私模式下忽略 */
-    }
+    if (this.scope) void saveSnapshots(this.scope, null);
     this.emit();
   }
 
@@ -462,54 +529,41 @@ class WorkflowDocumentStore {
     return this.state.cursor < this.state.snapshots.length - 1;
   }
 
-  // ---------------- 持久化（同一上下文刷新后仍可回滚） ----------------
+  // ---------------- 持久化（IndexedDB 异步，防抖） ----------------
 
-  private persist(): void {
+  private schedulePersist(): void {
     if (!this.scope) return;
-    const key = `${PERSIST_KEY}:${this.scope}`;
-    try {
-      const payload = JSON.stringify({
-        snapshots: this.state.snapshots,
-        cursor: this.state.cursor,
-      });
-      if (payload.length > PERSIST_BUDGET) {
-        // 太大就只留最近 10 条，保命优先
-        const trimmed = {
-          snapshots: this.state.snapshots.slice(-10),
-          cursor: Math.min(this.state.cursor, 9),
-        };
-        const small = JSON.stringify(trimmed);
-        if (small.length > PERSIST_BUDGET) {
-          sessionStorage.removeItem(key);
-          return;
-        }
-        sessionStorage.setItem(key, small);
-        return;
+    if (this.persistTimer) clearTimeout(this.persistTimer);
+    const scopeKey = this.scope;
+    this.persistTimer = setTimeout(() => {
+      this.persistTimer = null;
+      const cursor = this.state.cursor;
+      let snapshots = this.state.snapshots;
+      // 预算裁剪：超限先裁旧快照（保命优先），再放不下就放弃持久化
+      let total = snapshots.reduce((sum, s) => sum + (s.dslJson?.length ?? 0), 0) + 64 * snapshots.length;
+      while (total > PERSIST_BUDGET && snapshots.length > 1) {
+        total -= (snapshots[0].dslJson?.length ?? 0) + 64;
+        snapshots = snapshots.slice(1);
       }
-      sessionStorage.setItem(key, payload);
-    } catch {
-      /* 超配额 / 隐私模式：放弃持久化，不影响本次会话 */
-    }
+      if (total > PERSIST_BUDGET) return;
+      const dsl = snapshots[Math.min(cursor, snapshots.length - 1)]?.dsl;
+      void saveSnapshots(scopeKey, {
+        dsl,
+        snapshots,
+        cursor: Math.min(cursor, snapshots.length - 1),
+      });
+    }, 800);
   }
 
   // ---------------- 派生 ----------------
 
   get isDirty(): boolean {
-    const { savedDsl } = this.state.meta;
-    if (!savedDsl) return !this.state.doc.isEmpty;
-    return !sameJson(savedDsl, this.state.doc.toJSON());
+    const { savedDslJson } = this.state.meta;
+    if (!savedDslJson) return !this.state.doc.isEmpty;
+    return savedDslJson !== JSON.stringify(this.state.doc.toJSON());
   }
 }
 
-function clone<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value)) as T;
-}
-
-function sameJson(a: unknown, b: unknown): boolean {
-  return JSON.stringify(a) === JSON.stringify(b);
-}
-
-/** 依据变更来源与上下文推断一个可读的快照原因 */
 function deriveReason(change: DslChange, current?: CanvasSnapshot): SnapshotReason {
   if (change.reason) return change.reason;
   if (change.source === 'user') return 'user-edit';

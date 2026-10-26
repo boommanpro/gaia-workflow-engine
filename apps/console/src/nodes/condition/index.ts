@@ -8,6 +8,7 @@ import iconCondition from '../../assets/icon-condition.svg';
 import { formMeta } from './form-meta';
 import { generateValidId } from '../utils';
 import { WorkflowNodeType } from '../constants';
+import { cloneDefaultData } from '../../agent/node-templates';
 
 export const ConditionNodeRegistry: FlowNodeRegistry = {
   type: WorkflowNodeType.Condition,
@@ -31,15 +32,7 @@ export const ConditionNodeRegistry: FlowNodeRegistry = {
     return {
       id: generateValidId('condition', 5),
       type: 'condition',
-      data: {
-        title: 'Condition',
-        conditions: [
-          {
-            key: generateValidId('if', 5),
-            value: {},
-          },
-        ],
-      },
+      data: cloneDefaultData('condition'),
     };
   },
 };

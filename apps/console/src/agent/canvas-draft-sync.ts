@@ -17,7 +17,7 @@
 import { workflowDocumentStore } from '../document';
 import { getSessionKeyForWorkflow } from '../ai-workspace/session-scope';
 import { agentApi } from './api';
-import { liveStreamStore } from './live-stream-store';
+import { sessionRuntime } from './runtime/store';
 
 export interface DraftPushResult {
   ok: boolean;
@@ -155,7 +155,7 @@ export function scheduleManualDraftPush(): void {
   dirtySince = Date.now();
   manualPushTimer = setTimeout(() => {
     manualPushTimer = null;
-    if (liveStreamStore.getSnapshot().streaming) return;
+    if (sessionRuntime.getState().streaming) return;
     const { meta } = workflowDocumentStore.getSnapshot();
     void pushCanvasDraftToSession(getSessionKeyForWorkflow(meta.workflowCode || ''), {
       source: 'manual-edit',
@@ -181,7 +181,7 @@ export function rollbackCanvasTo(
   sessionKey: string | null | undefined,
   onSyncFailed?: (error: string) => void,
 ): RollbackResult {
-  if (liveStreamStore.getSnapshot().streaming) return 'streaming';
+  if (sessionRuntime.getState().streaming) return 'streaming';
   const ok = workflowDocumentStore.rollbackTo(snapshotId);
   if (!ok) return false;
   void pushCanvasDraftToSession(sessionKey, { source: 'rollback' }).then((res) => {

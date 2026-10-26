@@ -4,55 +4,47 @@ import cn.hutool.json.JSONObject;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * string-format 节点归一化契约（2026-10-18 会话 3d481faf 实证的三类畸形全部钉住）：
- * ① script 裸字符串 → {language, content}；② language 简写别名 → 引擎合法值；
- * ③ 缺 outputs 声明 → 补 formatStringResult（前端变量面板依赖）。
- * 附带：畸形 ref 杂交体修复、end 表单声明对齐、code script 字符串归一。
+ * string-format 节点归一化契约（2026-10-24 零兼容版）：
+ * 归一化只保留「确定性补齐」（outputs 声明 formatStringResult、end 表单声明对齐）——
+ * 此前对 script 裸字符串/语言别名/畸形 ref 杂交体的静默修补已全部移除：
+ * 非规范形状由严格 schema 拒绝（错误带字段路径），而不是被猜着修。
  */
-@DisplayName("string-format 节点归一化：script 对象化 + 语言别名 + outputs 补齐")
+@DisplayName("string-format 归一化：确定性补齐 + 畸形形状交给严格契约拒绝")
 class NodeDataNormalizerStringFormatTest {
 
     @Test
-    @DisplayName("script 裸字符串 → 对象，语言按模板语法启发式（${} → spel-standard）")
-    void scriptStringBecomesObjectSpelStandard() {
+    @DisplayName("规范形状原样保留：script 对象 + 合法语言 + outputs 已声明")
+    void canonicalShapeUntouched() {
         JSONObject data = new JSONObject()
             .set("title", "格式化问候语")
-            .set("script", "Hello, ${name}!");
+            .set("script", new JSONObject().set("language", "spel-standard").set("content", "Hello, ${name}!"))
+            .set("inputsValues", new JSONObject()
+                .set("name", new JSONObject().set("type", "ref")
+                    .set("content", new cn.hutool.json.JSONArray().set("start_1").set("input"))))
+            .set("inputs", new JSONObject().set("type", "object").set("properties", new JSONObject()
+                .set("name", new JSONObject().set("type", "string"))));
         NodeDataNormalizer.normalize("string-format", data);
 
-        JSONObject script = data.getJSONObject("script");
-        assertEquals("spel-standard", script.getStr("language"));
-        assertEquals("Hello, ${name}!", script.getStr("content"));
+        assertEquals("spel-standard", data.getJSONObject("script").getStr("language"));
+        assertEquals("Hello, ${name}!", data.getJSONObject("script").getStr("content"));
+        assertEquals("ref", data.getJSONObject("inputsValues").getJSONObject("name").getStr("type"));
+        JSONObject properties = data.getJSONObject("outputs").getJSONObject("properties");
+        assertTrue(properties.containsKey("formatStringResult"),
+            "outputs 必须声明 formatStringResult，否则前端变量面板看不到该变量");
+        assertTrue(NodeSchemaRegistry.validateParams("string-format", data.toString()).isEmpty(),
+            "规范形状必须通过严格契约");
     }
 
     @Test
-    @DisplayName("script 裸字符串含 {{}} → spel-vue；含 [()] → thymeleaf-text")
-    void scriptStringLanguageHeuristics() {
-        JSONObject vue = new JSONObject().set("script", "Hello, {{ name }}!");
-        NodeDataNormalizer.normalize("string-format", vue);
-        assertEquals("spel-vue", vue.getJSONObject("script").getStr("language"));
-
-        JSONObject thymeleaf = new JSONObject().set("script", "Hello, [(${name})]!");
-        NodeDataNormalizer.normalize("string-format", thymeleaf);
-        assertEquals("thymeleaf-text", thymeleaf.getJSONObject("script").getStr("language"));
-    }
-
-    @Test
-    @DisplayName("语言简写别名归一：spel/vue/thymeleaf → 引擎合法全称")
-    void languageAliasesNormalized() {
-        assertEquals("spel-standard", normalizeWithLanguage("spel"));
-        assertEquals("spel-vue", normalizeWithLanguage("vue"));
-        assertEquals("thymeleaf-text", normalizeWithLanguage("thymeleaf"));
-        assertEquals("spel-standard", normalizeWithLanguage("spel-standard"));
-    }
-
-    @Test
-    @DisplayName("缺 outputs 声明 → 补 formatStringResult（前端变量可见性）")
+    @DisplayName("缺 outputs 声明 → 确定性补 formatStringResult（前端变量可见性）")
     void missingOutputsFilled() {
         JSONObject data = new JSONObject()
             .set("script", new JSONObject().set("language", "spel-vue").set("content", "Hi {{n}}"));
@@ -64,8 +56,33 @@ class NodeDataNormalizerStringFormatTest {
     }
 
     @Test
-    @DisplayName("畸形 ref 杂交体修复：type:string + 数组 content + 杂散 value 键")
-    void malformedRefHybridFixed() {
+    @DisplayName("script 裸字符串不再被猜着转对象——严格契约直接拒绝（错误带路径）")
+    void bareScriptStringRejectedByContract() {
+        JSONObject data = new JSONObject().set("script", "Hello, ${name}!");
+        NodeDataNormalizer.normalize("string-format", data);
+        // normalize 不再转换，script 仍是裸字符串
+        assertEquals("Hello, ${name}!", data.getStr("script"));
+        List<String> violations = NodeSchemaRegistry.validateParams("string-format", data.toString());
+        assertFalse(violations.isEmpty(), "裸 script 字符串必须被严格契约拒绝");
+        assertTrue(violations.stream().anyMatch(v -> v.contains("script")),
+            "违规消息应指向 script 字段");
+    }
+
+    @Test
+    @DisplayName("语言别名（spel/vue）不再被归一——契约枚举直接拒绝")
+    void languageAliasesRejectedByContract() {
+        for (String alias : new String[]{"spel", "vue", "thymeleaf"}) {
+            JSONObject data = new JSONObject()
+                .set("script", new JSONObject().set("language", alias).set("content", "x"));
+            NodeDataNormalizer.normalize("string-format", data);
+            List<String> violations = NodeSchemaRegistry.validateParams("string-format", data.toString());
+            assertFalse(violations.isEmpty(), "语言别名 " + alias + " 必须被枚举拒绝（引擎真值是 spel-standard/spel-vue/thymeleaf-text）");
+        }
+    }
+
+    @Test
+    @DisplayName("畸形 ref 杂交体（type:string + 数组 content + 杂散 value 键）不再被修——契约拒绝")
+    void malformedRefHybridRejected() {
         JSONObject data = new JSONObject()
             .set("script", new JSONObject().set("language", "spel-standard").set("content", "Hello, ${name}!"))
             .set("inputsValues", new JSONObject()
@@ -76,9 +93,9 @@ class NodeDataNormalizerStringFormatTest {
         NodeDataNormalizer.normalize("string-format", data);
 
         JSONObject name = data.getJSONObject("inputsValues").getJSONObject("name");
-        assertEquals("ref", name.getStr("type"), "数组 content 只能是 ref 语义");
-        assertEquals("[\"start_1\",\"input\"]", name.getJSONArray("content").toString());
-        assertTrue(!name.containsKey("value"), "杂散 value 键应被清除");
+        assertEquals("string", name.getStr("type"), "normalize 不再猜着修杂交形状");
+        List<String> violations = NodeSchemaRegistry.validateParams("string-format", data.toString());
+        assertFalse(violations.isEmpty(), "杂交 ref 形状必须被契约拒绝（须显式写 type:ref）");
     }
 
     @Test
@@ -96,40 +113,11 @@ class NodeDataNormalizerStringFormatTest {
     }
 
     @Test
-    @DisplayName("code 节点 script 裸字符串 → {language: javascript, content}")
-    void codeScriptStringNormalized() {
+    @DisplayName("code 节点 script 裸字符串不再归一——契约拒绝（要求 {language, content} 对象）")
+    void codeScriptStringRejected() {
         JSONObject data = new JSONObject().set("script", "var x = 1; x;");
         NodeDataNormalizer.normalize("code", data);
-        assertEquals("javascript", data.getJSONObject("script").getStr("language"));
-        assertEquals("var x = 1; x;", data.getJSONObject("script").getStr("content"));
-    }
-
-    @Test
-    @DisplayName("会话 3d481faf 的完整畸形样本端到端归一为规范形状")
-    void realWorldMalformedSampleFullyNormalized() {
-        JSONObject data = new JSONObject()
-            .set("inputsValues", new JSONObject()
-                .set("name", new JSONObject()
-                    .set("type", "string")
-                    .set("content", new cn.hutool.json.JSONArray().set("start_1").set("input"))
-                    .set("value", "World")))
-            .set("inputs", new JSONObject().set("type", "object").set("properties", new JSONObject()
-                .set("name", new JSONObject().set("type", "string"))))
-            .set("title", "格式化问候语")
-            .set("script", "Hello, ${name}!");
-        NodeDataNormalizer.normalize("string-format", data);
-
-        assertEquals("ref", data.getJSONObject("inputsValues").getJSONObject("name").getStr("type"));
-        assertEquals("spel-standard", data.getJSONObject("script").getStr("language"));
-        assertEquals("Hello, ${name}!", data.getJSONObject("script").getStr("content"));
-        assertNotNull(data.getJSONObject("outputs").getJSONObject("properties")
-            .getJSONObject("formatStringResult"));
-    }
-
-    private static String normalizeWithLanguage(String language) {
-        JSONObject data = new JSONObject()
-            .set("script", new JSONObject().set("language", language).set("content", "x"));
-        NodeDataNormalizer.normalize("string-format", data);
-        return data.getJSONObject("script").getStr("language");
+        List<String> violations = NodeSchemaRegistry.validateParams("code", data.toString());
+        assertFalse(violations.isEmpty(), "code 裸 script 必须被契约拒绝");
     }
 }

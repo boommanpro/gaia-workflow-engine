@@ -41,7 +41,6 @@ import styles from './index.module.less';
 
 /**
  * 不支持单节点测试的节点类型（与后端 SingleNodeExecutor.UNSUPPORTED_TYPES 对齐）：
- * 仅非执行节点（画布标注类，引擎本就不跑）与无解析器类型（multi-condition，载入时会自动迁移为 branches）。
  * 其余全部支持——loop/workflow 走画布 toJSON 自带的 blocks/edges 与解析钩子。
  */
 const UNSUPPORTED_NODE_TYPES = new Set([
@@ -49,7 +48,6 @@ const UNSUPPORTED_NODE_TYPES = new Set([
   'note',
   'comment',
   'assignee',
-  'multi-condition',
 ]);
 
 interface SingleNodeTestPanelProps {

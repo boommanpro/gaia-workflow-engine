@@ -1,0 +1,463 @@
+{
+  "caseId": "C18",
+  "sessionKey": "ca80ec5acda7472d8ff1a103263e3a56",
+  "elapsedSec": 84,
+  "turns": [
+    {
+      "utterance": "做一个按金额定等级的工具：1000 以内是 C 级，1000 到 5000 是 B 级，5000 以上是 A 级，输入金额输出等级文案（形如“等级：B”）。",
+      "runStatus": "done",
+      "asksAnswered": [],
+      "lastAssistant": "现在接线：start_1 → code_2 → end_1。\n\n现在整流试跑，用三组输入验证各等级分支：\n\n有两个 start_1 节点。先查看画布：\n\n有两个 start_1，删除多余的：\n\n现在只剩一个 start_1 了，但连线被级联删除了，需要重新接线：\n\n删除 start_1 时把唯一的 start_1 删掉了（因为有两个 start_1，remove 删了第一个匹配的）。需要重新添加 start_1：\n\n现在整流试跑，三组输入：\n\ncode_2 的引用还是指向旧的 start_1，需要更新为 start_3：\n\n现在重新试跑：\n\ncode 节点语法问题：顶层不能用 return 语句，需要直接返回对象字面量。修复：\n\n变量重复声明，去掉 const：\n\n让我看看 code_2 的当前配置：\n\n代码看起来没问题。可能是 GraalJS 对 `const` 在顶层的作用域处理不同。尝试去掉 `const`：\n\n500 元 → 等级：C ✅。再测 B 级和 A 级：\n\n三组测试全部通过：\n\n- 500 → **等级：C** ✅\n- 3000 → **等级：B** ✅\n- 10000 → **等级：A** ✅\n\n再沉淀一个测试用例：\n\n工作流已完成，3 组测试全部通过。\n\n## 做了什么\n\n- **start_3**：输入参数 `amount`（number 类型，默认 0）\n- **code_2**：JavaScript 代码实现分级逻辑\n  - ≤1000 → C 级\n  - 1000~5000 → B 级\n  - >5000 → A 级\n- **end_1**：输出 `result` 字段，格式为\"等级：X\"\n\n## 验证结果\n\n| 输入金额 | 输出 | 状态 |\n|---------|------|------|\n| 500 | 等级：C | ✅ |\n| 3000 | 等级：B | ✅ |\n| 10000 | 等级：A | ✅ |\n\n## 建议\n\n草稿已验证通过，请在界面**保存为版本**以生效。"
+    },
+    {
+      "utterance": "分档线改一下：100 以内 C，100 到 1000 是 B，1000 到 5000 新加一档 A，5000 以上算 S，一共四档。",
+      "runStatus": "done",
+      "asksAnswered": [],
+      "lastAssistant": "现在用四档边界值验证：\n\n四档全部正确。更新测试用例：\n\n旧的三个用例（基于旧分档）失败是正常的——它们对应旧的分级标准。新四档全部通过 ✅。\n\n## 更新完成\n\n分档已改为四档：\n\n| 金额范围 | 等级 |\n|---------|------|\n| ≤100 | C |\n| 100~1000 | B |\n| 1000~5000 | A |\n| >5000 | S |\n\n验证结果：\n- 50 → **等级：C** ✅\n- 500 → **等级：B** ✅\n- 3000 → **等级：A** ✅\n- 10000 → **等级：S** ✅\n\n请在界面**保存为版本**。"
+    },
+    {
+      "utterance": "算了，还是回到三档，把三个等级的名字改成 金牌、银牌、铜牌，分档线用最早的。",
+      "runStatus": "done",
+      "asksAnswered": [],
+      "lastAssistant": "三档已改回，等级名称更新：\n\n| 金额范围 | 等级 |\n|---------|------|\n| ≤1000 | 铜牌 |\n| 1000~5000 | 银牌 |\n| >5000 | 金牌 |\n\n验证通过 ✅。请在界面**保存为版本**。"
+    }
+  ],
+  "pass": false,
+  "checks": [
+    {
+      "case": "C18",
+      "name": "存在分支结构",
+      "pass": false,
+      "detail": ""
+    },
+    {
+      "case": "C18",
+      "name": "8000 元（S 档应已删除，回归铜牌/金牌口径）成功",
+      "pass": true,
+      "detail": "status=success"
+    },
+    {
+      "case": "C18",
+      "name": "无 S 级残留",
+      "pass": true,
+      "detail": "{\"result\":\"等级：金牌\"}"
+    }
+  ],
+  "doc": {
+    "edges": [
+      {
+        "sourceNodeID": "code_2",
+        "targetNodeID": "end_1"
+      },
+      {
+        "sourceNodeID": "start_3",
+        "targetNodeID": "code_2"
+      }
+    ],
+    "version": 16,
+    "nodes": [
+      {
+        "data": {
+          "inputsValues": {
+            "result": {
+              "type": "ref",
+              "content": [
+                "code_2",
+                "result"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "result": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "结束"
+        },
+        "type": "end",
+        "meta": {
+          "position": {
+            "x": 820,
+            "y": 180
+          }
+        },
+        "id": "end_1"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "result": {
+                "type": "string"
+              }
+            }
+          },
+          "inputsValues": {
+            "amount": {
+              "type": "ref",
+              "content": [
+                "start_3",
+                "amount"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "amount": {
+                "type": "number"
+              }
+            }
+          },
+          "title": "金额分级",
+          "script": {
+            "language": "javascript",
+            "content": "var amount = input.amount;\nvar level;\nif (amount <= 1000) {\n  level = '铜牌';\n} else if (amount <= 5000) {\n  level = '银牌';\n} else {\n  level = '金牌';\n}\n({ result: '等级：' + level })"
+          }
+        },
+        "type": "code",
+        "meta": {
+          "position": {
+            "x": 500,
+            "y": 180
+          }
+        },
+        "id": "code_2"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "amount": {
+                "description": "金额",
+                "title": "金额",
+                "type": "number",
+                "default": 0
+              }
+            }
+          },
+          "title": "开始"
+        },
+        "type": "start",
+        "meta": {
+          "position": {
+            "x": 180,
+            "y": 180
+          }
+        },
+        "id": "start_3"
+      }
+    ]
+  },
+  "trialRuns": [
+    {
+      "ok": true,
+      "taskId": "52f852bb-4463-4915-8c73-dcfbea3f12a9",
+      "workflowStatus": "success",
+      "outputs": {
+        "result": "等级：银牌"
+      },
+      "nodes": {
+        "code_2": {
+          "id": "code_2",
+          "status": "succeeded",
+          "startTime": 1792942846396,
+          "endTime": 1792942846401,
+          "timeCost": 5,
+          "snapshots": [
+            {
+              "nodeID": "code_2",
+              "inputs": {
+                "amount": 3000
+              },
+              "outputs": {
+                "result": "等级：银牌"
+              },
+              "data": {
+                "result": "等级：银牌"
+              },
+              "branch": "",
+              "error": "",
+              "id": "code_2"
+            }
+          ]
+        },
+        "start_3": {
+          "id": "start_3",
+          "status": "succeeded",
+          "startTime": 1792942846396,
+          "endTime": 1792942846396,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "start_3",
+              "inputs": {
+                "amount": 3000
+              },
+              "outputs": {
+                "amount": 3000
+              },
+              "data": {
+                "amount": 3000
+              },
+              "branch": "",
+              "error": "",
+              "id": "start_3"
+            }
+          ]
+        },
+        "end_1": {
+          "id": "end_1",
+          "status": "succeeded",
+          "startTime": 1792942846401,
+          "endTime": 1792942846401,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "end_1",
+              "inputs": {
+                "amount": 3000,
+                "code_2": {
+                  "result": "等级：银牌"
+                },
+                "start_3": {
+                  "amount": 3000
+                }
+              },
+              "outputs": {
+                "result": "等级：银牌"
+              },
+              "data": {
+                "amount": 3000,
+                "code_2": {
+                  "result": "等级：银牌"
+                },
+                "start_3": {
+                  "amount": 3000
+                }
+              },
+              "branch": "",
+              "error": "",
+              "id": "end_1"
+            }
+          ]
+        }
+      },
+      "runDetail": {
+        "nodes": [
+          {
+            "id": 226,
+            "runTaskId": "52f852bb-4463-4915-8c73-dcfbea3f12a9",
+            "nodeId": "code_2",
+            "nodeType": "code",
+            "title": "金额分级",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"amount\":3000}",
+            "outputJson": "{\"result\":\"等级：银牌\"}",
+            "timeCostMs": 5,
+            "createdAt": "2026-10-25T23:40:46.45646"
+          },
+          {
+            "id": 227,
+            "runTaskId": "52f852bb-4463-4915-8c73-dcfbea3f12a9",
+            "nodeId": "start_3",
+            "nodeType": "start",
+            "title": "开始",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"amount\":3000}",
+            "outputJson": "{\"amount\":3000}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:40:46.45646"
+          },
+          {
+            "id": 228,
+            "runTaskId": "52f852bb-4463-4915-8c73-dcfbea3f12a9",
+            "nodeId": "end_1",
+            "nodeType": "end",
+            "title": "结束",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"amount\":3000,\"code_2\":{\"result\":\"等级：银牌\"},\"start_3\":{\"amount\":3000}}",
+            "outputJson": "{\"result\":\"等级：银牌\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:40:46.45646"
+          }
+        ],
+        "run": {
+          "id": 58,
+          "taskId": "52f852bb-4463-4915-8c73-dcfbea3f12a9",
+          "workflowCode": null,
+          "status": "success",
+          "errorMessage": null,
+          "inputsJson": "{\"amount\":3000}",
+          "outputsJson": "{\"result\":\"等级：银牌\"}",
+          "nodeCount": 3,
+          "durationMs": 60,
+          "triggerChannel": "editor",
+          "startedAt": "2026-10-25T23:40:46.39646",
+          "finishedAt": "2026-10-25T23:40:46.45646",
+          "createdAt": "2026-10-25T23:40:46.45646"
+        }
+      }
+    },
+    {
+      "ok": true,
+      "taskId": "f5138ba5-3074-4863-a5ae-caff790cadc6",
+      "workflowStatus": "success",
+      "outputs": {
+        "result": "等级：金牌"
+      },
+      "nodes": {
+        "code_2": {
+          "id": "code_2",
+          "status": "succeeded",
+          "startTime": 1792942847429,
+          "endTime": 1792942847436,
+          "timeCost": 7,
+          "snapshots": [
+            {
+              "nodeID": "code_2",
+              "inputs": {
+                "amount": 8000
+              },
+              "outputs": {
+                "result": "等级：金牌"
+              },
+              "data": {
+                "result": "等级：金牌"
+              },
+              "branch": "",
+              "error": "",
+              "id": "code_2"
+            }
+          ]
+        },
+        "start_3": {
+          "id": "start_3",
+          "status": "succeeded",
+          "startTime": 1792942847429,
+          "endTime": 1792942847429,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "start_3",
+              "inputs": {
+                "amount": 8000
+              },
+              "outputs": {
+                "amount": 8000
+              },
+              "data": {
+                "amount": 8000
+              },
+              "branch": "",
+              "error": "",
+              "id": "start_3"
+            }
+          ]
+        },
+        "end_1": {
+          "id": "end_1",
+          "status": "succeeded",
+          "startTime": 1792942847436,
+          "endTime": 1792942847436,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "end_1",
+              "inputs": {
+                "amount": 8000,
+                "code_2": {
+                  "result": "等级：金牌"
+                },
+                "start_3": {
+                  "amount": 8000
+                }
+              },
+              "outputs": {
+                "result": "等级：金牌"
+              },
+              "data": {
+                "amount": 8000,
+                "code_2": {
+                  "result": "等级：金牌"
+                },
+                "start_3": {
+                  "amount": 8000
+                }
+              },
+              "branch": "",
+              "error": "",
+              "id": "end_1"
+            }
+          ]
+        }
+      },
+      "runDetail": {
+        "nodes": [
+          {
+            "id": 229,
+            "runTaskId": "f5138ba5-3074-4863-a5ae-caff790cadc6",
+            "nodeId": "code_2",
+            "nodeType": "code",
+            "title": "金额分级",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"amount\":8000}",
+            "outputJson": "{\"result\":\"等级：金牌\"}",
+            "timeCostMs": 7,
+            "createdAt": "2026-10-25T23:40:47.489455"
+          },
+          {
+            "id": 230,
+            "runTaskId": "f5138ba5-3074-4863-a5ae-caff790cadc6",
+            "nodeId": "start_3",
+            "nodeType": "start",
+            "title": "开始",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"amount\":8000}",
+            "outputJson": "{\"amount\":8000}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:40:47.489455"
+          },
+          {
+            "id": 231,
+            "runTaskId": "f5138ba5-3074-4863-a5ae-caff790cadc6",
+            "nodeId": "end_1",
+            "nodeType": "end",
+            "title": "结束",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"amount\":8000,\"code_2\":{\"result\":\"等级：金牌\"},\"start_3\":{\"amount\":8000}}",
+            "outputJson": "{\"result\":\"等级：金牌\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:40:47.489455"
+          }
+        ],
+        "run": {
+          "id": 59,
+          "taskId": "f5138ba5-3074-4863-a5ae-caff790cadc6",
+          "workflowCode": null,
+          "status": "success",
+          "errorMessage": null,
+          "inputsJson": "{\"amount\":8000}",
+          "outputsJson": "{\"result\":\"等级：金牌\"}",
+          "nodeCount": 3,
+          "durationMs": 61,
+          "triggerChannel": "editor",
+          "startedAt": "2026-10-25T23:40:47.428455",
+          "finishedAt": "2026-10-25T23:40:47.489455",
+          "createdAt": "2026-10-25T23:40:47.489455"
+        }
+      }
+    }
+  ]
+}

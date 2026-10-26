@@ -266,9 +266,22 @@ public class AgentSkillCatalog {
 
     private int seedFileIfMissing(String relPath, String content) {
         if (content == null || content.isEmpty()) return 0;
-        if (getFile(GAIA_WORKFLOW_ASSISTANT, relPath) != null) return 0;
-        saveFileRaw(GAIA_WORKFLOW_ASSISTANT, relPath, content);
-        return 1;
+        AgentSkillFile existing = getFile(GAIA_WORKFLOW_ASSISTANT, relPath);
+        if (existing == null) {
+            saveFileRaw(GAIA_WORKFLOW_ASSISTANT, relPath, content);
+            return 1;
+        }
+        // classpath 随版本演进（2026-10-25 C09 实证：技能只 seed-if-missing，资源更新
+        // 永远到不了模型）。种子文件以 classpath 为源做内容同步；saveFileRaw 之外再
+        // archiveVersion 归档旧版，人工改动可从历史找回（NC-09 不静默丢弃）。
+        if (!content.equals(existing.getContent())) {
+            saveFileRaw(GAIA_WORKFLOW_ASSISTANT, relPath, content);
+            archiveVersion(GAIA_WORKFLOW_ASSISTANT, "classpath-sync:" + relPath);
+            log.info("[skill-catalog] classpath synced {}: {} -> {} chars", relPath,
+                existing.getContent() == null ? 0 : existing.getContent().length(), content.length());
+            return 1;
+        }
+        return 0;
     }
 
     private String readClasspath(String path) {

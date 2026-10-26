@@ -17,7 +17,6 @@ import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +37,17 @@ public class LlmNode extends BaseNode {
     // 超时配置
     private TimeoutConfig timeout;
 
+    /**
+     * 输出模式：text=固定输出 result 字符串（默认）；json=结构化输出——
+     * 把模型输出的 JSON 解析成声明字段（outputs.properties 白名单由 LlmNodeParser 注入
+     * outputParameters，引擎 parseOutputResult 过滤后写入 memory，机制与 code 节点一致）。
+     */
+    private String outputMode;
+
+    public boolean isJsonOutputMode() {
+        return "json".equalsIgnoreCase(outputMode);
+    }
+
     @Override
     public Map<String, Object> execute(Chain chain) {
 
@@ -53,8 +63,12 @@ public class LlmNode extends BaseNode {
             // 解析响应
             String llmResult = parseLlmResponse(response);
 
-            // 构建结果
-            result.put("result", llmResult);
+            if (isJsonOutputMode()) {
+                // 结构化输出：解析为声明字段。解析失败必须 FAILED（下游引用断裂比报错更贵）
+                result.putAll(parseStructuredOutput(llmResult));
+            } else {
+                result.put("result", llmResult);
+            }
 
         } catch (Exception e) {
             // 失败必须上抛（引擎置节点 FAILED + 工作流终态 FAILED）：
@@ -64,6 +78,64 @@ public class LlmNode extends BaseNode {
         }
 
         return result;
+    }
+
+    /**
+     * json 模式：把模型文本解析为 JSON 对象字段。
+     * 容错序：直接 parse → 剥离 ``` 代码围栏 → 截取首个 { 到末个 }。
+     * 非对象 JSON / 全部失败抛 IllegalArgumentException（带修复指引）。
+     */
+    Map<String, Object> parseStructuredOutput(String llmText) {
+        if (llmText == null || llmText.trim().isEmpty()) {
+            throw new IllegalArgumentException("LLM节点 " + getId()
+                + "（json 输出模式）模型返回为空，无法解析为 JSON。修复：prompt 里要求模型只输出一个 JSON 对象");
+        }
+        JSONObject parsed = tryParseJson(llmText.trim());
+        if (parsed == null) {
+            throw new IllegalArgumentException("LLM节点 " + getId()
+                + "（json 输出模式）模型输出无法解析为 JSON 对象，原始输出前 200 字符: "
+                + llmText.substring(0, Math.min(200, llmText.length()))
+                + "。修复：prompt 里要求只输出 JSON 对象（不要包 markdown 围栏/解释文字）后重试");
+        }
+        Map<String, Object> fields = new HashMap<>();
+        for (String key : parsed.keySet()) {
+            fields.put(key, parsed.get(key));
+        }
+        return fields;
+    }
+
+    private static JSONObject tryParseJson(String text) {
+        // 1) 直接解析
+        JSONObject direct = parseObjQuietly(text);
+        if (direct != null) {
+            return direct;
+        }
+        // 2) 剥离 markdown 代码围栏（```json {...} ``` / ``` {...} ```）
+        java.util.regex.Matcher fence = java.util.regex.Pattern
+            .compile("```(?:json)?\\s*([\\s\\S]*?)\\s*```", java.util.regex.Pattern.CASE_INSENSITIVE)
+            .matcher(text);
+        if (fence.find()) {
+            JSONObject inFence = parseObjQuietly(fence.group(1).trim());
+            if (inFence != null) {
+                return inFence;
+            }
+        }
+        // 3) 截取首个 { 到末个 }
+        int start = text.indexOf('{');
+        int end = text.lastIndexOf('}');
+        if (start >= 0 && end > start) {
+            return parseObjQuietly(text.substring(start, end + 1));
+        }
+        return null;
+    }
+
+    private static JSONObject parseObjQuietly(String text) {
+        try {
+            Object parsed = JSONUtil.parse(text);
+            return parsed instanceof JSONObject ? (JSONObject) parsed : null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /**
@@ -144,6 +216,17 @@ public class LlmNode extends BaseNode {
      * @return API响应字符串
      */
     private String callLlmApi(LlmRequest request) {
+        // 缺 apiHost/modelName 是配置错误（此前裸 NPE "url is null" 语义不明——2026-10-24 改为显式报错）
+        if (request.getApiHost() == null || request.getApiHost().trim().isEmpty()) {
+            throw new IllegalArgumentException("LLM节点 " + getId()
+                + " 缺少 apiHost 配置：inputsValues 里补 {\"apiHost\":\"https://…/v1\"}"
+                + "（平台不再运行时隐式注入：AI 生成时须从 get(target=knowledge, nodeType=llm) 的 "
+                + "platformDefaultModel 填入，手动创建的节点请按修复示例补齐）");
+        }
+        if (request.getModelName() == null || request.getModelName().trim().isEmpty()) {
+            throw new IllegalArgumentException("LLM节点 " + getId()
+                + " 缺少 modelName 配置：inputsValues 里补 {\"modelName\":\"<模型名>\"}");
+        }
         String url = request.getApiHost();
         if (!url.endsWith("/")) {
             url += "/";
@@ -309,19 +392,11 @@ public class LlmNode extends BaseNode {
         return current != null ? current.toString() : null;
     }
 
-    @Override
-    public List<Parameter> getOutputParameters() {
-        List<Parameter> parameters = new ArrayList<>();
-
-        Parameter resultParam = new Parameter();
-        resultParam.setName("result");
-        resultParam.setRefValue(Arrays.asList("result"));
-        resultParam.setRefType(RefType.REF);
-        resultParam.setType(DataType.String);
-        parameters.add(resultParam);
-
-        return parameters;
-    }
+    /**
+     * 输出白名单不再写死 result：由 {@link LlmNodeParser} 按输出模式注入——
+     * text=固定 [result]；json=outputs.properties 声明集（机制与 code 节点一致，
+     * 引擎 parseOutputResult 据此过滤进 memory 的字段）。
+     */
 
     /**
      * LLM请求配置

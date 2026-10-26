@@ -41,7 +41,6 @@ export const nodeRegistries: FlowNodeRegistry[] = [
   VariableNodeRegistry,
   GroupNodeRegistry,
   BranchNodeRegistry,
-  // multi-condition 已清退：后端从未实现解析器，节点面板不再提供；
   // 存量数据由 document/migrations.ts 载入时迁移为 branches
   StringFormatNodeRegistry,
   WorkflowNodeRegistry,

@@ -23,7 +23,7 @@
 ## 执行（run）
 
 - run(target=node, nodeId, mockInputs)：与前端单节点测试同通道。mockInputs 格式 {"<上游id>":{"<字段>":值}}。
-- run(target=workflow, inputs)：真正执行会话草稿（同步，60s 超时）。先做字段/端口预检（issues 直接打回），再整图运行，返回 outputs、每节点 status/耗时、failedNodes（含 error）、notExecuted。inputs 缺省用 start 的 default。
+- run(target=workflow, inputs)：真正执行会话草稿（同步，180s 超时）。先做字段/端口预检（issues 直接打回），再整图运行，返回 outputs、每节点 status/耗时、failedNodes（含 error）、notExecuted。inputs 缺省用 start 的 default。
 - run(target=tests, nodeId?)：跑已沉淀的测试用例，返回通过数。
 
 ## 沉淀（test_case）

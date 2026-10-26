@@ -13,6 +13,8 @@ export function openEditorWithDraft(opts: {
   navigate: NavigateFunction;
   from: string;
   sessionKey?: string | null;
+  /** 编辑器标题兜底（草稿未落版时 store meta 没有工作流名，用会话标题） */
+  workflowName?: string | null;
 }): void {
   try {
     sessionStorage.setItem('gaia.artifactDraft', JSON.stringify(opts.dsl));
@@ -21,6 +23,10 @@ export function openEditorWithDraft(opts: {
   }
   const code = opts.workflowCode?.trim();
   opts.navigate(code ? `/editor/${encodeURIComponent(code)}` : '/editor/__draft__', {
-    state: { from: opts.from, sessionKey: opts.sessionKey || undefined },
+    state: {
+      from: opts.from,
+      sessionKey: opts.sessionKey || undefined,
+      workflowName: opts.workflowName || undefined,
+    },
   });
 }

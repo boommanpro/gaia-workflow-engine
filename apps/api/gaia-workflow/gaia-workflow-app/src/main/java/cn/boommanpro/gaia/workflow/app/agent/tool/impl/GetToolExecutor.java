@@ -29,12 +29,19 @@ public class GetToolExecutor implements ToolExecutor {
     private final SessionWorkflowDraftService draftService;
     private final AgentSkillCatalog skillCatalog;
     private final GaiaWorkflowService workflowService;
+    private final cn.boommanpro.gaia.workflow.app.service.AgentModelConfigService modelConfigService;
+
+    private final cn.boommanpro.gaia.workflow.infra.manage.service.GaiaWorkflowVersionService versionService;
 
     public GetToolExecutor(SessionWorkflowDraftService draftService, AgentSkillCatalog skillCatalog,
-                           GaiaWorkflowService workflowService) {
+                           GaiaWorkflowService workflowService,
+                           cn.boommanpro.gaia.workflow.app.service.AgentModelConfigService modelConfigService,
+                           cn.boommanpro.gaia.workflow.infra.manage.service.GaiaWorkflowVersionService versionService) {
         this.draftService = draftService;
         this.skillCatalog = skillCatalog;
         this.workflowService = workflowService;
+        this.modelConfigService = modelConfigService;
+        this.versionService = versionService;
     }
 
     @Override public String name() { return "get"; }
@@ -92,6 +99,52 @@ public class GetToolExecutor implements ToolExecutor {
             if (bound != null && bound.getRevision() != null) {
                 payload.set("publishedRevision", bound.getRevision());
             }
+        }
+        // 可复用子流程清单（2026-10-25 C15 实证：模型无法发现已发布工作流——知识让
+        // 「先 get(target=canvas) 查可用项」，但 canvas 回执从不带已发布清单，子流程无从谈起）
+        try {
+            JSONArray published = new JSONArray();
+            java.util.List<GaiaWorkflow> publishedList = workflowService.list(
+                new QueryWrapper<GaiaWorkflow>()
+                    .isNotNull("current_version_id")
+                    .ne("workflow_code", code == null ? "" : code)
+                    .orderByDesc("id").last("LIMIT 20"));
+            for (GaiaWorkflow wf : publishedList) {
+                JSONObject entry = new JSONObject()
+                    .set("workflowCode", wf.getWorkflowCode())
+                    .set("revision", wf.getRevision());
+                // 入参/出参 schema：模型映射 inputsValues 与引用输出字段的唯一事实源
+                // （与前端子流程清单同口径：start.outputs=入参、end.inputs=出参）
+                try {
+                    cn.boommanpro.gaia.workflow.infra.manage.entity.GaiaWorkflowVersion ver =
+                        versionService.getById(wf.getCurrentVersionId());
+                    if (ver != null && ver.getWorkflowData() != null) {
+                        cn.hutool.json.JSONObject dsl = cn.hutool.json.JSONUtil.parseObj(ver.getWorkflowData());
+                        for (Object n : dsl.getJSONArray("nodes")) {
+                            cn.hutool.json.JSONObject node = (cn.hutool.json.JSONObject) n;
+                            String t = node.getStr("type");
+                            if ("start".equals(t)) {
+                                entry.set("inputs", node.getJSONObject("data") == null ? null
+                                    : node.getJSONObject("data").getJSONObject("outputs"));
+                            } else if ("end".equals(t)) {
+                                entry.set("outputs", node.getJSONObject("data") == null ? null
+                                    : node.getJSONObject("data").getJSONObject("inputs"));
+                            }
+                        }
+                    }
+                } catch (Exception ignore) {
+                    // 单条版本解析失败不影响清单
+                }
+                published.add(entry);
+            }
+            if (!published.isEmpty()) {
+                payload.set("publishedWorkflows", published);
+                payload.set("publishedWorkflowsHint",
+                    "复用已发布工作流用 workflow 节点：{\"workflowId\":\"<workflowCode>\",…}；"
+                        + "子流程入参以该工作流 start 的入参为准（可用 get(target=knowledge, nodeType=workflow) 查写法）");
+            }
+        } catch (Exception e) {
+            // 清单查询失败不阻塞画布读取
         }
         payload.set("hint", "draftRevision=会话草稿修订号（每次实质变更 +1）；lastEditedBy: user=用户手动编辑/回滚、ai=你此前的修改、system=系统动作；publishedRevision=绑定工作流已落版的 revision，与 draftRevision 不同说明草稿有未保存修改。看单节点配置 get(target=node, nodeId)；配引用 get(target=variables, nodeId)；类型知识 get(target=knowledge, nodeType)；改结构用 node / edge 工具");
         return ToolResult.ok(payload.toString(), "画布 " + coreNodes.size() + " 节点（r" + draftService.getDraftRevision(sessionKey) + "）");
@@ -167,16 +220,36 @@ public class GetToolExecutor implements ToolExecutor {
 
     private ToolResult getKnowledge(JSONObject args, AgentRunContext ctx) {
         String nodeType = args.getStr("nodeType");
-        // 优先从 gaia-workflow-assistant 的引用文件读取（多文件技能统一存储）
+        if (nodeType == null || !nodeType.matches("[a-z][a-z-]*")) {
+            return ToolResult.fail("{\"error\":\"需要合法 nodeType\"}", "缺少或非法 nodeType");
+        }
+        var contract = NodeSchemaRegistry.contract(nodeType);
         var refFile = skillCatalog.getFile("gaia-workflow-assistant", "references/node_" + nodeType + ".md");
-        if (refFile != null) {
-            JSONObject payload = new JSONObject()
-                .set("nodeType", nodeType)
-                .set("doc", refFile.getContent());
-            var schema = NodeSchemaRegistry.rawSchema(nodeType);
-            if (schema != null) payload.set("paramSchema", cn.hutool.json.JSONUtil.parseObj(schema));
+        if (contract != null || refFile != null) {
+            JSONObject payload = contract == null ? new JSONObject()
+                : cn.hutool.json.JSONUtil.parseObj(contract.toString());
+            payload.set("nodeType", nodeType);
+            if (refFile != null) payload.set("doc", refFile.getContent());
             var outputs = NodeSchemaRegistry.staticOutputs(nodeType);
             if (outputs != null) payload.set("staticOutputs", new JSONArray(outputs));
+            if ("llm".equals(nodeType)) {
+                // 平台默认模型配置（2026-10-25 用户决策）：运行时不再隐式注入凭证，
+                // AI 生成时必须把这三个值原样填进 inputsValues——配置在表单可见、随草稿持久化
+                try {
+                    var llm = modelConfigService.getLlmConfig();
+                    if (llm != null) {
+                        payload.set("platformDefaultModel", new JSONObject()
+                            .set("modelName", llm.getModel())
+                            .set("apiHost", llm.getApiHost())
+                            .set("apiKey", llm.getApiKey()));
+                        payload.set("platformDefaultModelHint",
+                            "创建/更新 llm 节点时必须把以上三个值原样填进 inputsValues（modelName/apiHost/apiKey），"
+                                + "不要留空、不要自编、不要写进提示词或其他字段");
+                    }
+                } catch (Exception e) {
+                    // 模型配置不可用：知识照常返回，凭证由用户手动填写
+                }
+            }
             return ToolResult.ok(payload.toString(), "已返回 " + nodeType + " 知识");
         }
         return ToolResult.notFound("节点类型 " + nodeType + "（可用类型见技能目录）");

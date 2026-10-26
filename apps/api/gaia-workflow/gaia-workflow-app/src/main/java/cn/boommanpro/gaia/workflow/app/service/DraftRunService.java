@@ -26,7 +26,12 @@ import java.util.concurrent.TimeoutException;
 @Service
 public class DraftRunService {
 
-    public static final long TIMEOUT_SECONDS = 60;
+    /**
+     * 整流试跑同步等待上限。180s：一条带 5 个 LLM 节点的真实流程在平台默认模型上
+     * 每节点 8~17 秒（2026-10-24 会话 b6e34195 实证），旧值 60s 必然超时且模型无从修复
+     * （把剩余轮数耗在逐节点调试一个全局限制上）。
+     */
+    public static final long TIMEOUT_SECONDS = 180;
 
     private static final ExecutorService DRAFT_RUN_POOL = Executors.newCachedThreadPool(r -> {
         Thread t = new Thread(r, "draft-run");
@@ -81,13 +86,20 @@ public class DraftRunService {
             return report;
         }
         List<String> issues = WorkflowDslCanonicalizer.businessFieldIssues(draft);
+        // 图级门禁与 /api/task/run 同一道（NC-05：草稿、试跑、任务执行复用同一分层校验链）。
+        // 缺了它，"start 到不了 end" 这类断链草稿会以 end 零入度孤立执行的方式假成功
+        // （2026-10-25 C04 实证：end_1 从未接线，run 照样返回 outputs）。
+        for (WorkflowDslValidator.Issue issue : WorkflowDslValidator.validate(draft)) {
+            if ("error".equals(issue.getLevel())) {
+                issues.add(issue.getMessage());
+            }
+        }
         if (!issues.isEmpty()) {
             report.issues = issues;
             report.error = "预检未通过: " + issues.get(0);
             return report;
         }
         JSONObject schema = new JSONObject(draft.toString());
-        fillLlmDefaults(schema);
         Map<String, Object> runInputs = inputs != null ? new HashMap<>(inputs) : new HashMap<>();
         applyStartDefaults(schema, runInputs);
 
@@ -115,41 +127,6 @@ public class DraftRunService {
         report.timeCostMs = System.currentTimeMillis() - start;
         collectNodeReports(holder[0], report);
         return report;
-    }
-
-    /** llm 节点凭证兜底：inputsValues / data 顶层缺 modelName/apiHost/apiKey 时填平台配置 */
-    public void fillLlmDefaults(JSONObject schema) {
-        JSONArray nodes = schema.getJSONArray("nodes");
-        if (nodes == null) return;
-        for (int i = 0; i < nodes.size(); i++) {
-            fillLlmDefaults(nodes.getJSONObject(i), null);
-        }
-    }
-
-    /** 单节点版（run(target=node) 复用）；llm 为空时懒加载平台配置 */
-    public void fillLlmDefaults(JSONObject node, AgentModelConfigService.LlmConfig llm) {
-        if (node == null || !"llm".equals(node.getStr("type"))) return;
-        JSONObject data = node.getJSONObject("data");
-        if (data == null) return;
-        if (llm == null) {
-            try { llm = modelConfigService.getLlmConfig(); } catch (Exception e) { return; }
-            if (llm == null) return;
-        }
-        JSONObject iv = data.getJSONObject("inputsValues");
-        if (iv != null) {
-            fillConstant(iv, "modelName", llm.getModel());
-            fillConstant(iv, "apiHost", llm.getApiHost());
-            fillConstant(iv, "apiKey", llm.getApiKey());
-        }
-        if (data.get("modelName") == null) data.set("modelName", llm.getModel());
-        if (data.get("apiHost") == null) data.set("apiHost", llm.getApiHost());
-        if (data.get("apiKey") == null) data.set("apiKey", llm.getApiKey());
-    }
-
-    private static void fillConstant(JSONObject iv, String key, String value) {
-        if (iv.get(key) == null && value != null) {
-            iv.set(key, new JSONObject().set("type", "constant").set("content", value));
-        }
     }
 
     /** inputs 缺省时用 start.outputs.properties.*.default 填充，让裸 run 也能跑 */
@@ -195,7 +172,7 @@ public class DraftRunService {
                     Object snapshot = nr.getSnapshots() != null && !nr.getSnapshots().isEmpty() ? nr.getSnapshots().get(0) : null;
                     if (snapshot instanceof Map) {
                         Map<?, ?> snap = (Map<?, ?>) snapshot;
-                        if (snap.get("error") != null) failed.set("error", snap.get("error"));
+                        if (snap.get("error") != null) failed.set("error", headline(snap.get("error")));
                         if (snap.get("outputs") != null) failed.set("outputs", snap.get("outputs"));
                     }
                     report.failedNodes.add(failed);
@@ -210,5 +187,23 @@ public class DraftRunService {
                     break;
             }
         }
+    }
+
+    /**
+     * 节点错误只保留首行（异常消息），去掉 Java 堆栈与异常类名前缀：
+     * 模型需要的是「Error: 缺少 orderId」这一句，二十行 at ... 只会淹没它。
+     */
+    static String headline(Object error) {
+        String text = String.valueOf(error);
+        int newline = text.indexOf('\n');
+        if (newline > 0) {
+            text = text.substring(0, newline);
+        }
+        text = text.trim();
+        // "java.lang.RuntimeException: GraalJS 执行失败: ..." → 去掉首个 Java 异常类名
+        if (text.matches("^[a-zA-Z_$][\\w$]*(\\.[a-zA-Z_$][\\w$]*)+(Exception|Error): .*")) {
+            text = text.substring(text.indexOf(": ") + 2);
+        }
+        return text;
     }
 }

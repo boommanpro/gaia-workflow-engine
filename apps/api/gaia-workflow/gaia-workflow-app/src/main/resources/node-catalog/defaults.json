@@ -1,0 +1,174 @@
+{
+  "start": {
+    "title": "Start",
+    "outputs": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  "end": {
+    "title": "End",
+    "inputsValues": {},
+    "inputs": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  "llm": {
+    "title": "LLM",
+    "outputMode": "text",
+    "inputsValues": {
+      "temperature": {
+        "type": "constant",
+        "content": 0.7
+      },
+      "systemPrompt": {
+        "type": "template",
+        "content": ""
+      },
+      "prompt": {
+        "type": "template",
+        "content": ""
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "properties": {
+        "modelName": {
+          "type": "string"
+        },
+        "apiKey": {
+          "type": "string"
+        },
+        "apiHost": {
+          "type": "string"
+        },
+        "temperature": {
+          "type": "number"
+        },
+        "systemPrompt": {
+          "type": "string"
+        },
+        "prompt": {
+          "type": "string"
+        }
+      }
+    },
+    "outputs": {
+      "type": "object",
+      "properties": {
+        "result": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "code": {
+    "title": "Code",
+    "inputsValues": {},
+    "script": {
+      "language": "javascript",
+      "content": ""
+    },
+    "outputs": {
+      "type": "object",
+      "properties": {},
+      "required": []
+    },
+    "inputs": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  "http": {
+    "title": "HTTP",
+    "api": {
+      "method": "GET",
+      "url": ""
+    },
+    "headersValues": {},
+    "paramsValues": {},
+    "body": {
+      "bodyType": "none",
+      "json": ""
+    },
+    "timeout": {
+      "timeout": 10000,
+      "retryTimes": 1
+    },
+    "outputs": {
+      "type": "object",
+      "properties": {
+        "body": {
+          "type": "string"
+        },
+        "headers": {
+          "type": "object"
+        },
+        "statusCode": {
+          "type": "integer"
+        }
+      }
+    }
+  },
+  "condition": {
+    "title": "Condition",
+    "conditions": []
+  },
+  "branches": {
+    "title": "Branches",
+    "branches": []
+  },
+  "loop": {
+    "title": "Loop",
+    "loopOutputs": {},
+    "outputs": {
+      "type": "object",
+      "required": [],
+      "properties": {}
+    }
+  },
+  "variable": {
+    "title": "Variable",
+    "outputs": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  "string-format": {
+    "title": "StringFormat",
+    "inputsValues": {},
+    "script": {
+      "language": "spel-standard",
+      "content": ""
+    },
+    "outputs": {
+      "type": "object",
+      "properties": {
+        "formatStringResult": {
+          "type": "string"
+        }
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  "workflow": {
+    "title": "Workflow",
+    "workflowName": "",
+    "inputsValues": {},
+    "inputs": {
+      "type": "object",
+      "properties": {}
+    },
+    "outputs": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  "comment": {
+    "title": "Comment"
+  }
+}

@@ -3,6 +3,119 @@
   "$id": "https://gaia.workflow/schemas/node/string-format",
   "title": "string-format",
   "type": "object",
+  "description": "字符串模板节点。script.language 仅支持 spel-standard（${a.b} 语法）/ spel-vue（{{ a.b }} 语法）/ thymeleaf-text（[(${a.b})] 语法）；inputsValues 声明的变量在模板中直接用变量名。输出固定字段 formatStringResult。",
+  "definitions": {
+    "constantValue": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "constant"
+          ]
+        },
+        "content": {},
+        "schema": {
+          "type": "object"
+        },
+        "extra": {}
+      },
+      "required": [
+        "type",
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "refValue": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "ref"
+          ]
+        },
+        "content": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 2
+        },
+        "schema": {
+          "type": "object"
+        },
+        "extra": {}
+      },
+      "required": [
+        "type",
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "templateValue": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "template"
+          ]
+        },
+        "content": {
+          "type": "string"
+        },
+        "schema": {
+          "type": "object"
+        },
+        "extra": {}
+      },
+      "required": [
+        "type",
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "expressionValue": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "expression"
+          ]
+        },
+        "content": {
+          "type": "string"
+        },
+        "schema": {
+          "type": "object"
+        },
+        "extra": {}
+      },
+      "required": [
+        "type",
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "timeout": {
+      "type": "object",
+      "properties": {
+        "timeout": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 600000
+        },
+        "retryTimes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10
+        }
+      },
+      "additionalProperties": false
+    }
+  },
   "properties": {
     "title": {
       "type": "string"
@@ -11,7 +124,12 @@
       "type": "object",
       "properties": {
         "language": {
-          "type": "string"
+          "type": "string",
+          "enum": [
+            "spel-standard",
+            "spel-vue",
+            "thymeleaf-text"
+          ]
         },
         "content": {
           "type": "string"
@@ -19,9 +137,26 @@
       },
       "required": [
         "content"
-      ]
+      ],
+      "additionalProperties": false
     },
     "inputsValues": {
+      "type": "object",
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "$ref": "#/definitions/constantValue"
+          },
+          {
+            "$ref": "#/definitions/refValue"
+          },
+          {
+            "$ref": "#/definitions/expressionValue"
+          }
+        ]
+      }
+    },
+    "inputs": {
       "type": "object"
     },
     "outputs": {
@@ -31,7 +166,7 @@
   "required": [
     "script"
   ],
-  "additionalProperties": true,
+  "additionalProperties": false,
   "x-gaia-outputs": [
     "formatStringResult"
   ]

@@ -136,7 +136,7 @@ public final class WorkflowDslValidator {
             if (known == null) {
                 issues.add(new Issue("error", "UNKNOWN_TYPE", id,
                     "节点 " + id + " 的类型 \"" + type + "\" 不受支持（运行时没有它的解析器，执行必然失败）。"
-                        + "多条件互斥分支用 branches，单条件用 condition；其余可用类型见 NodeTypeEnum"));
+                        + "多条件互斥分支用 branches，单条件用 condition；子流程用 workflow；其余可用类型见 NodeTypeEnum"));
                 continue;
             }
             typeById.put(id, type);
@@ -252,6 +252,8 @@ public final class WorkflowDslValidator {
         }
 
         // ---------- S3 参数结构：节点 data 过 JSON Schema 契约（node-schemas/*.schema.json） ----------
+        // 契约是严格版（additionalProperties:false）：未知字段/拼错字段名/错误包装形状在此拦截。
+        // data 缺失或不是对象时按 {} 校验——required 不允许因「没写 data」被绕过。
         for (JSONObject n : nodeList) {
             String id = n.getStr("id");
             String type = typeById.get(id);
@@ -259,10 +261,12 @@ public final class WorkflowDslValidator {
                 continue;
             }
             Object data = n.get("data");
-            if (!(data instanceof JSONObject)) {
-                continue;
+            JSONObject dataObj = data instanceof JSONObject ? (JSONObject) data : new JSONObject();
+            if (data == null) {
+                issues.add(new Issue("error", "MISSING_DATA", id,
+                    "节点 " + id + "（" + type + "）缺少 data 配置"));
             }
-            for (String violation : NodeSchemaRegistry.validateParams(type, ((JSONObject) data).toString())) {
+            for (String violation : NodeSchemaRegistry.validateParams(type, dataObj.toString())) {
                 issues.add(new Issue("error", "INVALID_PARAM", id,
                     "节点 " + id + "（" + type + "）参数结构不合法：" + violation));
             }
@@ -317,6 +321,16 @@ public final class WorkflowDslValidator {
                 fields = new LinkedHashSet<>(NodeSchemaRegistry.staticOutputs(type));
             }
             switch (type) {
+                // llm json 输出模式：输出=outputs.properties 声明集（运行时按声明解析模型 JSON）；
+                // text 模式保持固定 result
+                case "llm":
+                    if ("json".equalsIgnoreCase(data.getStr("outputMode"))) {
+                        Set<String> declared = NodeSchemaRegistry.declaredOutputFields(data);
+                        if (declared != null) {
+                            fields = declared;
+                        }
+                    }
+                    break;
                 case "start":
                 case "code":
                 case "variable":
@@ -367,6 +381,45 @@ public final class WorkflowDslValidator {
 
     // ---------------- S4：引用校验 ----------------
 
+    /**
+     * 引用级问题的公开子集（2026-10-25 D1）：给定全图节点列表，返回 ref/模板引用问题。
+     * 供 node add/update 在写入当场校验——此前 S4 只在落版/执行时运行，AI 写入断裂引用
+     * （如引用 llm 的非 result 字段）要到用户保存版本才暴露，修复成本最高。
+     *
+     * @param ownerFilter 只返回该节点拥有的问题；null = 全部节点
+     */
+    public static List<Issue> referenceIssues(JSONArray nodeList, String ownerFilter) {
+        Set<String> allIds = new HashSet<>();
+        Map<String, String> typeById = new HashMap<>();
+        List<JSONObject> nodes = new ArrayList<>();
+        for (Object item : nodeList) {
+            if (!(item instanceof JSONObject)) {
+                continue;
+            }
+            JSONObject n = (JSONObject) item;
+            nodes.add(n);
+            String id = n.getStr("id");
+            if (id != null) {
+                allIds.add(id);
+                typeById.put(id, n.getStr("type"));
+            }
+        }
+        Map<String, Set<String>> knownOutputs = inferOutputFields(nodes, typeById);
+        List<Issue> issues = new ArrayList<>();
+        for (JSONObject n : nodes) {
+            String id = n.getStr("id");
+            if (ownerFilter != null && !ownerFilter.equals(id)) {
+                continue;
+            }
+            JSONObject data = n.getJSONObject("data");
+            if (data != null) {
+                scanRefObjects(data, id, allIds, knownOutputs, issues, new HashSet<>());
+                scanTemplateStrings(data, id, allIds, knownOutputs, issues, new HashSet<>());
+            }
+        }
+        return issues;
+    }
+
     private static void validateReferences(List<JSONObject> nodeList, Set<String> allIds,
                                            Map<String, Set<String>> knownOutputs, List<Issue> issues) {
         for (JSONObject n : nodeList) {
@@ -374,12 +427,21 @@ public final class WorkflowDslValidator {
             JSONObject data = n.getJSONObject("data");
             if (data != null) {
                 scanRefObjects(data, id, allIds, knownOutputs, issues, new HashSet<>());
-                scanTemplateStrings(data, id, allIds, issues, new HashSet<>());
+                scanTemplateStrings(data, id, allIds, knownOutputs, issues, new HashSet<>());
             }
         }
     }
 
     /** 递归找 {type:"ref", content:["nodeId", ...]}：nodeId 必须存在；字段命中上游已知输出 */
+    /** 循环迭代变量作用域：<loopId>_locals（item/index）是引擎内置，等价于画布上存在 id 为 loopId 的循环节点 */
+    private static boolean isLoopLocalsTarget(String target, Set<String> allIds) {
+        if (target == null || !target.endsWith("_locals")) {
+            return false;
+        }
+        String loopId = target.substring(0, target.length() - "_locals".length());
+        return !loopId.isEmpty() && allIds.contains(loopId);
+    }
+
     private static void scanRefObjects(Object value, String ownerNodeId, Set<String> allIds,
                                        Map<String, Set<String>> knownOutputs,
                                        List<Issue> issues, Set<Object> visited) {
@@ -392,7 +454,8 @@ public final class WorkflowDslValidator {
                 JSONArray content = obj.getJSONArray("content");
                 if (!content.isEmpty() && content.get(0) instanceof String) {
                     String target = (String) content.get(0);
-                    if (!allIds.contains(target)) {
+                    // 循环迭代变量 <loopId>_locals.item/.index 是引擎内置作用域，不是画布节点
+                    if (!allIds.contains(target) && !isLoopLocalsTarget(target, allIds)) {
                         issues.add(new Issue("error", "DANGLING_REF", ownerNodeId,
                             "节点 " + ownerNodeId + " 引用了不存在的节点 \"" + target + "\"（ref 引用指向的节点必须在画布上）"));
                         return;
@@ -425,8 +488,9 @@ public final class WorkflowDslValidator {
         }
     }
 
-    /** 递归扫 template 型包装的字符串内容，{{ nodeId.field }} 的 nodeId 必须存在 */
+    /** 递归扫 template 型包装的字符串内容，{{ nodeId.field }} 的 nodeId 必须存在；字段命中上游已知输出（warning） */
     private static void scanTemplateStrings(Object value, String ownerNodeId, Set<String> allIds,
+                                            Map<String, Set<String>> knownOutputs,
                                             List<Issue> issues, Set<Object> visited) {
         if (value instanceof JSONObject) {
             JSONObject obj = (JSONObject) value;
@@ -437,9 +501,9 @@ public final class WorkflowDslValidator {
             for (String key : obj.keySet()) {
                 Object child = obj.get(key);
                 if (isTemplate && "content".equals(key) && child instanceof String) {
-                    scanTemplateToken((String) child, ownerNodeId, allIds, issues);
+                    scanTemplateToken((String) child, ownerNodeId, allIds, knownOutputs, issues);
                 } else {
-                    scanTemplateStrings(child, ownerNodeId, allIds, issues, visited);
+                    scanTemplateStrings(child, ownerNodeId, allIds, knownOutputs, issues, visited);
                 }
             }
         } else if (value instanceof JSONArray) {
@@ -448,13 +512,13 @@ public final class WorkflowDslValidator {
                 return;
             }
             for (Object item : arr) {
-                scanTemplateStrings(item, ownerNodeId, allIds, issues, visited);
+                scanTemplateStrings(item, ownerNodeId, allIds, knownOutputs, issues, visited);
             }
         }
     }
 
     private static void scanTemplateToken(String template, String ownerNodeId, Set<String> allIds,
-                                          List<Issue> issues) {
+                                          Map<String, Set<String>> knownOutputs, List<Issue> issues) {
         Matcher matcher = TEMPLATE_TOKEN.matcher(template);
         Set<String> reported = new HashSet<>();
         while (matcher.find()) {
@@ -463,10 +527,32 @@ public final class WorkflowDslValidator {
             if (head.isEmpty() || !head.matches("[A-Za-z0-9_\\-\\u4e00-\\u9fa5]+")) {
                 continue;
             }
-            if (!allIds.contains(head) && reported.add(head)) {
-                issues.add(new Issue("warning", "TEMPLATE_REF_UNKNOWN", ownerNodeId,
+            if (!allIds.contains(head) && !isLoopLocalsTarget(head, allIds) && reported.add(head)) {
+                // 2026-10-24 升 error（原 warning）：模板引用未知节点必须让模型/前端/后端三方
+                // 都感知——静默放行的结果是运行期解析为空、节点「假成功」（用户实测踩坑）
+                issues.add(new Issue("error", "TEMPLATE_REF_UNKNOWN", ownerNodeId,
                     "节点 " + ownerNodeId + " 的模板引用 {{" + expr + "}} 中的 \"" + head
-                        + "\" 不是画布上的节点 id，运行时将解析为空"));
+                        + "\" 不是画布上的节点 id，运行时将解析为空。"
+                        + "修复：先 get(target=canvas) 核对节点 id，模板里只能引用画布上存在的节点"));
+                continue;
+            }
+            // 字段级 warning（2026-10-25 E）：head 命中但首段字段不在上游已知输出集——
+            // 典型如引用 llm 的非 result 字段（llm 输出固定为 result 字符串）。
+            // 只查首段（深层路径的类型传播不完整，深查必误报）；length/size 是运行时
+            // 内置访问器（CollectionLengthAccessor），跳过；上游动态输出（null）跳过。
+            if (reported.add(expr)) {
+                String[] segments = expr.split("\\.");
+                if (segments.length >= 2) {
+                    String field = segments[1].trim();
+                    Set<String> outputs = knownOutputs.get(head);
+                    if (outputs != null && !outputs.contains(field)
+                        && !"length".equals(field) && !"size".equals(field)) {
+                        issues.add(new Issue("warning", "TEMPLATE_REF_FIELD", ownerNodeId,
+                            "节点 " + ownerNodeId + " 的模板引用 {{" + expr + "}}：\"" + head
+                                + "\" 的输出只有: " + String.join(", ", outputs)
+                                + "，字段 \"" + field + "\" 运行期将解析为空"));
+                    }
+                }
             }
         }
     }

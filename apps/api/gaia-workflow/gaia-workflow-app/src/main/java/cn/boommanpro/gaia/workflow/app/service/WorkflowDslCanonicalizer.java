@@ -7,7 +7,6 @@ import cn.hutool.json.JSONUtil;
 import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -18,7 +17,6 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * 工作流 DSL 规范化器 —— 落版前的最后一道关口。
  *
  * <p>模型产出 DSL 时经常会「偷懒」，直接把这些写进库会让下游（画布、执行引擎）崩掉：</p>
  * <ul>
@@ -35,19 +33,12 @@ import java.util.Set;
 public final class WorkflowDslCanonicalizer {
 
     /** 与前端 node-templates 保持一致的受支持节点类型。
-     *  注意：multi-condition 不在其中 —— 运行时没有它的解析器（NodeTypeEnum/ChainParser 均无），
      *  出现即 fatal 打回（2026-10-16 起不再静默降级 variable）；多条件互斥分支用 branches，
      *  单条件用 condition。assignee 是画布标注节点（无执行语义），2026-10-16 起移出 agent
      *  可建清单（存量文档仍保留不执行）；note/group 同理不在 agent 可建清单。
      *  workflow（子流程）有真实解析器（infra WorkflowNodeParser）且契约文件齐备，
      *  2026-10-23 起加入白名单——此前被 fatal 打回导致子流程永远无法落版。 */
-    private static final Set<String> SUPPORTED_TYPES = new HashSet<>(Arrays.asList(
-        "start", "end", "llm", "code", "http", "condition",
-        "branches", "loop", "variable", "string-format", "comment", "workflow"));
-
-    /** 不属于业务数据的节点保留键 */
-    private static final Set<String> RESERVED_NODE_KEYS = new HashSet<>(Arrays.asList(
-        "id", "type", "data", "meta", "position", "title", "parentId", "blocks"));
+    private static final Set<String> SUPPORTED_TYPES = NodeSchemaRegistry.aiCreatableTypes();
 
     private static final int X_BASE = 180;
     private static final int X_STEP = 320;
@@ -58,7 +49,6 @@ public final class WorkflowDslCanonicalizer {
     }
 
     /** 规范化结果 */
-    /** 供工具链做 op 级类型校验（node add 的类型枚举检查） */
     public static boolean isSupportedType(String type) {
         return type != null && SUPPORTED_TYPES.contains(type);
     }
@@ -115,27 +105,21 @@ public final class WorkflowDslCanonicalizer {
     }
 
     /**
-     * 把任意宽松 DSL 规范化为可安全落库的结构。
      *
      * @param rawJson DSL 的 JSON 文本
      * @return 规范化结果；输入非法时 json 为 null
      */
     public static Result canonicalize(String rawJson) {
-        return canonicalize(rawJson, null);
-    }
-
-    /**
-     * 规范化并可选地为 LLM 节点填充平台默认模型配置。
-     *
-     * <p>工作流运行时（LlmNode）只认节点级 apiKey/apiHost/modelName，没有平台兜底；
-     * 模型产出 DSL 时又经常不带这些凭证。落版时把平台 llm_config 填进去，
-     * 让「用户不贴 API Key」成为默认体验，同时保留节点级显式配置的优先级。</p>
-     *
-     * @param rawJson DSL 的 JSON 文本
-     * @param llmDefaults 平台默认模型配置；null 表示不填充（保持调用方原语义）
-     * @return 规范化结果；输入非法时 json 为 null
-     */
-    public static Result canonicalize(String rawJson, LlmDefaults llmDefaults) {
+        /**
+         * （画布 toJSON / agent 草稿两条来源都天然规范）。不再做任何别名翻译、缺字段补造、
+         * 类型降级、自动接线——结构问题一律交给 {@link WorkflowDslValidator} 以 error 打回，
+         * 错误可见好过静默修复。保留下来的仅是：data 归一化（AI 扁平简写）、缺坐标自动布局。
+         * llm 凭证注入已移除（2026-10-25 用户决策）：凭证由 AI 生成时从知识库
+         * platformDefaultModel 填进节点（表单可见），运行期不再隐式注入。
+         *
+         * @param rawJson DSL 的 JSON 文本
+         * @return 规范化结果；输入非法时 json 为 null
+         */
         List<String> repairs = new ArrayList<>();
         List<String> fatalIssues = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
@@ -146,45 +130,30 @@ public final class WorkflowDslCanonicalizer {
         JSONObject root;
         JSONArray rawNodes;
         JSONArray rawEdges;
-        Object globalVariable = null;
+        Object globalVariable;
         try {
             Object parsed = JSONUtil.parse(rawJson.trim());
-            if (parsed instanceof JSONArray) {
-                // 模型偶尔直接吐一个节点数组
-                rawNodes = (JSONArray) parsed;
-                rawEdges = new JSONArray();
-                root = new JSONObject();
-                repairs.add("输入是节点数组而不是 {nodes, edges} 对象，已按此包装");
-            } else if (parsed instanceof JSONObject) {
-                root = (JSONObject) parsed;
-                rawNodes = firstArray(root, "nodes", "nodeList", "steps");
-                rawEdges = firstArray(root, "edges", "lines", "connections");
-                globalVariable = root.get("globalVariable");
-                if (rawNodes == null && root.get("steps") != null) {
-                    rawNodes = firstArray(root, "steps");
-                }
-            } else {
+            if (!(parsed instanceof JSONObject)) {
+                repairs.add("DSL 必须是 {\"nodes\":[...],\"edges\":[...]} 对象");
                 return new Result(null, repairs, fatalIssues, warnings, 0);
             }
+            root = (JSONObject) parsed;
+            rawNodes = root.getJSONArray("nodes");
+            rawEdges = root.getJSONArray("edges");
+            globalVariable = root.get("globalVariable");
         } catch (Exception e) {
             return new Result(null, repairs, fatalIssues, warnings, 0);
         }
-        if (rawNodes == null) {
-            rawNodes = new JSONArray();
+        if (rawNodes == null || rawNodes.isEmpty()) {
+            repairs.add("未找到任何节点");
+            return new Result(null, repairs, fatalIssues, warnings, 0);
         }
         if (rawEdges == null) {
             rawEdges = new JSONArray();
         }
-        if (rawNodes.isEmpty()) {
-            repairs.add("未找到任何节点");
-            return new Result(null, repairs, fatalIssues, warnings, 0);
-        }
 
         // ---------- 节点 ----------
         List<JSONObject> nodes = new ArrayList<>();
-        Set<String> usedIds = new HashSet<>();
-        boolean hasStart = false;
-        boolean hasEnd = false;
 
         for (int i = 0; i < rawNodes.size(); i++) {
             Object item = rawNodes.get(i);
@@ -196,102 +165,39 @@ public final class WorkflowDslCanonicalizer {
 
             String type = trimToNull(raw.getStr("type"));
             if (type == null) {
-                type = "variable";
-                repairs.add("第 " + (i + 1) + " 个节点缺少 type，已按 variable 处理");
+                fatalIssues.add("第 " + (i + 1) + " 个节点缺少 type。可用类型: "
+                    + String.join(", ", new java.util.TreeSet<>(SUPPORTED_TYPES)));
+                continue;
             }
             type = type.toLowerCase();
-            if (!SUPPORTED_TYPES.contains(type)) {
-                if (cn.boommanpro.gaia.workflow.base.type.NodeTypeEnum.notParse(type)) {
-                    // 画布标注类节点（note/group/comment/assignee）：引擎 parse 阶段本就跳过，
-                    // 保留原样落库，让「画布导出 → apply 落版」通道可用
-                    repairs.add("节点 \"" + raw.getStr("id") + "\" 类型 \"" + type
-                        + "\" 为画布标注类节点，保留不执行");
-                } else {
-                    // 2026-10-16 起：未知类型不再静默降级 variable——降级改语义且把失败
-                    // 推迟到运行期（旁路入库时更是 NPE 全崩）。这里显式 fatal 打回。
-                    fatalIssues.add("节点类型 \"" + type + "\" 不受支持：运行时没有它的解析器（执行必然失败）。"
-                        + "多条件互斥分支用 branches，单条件用 condition");
-                    continue;
-                }
-            }
-
-            // start / end 必须唯一，多余的降级，避免结构非法
-            if ("start".equals(type) && hasStart) {
-                repairs.add("出现多个 start 节点，多余的已降级为 variable");
-                type = "variable";
-            }
-            if ("end".equals(type) && hasEnd) {
-                repairs.add("出现多个 end 节点，多余的已降级为 variable");
-                type = "variable";
+            if (!SUPPORTED_TYPES.contains(type) && !cn.boommanpro.gaia.workflow.base.type.NodeTypeEnum.notParse(type)) {
+                // 未知类型不再降级（2026-10-16 起）也不做别名翻译（2026-10-24 起）——fatal 打回
+                fatalIssues.add("节点类型 \"" + type + "\" 不受支持：运行时没有它的解析器（执行必然失败）。"
+                    + "多条件互斥分支用 branches，单条件用 condition");
+                continue;
             }
 
             String id = trimToNull(raw.getStr("id"));
             if (id == null) {
-                id = type + "_auto" + (i + 1);
-                repairs.add("第 " + (i + 1) + " 个节点缺少 id，已生成 \"" + id + "\"");
+                fatalIssues.add("第 " + (i + 1) + " 个节点（" + type + "）缺少 id");
+                continue;
             }
-            if (usedIds.contains(id)) {
-                String newId = id + "_dup" + (i + 1);
-                repairs.add("节点 id \"" + id + "\" 重复，已重命名为 \"" + newId + "\"");
-                id = newId;
-            }
-            usedIds.add(id);
 
-            // 业务数据：data 为主，节点顶层的散落字段合并进去
             JSONObject data = raw.getJSONObject("data");
             JSONObject mergedData = data != null ? new JSONObject(data.toString()) : new JSONObject();
-            boolean hasFlatFields = false;
-            for (String key : raw.keySet()) {
-                if (RESERVED_NODE_KEYS.contains(key)) {
-                    continue;
-                }
-                hasFlatFields = true;
-                if (!mergedData.containsKey(key)) {
-                    mergedData.set(key, raw.get(key));
-                }
-            }
-            if (hasFlatFields && data == null) {
-                repairs.add("节点 \"" + id + "\" 的业务字段散在顶层，已收拢进 data");
-            }
-            // 标题双写：data.title 是画布读取的位置
-            if (!mergedData.containsKey("title")) {
-                String title = trimToNull(raw.getStr("title"));
-                if (title != null) {
-                    mergedData.set("title", title);
-                }
-            }
 
-            // 扁平字段 → inputsValues（llm/http/start/end 等），保证落库后节点可直接执行
-            int llmFilled = fillLlmDefaults(type, mergedData, llmDefaults);
+            // data 归一化（AI 扁平简写 → 规范形状）；llm 凭证由 AI 从知识库填入，不再注入
             NodeDataNormalizer.normalize(type, mergedData);
-            if (llmFilled > 0) {
-                repairs.add("节点 \"" + id + "\"（LLM）缺少模型配置，已自动填入平台默认模型（"
-                    + llmFilled + " 项），用户无需手动提供 API Key");
-            }
             // 注意：prompt/url/script 不做占位填充 —— 占位值会让落版校验打不中 fatal、
-            // 把失败推迟到运行期（2026-10-11 实证：空 url 节点 save 放行、run 报
-            // 「HTTP节点缺少有效的 api 配置」）。缺业务字段就在落版/试运行时 fatal，
+            // 把失败推迟到运行期（2026-10-11 实证）。缺业务字段就在落版/试运行时 fatal，
             // 错误里带可直接抄的修复 JSON（见 checkNodeSemantics）。
-
-            // meta：保留原 meta 的其他字段，只补 position
-            JSONObject meta = raw.getJSONObject("meta");
-            JSONObject mergedMeta = meta != null ? new JSONObject(meta.toString()) : new JSONObject();
-            JSONObject position = mergedMeta.getJSONObject("position");
-            if (position == null) {
-                position = raw.getJSONObject("position");
-                if (position != null) {
-                    repairs.add("节点 \"" + id + "\" 的 position 写在顶层，已移入 meta");
-                }
-            }
-            if (position != null) {
-                mergedMeta.set("position", position);
-            }
 
             JSONObject node = new JSONObject();
             node.set("id", id);
             node.set("type", type);
             node.set("data", mergedData);
-            node.set("meta", mergedMeta);
+            JSONObject meta = raw.getJSONObject("meta");
+            node.set("meta", meta != null ? new JSONObject(meta.toString()) : new JSONObject());
             if (raw.get("blocks") != null) {
                 node.set("blocks", raw.get("blocks"));
             }
@@ -299,19 +205,16 @@ public final class WorkflowDslCanonicalizer {
                 node.set("parentId", raw.get("parentId"));
             }
             nodes.add(node);
-
-            if ("start".equals(type)) {
-                hasStart = true;
-            }
-            if ("end".equals(type)) {
-                hasEnd = true;
-            }
         }
 
         if (nodes.isEmpty()) {
             repairs.add("没有任何结构合法的节点");
             return new Result(null, repairs, fatalIssues, warnings, 0);
         }
+
+        // 对象输出声明的引用驱动补全（引用驱动的展示契约收敛，落版与草稿同口径）
+        NodeDataNormalizer.completeObjectOutputDeclarations(
+            new JSONObject().set("nodes", nodes));
 
         // ---------- 语义完整性检查 ----------
         // 结构修好了不代表能跑：llm 没有 prompt、http 没有 url 这类「空壳节点」
@@ -323,7 +226,7 @@ public final class WorkflowDslCanonicalizer {
             byId.put(n.getStr("id"), n);
         }
 
-        // ---------- 连线 ----------
+        // ---------- 连线（规范键：sourceNodeID/targetNodeID[/sourcePortID/targetPortID]） ----------
         List<JSONObject> edges = new ArrayList<>();
         Set<String> seenEdges = new HashSet<>();
         for (int i = 0; i < rawEdges.size(); i++) {
@@ -332,10 +235,8 @@ public final class WorkflowDslCanonicalizer {
                 continue;
             }
             JSONObject raw = (JSONObject) item;
-            String source = firstNonEmpty(raw.getStr("sourceNodeID"), raw.getStr("source"),
-                raw.getStr("from"), raw.getStr("sourceId"), raw.getStr("fromNodeID"));
-            String target = firstNonEmpty(raw.getStr("targetNodeID"), raw.getStr("target"),
-                raw.getStr("to"), raw.getStr("targetId"), raw.getStr("toNodeID"));
+            String source = trimToNull(raw.getStr("sourceNodeID"));
+            String target = trimToNull(raw.getStr("targetNodeID"));
             if (source == null || target == null) {
                 repairs.add("存在缺少起止节点的连线，已跳过");
                 continue;
@@ -348,8 +249,7 @@ public final class WorkflowDslCanonicalizer {
                 repairs.add("节点 " + source + " 存在自环连线，已跳过");
                 continue;
             }
-            String sourcePort = firstNonEmpty(raw.getStr("sourcePortID"), raw.getStr("sourcePort"),
-                raw.getStr("fromPort"));
+            String sourcePort = trimToNull(raw.getStr("sourcePortID"));
             // 去重键必须含端口：condition/branches 同一 source→target 的 if/else 双边是合法结构，
             // 只按端点判重会把 else 边静默丢弃（2026-10-17 E2E 实证：反例路径整体 canceled）
             String key = source + "->" + target + (sourcePort != null ? "[" + sourcePort + "]" : "");
@@ -357,8 +257,7 @@ public final class WorkflowDslCanonicalizer {
                 repairs.add("连线 " + key + " 重复，已去重");
                 continue;
             }
-            String targetPort = firstNonEmpty(raw.getStr("targetPortID"), raw.getStr("targetPort"),
-                raw.getStr("toPort"));
+            String targetPort = trimToNull(raw.getStr("targetPortID"));
 
             JSONObject edge = new JSONObject();
             edge.set("sourceNodeID", source);
@@ -370,42 +269,6 @@ public final class WorkflowDslCanonicalizer {
                 edge.set("targetPortID", targetPort);
             }
             edges.add(edge);
-            if ("from".equals((Object) raw.getStr("from")) || raw.containsKey("from")) {
-                // 记录一次别名修补，避免重复刷屏
-                if (!repairs.contains("连线使用了 from/to 简写，已规范化为 sourceNodeID/targetNodeID")) {
-                    repairs.add("连线使用了 from/to 简写，已规范化为 sourceNodeID/targetNodeID");
-                }
-            }
-        }
-
-        // ---------- 补齐 start / end ----------
-        if (!hasStart) {
-            JSONObject start = new JSONObject();
-            start.set("id", uniqueId(byId.keySet(), "start_auto"));
-            start.set("type", "start");
-            start.set("data", new JSONObject().set("title", "开始"));
-            start.set("meta", new JSONObject());
-            String head = findRoot(byId, edges);
-            nodes.add(0, start);
-            byId.put(start.getStr("id"), start);
-            if (head != null) {
-                edges.add(0, simpleEdge(start.getStr("id"), head));
-            }
-            repairs.add("缺少 start 节点，已自动补齐并接入主链");
-        }
-        if (!hasEnd) {
-            JSONObject end = new JSONObject();
-            end.set("id", uniqueId(byId.keySet(), "end_auto"));
-            end.set("type", "end");
-            end.set("data", new JSONObject().set("title", "结束"));
-            end.set("meta", new JSONObject());
-            String tail = findTail(byId, edges);
-            nodes.add(end);
-            byId.put(end.getStr("id"), end);
-            if (tail != null) {
-                edges.add(simpleEdge(tail, end.getStr("id")));
-            }
-            repairs.add("缺少 end 节点，已自动补齐并接入主链");
         }
 
         // 连线端口检查（2026-10-11 实证：fromPort 猜成 true/false 时引擎 SpEL
@@ -439,8 +302,6 @@ public final class WorkflowDslCanonicalizer {
         JSONObject out = new JSONObject();
         out.set("nodes", outNodes);
         out.set("edges", outEdges);
-        // schema 契约版本标记：后续契约演进（改形状/迁移）靠它识别存量数据
-        out.set("schemaVersion", 1);
         if (globalVariable != null) {
             out.set("globalVariable", globalVariable);
         }
@@ -448,7 +309,148 @@ public final class WorkflowDslCanonicalizer {
     }
 
     /**
-     * 连线端口合法性检查：condition/branches 的出边 fromPort 必须命中真实存在的分支端口，
+     * （ConditionNode.evaluateCondition 返回 false，不报错）——空壳条件必须在落版前打回。
+     */
+    private static List<String> conditionsMissingOperator(String where, JSONArray conditions) {
+        List<String> issues = new ArrayList<>();
+        for (int i = 0; i < conditions.size(); i++) {
+            JSONObject c = conditions.getJSONObject(i);
+            if (c == null) {
+                continue;
+            }
+            JSONObject value = c.getJSONObject("value");
+            String operator = value == null ? null : value.getStr("operator");
+            if (operator == null || operator.trim().isEmpty()) {
+                issues.add("节点 " + where + " 的条件 \"" + c.getStr("key") + "\" 没有配置 operator"
+                    + "（引擎会静默按 false 处理、该分支永远不命中）。"
+                    + "修复：value 内补 \"operator\":\"contains|not_contains|eq|neq|gt|gte|lt|lte|"
+                    + "is_empty|is_not_empty|is_true|is_false\" 之一（注意是 neq/gte/lte，不是 ne/ge/le）");
+            }
+        }
+        return issues;
+    }
+
+    /**
+     * 每个节点类型的合法出边端口集合：
+     * condition=conditions[].key+else、branches=branches[].id+else，其余类型=null（不允许 fromPort）
+     */
+    private static Set<String> legalPortsOf(JSONObject node) {
+        if (node == null) {
+            return null;
+        }
+        String type = node.getStr("type");
+        JSONObject data = node.getJSONObject("data");
+        if (data == null) {
+            return null;
+        }
+        Set<String> ports = new LinkedHashSet<>();
+        if ("condition".equals(type)) {
+            JSONArray conditions = data.getJSONArray("conditions");
+            if (conditions != null) {
+                for (int i = 0; i < conditions.size(); i++) {
+                    JSONObject c = conditions.getJSONObject(i);
+                    if (c != null && c.getStr("key") != null && !c.getStr("key").trim().isEmpty()) {
+                        ports.add(c.getStr("key").trim());
+                    }
+                }
+            }
+        } else if ("branches".equals(type)) {
+            JSONArray branches = data.getJSONArray("branches");
+            if (branches != null) {
+                for (int i = 0; i < branches.size(); i++) {
+                    JSONObject b = branches.getJSONObject(i);
+                    if (b != null && b.getStr("id") != null && !b.getStr("id").trim().isEmpty()) {
+                        ports.add(b.getStr("id").trim());
+                    }
+                }
+            }
+        } else {
+            return null;
+        }
+        if (ports.isEmpty()) {
+            return null;
+        }
+        ports.add("else");
+        return ports;
+    }
+
+    /**
+     * 2026-10-24 校验前移：错误从 run 预检提前到连线动作当场，模型能立即归因修复）。
+     * 返回空清单 = 合法。
+     */
+    public static List<String> edgeIssues(JSONObject doc, String from, String to, String fromPort) {
+        List<String> issues = new ArrayList<>();
+        if (doc == null || from == null || to == null) {
+            issues.add("需要 from 和 to");
+            return issues;
+        }
+        JSONObject fromNode = findNodeInDoc(doc, from);
+        JSONObject toNode = findNodeInDoc(doc, to);
+        if (fromNode == null) {
+            issues.add("源节点 \"" + from + "\" 不在画布上。修复：先 get(target=canvas) 核对节点 id");
+        }
+        if (toNode == null) {
+            issues.add("目标节点 \"" + to + "\" 不在画布上。修复：先 get(target=canvas) 核对节点 id");
+        }
+        if (fromNode == null || toNode == null) {
+            return issues;
+        }
+        if (from.equals(to)) {
+            issues.add("不能连线到自己（" + from + " → " + to + " 是自环）");
+        }
+        JSONArray edges = doc.getJSONArray("edges");
+        if (edges != null) {
+            String port = fromPort == null ? "" : fromPort;
+            for (int i = 0; i < edges.size(); i++) {
+                JSONObject e = edges.getJSONObject(i);
+                if (e == null) {
+                    continue;
+                }
+                String ePort = e.getStr("sourcePortID") == null ? "" : e.getStr("sourcePortID");
+                if (from.equals(e.getStr("sourceNodeID")) && to.equals(e.getStr("targetNodeID"))
+                    && port.equals(ePort)) {
+                    issues.add("连线 " + from + " → " + to + (port.isEmpty() ? "" : "[" + port + "]") + " 已存在，不要重复连");
+                    break;
+                }
+            }
+        }
+        // 端口合法性：条件/分支节点的出边必须带合法 fromPort；普通节点不允许 fromPort
+        Set<String> legal = legalPortsOf(fromNode);
+        String type = fromNode.getStr("type");
+        if (legal != null) {
+            if (fromPort == null || fromPort.trim().isEmpty()) {
+                issues.add("从 " + type + " 节点 " + from + " 出发的边必须带 fromPort（本节点可用: "
+                    + String.join(" / ", legal) + "）。绝不能用 true/false");
+            } else if (!legal.contains(fromPort.trim())) {
+                issues.add("连线 " + from + " →[fromPort=" + fromPort + "]→ " + to + " 的端口 \"" + fromPort
+                    + "\" 不存在：" + type + " 节点的出边 fromPort 必须用 "
+                    + ("branches".equals(type) ? "branches[].id" : "conditions[].key") + " 或 else"
+                    + "（本节点可用: " + String.join(" / ", legal) + "）。"
+                    + "端口匹配不到时该分支的下游节点不会执行——绝不能写 true/false");
+            }
+        } else if (fromPort != null && !fromPort.trim().isEmpty()
+            && !"condition".equals(type) && !"branches".equals(type)) {
+            issues.add("节点 " + from + "（" + type + "）不是条件/分支节点，出边不需要也不能带 fromPort（"
+                + fromPort + "）——带端口的普通出边会导致下游永远不被执行");
+        }
+        return issues;
+    }
+
+    private static JSONObject findNodeInDoc(JSONObject doc, String id) {
+        JSONArray nodes = doc.getJSONArray("nodes");
+        if (nodes == null) {
+            return null;
+        }
+        for (int i = 0; i < nodes.size(); i++) {
+            JSONObject n = nodes.getJSONObject(i);
+            if (n != null && id.equals(n.getStr("id"))) {
+                return n;
+            }
+        }
+        return null;
+    }
+
+    /**
      * 否则引擎的 SpEL 匹配（memory["节点ID.端口"]）永远取不到值，下游节点全部 canceled
      * 而运行状态仍是 succeed —— 静态比对毫秒级打回，错误文案带可直接抄的修复 JSON。
      */
@@ -464,37 +466,8 @@ public final class WorkflowDslCanonicalizer {
         // 每个 condition/branches 节点的合法端口集合（key/分支id + else），同一节点只报一次
         Map<String, Set<String>> legalPorts = new LinkedHashMap<>();
         for (JSONObject n : nodes) {
-            String type = n.getStr("type");
-            JSONObject data = n.getJSONObject("data");
-            if (data == null) {
-                continue;
-            }
-            Set<String> ports = null;
-            if ("condition".equals(type) || "multi-condition".equals(type)) {
-                JSONArray conditions = data.getJSONArray("conditions");
-                if (conditions != null && !conditions.isEmpty()) {
-                    ports = new LinkedHashSet<>();
-                    for (int i = 0; i < conditions.size(); i++) {
-                        JSONObject c = conditions.getJSONObject(i);
-                        if (c != null && c.getStr("key") != null && !c.getStr("key").trim().isEmpty()) {
-                            ports.add(c.getStr("key").trim());
-                        }
-                    }
-                }
-            } else if ("branches".equals(type)) {
-                JSONArray branches = data.getJSONArray("branches");
-                if (branches != null && !branches.isEmpty()) {
-                    ports = new LinkedHashSet<>();
-                    for (int i = 0; i < branches.size(); i++) {
-                        JSONObject b = branches.getJSONObject(i);
-                        if (b != null && b.getStr("id") != null && !b.getStr("id").trim().isEmpty()) {
-                            ports.add(b.getStr("id").trim());
-                        }
-                    }
-                }
-            }
-            if (ports != null && !ports.isEmpty()) {
-                ports.add("else");
+            Set<String> ports = legalPortsOf(n);
+            if (ports != null) {
                 legalPorts.put(n.getStr("id"), ports);
             }
         }
@@ -582,17 +555,12 @@ public final class WorkflowDslCanonicalizer {
     }
 
     /**
-     * 节点语义完整性检查：收集致命缺失与可疑告警。
      *
      * <p>致命（fatalIssues）：节点缺了业务必需字段，执行必然失败或无意义——
      * llm 无 prompt、http 无 url、code 无 script。落版门禁会据此拒绝。</p>
      *
      * <p>告警（warnings）：可能不是用户想要的但系统能兜住——start 没定义任何输出、
      * end 没引用上游、llm 没指定模型等。放行但随回执提示模型。</p>
-     */
-    /**
-     * 业务字段预检（落版 / 试运行共用）：返回 fatal 问题清单（带可直接抄的修复 JSON）。
-     * 空清单 = 可跑。run(target=workflow) 执行前先调它，把「跑 30 秒才发现 url 是空」提前成毫秒级失败。
      */
     public static List<String> businessFieldIssues(JSONObject doc) {
         List<String> fatalIssues = new ArrayList<>();
@@ -646,6 +614,28 @@ public final class WorkflowDslCanonicalizer {
                     }
                     if (iv == null || iv.get("modelName") == null) {
                         warnings.add("节点 " + id + "（LLM）未指定 modelName，节点运行时将缺少模型配置");
+                    }
+                    // apiKey 为空运行时必然 401：2026-10-25 C06 实证模型把 key 留空、
+                    // 试跑在远端 401 上打转。fatal 化后 add 回执与 run 预检都会带精确修复指引
+                    String apiKeyValue = constantContentOf(iv, "apiKey");
+                    if (apiKeyValue == null || apiKeyValue.trim().isEmpty()) {
+                        fatalIssues.add("节点 " + id + "（LLM）apiKey 为空：运行时无法调用模型（必然 401）。"
+                            + "修复：先 get(target=knowledge, nodeType=llm) 取 platformDefaultModel 三个值，"
+                            + "node 传 {\"action\":\"update\",\"nodeId\":\"" + id + "\",\"data\":{\"inputsValues\":"
+                            + "{\"apiKey\":{\"type\":\"constant\",\"content\":\"<platformDefaultModel.apiKey>\"}}}}"
+                            + "（modelName/apiHost 也要一并原样填入）");
+                    }
+                    // json 输出模式必须声明输出字段（运行时按声明解析模型 JSON，缺声明=无输出进 memory）
+                    if ("json".equalsIgnoreCase(data.getStr("outputMode"))) {
+                        JSONObject outputs = data.getJSONObject("outputs");
+                        JSONObject props = outputs != null ? outputs.getJSONObject("properties") : null;
+                        if (props == null || props.isEmpty()) {
+                            fatalIssues.add("节点 " + id + "（LLM，json 输出模式）缺少 outputs 声明："
+                                + "运行时无法把模型 JSON 解析成可引用字段。"
+                                + "修复：node 传 {\"action\":\"update\",\"nodeId\":\"" + id
+                                + "\",\"data\":{\"outputs\":{\"type\":\"object\",\"properties\":"
+                                + "{\"<字段名>\":{\"type\":\"string\"}}}}}，且 prompt 里要求模型只输出这些字段的 JSON 对象");
+                        }
                     }
                     break;
                 }
@@ -716,6 +706,8 @@ public final class WorkflowDslCanonicalizer {
                             + "{\"conditions\":[{\"key\":\"if_match\",\"value\":{\"left\":{\"type\":\"ref\","
                             + "\"content\":[\"<上游id>\",\"<字段>\"]},\"operator\":\"contains\","
                             + "\"right\":{\"type\":\"constant\",\"content\":\"<比较值>\"}}}]}}");
+                    } else {
+                        fatalIssues.addAll(conditionsMissingOperator(id, conditions));
                     }
                     break;
                 }
@@ -724,11 +716,28 @@ public final class WorkflowDslCanonicalizer {
                     if (branches == null || branches.isEmpty()) {
                         fatalIssues.add("节点 " + id + "（分支）没有配置任何分支——分支节点不配分支等于白建。"
                             + "修复：get 传 {\"target\":\"knowledge\",\"nodeType\":\"branches\"} 查看结构后补全 branches 列表");
+                    } else {
+                        for (int b = 0; b < branches.size(); b++) {
+                            JSONObject branch = branches.getJSONObject(b);
+                            if (branch == null) {
+                                continue;
+                            }
+                            String logic = branch.getStr("logic");
+                            if (logic != null && !"and".equals(logic) && !"or".equals(logic)) {
+                                fatalIssues.add("节点 " + id + "（分支）分支 \"" + branch.getStr("id")
+                                    + "\" 的 logic \"" + logic + "\" 非法（只认 and/or），该分支永远不命中");
+                            }
+                            JSONArray branchConditions = branch.getJSONArray("conditions");
+                            if (branchConditions != null) {
+                                fatalIssues.addAll(conditionsMissingOperator(id + "/" + branch.getStr("id"), branchConditions));
+                            }
+                        }
                     }
                     break;
                 }
                 case "loop": {
-                    if (iv == null || iv.get("loopFor") == null) {
+                    // 引擎读 data.loopFor（LoopNodeParser），此前误查 inputsValues.loopFor —— 2026-10-24 修正
+                    if (data.get("loopFor") == null) {
                         warnings.add("节点 " + id + "（循环）未配置 loopFor，不知道要循环什么");
                     }
                     break;
@@ -765,16 +774,11 @@ public final class WorkflowDslCanonicalizer {
     }
 
     /**
-     * http 节点的 url 文本：规范形状读 {@code data.api.url}（字符串或 constant/template 包装），
-     * 兼容旧落库数据的 {@code data.inputsValues.url}。取不到返回 null。
+     * 旧落库口径 inputsValues.url 的兼容读取已随 2026-10-24 全严格治理移除（引擎从不读它）。
      */
     private static String apiUrlOf(JSONObject data) {
         JSONObject api = data.getJSONObject("api");
         Object url = api != null ? api.get("url") : null;
-        if (url == null) {
-            JSONObject iv = data.getJSONObject("inputsValues");
-            url = iv != null ? iv.get("url") : null;
-        }
         if (url instanceof JSONObject) {
             Object content = ((JSONObject) url).get("content");
             if (content instanceof JSONArray) {
@@ -790,54 +794,17 @@ public final class WorkflowDslCanonicalizer {
         return hasWrapperContent(iv, key, "template") || hasWrapperContent(iv, key, "constant");
     }
 
-    /**
-     * 为 llm 节点补齐平台默认模型配置（apiKey/apiHost/modelName），返回填充项数。
-     * 只补缺失项，绝不覆盖模型/用户显式给出的配置。
-     */
-    private static int fillLlmDefaults(String type, JSONObject data, LlmDefaults defaults) {
-        if (!"llm".equals(type) || defaults == null) {
-            return 0;
-        }
-        int filled = 0;
-        if (isBlank(data.get("apiKey")) && !isBlank(defaults.apiKey)) {
-            data.set("apiKey", defaults.apiKey);
-            filled++;
-        }
-        if (isBlank(data.get("apiHost")) && !isBlank(defaults.apiHost)) {
-            data.set("apiHost", defaults.apiHost);
-            filled++;
-        }
-        if (isBlank(data.get("modelName")) && !isBlank(defaults.modelName)) {
-            data.set("modelName", defaults.modelName);
-            filled++;
-        }
-        return filled;
-    }
-
     private static boolean isBlank(Object value) {
         return value == null || value.toString().trim().isEmpty();
     }
 
-    /** inputsValues 中该字段是否已有 template/constant 包装值（normalize 后判断用） */
+    /** inputsValues 中该字段是否已有包装值（normalize 后判断用） */
     private static boolean hasWrapperValue(JSONObject data, String key) {
         JSONObject iv = data.getJSONObject("inputsValues");
         if (iv == null) {
             return false;
         }
         return iv.get(key) != null;
-    }
-
-    /** 平台默认模型配置（来自 agent_config 的 llm_config），用于 LLM 节点缺省填充 */
-    public static final class LlmDefaults {
-        public final String apiHost;
-        public final String apiKey;
-        public final String modelName;
-
-        public LlmDefaults(String apiHost, String apiKey, String modelName) {
-            this.apiHost = apiHost;
-            this.apiKey = apiKey;
-            this.modelName = modelName;
-        }
     }
 
     private static boolean hasWrapperContent(JSONObject iv, String key, String expectedType) {
@@ -880,12 +847,19 @@ public final class WorkflowDslCanonicalizer {
     }
 
     /**
-     * 对已规范化的文档执行自动分层布局（为缺失坐标的节点补位）。
      * 供服务端画布草稿的 autoLayout 操作复用。
      *
      * @param doc 含 nodes / edges 的文档对象
      */
     public static void applyLayout(JSONObject doc) {
+        applyLayout(doc, false);
+    }
+
+    /**
+     * @param force true=强制重排所有节点（AI 构建完成的一字长蛇阵治理用）；
+     *              false=只补缺失坐标的节点（落版「缺坐标自动布局」既有语义）
+     */
+    public static void applyLayout(JSONObject doc, boolean force) {
         if (doc == null) {
             return;
         }
@@ -904,11 +878,15 @@ public final class WorkflowDslCanonicalizer {
                 edgeList.add(edges.getJSONObject(i));
             }
         }
-        autoLayout(nodeList, edgeList);
+        autoLayout(nodeList, edgeList, force);
     }
 
     /** 分层布局：按 BFS 深度定 x，同层依次错开 y，避免节点重叠 */
     private static void autoLayout(List<JSONObject> nodes, List<JSONObject> edges) {
+        autoLayout(nodes, edges, false);
+    }
+
+    private static void autoLayout(List<JSONObject> nodes, List<JSONObject> edges, boolean force) {
         Map<String, List<String>> outgoing = new HashMap<>();
         Map<String, Integer> indegree = new HashMap<>();
         for (JSONObject n : nodes) {
@@ -966,7 +944,7 @@ public final class WorkflowDslCanonicalizer {
                 meta = new JSONObject();
                 n.set("meta", meta);
             }
-            if (meta.getJSONObject("position") == null) {
+            if (force || meta.getJSONObject("position") == null) {
                 meta.set("position", new JSONObject()
                     .set("x", X_BASE + d * X_STEP)
                     .set("y", Y_BASE + indexInLayer * Y_STEP));
@@ -974,67 +952,11 @@ public final class WorkflowDslCanonicalizer {
         }
     }
 
-    private static String findRoot(Map<String, JSONObject> byId, List<JSONObject> edges) {
-        Set<String> targets = new HashSet<>();
-        for (JSONObject e : edges) {
-            targets.add(e.getStr("targetNodeID"));
-        }
-        for (String id : byId.keySet()) {
-            if (!targets.contains(id) && !"end".equals(byId.get(id).getStr("type"))) {
-                return id;
-            }
-        }
-        return null;
-    }
 
-    private static String findTail(Map<String, JSONObject> byId, List<JSONObject> edges) {
-        Set<String> sources = new HashSet<>();
-        for (JSONObject e : edges) {
-            sources.add(e.getStr("sourceNodeID"));
-        }
-        String tail = null;
-        for (String id : byId.keySet()) {
-            if (!sources.contains(id) && !"start".equals(byId.get(id).getStr("type"))) {
-                tail = id;
-            }
-        }
-        return tail;
-    }
 
-    private static JSONObject simpleEdge(String from, String to) {
-        return new JSONObject().set("sourceNodeID", from).set("targetNodeID", to);
-    }
 
-    private static String uniqueId(Set<String> used, String base) {
-        if (!used.contains(base)) {
-            return base;
-        }
-        int i = 2;
-        while (used.contains(base + "_" + i)) {
-            i++;
-        }
-        return base + "_" + i;
-    }
 
-    private static JSONArray firstArray(JSONObject obj, String... keys) {
-        for (String key : keys) {
-            Object value = obj.get(key);
-            if (value instanceof JSONArray) {
-                return (JSONArray) value;
-            }
-        }
-        return null;
-    }
 
-    private static String firstNonEmpty(String... values) {
-        for (String v : values) {
-            String t = trimToNull(v);
-            if (t != null) {
-                return t;
-            }
-        }
-        return null;
-    }
 
     private static String trimToNull(String s) {
         if (s == null) {

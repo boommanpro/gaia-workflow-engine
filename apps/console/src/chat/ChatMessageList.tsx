@@ -14,20 +14,20 @@ import {
   IconCopy,
   IconChevronDown,
   IconChevronRight,
+  IconFile,
   IconTerminal,
 } from '@douyinfe/semi-icons';
 
-import { useAgent } from '../agent/AgentContext';
+import { useAgent, useLatestArtifact, useLiveMessageId, useQueueLength, useRunStreaming } from '../agent/AgentContext';
+import { useRuntime } from '../agent/runtime/store';
 import type { DisplayMessage } from '../agent/types';
 import Markdown from '../agent/Markdown';
 import { LiveAssistantContent, TimelineView, ThinkingItem } from '../agent/LiveAssistantMessage';
-import { liveStreamStore } from '../agent/live-stream-store';
-import { useSyncExternalStore } from 'react';
 import SubagentCard from '../agent/SubagentCard';
 import { PlanCard } from '../agent/PlanCard';
 import { useLanguage, t } from '../i18n';
-import { useLatestArtifact } from '../agent/artifact-store';
 import { CHAT, CHAT_COLUMN_WIDTH, ChatStyles } from './theme';
+import { splitAttachments } from './attachments';
 import { ToolSteps } from './ToolSteps';
 import { TaskCollapse } from './TaskCollapse';
 import { AskCard } from './AskCard';
@@ -53,6 +53,7 @@ const fmtTime = (ts?: number): string => {
 /** 本轮耗时（ms → 秒，向上取整）；无数据返回 undefined，折叠行退化为「执行过程」 */
 const durMsToSec = (ms?: number): number | undefined =>
   ms != null && ms > 0 ? Math.round(ms / 1000) : undefined;
+
 
 /** 历史时间线渲染体：过程项（思考/工具/播报）折叠进「任务耗时」，正文文本块直接渲染 */
 const HistoryTimeline: React.FC<{
@@ -418,16 +419,21 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   dense = false,
   hidePlanCards = false,
 }) => {
-  const { messages, streaming, liveMessageId, sendMessage, queueLength, currentSessionKey } = useAgent();
+  const { sendMessage, currentSessionKey } = useAgent();
+  const messages = useRuntime((s) => s.messages);
+  const streaming = useRunStreaming();
+  const liveMessageId = useLiveMessageId();
+  const queueLength = useQueueLength();
   useLanguage();
   /** run 期间最新的 workflow 产物 —— 驱动对话流里的画布活卡（随版本原地生长） */
-  const liveWorkflowArtifact = useLatestArtifact(currentSessionKey, 'workflow');
+  const liveWorkflowArtifact = useLatestArtifact('workflow');
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const stickRef = useRef(true);
   const [showJump, setShowJump] = useState(false);
-  /** 流式帧订阅：typing 门控 + 合帧滚动（token 不再触发 messages effect） */
-  const streamState = useSyncExternalStore(liveStreamStore.subscribe, liveStreamStore.getSnapshot);
+  /** live 现场是否已有内容（typing 门控；不订阅整份时间线，避免逐帧重渲染本组件） */
+  const hasLiveContent = useRuntime((s) => s.timeline.length > 0);
 
   const lastAssistantId = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i -= 1) {
@@ -437,10 +443,27 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
     return null;
   }, [messages]);
 
-  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+  // 跟随滚动：内容高度变化（流式增长 / 展开）时，贴底用户在单帧内跟随。
+  // 不再按流式帧读 scrollHeight（逐帧强制同步布局是展开时间线后卡顿的元凶），
+  // ResizeObserver 的回调本身就在布局之后，无需再强制 layout。
+  useEffect(() => {
     const el = scrollRef.current;
-    if (!el) return;
-    el.scrollTo({ top: el.scrollHeight, behavior });
+    const content = contentRef.current;
+    if (!el || !content || typeof ResizeObserver === 'undefined') return;
+    let raf = 0;
+    const observer = new ResizeObserver(() => {
+      if (!stickRef.current) return;
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        el.scrollTop = el.scrollHeight;
+      });
+    });
+    observer.observe(content);
+    return () => {
+      observer.disconnect();
+      if (raf) cancelAnimationFrame(raf);
+    };
   }, []);
 
   const handleScroll = useCallback(() => {
@@ -451,14 +474,11 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
     setShowJump(distance > 220);
   }, []);
 
-  useEffect(() => {
-    if (stickRef.current) scrollToBottom('auto');
-  }, [messages, streaming, scrollToBottom]);
-
-  useEffect(() => {
-    // 流式帧（≤20fps）：跟随滚动在此统一处理，避免逐 token 的 scroll 布局抖动
-    if (streamState.version > 0 && stickRef.current) scrollToBottom('auto');
-  }, [streamState.version, scrollToBottom]);
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior });
+  }, []);
 
   const handleOptionClick = useCallback(
     (option: string) => {
@@ -515,6 +535,8 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
     }
     while (i < messages.length) {
       const m = messages[i];
+      const iterStart = i;
+      try {
 
       if (m.role === 'assistant' && m.id !== liveMessageId && !m.content && !m.thinking && !m.subagentSteps && !m.subagentResult && !m.planSteps && !m.toolSteps && !m.ask) {
         // 空的助手占位消息（历史重建的产物）：无正文无卡片，直接跳过
@@ -543,8 +565,12 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
       }
 
       if (m.role === 'tool') {
-        if (m.planSteps && m.planSteps.length > 0 && !hidePlanCards) {
-          nodes.push(<PlanCard key={m.id} steps={m.planSteps} />);
+        // 计划行的消费必须与「是否渲染」解耦：hidePlanCards 时跳过渲染但必须前进 i，
+        // 否则掉进下面的分组循环后 break 不推进，外层 while 用同一个 i 无限重跑（页面冻死）。
+        if (m.planSteps && m.planSteps.length > 0) {
+          if (!hidePlanCards) {
+            nodes.push(<PlanCard key={m.id} steps={m.planSteps} />);
+          }
           i += 1;
           continue;
         }
@@ -582,10 +608,11 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
           continue;
         }
         // 用户新开一轮对话块：右对齐气泡 + 头像，与上一轮之间留呼吸感（首条消息顶部留白由容器 padding 承担）
+        const atts = m.content ? splitAttachments(m.content) : { text: '', files: [] };
         nodes.push(
           <div key={m.id} className="chat-fade" style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, padding: '2px 0', marginTop: 22 }}>
             <div style={{ maxWidth: compact ? '88%' : '78%', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, minWidth: 0 }}>
-              {m.content && (
+              {atts.text && (
                 <div
                   style={{
                     padding: '9px 14px',
@@ -598,7 +625,33 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
                     wordBreak: 'break-word',
                   }}
                 >
-                  {m.content}
+                  {atts.text}
+                </div>
+              )}
+              {atts.files.length > 0 && (
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  {atts.files.map((name) => (
+                    <span
+                      key={name}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        padding: '5px 10px',
+                        borderRadius: 10,
+                        border: `1px solid ${CHAT.line}`,
+                        background: CHAT.bgSunken,
+                        fontSize: 12,
+                        color: CHAT.textSub,
+                        maxWidth: 260,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <IconFile size="small" />
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
+                    </span>
+                  ))}
                 </div>
               )}
               {m.images && m.images.length > 0 && (
@@ -717,6 +770,10 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
         </div>
       );
       i += 1;
+      } finally {
+        // 防御：任何分支忘记推进游标都在这里兜底，消息分组循环永不死循环
+        if (i === iterStart) i += 1;
+      }
     }
     return nodes;
   }, [messages, compact, streaming, liveMessageId, lastAssistantId, handleOptionClick, copyMessage, openDebug]);
@@ -726,7 +783,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   // live 行自身已带 WaitingDots + 状态行，再渲染 TypingIndicator 会出现两个 AI 头像
   const showTyping = streaming && !!lastMsg && lastMsg.role === 'assistant'
     && lastMsg.id !== liveMessageId
-    && !streamState.content && !streamState.thinking && streamState.timeline.length === 0;
+    && !hasLiveContent;
 
   // 画布活卡只在「这一轮真的动过画布」时出现：streaming 开始时记下当前产物版本，
   // 版本号在本轮内发生过变化才亮卡；run 结束即定格（对话流交还给快照卡）。
@@ -774,6 +831,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
         }}
       >
         <div
+          ref={contentRef}
           style={{
             maxWidth: compact ? '100%' : CHAT_COLUMN_WIDTH,
             margin: '0 auto',

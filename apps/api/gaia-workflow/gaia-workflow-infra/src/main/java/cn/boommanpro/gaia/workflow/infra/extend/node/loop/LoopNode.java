@@ -56,6 +56,14 @@ public class LoopNode extends Chain {
         // 重置循环状态
         resetLoopState();
 
+        // 空循环体防护（2026-10-25 C09 实证：blocks 为空/未写进节点级字段时旧实现
+        // executeForResult 空转直至 180s 超时，模型只能干等）。这里 fail fast 带修复指引。
+        if (getNodes() == null || getNodes().isEmpty()) {
+            throw new IllegalArgumentException("循环节点 " + getId() + " 的循环体为空："
+                + "体节点必须用 node(action=add, parentId=\"" + getId() + "\") 放进容器，"
+                + "不要把体节点加在容器外再连线");
+        }
+
         // 获取循环数据
         Object loopData = getLoopData(parent);
         if (loopData == null) {

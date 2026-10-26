@@ -98,7 +98,12 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
      */
     private static final int WRAP_UP_HEADROOM = 8;
 
-    private static final Duration STREAM_TIMEOUT = Duration.ofMinutes(10);
+    /**
+     * 整 run 流式阻塞硬超时。30 分钟与 Ark 引擎 MAX_RUN_MILLIS 对齐：完整建流 + 真实 LLM 节点
+     * 整流试跑 + 测试用例的一轮正常任务 2026-10-24 实测 9 分钟撞上旧值 10 分钟直接 engine_error，
+     * 把已完成 95% 的 run 判成异常。真正的空转由轮次/无进展/复读护栏负责，这里只兜底僵死。
+     */
+    private static final Duration STREAM_TIMEOUT = Duration.ofMinutes(30);
 
     /** 框架压缩触发时保留的最近消息条数（CompactionConfig.keepMessages，非滑窗） */
     private static final int HISTORY_KEEP = 30;
@@ -112,6 +117,15 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
     private final AgentToolCallLogService toolCallLogService;
     private final AgentLlmCallLogService llmCallLogService;
     private final AgentProperties properties;
+
+    /**
+     * skill-gate 会话级触碰登记（进程内跨 run 记忆）。run 级标记在 AgentRunContext
+     * 里、每轮新对话都会清零，导致会话内第二轮起 node/edge 再被 gate 拦、模型被迫
+     * 违背用户指令重查知识（2026-10-24 会话 80bec2df 二轮实证：白烧 2 个模型轮）。
+     * 会话曾成功 skill/get 过即视为已了解知识；进程重启丢失（最多重查一次，可接受）。
+     */
+    private final java.util.concurrent.ConcurrentMap<String, Boolean> knowledgeTouchedSessions =
+        new java.util.concurrent.ConcurrentHashMap<>();
 
     public AgentScopeExecutionEngine(AgentRegistry agentRegistry,
                                      ToolExecutorRegistry toolExecutorRegistry,
@@ -195,6 +209,11 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
             if (cfg.getReasoningEffort() != null && !cfg.getReasoningEffort().isEmpty()) {
                 genOpts.reasoningEffort(cfg.getReasoningEffort());
             }
+            // vLLM 系端点的 chat_template_kwargs（如 Qwen3 的 enable_thinking:false）：
+            // 来自 llm_model 条目的 extra_body 逃生口——此前只解析未发送，vLLM 会按模板默认开思考
+            if (cfg.getChatTemplateKwargs() != null && !cfg.getChatTemplateKwargs().isEmpty()) {
+                genOpts.additionalBodyParam("chat_template_kwargs", cfg.getChatTemplateKwargs());
+            }
             innerModel = OpenAIChatModel.builder()
                 .baseUrl(cfg.getApiHost())
                 .apiKey(cfg.getApiKey())
@@ -227,7 +246,7 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
         try {
             // agent 构造下沉到 streamRun：空响应重试每次需要全新 HarnessAgent 实例
             return streamRun(definition, systemPrompt, cfg, recordingModel, toolkit, context, safeSink,
-                sessionKey, wrapUpGuard, executedToolCalls, stats, runStartedAt);
+                sessionKey, wrapUpGuard, repeatGuard, executedToolCalls, stats, runStartedAt);
         } catch (Exception e) {
             log.error("[agentscope-engine] session={} run failed: {}", sessionKey, e.getMessage(), e);
             safeSink.emit(AgentEvent.of("error", new JSONObject().set("message", "运行异常：" + e.getMessage())));
@@ -471,7 +490,7 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
     private AgentRunResult streamRun(AgentDefinition definition, String systemPrompt,
                                      AgentModelConfigService.LlmConfig cfg, RecordingModel model,
                                      Toolkit toolkit, AgentRunContext context, AgentEventSink sink,
-                                     String sessionKey, WrapUpGuard wrapUpGuard,
+                                     String sessionKey, WrapUpGuard wrapUpGuard, RepeatToolGuard repeatGuard,
                                      List<LlmToolCall> executedToolCalls,
                                      RunStats stats, long runStartedAt) {
         List<Msg> msgs = buildMessages(context, sessionKey, sink, stats);
@@ -506,7 +525,7 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
                 agent.streamEvents(msgs, ctx)
                     .takeWhile(ev -> !context.isInterrupted() && !context.isSoftStopRequested())
                     .doOnNext(ev -> translateEvent(ev, sink, finalContent, thinking, lastModel,
-                        exceeded, stats, wrapUpGuard, historyAssistantTexts))
+                        exceeded, stats, wrapUpGuard, repeatGuard, historyAssistantTexts, context))
                     .collectList()
                     .block(STREAM_TIMEOUT);
 
@@ -539,12 +558,23 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
                 // 收尾文案已由护栏写进最后一条工具结果，这里固化成 assistant 消息，
                 // 保证下一轮模型与前端刷新都能看到"为什么停"。
                 if (context.isSoftStopRequested()) {
-                    stats.failureChain.add("repeat_guard_hard_stop");
-                    String closing = context.getSoftStopReason();
+                    String closing;
+                    String reason;
+                    if (TEXT_DEGENERATION_MARKER.equals(context.getSoftStopReason())) {
+                        // 输出退化：保留到首次重复为止的正文 + 护栏说明，而不是用护栏文案覆盖全部正文
+                        reason = "text_degeneration";
+                        closing = trimRepetition(finalContent.toString())
+                            + "\n\n⚠️ 系统护栏：检测到输出陷入重复（同一段落连续出现 3 次以上），本轮已提前结束。"
+                            + "已生效的画布改动保持有效；请继续对话（如「继续」）推进剩余步骤。";
+                    } else {
+                        stats.failureChain.add("repeat_guard_hard_stop");
+                        reason = "repeat_guard";
+                        closing = context.getSoftStopReason();
+                    }
                     conversationStore.saveMessage(sessionKey, "assistant", closing, toolCallsJson, null,
                         thinking.length() > 0 ? thinking.toString() : null);
                     sink.emit(AgentEvent.of("wrap_up", new JSONObject()
-                        .set("reason", "repeat_guard")
+                        .set("reason", reason)
                         .set("message", closing)));
                     emitSettled(sink, stats, closing, thinking, executedToolCalls);
                     return finishedResult(closing, definition, sessionKey, stats, runStartedAt, false, false);
@@ -662,6 +692,52 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
         return persisted;
     }
 
+    /** 输出退化软停的内部原因标记（与复读护栏的收尾文案区分，落库时保留正文而非覆盖） */
+    static final String TEXT_DEGENERATION_MARKER = "__text_degeneration__";
+
+    /** 退化判定的重复块长度与回看窗口 */
+    private static final int DEGENERATION_BLOCK = 300;
+    private static final int DEGENERATION_WINDOW = 6000;
+    private static final int DEGENERATION_REPEATS = 3;
+
+    /**
+     * 输出是否陷入原样重复：末尾 300 字符的片段在最近 6000 字符里（不重叠地）出现 ≥3 次。
+     * 自然表述几乎不会逐字重复 300 字符三遍；退化复读则必然命中。包级可见供单测。
+     */
+    static boolean looksDegenerate(CharSequence text) {
+        int n = text.length();
+        if (n < DEGENERATION_BLOCK * DEGENERATION_REPEATS) {
+            return false;
+        }
+        String tail = text.subSequence(n - DEGENERATION_BLOCK, n).toString();
+        String window = text.subSequence(Math.max(0, n - DEGENERATION_WINDOW), n).toString();
+        int count = 0;
+        int from = 0;
+        while (true) {
+            int at = window.indexOf(tail, from);
+            if (at < 0) {
+                break;
+            }
+            count++;
+            from = at + DEGENERATION_BLOCK;
+        }
+        return count >= DEGENERATION_REPEATS;
+    }
+
+    /** 保留到首次出现重复块为止的正文（后面的都是复读） */
+    static String trimRepetition(String text) {
+        int n = text.length();
+        if (n < DEGENERATION_BLOCK * 2) {
+            return text;
+        }
+        String tail = text.substring(n - DEGENERATION_BLOCK);
+        int first = text.indexOf(tail);
+        if (first < 0 || first + DEGENERATION_BLOCK >= n) {
+            return text;
+        }
+        return text.substring(0, first + DEGENERATION_BLOCK).trim();
+    }
+
     private static String toToolCallsJson(List<LlmToolCall> calls) {
         if (calls.isEmpty()) {
             return null;
@@ -738,13 +814,22 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
     private void translateEvent(io.agentscope.core.event.AgentEvent event, AgentEventSink sink,
                                 StringBuilder finalContent, StringBuilder thinking,
                                 AtomicReference<String> lastModel, AtomicBoolean exceeded,
-                                RunStats stats, WrapUpGuard wrapUpGuard, Set<String> historyAssistantTexts) {
+                                RunStats stats, WrapUpGuard wrapUpGuard, RepeatToolGuard repeatGuard,
+                                Set<String> historyAssistantTexts, AgentRunContext context) {
         AgentEventType type = event.getType();
         if (type == AgentEventType.TEXT_BLOCK_DELTA) {
             String delta = ((TextBlockDeltaEvent) event).getDelta();
             if (delta != null && !delta.isEmpty()) {
                 finalContent.append(delta);
                 sink.emit(AgentEvent.of("token", new JSONObject().set("content", delta)));
+                // 输出退化护栏：同一段落原样连续重复（2026-10-24 会话 b6e34195 实证：模型把
+                // 同一段分析复读几十遍、不再调用工具，run 以 done 收场却什么都没收尾）
+                if (!context.isSoftStopRequested() && looksDegenerate(finalContent)) {
+                    stats.failureChain.add("text_degeneration");
+                    log.warn("[agentscope-engine] session={} text degeneration detected at {} chars",
+                        context.getSessionKey(), finalContent.length());
+                    context.requestSoftStop(TEXT_DEGENERATION_MARKER);
+                }
             }
         } else if (type == AgentEventType.THINKING_BLOCK_DELTA) {
             String delta = ((ThinkingBlockDeltaEvent) event).getDelta();
@@ -772,6 +857,8 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
             // 失控防护轮边界：结算上一轮无进展计数并推进轮次，触发即广播收尾指令
             boolean wasWrappedUp = wrapUpGuard.isWrappedUp();
             wrapUpGuard.onModelTurn();
+            // 复读护栏轮边界：同目标 streak 只跨轮累计（同轮并行批量是模型一次决策，不算复读）
+            repeatGuard.onModelTurn();
             if (wrapUpGuard.isWrappedUp() && !wasWrappedUp) {
                 log.warn("[agentscope-engine] wrap-up triggered: turns={} noProgressStreak={}",
                     wrapUpGuard.getTurns(), wrapUpGuard.getNoProgressStreak());
@@ -962,11 +1049,12 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
         }
         // 1.5 skill-gate（owb skill-gate 对标，2026-10-11）：改画布前必须先触碰过知识
         //（加载技能 / 查画布现状 / 查节点契约）—— 盲写是空壳骨架与端口错配的事故源头。
-        // 知识类工具（skill / get）成功执行后登记触碰标记，node / edge 首次调用时检查。
+        // 知识类工具（skill / get）成功执行后登记触碰标记（run 级 + 会话级），node / edge
+        // 首次调用时检查。会话级登记让同一会话第二轮对话不再被拦（run 级标记随新 run 清零）。
         // 拦截不走提前 return：置入 result 让它沿标准管线落库/记指标/发事件
         //（model-visible ⟺ logged），否则前端工具行永远悬挂、真相源缺失这条拦截记录。
         if (result == null && ("node".equals(toolName) || "edge".equals(toolName))
-            && !"1".equals(context.getAttributes().get("knowledge.touched"))) {
+            && !knowledgeTouched(context)) {
             result = ToolResult.fail(
                 "{\"error\":\"改画布前先查知识：先 skill(\\\"gaia-workflow-assistant\\\") 加载搭建手册，"
                     + "再 get(target=canvas) 看现状、get(target=knowledge, nodeType) 查要用的节点契约，然后再增删节点/连线。\"}",
@@ -1007,9 +1095,10 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
         // 7. 失控防护进度记账：任一工具成功即本轮「有进展」
         wrapUpGuard.onToolResult(result.isSuccess());
 
-        // 7.5 skill-gate 触碰登记：知识类工具成功执行即视为「已了解知识」
+        // 7.5 skill-gate 触碰登记：知识类工具成功执行即视为「已了解知识」（run 级 + 会话级）
         if (result.isSuccess() && ("skill".equals(toolName) || "get".equals(toolName))) {
             context.getAttributes().put("knowledge.touched", "1");
+            knowledgeTouchedSessions.put(context.getSessionKey(), Boolean.TRUE);
         }
 
         // 8. 复读护栏：同参数复读升级提醒；INVALID_ARGS 同参 3 次硬熔断（软停收尾）。
@@ -1111,6 +1200,12 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
             return result.getErrorCode().name();
         }
         return "EXEC_ERROR";
+    }
+
+    /** skill-gate 触碰判定：run 级标记（本 run 内查过）或会话级登记（本会话早前 run 查过，进程内） */
+    private boolean knowledgeTouched(AgentRunContext context) {
+        return "1".equals(context.getAttributes().get("knowledge.touched"))
+            || Boolean.TRUE.equals(knowledgeTouchedSessions.get(context.getSessionKey()));
     }
 
     private static boolean isReadOnlyTool(AgentToolDefinition def) {

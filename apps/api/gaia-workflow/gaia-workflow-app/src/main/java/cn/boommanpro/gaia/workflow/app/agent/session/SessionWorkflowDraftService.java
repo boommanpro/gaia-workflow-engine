@@ -8,6 +8,8 @@ import cn.hutool.json.JSONObject;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -31,14 +33,18 @@ public class SessionWorkflowDraftService {
     private final ConcurrentMap<String, JSONObject> drafts = new ConcurrentHashMap<>();
 
     /** 节点 id 递增器（避免同会话内快速增删时 id 冲突） */
-    private final ConcurrentMap<String, AtomicInteger> idCounters = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, java.util.concurrent.atomic.AtomicInteger> idCounters = new ConcurrentHashMap<>();
 
     private final SessionArtifactStore artifactStore;
     private final SessionWorkflowStore sessionWorkflowStore;
+    private final SessionEventBus eventBus;
 
-    public SessionWorkflowDraftService(SessionArtifactStore artifactStore, SessionWorkflowStore sessionWorkflowStore) {
+    public SessionWorkflowDraftService(SessionArtifactStore artifactStore,
+                                       SessionWorkflowStore sessionWorkflowStore,
+                                       SessionEventBus eventBus) {
         this.artifactStore = artifactStore;
         this.sessionWorkflowStore = sessionWorkflowStore;
+        this.eventBus = eventBus;
     }
 
     // ---------------- 读取 ----------------
@@ -184,9 +190,68 @@ public class SessionWorkflowDraftService {
             .set("type", type)
             .set("data", data)
             .set("meta", new JSONObject().set("position", position));
+        // loop：模型常把循环体 blocks/edges 写进 data（契约正确拒绝后模型仍不改写法）——
+        // 搬运到节点级（引擎 LoopNodeParser 只从节点级解析），与 http 扁平吸收同一哲学
+        relocateLoopContainerFields(node);
         if (args.get("parentId") != null) {
             node.set("parentId", args.get("parentId"));
         }
+        // code 入参声明类型传播（2026-10-25 F2）：ref 指向上游已声明输出时拷贝类型，
+        // 覆盖 inferDeclaredType 对 ref 一律 string 的占位（声明只影响表单展示）
+        propagateInputTypesFor(doc, node);
+
+        // 循环容器放置（2026-10-25 C09 实证：node 工具此前没有任何把节点写进 loop.blocks 的路径，
+        // 模型只能反复顶层 add 同一个体节点直到堆出 20+ 垃圾节点）：
+        // parentId 指向 loop 节点时，节点落入该 loop 的 blocks（缺骨架先补 block-start/block-end），
+        // 首个体节点自动从 block-start 接线；文档形状与画布 toJSON 完全一致。
+        if (args.get("parentId") != null) {
+            String parentId = args.getStr("parentId");
+            JSONObject parent = findNode(doc, parentId);
+            if (parent == null) {
+                return err("parentId not found: " + parentId);
+            }
+            if (!"loop".equals(parent.getStr("type"))) {
+                return err("parentId 必须指向 loop 容器节点（当前 " + parent.getStr("type") + "）；"
+                    + "非容器节点之间的接线用 edge(action=connect)");
+            }
+            JSONObject skeleton = ensureLoopSkeleton(parent);
+            String blockStartId = skeleton.getStr("blockStartId");
+            JSONArray blocks = parent.getJSONArray("blocks");
+            // 容器内位置：跟在已有体节点后面，避免和骨架重叠
+            position = new JSONObject().set("x", 192 + Math.max(0, blocks.size() - 2) * 160).set("y", 0);
+            node.getJSONObject("meta").set("position", position);
+            node.set("parentId", parentId);
+            blocks.add(node);
+            propagateInputTypesFor(doc, node);
+            touch(sessionKey, "ai");
+            JSONObject placed = new JSONObject()
+                .set("success", true)
+                .set("nodeId", id)
+                .set("node", node)
+                .set("container", parentId)
+                .set("blockStartId", blockStartId)
+                .set("blockEndId", skeleton.getStr("blockEndId"));
+            // 首个体节点：自动 block-start → 新节点，减少模型一次接线负担
+            boolean hasBodyEdge = false;
+            JSONArray innerEdges = parent.getJSONArray("edges");
+            if (innerEdges != null) {
+                for (int i = 0; i < innerEdges.size(); i++) {
+                    JSONObject e = innerEdges.getJSONObject(i);
+                    if (blockStartId.equals(e.getStr("sourceNodeID"))
+                        && !blockStartId.equals(e.getStr("targetNodeID"))) {
+                        hasBodyEdge = true;
+                        break;
+                    }
+                }
+            }
+            if (!hasBodyEdge) {
+                parent.getJSONArray("edges").add(new JSONObject()
+                    .set("sourceNodeID", blockStartId).set("targetNodeID", id));
+                placed.set("autoConnected", blockStartId + "->" + id);
+            }
+            return placed;
+        }
+
         nodes.add(node);
         touch(sessionKey, "ai");
 
@@ -195,6 +260,68 @@ public class SessionWorkflowDraftService {
             .set("nodeId", id)
             .set("node", node);
         return result;
+    }
+
+    /**
+     * 确保 loop 容器具备 block-start/block-end 骨架（blocks 与节点级 edges 都在 loop 节点上，
+     * 与画布 toJSON 同形），返回两个骨架节点的 id。
+     */
+    private JSONObject ensureLoopSkeleton(JSONObject loopNode) {
+        JSONArray blocks = loopNode.getJSONArray("blocks");
+        if (blocks == null) {
+            blocks = new JSONArray();
+            loopNode.set("blocks", blocks);
+        }
+        JSONArray edges = loopNode.getJSONArray("edges");
+        if (edges == null) {
+            edges = new JSONArray();
+            loopNode.set("edges", edges);
+        }
+        String loopId = loopNode.getStr("id");
+        String blockStartId = null;
+        String blockEndId = null;
+        for (int i = 0; i < blocks.size(); i++) {
+            JSONObject b = blocks.getJSONObject(i);
+            if ("block-start".equals(b.getStr("type")) && blockStartId == null) {
+                blockStartId = b.getStr("id");
+            }
+            if ("block-end".equals(b.getStr("type")) && blockEndId == null) {
+                blockEndId = b.getStr("id");
+            }
+        }
+        if (blockStartId == null) {
+            blockStartId = loopId + "_block_start";
+            blocks.add(new JSONObject()
+                .set("id", blockStartId).set("type", "block-start").set("data", new JSONObject())
+                .set("meta", new JSONObject().set("position", new JSONObject().set("x", 32).set("y", 0))));
+        }
+        if (blockEndId == null) {
+            blockEndId = loopId + "_block_end";
+            blocks.add(new JSONObject()
+                .set("id", blockEndId).set("type", "block-end").set("data", new JSONObject())
+                .set("meta", new JSONObject().set("position", new JSONObject().set("x", 352).set("y", 0))));
+        }
+        return new JSONObject().set("blockStartId", blockStartId).set("blockEndId", blockEndId);
+    }
+
+    /** 节点是否位于某个 loop 容器的 blocks 内，返回容器节点（不在任何容器内返回 null） */
+    private JSONObject loopContainerOf(JSONObject doc, String nodeId) {
+        JSONArray nodes = doc.getJSONArray("nodes");
+        if (nodes == null) {
+            return null;
+        }
+        for (int i = 0; i < nodes.size(); i++) {
+            JSONObject n = nodes.getJSONObject(i);
+            if (!"loop".equals(n.getStr("type")) || n.getJSONArray("blocks") == null) {
+                continue;
+            }
+            for (Object b : n.getJSONArray("blocks")) {
+                if (b instanceof JSONObject && nodeId.equals(((JSONObject) b).getStr("id"))) {
+                    return n;
+                }
+            }
+        }
+        return null;
     }
 
     /** 更新节点 data（深合并，数组整体替换），返回是否实际变更 */
@@ -222,8 +349,101 @@ public class SessionWorkflowDraftService {
         }
         // 扁平字段 → inputsValues，保证 canvas 增量配置的节点可直接执行
         NodeDataNormalizer.normalize(node.getStr("type"), data);
+        // loop：data 里的 blocks/edges 搬到节点级（引擎从节点级解析容器结构）
+        relocateLoopContainerFields(node);
+        // 容器迁移：update 携带 parentId（顶层或 data 内——模型两种写法都出现过）
+        // 时把已存在的节点移入 loop 容器 blocks（2026-10-25 C09 实证吸收）
+        String moveInto = args.getStr("parentId");
+        if (moveInto == null) {
+            moveInto = data.getStr("parentId");
+            data.remove("parentId");
+        }
+        if (moveInto != null) {
+            JSONObject moved = moveNodeIntoLoop(doc, node, moveInto);
+            if (moved != null) {
+                propagateInputTypesFor(doc, node);
+                touch(sessionKey, "ai");
+                return moved;
+            }
+        }
+        propagateInputTypesFor(doc, node);
         touch(sessionKey, "ai");
         return new JSONObject().set("success", true);
+    }
+
+    /** 把顶层节点移入 loop 容器 blocks（骨架缺失自动补），返回迁移回执；目标不是 loop 时返回 null 走原路径 */
+    private JSONObject moveNodeIntoLoop(JSONObject doc, JSONObject node, String loopId) {
+        JSONObject parent = findNode(doc, loopId);
+        if (parent == null || !"loop".equals(parent.getStr("type"))) {
+            return null;
+        }
+        JSONObject skeleton = ensureLoopSkeleton(parent);
+        // 从顶层 nodes 摘除
+        JSONArray nodes = doc.getJSONArray("nodes");
+        for (int i = nodes.size() - 1; i >= 0; i--) {
+            if (node.getStr("id").equals(nodes.getJSONObject(i).getStr("id"))) {
+                nodes.remove(i);
+                break;
+            }
+        }
+        node.set("parentId", loopId);
+        parent.getJSONArray("blocks").add(node);
+        return new JSONObject().set("success", true)
+            .set("movedInto", loopId)
+            .set("blockStartId", skeleton.getStr("blockStartId"))
+            .set("blockEndId", skeleton.getStr("blockEndId"));
+    }
+
+    /**
+     * loop 容器字段归位：模型经常把循环体 blocks/edges 写进 data（schema additionalProperties:false
+     * 会拒绝，但模型屡教不改——2026-10-25 C09 三轮实证）。这里把 data.blocks/data.edges 搬到节点级：
+     * blocks 按 id 去重追加（不覆盖画布已有的骨架与体节点），edges 整体替换。
+     */
+    private void relocateLoopContainerFields(JSONObject node) {
+        if (!"loop".equals(node.getStr("type"))) {
+            return;
+        }
+        JSONObject data = node.getJSONObject("data");
+        if (data == null) {
+            return;
+        }
+        Object blocks = data.remove("blocks");
+        Object edges = data.remove("edges");
+        if (blocks instanceof JSONArray) {
+            JSONArray target = node.getJSONArray("blocks");
+            if (target == null) {
+                target = new JSONArray();
+                node.set("blocks", target);
+            }
+            java.util.Set<String> existingIds = new java.util.HashSet<>();
+            for (Object b : target) {
+                if (b instanceof JSONObject) {
+                    existingIds.add(((JSONObject) b).getStr("id"));
+                }
+            }
+            for (Object b : (JSONArray) blocks) {
+                if (b instanceof JSONObject) {
+                    String bid = ((JSONObject) b).getStr("id");
+                    if (bid == null || !existingIds.contains(bid)) {
+                        target.add(b);
+                        if (bid != null) {
+                            existingIds.add(bid);
+                        }
+                    }
+                }
+            }
+        }
+        if (edges instanceof JSONArray) {
+            node.set("edges", edges);
+        }
+    }
+
+    /** code 入参类型传播的图上下文包装（见 NodeDataNormalizer.propagateInputTypes） */
+    private void propagateInputTypesFor(JSONObject doc, JSONObject node) {
+        NodeDataNormalizer.propagateInputTypes(node, id -> {
+            JSONObject target = findNode(doc, id);
+            return target != null ? target.getJSONObject("data") : null;
+        });
     }
 
     /** 删除节点及其相关连线 */
@@ -260,6 +480,22 @@ public class SessionWorkflowDraftService {
             return err("from and to are required");
         }
         JSONObject doc = getOrCreate(sessionKey);
+        // 模型会猜循环骨架 id（block_start_<loopId> / <loopId>_block_start 两种写法都出现过）——
+        // 目标 loop 存在且骨架 id 未落画布时归一到真实骨架 id，避免模型反复猜错
+        from = normalizeLoopSkeletonRef(doc, from);
+        to = normalizeLoopSkeletonRef(doc, to);
+        // 循环体内部连线：两端都在同一个 loop 的 blocks 内时写入 loop 节点级 edges（引擎从此解析）；
+        // 只有一端在容器内 = 跨容器边界，明确拒绝（顶层边引擎不会进入容器内部）
+        JSONObject fromLoop = loopContainerOf(doc, from);
+        JSONObject toLoop = loopContainerOf(doc, to);
+        if (fromLoop != null || toLoop != null) {
+            if (fromLoop == null || toLoop == null || !fromLoop.getStr("id").equals(toLoop.getStr("id"))) {
+                return err("循环体连线必须两端都在同一个 loop 容器内部："
+                    + "用 node(action=add, parentId=\"" + (fromLoop != null ? fromLoop.getStr("id") : toLoop.getStr("id"))
+                    + "\") 把节点放入容器后再互相连线；loop 与外部节点之间的连线才是顶层边");
+            }
+            return connectInsideLoop(sessionKey, fromLoop, from, to, args.getStr("fromPort"));
+        }
         JSONArray edges = doc.getJSONArray("edges");
         JSONObject edge = new JSONObject().set("sourceNodeID", from).set("targetNodeID", to);
         if (args.getStr("fromPort") != null) {
@@ -278,6 +514,60 @@ public class SessionWorkflowDraftService {
         edges.add(edge);
         touch(sessionKey, "ai");
         return new JSONObject().set("success", true);
+    }
+
+    /** loop 骨架 id 归一：block_start_<loopId>/<loopId>_block_start/block_end 两种语序都映射到真实骨架 id；非骨架猜测原样返回 */
+    private String normalizeLoopSkeletonRef(JSONObject doc, String nodeId) {
+        if (nodeId == null || findNode(doc, nodeId) != null) {
+            return nodeId;
+        }
+        String loopId = null;
+        boolean start = false;
+        if (nodeId.startsWith("block_start_")) {
+            loopId = nodeId.substring("block_start_".length());
+            start = true;
+        } else if (nodeId.startsWith("block_end_")) {
+            loopId = nodeId.substring("block_end_".length());
+        } else if (nodeId.endsWith("_block_start")) {
+            loopId = nodeId.substring(0, nodeId.length() - "_block_start".length());
+            start = true;
+        } else if (nodeId.endsWith("_block_end")) {
+            loopId = nodeId.substring(0, nodeId.length() - "_block_end".length());
+        }
+        if (loopId == null || loopId.isEmpty()) {
+            return nodeId;
+        }
+        JSONObject loop = findNode(doc, loopId);
+        if (loop == null || !"loop".equals(loop.getStr("type"))) {
+            return nodeId;
+        }
+        JSONObject skeleton = ensureLoopSkeleton(loop);
+        return start ? skeleton.getStr("blockStartId") : skeleton.getStr("blockEndId");
+    }
+
+    /** loop 容器内部连线（写 loop 节点级 edges，与画布 toJSON 同形），带去重 */
+    private JSONObject connectInsideLoop(String sessionKey, JSONObject loopNode, String from, String to, String fromPort) {
+        JSONArray edges = loopNode.getJSONArray("edges");
+        if (edges == null) {
+            edges = new JSONArray();
+            loopNode.set("edges", edges);
+        }
+        String port = fromPort;
+        for (int i = 0; i < edges.size(); i++) {
+            JSONObject e = edges.getJSONObject(i);
+            boolean sameEnds = from.equals(e.getStr("sourceNodeID")) && to.equals(e.getStr("targetNodeID"));
+            boolean samePort = java.util.Objects.equals(port, e.getStr("sourcePortID"));
+            if (sameEnds && samePort) {
+                return new JSONObject().set("success", true).set("alreadyExists", true);
+            }
+        }
+        JSONObject edge = new JSONObject().set("sourceNodeID", from).set("targetNodeID", to);
+        if (port != null) {
+            edge.set("sourcePortID", port);
+        }
+        edges.add(edge);
+        touch(sessionKey, "ai");
+        return new JSONObject().set("success", true).set("innerEdge", true);
     }
 
     /** 断开连线 */
@@ -336,7 +626,7 @@ public class SessionWorkflowDraftService {
                 meta.remove("position");
             }
         }
-        WorkflowDslCanonicalizer.applyLayout(doc);
+        WorkflowDslCanonicalizer.applyLayout(doc, true);
         touch(sessionKey, "ai");
         return new JSONObject().set("success", true);
     }
@@ -380,17 +670,45 @@ public class SessionWorkflowDraftService {
         return result;
     }
 
-    /** 将草稿文档广播给所有订阅窗口（画布变更后调用；_meta 服务端内部键不外发） */
+    /**
+     * 将草稿变更广播给所有订阅窗口（画布工具每次变更后调用）。
+     *
+     * <p>v3 协议：带 300ms 前沿+尾沿节流 —— 搭建高峰（批量 node add / 连续连线）不会
+     * 每次变更都广播全量 DSL；广播内容为<b>增量 ops</b>（按节点/连线 id 的 upsert/remove），
+     * 首次或对不上版本时发全量。前端按 {@code baseVersion} 校验后应用，
+     * 版本落后则自行 GET /document 拉全量。</p>
+     */
     public void emitDocument(AgentRunContext context, String sessionKey) {
         if (context == null || sessionKey == null) {
             return;
         }
-        context.emit("document", new JSONObject().set("dsl", publicDoc(sessionKey)));
+        requestEmit(sessionKey, data -> context.emit("document", data));
+    }
+
+    /** 非运行期广播（push-draft / seed-draft 等直接走总线），同样走版本化与节流 */
+    public void broadcastDocument(String sessionKey) {
+        if (sessionKey == null) {
+            return;
+        }
+        requestEmit(sessionKey, data -> eventBus.publish(sessionKey, "document", data));
     }
 
     /** 去掉 _meta 的对外文档（document 事件 / run workflow 执行输入用） */
     public JSONObject publicDoc(String sessionKey) {
         return withoutMeta(get(sessionKey));
+    }
+
+    /** 对外文档 + 当前广播版本（GET /document 用；返回副本，不污染草稿缓存） */
+    public JSONObject publicDocWithVersion(String sessionKey) {
+        JSONObject doc = new JSONObject(publicDoc(sessionKey).toString());
+        doc.set("version", getBroadcastVersion(sessionKey));
+        return doc;
+    }
+
+    /** 当前草稿已广播到的版本（从未广播 = 0；前端据此与 document 事件对齐） */
+    public long getBroadcastVersion(String sessionKey) {
+        DocEmitState st = emitStates.get(sessionKey);
+        return st != null ? st.version : 0;
     }
 
     private static JSONObject withoutMeta(JSONObject doc) {
@@ -495,6 +813,10 @@ public class SessionWorkflowDraftService {
 
         JSONObject meta = getMeta(sessionKey);
         boolean rebound = false;
+        // 变更分类（2026-10-25 用户定义的修订语义）：节点增删/属性修改 = 实质变更（revision+1）；
+        // 仅坐标变化 = layout 变更（revision 不动，但记 layoutUserTouched——自动布局据此让位）
+        JSONObject previous = drafts.get(sessionKey);
+        boolean layoutOnly = previous != null && contentEqualsIgnorePositions(previous, copy);
         if (workflowCode != null && !workflowCode.isEmpty()
             && !workflowCode.equals(meta.getStr("boundCode"))) {
             meta = new JSONObject()
@@ -502,11 +824,14 @@ public class SessionWorkflowDraftService {
                 .set("baseRevision", baseRevision != null ? baseRevision : 0L)
                 .set("draftRevision", 1);
             rebound = true;
-        } else {
+        } else if (!layoutOnly) {
             // 同一绑定内的回推 = 用户改了一版：修订号 +1（get target=canvas 可见）
             meta.set("draftRevision", meta.getInt("draftRevision", 0) + 1);
         }
         meta.set("lastEditedBy", "user").set("lastEditedAt", System.currentTimeMillis());
+        if (previous != null && !positionsEqual(previous, copy)) {
+            meta.set("layoutUserTouched", true);
+        }
         if (!meta.isEmpty()) {
             copy.set(META_KEY, meta);
         }
@@ -523,6 +848,117 @@ public class SessionWorkflowDraftService {
     }
 
     private static final String META_KEY = "_meta";
+
+
+    /** 内容等价（忽略坐标）：节点（去 position/_meta）与边（排序后）逐一比较 */
+    private static boolean contentEqualsIgnorePositions(JSONObject a, JSONObject b) {
+        return fingerprintIgnoringPositions(a).equals(fingerprintIgnoringPositions(b));
+    }
+
+    /** 仅比较坐标是否一致（节点 id 集不同视为不一致） */
+    private static boolean positionsEqual(JSONObject a, JSONObject b) {
+        JSONArray na = a.getJSONArray("nodes");
+        JSONArray nb = b.getJSONArray("nodes");
+        if (na == null || nb == null || na.size() != nb.size()) {
+            return false;
+        }
+        Map<String, JSONObject> byId = new HashMap<>();
+        for (int i = 0; i < nb.size(); i++) {
+            JSONObject n = nb.getJSONObject(i);
+            byId.put(n.getStr("id"), n);
+        }
+        for (int i = 0; i < na.size(); i++) {
+            JSONObject n = na.getJSONObject(i);
+            JSONObject other = byId.get(n.getStr("id"));
+            if (other == null) {
+                return false;
+            }
+            if (!java.util.Objects.equals(positionKey(n), positionKey(other))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static String positionKey(JSONObject node) {
+        JSONObject meta = node.getJSONObject("meta");
+        JSONObject pos = meta != null ? meta.getJSONObject("position") : null;
+        return pos == null ? "" : pos.getInt("x", 0) + "," + pos.getInt("y", 0);
+    }
+
+    private static String fingerprintIgnoringPositions(JSONObject doc) {
+        JSONArray nodes = doc.getJSONArray("nodes");
+        java.util.List<String> parts = new java.util.ArrayList<>();
+        if (nodes != null) {
+            for (int i = 0; i < nodes.size(); i++) {
+                JSONObject copy = new JSONObject(nodes.getJSONObject(i).toString());
+                JSONObject meta = copy.getJSONObject("meta");
+                if (meta != null) {
+                    meta.remove("position");
+                }
+                copy.remove(META_KEY);
+                parts.add(copy.toString());
+            }
+        }
+        parts.sort(null);
+        JSONArray edges = doc.getJSONArray("edges");
+        java.util.List<String> edgeParts = new java.util.ArrayList<>();
+        if (edges != null) {
+            for (int i = 0; i < edges.size(); i++) {
+                edgeParts.add(edges.getJSONObject(i).toString());
+            }
+        }
+        edgeParts.sort(null);
+        return String.join("|", parts) + "||" + String.join("|", edgeParts);
+    }
+
+    /**
+     * AI 构建完成后的自动分层布局（2026-10-25，一字长蛇阵修复）：
+     * agent 的 node 工具无 position，顺序链式构建会把全部节点排在同一行，
+     * 缩略图/编辑器里成为一条细线。run 结束时若<b>用户从未手动摆过布局</b>
+     * （_meta.layoutUserTouched 未置位）则重排为 BFS 分层；用户摆过一次即永久让位。
+     * 布局是展示层变更：不 bump draftRevision（与 push 的 layout-only 语义同口径）。
+     */
+    public void autoLayoutIfUntouched(String sessionKey) {
+        JSONObject doc = drafts.get(sessionKey);
+        if (doc == null) {
+            return;
+        }
+        JSONObject meta = doc.getJSONObject(META_KEY);
+        if (meta != null && meta.getBool("layoutUserTouched", false)) {
+            return;
+        }
+        JSONArray nodes = doc.getJSONArray("nodes");
+        if (nodes == null || nodes.size() < 3) {
+            return;
+        }
+        // 布局已接近分层（宽高比 < 6）就不折腾——避免每次小修改后节点跳动
+        double ratio = boundsAspectRatio(nodes);
+        if (ratio > 0 && ratio < 6) {
+            return;
+        }
+        WorkflowDslCanonicalizer.applyLayout(doc, true);
+        persistArtifact(sessionKey, "stable", "自动分层布局 · " + nodes.size() + " 节点");
+        broadcastDocument(sessionKey);
+        log.info("[draft] {} auto-layout applied ({} nodes, ratio was {})", sessionKey, nodes.size(), String.format("%.1f", ratio));
+    }
+
+    /** 内容包围盒宽高比（无坐标节点按 0 计，返回 0 表示无法判定） */
+    private static double boundsAspectRatio(JSONArray nodes) {
+        long minX = Long.MAX_VALUE, minY = Long.MAX_VALUE, maxX = Long.MIN_VALUE, maxY = Long.MIN_VALUE;
+        for (int i = 0; i < nodes.size(); i++) {
+            JSONObject meta = nodes.getJSONObject(i).getJSONObject("meta");
+            JSONObject pos = meta != null ? meta.getJSONObject("position") : null;
+            if (pos == null) {
+                return 0;
+            }
+            long x = pos.getLong("x", 0L), y = pos.getLong("y", 0L);
+            minX = Math.min(minX, x); minY = Math.min(minY, y);
+            maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+        }
+        long w = Math.max(1, maxX - minX), h = Math.max(1, maxY - minY);
+        return (double) Math.max(w, h) / Math.min(w, h);
+    }
 
     /**
      * 变更记账：草稿修订号 +1 并记录最后编辑者（get target=canvas 的版本信息来源，
@@ -562,6 +998,151 @@ public class SessionWorkflowDraftService {
     private static int nextDraftRevision(JSONObject doc) {
         JSONObject meta = doc.getJSONObject(META_KEY);
         return (meta != null ? meta.getInt("draftRevision", 0) : 0) + 1;
+    }
+
+    // ---------------- v3：版本化增量广播（document 事件节流 + ops diff） ----------------
+
+    /** 距上次广播不足该间隔时的变更走尾沿合并（前沿立即发，搭建高峰不刷屏也不滞后） */
+    private static final long DOC_EMIT_LEADING_MS = 300;
+
+    /** 单线程调度器（低频：每会话至多一个挂起任务） */
+    private static final java.util.concurrent.ScheduledExecutorService DOC_EMITTER =
+        java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "doc-emit");
+            t.setDaemon(true);
+            return t;
+        });
+
+    private interface DocEmitter {
+        void emit(JSONObject data);
+    }
+
+    /** 每会话的广播状态：版本号 + 上次广播时的节点/连线指纹 */
+    private static final class DocEmitState {
+        long version = 0;
+        long lastEmitAt = 0;
+        java.util.concurrent.ScheduledFuture<?> pending;
+        java.util.Map<String, String> nodeJsons;
+        java.util.Map<String, String> edgeJsons;
+        String extraJson = "";
+    }
+
+    private final ConcurrentMap<String, DocEmitState> emitStates = new ConcurrentHashMap<>();
+
+    private void requestEmit(String sessionKey, DocEmitter emitter) {
+        DocEmitState st = emitStates.computeIfAbsent(sessionKey, k -> new DocEmitState());
+        synchronized (st) {
+            long now = System.currentTimeMillis();
+            if (st.pending == null && now - st.lastEmitAt >= DOC_EMIT_LEADING_MS) {
+                st.lastEmitAt = now;
+                doEmit(sessionKey, st, emitter);
+                return;
+            }
+            if (st.pending != null) {
+                st.pending.cancel(false);
+            }
+            st.pending = DOC_EMITTER.schedule(() -> {
+                synchronized (st) {
+                    st.pending = null;
+                    st.lastEmitAt = System.currentTimeMillis();
+                    doEmit(sessionKey, st, emitter);
+                }
+            }, DOC_EMIT_LEADING_MS, java.util.concurrent.TimeUnit.MILLISECONDS);
+        }
+    }
+
+    /** 计算并发送本帧（全量或 ops）；与上次指纹一致则静默跳过 */
+    private void doEmit(String sessionKey, DocEmitState st, DocEmitter emitter) {
+        try {
+            JSONObject doc = publicDoc(sessionKey);
+            java.util.Map<String, String> curNodes = new java.util.LinkedHashMap<>();
+            java.util.Map<String, String> curEdges = new java.util.LinkedHashMap<>();
+            JSONArray nodes = doc.getJSONArray("nodes");
+            if (nodes != null) {
+                for (int i = 0; i < nodes.size(); i++) {
+                    JSONObject node = nodes.getJSONObject(i);
+                    if (node != null && node.getStr("id") != null) {
+                        curNodes.put(node.getStr("id"), node.toString());
+                    }
+                }
+            }
+            JSONArray edges = doc.getJSONArray("edges");
+            if (edges != null) {
+                for (int i = 0; i < edges.size(); i++) {
+                    JSONObject edge = edges.getJSONObject(i);
+                    if (edge != null) {
+                        curEdges.put(edgeKey(edge), edge.toString());
+                    }
+                }
+            }
+            // 顶层附加键（nodes/edges 之外）：变化即退化为全量广播
+            JSONObject extra = new JSONObject();
+            for (String key : doc.keySet()) {
+                if (!"nodes".equals(key) && !"edges".equals(key)) {
+                    extra.set(key, doc.get(key));
+                }
+            }
+            String extraJson = extra.toString();
+
+            JSONObject data = new JSONObject();
+            if (st.nodeJsons == null || !st.extraJson.equals(extraJson)) {
+                data.set("dsl", new JSONObject(doc.toString()));
+            } else {
+                JSONArray ops = diffOps(st, curNodes, curEdges);
+                if (ops.isEmpty()) {
+                    return; // 与上次广播完全一致：静默（回声/重复触发）
+                }
+                data.set("ops", ops).set("baseVersion", st.version);
+            }
+            st.version++;
+            data.set("version", st.version);
+            st.nodeJsons = curNodes;
+            st.edgeJsons = curEdges;
+            st.extraJson = extraJson;
+            emitter.emit(data);
+        } catch (Exception e) {
+            // 并发快照失败等异常：作废指纹，下一帧自动退化为全量
+            st.nodeJsons = null;
+            log.debug("[draft] emit diff failed, fallback to full next time: {}", e.getMessage());
+        }
+    }
+
+    /** 节点/连线指纹差 → 增量 ops（upsert/remove 语义，前端幂等应用） */
+    private static JSONArray diffOps(DocEmitState st,
+                                     java.util.Map<String, String> curNodes,
+                                     java.util.Map<String, String> curEdges) {
+        JSONArray ops = new JSONArray();
+        for (java.util.Map.Entry<String, String> entry : curNodes.entrySet()) {
+            String prev = st.nodeJsons.get(entry.getKey());
+            if (prev == null || !prev.equals(entry.getValue())) {
+                ops.add(new JSONObject().set("op", "node_set").set("node", cn.hutool.json.JSONUtil.parseObj(entry.getValue())));
+            }
+        }
+        for (String id : st.nodeJsons.keySet()) {
+            if (!curNodes.containsKey(id)) {
+                ops.add(new JSONObject().set("op", "node_remove").set("id", id));
+            }
+        }
+        for (java.util.Map.Entry<String, String> entry : curEdges.entrySet()) {
+            String prev = st.edgeJsons.get(entry.getKey());
+            if (prev == null || !prev.equals(entry.getValue())) {
+                ops.add(new JSONObject().set("op", "edge_set").set("edge", cn.hutool.json.JSONUtil.parseObj(entry.getValue())));
+            }
+        }
+        for (String key : st.edgeJsons.keySet()) {
+            if (!curEdges.containsKey(key)) {
+                ops.add(new JSONObject().set("op", "edge_remove").set("key", key));
+            }
+        }
+        return ops;
+    }
+
+    /** 连线指纹键：from→to（带端口时附 #port；端口不同是两条合法边） */
+    private static String edgeKey(JSONObject edge) {
+        String from = edge.getStr("sourceNodeID", "");
+        String to = edge.getStr("targetNodeID", "");
+        String port = edge.getStr("sourcePortID");
+        return port != null && !port.isEmpty() ? from + "->" + to + "#" + port : from + "->" + to;
     }
 
     // ---------------- 内部 ----------------
@@ -615,6 +1196,9 @@ public class SessionWorkflowDraftService {
         }
         // 清洗 JSONNull（历史草稿可能已被「null 值」毒化，Jackson 序列化会 500）
         stripNulls(copy);
+        // 对象输出声明的引用驱动补全：code 声明 buyer:{type:object} 不写 properties 时，
+        // 下游模板引用的子字段在前端变量树查不到（渲染 Unknown）。按全图引用补全声明。
+        NodeDataNormalizer.completeObjectOutputDeclarations(copy);
         return copy;
     }
 

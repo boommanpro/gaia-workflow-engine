@@ -15,9 +15,9 @@
  *   条目仅在自己的 closed !== true 且连接未中断时才流式闪烁；
  *   工具/通知入场、run 终态、断线重连任一发生即停 —— 已完成的思考块永远安静。
  */
-import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
-import { liveStreamStore } from './live-stream-store';
+import { useRuntime, shallowEqual } from './runtime/store';
 import type { ActivityLabel } from './use-stable-activity';
 import { useStableActivity } from './use-stable-activity';
 import type { TimelineItem } from './types';
@@ -370,21 +370,29 @@ export const TimelineView: React.FC<{
 );
 
 /** 状态行：只保留异常态（重连中 / 疑似卡死）。
- *  常规的「当前工具 + 耗时」已由 TaskCollapse 折叠行承担（TRAE 式极简，2026-10-17），
- *  但重连/卡死是可靠性信号，必须无视折叠常显。 */
+ *  常规的「当前工具 + 耗时」已由 TaskCollapse 折叠行承担（TRAE 式极简），
+ *  但重连/卡死是可靠性信号，必须无视折叠常显。自带 5s 心跳：静止期也能检出卡死。 */
 const StreamStatusBar: React.FC = () => {
-  const state = useSyncExternalStore(liveStreamStore.subscribe, liveStreamStore.getSnapshot);
-  if (!state.streaming) return null;
+  const status = useRuntime(
+    (s) => ({ streaming: s.streaming, connection: s.connection, lastEventAt: s.lastEventAt, startedAt: s.startedAt, currentTool: s.currentTool }),
+    shallowEqual
+  );
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => tick((v) => v + 1), 5000);
+    return () => clearInterval(timer);
+  }, []);
+  if (!status.streaming) return null;
 
-  const reconnecting = state.connection === 'reconnecting';
+  const reconnecting = status.connection === 'reconnecting';
   // 挂起等待用户作答不算「卡死」：ask_user 期间没有事件是设计使然（可能等满超时窗口）
-  if (state.currentTool === 'ask_user') return null;
+  if (status.currentTool === 'ask_user') return null;
 
-  // 卡死中判定：streaming 且 >90s 无任何事件到达（对标 OWB「中断」态，不假装还在跑）
+  // 卡死中判定：streaming 且 >90s 无任何事件到达（不假装还在跑）
   const stalled =
-    state.startedAt > 0 &&
-    state.lastEventAt > 0 &&
-    Date.now() - state.lastEventAt > 90000;
+    status.startedAt > 0 &&
+    status.lastEventAt > 0 &&
+    Date.now() - status.lastEventAt > 90000;
   if (!reconnecting && !stalled) return null;
 
   return (
@@ -471,7 +479,16 @@ function currentActivity(state: {
  * 「任务耗时 Xs」折叠行默认隐藏，只有正文文本块直接流式渲染。
  */
 export const LiveAssistantContent: React.FC = () => {
-  const state = useSyncExternalStore(liveStreamStore.subscribe, liveStreamStore.getSnapshot);
+  const state = useRuntime(
+    (s) => ({
+      streaming: s.streaming,
+      connected: s.connection !== 'reconnecting',
+      timeline: s.timeline,
+      startedAt: s.startedAt,
+      currentTool: s.currentTool,
+    }),
+    shallowEqual
+  );
   // 活动前缀走稳定展示（最小停留 + 连发聚合），不随事件逐条闪烁
   const stableActivity = useStableActivity(state.streaming ? currentActivity(state) : undefined);
   // ask_user 挂起等待：任务没有「在进行」，是在等用户 —— 显式提示，别让秒表假装还在干活
@@ -487,7 +504,7 @@ export const LiveAssistantContent: React.FC = () => {
   // 过程项（思考/工具/播报）与正文文本块分离：前者折叠，后者照常流式
   const processItems = state.timeline.filter((i) => i.kind !== 'text');
   const textItems = state.timeline.filter((i) => i.kind === 'text');
-  const connected = state.connection !== 'reconnecting';
+  const connected = state.connected;
   return (
     <div>
       {waitingAsk && <WaitingAnswerBar />}

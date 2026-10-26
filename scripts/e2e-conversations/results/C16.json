@@ -1,0 +1,1364 @@
+{
+  "caseId": "C16",
+  "sessionKey": "815ddb2f1f9b42f39d6110813d385d5e",
+  "elapsedSec": 151,
+  "turns": [
+    {
+      "utterance": "做一个报销审批小流程：输入金额，默认状态是“待审批”；金额大于 1000 的，状态改成“需主管审批”、审批人记“主管”，否则审批人记“财务”。最后把金额、状态、审批人一起输出。",
+      "runStatus": "done",
+      "asksAnswered": [],
+      "lastAssistant": "我来创建这个报销审批流程。先加载搭建手册，然后查看当前画布状态。\n\n画布已有 start_1 和 end_1 骨架。现在创建流程：\n\n1. **start_1**：添加输入参数 `amount`（报销金额）\n2. **condition_1**：条件判断，金额 > 1000 走\"需主管审批\"分支，否则走\"财务审批\"分支\n3. **end_1**：输出金额、状态、审批人\n\n先配置 start 节点的输出参数，然后添加条件节点并接线：\n\n修正两个错误：\n\ncondition 的 value 字段需要是字面量或引用，让我查一下 condition 的契约：\n\n明白了，condition 的 value 结构是 `{left, operator, right}`。重新创建：\n\n条件节点创建成功。现在添加两个 code 节点分别处理两个分支，然后连到 end：\n\n两个 code 节点已创建，需要配置 script 并接线到 end。先查 code 节点知识确认引用写法：\n\n现在配置两个 code 节点的 script，并接线到 end：\n\n现在把两个 code 节点都连到 end_1，并配置 end 的输出：\n\n现在配置 end_1 的输出，引用 code_manager 和 code_finance 的结果。由于两个分支输出结构相同，我需要用一个变量来汇聚：\n\nend_1 的上游只有 start_1 和 condition_1，code 节点不在上游变量列表中。这是因为 code 节点在条件分支里，end 需要直接引用 code 节点的输出。让我配置 end 的 inputsValues：\n\n现在整流试跑，先测试金额 > 1000 的情况：\n\nend_1 的 outputs 为空，说明 end 没有正确输出。让我检查 end_1 的配置：\n\nend_1 只引用了 code_manager 的 amount，但 code_finance 分支走不到 code_manager。问题在于 end 只能引用一个节点的输出，而两个分支走不同节点。我需要用 variable 节点来汇聚两个分支的结果。\n\n让我添加一个 variable 节点，在两个分支后设置变量：\n\n查一下 variable 节点的契约：\n\n明白了，variable 用 `assign` 数组。更新 var_result2：\n\n现在更新 end_1 的 inputsValues，引用 variable 节点的 result：\n\n现在整流试跑，测试金额 > 1000 的情况：\n\noutputs 还是空的。让我检查 code_manager 的实际输出：\n\ncode_manager 没有声明 outputs，所以它的输出字段不可见。让我检查 code_manager 的配置：\n\ncode_manager 没有声明 outputs.properties，所以它的输出字段（amount, status, approver）不会被暴露给下游。需要添加 outputs 声明：\n\n现在重新试跑：\n\noutputs 还是空的。问题可能是 end_1 引用的 var_result.result 在 code_manager 分支执行时 var_result 拿到了值，但 end 的输出需要看 end 的 inputsValues 映射。让我检查 end_1 的变量引用：\n\nend_1 的上游变量列表里没有 var_result，说明 variable 节点的输出没有被正确暴露。让我检查 var_result 的配置："
+    }
+  ],
+  "pass": true,
+  "checks": [
+    {
+      "case": "C16",
+      "name": "存在 variable 节点",
+      "pass": true,
+      "detail": "variable 数量=2"
+    },
+    {
+      "case": "C16",
+      "name": "1500 元成功",
+      "pass": true,
+      "detail": "status=success"
+    },
+    {
+      "case": "C16",
+      "name": "大额走主管",
+      "pass": true,
+      "detail": "{\"approver\":\"主管\",\"amount\":1500,\"amount2\":null,\"approver2\":null,\"status2\":null,\"status\":\"需主管审批\"}"
+    },
+    {
+      "case": "C16",
+      "name": "500 元成功",
+      "pass": true,
+      "detail": "status=success"
+    },
+    {
+      "case": "C16",
+      "name": "小额走财务",
+      "pass": true,
+      "detail": "{\"approver\":null,\"amount\":null,\"amount2\":500,\"approver2\":\"财务\",\"status2\":\"待审批\",\"status\":null}"
+    }
+  ],
+  "doc": {
+    "edges": [
+      {
+        "sourceNodeID": "start_1",
+        "targetNodeID": "condition_1"
+      },
+      {
+        "sourceNodeID": "condition_1",
+        "sourcePortID": "gt1000",
+        "targetNodeID": "code_manager"
+      },
+      {
+        "sourceNodeID": "condition_1",
+        "sourcePortID": "else",
+        "targetNodeID": "code_finance"
+      },
+      {
+        "sourceNodeID": "code_manager",
+        "targetNodeID": "var_result"
+      },
+      {
+        "sourceNodeID": "code_finance",
+        "targetNodeID": "var_result2"
+      },
+      {
+        "sourceNodeID": "code_manager",
+        "targetNodeID": "code_merge"
+      },
+      {
+        "sourceNodeID": "code_finance",
+        "targetNodeID": "code_merge2"
+      },
+      {
+        "sourceNodeID": "condition_1",
+        "sourcePortID": "gt1000",
+        "targetNodeID": "code_merge"
+      },
+      {
+        "sourceNodeID": "condition_1",
+        "sourcePortID": "else",
+        "targetNodeID": "code_merge2"
+      },
+      {
+        "sourceNodeID": "code_merge",
+        "targetNodeID": "end_2"
+      },
+      {
+        "sourceNodeID": "code_merge2",
+        "targetNodeID": "end_2"
+      }
+    ],
+    "version": 38,
+    "nodes": [
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "amount": {
+                "description": "amount",
+                "type": "number",
+                "title": "报销金额",
+                "default": 0
+              },
+              "input": {
+                "description": "input",
+                "type": "string",
+                "default": ""
+              }
+            }
+          },
+          "title": "开始"
+        },
+        "type": "start",
+        "meta": {
+          "position": {
+            "x": 180,
+            "y": 180
+          }
+        },
+        "id": "start_1"
+      },
+      {
+        "data": {
+          "title": "条件判断",
+          "conditions": [
+            {
+              "value": {
+                "right": {
+                  "type": "constant",
+                  "content": 1000
+                },
+                "operator": "gt",
+                "left": {
+                  "type": "ref",
+                  "content": [
+                    "start_1",
+                    "amount"
+                  ]
+                }
+              },
+              "key": "gt1000"
+            }
+          ]
+        },
+        "type": "condition",
+        "meta": {
+          "position": {
+            "x": 500,
+            "y": 380
+          }
+        },
+        "id": "condition_1"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "approver": {
+                "type": "string"
+              },
+              "amount": {
+                "type": "number"
+              },
+              "status": {
+                "type": "string"
+              }
+            }
+          },
+          "inputsValues": {
+            "amount": {
+              "type": "ref",
+              "content": [
+                "start_1",
+                "amount"
+              ]
+            },
+            "start_1": {
+              "type": "ref",
+              "content": [
+                "start_1",
+                "amount"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "amount": {
+                "type": "number"
+              },
+              "start_1": {
+                "type": "number"
+              }
+            }
+          },
+          "title": "需主管审批",
+          "script": {
+            "language": "javascript",
+            "content": "({ amount: amount, status: \"需主管审批\", approver: \"主管\" })"
+          }
+        },
+        "type": "code",
+        "meta": {
+          "position": {
+            "x": 820,
+            "y": 380
+          }
+        },
+        "id": "code_manager"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "approver": {
+                "type": "string"
+              },
+              "amount": {
+                "type": "number"
+              },
+              "status": {
+                "type": "string"
+              }
+            }
+          },
+          "inputsValues": {
+            "amount": {
+              "type": "ref",
+              "content": [
+                "start_1",
+                "amount"
+              ]
+            },
+            "start_1": {
+              "type": "ref",
+              "content": [
+                "start_1",
+                "amount"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "amount": {
+                "type": "number"
+              },
+              "start_1": {
+                "type": "number"
+              }
+            }
+          },
+          "title": "财务审批",
+          "script": {
+            "language": "javascript",
+            "content": "({ amount: amount, status: \"待审批\", approver: \"财务\" })"
+          }
+        },
+        "type": "code",
+        "meta": {
+          "position": {
+            "x": 820,
+            "y": 580
+          }
+        },
+        "id": "code_finance"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "result": {
+                "type": "object"
+              }
+            }
+          },
+          "assign": [
+            {
+              "right": {
+                "type": "ref",
+                "content": [
+                  "code_manager",
+                  "amount"
+                ]
+              },
+              "operator": "declare",
+              "left": "result"
+            }
+          ]
+        },
+        "type": "variable",
+        "meta": {
+          "position": {
+            "x": 1140,
+            "y": 380
+          }
+        },
+        "id": "var_result"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "result": {
+                "type": "object"
+              }
+            }
+          },
+          "assign": [
+            {
+              "right": {
+                "type": "ref",
+                "content": [
+                  "code_finance",
+                  "amount"
+                ]
+              },
+              "operator": "declare",
+              "left": "result"
+            }
+          ]
+        },
+        "type": "variable",
+        "meta": {
+          "position": {
+            "x": 1140,
+            "y": 580
+          }
+        },
+        "id": "var_result2"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "approver": {
+                "type": "string"
+              },
+              "amount": {
+                "type": "number"
+              },
+              "status": {
+                "type": "string"
+              }
+            }
+          },
+          "inputsValues": {
+            "approver": {
+              "type": "ref",
+              "content": [
+                "code_manager",
+                "approver"
+              ]
+            },
+            "amount": {
+              "type": "ref",
+              "content": [
+                "code_manager",
+                "amount"
+              ]
+            },
+            "status": {
+              "type": "ref",
+              "content": [
+                "code_manager",
+                "status"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "approver": {
+                "type": "string"
+              },
+              "amount": {
+                "type": "number"
+              },
+              "status": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "合并输出",
+          "script": {
+            "language": "javascript",
+            "content": "({ amount: amount, status: status, approver: approver })"
+          }
+        },
+        "type": "code",
+        "meta": {
+          "position": {
+            "x": 1140,
+            "y": 780
+          }
+        },
+        "id": "code_merge"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "approver": {
+                "type": "string"
+              },
+              "amount": {
+                "type": "number"
+              },
+              "status": {
+                "type": "string"
+              }
+            }
+          },
+          "inputsValues": {
+            "approver": {
+              "type": "ref",
+              "content": [
+                "code_finance",
+                "approver"
+              ]
+            },
+            "amount": {
+              "type": "ref",
+              "content": [
+                "code_finance",
+                "amount"
+              ]
+            },
+            "status": {
+              "type": "ref",
+              "content": [
+                "code_finance",
+                "status"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "approver": {
+                "type": "string"
+              },
+              "amount": {
+                "type": "number"
+              },
+              "status": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "合并输出2",
+          "script": {
+            "language": "javascript",
+            "content": "({ amount: amount, status: status, approver: approver })"
+          }
+        },
+        "type": "code",
+        "meta": {
+          "position": {
+            "x": 1140,
+            "y": 980
+          }
+        },
+        "id": "code_merge2"
+      },
+      {
+        "data": {
+          "inputsValues": {
+            "approver": {
+              "type": "ref",
+              "content": [
+                "code_merge",
+                "approver"
+              ]
+            },
+            "amount": {
+              "type": "ref",
+              "content": [
+                "code_merge",
+                "amount"
+              ]
+            },
+            "approver2": {
+              "type": "ref",
+              "content": [
+                "code_merge2",
+                "approver"
+              ]
+            },
+            "status2": {
+              "type": "ref",
+              "content": [
+                "code_merge2",
+                "status"
+              ]
+            },
+            "amount2": {
+              "type": "ref",
+              "content": [
+                "code_merge2",
+                "amount"
+              ]
+            },
+            "status": {
+              "type": "ref",
+              "content": [
+                "code_merge",
+                "status"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "approver": {
+                "type": "string"
+              },
+              "amount": {
+                "type": "string"
+              },
+              "approver2": {
+                "type": "string"
+              },
+              "status2": {
+                "type": "string"
+              },
+              "amount2": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "结束"
+        },
+        "type": "end",
+        "meta": {
+          "position": {
+            "x": 1460,
+            "y": 780
+          }
+        },
+        "id": "end_2"
+      }
+    ]
+  },
+  "trialRuns": [
+    {
+      "ok": true,
+      "taskId": "cff64184-3fc4-4110-b9a4-d0402599457c",
+      "workflowStatus": "success",
+      "outputs": {
+        "approver": "主管",
+        "amount": 1500,
+        "amount2": null,
+        "approver2": null,
+        "status2": null,
+        "status": "需主管审批"
+      },
+      "nodes": {
+        "code_finance": {
+          "id": "code_finance",
+          "status": "canceled",
+          "startTime": 1792942235472,
+          "endTime": 1792942235472,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "code_finance",
+              "inputs": {},
+              "outputs": {},
+              "data": {},
+              "branch": "",
+              "error": "",
+              "id": "code_finance"
+            }
+          ]
+        },
+        "code_merge2": {
+          "id": "code_merge2",
+          "status": "canceled",
+          "startTime": 1792942235475,
+          "endTime": 1792942235475,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "code_merge2",
+              "inputs": {},
+              "outputs": {},
+              "data": {},
+              "branch": "",
+              "error": "",
+              "id": "code_merge2"
+            }
+          ]
+        },
+        "end_2": {
+          "id": "end_2",
+          "status": "succeeded",
+          "startTime": 1792942235475,
+          "endTime": 1792942235475,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "end_2",
+              "inputs": {
+                "amount": 1500,
+                "condition_1": {
+                  "gt1000": true
+                },
+                "code_merge": {
+                  "approver": "主管",
+                  "amount": 1500,
+                  "status": "需主管审批"
+                },
+                "code_manager": {
+                  "approver": "主管",
+                  "amount": 1500,
+                  "status": "需主管审批"
+                },
+                "var_result": {},
+                "start_1": {
+                  "amount": 1500,
+                  "input": ""
+                }
+              },
+              "outputs": {
+                "approver": "主管",
+                "amount": 1500,
+                "status": "需主管审批"
+              },
+              "data": {
+                "amount": 1500,
+                "condition_1": {
+                  "gt1000": true
+                },
+                "code_merge": {
+                  "approver": "主管",
+                  "amount": 1500,
+                  "status": "需主管审批"
+                },
+                "code_manager": {
+                  "approver": "主管",
+                  "amount": 1500,
+                  "status": "需主管审批"
+                },
+                "var_result": {},
+                "start_1": {
+                  "amount": 1500,
+                  "input": ""
+                }
+              },
+              "branch": "",
+              "error": "",
+              "id": "end_2"
+            }
+          ]
+        },
+        "code_manager": {
+          "id": "code_manager",
+          "status": "succeeded",
+          "startTime": 1792942235468,
+          "endTime": 1792942235472,
+          "timeCost": 4,
+          "snapshots": [
+            {
+              "nodeID": "code_manager",
+              "inputs": {
+                "amount": 1500,
+                "start_1": 1500
+              },
+              "outputs": {
+                "approver": "主管",
+                "amount": 1500,
+                "status": "需主管审批"
+              },
+              "data": {
+                "approver": "主管",
+                "amount": 1500,
+                "status": "需主管审批"
+              },
+              "branch": "",
+              "error": "",
+              "id": "code_manager"
+            }
+          ]
+        },
+        "var_result": {
+          "id": "var_result",
+          "status": "succeeded",
+          "startTime": 1792942235472,
+          "endTime": 1792942235472,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "var_result",
+              "inputs": {},
+              "outputs": {},
+              "data": {
+                "result": 1500
+              },
+              "branch": "",
+              "error": "",
+              "id": "var_result"
+            }
+          ]
+        },
+        "start_1": {
+          "id": "start_1",
+          "status": "succeeded",
+          "startTime": 1792942235467,
+          "endTime": 1792942235467,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "start_1",
+              "inputs": {
+                "amount": 1500
+              },
+              "outputs": {
+                "amount": 1500,
+                "input": ""
+              },
+              "data": {
+                "amount": 1500
+              },
+              "branch": "",
+              "error": "",
+              "id": "start_1"
+            }
+          ]
+        },
+        "condition_1": {
+          "id": "condition_1",
+          "status": "succeeded",
+          "startTime": 1792942235467,
+          "endTime": 1792942235468,
+          "timeCost": 1,
+          "snapshots": [
+            {
+              "nodeID": "condition_1",
+              "inputs": {
+                "amount": 1500,
+                "start_1": {
+                  "amount": 1500,
+                  "input": ""
+                }
+              },
+              "outputs": {
+                "gt1000": true
+              },
+              "data": {
+                "gt1000": true
+              },
+              "branch": "",
+              "error": "",
+              "id": "condition_1"
+            }
+          ]
+        },
+        "var_result2": {
+          "id": "var_result2",
+          "status": "canceled",
+          "startTime": 1792942235472,
+          "endTime": 1792942235472,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "var_result2",
+              "inputs": {},
+              "outputs": {},
+              "data": {},
+              "branch": "",
+              "error": "",
+              "id": "var_result2"
+            }
+          ]
+        },
+        "code_merge": {
+          "id": "code_merge",
+          "status": "succeeded",
+          "startTime": 1792942235472,
+          "endTime": 1792942235475,
+          "timeCost": 3,
+          "snapshots": [
+            {
+              "nodeID": "code_merge",
+              "inputs": {
+                "approver": "主管",
+                "amount": 1500,
+                "status": "需主管审批"
+              },
+              "outputs": {
+                "approver": "主管",
+                "amount": 1500,
+                "status": "需主管审批"
+              },
+              "data": {
+                "approver": "主管",
+                "amount": 1500,
+                "status": "需主管审批"
+              },
+              "branch": "",
+              "error": "",
+              "id": "code_merge"
+            }
+          ]
+        }
+      },
+      "runDetail": {
+        "nodes": [
+          {
+            "id": 196,
+            "runTaskId": "cff64184-3fc4-4110-b9a4-d0402599457c",
+            "nodeId": "code_finance",
+            "nodeType": "code",
+            "title": "财务审批",
+            "status": "canceled",
+            "errorMessage": "",
+            "inputsJson": "{}",
+            "outputJson": "{}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:30:35.52802"
+          },
+          {
+            "id": 197,
+            "runTaskId": "cff64184-3fc4-4110-b9a4-d0402599457c",
+            "nodeId": "code_merge2",
+            "nodeType": "code",
+            "title": "合并输出2",
+            "status": "canceled",
+            "errorMessage": "",
+            "inputsJson": "{}",
+            "outputJson": "{}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:30:35.52802"
+          },
+          {
+            "id": 198,
+            "runTaskId": "cff64184-3fc4-4110-b9a4-d0402599457c",
+            "nodeId": "end_2",
+            "nodeType": "end",
+            "title": "结束",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"amount\":1500,\"condition_1\":{\"gt1000\":true},\"code_merge\":{\"approver\":\"主管\",\"amount\":1500,\"status\":\"需主管审批\"},\"code_manager\":{\"approver\":\"主管\",\"amount\":1500,\"status\":\"需主管审批\"},\"var_result\":{},\"start_1\":{\"amount\":1500,\"input\":\"\"}}",
+            "outputJson": "{\"approver\":\"主管\",\"amount\":1500,\"status\":\"需主管审批\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:30:35.52802"
+          },
+          {
+            "id": 199,
+            "runTaskId": "cff64184-3fc4-4110-b9a4-d0402599457c",
+            "nodeId": "code_manager",
+            "nodeType": "code",
+            "title": "需主管审批",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"amount\":1500,\"start_1\":1500}",
+            "outputJson": "{\"approver\":\"主管\",\"amount\":1500,\"status\":\"需主管审批\"}",
+            "timeCostMs": 4,
+            "createdAt": "2026-10-25T23:30:35.52802"
+          },
+          {
+            "id": 200,
+            "runTaskId": "cff64184-3fc4-4110-b9a4-d0402599457c",
+            "nodeId": "var_result",
+            "nodeType": "variable",
+            "title": null,
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{}",
+            "outputJson": "{}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:30:35.52802"
+          },
+          {
+            "id": 201,
+            "runTaskId": "cff64184-3fc4-4110-b9a4-d0402599457c",
+            "nodeId": "start_1",
+            "nodeType": "start",
+            "title": "开始",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"amount\":1500}",
+            "outputJson": "{\"amount\":1500,\"input\":\"\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:30:35.52802"
+          },
+          {
+            "id": 202,
+            "runTaskId": "cff64184-3fc4-4110-b9a4-d0402599457c",
+            "nodeId": "condition_1",
+            "nodeType": "condition",
+            "title": "条件判断",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"amount\":1500,\"start_1\":{\"amount\":1500,\"input\":\"\"}}",
+            "outputJson": "{\"gt1000\":true}",
+            "timeCostMs": 1,
+            "createdAt": "2026-10-25T23:30:35.52802"
+          },
+          {
+            "id": 203,
+            "runTaskId": "cff64184-3fc4-4110-b9a4-d0402599457c",
+            "nodeId": "var_result2",
+            "nodeType": "variable",
+            "title": null,
+            "status": "canceled",
+            "errorMessage": "",
+            "inputsJson": "{}",
+            "outputJson": "{}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:30:35.52802"
+          },
+          {
+            "id": 204,
+            "runTaskId": "cff64184-3fc4-4110-b9a4-d0402599457c",
+            "nodeId": "code_merge",
+            "nodeType": "code",
+            "title": "合并输出",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"approver\":\"主管\",\"amount\":1500,\"status\":\"需主管审批\"}",
+            "outputJson": "{\"approver\":\"主管\",\"amount\":1500,\"status\":\"需主管审批\"}",
+            "timeCostMs": 3,
+            "createdAt": "2026-10-25T23:30:35.52802"
+          }
+        ],
+        "run": {
+          "id": 52,
+          "taskId": "cff64184-3fc4-4110-b9a4-d0402599457c",
+          "workflowCode": null,
+          "status": "success",
+          "errorMessage": null,
+          "inputsJson": "{\"amount\":1500}",
+          "outputsJson": "{\"approver\":\"主管\",\"amount\":1500,\"status\":\"需主管审批\"}",
+          "nodeCount": 9,
+          "durationMs": 60,
+          "triggerChannel": "editor",
+          "startedAt": "2026-10-25T23:30:35.46802",
+          "finishedAt": "2026-10-25T23:30:35.52802",
+          "createdAt": "2026-10-25T23:30:35.52802"
+        }
+      }
+    },
+    {
+      "ok": true,
+      "taskId": "5f948a7e-9f12-4633-a838-080e79bd74ad",
+      "workflowStatus": "success",
+      "outputs": {
+        "approver": null,
+        "amount": null,
+        "amount2": 500,
+        "approver2": "财务",
+        "status2": "待审批",
+        "status": null
+      },
+      "nodes": {
+        "code_finance": {
+          "id": "code_finance",
+          "status": "succeeded",
+          "startTime": 1792942236503,
+          "endTime": 1792942236509,
+          "timeCost": 6,
+          "snapshots": [
+            {
+              "nodeID": "code_finance",
+              "inputs": {
+                "amount": 500,
+                "start_1": 500
+              },
+              "outputs": {
+                "approver": "财务",
+                "amount": 500,
+                "status": "待审批"
+              },
+              "data": {
+                "approver": "财务",
+                "amount": 500,
+                "status": "待审批"
+              },
+              "branch": "",
+              "error": "",
+              "id": "code_finance"
+            }
+          ]
+        },
+        "code_merge2": {
+          "id": "code_merge2",
+          "status": "succeeded",
+          "startTime": 1792942236509,
+          "endTime": 1792942236512,
+          "timeCost": 3,
+          "snapshots": [
+            {
+              "nodeID": "code_merge2",
+              "inputs": {
+                "approver": "财务",
+                "amount": 500,
+                "status": "待审批"
+              },
+              "outputs": {
+                "approver": "财务",
+                "amount": 500,
+                "status": "待审批"
+              },
+              "data": {
+                "approver": "财务",
+                "amount": 500,
+                "status": "待审批"
+              },
+              "branch": "",
+              "error": "",
+              "id": "code_merge2"
+            }
+          ]
+        },
+        "end_2": {
+          "id": "end_2",
+          "status": "succeeded",
+          "startTime": 1792942236512,
+          "endTime": 1792942236512,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "end_2",
+              "inputs": {
+                "amount": 500,
+                "code_finance": {
+                  "approver": "财务",
+                  "amount": 500,
+                  "status": "待审批"
+                },
+                "condition_1": {
+                  "gt1000": false,
+                  "else": true
+                },
+                "var_result2": {},
+                "code_merge2": {
+                  "approver": "财务",
+                  "amount": 500,
+                  "status": "待审批"
+                },
+                "start_1": {
+                  "amount": 500,
+                  "input": ""
+                }
+              },
+              "outputs": {
+                "approver2": "财务",
+                "status2": "待审批",
+                "amount2": 500
+              },
+              "data": {
+                "amount": 500,
+                "code_finance": {
+                  "approver": "财务",
+                  "amount": 500,
+                  "status": "待审批"
+                },
+                "condition_1": {
+                  "gt1000": false,
+                  "else": true
+                },
+                "var_result2": {},
+                "code_merge2": {
+                  "approver": "财务",
+                  "amount": 500,
+                  "status": "待审批"
+                },
+                "start_1": {
+                  "amount": 500,
+                  "input": ""
+                }
+              },
+              "branch": "",
+              "error": "",
+              "id": "end_2"
+            }
+          ]
+        },
+        "code_manager": {
+          "id": "code_manager",
+          "status": "canceled",
+          "startTime": 1792942236503,
+          "endTime": 1792942236503,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "code_manager",
+              "inputs": {},
+              "outputs": {},
+              "data": {},
+              "branch": "",
+              "error": "",
+              "id": "code_manager"
+            }
+          ]
+        },
+        "var_result": {
+          "id": "var_result",
+          "status": "canceled",
+          "startTime": 1792942236503,
+          "endTime": 1792942236503,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "var_result",
+              "inputs": {},
+              "outputs": {},
+              "data": {},
+              "branch": "",
+              "error": "",
+              "id": "var_result"
+            }
+          ]
+        },
+        "start_1": {
+          "id": "start_1",
+          "status": "succeeded",
+          "startTime": 1792942236503,
+          "endTime": 1792942236503,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "start_1",
+              "inputs": {
+                "amount": 500
+              },
+              "outputs": {
+                "amount": 500,
+                "input": ""
+              },
+              "data": {
+                "amount": 500
+              },
+              "branch": "",
+              "error": "",
+              "id": "start_1"
+            }
+          ]
+        },
+        "condition_1": {
+          "id": "condition_1",
+          "status": "succeeded",
+          "startTime": 1792942236503,
+          "endTime": 1792942236503,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "condition_1",
+              "inputs": {
+                "amount": 500,
+                "start_1": {
+                  "amount": 500,
+                  "input": ""
+                }
+              },
+              "outputs": {
+                "gt1000": false,
+                "else": true
+              },
+              "data": {
+                "gt1000": false,
+                "else": true
+              },
+              "branch": "",
+              "error": "",
+              "id": "condition_1"
+            }
+          ]
+        },
+        "var_result2": {
+          "id": "var_result2",
+          "status": "succeeded",
+          "startTime": 1792942236509,
+          "endTime": 1792942236509,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "var_result2",
+              "inputs": {},
+              "outputs": {},
+              "data": {
+                "result": 500
+              },
+              "branch": "",
+              "error": "",
+              "id": "var_result2"
+            }
+          ]
+        },
+        "code_merge": {
+          "id": "code_merge",
+          "status": "canceled",
+          "startTime": 1792942236509,
+          "endTime": 1792942236509,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "code_merge",
+              "inputs": {},
+              "outputs": {},
+              "data": {},
+              "branch": "",
+              "error": "",
+              "id": "code_merge"
+            }
+          ]
+        }
+      },
+      "runDetail": {
+        "nodes": [
+          {
+            "id": 205,
+            "runTaskId": "5f948a7e-9f12-4633-a838-080e79bd74ad",
+            "nodeId": "code_finance",
+            "nodeType": "code",
+            "title": "财务审批",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"amount\":500,\"start_1\":500}",
+            "outputJson": "{\"approver\":\"财务\",\"amount\":500,\"status\":\"待审批\"}",
+            "timeCostMs": 6,
+            "createdAt": "2026-10-25T23:30:36.55699"
+          },
+          {
+            "id": 206,
+            "runTaskId": "5f948a7e-9f12-4633-a838-080e79bd74ad",
+            "nodeId": "code_merge2",
+            "nodeType": "code",
+            "title": "合并输出2",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"approver\":\"财务\",\"amount\":500,\"status\":\"待审批\"}",
+            "outputJson": "{\"approver\":\"财务\",\"amount\":500,\"status\":\"待审批\"}",
+            "timeCostMs": 3,
+            "createdAt": "2026-10-25T23:30:36.55699"
+          },
+          {
+            "id": 207,
+            "runTaskId": "5f948a7e-9f12-4633-a838-080e79bd74ad",
+            "nodeId": "end_2",
+            "nodeType": "end",
+            "title": "结束",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"amount\":500,\"code_finance\":{\"approver\":\"财务\",\"amount\":500,\"status\":\"待审批\"},\"condition_1\":{\"gt1000\":false,\"else\":true},\"var_result2\":{},\"code_merge2\":{\"approver\":\"财务\",\"amount\":500,\"status\":\"待审批\"},\"start_1\":{\"amount\":500,\"input\":\"\"}}",
+            "outputJson": "{\"approver2\":\"财务\",\"status2\":\"待审批\",\"amount2\":500}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:30:36.55699"
+          },
+          {
+            "id": 208,
+            "runTaskId": "5f948a7e-9f12-4633-a838-080e79bd74ad",
+            "nodeId": "code_manager",
+            "nodeType": "code",
+            "title": "需主管审批",
+            "status": "canceled",
+            "errorMessage": "",
+            "inputsJson": "{}",
+            "outputJson": "{}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:30:36.55699"
+          },
+          {
+            "id": 209,
+            "runTaskId": "5f948a7e-9f12-4633-a838-080e79bd74ad",
+            "nodeId": "var_result",
+            "nodeType": "variable",
+            "title": null,
+            "status": "canceled",
+            "errorMessage": "",
+            "inputsJson": "{}",
+            "outputJson": "{}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:30:36.55699"
+          },
+          {
+            "id": 210,
+            "runTaskId": "5f948a7e-9f12-4633-a838-080e79bd74ad",
+            "nodeId": "start_1",
+            "nodeType": "start",
+            "title": "开始",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"amount\":500}",
+            "outputJson": "{\"amount\":500,\"input\":\"\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:30:36.55699"
+          },
+          {
+            "id": 211,
+            "runTaskId": "5f948a7e-9f12-4633-a838-080e79bd74ad",
+            "nodeId": "condition_1",
+            "nodeType": "condition",
+            "title": "条件判断",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"amount\":500,\"start_1\":{\"amount\":500,\"input\":\"\"}}",
+            "outputJson": "{\"gt1000\":false,\"else\":true}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:30:36.55699"
+          },
+          {
+            "id": 212,
+            "runTaskId": "5f948a7e-9f12-4633-a838-080e79bd74ad",
+            "nodeId": "var_result2",
+            "nodeType": "variable",
+            "title": null,
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{}",
+            "outputJson": "{}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:30:36.55699"
+          },
+          {
+            "id": 213,
+            "runTaskId": "5f948a7e-9f12-4633-a838-080e79bd74ad",
+            "nodeId": "code_merge",
+            "nodeType": "code",
+            "title": "合并输出",
+            "status": "canceled",
+            "errorMessage": "",
+            "inputsJson": "{}",
+            "outputJson": "{}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:30:36.55699"
+          }
+        ],
+        "run": {
+          "id": 53,
+          "taskId": "5f948a7e-9f12-4633-a838-080e79bd74ad",
+          "workflowCode": null,
+          "status": "success",
+          "errorMessage": null,
+          "inputsJson": "{\"amount\":500}",
+          "outputsJson": "{\"approver2\":\"财务\",\"status2\":\"待审批\",\"amount2\":500}",
+          "nodeCount": 9,
+          "durationMs": 54,
+          "triggerChannel": "editor",
+          "startedAt": "2026-10-25T23:30:36.50299",
+          "finishedAt": "2026-10-25T23:30:36.55699",
+          "createdAt": "2026-10-25T23:30:36.55699"
+        }
+      }
+    }
+  ]
+}

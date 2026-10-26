@@ -1,0 +1,365 @@
+{
+  "caseId": "C17",
+  "sessionKey": "ad422716313f4a02a3f3a2afd72ea5af",
+  "elapsedSec": 39,
+  "turns": [
+    {
+      "utterance": "做个折扣计算器：输入单价和数量，总价打 85 折。输出折后总价（保留两位小数）和“省了多少钱”两个金额。注意金额就是数字，别变成文字拼接的那种。",
+      "runStatus": "done",
+      "asksAnswered": [],
+      "lastAssistant": "画布上有 `start_1` 和 `end_1` 骨架。我来添加一个 code 节点做计算，然后接线。\n\nscript 被解析成对象了，需要修正。同时 start 节点没有 discountedTotal 输出字段，先改 start 的 inputs，再修 code 的 script。\n\nstart 节点用 `outputs` 字段。重新更新 start 和 code 节点：\n\n明白了，code 节点的 script 是 `{language, content}` 对象，inputs 用 `inputsValues` 接引用。重新配置 code_1：\n\n现在接线：start_1 → code_1 → end_1，并配置 end_1 的输出引用：\n\n现在配置 end_1 的输出引用：\n\n现在整流试跑：\n\n变量名冲突了，`unitPrice` 和 `quantity` 在 inputs 对象上已经存在。需要用 `inputs` 对象取值：\n\n`const unitPrice = inputs.unitPrice` 和 `inputs` 变量名冲突。改用 `input` 对象：\n\n计算正确：100×5=500，500×0.85=425，省了75。现在整流跑完整工作流：\n\n正向通过。再跑一组反向输入验证：\n\n验证通过：33.5×3=100.5，100.5×0.85=85.425→85.43，省了15.07。沉淀测试用例：\n\n两个测试用例全部通过。\n\n---\n\n**已完成折扣计算器工作流**，结构如下：\n\n| 节点 | 作用 |\n|------|------|\n| `start_1` | 输入：`unitPrice`（单价，number）、`quantity`（数量，number） |\n| `code_1` | 计算：总价 = 单价×数量，折后价 = 总价×0.85（保留两位小数），省了 = 总价 - 折后价 |\n| `end_1` | 输出：`discountedTotal`（折后总价，number）、`saved`（省了多少钱，number） |\n\n**验证结果**：\n- 单价100、数量5 → 折后425，省75 ✅\n- 单价33.5、数量3 → 折后85.43，省15.07 ✅\n\n两个测试用例已沉淀，正反两组输入均通过。请**保存为版本**以生效。"
+    }
+  ],
+  "pass": true,
+  "checks": [
+    {
+      "case": "C17",
+      "name": "试运行成功",
+      "pass": true,
+      "detail": "status=success"
+    },
+    {
+      "case": "C17",
+      "name": "折后总价 51 且为数字",
+      "pass": true,
+      "detail": "{\"discountedTotal\":51,\"saved\":9}"
+    },
+    {
+      "case": "C17",
+      "name": "节省 9 且为数字",
+      "pass": true,
+      "detail": "{\"discountedTotal\":51,\"saved\":9}"
+    },
+    {
+      "case": "C17",
+      "name": "无字符串化数字",
+      "pass": true,
+      "detail": "{\"discountedTotal\":51,\"saved\":9}"
+    }
+  ],
+  "doc": {
+    "edges": [
+      {
+        "sourceNodeID": "start_1",
+        "targetNodeID": "code_1"
+      },
+      {
+        "sourceNodeID": "code_1",
+        "targetNodeID": "end_1"
+      }
+    ],
+    "version": 8,
+    "nodes": [
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "unitPrice": {
+                "description": "商品单价",
+                "type": "number",
+                "default": 0
+              },
+              "quantity": {
+                "description": "购买数量",
+                "type": "number",
+                "default": 0
+              },
+              "input": {
+                "description": "input",
+                "type": "string",
+                "default": ""
+              }
+            }
+          },
+          "title": "开始"
+        },
+        "type": "start",
+        "meta": {
+          "position": {
+            "x": 180,
+            "y": 180
+          }
+        },
+        "id": "start_1"
+      },
+      {
+        "data": {
+          "inputsValues": {
+            "saved": {
+              "type": "ref",
+              "content": [
+                "code_1",
+                "saved"
+              ]
+            },
+            "discountedTotal": {
+              "type": "ref",
+              "content": [
+                "code_1",
+                "discountedTotal"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "saved": {
+                "type": "string"
+              },
+              "discountedTotal": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "结束"
+        },
+        "type": "end",
+        "meta": {
+          "position": {
+            "x": 500,
+            "y": 180
+          }
+        },
+        "id": "end_1"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "saved": {
+                "type": "number"
+              },
+              "result": {
+                "type": "object",
+                "properties": {
+                  "saved": {
+                    "type": "number"
+                  },
+                  "discountedTotal": {
+                    "type": "number"
+                  }
+                }
+              },
+              "discountedTotal": {
+                "type": "number"
+              }
+            }
+          },
+          "inputsValues": {
+            "unitPrice": {
+              "type": "ref",
+              "content": [
+                "start_1",
+                "unitPrice"
+              ]
+            },
+            "quantity": {
+              "type": "ref",
+              "content": [
+                "start_1",
+                "quantity"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "unitPrice": {
+                "type": "number"
+              },
+              "quantity": {
+                "type": "number"
+              }
+            }
+          },
+          "title": "折扣计算",
+          "script": {
+            "language": "javascript",
+            "content": "const up = inputs.unitPrice;\nconst qty = inputs.quantity;\nconst subtotal = up * qty;\nconst discountedTotal = Math.round(subtotal * 0.85 * 100) / 100;\nconst saved = Math.round((subtotal - discountedTotal) * 100) / 100;\n({ discountedTotal, saved });"
+          }
+        },
+        "type": "code",
+        "meta": {
+          "position": {
+            "x": 500,
+            "y": 380
+          }
+        },
+        "id": "code_1"
+      }
+    ]
+  },
+  "trialRuns": [
+    {
+      "ok": true,
+      "taskId": "d448b1d3-e8b4-4a9f-9ab9-b116e1c24cdd",
+      "workflowStatus": "success",
+      "outputs": {
+        "discountedTotal": 51,
+        "saved": 9
+      },
+      "nodes": {
+        "code_1": {
+          "id": "code_1",
+          "status": "succeeded",
+          "startTime": 1792942989181,
+          "endTime": 1792942989187,
+          "timeCost": 6,
+          "snapshots": [
+            {
+              "nodeID": "code_1",
+              "inputs": {
+                "unitPrice": 20,
+                "quantity": 3
+              },
+              "outputs": {
+                "saved": 9,
+                "discountedTotal": 51
+              },
+              "data": {
+                "saved": 9,
+                "discountedTotal": 51
+              },
+              "branch": "",
+              "error": "",
+              "id": "code_1"
+            }
+          ]
+        },
+        "start_1": {
+          "id": "start_1",
+          "status": "succeeded",
+          "startTime": 1792942989180,
+          "endTime": 1792942989181,
+          "timeCost": 1,
+          "snapshots": [
+            {
+              "nodeID": "start_1",
+              "inputs": {
+                "unitPrice": 20,
+                "quantity": 3
+              },
+              "outputs": {
+                "unitPrice": 20,
+                "quantity": 3,
+                "input": ""
+              },
+              "data": {
+                "unitPrice": 20,
+                "quantity": 3
+              },
+              "branch": "",
+              "error": "",
+              "id": "start_1"
+            }
+          ]
+        },
+        "end_1": {
+          "id": "end_1",
+          "status": "succeeded",
+          "startTime": 1792942989187,
+          "endTime": 1792942989187,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "end_1",
+              "inputs": {
+                "unitPrice": 20,
+                "quantity": 3,
+                "code_1": {
+                  "saved": 9,
+                  "discountedTotal": 51
+                },
+                "start_1": {
+                  "unitPrice": 20,
+                  "quantity": 3,
+                  "input": ""
+                }
+              },
+              "outputs": {
+                "saved": 9,
+                "discountedTotal": 51
+              },
+              "data": {
+                "unitPrice": 20,
+                "quantity": 3,
+                "code_1": {
+                  "saved": 9,
+                  "discountedTotal": 51
+                },
+                "start_1": {
+                  "unitPrice": 20,
+                  "quantity": 3,
+                  "input": ""
+                }
+              },
+              "branch": "",
+              "error": "",
+              "id": "end_1"
+            }
+          ]
+        }
+      },
+      "runDetail": {
+        "nodes": [
+          {
+            "id": 241,
+            "runTaskId": "d448b1d3-e8b4-4a9f-9ab9-b116e1c24cdd",
+            "nodeId": "code_1",
+            "nodeType": "code",
+            "title": "折扣计算",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"unitPrice\":20,\"quantity\":3}",
+            "outputJson": "{\"saved\":9,\"discountedTotal\":51}",
+            "timeCostMs": 6,
+            "createdAt": "2026-10-25T23:43:09.240805"
+          },
+          {
+            "id": 242,
+            "runTaskId": "d448b1d3-e8b4-4a9f-9ab9-b116e1c24cdd",
+            "nodeId": "start_1",
+            "nodeType": "start",
+            "title": "开始",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"unitPrice\":20,\"quantity\":3}",
+            "outputJson": "{\"unitPrice\":20,\"quantity\":3,\"input\":\"\"}",
+            "timeCostMs": 1,
+            "createdAt": "2026-10-25T23:43:09.240805"
+          },
+          {
+            "id": 243,
+            "runTaskId": "d448b1d3-e8b4-4a9f-9ab9-b116e1c24cdd",
+            "nodeId": "end_1",
+            "nodeType": "end",
+            "title": "结束",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"unitPrice\":20,\"quantity\":3,\"code_1\":{\"saved\":9,\"discountedTotal\":51},\"start_1\":{\"unitPrice\":20,\"quantity\":3,\"input\":\"\"}}",
+            "outputJson": "{\"saved\":9,\"discountedTotal\":51}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:43:09.240805"
+          }
+        ],
+        "run": {
+          "id": 63,
+          "taskId": "d448b1d3-e8b4-4a9f-9ab9-b116e1c24cdd",
+          "workflowCode": null,
+          "status": "success",
+          "errorMessage": null,
+          "inputsJson": "{\"unitPrice\":20,\"quantity\":3}",
+          "outputsJson": "{\"saved\":9,\"discountedTotal\":51}",
+          "nodeCount": 3,
+          "durationMs": 61,
+          "triggerChannel": "editor",
+          "startedAt": "2026-10-25T23:43:09.179805",
+          "finishedAt": "2026-10-25T23:43:09.240805",
+          "createdAt": "2026-10-25T23:43:09.240805"
+        }
+      }
+    }
+  ]
+}

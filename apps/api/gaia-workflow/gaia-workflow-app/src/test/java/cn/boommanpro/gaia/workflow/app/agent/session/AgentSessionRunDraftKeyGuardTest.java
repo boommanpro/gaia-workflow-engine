@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class AgentSessionRunDraftKeyGuardTest {
 
     private AgentSessionRunService newService() {
-        return new AgentSessionRunService(null, null, null, null, null, null, null, null);
+        return new AgentSessionRunService(null, null, null, null, null, null, null, null, null, null);
     }
 
     @Test

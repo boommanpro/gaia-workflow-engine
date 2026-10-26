@@ -7,7 +7,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import javax.script.Bindings;
 import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -104,17 +103,18 @@ public class DynamicCompileNode extends CodeNode {
      * 执行JavaScript代码
      */
     private Map<String, Object> executeJavaScript(Chain chain) {
-        ScriptEngine engine = (new ScriptEngineManager()).getEngineByName("graal.js");
-        if (engine == null) {
-            throw new RuntimeException("未找到 GraalJS 引擎，请确认依赖配置");
-        } else {
+        // 引擎构造与 eval 的服务发现都依赖线程 CCL——全程切到应用类加载器（fat jar 修复）
+        return GraalJsEngines.underAppLoader(() -> executeJavaScriptInternal(chain));
+    }
+
+    private Map<String, Object> executeJavaScriptInternal(Chain chain) {
+        ScriptEngine engine = GraalJsEngines.resolve();
+        {
             Bindings bindings = engine.createBindings();
             bindings.put("polyglot.js.allowHostAccess", true);
             bindings.put("polyglot.js.allowHostClassLookup", true);
             Map<String, Object> parameterValues = chain.getParametersData(this);
-            if (parameterValues != null) {
-                bindings.putAll(parameterValues);
-            }
+            String prologue = GraalJsEngines.prepareParameters(bindings, parameterValues);
 
             String funcWrapper = "function jsFunc(){%s};\njsFunc();";
             String wrappedCode = String.format(funcWrapper, code);
@@ -124,10 +124,11 @@ public class DynamicCompileNode extends CodeNode {
             bindings.put("_result", tempResult);
 
             try {
+                engine.eval(prologue, bindings);
                 Map<String, Object> eval = (Map<String, Object>) engine.eval(wrappedCode, bindings);
                 return eval;
             } catch (ScriptException e) {
-                throw new RuntimeException("JavaScript execution failed", e);
+                throw new RuntimeException("JavaScript 执行失败: " + GraalJsEngines.describe(e), e);
             }
         }
     }

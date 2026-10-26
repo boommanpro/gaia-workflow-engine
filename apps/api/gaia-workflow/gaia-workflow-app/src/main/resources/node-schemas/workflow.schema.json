@@ -3,12 +3,131 @@
   "$id": "https://gaia.workflow/schemas/node/workflow",
   "title": "workflow",
   "type": "object",
+  "description": "子流程节点。workflowId 填目标工作流的 code（先 get(target=canvas) 查可用项）；inputsValues 映射子流程入参（constant 字面值或 ref 引用上游输出）。",
+  "definitions": {
+    "constantValue": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "constant"
+          ]
+        },
+        "content": {},
+        "schema": {
+          "type": "object"
+        },
+        "extra": {}
+      },
+      "required": [
+        "type",
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "refValue": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "ref"
+          ]
+        },
+        "content": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 2
+        },
+        "schema": {
+          "type": "object"
+        },
+        "extra": {}
+      },
+      "required": [
+        "type",
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "templateValue": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "template"
+          ]
+        },
+        "content": {
+          "type": "string"
+        },
+        "schema": {
+          "type": "object"
+        },
+        "extra": {}
+      },
+      "required": [
+        "type",
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "expressionValue": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "expression"
+          ]
+        },
+        "content": {
+          "type": "string"
+        },
+        "schema": {
+          "type": "object"
+        },
+        "extra": {}
+      },
+      "required": [
+        "type",
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "timeout": {
+      "type": "object",
+      "properties": {
+        "timeout": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 600000
+        },
+        "retryTimes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10
+        }
+      },
+      "additionalProperties": false
+    }
+  },
   "properties": {
     "title": {
       "type": "string"
     },
-    "workflowId": {},
+    "workflowId": {
+      "type": "string",
+      "description": "目标工作流 code。必填（缺失会在预检被打回），先 get(target=canvas) 查可用项"
+    },
     "workflowName": {
+      "type": "string"
+    },
+    "workflowDescription": {
       "type": "string"
     },
     "inputs": {
@@ -18,8 +137,30 @@
       "type": "object"
     },
     "inputsValues": {
+      "type": "object",
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "$ref": "#/definitions/constantValue"
+          },
+          {
+            "$ref": "#/definitions/refValue"
+          },
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "boolean"
+          }
+        ]
+      }
+    },
+    "workflowDefinition": {
       "type": "object"
     }
   },
-  "additionalProperties": true
+  "additionalProperties": false
 }

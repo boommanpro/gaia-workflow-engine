@@ -8,6 +8,7 @@ import { FlowNodeRegistry } from '../../typings';
 import iconWorkflow from '../../assets/icon-workflow.svg';
 import { formMeta } from './form-meta';
 import { generateValidId } from '../utils';
+import { cloneDefaultData } from '../../agent/node-templates';
 
 let index = 0;
 
@@ -37,24 +38,7 @@ export const WorkflowNodeRegistry: FlowNodeRegistry = {
     return {
       id: generateValidId('workflow', 5),
       type: 'workflow',
-      data: {
-        title: `Workflow_${++index}`,
-        workflowId: '',
-        workflowName: '',
-        workflowDescription: '',
-        // 初始 inputs，将由用户设置
-        inputsValues: {},
-        // inputs schema 将在选择 workflow 时自动填充
-        inputs: {
-          type: 'object',
-          properties: {},
-        },
-        // outputs schema 将在选择 workflow 时自动填充
-        outputs: {
-          type: 'object',
-          properties: {},
-        },
-      },
+      data: { ...cloneDefaultData('workflow'), title: `Workflow_${++index}` },
     };
   },
   formMeta: formMeta,

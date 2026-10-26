@@ -3,73 +3,234 @@
   "$id": "https://gaia.workflow/schemas/node/http",
   "title": "http",
   "type": "object",
-  "description": "HTTP 请求节点。规范形状：method/url 在 data.api（引擎 HttpNodeParser 只读 api/headersValues/paramsValues/body/timeout）。",
+  "description": "HTTP 请求节点。data 字段布局（严格）：api={method,url}（必填，method/url 只能写在 api 内）；body={bodyType:'JSON',json:...}（body 是与 api 平级的顶层字段，绝不能塞进 api 里）；headersValues/paramsValues/timeout 同为顶层。扁平简写（data.method/data.url/data.body 等）会自动归一。body 仅在 bodyType=JSON 时发送；headers/params/outputs 为前端画布派生字段（引擎不读）。输出固定 body/headers/statusCode。",
+  "definitions": {
+    "constantValue": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "constant"
+          ]
+        },
+        "content": {},
+        "schema": {
+          "type": "object"
+        },
+        "extra": {}
+      },
+      "required": [
+        "type",
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "refValue": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "ref"
+          ]
+        },
+        "content": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 2
+        },
+        "schema": {
+          "type": "object"
+        },
+        "extra": {}
+      },
+      "required": [
+        "type",
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "templateValue": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "template"
+          ]
+        },
+        "content": {
+          "type": "string"
+        },
+        "schema": {
+          "type": "object"
+        },
+        "extra": {}
+      },
+      "required": [
+        "type",
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "expressionValue": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "expression"
+          ]
+        },
+        "content": {
+          "type": "string"
+        },
+        "schema": {
+          "type": "object"
+        },
+        "extra": {}
+      },
+      "required": [
+        "type",
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "timeout": {
+      "type": "object",
+      "properties": {
+        "timeout": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 600000
+        },
+        "retryTimes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10
+        }
+      },
+      "additionalProperties": false
+    }
+  },
   "properties": {
     "title": {
       "type": "string"
     },
     "api": {
-      "type": [
-        "object",
-        "null"
-      ],
+      "type": "object",
       "properties": {
         "method": {
-          "type": "string"
+          "type": "string",
+          "enum": [
+            "GET",
+            "POST",
+            "PUT",
+            "DELETE",
+            "PATCH",
+            "HEAD",
+            "OPTIONS"
+          ]
         },
-        "url": {}
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/templateValue"
+            },
+            {
+              "$ref": "#/definitions/constantValue"
+            }
+          ]
+        }
       },
       "required": [
         "method",
         "url"
-      ]
+      ],
+      "additionalProperties": false
     },
     "headersValues": {
-      "type": "object"
+      "type": "object",
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "$ref": "#/definitions/constantValue"
+          },
+          {
+            "$ref": "#/definitions/refValue"
+          }
+        ]
+      }
     },
     "paramsValues": {
-      "type": "object"
+      "type": "object",
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "$ref": "#/definitions/constantValue"
+          },
+          {
+            "$ref": "#/definitions/refValue"
+          }
+        ]
+      }
     },
     "body": {
-      "type": [
-        "object",
-        "null"
-      ],
+      "type": "object",
       "properties": {
         "bodyType": {
-          "type": "string"
+          "type": "string",
+          "enum": [
+            "none",
+            "JSON",
+            "raw-text"
+          ]
         },
-        "json": {}
-      }
+        "json": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/templateValue"
+            },
+            {
+              "$ref": "#/definitions/constantValue"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
     },
     "timeout": {
-      "type": [
-        "object",
-        "null"
-      ],
-      "properties": {
-        "timeout": {
-          "type": "integer"
-        },
-        "retryTimes": {
-          "type": "integer"
-        }
-      }
+      "$ref": "#/definitions/timeout"
     },
-    "inputs": {
+    "headers": {
+      "type": "object"
+    },
+    "params": {
       "type": "object"
     },
     "outputs": {
-      "type": "object"
-    },
-    "inputsValues": {
       "type": "object"
     }
   },
   "required": [
     "api"
   ],
-  "additionalProperties": true,
+  "additionalProperties": false,
   "x-gaia-outputs": [
     "body",
     "headers",

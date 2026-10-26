@@ -40,44 +40,12 @@ public class AgentDataSeeder implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) {
         try {
-            cleanupRetiredConfigKeys();
-            int modelCount = seedModelConfig();
+                int modelCount = seedModelConfig();
             // 确保工具定义已播种（@PostConstruct 时机可能早于 schema.sql 执行）
             toolRegistry.ensureSeeded();
             log.info("Agent seed data check complete: modelConfig={}", modelCount);
         } catch (Exception e) {
             log.warn("Agent seed data initialization failed: {}", e.getMessage(), e);
-        }
-    }
-
-    /**
-     * 已下线功能的配置清理（幂等，无则空过）：
-     * 权限策略 / embedding 向量检索 / 默认系统提示词的 agent_config 副本（已迁 agent_prompt_config）
-     * / 节点知识文档（已迁 agent_skill_file）。
-     */
-    private void cleanupRetiredConfigKeys() {
-        String[] retiredKeys = {
-            "agent.policy.confirm_mode", "agent.policy.apply_confirm_mode", "embedding_config",
-            "system_prompt.default", "system_prompt.default.en",
-            "agent.prompt.imported_hash.system_prompt.default",
-            "agent.prompt.imported_hash.system_prompt.default.en"};
-        long deleted = 0;
-        for (String key : retiredKeys) {
-            QueryWrapper<AgentConfig> byKey = new QueryWrapper<AgentConfig>().eq("config_key", key);
-            long cnt = configService.count(byKey);
-            if (cnt > 0) {
-                configService.remove(byKey);
-                deleted += cnt;
-            }
-        }
-        QueryWrapper<AgentConfig> nodeKnowledge = new QueryWrapper<AgentConfig>().eq("config_type", "node_knowledge");
-        long nodeKnowledgeCount = configService.count(nodeKnowledge);
-        if (nodeKnowledgeCount > 0) {
-            configService.remove(nodeKnowledge);
-            deleted += nodeKnowledgeCount;
-        }
-        if (deleted > 0) {
-            log.info("Cleaned up {} retired agent_config entries", deleted);
         }
     }
 

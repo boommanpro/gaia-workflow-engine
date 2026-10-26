@@ -7,10 +7,13 @@ import { generateValidId } from '../utils';
 import { WorkflowNodeType } from '../constants';
 import { FlowNodeRegistry } from '../../typings';
 import iconLLM from '../../assets/icon-llm.jpg';
+import { cloneDefaultData } from '../../agent/node-templates';
+import { formMeta } from './form-meta';
 
 let index = 0;
 export const LLMNodeRegistry: FlowNodeRegistry = {
   type: WorkflowNodeType.LLM,
+  formMeta,
   info: {
     icon: iconLLM,
     description:
@@ -26,71 +29,7 @@ export const LLMNodeRegistry: FlowNodeRegistry = {
     return {
       id: generateValidId('llm', 5),
       type: 'llm',
-      data: {
-        title: `LLM_${++index}`,
-        inputsValues: {
-          modelName: {
-            type: 'constant',
-            content: 'gpt-3.5-turbo',
-          },
-          apiKey: {
-            type: 'constant',
-            content: 'sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
-          },
-          apiHost: {
-            type: 'constant',
-            content: 'https://mock-ai-url/api/v3',
-          },
-          temperature: {
-            type: 'constant',
-            content: 0.5,
-          },
-          systemPrompt: {
-            type: 'template',
-            content: '# Role\nYou are an AI assistant.\n',
-          },
-          prompt: {
-            type: 'template',
-            content: '',
-          },
-        },
-        inputs: {
-          type: 'object',
-          required: ['modelName', 'apiKey', 'apiHost', 'temperature', 'prompt'],
-          properties: {
-            modelName: {
-              type: 'string',
-            },
-            apiKey: {
-              type: 'string',
-            },
-            apiHost: {
-              type: 'string',
-            },
-            temperature: {
-              type: 'number',
-            },
-            systemPrompt: {
-              type: 'string',
-              extra: {
-                formComponent: 'prompt-editor',
-              },
-            },
-            prompt: {
-              type: 'string',
-              extra: {
-                formComponent: 'prompt-editor',
-              },
-            },
-          },
-        },
-        outputs: {
-          type: 'object',
-          properties: {
-            result: { type: 'string' },
-          },
-        },
-      },
+      data: { ...cloneDefaultData('llm'), title: `LLM_${++index}` },
     };
   },
 };

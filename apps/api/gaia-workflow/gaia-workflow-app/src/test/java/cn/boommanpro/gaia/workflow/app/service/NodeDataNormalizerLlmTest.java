@@ -30,7 +30,7 @@ class NodeDataNormalizerLlmTest {
             .set("apiHost", "https://www.dmxapi.cn/v1")
             .set("temperature", 0.3)
             .set("systemPrompt", "你是摘要助手")
-            .set("prompt", "总结：{{ start_1.text }}");
+            .set("prompt", "总结：{{start_1.text}}");  // 归一化后应收敛为 {{start_1.text}}
 
         NodeDataNormalizer.normalize("llm", data);
 
@@ -40,14 +40,14 @@ class NodeDataNormalizerLlmTest {
         assertEquals("https://www.dmxapi.cn/v1", iv.getJSONObject("apiHost").getStr("content"));
         assertEquals(0.3, iv.getJSONObject("temperature").getDouble("content"), 0.0001);
         assertEquals("template", iv.getJSONObject("systemPrompt").getStr("type"));
-        assertEquals("总结：{{ start_1.text }}", iv.getJSONObject("prompt").getStr("content"));
+        assertEquals("总结：{{start_1.text}}", iv.getJSONObject("prompt").getStr("content"));
     }
 
     @Test
     @DisplayName("模型自创的 inputs 声明被规范表单 schema 整体替换（text 之类消失）")
     void inventedInputsReplacedByCanonicalFormSchema() {
         JSONObject data = new JSONObject()
-            .set("prompt", "总结：{{ start_1.text }}")
+            .set("prompt", "总结：{{start_1.text}}")
             .set("inputs", new JSONObject().set("type", "object").set("properties", new JSONObject()
                 .set("text", new JSONObject().set("type", "string"))));
 
@@ -94,5 +94,31 @@ class NodeDataNormalizerLlmTest {
         String once = data.toString();
         NodeDataNormalizer.normalize("llm", data);
         assertEquals(once, data.toString());
+    }
+
+    @Test
+    @DisplayName("模板占位规范化：{{ x.y }}（带空格）→ {{x.y}}（前端变量校验按 . 拆段不 trim，带空格会被误报 Unknown）")
+    void templateTokensCanonicalizedToNoSpace() {
+        JSONObject data = new JSONObject()
+            .set("prompt", "总结：{{ start_1.text }} 和 {{ code_2.result}}");
+        NodeDataNormalizer.normalize("llm", data);
+        assertEquals("总结：{{start_1.text}} 和 {{code_2.result}}",
+            data.getJSONObject("inputsValues").getJSONObject("prompt").getStr("content"));
+
+        // 已是 template 包装的值同样规范化；表达式内部空格（c + d）不动
+        JSONObject wrapped = new JSONObject()
+            .set("prompt", new JSONObject().set("type", "template")
+                .set("content", "A {{ start_1.x }} B {{ c + d }}"));
+        NodeDataNormalizer.normalize("llm", wrapped);
+        assertEquals("A {{start_1.x}} B {{c + d}}",
+            wrapped.getJSONObject("inputsValues").getJSONObject("prompt").getStr("content"));
+
+        // http 纯文本请求体的 template 包装同样规范化
+        JSONObject http = new JSONObject()
+            .set("api", new JSONObject().set("method", "POST").set("url", "https://x.dev"))
+            .set("body", "{\"q\":\"{{ start_1.text }}\"}");
+        NodeDataNormalizer.normalize("http", http);
+        assertEquals("{\"q\":\"{{start_1.text}}\"}",
+            http.getJSONObject("body").getJSONObject("json").getStr("content"));
     }
 }

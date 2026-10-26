@@ -1,0 +1,728 @@
+{
+  "caseId": "C08",
+  "sessionKey": "04cec72323bb45f4a4a5a69d9e358532",
+  "elapsedSec": 67,
+  "turns": [
+    {
+      "utterance": "我们按重量收快递费：1 公斤以内 8 块，1 到 5 公斤每公斤 6 块，5 公斤以上每公斤 4 块，另外每单再收 2 块包装费。做个算价工具：输入重量，输出运费金额，还要给一条档位说明——轻件、标准件、重件优惠三种说法。",
+      "runStatus": "done",
+      "asksAnswered": [],
+      "lastAssistant": "我来创建一个快递运费计算工具。先加载搭建手册，然后查看当前画布状态。\n\n画布已有 start_1 和 end_1 骨架。我来创建这个快递运费计算工具：\n\n- **start_1**：输入重量\n- **code_1**：计算运费 + 档位说明\n- **end_1**：输出结果\n\nscript 需要字符串格式，修正一下：\n\n需要确认 code 节点的字段名：\n\n明白了，script 是对象，需要 `script.language` + `script.content` 结构。同时需要声明 inputs 和 outputs。\n\n节点配置完成。现在配置 start_1 的输入和 end_1 的输出引用，然后整流试跑。\n\n现在配置 start_1 的输入定义：\n\n现在整流试跑，用两个测试用例：轻件（0.5kg）和重件（8kg）。\n\n连线有问题，检查一下：\n\n只有 code_1 → end_1 的连线，缺少 start_1 → code_1。补上：\n\n现在重新整流试跑：\n\n变量名冲突，`weight` 已被声明。需要用 `start_1.weight` 取值：\n\nworkflow 运行时，start 的字段直接以变量名注入，不需要 `start_1.` 前缀。但 code 节点的 inputs 声明了 `weight`，所以应该用 `weight`。让我修正：\n\nJSON 不允许非有限数字，可能是 weight 传入了非数字。先单节点试跑看看：\n\n单节点跑通了。问题出在 workflow 运行时变量注入方式。让我检查 code_1 的 inputsValues：\n\ncode_1 没有配置 inputsValues，weight 变量来自 start_1 的 outputs 自动注入。workflow 运行时 start_1 的 weight 字段应该直接可用。让我再试一次，用整数：\n\n还是同样的错误。可能是 code 节点 outputs 声明的 type 有问题。让我检查 code_1 当前配置：\n\n配置看起来没问题。\"JSON does not allow non-finite numbers\" 可能是 end_1 的 ref 解析有问题。让我检查 end_1 配置：\n\nend_1 的 inputs 里 type 都是 string，但 code_1 输出的是 number。这可能是导致 \"non-finite numbers\" 的原因。修正 end_1 的 inputs 类型：\n\n还是 code_1 失败。问题可能在 code 节点 outputs 声明的 type 和实际返回值的类型不匹配。让我简化 outputs 声明，去掉 type 约束试试：\n\n还是同样的错误。让我用 mockInputs 直接跑 code_1 单节点，模拟 workflow 运行时的输入：\n\n单节点用 `{\"weight\": 0.5}` 跑通了。问题可能是 workflow 运行时 start_1 的 weight 注入方式不同。让我检查 start_1 的 outputs 配置：\n\nstart_1 有个多余的 `input` 字段。可能是这个字段导致问题。清理一下：\n\n还是同样的错误。让我看看 code_1 单节点试跑时是否有输出内容：\n\n单节点也成功了但没有看到 outputs。让我用 `{\"start_1\": {\"weight\": 0.5}}` 格式（按上游节点 id 分组）再试一次 code_1：\n\n单节点都成功。问题可能在 workflow 运行时 start_1 "
+    }
+  ],
+  "pass": false,
+  "checks": [
+    {
+      "case": "C08",
+      "name": "存在 branches 节点",
+      "pass": false,
+      "detail": ""
+    }
+  ],
+  "doc": {
+    "edges": [
+      {
+        "sourceNodeID": "code_1",
+        "targetNodeID": "end_1"
+      },
+      {
+        "sourceNodeID": "start_1",
+        "targetNodeID": "code_1"
+      }
+    ],
+    "version": 11,
+    "nodes": [
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "weight": {
+                "description": "包裹重量（公斤）",
+                "type": "number",
+                "default": 0
+              },
+              "input": {
+                "description": "input",
+                "type": "string",
+                "default": ""
+              }
+            }
+          },
+          "title": "开始"
+        },
+        "type": "start",
+        "meta": {
+          "position": {
+            "x": 180,
+            "y": 180
+          }
+        },
+        "id": "start_1"
+      },
+      {
+        "data": {
+          "inputsValues": {
+            "freight": {
+              "type": "ref",
+              "content": [
+                "code_1",
+                "freight"
+              ]
+            },
+            "weight": {
+              "type": "ref",
+              "content": [
+                "code_1",
+                "weight"
+              ]
+            },
+            "total": {
+              "type": "ref",
+              "content": [
+                "code_1",
+                "total"
+              ]
+            },
+            "tier": {
+              "type": "ref",
+              "content": [
+                "code_1",
+                "tier"
+              ]
+            },
+            "packagingFee": {
+              "type": "ref",
+              "content": [
+                "code_1",
+                "packagingFee"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "freight": {
+                "type": "number"
+              },
+              "weight": {
+                "type": "number"
+              },
+              "total": {
+                "type": "number"
+              },
+              "tier": {
+                "type": "string"
+              },
+              "packagingFee": {
+                "type": "number"
+              }
+            }
+          },
+          "title": "结束"
+        },
+        "type": "end",
+        "meta": {
+          "position": {
+            "x": 820,
+            "y": 180
+          }
+        },
+        "id": "end_1"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "freight": {
+                "type": "number"
+              },
+              "weight": {
+                "type": "number"
+              },
+              "total": {
+                "type": "number"
+              },
+              "tier": {
+                "type": "string"
+              },
+              "packagingFee": {
+                "type": "number"
+              }
+            }
+          },
+          "inputsValues": {
+            "weight": {
+              "type": "ref",
+              "content": [
+                "start_1",
+                "weight"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "weight": {
+                "type": "number"
+              }
+            }
+          },
+          "title": "运费计算",
+          "script": {
+            "language": "javascript",
+            "content": "const w = weight;\n\nlet freight = 0;\nlet tier = '';\n\nif (w <= 1) {\n  freight = 8;\n  tier = '轻件：1公斤以内，首重8元';\n} else if (w <= 5) {\n  freight = 8 + (w - 1) * 6;\n  tier = '标准件：1-5公斤，首重8元+续重每公斤6元';\n} else {\n  freight = 8 + 4 * 6 + (w - 5) * 4;\n  tier = '重件优惠：5公斤以上，首重8元+续重6元+超5公斤部分每公斤4元';\n}\n\nconst packagingFee = 2;\nconst total = freight + packagingFee;\n\n({\n  weight: w,\n  freight: freight,\n  packagingFee: packagingFee,\n  total: total,\n  tier: tier\n})"
+          }
+        },
+        "type": "code",
+        "meta": {
+          "position": {
+            "x": 500,
+            "y": 180
+          }
+        },
+        "id": "code_1"
+      }
+    ]
+  },
+  "trialRuns": [
+    {
+      "ok": true,
+      "taskId": "df4ef651-7f79-4dc3-af36-2ee852e4d5c8",
+      "workflowStatus": "success",
+      "outputs": {
+        "total": 10,
+        "tier": "轻件：1公斤以内，首重8元",
+        "freight": 8,
+        "weight": 0.5,
+        "packagingFee": 2
+      },
+      "nodes": {
+        "code_1": {
+          "id": "code_1",
+          "status": "succeeded",
+          "startTime": 1792937418914,
+          "endTime": 1792937418919,
+          "timeCost": 5,
+          "snapshots": [
+            {
+              "nodeID": "code_1",
+              "inputs": {
+                "weight": 0.5
+              },
+              "outputs": {
+                "freight": 8,
+                "weight": 0.5,
+                "total": 10,
+                "tier": "轻件：1公斤以内，首重8元",
+                "packagingFee": 2
+              },
+              "data": {
+                "freight": 8,
+                "weight": 0.5,
+                "total": 10,
+                "tier": "轻件：1公斤以内，首重8元",
+                "packagingFee": 2
+              },
+              "branch": "",
+              "error": "",
+              "id": "code_1"
+            }
+          ]
+        },
+        "start_1": {
+          "id": "start_1",
+          "status": "succeeded",
+          "startTime": 1792937418914,
+          "endTime": 1792937418914,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "start_1",
+              "inputs": {
+                "weight": 0.5
+              },
+              "outputs": {
+                "weight": 0.5,
+                "input": ""
+              },
+              "data": {
+                "weight": 0.5
+              },
+              "branch": "",
+              "error": "",
+              "id": "start_1"
+            }
+          ]
+        },
+        "end_1": {
+          "id": "end_1",
+          "status": "succeeded",
+          "startTime": 1792937418919,
+          "endTime": 1792937418919,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "end_1",
+              "inputs": {
+                "code_1": {
+                  "freight": 8,
+                  "weight": 0.5,
+                  "total": 10,
+                  "tier": "轻件：1公斤以内，首重8元",
+                  "packagingFee": 2
+                },
+                "weight": 0.5,
+                "start_1": {
+                  "weight": 0.5,
+                  "input": ""
+                }
+              },
+              "outputs": {
+                "freight": 8,
+                "weight": 0.5,
+                "total": 10,
+                "tier": "轻件：1公斤以内，首重8元",
+                "packagingFee": 2
+              },
+              "data": {
+                "code_1": {
+                  "freight": 8,
+                  "weight": 0.5,
+                  "total": 10,
+                  "tier": "轻件：1公斤以内，首重8元",
+                  "packagingFee": 2
+                },
+                "weight": 0.5,
+                "start_1": {
+                  "weight": 0.5,
+                  "input": ""
+                }
+              },
+              "branch": "",
+              "error": "",
+              "id": "end_1"
+            }
+          ]
+        }
+      },
+      "runDetail": {
+        "nodes": [
+          {
+            "id": 145,
+            "runTaskId": "df4ef651-7f79-4dc3-af36-2ee852e4d5c8",
+            "nodeId": "code_1",
+            "nodeType": "code",
+            "title": "运费计算",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"weight\":0.5}",
+            "outputJson": "{\"freight\":8,\"weight\":0.5,\"total\":10,\"tier\":\"轻件：1公斤以内，首重8元\",\"packagingFee\":2}",
+            "timeCostMs": 5,
+            "createdAt": "2026-10-25T22:10:18.974474"
+          },
+          {
+            "id": 146,
+            "runTaskId": "df4ef651-7f79-4dc3-af36-2ee852e4d5c8",
+            "nodeId": "start_1",
+            "nodeType": "start",
+            "title": "开始",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"weight\":0.5}",
+            "outputJson": "{\"weight\":0.5,\"input\":\"\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T22:10:18.974474"
+          },
+          {
+            "id": 147,
+            "runTaskId": "df4ef651-7f79-4dc3-af36-2ee852e4d5c8",
+            "nodeId": "end_1",
+            "nodeType": "end",
+            "title": "结束",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"code_1\":{\"freight\":8,\"weight\":0.5,\"total\":10,\"tier\":\"轻件：1公斤以内，首重8元\",\"packagingFee\":2},\"weight\":0.5,\"start_1\":{\"weight\":0.5,\"input\":\"\"}}",
+            "outputJson": "{\"freight\":8,\"weight\":0.5,\"total\":10,\"tier\":\"轻件：1公斤以内，首重8元\",\"packagingFee\":2}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T22:10:18.974474"
+          }
+        ],
+        "run": {
+          "id": 39,
+          "taskId": "df4ef651-7f79-4dc3-af36-2ee852e4d5c8",
+          "workflowCode": null,
+          "status": "success",
+          "errorMessage": null,
+          "inputsJson": "{\"weight\":0.5}",
+          "outputsJson": "{\"freight\":8,\"weight\":0.5,\"total\":10,\"tier\":\"轻件：1公斤以内，首重8元\",\"packagingFee\":2}",
+          "nodeCount": 3,
+          "durationMs": 61,
+          "triggerChannel": "editor",
+          "startedAt": "2026-10-25T22:10:18.913474",
+          "finishedAt": "2026-10-25T22:10:18.974474",
+          "createdAt": "2026-10-25T22:10:18.974474"
+        }
+      }
+    },
+    {
+      "ok": true,
+      "taskId": "99df84cc-97b3-46e0-8147-68faf18ab3fe",
+      "workflowStatus": "success",
+      "outputs": {
+        "total": 22,
+        "tier": "标准件：1-5公斤，首重8元+续重每公斤6元",
+        "freight": 20,
+        "weight": 3,
+        "packagingFee": 2
+      },
+      "nodes": {
+        "code_1": {
+          "id": "code_1",
+          "status": "succeeded",
+          "startTime": 1792937419932,
+          "endTime": 1792937419937,
+          "timeCost": 5,
+          "snapshots": [
+            {
+              "nodeID": "code_1",
+              "inputs": {
+                "weight": 3
+              },
+              "outputs": {
+                "freight": 20,
+                "weight": 3,
+                "total": 22,
+                "tier": "标准件：1-5公斤，首重8元+续重每公斤6元",
+                "packagingFee": 2
+              },
+              "data": {
+                "freight": 20,
+                "weight": 3,
+                "total": 22,
+                "tier": "标准件：1-5公斤，首重8元+续重每公斤6元",
+                "packagingFee": 2
+              },
+              "branch": "",
+              "error": "",
+              "id": "code_1"
+            }
+          ]
+        },
+        "start_1": {
+          "id": "start_1",
+          "status": "succeeded",
+          "startTime": 1792937419932,
+          "endTime": 1792937419932,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "start_1",
+              "inputs": {
+                "weight": 3
+              },
+              "outputs": {
+                "weight": 3,
+                "input": ""
+              },
+              "data": {
+                "weight": 3
+              },
+              "branch": "",
+              "error": "",
+              "id": "start_1"
+            }
+          ]
+        },
+        "end_1": {
+          "id": "end_1",
+          "status": "succeeded",
+          "startTime": 1792937419937,
+          "endTime": 1792937419937,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "end_1",
+              "inputs": {
+                "code_1": {
+                  "freight": 20,
+                  "weight": 3,
+                  "total": 22,
+                  "tier": "标准件：1-5公斤，首重8元+续重每公斤6元",
+                  "packagingFee": 2
+                },
+                "weight": 3,
+                "start_1": {
+                  "weight": 3,
+                  "input": ""
+                }
+              },
+              "outputs": {
+                "freight": 20,
+                "weight": 3,
+                "total": 22,
+                "tier": "标准件：1-5公斤，首重8元+续重每公斤6元",
+                "packagingFee": 2
+              },
+              "data": {
+                "code_1": {
+                  "freight": 20,
+                  "weight": 3,
+                  "total": 22,
+                  "tier": "标准件：1-5公斤，首重8元+续重每公斤6元",
+                  "packagingFee": 2
+                },
+                "weight": 3,
+                "start_1": {
+                  "weight": 3,
+                  "input": ""
+                }
+              },
+              "branch": "",
+              "error": "",
+              "id": "end_1"
+            }
+          ]
+        }
+      },
+      "runDetail": {
+        "nodes": [
+          {
+            "id": 148,
+            "runTaskId": "99df84cc-97b3-46e0-8147-68faf18ab3fe",
+            "nodeId": "code_1",
+            "nodeType": "code",
+            "title": "运费计算",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"weight\":3}",
+            "outputJson": "{\"freight\":20,\"weight\":3,\"total\":22,\"tier\":\"标准件：1-5公斤，首重8元+续重每公斤6元\",\"packagingFee\":2}",
+            "timeCostMs": 5,
+            "createdAt": "2026-10-25T22:10:19.992291"
+          },
+          {
+            "id": 149,
+            "runTaskId": "99df84cc-97b3-46e0-8147-68faf18ab3fe",
+            "nodeId": "start_1",
+            "nodeType": "start",
+            "title": "开始",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"weight\":3}",
+            "outputJson": "{\"weight\":3,\"input\":\"\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T22:10:19.992291"
+          },
+          {
+            "id": 150,
+            "runTaskId": "99df84cc-97b3-46e0-8147-68faf18ab3fe",
+            "nodeId": "end_1",
+            "nodeType": "end",
+            "title": "结束",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"code_1\":{\"freight\":20,\"weight\":3,\"total\":22,\"tier\":\"标准件：1-5公斤，首重8元+续重每公斤6元\",\"packagingFee\":2},\"weight\":3,\"start_1\":{\"weight\":3,\"input\":\"\"}}",
+            "outputJson": "{\"freight\":20,\"weight\":3,\"total\":22,\"tier\":\"标准件：1-5公斤，首重8元+续重每公斤6元\",\"packagingFee\":2}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T22:10:19.992291"
+          }
+        ],
+        "run": {
+          "id": 40,
+          "taskId": "99df84cc-97b3-46e0-8147-68faf18ab3fe",
+          "workflowCode": null,
+          "status": "success",
+          "errorMessage": null,
+          "inputsJson": "{\"weight\":3}",
+          "outputsJson": "{\"freight\":20,\"weight\":3,\"total\":22,\"tier\":\"标准件：1-5公斤，首重8元+续重每公斤6元\",\"packagingFee\":2}",
+          "nodeCount": 3,
+          "durationMs": 61,
+          "triggerChannel": "editor",
+          "startedAt": "2026-10-25T22:10:19.931291",
+          "finishedAt": "2026-10-25T22:10:19.992291",
+          "createdAt": "2026-10-25T22:10:19.992291"
+        }
+      }
+    },
+    {
+      "ok": true,
+      "taskId": "918055d3-2e29-4bbc-aa71-d73a7b027a3a",
+      "workflowStatus": "success",
+      "outputs": {
+        "total": 42,
+        "tier": "重件优惠：5公斤以上，首重8元+续重6元+超5公斤部分每公斤4元",
+        "freight": 40,
+        "weight": 7,
+        "packagingFee": 2
+      },
+      "nodes": {
+        "code_1": {
+          "id": "code_1",
+          "status": "succeeded",
+          "startTime": 1792937420954,
+          "endTime": 1792937420962,
+          "timeCost": 8,
+          "snapshots": [
+            {
+              "nodeID": "code_1",
+              "inputs": {
+                "weight": 7
+              },
+              "outputs": {
+                "freight": 40,
+                "weight": 7,
+                "total": 42,
+                "tier": "重件优惠：5公斤以上，首重8元+续重6元+超5公斤部分每公斤4元",
+                "packagingFee": 2
+              },
+              "data": {
+                "freight": 40,
+                "weight": 7,
+                "total": 42,
+                "tier": "重件优惠：5公斤以上，首重8元+续重6元+超5公斤部分每公斤4元",
+                "packagingFee": 2
+              },
+              "branch": "",
+              "error": "",
+              "id": "code_1"
+            }
+          ]
+        },
+        "start_1": {
+          "id": "start_1",
+          "status": "succeeded",
+          "startTime": 1792937420954,
+          "endTime": 1792937420954,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "start_1",
+              "inputs": {
+                "weight": 7
+              },
+              "outputs": {
+                "weight": 7,
+                "input": ""
+              },
+              "data": {
+                "weight": 7
+              },
+              "branch": "",
+              "error": "",
+              "id": "start_1"
+            }
+          ]
+        },
+        "end_1": {
+          "id": "end_1",
+          "status": "succeeded",
+          "startTime": 1792937420962,
+          "endTime": 1792937420962,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "end_1",
+              "inputs": {
+                "code_1": {
+                  "freight": 40,
+                  "weight": 7,
+                  "total": 42,
+                  "tier": "重件优惠：5公斤以上，首重8元+续重6元+超5公斤部分每公斤4元",
+                  "packagingFee": 2
+                },
+                "weight": 7,
+                "start_1": {
+                  "weight": 7,
+                  "input": ""
+                }
+              },
+              "outputs": {
+                "freight": 40,
+                "weight": 7,
+                "total": 42,
+                "tier": "重件优惠：5公斤以上，首重8元+续重6元+超5公斤部分每公斤4元",
+                "packagingFee": 2
+              },
+              "data": {
+                "code_1": {
+                  "freight": 40,
+                  "weight": 7,
+                  "total": 42,
+                  "tier": "重件优惠：5公斤以上，首重8元+续重6元+超5公斤部分每公斤4元",
+                  "packagingFee": 2
+                },
+                "weight": 7,
+                "start_1": {
+                  "weight": 7,
+                  "input": ""
+                }
+              },
+              "branch": "",
+              "error": "",
+              "id": "end_1"
+            }
+          ]
+        }
+      },
+      "runDetail": {
+        "nodes": [
+          {
+            "id": 151,
+            "runTaskId": "918055d3-2e29-4bbc-aa71-d73a7b027a3a",
+            "nodeId": "code_1",
+            "nodeType": "code",
+            "title": "运费计算",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"weight\":7}",
+            "outputJson": "{\"freight\":40,\"weight\":7,\"total\":42,\"tier\":\"重件优惠：5公斤以上，首重8元+续重6元+超5公斤部分每公斤4元\",\"packagingFee\":2}",
+            "timeCostMs": 8,
+            "createdAt": "2026-10-25T22:10:21.014815"
+          },
+          {
+            "id": 152,
+            "runTaskId": "918055d3-2e29-4bbc-aa71-d73a7b027a3a",
+            "nodeId": "start_1",
+            "nodeType": "start",
+            "title": "开始",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"weight\":7}",
+            "outputJson": "{\"weight\":7,\"input\":\"\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T22:10:21.014815"
+          },
+          {
+            "id": 153,
+            "runTaskId": "918055d3-2e29-4bbc-aa71-d73a7b027a3a",
+            "nodeId": "end_1",
+            "nodeType": "end",
+            "title": "结束",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"code_1\":{\"freight\":40,\"weight\":7,\"total\":42,\"tier\":\"重件优惠：5公斤以上，首重8元+续重6元+超5公斤部分每公斤4元\",\"packagingFee\":2},\"weight\":7,\"start_1\":{\"weight\":7,\"input\":\"\"}}",
+            "outputJson": "{\"freight\":40,\"weight\":7,\"total\":42,\"tier\":\"重件优惠：5公斤以上，首重8元+续重6元+超5公斤部分每公斤4元\",\"packagingFee\":2}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T22:10:21.014815"
+          }
+        ],
+        "run": {
+          "id": 41,
+          "taskId": "918055d3-2e29-4bbc-aa71-d73a7b027a3a",
+          "workflowCode": null,
+          "status": "success",
+          "errorMessage": null,
+          "inputsJson": "{\"weight\":7}",
+          "outputsJson": "{\"freight\":40,\"weight\":7,\"total\":42,\"tier\":\"重件优惠：5公斤以上，首重8元+续重6元+超5公斤部分每公斤4元\",\"packagingFee\":2}",
+          "nodeCount": 3,
+          "durationMs": 61,
+          "triggerChannel": "editor",
+          "startedAt": "2026-10-25T22:10:20.953815",
+          "finishedAt": "2026-10-25T22:10:21.014815",
+          "createdAt": "2026-10-25T22:10:21.014815"
+        }
+      }
+    }
+  ]
+}

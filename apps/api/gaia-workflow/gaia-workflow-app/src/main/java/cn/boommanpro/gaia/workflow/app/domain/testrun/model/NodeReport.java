@@ -4,8 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * 节点报告
@@ -22,6 +22,7 @@ public class NodeReport {
     private Long startTime;
     private Long endTime;
     private Long timeCost;
-    private List<Snapshot> snapshots = new ArrayList<>();
+    /** 执行线程追加、report 轮询线程遍历：CopyOnWriteArrayList 保证并发下序列化不抛 CME */
+    private List<Snapshot> snapshots = new CopyOnWriteArrayList<>();
 }
 

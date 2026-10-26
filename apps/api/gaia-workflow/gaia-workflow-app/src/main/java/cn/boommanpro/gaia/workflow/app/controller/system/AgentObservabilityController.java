@@ -147,15 +147,19 @@ public class AgentObservabilityController {
     @GetMapping("/sessions/{sessionKey}/runs")
     public List<Map<String, Object>> sessionRuns(@PathVariable String sessionKey,
                                                  @RequestParam(required = false, defaultValue = "200") int limit) {
-        List<AgentSessionEvent> events = sessionEventService.list(
+        // 窗口按 id 倒序取最近的 N*20 条再正序聚合：正序取头部会把最新 run 的
+        // run_end 截在窗口外，聚合出「永远 running」的假终态（2026-10-25 会话
+        // 020729 实证：limit=1 时 b417f65 的终态事件落在前 20 条之外）。
+        List<AgentSessionEvent> recent = sessionEventService.list(
             new QueryWrapper<AgentSessionEvent>()
                 .eq("session_key", sessionKey)
-                .orderByAsc("id")
+                .orderByDesc("id")
                 .last("LIMIT " + Math.min(Math.max(limit, 1) * 20, 2000)));
+        java.util.Collections.reverse(recent);
 
         // 按 runId 聚合（保持首次出现顺序）
         Map<String, Map<String, Object>> runs = new LinkedHashMap<>();
-        for (AgentSessionEvent event : events) {
+        for (AgentSessionEvent event : recent) {
             String runId = event.getRunId() != null ? event.getRunId() : "unknown";
             Map<String, Object> run = runs.computeIfAbsent(runId, k -> {
                 Map<String, Object> m = new HashMap<>();
@@ -171,12 +175,25 @@ public class AgentObservabilityController {
             if ("error".equals(type)) {
                 run.put("hasError", true);
             }
+            if ("run_input".equals(type)) {
+                try {
+                    cn.hutool.json.JSONObject payload = cn.hutool.json.JSONUtil.parseObj(
+                        event.getPayload() != null ? event.getPayload() : "{}");
+                    if (payload.containsKey("draftRevision")) {
+                        run.put("startDraftRevision", payload.getInt("draftRevision"));
+                    }
+                } catch (Exception ignore) {
+                }
+            }
             if ("run_end".equals(type)) {
                 run.put("endedAt", event.getCreatedAt());
                 try {
                     cn.hutool.json.JSONObject payload = cn.hutool.json.JSONUtil.parseObj(
                         event.getPayload() != null ? event.getPayload() : "{}");
                     run.put("outcome", payload.getStr("outcome", "done"));
+                    if (payload.containsKey("draftRevision")) {
+                        run.put("draftRevision", payload.getInt("draftRevision"));
+                    }
                     run.put("turns", payload.getInt("turns", 0));
                     run.put("durationMs", payload.getLong("durationMs"));
                     run.put("toolTimeMs", payload.getLong("toolTimeMs"));

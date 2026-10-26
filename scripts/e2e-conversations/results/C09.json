@@ -1,0 +1,625 @@
+{
+  "caseId": "C09",
+  "sessionKey": "3f7b3d1811ab421fad47f8b74cf146b4",
+  "elapsedSec": 115,
+  "turns": [
+    {
+      "utterance": "我有一份商品名单：键盘、鼠标、显示器。做一个工具，输入这样的名单数组，名单里每个商品都单独让 AI 想一句有创意、不重样的促销标语——这是逐条创作，不是套模板替换。最后把所有标语按名单顺序合成一个列表给我。",
+      "runStatus": "done",
+      "asksAnswered": [],
+      "lastAssistant": "⚠️ 系统护栏：你在已被提醒后仍第 2 次原样重复同一组工具调用序列（周期 2：get → node），每一步参数与上一轮完全相同、结果不会有任何变化，本轮执行已被终止以避免空转。\n\n已生效的改动保持有效。继续推进请换一种做法：按最近一次结果里的 failReason / error / failedNodes 定位到具体节点或字段去修，或 get(target=canvas) 核对现状；若无法修正，直接说明你需要用户提供什么。"
+    }
+  ],
+  "pass": false,
+  "checks": [
+    {
+      "case": "C09",
+      "name": "存在 loop 容器",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "case": "C09",
+      "name": "DSL 含 block-start",
+      "pass": false,
+      "detail": "[]"
+    },
+    {
+      "case": "C09",
+      "name": "DSL 含 block-end",
+      "pass": false,
+      "detail": "[]"
+    },
+    {
+      "case": "C09",
+      "name": "loopFor 引用上游数组",
+      "pass": true,
+      "detail": "{\"type\":\"ref\",\"content\":[\"start_1\",\"input\"]}"
+    },
+    {
+      "case": "C09",
+      "name": "体内引用 item",
+      "pass": false,
+      "detail": "[]"
+    },
+    {
+      "case": "C09",
+      "name": "loopOutputs 已配置聚合",
+      "pass": true,
+      "detail": "{\"slogans\":{\"type\":\"ref\",\"content\":[\"llm_2\",\"result\"]}}"
+    },
+    {
+      "case": "C09",
+      "name": "试运行被接受",
+      "pass": false,
+      "detail": "节点 llm_2（llm）参数结构不合法：/inputsValues: required property 'prompt' not found;节点 llm_2（LLM）缺少 prompt：没有提示词无法完成任何任务。修复：node 传 {\"action\":\"update\",\"nodeId\":\"llm_2\",\"data\":{\"prompt\":\"<从需求推导的提示词，可引用上游输出，如：总结以下文本：{{ start.text }}\"}};节点 llm_2（LLM）apiKey 为空：运行时无法调用模型（必然 401）。修复：先 get(target=knowledge, nodeType=llm) 取 platformDefaultModel 三个值，node 传 {\"action\":\"update\",\"nodeId\":\"llm_2"
+    }
+  ],
+  "doc": {
+    "edges": [
+      {
+        "sourceNodeID": "start_1",
+        "targetNodeID": "loop_1"
+      },
+      {
+        "sourceNodeID": "loop_1",
+        "targetNodeID": "end_1"
+      }
+    ],
+    "version": 27,
+    "nodes": [
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "input": {
+                "type": "string",
+                "default": ""
+              }
+            }
+          },
+          "title": "开始"
+        },
+        "type": "start",
+        "meta": {
+          "position": {
+            "x": 180,
+            "y": 180
+          }
+        },
+        "id": "start_1"
+      },
+      {
+        "data": {
+          "inputsValues": {
+            "slogans": {
+              "type": "ref",
+              "content": [
+                "loop_1",
+                "slogans"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "slogans": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "结束"
+        },
+        "type": "end",
+        "meta": {
+          "position": {
+            "x": 820,
+            "y": 180
+          }
+        },
+        "id": "end_1"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "slogans": {
+                "type": "array"
+              }
+            }
+          },
+          "loopOutputs": {
+            "slogans": {
+              "type": "ref",
+              "content": [
+                "llm_2",
+                "result"
+              ]
+            }
+          },
+          "title": "循环生成标语",
+          "loopFor": {
+            "type": "ref",
+            "content": [
+              "start_1",
+              "input"
+            ]
+          }
+        },
+        "type": "loop",
+        "meta": {
+          "position": {
+            "x": 500,
+            "y": 180
+          }
+        },
+        "id": "loop_1"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "result": {
+                "type": "string"
+              }
+            }
+          },
+          "inputsValues": {
+            "apiKey": {
+              "type": "constant",
+              "content": "sk-REDACTED"
+            },
+            "apiHost": {
+              "type": "constant",
+              "content": "https://www.dmxapi.cn/v1"
+            },
+            "modelName": {
+              "type": "constant",
+              "content": "glm-4-flash"
+            },
+            "temperature": {
+              "type": "constant",
+              "content": 0.8
+            },
+            "prompt": {
+              "type": "template",
+              "content": "为商品 {{loop_1_locals.item}} 写一句有创意的促销标语。要求：\n1. 简短有力，不超过20字\n2. 有创意，不要套模板\n3. 只输出标语本身，不要输出商品名或其他文字"
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "required": [
+              "prompt"
+            ],
+            "properties": {
+              "apiKey": {
+                "description": "运行时由平台自动注入，可不填",
+                "type": "string"
+              },
+              "apiHost": {
+                "description": "运行时由平台自动注入，可不填",
+                "type": "string"
+              },
+              "modelName": {
+                "description": "运行时由平台自动注入，可不填",
+                "type": "string"
+              },
+              "systemPrompt": {
+                "type": "string",
+                "extra": {
+                  "formComponent": "prompt-editor"
+                }
+              },
+              "temperature": {
+                "description": "0-2，缺省按平台默认",
+                "type": "number"
+              },
+              "prompt": {
+                "type": "string",
+                "extra": {
+                  "formComponent": "prompt-editor"
+                }
+              }
+            }
+          },
+          "title": "生成标语"
+        },
+        "type": "llm",
+        "meta": {
+          "position": {
+            "x": 180,
+            "y": 380
+          }
+        },
+        "id": "llm_6"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "result": {
+                "type": "string"
+              }
+            }
+          },
+          "inputsValues": {},
+          "inputs": {
+            "type": "object",
+            "required": [
+              "prompt"
+            ],
+            "properties": {
+              "apiKey": {
+                "description": "运行时由平台自动注入，可不填",
+                "type": "string"
+              },
+              "apiHost": {
+                "description": "运行时由平台自动注入，可不填",
+                "type": "string"
+              },
+              "modelName": {
+                "description": "运行时由平台自动注入，可不填",
+                "type": "string"
+              },
+              "systemPrompt": {
+                "type": "string",
+                "extra": {
+                  "formComponent": "prompt-editor"
+                }
+              },
+              "temperature": {
+                "description": "0-2，缺省按平台默认",
+                "type": "number"
+              },
+              "prompt": {
+                "type": "string",
+                "extra": {
+                  "formComponent": "prompt-editor"
+                }
+              }
+            }
+          }
+        },
+        "type": "llm",
+        "meta": {
+          "position": {
+            "x": 180,
+            "y": 580
+          }
+        },
+        "id": "llm_2"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "result": {
+                "type": "string"
+              }
+            }
+          },
+          "inputsValues": {
+            "apiKey": {
+              "type": "constant",
+              "content": "sk-REDACTED"
+            },
+            "apiHost": {
+              "type": "constant",
+              "content": "https://www.dmxapi.cn/v1"
+            },
+            "modelName": {
+              "type": "constant",
+              "content": "glm-4-flash"
+            },
+            "temperature": {
+              "type": "constant",
+              "content": 0.8
+            },
+            "prompt": {
+              "type": "template",
+              "content": "为商品 {{loop_1_locals.item}} 写一句有创意的促销标语。要求：\n1. 简短有力，不超过20字\n2. 有创意，不要套模板\n3. 只输出标语本身，不要输出商品名或其他文字"
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "required": [
+              "prompt"
+            ],
+            "properties": {
+              "apiKey": {
+                "description": "运行时由平台自动注入，可不填",
+                "type": "string"
+              },
+              "apiHost": {
+                "description": "运行时由平台自动注入，可不填",
+                "type": "string"
+              },
+              "modelName": {
+                "description": "运行时由平台自动注入，可不填",
+                "type": "string"
+              },
+              "systemPrompt": {
+                "type": "string",
+                "extra": {
+                  "formComponent": "prompt-editor"
+                }
+              },
+              "temperature": {
+                "description": "0-2，缺省按平台默认",
+                "type": "number"
+              },
+              "prompt": {
+                "type": "string",
+                "extra": {
+                  "formComponent": "prompt-editor"
+                }
+              }
+            }
+          },
+          "title": "生成标语"
+        },
+        "type": "llm",
+        "meta": {
+          "position": {
+            "x": 180,
+            "y": 780
+          }
+        },
+        "id": "llm_7"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "result": {
+                "type": "string"
+              }
+            }
+          },
+          "inputsValues": {
+            "apiKey": {
+              "type": "constant",
+              "content": "sk-REDACTED"
+            },
+            "apiHost": {
+              "type": "constant",
+              "content": "https://www.dmxapi.cn/v1"
+            },
+            "modelName": {
+              "type": "constant",
+              "content": "glm-4-flash"
+            },
+            "temperature": {
+              "type": "constant",
+              "content": 0.8
+            },
+            "prompt": {
+              "type": "template",
+              "content": "为商品 {{loop_1_locals.item}} 写一句有创意的促销标语。要求：\n1. 简短有力，不超过20字\n2. 有创意，不要套模板\n3. 只输出标语本身，不要输出商品名或其他文字"
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "required": [
+              "prompt"
+            ],
+            "properties": {
+              "apiKey": {
+                "description": "运行时由平台自动注入，可不填",
+                "type": "string"
+              },
+              "apiHost": {
+                "description": "运行时由平台自动注入，可不填",
+                "type": "string"
+              },
+              "modelName": {
+                "description": "运行时由平台自动注入，可不填",
+                "type": "string"
+              },
+              "systemPrompt": {
+                "type": "string",
+                "extra": {
+                  "formComponent": "prompt-editor"
+                }
+              },
+              "temperature": {
+                "description": "0-2，缺省按平台默认",
+                "type": "number"
+              },
+              "prompt": {
+                "type": "string",
+                "extra": {
+                  "formComponent": "prompt-editor"
+                }
+              }
+            }
+          },
+          "title": "生成标语"
+        },
+        "type": "llm",
+        "meta": {
+          "position": {
+            "x": 180,
+            "y": 980
+          }
+        },
+        "id": "llm_8"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "result": {
+                "type": "string"
+              }
+            }
+          },
+          "inputsValues": {
+            "apiKey": {
+              "type": "constant",
+              "content": "sk-REDACTED"
+            },
+            "apiHost": {
+              "type": "constant",
+              "content": "https://www.dmxapi.cn/v1"
+            },
+            "modelName": {
+              "type": "constant",
+              "content": "glm-4-flash"
+            },
+            "temperature": {
+              "type": "constant",
+              "content": 0.8
+            },
+            "prompt": {
+              "type": "template",
+              "content": "为商品 {{loop_1_locals.item}} 写一句有创意的促销标语。要求：\n1. 简短有力，不超过20字\n2. 有创意，不要套模板\n3. 只输出标语本身，不要输出商品名或其他文字"
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "required": [
+              "prompt"
+            ],
+            "properties": {
+              "apiKey": {
+                "description": "运行时由平台自动注入，可不填",
+                "type": "string"
+              },
+              "apiHost": {
+                "description": "运行时由平台自动注入，可不填",
+                "type": "string"
+              },
+              "modelName": {
+                "description": "运行时由平台自动注入，可不填",
+                "type": "string"
+              },
+              "systemPrompt": {
+                "type": "string",
+                "extra": {
+                  "formComponent": "prompt-editor"
+                }
+              },
+              "temperature": {
+                "description": "0-2，缺省按平台默认",
+                "type": "number"
+              },
+              "prompt": {
+                "type": "string",
+                "extra": {
+                  "formComponent": "prompt-editor"
+                }
+              }
+            }
+          },
+          "title": "生成标语"
+        },
+        "type": "llm",
+        "meta": {
+          "position": {
+            "x": 180,
+            "y": 1180
+          }
+        },
+        "id": "llm_9"
+      }
+    ]
+  },
+  "trialRuns": [
+    {
+      "ok": false,
+      "errors": [
+        "节点 llm_2（llm）参数结构不合法：/inputsValues: required property 'prompt' not found",
+        "节点 llm_2（LLM）缺少 prompt：没有提示词无法完成任何任务。修复：node 传 {\"action\":\"update\",\"nodeId\":\"llm_2\",\"data\":{\"prompt\":\"<从需求推导的提示词，可引用上游输出，如：总结以下文本：{{ start.text }}\"}}",
+        "节点 llm_2（LLM）apiKey 为空：运行时无法调用模型（必然 401）。修复：先 get(target=knowledge, nodeType=llm) 取 platformDefaultModel 三个值，node 传 {\"action\":\"update\",\"nodeId\":\"llm_2\",\"data\":{\"inputsValues\":{\"apiKey\":{\"type\":\"constant\",\"content\":\"<platformDefaultModel.apiKey>\"}}}}（modelName/apiHost 也要一并原样填入）"
+      ],
+      "issues": [
+        {
+          "level": "warning",
+          "code": "UNREACHABLE_NODE",
+          "nodeId": "llm_6",
+          "message": "节点 llm_6（llm）从 start 不可达，永远不会执行"
+        },
+        {
+          "level": "warning",
+          "code": "UNREACHABLE_NODE",
+          "nodeId": "llm_2",
+          "message": "节点 llm_2（llm）从 start 不可达，永远不会执行"
+        },
+        {
+          "level": "warning",
+          "code": "UNREACHABLE_NODE",
+          "nodeId": "llm_7",
+          "message": "节点 llm_7（llm）从 start 不可达，永远不会执行"
+        },
+        {
+          "level": "warning",
+          "code": "UNREACHABLE_NODE",
+          "nodeId": "llm_8",
+          "message": "节点 llm_8（llm）从 start 不可达，永远不会执行"
+        },
+        {
+          "level": "warning",
+          "code": "UNREACHABLE_NODE",
+          "nodeId": "llm_9",
+          "message": "节点 llm_9（llm）从 start 不可达，永远不会执行"
+        },
+        {
+          "level": "warning",
+          "code": "ISOLATED_NODE",
+          "nodeId": "llm_6",
+          "message": "节点 llm_6（llm）没有任何连线，不会被执行"
+        },
+        {
+          "level": "warning",
+          "code": "ISOLATED_NODE",
+          "nodeId": "llm_2",
+          "message": "节点 llm_2（llm）没有任何连线，不会被执行"
+        },
+        {
+          "level": "warning",
+          "code": "ISOLATED_NODE",
+          "nodeId": "llm_7",
+          "message": "节点 llm_7（llm）没有任何连线，不会被执行"
+        },
+        {
+          "level": "warning",
+          "code": "ISOLATED_NODE",
+          "nodeId": "llm_8",
+          "message": "节点 llm_8（llm）没有任何连线，不会被执行"
+        },
+        {
+          "level": "warning",
+          "code": "ISOLATED_NODE",
+          "nodeId": "llm_9",
+          "message": "节点 llm_9（llm）没有任何连线，不会被执行"
+        },
+        {
+          "level": "error",
+          "code": "INVALID_PARAM",
+          "nodeId": "llm_2",
+          "message": "节点 llm_2（llm）参数结构不合法：/inputsValues: required property 'prompt' not found"
+        },
+        {
+          "level": "error",
+          "code": "SEMANTIC",
+          "nodeId": "llm_2",
+          "message": "节点 llm_2（LLM）缺少 prompt：没有提示词无法完成任何任务。修复：node 传 {\"action\":\"update\",\"nodeId\":\"llm_2\",\"data\":{\"prompt\":\"<从需求推导的提示词，可引用上游输出，如：总结以下文本：{{ start.text }}\"}}"
+        },
+        {
+          "level": "error",
+          "code": "SEMANTIC",
+          "nodeId": "llm_2",
+          "message": "节点 llm_2（LLM）apiKey 为空：运行时无法调用模型（必然 401）。修复：先 get(target=knowledge, nodeType=llm) 取 platformDefaultModel 三个值，node 传 {\"action\":\"update\",\"nodeId\":\"llm_2\",\"data\":{\"inputsValues\":{\"apiKey\":{\"type\":\"constant\",\"content\":\"<platformDefaultModel.apiKey>\"}}}}（modelName/apiHost 也要一并原样填入）"
+        }
+      ]
+    }
+  ]
+}

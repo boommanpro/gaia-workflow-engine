@@ -1,0 +1,2465 @@
+{
+  "caseId": "C23",
+  "sessionKey": "6294f22d6b984217b5a27b0412682351",
+  "elapsedSec": 191,
+  "turns": [
+    {
+      "utterance": "做一个客户咨询自动应答：客户发来一段话，先判断想咨询的是“退款”“发货”还是“其他”，再判断情绪是否负面。退款的统一回“已收到您的退款申请，24 小时内处理”；发货的看情绪——负面回“非常抱歉给您带来不便，我们加急处理”，非负面回“您的包裹正在安排发货，请留意物流信息”；其他的一律回“已转人工客服”。最后输出回复文案，和一个“是否需要人工跟进”的标记：退款和“其他”类需要，发货类不需要。",
+      "runStatus": "done",
+      "asksAnswered": [],
+      "lastAssistant": "我来创建一个客户咨询自动应答工作流。先加载搭建手册，然后查看当前画布状态。\n\n先查看 LLM 节点的知识，确认 JSON 输出模式的字段要求。\n\n现在查看 condition 节点的知识，确认分支出边的写法。\n\n现在查看 string-format 节点的知识。\n\n好的，现在我已经了解了所有需要的节点类型。让我开始搭建工作流。\n\n**设计思路：**\n1. LLM 节点（JSON 输出）：分类（退款/发货/其他）+ 情绪（negative/neutral/positive）\n2. Condition 节点：先判断分类是否为\"退款\"，再判断分类是否为\"发货\"，其他走 else\n3. 每个分支用 string-format 生成回复文案和人工跟进标记\n4. 最后汇聚到 end\n\n由于 condition 是单条件 if/else，我需要两层条件判断。让我先创建所有节点。\n\nLLM 节点没有自动创建，需要单独添加。让我先添加 LLM 节点，然后补齐条件节点配置。\n\n有两个问题：1) LLM 的 inputsValues 里多了 outputs 和 outputMode 字段；2) start_1 的输出字段是 `input` 不是 `text`；3) 需要填入 platformDefaultModel。让我修正 LLM 节点。\n\noutputs 和 outputMode 是顶层字段，不是 inputsValues 的子字段。让我重新更新：\n\n看起来之前的 data 里 outputs 和 outputMode 被嵌套进了 inputsValues。让我先查看当前节点配置：\n\n我看到问题了：之前的 add 把 outputs 和 outputMode 放进了 inputsValues 里，而且 prompt 里引用的是 `start_1.text` 而不是 `start_1.input`。需要把 outputs 和 outputMode 提到顶层，同时修正 inputsValues。\n\n看起来 deep merge 时旧的 outputs 和 outputMode 还在 inputsValues 里。让我先删除 llm_1 再重新添加：\n\n现在重新添加 LLM 节点，确保结构正确：\n\n节点 ID 是 `llm_2`。现在更新 condition_1 和 condition_2 的配置，并添加 string-format 节点。\n\n现在更新 condition_1（分类判断）：判断 category 是否为\"退款\"，是则走退款分支，否则走发货/其他分支。\n\n现在更新 condition_2（发货判断）：判断 category 是否为\"发货\"，是则走发货分支，否则走其他分支。\n\n现在添加三个 string-format 节点（退款回复、发货回复、其他回复）和一个用于发货情绪判断的 string-format。\n\n先添加退款分支的 string-format：\n\n现在配置这三个节点。先配置 sf_refund（退款回复）：\n\n配置 sf_shipment（发货分支的情绪判断，生成回复和标记）：\n\n配置 condition_3（判断发货情绪是否为 negative）：\n\n现在添加发货分支的两个 string-format（负面和非负面）以及其他分支的 string-format：\n\n添加四个 string-format 节点：退款回复、发货负面回复、发货非负面回复、其他回复：\n\n现在配置这三个 string-format 节点。先配置发货-负面回复：\n\n配置发货-"
+    }
+  ],
+  "pass": false,
+  "checks": [
+    {
+      "case": "C23",
+      "name": "退款输入成功",
+      "pass": true,
+      "detail": "status=success"
+    },
+    {
+      "case": "C23",
+      "name": "退款回复",
+      "pass": false,
+      "detail": "{\"needHuman\":\"是\",\"reply\":\"您的包裹正在安排发货，请留意物流信息\"}"
+    },
+    {
+      "case": "C23",
+      "name": "发货输入成功",
+      "pass": true,
+      "detail": "status=success"
+    },
+    {
+      "case": "C23",
+      "name": "发货回复",
+      "pass": true,
+      "detail": "{\"needHuman\":\"是\",\"reply\":\"您的包裹正在安排发货，请留意物流信息\"}"
+    },
+    {
+      "case": "C23",
+      "name": "其他输入成功",
+      "pass": true,
+      "detail": "status=success"
+    },
+    {
+      "case": "C23",
+      "name": "转人工回复",
+      "pass": false,
+      "detail": "{\"needHuman\":\"是\",\"reply\":\"您的包裹正在安排发货，请留意物流信息\"}"
+    }
+  ],
+  "doc": {
+    "edges": [
+      {
+        "sourceNodeID": "start_1",
+        "targetNodeID": "llm_2"
+      },
+      {
+        "sourceNodeID": "condition_1",
+        "sourcePortID": "is_refund",
+        "targetNodeID": "sf_refund"
+      },
+      {
+        "sourceNodeID": "condition_1",
+        "sourcePortID": "else",
+        "targetNodeID": "sf_shipment"
+      },
+      {
+        "sourceNodeID": "sf_shipment",
+        "targetNodeID": "condition_3"
+      },
+      {
+        "sourceNodeID": "condition_3",
+        "sourcePortID": "is_negative",
+        "targetNodeID": "sf_ship_neg"
+      },
+      {
+        "sourceNodeID": "condition_3",
+        "sourcePortID": "else",
+        "targetNodeID": "sf_ship_pos"
+      },
+      {
+        "sourceNodeID": "condition_2",
+        "sourcePortID": "else",
+        "targetNodeID": "sf_other"
+      },
+      {
+        "sourceNodeID": "condition_2",
+        "sourcePortID": "is_shipment",
+        "targetNodeID": "sf_shipment"
+      },
+      {
+        "sourceNodeID": "sf_refund",
+        "targetNodeID": "end_1"
+      },
+      {
+        "sourceNodeID": "sf_ship_neg",
+        "targetNodeID": "end_1"
+      },
+      {
+        "sourceNodeID": "sf_ship_pos",
+        "targetNodeID": "end_1"
+      },
+      {
+        "sourceNodeID": "sf_other",
+        "targetNodeID": "end_1"
+      },
+      {
+        "sourceNodeID": "sf_refund",
+        "targetNodeID": "code_4"
+      },
+      {
+        "sourceNodeID": "sf_ship_neg",
+        "targetNodeID": "code_4"
+      },
+      {
+        "sourceNodeID": "sf_ship_pos",
+        "targetNodeID": "code_4"
+      },
+      {
+        "sourceNodeID": "sf_other",
+        "targetNodeID": "code_4"
+      },
+      {
+        "sourceNodeID": "code_4",
+        "targetNodeID": "end_1"
+      },
+      {
+        "sourceNodeID": "condition_1",
+        "sourcePortID": "else",
+        "targetNodeID": "condition_2"
+      },
+      {
+        "sourceNodeID": "llm_2",
+        "targetNodeID": "condition_1"
+      }
+    ],
+    "version": 34,
+    "nodes": [
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "input": {
+                "type": "string",
+                "default": ""
+              }
+            }
+          },
+          "title": "开始"
+        },
+        "type": "start",
+        "meta": {
+          "position": {
+            "x": 180,
+            "y": 180
+          }
+        },
+        "id": "start_1"
+      },
+      {
+        "data": {
+          "inputsValues": {
+            "needHuman": {
+              "type": "ref",
+              "content": [
+                "code_4",
+                "needHuman"
+              ]
+            },
+            "reply": {
+              "type": "ref",
+              "content": [
+                "code_4",
+                "reply"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "needHuman": {
+                "type": "string"
+              },
+              "reply": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "结束"
+        },
+        "type": "end",
+        "meta": {
+          "position": {
+            "x": 500,
+            "y": 180
+          }
+        },
+        "id": "end_1"
+      },
+      {
+        "data": {
+          "title": "分类判断",
+          "conditions": [
+            {
+              "value": {
+                "right": {
+                  "type": "constant",
+                  "content": "退款"
+                },
+                "operator": "eq",
+                "left": {
+                  "type": "ref",
+                  "content": [
+                    "llm_2",
+                    "category"
+                  ]
+                }
+              },
+              "key": "is_refund"
+            }
+          ]
+        },
+        "type": "condition",
+        "meta": {
+          "position": {
+            "x": 820,
+            "y": 180
+          }
+        },
+        "id": "condition_1"
+      },
+      {
+        "data": {
+          "title": "发货判断",
+          "conditions": [
+            {
+              "value": {
+                "right": {
+                  "type": "constant",
+                  "content": "发货"
+                },
+                "operator": "eq",
+                "left": {
+                  "type": "ref",
+                  "content": [
+                    "llm_2",
+                    "category"
+                  ]
+                }
+              },
+              "key": "is_shipment"
+            }
+          ]
+        },
+        "type": "condition",
+        "meta": {
+          "position": {
+            "x": 1140,
+            "y": 180
+          }
+        },
+        "id": "condition_2"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "sentiment": {
+                "type": "string"
+              },
+              "category": {
+                "type": "string"
+              }
+            }
+          },
+          "inputsValues": {
+            "apiKey": {
+              "type": "constant",
+              "content": "sk-REDACTED"
+            },
+            "apiHost": {
+              "type": "constant",
+              "content": "https://www.dmxapi.cn/v1"
+            },
+            "modelName": {
+              "type": "constant",
+              "content": "glm-4-flash"
+            },
+            "temperature": {
+              "type": "constant",
+              "content": 0.1
+            },
+            "prompt": {
+              "type": "template",
+              "content": "分析客户咨询内容，判断咨询类别和情绪。\n\n类别判定：\n- 退款：包含退款、退货、退钱、退款申请等关键词\n- 发货：包含发货、物流、快递、包裹、配送等关键词\n- 其他：以上都不属于\n\n情绪判定：\n- negative：抱怨、催促、不满意、投诉、糟糕、慢等负面词汇\n- positive/neutral：表扬、感谢、正常咨询等\n\n只输出 JSON 对象，不要输出任何其他文字：\n{\"category\":\"退款|发货|其他\",\"sentiment\":\"negative|positive|neutral\"}\n\n客户咨询：{{start_1.input}}"
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "required": [
+              "prompt"
+            ],
+            "properties": {
+              "apiKey": {
+                "description": "运行时由平台自动注入，可不填",
+                "type": "string"
+              },
+              "apiHost": {
+                "description": "运行时由平台自动注入，可不填",
+                "type": "string"
+              },
+              "modelName": {
+                "description": "运行时由平台自动注入，可不填",
+                "type": "string"
+              },
+              "systemPrompt": {
+                "type": "string",
+                "extra": {
+                  "formComponent": "prompt-editor"
+                }
+              },
+              "temperature": {
+                "description": "0-2，缺省按平台默认",
+                "type": "number"
+              },
+              "prompt": {
+                "type": "string",
+                "extra": {
+                  "formComponent": "prompt-editor"
+                }
+              }
+            }
+          },
+          "outputMode": "json",
+          "title": "分类+情绪判定"
+        },
+        "type": "llm",
+        "meta": {
+          "position": {
+            "x": 500,
+            "y": 380
+          }
+        },
+        "id": "llm_2"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "formatStringResult": {
+                "type": "string"
+              }
+            }
+          },
+          "inputsValues": {
+            "needHuman": {
+              "type": "constant",
+              "content": "是"
+            },
+            "reply": {
+              "type": "constant",
+              "content": "已收到您的退款申请，24小时内处理"
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "needHuman": {
+                "type": "string"
+              },
+              "reply": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "退款回复",
+          "script": {
+            "language": "spel-standard",
+            "content": "${reply}"
+          }
+        },
+        "type": "string-format",
+        "meta": {
+          "position": {
+            "x": 1140,
+            "y": 380
+          }
+        },
+        "id": "sf_refund"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "formatStringResult": {
+                "type": "string"
+              }
+            }
+          },
+          "inputsValues": {
+            "sentiment": {
+              "type": "ref",
+              "content": [
+                "llm_2",
+                "sentiment"
+              ]
+            },
+            "category": {
+              "type": "ref",
+              "content": [
+                "llm_2",
+                "category"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "sentiment": {
+                "type": "string"
+              },
+              "category": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "发货情绪判断",
+          "script": {
+            "language": "spel-standard",
+            "content": "${category}"
+          }
+        },
+        "type": "string-format",
+        "meta": {
+          "position": {
+            "x": 1140,
+            "y": 580
+          }
+        },
+        "id": "sf_shipment"
+      },
+      {
+        "data": {
+          "title": "发货情绪判断",
+          "conditions": [
+            {
+              "value": {
+                "right": {
+                  "type": "constant",
+                  "content": "negative"
+                },
+                "operator": "eq",
+                "left": {
+                  "type": "ref",
+                  "content": [
+                    "llm_2",
+                    "sentiment"
+                  ]
+                }
+              },
+              "key": "is_negative"
+            }
+          ]
+        },
+        "type": "condition",
+        "meta": {
+          "position": {
+            "x": 1460,
+            "y": 580
+          }
+        },
+        "id": "condition_3"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "formatStringResult": {
+                "type": "string"
+              }
+            }
+          },
+          "inputsValues": {
+            "needHuman": {
+              "type": "constant",
+              "content": "否"
+            },
+            "reply": {
+              "type": "constant",
+              "content": "非常抱歉给您带来不便，我们加急处理"
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "needHuman": {
+                "type": "string"
+              },
+              "reply": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "发货-负面回复",
+          "script": {
+            "language": "spel-standard",
+            "content": "${reply}"
+          }
+        },
+        "type": "string-format",
+        "meta": {
+          "position": {
+            "x": 1780,
+            "y": 580
+          }
+        },
+        "id": "sf_ship_neg"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "formatStringResult": {
+                "type": "string"
+              }
+            }
+          },
+          "inputsValues": {
+            "needHuman": {
+              "type": "constant",
+              "content": "否"
+            },
+            "reply": {
+              "type": "constant",
+              "content": "您的包裹正在安排发货，请留意物流信息"
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "needHuman": {
+                "type": "string"
+              },
+              "reply": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "发货-非负面回复",
+          "script": {
+            "language": "spel-standard",
+            "content": "${reply}"
+          }
+        },
+        "type": "string-format",
+        "meta": {
+          "position": {
+            "x": 1780,
+            "y": 780
+          }
+        },
+        "id": "sf_ship_pos"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "formatStringResult": {
+                "type": "string"
+              }
+            }
+          },
+          "inputsValues": {
+            "needHuman": {
+              "type": "constant",
+              "content": "是"
+            },
+            "reply": {
+              "type": "constant",
+              "content": "已转人工客服"
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "needHuman": {
+                "type": "string"
+              },
+              "reply": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "其他回复",
+          "script": {
+            "language": "spel-standard",
+            "content": "${reply}"
+          }
+        },
+        "type": "string-format",
+        "meta": {
+          "position": {
+            "x": 1460,
+            "y": 180
+          }
+        },
+        "id": "sf_other"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "needHuman": {
+                "type": "string"
+              },
+              "reply": {
+                "type": "string"
+              }
+            }
+          },
+          "inputsValues": {
+            "sf_refund_formatStringResult": {
+              "type": "ref",
+              "content": [
+                "sf_refund",
+                "formatStringResult"
+              ]
+            },
+            "needHuman": {
+              "type": "ref",
+              "content": [
+                "sf_refund",
+                "formatStringResult"
+              ]
+            },
+            "sf_other_formatStringResult": {
+              "type": "ref",
+              "content": [
+                "sf_other",
+                "formatStringResult"
+              ]
+            },
+            "sf_ship_neg_formatStringResult": {
+              "type": "ref",
+              "content": [
+                "sf_ship_neg",
+                "formatStringResult"
+              ]
+            },
+            "reply": {
+              "type": "ref",
+              "content": [
+                "sf_refund",
+                "formatStringResult"
+              ]
+            },
+            "sf_ship_pos_formatStringResult": {
+              "type": "ref",
+              "content": [
+                "sf_ship_pos",
+                "formatStringResult"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "sf_refund_formatStringResult": {
+                "type": "string"
+              },
+              "needHuman": {
+                "type": "string"
+              },
+              "sf_other_formatStringResult": {
+                "type": "string"
+              },
+              "sf_ship_neg_formatStringResult": {
+                "type": "string"
+              },
+              "reply": {
+                "type": "string"
+              },
+              "sf_ship_pos_formatStringResult": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "结果汇聚",
+          "script": {
+            "language": "javascript",
+            "content": "({ reply: sf_refund_formatStringResult || sf_ship_neg_formatStringResult || sf_ship_pos_formatStringResult || sf_other_formatStringResult, needHuman: sf_refund_formatStringResult === '已收到您的退款申请，24小时内处理' || sf_other_formatStringResult === '已转人工客服' ? '是' : '否' });"
+          }
+        },
+        "type": "code",
+        "meta": {
+          "position": {
+            "x": 2100,
+            "y": 480
+          }
+        },
+        "id": "code_4"
+      }
+    ]
+  },
+  "trialRuns": [
+    {
+      "ok": true,
+      "taskId": "3f9fa356-1f7a-426c-95a7-68c4c9a78f03",
+      "workflowStatus": "success",
+      "outputs": {
+        "needHuman": "是",
+        "reply": "您的包裹正在安排发货，请留意物流信息"
+      },
+      "nodes": {
+        "llm_2": {
+          "id": "llm_2",
+          "status": "succeeded",
+          "startTime": 1792943395709,
+          "endTime": 1792943397817,
+          "timeCost": 2108,
+          "snapshots": [
+            {
+              "nodeID": "llm_2",
+              "inputs": {
+                "text": "我要退款，你们是骗子",
+                "start_1": {
+                  "input": ""
+                }
+              },
+              "outputs": {
+                "sentiment": "negative|positive|neutral",
+                "category": "退款|发货|其他"
+              },
+              "data": {
+                "sentiment": "negative|positive|neutral",
+                "category": "退款|发货|其他"
+              },
+              "branch": "",
+              "error": "",
+              "id": "llm_2"
+            }
+          ]
+        },
+        "sf_refund": {
+          "id": "sf_refund",
+          "status": "canceled",
+          "startTime": 1792943397817,
+          "endTime": 1792943397817,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "sf_refund",
+              "inputs": {},
+              "outputs": {},
+              "data": {},
+              "branch": "",
+              "error": "",
+              "id": "sf_refund"
+            }
+          ]
+        },
+        "sf_ship_pos": {
+          "id": "sf_ship_pos",
+          "status": "succeeded",
+          "startTime": 1792943397817,
+          "endTime": 1792943397817,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "sf_ship_pos",
+              "inputs": {
+                "needHuman": "否",
+                "reply": "您的包裹正在安排发货，请留意物流信息"
+              },
+              "outputs": {
+                "formatStringResult": "您的包裹正在安排发货，请留意物流信息"
+              },
+              "data": {
+                "formatStringResult": "您的包裹正在安排发货，请留意物流信息"
+              },
+              "branch": "",
+              "error": "",
+              "id": "sf_ship_pos"
+            }
+          ]
+        },
+        "condition_2": {
+          "id": "condition_2",
+          "status": "succeeded",
+          "startTime": 1792943397817,
+          "endTime": 1792943397817,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "condition_2",
+              "inputs": {
+                "llm_2": {
+                  "sentiment": "negative|positive|neutral",
+                  "category": "退款|发货|其他"
+                },
+                "condition_1": {
+                  "else": true,
+                  "is_refund": false
+                },
+                "text": "我要退款，你们是骗子",
+                "start_1": {
+                  "input": ""
+                }
+              },
+              "outputs": {
+                "is_shipment": false,
+                "else": true
+              },
+              "data": {
+                "is_shipment": false,
+                "else": true
+              },
+              "branch": "",
+              "error": "",
+              "id": "condition_2"
+            }
+          ]
+        },
+        "condition_3": {
+          "id": "condition_3",
+          "status": "succeeded",
+          "startTime": 1792943397817,
+          "endTime": 1792943397817,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "condition_3",
+              "inputs": {
+                "llm_2": {
+                  "sentiment": "negative|positive|neutral",
+                  "category": "退款|发货|其他"
+                },
+                "condition_2": {
+                  "is_shipment": false,
+                  "else": true
+                },
+                "condition_1": {
+                  "else": true,
+                  "is_refund": false
+                },
+                "sf_other": {
+                  "formatStringResult": "已转人工客服"
+                },
+                "sf_shipment": {
+                  "formatStringResult": "退款|发货|其他"
+                },
+                "text": "我要退款，你们是骗子",
+                "start_1": {
+                  "input": ""
+                }
+              },
+              "outputs": {
+                "else": true,
+                "is_negative": false
+              },
+              "data": {
+                "else": true,
+                "is_negative": false
+              },
+              "branch": "",
+              "error": "",
+              "id": "condition_3"
+            }
+          ]
+        },
+        "sf_ship_neg": {
+          "id": "sf_ship_neg",
+          "status": "canceled",
+          "startTime": 1792943397817,
+          "endTime": 1792943397817,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "sf_ship_neg",
+              "inputs": {},
+              "outputs": {},
+              "data": {},
+              "branch": "",
+              "error": "",
+              "id": "sf_ship_neg"
+            }
+          ]
+        },
+        "condition_1": {
+          "id": "condition_1",
+          "status": "succeeded",
+          "startTime": 1792943397817,
+          "endTime": 1792943397817,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "condition_1",
+              "inputs": {
+                "llm_2": {
+                  "sentiment": "negative|positive|neutral",
+                  "category": "退款|发货|其他"
+                },
+                "text": "我要退款，你们是骗子",
+                "start_1": {
+                  "input": ""
+                }
+              },
+              "outputs": {
+                "else": true,
+                "is_refund": false
+              },
+              "data": {
+                "else": true,
+                "is_refund": false
+              },
+              "branch": "",
+              "error": "",
+              "id": "condition_1"
+            }
+          ]
+        },
+        "end_1": {
+          "id": "end_1",
+          "status": "succeeded",
+          "startTime": 1792943397823,
+          "endTime": 1792943397823,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "end_1",
+              "inputs": {
+                "llm_2": {
+                  "sentiment": "negative|positive|neutral",
+                  "category": "退款|发货|其他"
+                },
+                "sf_ship_pos": {
+                  "formatStringResult": "您的包裹正在安排发货，请留意物流信息"
+                },
+                "condition_2": {
+                  "is_shipment": false,
+                  "else": true
+                },
+                "condition_3": {
+                  "else": true,
+                  "is_negative": false
+                },
+                "condition_1": {
+                  "else": true,
+                  "is_refund": false
+                },
+                "sf_other": {
+                  "formatStringResult": "已转人工客服"
+                },
+                "sf_shipment": {
+                  "formatStringResult": "退款|发货|其他"
+                },
+                "code_4": {
+                  "needHuman": "是",
+                  "reply": "您的包裹正在安排发货，请留意物流信息"
+                },
+                "text": "我要退款，你们是骗子",
+                "start_1": {
+                  "input": ""
+                }
+              },
+              "outputs": {
+                "needHuman": "是",
+                "reply": "您的包裹正在安排发货，请留意物流信息"
+              },
+              "data": {
+                "llm_2": {
+                  "sentiment": "negative|positive|neutral",
+                  "category": "退款|发货|其他"
+                },
+                "sf_ship_pos": {
+                  "formatStringResult": "您的包裹正在安排发货，请留意物流信息"
+                },
+                "condition_2": {
+                  "is_shipment": false,
+                  "else": true
+                },
+                "condition_3": {
+                  "else": true,
+                  "is_negative": false
+                },
+                "condition_1": {
+                  "else": true,
+                  "is_refund": false
+                },
+                "sf_other": {
+                  "formatStringResult": "已转人工客服"
+                },
+                "sf_shipment": {
+                  "formatStringResult": "退款|发货|其他"
+                },
+                "code_4": {
+                  "needHuman": "是",
+                  "reply": "您的包裹正在安排发货，请留意物流信息"
+                },
+                "text": "我要退款，你们是骗子",
+                "start_1": {
+                  "input": ""
+                }
+              },
+              "branch": "",
+              "error": "",
+              "id": "end_1"
+            }
+          ]
+        },
+        "sf_other": {
+          "id": "sf_other",
+          "status": "succeeded",
+          "startTime": 1792943397817,
+          "endTime": 1792943397817,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "sf_other",
+              "inputs": {
+                "needHuman": "是",
+                "reply": "已转人工客服"
+              },
+              "outputs": {
+                "formatStringResult": "已转人工客服"
+              },
+              "data": {
+                "formatStringResult": "已转人工客服"
+              },
+              "branch": "",
+              "error": "",
+              "id": "sf_other"
+            }
+          ]
+        },
+        "sf_shipment": {
+          "id": "sf_shipment",
+          "status": "succeeded",
+          "startTime": 1792943397817,
+          "endTime": 1792943397817,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "sf_shipment",
+              "inputs": {
+                "sentiment": "negative|positive|neutral",
+                "category": "退款|发货|其他"
+              },
+              "outputs": {
+                "formatStringResult": "退款|发货|其他"
+              },
+              "data": {
+                "formatStringResult": "退款|发货|其他"
+              },
+              "branch": "",
+              "error": "",
+              "id": "sf_shipment"
+            }
+          ]
+        },
+        "code_4": {
+          "id": "code_4",
+          "status": "succeeded",
+          "startTime": 1792943397817,
+          "endTime": 1792943397823,
+          "timeCost": 6,
+          "snapshots": [
+            {
+              "nodeID": "code_4",
+              "inputs": {
+                "sf_other_formatStringResult": "已转人工客服",
+                "sf_ship_pos_formatStringResult": "您的包裹正在安排发货，请留意物流信息"
+              },
+              "outputs": {
+                "needHuman": "是",
+                "reply": "您的包裹正在安排发货，请留意物流信息"
+              },
+              "data": {
+                "needHuman": "是",
+                "reply": "您的包裹正在安排发货，请留意物流信息"
+              },
+              "branch": "",
+              "error": "",
+              "id": "code_4"
+            }
+          ]
+        },
+        "start_1": {
+          "id": "start_1",
+          "status": "succeeded",
+          "startTime": 1792943395709,
+          "endTime": 1792943395709,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "start_1",
+              "inputs": {
+                "text": "我要退款，你们是骗子"
+              },
+              "outputs": {
+                "input": ""
+              },
+              "data": {
+                "text": "我要退款，你们是骗子"
+              },
+              "branch": "",
+              "error": "",
+              "id": "start_1"
+            }
+          ]
+        }
+      },
+      "runDetail": {
+        "nodes": [
+          {
+            "id": 247,
+            "runTaskId": "3f9fa356-1f7a-426c-95a7-68c4c9a78f03",
+            "nodeId": "llm_2",
+            "nodeType": "llm",
+            "title": "分类+情绪判定",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"text\":\"我要退款，你们是骗子\",\"start_1\":{\"input\":\"\"}}",
+            "outputJson": "{\"sentiment\":\"negative|positive|neutral\",\"category\":\"退款|发货|其他\"}",
+            "timeCostMs": 2108,
+            "createdAt": "2026-10-25T23:49:57.826727"
+          },
+          {
+            "id": 248,
+            "runTaskId": "3f9fa356-1f7a-426c-95a7-68c4c9a78f03",
+            "nodeId": "sf_refund",
+            "nodeType": "string-format",
+            "title": "退款回复",
+            "status": "canceled",
+            "errorMessage": "",
+            "inputsJson": "{}",
+            "outputJson": "{}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:49:57.826727"
+          },
+          {
+            "id": 249,
+            "runTaskId": "3f9fa356-1f7a-426c-95a7-68c4c9a78f03",
+            "nodeId": "sf_ship_pos",
+            "nodeType": "string-format",
+            "title": "发货-非负面回复",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"needHuman\":\"否\",\"reply\":\"您的包裹正在安排发货，请留意物流信息\"}",
+            "outputJson": "{\"formatStringResult\":\"您的包裹正在安排发货，请留意物流信息\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:49:57.826727"
+          },
+          {
+            "id": 250,
+            "runTaskId": "3f9fa356-1f7a-426c-95a7-68c4c9a78f03",
+            "nodeId": "condition_2",
+            "nodeType": "condition",
+            "title": "发货判断",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"llm_2\":{\"sentiment\":\"negative|positive|neutral\",\"category\":\"退款|发货|其他\"},\"condition_1\":{\"else\":true,\"is_refund\":false},\"text\":\"我要退款，你们是骗子\",\"start_1\":{\"input\":\"\"}}",
+            "outputJson": "{\"is_shipment\":false,\"else\":true}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:49:57.826727"
+          },
+          {
+            "id": 251,
+            "runTaskId": "3f9fa356-1f7a-426c-95a7-68c4c9a78f03",
+            "nodeId": "condition_3",
+            "nodeType": "condition",
+            "title": "发货情绪判断",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"llm_2\":{\"sentiment\":\"negative|positive|neutral\",\"category\":\"退款|发货|其他\"},\"condition_2\":{\"is_shipment\":false,\"else\":true},\"condition_1\":{\"else\":true,\"is_refund\":false},\"sf_other\":{\"formatStringResult\":\"已转人工客服\"},\"sf_shipment\":{\"formatStringResult\":\"退款|发货|其他\"},\"text\":\"我要退款，你们是骗子\",\"start_1\":{\"input\":\"\"}}",
+            "outputJson": "{\"else\":true,\"is_negative\":false}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:49:57.826727"
+          },
+          {
+            "id": 252,
+            "runTaskId": "3f9fa356-1f7a-426c-95a7-68c4c9a78f03",
+            "nodeId": "sf_ship_neg",
+            "nodeType": "string-format",
+            "title": "发货-负面回复",
+            "status": "canceled",
+            "errorMessage": "",
+            "inputsJson": "{}",
+            "outputJson": "{}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:49:57.826727"
+          },
+          {
+            "id": 253,
+            "runTaskId": "3f9fa356-1f7a-426c-95a7-68c4c9a78f03",
+            "nodeId": "condition_1",
+            "nodeType": "condition",
+            "title": "分类判断",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"llm_2\":{\"sentiment\":\"negative|positive|neutral\",\"category\":\"退款|发货|其他\"},\"text\":\"我要退款，你们是骗子\",\"start_1\":{\"input\":\"\"}}",
+            "outputJson": "{\"else\":true,\"is_refund\":false}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:49:57.826727"
+          },
+          {
+            "id": 254,
+            "runTaskId": "3f9fa356-1f7a-426c-95a7-68c4c9a78f03",
+            "nodeId": "end_1",
+            "nodeType": "end",
+            "title": "结束",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"llm_2\":{\"sentiment\":\"negative|positive|neutral\",\"category\":\"退款|发货|其他\"},\"sf_ship_pos\":{\"formatStringResult\":\"您的包裹正在安排发货，请留意物流信息\"},\"condition_2\":{\"is_shipment\":false,\"else\":true},\"condition_3\":{\"else\":true,\"is_negative\":false},\"condition_1\":{\"else\":true,\"is_refund\":false},\"sf_other\":{\"formatStringResult\":\"已转人工客服\"},\"sf_shipment\":{\"formatStringResult\":\"退款|发货|其他\"},\"code_4\":{\"needHuman\":\"是\",\"reply\":\"您的包裹正在安排发货，请留意物流信息\"},\"text\":\"我要退款，你们是骗子\",\"start_1\":{\"input\":\"\"}}",
+            "outputJson": "{\"needHuman\":\"是\",\"reply\":\"您的包裹正在安排发货，请留意物流信息\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:49:57.826727"
+          },
+          {
+            "id": 255,
+            "runTaskId": "3f9fa356-1f7a-426c-95a7-68c4c9a78f03",
+            "nodeId": "sf_other",
+            "nodeType": "string-format",
+            "title": "其他回复",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"needHuman\":\"是\",\"reply\":\"已转人工客服\"}",
+            "outputJson": "{\"formatStringResult\":\"已转人工客服\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:49:57.826727"
+          },
+          {
+            "id": 256,
+            "runTaskId": "3f9fa356-1f7a-426c-95a7-68c4c9a78f03",
+            "nodeId": "sf_shipment",
+            "nodeType": "string-format",
+            "title": "发货情绪判断",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"sentiment\":\"negative|positive|neutral\",\"category\":\"退款|发货|其他\"}",
+            "outputJson": "{\"formatStringResult\":\"退款|发货|其他\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:49:57.826727"
+          },
+          {
+            "id": 257,
+            "runTaskId": "3f9fa356-1f7a-426c-95a7-68c4c9a78f03",
+            "nodeId": "code_4",
+            "nodeType": "code",
+            "title": "结果汇聚",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"sf_other_formatStringResult\":\"已转人工客服\",\"sf_ship_pos_formatStringResult\":\"您的包裹正在安排发货，请留意物流信息\"}",
+            "outputJson": "{\"needHuman\":\"是\",\"reply\":\"您的包裹正在安排发货，请留意物流信息\"}",
+            "timeCostMs": 6,
+            "createdAt": "2026-10-25T23:49:57.826727"
+          },
+          {
+            "id": 258,
+            "runTaskId": "3f9fa356-1f7a-426c-95a7-68c4c9a78f03",
+            "nodeId": "start_1",
+            "nodeType": "start",
+            "title": "开始",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"text\":\"我要退款，你们是骗子\"}",
+            "outputJson": "{\"input\":\"\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:49:57.826727"
+          }
+        ],
+        "run": {
+          "id": 65,
+          "taskId": "3f9fa356-1f7a-426c-95a7-68c4c9a78f03",
+          "workflowCode": null,
+          "status": "success",
+          "errorMessage": null,
+          "inputsJson": "{\"text\":\"我要退款，你们是骗子\"}",
+          "outputsJson": "{\"needHuman\":\"是\",\"reply\":\"您的包裹正在安排发货，请留意物流信息\"}",
+          "nodeCount": 12,
+          "durationMs": 2118,
+          "triggerChannel": "editor",
+          "startedAt": "2026-10-25T23:49:55.708727",
+          "finishedAt": "2026-10-25T23:49:57.826727",
+          "createdAt": "2026-10-25T23:49:57.826727"
+        }
+      }
+    },
+    {
+      "ok": true,
+      "taskId": "fa40ed86-b990-4c94-b51e-6072059be915",
+      "workflowStatus": "success",
+      "outputs": {
+        "needHuman": "是",
+        "reply": "您的包裹正在安排发货，请留意物流信息"
+      },
+      "nodes": {
+        "llm_2": {
+          "id": "llm_2",
+          "status": "succeeded",
+          "startTime": 1792943398757,
+          "endTime": 1792943399864,
+          "timeCost": 1107,
+          "snapshots": [
+            {
+              "nodeID": "llm_2",
+              "inputs": {
+                "text": "发货怎么这么慢",
+                "start_1": {
+                  "input": ""
+                }
+              },
+              "outputs": {
+                "sentiment": "negative|positive|neutral",
+                "category": "退款|发货|其他"
+              },
+              "data": {
+                "sentiment": "negative|positive|neutral",
+                "category": "退款|发货|其他"
+              },
+              "branch": "",
+              "error": "",
+              "id": "llm_2"
+            }
+          ]
+        },
+        "sf_refund": {
+          "id": "sf_refund",
+          "status": "canceled",
+          "startTime": 1792943399864,
+          "endTime": 1792943399864,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "sf_refund",
+              "inputs": {},
+              "outputs": {},
+              "data": {},
+              "branch": "",
+              "error": "",
+              "id": "sf_refund"
+            }
+          ]
+        },
+        "sf_ship_pos": {
+          "id": "sf_ship_pos",
+          "status": "succeeded",
+          "startTime": 1792943399865,
+          "endTime": 1792943399865,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "sf_ship_pos",
+              "inputs": {
+                "needHuman": "否",
+                "reply": "您的包裹正在安排发货，请留意物流信息"
+              },
+              "outputs": {
+                "formatStringResult": "您的包裹正在安排发货，请留意物流信息"
+              },
+              "data": {
+                "formatStringResult": "您的包裹正在安排发货，请留意物流信息"
+              },
+              "branch": "",
+              "error": "",
+              "id": "sf_ship_pos"
+            }
+          ]
+        },
+        "condition_2": {
+          "id": "condition_2",
+          "status": "succeeded",
+          "startTime": 1792943399864,
+          "endTime": 1792943399864,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "condition_2",
+              "inputs": {
+                "llm_2": {
+                  "sentiment": "negative|positive|neutral",
+                  "category": "退款|发货|其他"
+                },
+                "condition_1": {
+                  "else": true,
+                  "is_refund": false
+                },
+                "text": "发货怎么这么慢",
+                "start_1": {
+                  "input": ""
+                }
+              },
+              "outputs": {
+                "is_shipment": false,
+                "else": true
+              },
+              "data": {
+                "is_shipment": false,
+                "else": true
+              },
+              "branch": "",
+              "error": "",
+              "id": "condition_2"
+            }
+          ]
+        },
+        "condition_3": {
+          "id": "condition_3",
+          "status": "succeeded",
+          "startTime": 1792943399865,
+          "endTime": 1792943399865,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "condition_3",
+              "inputs": {
+                "llm_2": {
+                  "sentiment": "negative|positive|neutral",
+                  "category": "退款|发货|其他"
+                },
+                "condition_2": {
+                  "is_shipment": false,
+                  "else": true
+                },
+                "condition_1": {
+                  "else": true,
+                  "is_refund": false
+                },
+                "sf_other": {
+                  "formatStringResult": "已转人工客服"
+                },
+                "sf_shipment": {
+                  "formatStringResult": "退款|发货|其他"
+                },
+                "text": "发货怎么这么慢",
+                "start_1": {
+                  "input": ""
+                }
+              },
+              "outputs": {
+                "else": true,
+                "is_negative": false
+              },
+              "data": {
+                "else": true,
+                "is_negative": false
+              },
+              "branch": "",
+              "error": "",
+              "id": "condition_3"
+            }
+          ]
+        },
+        "sf_ship_neg": {
+          "id": "sf_ship_neg",
+          "status": "canceled",
+          "startTime": 1792943399865,
+          "endTime": 1792943399865,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "sf_ship_neg",
+              "inputs": {},
+              "outputs": {},
+              "data": {},
+              "branch": "",
+              "error": "",
+              "id": "sf_ship_neg"
+            }
+          ]
+        },
+        "condition_1": {
+          "id": "condition_1",
+          "status": "succeeded",
+          "startTime": 1792943399864,
+          "endTime": 1792943399864,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "condition_1",
+              "inputs": {
+                "llm_2": {
+                  "sentiment": "negative|positive|neutral",
+                  "category": "退款|发货|其他"
+                },
+                "text": "发货怎么这么慢",
+                "start_1": {
+                  "input": ""
+                }
+              },
+              "outputs": {
+                "else": true,
+                "is_refund": false
+              },
+              "data": {
+                "else": true,
+                "is_refund": false
+              },
+              "branch": "",
+              "error": "",
+              "id": "condition_1"
+            }
+          ]
+        },
+        "end_1": {
+          "id": "end_1",
+          "status": "succeeded",
+          "startTime": 1792943399870,
+          "endTime": 1792943399870,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "end_1",
+              "inputs": {
+                "llm_2": {
+                  "sentiment": "negative|positive|neutral",
+                  "category": "退款|发货|其他"
+                },
+                "sf_ship_pos": {
+                  "formatStringResult": "您的包裹正在安排发货，请留意物流信息"
+                },
+                "condition_2": {
+                  "is_shipment": false,
+                  "else": true
+                },
+                "condition_3": {
+                  "else": true,
+                  "is_negative": false
+                },
+                "condition_1": {
+                  "else": true,
+                  "is_refund": false
+                },
+                "sf_other": {
+                  "formatStringResult": "已转人工客服"
+                },
+                "sf_shipment": {
+                  "formatStringResult": "退款|发货|其他"
+                },
+                "code_4": {
+                  "needHuman": "是",
+                  "reply": "您的包裹正在安排发货，请留意物流信息"
+                },
+                "text": "发货怎么这么慢",
+                "start_1": {
+                  "input": ""
+                }
+              },
+              "outputs": {
+                "needHuman": "是",
+                "reply": "您的包裹正在安排发货，请留意物流信息"
+              },
+              "data": {
+                "llm_2": {
+                  "sentiment": "negative|positive|neutral",
+                  "category": "退款|发货|其他"
+                },
+                "sf_ship_pos": {
+                  "formatStringResult": "您的包裹正在安排发货，请留意物流信息"
+                },
+                "condition_2": {
+                  "is_shipment": false,
+                  "else": true
+                },
+                "condition_3": {
+                  "else": true,
+                  "is_negative": false
+                },
+                "condition_1": {
+                  "else": true,
+                  "is_refund": false
+                },
+                "sf_other": {
+                  "formatStringResult": "已转人工客服"
+                },
+                "sf_shipment": {
+                  "formatStringResult": "退款|发货|其他"
+                },
+                "code_4": {
+                  "needHuman": "是",
+                  "reply": "您的包裹正在安排发货，请留意物流信息"
+                },
+                "text": "发货怎么这么慢",
+                "start_1": {
+                  "input": ""
+                }
+              },
+              "branch": "",
+              "error": "",
+              "id": "end_1"
+            }
+          ]
+        },
+        "sf_other": {
+          "id": "sf_other",
+          "status": "succeeded",
+          "startTime": 1792943399864,
+          "endTime": 1792943399864,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "sf_other",
+              "inputs": {
+                "needHuman": "是",
+                "reply": "已转人工客服"
+              },
+              "outputs": {
+                "formatStringResult": "已转人工客服"
+              },
+              "data": {
+                "formatStringResult": "已转人工客服"
+              },
+              "branch": "",
+              "error": "",
+              "id": "sf_other"
+            }
+          ]
+        },
+        "sf_shipment": {
+          "id": "sf_shipment",
+          "status": "succeeded",
+          "startTime": 1792943399864,
+          "endTime": 1792943399864,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "sf_shipment",
+              "inputs": {
+                "sentiment": "negative|positive|neutral",
+                "category": "退款|发货|其他"
+              },
+              "outputs": {
+                "formatStringResult": "退款|发货|其他"
+              },
+              "data": {
+                "formatStringResult": "退款|发货|其他"
+              },
+              "branch": "",
+              "error": "",
+              "id": "sf_shipment"
+            }
+          ]
+        },
+        "code_4": {
+          "id": "code_4",
+          "status": "succeeded",
+          "startTime": 1792943399865,
+          "endTime": 1792943399870,
+          "timeCost": 5,
+          "snapshots": [
+            {
+              "nodeID": "code_4",
+              "inputs": {
+                "sf_other_formatStringResult": "已转人工客服",
+                "sf_ship_pos_formatStringResult": "您的包裹正在安排发货，请留意物流信息"
+              },
+              "outputs": {
+                "needHuman": "是",
+                "reply": "您的包裹正在安排发货，请留意物流信息"
+              },
+              "data": {
+                "needHuman": "是",
+                "reply": "您的包裹正在安排发货，请留意物流信息"
+              },
+              "branch": "",
+              "error": "",
+              "id": "code_4"
+            }
+          ]
+        },
+        "start_1": {
+          "id": "start_1",
+          "status": "succeeded",
+          "startTime": 1792943398757,
+          "endTime": 1792943398757,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "start_1",
+              "inputs": {
+                "text": "发货怎么这么慢"
+              },
+              "outputs": {
+                "input": ""
+              },
+              "data": {
+                "text": "发货怎么这么慢"
+              },
+              "branch": "",
+              "error": "",
+              "id": "start_1"
+            }
+          ]
+        }
+      },
+      "runDetail": {
+        "nodes": [
+          {
+            "id": 259,
+            "runTaskId": "fa40ed86-b990-4c94-b51e-6072059be915",
+            "nodeId": "llm_2",
+            "nodeType": "llm",
+            "title": "分类+情绪判定",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"text\":\"发货怎么这么慢\",\"start_1\":{\"input\":\"\"}}",
+            "outputJson": "{\"sentiment\":\"negative|positive|neutral\",\"category\":\"退款|发货|其他\"}",
+            "timeCostMs": 1107,
+            "createdAt": "2026-10-25T23:49:59.914642"
+          },
+          {
+            "id": 260,
+            "runTaskId": "fa40ed86-b990-4c94-b51e-6072059be915",
+            "nodeId": "sf_refund",
+            "nodeType": "string-format",
+            "title": "退款回复",
+            "status": "canceled",
+            "errorMessage": "",
+            "inputsJson": "{}",
+            "outputJson": "{}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:49:59.914642"
+          },
+          {
+            "id": 261,
+            "runTaskId": "fa40ed86-b990-4c94-b51e-6072059be915",
+            "nodeId": "sf_ship_pos",
+            "nodeType": "string-format",
+            "title": "发货-非负面回复",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"needHuman\":\"否\",\"reply\":\"您的包裹正在安排发货，请留意物流信息\"}",
+            "outputJson": "{\"formatStringResult\":\"您的包裹正在安排发货，请留意物流信息\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:49:59.914642"
+          },
+          {
+            "id": 262,
+            "runTaskId": "fa40ed86-b990-4c94-b51e-6072059be915",
+            "nodeId": "condition_2",
+            "nodeType": "condition",
+            "title": "发货判断",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"llm_2\":{\"sentiment\":\"negative|positive|neutral\",\"category\":\"退款|发货|其他\"},\"condition_1\":{\"else\":true,\"is_refund\":false},\"text\":\"发货怎么这么慢\",\"start_1\":{\"input\":\"\"}}",
+            "outputJson": "{\"is_shipment\":false,\"else\":true}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:49:59.914642"
+          },
+          {
+            "id": 263,
+            "runTaskId": "fa40ed86-b990-4c94-b51e-6072059be915",
+            "nodeId": "condition_3",
+            "nodeType": "condition",
+            "title": "发货情绪判断",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"llm_2\":{\"sentiment\":\"negative|positive|neutral\",\"category\":\"退款|发货|其他\"},\"condition_2\":{\"is_shipment\":false,\"else\":true},\"condition_1\":{\"else\":true,\"is_refund\":false},\"sf_other\":{\"formatStringResult\":\"已转人工客服\"},\"sf_shipment\":{\"formatStringResult\":\"退款|发货|其他\"},\"text\":\"发货怎么这么慢\",\"start_1\":{\"input\":\"\"}}",
+            "outputJson": "{\"else\":true,\"is_negative\":false}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:49:59.914642"
+          },
+          {
+            "id": 264,
+            "runTaskId": "fa40ed86-b990-4c94-b51e-6072059be915",
+            "nodeId": "sf_ship_neg",
+            "nodeType": "string-format",
+            "title": "发货-负面回复",
+            "status": "canceled",
+            "errorMessage": "",
+            "inputsJson": "{}",
+            "outputJson": "{}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:49:59.914642"
+          },
+          {
+            "id": 265,
+            "runTaskId": "fa40ed86-b990-4c94-b51e-6072059be915",
+            "nodeId": "condition_1",
+            "nodeType": "condition",
+            "title": "分类判断",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"llm_2\":{\"sentiment\":\"negative|positive|neutral\",\"category\":\"退款|发货|其他\"},\"text\":\"发货怎么这么慢\",\"start_1\":{\"input\":\"\"}}",
+            "outputJson": "{\"else\":true,\"is_refund\":false}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:49:59.914642"
+          },
+          {
+            "id": 266,
+            "runTaskId": "fa40ed86-b990-4c94-b51e-6072059be915",
+            "nodeId": "end_1",
+            "nodeType": "end",
+            "title": "结束",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"llm_2\":{\"sentiment\":\"negative|positive|neutral\",\"category\":\"退款|发货|其他\"},\"sf_ship_pos\":{\"formatStringResult\":\"您的包裹正在安排发货，请留意物流信息\"},\"condition_2\":{\"is_shipment\":false,\"else\":true},\"condition_3\":{\"else\":true,\"is_negative\":false},\"condition_1\":{\"else\":true,\"is_refund\":false},\"sf_other\":{\"formatStringResult\":\"已转人工客服\"},\"sf_shipment\":{\"formatStringResult\":\"退款|发货|其他\"},\"code_4\":{\"needHuman\":\"是\",\"reply\":\"您的包裹正在安排发货，请留意物流信息\"},\"text\":\"发货怎么这么慢\",\"start_1\":{\"input\":\"\"}}",
+            "outputJson": "{\"needHuman\":\"是\",\"reply\":\"您的包裹正在安排发货，请留意物流信息\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:49:59.914642"
+          },
+          {
+            "id": 267,
+            "runTaskId": "fa40ed86-b990-4c94-b51e-6072059be915",
+            "nodeId": "sf_other",
+            "nodeType": "string-format",
+            "title": "其他回复",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"needHuman\":\"是\",\"reply\":\"已转人工客服\"}",
+            "outputJson": "{\"formatStringResult\":\"已转人工客服\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:49:59.914642"
+          },
+          {
+            "id": 268,
+            "runTaskId": "fa40ed86-b990-4c94-b51e-6072059be915",
+            "nodeId": "sf_shipment",
+            "nodeType": "string-format",
+            "title": "发货情绪判断",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"sentiment\":\"negative|positive|neutral\",\"category\":\"退款|发货|其他\"}",
+            "outputJson": "{\"formatStringResult\":\"退款|发货|其他\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:49:59.914642"
+          },
+          {
+            "id": 269,
+            "runTaskId": "fa40ed86-b990-4c94-b51e-6072059be915",
+            "nodeId": "code_4",
+            "nodeType": "code",
+            "title": "结果汇聚",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"sf_other_formatStringResult\":\"已转人工客服\",\"sf_ship_pos_formatStringResult\":\"您的包裹正在安排发货，请留意物流信息\"}",
+            "outputJson": "{\"needHuman\":\"是\",\"reply\":\"您的包裹正在安排发货，请留意物流信息\"}",
+            "timeCostMs": 5,
+            "createdAt": "2026-10-25T23:49:59.914642"
+          },
+          {
+            "id": 270,
+            "runTaskId": "fa40ed86-b990-4c94-b51e-6072059be915",
+            "nodeId": "start_1",
+            "nodeType": "start",
+            "title": "开始",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"text\":\"发货怎么这么慢\"}",
+            "outputJson": "{\"input\":\"\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:49:59.914642"
+          }
+        ],
+        "run": {
+          "id": 66,
+          "taskId": "fa40ed86-b990-4c94-b51e-6072059be915",
+          "workflowCode": null,
+          "status": "success",
+          "errorMessage": null,
+          "inputsJson": "{\"text\":\"发货怎么这么慢\"}",
+          "outputsJson": "{\"needHuman\":\"是\",\"reply\":\"您的包裹正在安排发货，请留意物流信息\"}",
+          "nodeCount": 12,
+          "durationMs": 1159,
+          "triggerChannel": "editor",
+          "startedAt": "2026-10-25T23:49:58.755642",
+          "finishedAt": "2026-10-25T23:49:59.914642",
+          "createdAt": "2026-10-25T23:49:59.914642"
+        }
+      }
+    },
+    {
+      "ok": true,
+      "taskId": "f9e1595a-e8b8-4581-bbe3-18bd41b7bc4d",
+      "workflowStatus": "success",
+      "outputs": {
+        "needHuman": "是",
+        "reply": "您的包裹正在安排发货，请留意物流信息"
+      },
+      "nodes": {
+        "llm_2": {
+          "id": "llm_2",
+          "status": "succeeded",
+          "startTime": 1792943400785,
+          "endTime": 1792943403410,
+          "timeCost": 2625,
+          "snapshots": [
+            {
+              "nodeID": "llm_2",
+              "inputs": {
+                "text": "今天天气不错",
+                "start_1": {
+                  "input": ""
+                }
+              },
+              "outputs": {
+                "sentiment": "negative|positive|neutral",
+                "category": "退款|发货|其他"
+              },
+              "data": {
+                "sentiment": "negative|positive|neutral",
+                "category": "退款|发货|其他"
+              },
+              "branch": "",
+              "error": "",
+              "id": "llm_2"
+            }
+          ]
+        },
+        "sf_refund": {
+          "id": "sf_refund",
+          "status": "canceled",
+          "startTime": 1792943403411,
+          "endTime": 1792943403411,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "sf_refund",
+              "inputs": {},
+              "outputs": {},
+              "data": {},
+              "branch": "",
+              "error": "",
+              "id": "sf_refund"
+            }
+          ]
+        },
+        "sf_ship_pos": {
+          "id": "sf_ship_pos",
+          "status": "succeeded",
+          "startTime": 1792943403412,
+          "endTime": 1792943403412,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "sf_ship_pos",
+              "inputs": {
+                "needHuman": "否",
+                "reply": "您的包裹正在安排发货，请留意物流信息"
+              },
+              "outputs": {
+                "formatStringResult": "您的包裹正在安排发货，请留意物流信息"
+              },
+              "data": {
+                "formatStringResult": "您的包裹正在安排发货，请留意物流信息"
+              },
+              "branch": "",
+              "error": "",
+              "id": "sf_ship_pos"
+            }
+          ]
+        },
+        "condition_2": {
+          "id": "condition_2",
+          "status": "succeeded",
+          "startTime": 1792943403411,
+          "endTime": 1792943403411,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "condition_2",
+              "inputs": {
+                "llm_2": {
+                  "sentiment": "negative|positive|neutral",
+                  "category": "退款|发货|其他"
+                },
+                "condition_1": {
+                  "else": true,
+                  "is_refund": false
+                },
+                "text": "今天天气不错",
+                "start_1": {
+                  "input": ""
+                }
+              },
+              "outputs": {
+                "is_shipment": false,
+                "else": true
+              },
+              "data": {
+                "is_shipment": false,
+                "else": true
+              },
+              "branch": "",
+              "error": "",
+              "id": "condition_2"
+            }
+          ]
+        },
+        "condition_3": {
+          "id": "condition_3",
+          "status": "succeeded",
+          "startTime": 1792943403411,
+          "endTime": 1792943403411,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "condition_3",
+              "inputs": {
+                "llm_2": {
+                  "sentiment": "negative|positive|neutral",
+                  "category": "退款|发货|其他"
+                },
+                "condition_2": {
+                  "is_shipment": false,
+                  "else": true
+                },
+                "condition_1": {
+                  "else": true,
+                  "is_refund": false
+                },
+                "sf_other": {
+                  "formatStringResult": "已转人工客服"
+                },
+                "sf_shipment": {
+                  "formatStringResult": "退款|发货|其他"
+                },
+                "text": "今天天气不错",
+                "start_1": {
+                  "input": ""
+                }
+              },
+              "outputs": {
+                "else": true,
+                "is_negative": false
+              },
+              "data": {
+                "else": true,
+                "is_negative": false
+              },
+              "branch": "",
+              "error": "",
+              "id": "condition_3"
+            }
+          ]
+        },
+        "sf_ship_neg": {
+          "id": "sf_ship_neg",
+          "status": "canceled",
+          "startTime": 1792943403412,
+          "endTime": 1792943403412,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "sf_ship_neg",
+              "inputs": {},
+              "outputs": {},
+              "data": {},
+              "branch": "",
+              "error": "",
+              "id": "sf_ship_neg"
+            }
+          ]
+        },
+        "condition_1": {
+          "id": "condition_1",
+          "status": "succeeded",
+          "startTime": 1792943403410,
+          "endTime": 1792943403411,
+          "timeCost": 1,
+          "snapshots": [
+            {
+              "nodeID": "condition_1",
+              "inputs": {
+                "llm_2": {
+                  "sentiment": "negative|positive|neutral",
+                  "category": "退款|发货|其他"
+                },
+                "text": "今天天气不错",
+                "start_1": {
+                  "input": ""
+                }
+              },
+              "outputs": {
+                "else": true,
+                "is_refund": false
+              },
+              "data": {
+                "else": true,
+                "is_refund": false
+              },
+              "branch": "",
+              "error": "",
+              "id": "condition_1"
+            }
+          ]
+        },
+        "end_1": {
+          "id": "end_1",
+          "status": "succeeded",
+          "startTime": 1792943403423,
+          "endTime": 1792943403423,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "end_1",
+              "inputs": {
+                "llm_2": {
+                  "sentiment": "negative|positive|neutral",
+                  "category": "退款|发货|其他"
+                },
+                "sf_ship_pos": {
+                  "formatStringResult": "您的包裹正在安排发货，请留意物流信息"
+                },
+                "condition_2": {
+                  "is_shipment": false,
+                  "else": true
+                },
+                "condition_3": {
+                  "else": true,
+                  "is_negative": false
+                },
+                "condition_1": {
+                  "else": true,
+                  "is_refund": false
+                },
+                "sf_other": {
+                  "formatStringResult": "已转人工客服"
+                },
+                "sf_shipment": {
+                  "formatStringResult": "退款|发货|其他"
+                },
+                "code_4": {
+                  "needHuman": "是",
+                  "reply": "您的包裹正在安排发货，请留意物流信息"
+                },
+                "text": "今天天气不错",
+                "start_1": {
+                  "input": ""
+                }
+              },
+              "outputs": {
+                "needHuman": "是",
+                "reply": "您的包裹正在安排发货，请留意物流信息"
+              },
+              "data": {
+                "llm_2": {
+                  "sentiment": "negative|positive|neutral",
+                  "category": "退款|发货|其他"
+                },
+                "sf_ship_pos": {
+                  "formatStringResult": "您的包裹正在安排发货，请留意物流信息"
+                },
+                "condition_2": {
+                  "is_shipment": false,
+                  "else": true
+                },
+                "condition_3": {
+                  "else": true,
+                  "is_negative": false
+                },
+                "condition_1": {
+                  "else": true,
+                  "is_refund": false
+                },
+                "sf_other": {
+                  "formatStringResult": "已转人工客服"
+                },
+                "sf_shipment": {
+                  "formatStringResult": "退款|发货|其他"
+                },
+                "code_4": {
+                  "needHuman": "是",
+                  "reply": "您的包裹正在安排发货，请留意物流信息"
+                },
+                "text": "今天天气不错",
+                "start_1": {
+                  "input": ""
+                }
+              },
+              "branch": "",
+              "error": "",
+              "id": "end_1"
+            }
+          ]
+        },
+        "sf_other": {
+          "id": "sf_other",
+          "status": "succeeded",
+          "startTime": 1792943403411,
+          "endTime": 1792943403411,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "sf_other",
+              "inputs": {
+                "needHuman": "是",
+                "reply": "已转人工客服"
+              },
+              "outputs": {
+                "formatStringResult": "已转人工客服"
+              },
+              "data": {
+                "formatStringResult": "已转人工客服"
+              },
+              "branch": "",
+              "error": "",
+              "id": "sf_other"
+            }
+          ]
+        },
+        "sf_shipment": {
+          "id": "sf_shipment",
+          "status": "succeeded",
+          "startTime": 1792943403411,
+          "endTime": 1792943403411,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "sf_shipment",
+              "inputs": {
+                "sentiment": "negative|positive|neutral",
+                "category": "退款|发货|其他"
+              },
+              "outputs": {
+                "formatStringResult": "退款|发货|其他"
+              },
+              "data": {
+                "formatStringResult": "退款|发货|其他"
+              },
+              "branch": "",
+              "error": "",
+              "id": "sf_shipment"
+            }
+          ]
+        },
+        "code_4": {
+          "id": "code_4",
+          "status": "succeeded",
+          "startTime": 1792943403412,
+          "endTime": 1792943403423,
+          "timeCost": 11,
+          "snapshots": [
+            {
+              "nodeID": "code_4",
+              "inputs": {
+                "sf_other_formatStringResult": "已转人工客服",
+                "sf_ship_pos_formatStringResult": "您的包裹正在安排发货，请留意物流信息"
+              },
+              "outputs": {
+                "needHuman": "是",
+                "reply": "您的包裹正在安排发货，请留意物流信息"
+              },
+              "data": {
+                "needHuman": "是",
+                "reply": "您的包裹正在安排发货，请留意物流信息"
+              },
+              "branch": "",
+              "error": "",
+              "id": "code_4"
+            }
+          ]
+        },
+        "start_1": {
+          "id": "start_1",
+          "status": "succeeded",
+          "startTime": 1792943400784,
+          "endTime": 1792943400784,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "start_1",
+              "inputs": {
+                "text": "今天天气不错"
+              },
+              "outputs": {
+                "input": ""
+              },
+              "data": {
+                "text": "今天天气不错"
+              },
+              "branch": "",
+              "error": "",
+              "id": "start_1"
+            }
+          ]
+        }
+      },
+      "runDetail": {
+        "nodes": [
+          {
+            "id": 271,
+            "runTaskId": "f9e1595a-e8b8-4581-bbe3-18bd41b7bc4d",
+            "nodeId": "llm_2",
+            "nodeType": "llm",
+            "title": "分类+情绪判定",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"text\":\"今天天气不错\",\"start_1\":{\"input\":\"\"}}",
+            "outputJson": "{\"sentiment\":\"negative|positive|neutral\",\"category\":\"退款|发货|其他\"}",
+            "timeCostMs": 2625,
+            "createdAt": "2026-10-25T23:50:03.440136"
+          },
+          {
+            "id": 272,
+            "runTaskId": "f9e1595a-e8b8-4581-bbe3-18bd41b7bc4d",
+            "nodeId": "sf_refund",
+            "nodeType": "string-format",
+            "title": "退款回复",
+            "status": "canceled",
+            "errorMessage": "",
+            "inputsJson": "{}",
+            "outputJson": "{}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:50:03.440136"
+          },
+          {
+            "id": 273,
+            "runTaskId": "f9e1595a-e8b8-4581-bbe3-18bd41b7bc4d",
+            "nodeId": "sf_ship_pos",
+            "nodeType": "string-format",
+            "title": "发货-非负面回复",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"needHuman\":\"否\",\"reply\":\"您的包裹正在安排发货，请留意物流信息\"}",
+            "outputJson": "{\"formatStringResult\":\"您的包裹正在安排发货，请留意物流信息\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:50:03.440136"
+          },
+          {
+            "id": 274,
+            "runTaskId": "f9e1595a-e8b8-4581-bbe3-18bd41b7bc4d",
+            "nodeId": "condition_2",
+            "nodeType": "condition",
+            "title": "发货判断",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"llm_2\":{\"sentiment\":\"negative|positive|neutral\",\"category\":\"退款|发货|其他\"},\"condition_1\":{\"else\":true,\"is_refund\":false},\"text\":\"今天天气不错\",\"start_1\":{\"input\":\"\"}}",
+            "outputJson": "{\"is_shipment\":false,\"else\":true}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:50:03.440136"
+          },
+          {
+            "id": 275,
+            "runTaskId": "f9e1595a-e8b8-4581-bbe3-18bd41b7bc4d",
+            "nodeId": "condition_3",
+            "nodeType": "condition",
+            "title": "发货情绪判断",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"llm_2\":{\"sentiment\":\"negative|positive|neutral\",\"category\":\"退款|发货|其他\"},\"condition_2\":{\"is_shipment\":false,\"else\":true},\"condition_1\":{\"else\":true,\"is_refund\":false},\"sf_other\":{\"formatStringResult\":\"已转人工客服\"},\"sf_shipment\":{\"formatStringResult\":\"退款|发货|其他\"},\"text\":\"今天天气不错\",\"start_1\":{\"input\":\"\"}}",
+            "outputJson": "{\"else\":true,\"is_negative\":false}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:50:03.440136"
+          },
+          {
+            "id": 276,
+            "runTaskId": "f9e1595a-e8b8-4581-bbe3-18bd41b7bc4d",
+            "nodeId": "sf_ship_neg",
+            "nodeType": "string-format",
+            "title": "发货-负面回复",
+            "status": "canceled",
+            "errorMessage": "",
+            "inputsJson": "{}",
+            "outputJson": "{}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:50:03.440136"
+          },
+          {
+            "id": 277,
+            "runTaskId": "f9e1595a-e8b8-4581-bbe3-18bd41b7bc4d",
+            "nodeId": "condition_1",
+            "nodeType": "condition",
+            "title": "分类判断",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"llm_2\":{\"sentiment\":\"negative|positive|neutral\",\"category\":\"退款|发货|其他\"},\"text\":\"今天天气不错\",\"start_1\":{\"input\":\"\"}}",
+            "outputJson": "{\"else\":true,\"is_refund\":false}",
+            "timeCostMs": 1,
+            "createdAt": "2026-10-25T23:50:03.440136"
+          },
+          {
+            "id": 278,
+            "runTaskId": "f9e1595a-e8b8-4581-bbe3-18bd41b7bc4d",
+            "nodeId": "end_1",
+            "nodeType": "end",
+            "title": "结束",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"llm_2\":{\"sentiment\":\"negative|positive|neutral\",\"category\":\"退款|发货|其他\"},\"sf_ship_pos\":{\"formatStringResult\":\"您的包裹正在安排发货，请留意物流信息\"},\"condition_2\":{\"is_shipment\":false,\"else\":true},\"condition_3\":{\"else\":true,\"is_negative\":false},\"condition_1\":{\"else\":true,\"is_refund\":false},\"sf_other\":{\"formatStringResult\":\"已转人工客服\"},\"sf_shipment\":{\"formatStringResult\":\"退款|发货|其他\"},\"code_4\":{\"needHuman\":\"是\",\"reply\":\"您的包裹正在安排发货，请留意物流信息\"},\"text\":\"今天天气不错\",\"start_1\":{\"input\":\"\"}}",
+            "outputJson": "{\"needHuman\":\"是\",\"reply\":\"您的包裹正在安排发货，请留意物流信息\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:50:03.440136"
+          },
+          {
+            "id": 279,
+            "runTaskId": "f9e1595a-e8b8-4581-bbe3-18bd41b7bc4d",
+            "nodeId": "sf_other",
+            "nodeType": "string-format",
+            "title": "其他回复",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"needHuman\":\"是\",\"reply\":\"已转人工客服\"}",
+            "outputJson": "{\"formatStringResult\":\"已转人工客服\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:50:03.440136"
+          },
+          {
+            "id": 280,
+            "runTaskId": "f9e1595a-e8b8-4581-bbe3-18bd41b7bc4d",
+            "nodeId": "sf_shipment",
+            "nodeType": "string-format",
+            "title": "发货情绪判断",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"sentiment\":\"negative|positive|neutral\",\"category\":\"退款|发货|其他\"}",
+            "outputJson": "{\"formatStringResult\":\"退款|发货|其他\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:50:03.440136"
+          },
+          {
+            "id": 281,
+            "runTaskId": "f9e1595a-e8b8-4581-bbe3-18bd41b7bc4d",
+            "nodeId": "code_4",
+            "nodeType": "code",
+            "title": "结果汇聚",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"sf_other_formatStringResult\":\"已转人工客服\",\"sf_ship_pos_formatStringResult\":\"您的包裹正在安排发货，请留意物流信息\"}",
+            "outputJson": "{\"needHuman\":\"是\",\"reply\":\"您的包裹正在安排发货，请留意物流信息\"}",
+            "timeCostMs": 11,
+            "createdAt": "2026-10-25T23:50:03.440136"
+          },
+          {
+            "id": 282,
+            "runTaskId": "f9e1595a-e8b8-4581-bbe3-18bd41b7bc4d",
+            "nodeId": "start_1",
+            "nodeType": "start",
+            "title": "开始",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"text\":\"今天天气不错\"}",
+            "outputJson": "{\"input\":\"\"}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T23:50:03.440136"
+          }
+        ],
+        "run": {
+          "id": 67,
+          "taskId": "f9e1595a-e8b8-4581-bbe3-18bd41b7bc4d",
+          "workflowCode": null,
+          "status": "success",
+          "errorMessage": null,
+          "inputsJson": "{\"text\":\"今天天气不错\"}",
+          "outputsJson": "{\"needHuman\":\"是\",\"reply\":\"您的包裹正在安排发货，请留意物流信息\"}",
+          "nodeCount": 12,
+          "durationMs": 2655,
+          "triggerChannel": "editor",
+          "startedAt": "2026-10-25T23:50:00.785136",
+          "finishedAt": "2026-10-25T23:50:03.440136",
+          "createdAt": "2026-10-25T23:50:03.440136"
+        }
+      }
+    }
+  ]
+}

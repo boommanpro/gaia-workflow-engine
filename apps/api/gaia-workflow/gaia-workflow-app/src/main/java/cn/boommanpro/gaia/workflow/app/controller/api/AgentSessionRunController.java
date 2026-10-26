@@ -123,7 +123,7 @@ public class AgentSessionRunController {
         return result.toJson();
     }
 
-    /** SSE 心跳调度器（单线程足够：send 很快，慢客户端由 complete 兜底） */
+    /** SSE 心跳调度器（单线程足够：ping 只是入队，真正的网络写在每连接的写出线程上） */
     private static final java.util.concurrent.ScheduledExecutorService SSE_HEARTBEAT =
         java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "sse-heartbeat");
@@ -132,20 +132,27 @@ public class AgentSessionRunController {
         });
 
     /**
-     * 订阅会话事件流（SSE，支持断线重连回放）
+     * 订阅会话事件流（SSE，支持断线精确重放）。
+     *
+     * <p>每个连接配一个 {@link cn.boommanpro.gaia.workflow.app.agent.event.SseStreamWriter}：
+     * 事件与心跳都只入该连接的有界队列，由独立写出线程串行送出 —— run 线程永不因
+     * 慢客户端阻塞。断线重连时浏览器自动带 {@code Last-Event-ID}（每帧 SSE id = 事件 seq），
+     * 总线缓冲覆盖则精确重放缺失事件。</p>
      */
     @GetMapping("/{sessionKey}/events")
-    public SseEmitter events(@PathVariable String sessionKey) {
+    public SseEmitter events(@PathVariable String sessionKey,
+                             @org.springframework.web.bind.annotation.RequestHeader(
+                                 value = "Last-Event-ID", required = false) Long lastEventId) {
         SseEmitter emitter = new SseEmitter(0L);
+        cn.boommanpro.gaia.workflow.app.agent.event.SseStreamWriter writer =
+            new cn.boommanpro.gaia.workflow.app.agent.event.SseStreamWriter(emitter, sessionKey);
         AtomicReference<Runnable> unsubscribeRef = new AtomicReference<>(() -> { });
         // SSE 心跳：20s 一条 comment。作用①防代理/负载均衡掐断空闲长连接；
-        // ②喂前端空闲看门狗（60s 无字节自动断开重连，根治「运行中卡死不报错」）。
-        // comment 帧不会触发前端任何事件处理，零成本。
+        // ②喂前端空闲看门狗（60s 无字节自动断开重连）。comment 帧不触发前端事件处理。
         java.util.concurrent.ScheduledFuture<?> heartbeat = SSE_HEARTBEAT.scheduleAtFixedRate(() -> {
             try {
-                emitter.send(SseEmitter.event().comment("ping"));
+                writer.ping();
             } catch (Exception e) {
-                // 发送失败（连接已死）：complete 触发 onCompletion → 退订 + 心跳取消
                 try {
                     emitter.complete();
                 } catch (Exception ignored) {
@@ -153,24 +160,19 @@ public class AgentSessionRunController {
                 }
             }
         }, 20, 20, java.util.concurrent.TimeUnit.SECONDS);
-        emitter.onCompletion(() -> {
+        Runnable cleanup = () -> {
             heartbeat.cancel(false);
+            writer.close();
             Runnable unsub = unsubscribeRef.get();
             if (unsub != null) {
                 unsub.run();
             }
-        });
-        emitter.onTimeout(() -> {
-            heartbeat.cancel(false);
-            Runnable unsub = unsubscribeRef.get();
-            if (unsub != null) {
-                unsub.run();
-            }
-        });
-        // 立即返回订阅句柄，后续事件经总线推给该 emitter
-        Runnable unsubscribe = runService.subscribe(sessionKey, emitter);
-        unsubscribeRef.set(unsubscribe);
-        log.debug("[session-run] subscribe events: {}", sessionKey);
+        };
+        emitter.onCompletion(cleanup);
+        emitter.onTimeout(cleanup);
+        // 立即返回订阅句柄，后续事件经总线 → 写出队列 → 连接
+        unsubscribeRef.set(runService.subscribe(sessionKey, lastEventId, writer));
+        log.debug("[session-run] subscribe events: {} lastEventId={}", sessionKey, lastEventId);
         return emitter;
     }
 
@@ -179,8 +181,10 @@ public class AgentSessionRunController {
      * 被压缩消息标记 compacted=1 不再进入模型上下文（surface replace 语义）。
      */
     @PostMapping("/{sessionKey}/compact")
-    public Map<String, Object> compact(@PathVariable String sessionKey) {
-        return compactionService.compact(sessionKey);
+    public Map<String, Object> compact(@PathVariable String sessionKey,
+                                       @org.springframework.web.bind.annotation.RequestParam(
+                                           value = "force", defaultValue = "false") boolean force) {
+        return compactionService.compact(sessionKey, force);
     }
 
     /** 当前运行快照 */
@@ -224,10 +228,10 @@ public class AgentSessionRunController {
         return response;
     }
 
-    /** 当前服务端画布草稿 */
+    /** 当前服务端画布草稿（带广播版本号：前端据此与增量 document 事件对齐） */
     @GetMapping("/{sessionKey}/document")
     public Map<String, Object> document(@PathVariable String sessionKey) {
-        JSONObject doc = draftService.get(sessionKey);
+        JSONObject doc = draftService.publicDocWithVersion(sessionKey);
         return doc;
     }
 
@@ -264,9 +268,8 @@ public class AgentSessionRunController {
         }
         JSONObject result = draftService.push(sessionKey, dsl, workflowCode, baseRevision);
         if (result.getBool("success", false)) {
-            // 无 run 上下文，直接经事件总线广播（在线窗口立即看到回滚/同步后的画布）
-            eventBus.publish(sessionKey, "document",
-                new JSONObject().set("dsl", draftService.publicDoc(sessionKey)));
+            // 无 run 上下文，走统一版本化广播（在线窗口立即看到回滚/同步后的画布）
+            draftService.broadcastDocument(sessionKey);
             insertCanvasNote(sessionKey, body != null && body.get("source") != null
                 ? String.valueOf(body.get("source")) : null, result);
         }
@@ -400,8 +403,8 @@ public class AgentSessionRunController {
         draftService.rebind(sessionKey, workflowCode,
             workflow.getRevision() != null ? workflow.getRevision() : 0L);
         draftService.persistArtifact(sessionKey, "stable", summary);
-        // 无 run 上下文，直接经事件总线广播文档，让在线窗口立即渲染出「被迭代的那份」
-        eventBus.publish(sessionKey, "document", new JSONObject().set("dsl", draftService.get(sessionKey)));
+        // 无 run 上下文，走统一版本化广播，让在线窗口立即渲染出「被迭代的那份」
+        draftService.broadcastDocument(sessionKey);
         return new JSONObject()
             .set("success", true)
             .set("workflowCode", workflowCode)

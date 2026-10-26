@@ -43,8 +43,14 @@ public class AgentProperties {
      */
     @Data
     public static class Run {
-        /** 轮次护栏：达到后进入收尾轮（30 对应正常长任务的富余量） */
-        private int runawayTurnCeiling = 30;
+        /**
+         * 轮次护栏：达到后进入收尾轮（收走工具 + 正文总结）。纯预算兜底——空转形态
+         * （同参复读 / 同目标微调 / 序列循环 / 整轮纯读）各有专门护栏在更早识别并终止。
+         * 100 = 完整建流任务（14+ 节点、逐节点配置、整流试跑、两个测试用例、总结）的富余量：
+         * 2026-10-24 会话 b6e34195 实证 30 轮把进行到一半的任务拦腰截断，60 轮在刚建完、
+         * 尚未写测试用例时触顶，80 轮在模型走弯路（配置写法试错）的轮次里仍差一步。
+         */
+        private int runawayTurnCeiling = 100;
         /** 连续无进展轮护栏：连续 N 轮没有任何工具成功即收尾 */
         private int noProgressTurnLimit = 8;
         /** 跨 run 历史压缩触发线（相对 contextWindow 的百分比；DB model.compaction 可在线覆盖） */

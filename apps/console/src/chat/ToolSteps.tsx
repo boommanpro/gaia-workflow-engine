@@ -241,12 +241,15 @@ const IoCard: React.FC<{ args: Record<string, unknown>; result?: string; failed:
   args, result, failed,
 }) => {
   const parsed = useMemo(() => (failed ? parseResult(result) : null), [failed, result]);
-  let argsText = '';
-  try {
-    argsText = Object.keys(args || {}).length > 0 ? JSON.stringify(args, null, 2) : '';
-  } catch {
-    argsText = String(args);
-  }
+  // IN/OUT 文本按需格式化并 memo：大 JSON 只在展开时解析一次，不随流式帧反复 stringify
+  const argsText = useMemo(() => {
+    try {
+      return Object.keys(args || {}).length > 0 ? JSON.stringify(args, null, 2) : '';
+    } catch {
+      return String(args);
+    }
+  }, [args]);
+  const outText = useMemo(() => resultText(result), [result]);
   return (
     <div
       style={{
@@ -303,7 +306,7 @@ const IoCard: React.FC<{ args: Record<string, unknown>; result?: string; failed:
                 {parsed.message}
               </div>
             ) : (
-              <Mono>{resultText(result)}</Mono>
+              <Mono>{outText}</Mono>
             )}
           </div>
         </>
@@ -332,17 +335,18 @@ function argSummary(args: Record<string, unknown>): string {
 // 未变化的工具行不随流式帧重渲染。
 
 const StepRowImpl: React.FC<{ call: ToolCallEvent; defaultOpen?: boolean }> = ({ call, defaultOpen }) => {
-  const failed = isFailure(call.result);
+  // 失败判定/解析/摘要全部 memo：流式帧重渲染时大 result 不再反复 toLowerCase/parse
+  const failed = useMemo(() => isFailure(call.result), [call.result]);
   const running = call.result === undefined;
   const parsed = useMemo(() => (failed ? parseResult(call.result) : null), [failed, call.result]);
+  const summary = useMemo(
+    () => (failed ? parsed?.firstLine || t('chat.toolFailed') : argSummary(call.args || {})),
+    [failed, parsed, call.args]
+  );
   const [open, setOpen] = useState(!!defaultOpen && (failed || running));
   useEffect(() => {
     if (defaultOpen) setOpen(failed || running);
   }, [defaultOpen, failed, running]);
-
-  const summary = failed
-    ? (parsed?.firstLine || t('chat.toolFailed'))
-    : argSummary(call.args || {});
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', width: '100%', minWidth: 0 }}>

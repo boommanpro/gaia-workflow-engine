@@ -90,6 +90,18 @@ class LoopNodeRobustnessTest extends AbstractNodeTest {
         loop.setLoopOutputs(loopOutputs);
         loop.setMaxLoopCount(2);
 
+        // 空循环体防护（2026-10-25）：LoopNode.execute 空体直接 fail fast，测试需要最小体节点
+        cn.boommanpro.gaia.workflow.infra.extend.node.loop.BlockStartNode blockStart =
+            new cn.boommanpro.gaia.workflow.infra.extend.node.loop.BlockStartNode();
+        blockStart.setId("loop_0_block_start");
+        cn.boommanpro.gaia.workflow.infra.extend.node.loop.BlockEndNode blockEnd =
+            new cn.boommanpro.gaia.workflow.infra.extend.node.loop.BlockEndNode();
+        blockEnd.setId("loop_0_block_end");
+        loop.addNode(blockStart);
+        loop.addNode(blockEnd);
+        loop.addEdge(new cn.boommanpro.gaia.workflow.base.model.ChainEdge(
+            "loop_0_edge_1", "loop_0_block_start", "loop_0_block_end"));
+
         Map<String, Object> result = loop.execute(parent);
         Object countValue = result.get("count");
         assertNotNull(countValue, "应收集到 count 输出");

@@ -7,6 +7,7 @@
 export * from './types';
 export * from './workflow-document';
 export * from './normalize-dsl';
+export * from './render-compat';
 export * from './validate';
 export * from './layout';
 export * from './history';

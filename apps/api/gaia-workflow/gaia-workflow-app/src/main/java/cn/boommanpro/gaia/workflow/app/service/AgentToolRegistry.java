@@ -568,7 +568,7 @@ public class AgentToolRegistry {
 
     public JSONArray buildToolsSchema() {
         JSONArray tools = new JSONArray();
-        String nodeTypes = "start, end, llm, code, http, condition, branches, loop, variable, string-format, comment";
+        String nodeTypes = String.join(", ", NodeSchemaRegistry.aiCreatableTypes());
 
         // ===== 公共组 =====
         tools.add(func("skill", "按名称加载技能全文。开工第一步：skill(\"gaia-workflow-assistant\") 加载完整搭建手册",
@@ -608,40 +608,45 @@ public class AgentToolRegistry {
                 str("nodeType", "target=knowledge 时必填：节点类型", null),
             })));
 
-        tools.add(func("node", "节点增/改/删。action=add 时用 type+data（items 批量），action=update 时用 nodeId+data，action=remove 时用 nodeId", obj(
+        tools.add(func("node", "节点增/改/删。action=add 时用 type+data（items 批量），action=update 时用 nodeId+data，action=remove 时用 nodeId。"
+            + "data 字段是严格契约：只能用 get(target=knowledge) 文档里的字段，拼错/自创字段会被 schema 当场拒绝（issues 带字段路径）。"
+            + "可选类型: " + nodeTypes, obj(
             new String[]{"action"}, new JSONObject[]{
                 str("action", "操作", enumVal("add","update","remove")),
                 str("type", "action=add 时必填：节点类型", null),
                 str("title", "节点标题（可选）", null),
-                objProp("data", "业务字段（扁平写法，系统自动 normalize）"),
+                objProp("data", "业务字段（扁平写法，系统自动 normalize；字段集见 get(target=knowledge, nodeType) 的 paramSchema）"),
                 str("nodeId", "action=update/remove 时必填：目标节点ID", null),
-                objProp("connect", "action=add 时可选：{from, fromPort?, to} 接线"),
+                objProp("connect", "action=add 时可选：{from, fromPort?, to} 接线（from/to 支持 $ref 引用同批节点）"),
                 arrProp("items", "批量添加（可选）", obj(new String[]{"type"}, new JSONObject[]{
                     str("type", "节点类型", null), str("title", "标题", null),
+                    str("id", "显式节点ID（可选，缺省自动生成）", null),
+                    str("ref", "同批引用名（可选）：connect.from/to 用 $<ref> 引用本节点", null),
                     objProp("data", "业务字段"), objProp("connect", "接线") })),
             })));
 
-        tools.add(func("edge", "连线/断线。connect=连两个既有节点（分支出边必须带 fromPort），remove=删除连线", obj(
+        tools.add(func("edge", "连线/断线。connect=连两个既有节点（连线当场校验：端点存在/不自环/不重复/端口合法），remove=删除连线", obj(
             new String[]{"action", "from", "to"}, new JSONObject[]{
                 str("action", "操作", enumVal("connect","remove")),
                 str("from", "源节点ID", null),
                 str("to", "目标节点ID", null),
-                str("fromPort", "源端口（仅分支节点需要）", null),
+                str("fromPort", "源端口（仅 condition/branches 节点需要且必须）：conditions[].key / branches[].id / else，绝不能写 true/false；其他类型节点不能带", null),
             })));
 
-        tools.add(func("run", "执行。target=workflow 整流试跑会话草稿（真正执行，回 outputs/failedNodes/notExecuted，60s 超时）/ target=node 单节点试跑（mockInputs 模拟上游）/ target=tests 跑测试用例", obj(
+        tools.add(func("run", "执行。target=workflow 整流试跑会话草稿（真正执行，回 outputs/failedNodes/notExecuted，"
+            + DraftRunService.TIMEOUT_SECONDS + "s 超时）/ target=node 单节点试跑（mockInputs 模拟上游）/ target=tests 跑测试用例", obj(
             new String[]{"target"}, new JSONObject[]{
                 str("target", "执行目标", enumVal("workflow","node","tests")),
                 str("nodeId", "target=node/tests 时必填：节点ID", null),
                 objProp("inputs", "target=workflow 时的 start 入参"),
-                objProp("mockInputs", "target=node 时的上游变量模拟值"),
+                objProp("mockInputs", "target=node 时模拟上游输出。推荐按上游节点 id 分组：{\"<上游节点id>\":{\"<字段>\":值}}，如 {\"start_1\":{\"orderId\":\"A1\"},\"http_1\":{\"body\":{...}}}；也接受按本节点入参名直给 {\"<入参名>\":值}（自动映射到对应引用）"),
             })));
 
         tools.add(func("test_case", "沉淀测试用例（回归资产）。expected 断言算子：exists/equals/contains", obj(
             new String[]{"name", "expected"}, new JSONObject[]{
                 str("name", "用例名", null),
                 str("nodeId", "节点级用例的目标节点（不传=工作流级）", null),
-                objProp("inputs", "工作流级: start 入参；节点级: mock 上游变量"),
+                objProp("inputs", "工作流级必填：start 入参的一组具体值（缺了会被拒绝，运行时入参全空断言必失败）；节点级：mock 上游变量"),
                 arrProp("expected", "断言列表 [{field, op, value?}]", obj(
                     new String[]{"field", "op"}, new JSONObject[]{
                         str("field", "结果字段", null),

@@ -162,4 +162,5 @@ class HttpNodeRobustnessTest extends AbstractNodeTest {
                         .set("headers", JSONUtil.createObj().set("type", "object"))
                         .set("statusCode", JSONUtil.createObj().set("type", "number")));
     }
+
 }

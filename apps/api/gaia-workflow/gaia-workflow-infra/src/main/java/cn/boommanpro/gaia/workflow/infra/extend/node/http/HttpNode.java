@@ -108,6 +108,16 @@ public class HttpNode extends BaseNode {
         Map<String, String> headers = parseHeaders(chain);
         request.addHeaders(headers);
 
+        // hutool 全局默认 Accept-Encoding 为 "gzip, deflate"：不少服务端会择 deflate（raw deflate，
+        // 无 zlib 包装），而 hutool bodyStream 用 zlib 模式 Inflater 解压会抛
+        // ZipException("invalid stored block lengths")——节点假性失败。用户未显式声明时
+        // 收敛为 gzip（GZIPInputStream 语义可靠，服务端要么 gzip 要么 identity）。
+        boolean acceptEncodingDeclared = headers.keySet().stream()
+            .anyMatch(k -> "accept-encoding".equalsIgnoreCase(k));
+        if (!acceptEncodingDeclared) {
+            request.header("Accept-Encoding", "gzip");
+        }
+
         // 设置查询参数
         Map<String, Object> params = parseParams(chain);
         request.form(params);

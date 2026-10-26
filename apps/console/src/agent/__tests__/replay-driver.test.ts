@@ -1,7 +1,6 @@
 /**
- * 回放驱动 mock 测试（Phase 3a 验收）：
- *  · 事件序列按 fixture 顺序分发到 handlers（与真实 SSE 分发同构）
- *  · replayRequest 按 REST 路径路由到 fixture 数据
+ * 回放驱动 mock 测试：事件序列按 fixture 顺序以「帧」分发（与真实 SSE 同一条路径），
+ * replayRequest 按 REST 路径路由到 fixture 数据。
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -13,7 +12,7 @@ import {
   replaySessionStream,
   type ReplayFixture,
 } from '../replay/replay-driver';
-import type { SseHandlers } from '../types';
+import type { SseFrame } from '../runtime/sse-reader';
 
 const fixture: ReplayFixture = {
   name: 'test',
@@ -37,27 +36,40 @@ afterEach(() => {
 });
 
 describe('replaySessionStream', () => {
-  it('按顺序分发全部事件并回调 onOpen', async () => {
+  it('按顺序分发全部帧并回调 onOpen', async () => {
     activateReplay(fixture);
     expect(isReplayActive()).toBe(true);
 
     const seen: string[] = [];
     let opened = 0;
-    const handlers: SseHandlers = {
+    await replaySessionStream({
       onOpen: () => { opened += 1; },
-      onRunState: (d) => seen.push(`run_state:${d.status}`),
-      onToken: (c) => seen.push(`token:${c}`),
-      onDone: () => seen.push('done'),
-    };
-    await replaySessionStream(handlers);
+      onFrame: (frame: SseFrame) => {
+        seen.push(frame.event);
+        if (frame.event === 'run_state') {
+          seen.push(`run_state:${JSON.parse(frame.data).status}`);
+        }
+      },
+    });
 
     expect(opened).toBe(1);
-    expect(seen).toEqual(['run_state:running', 'token:你', 'token:好', 'done']);
+    expect(seen).toEqual(['run_state', 'run_state:running', 'token', 'token', 'done']);
+  });
+
+  it('帧 data 为 JSON 字符串（与真实 SSE 线格式一致）', async () => {
+    activateReplay(fixture);
+    const tokens: string[] = [];
+    await replaySessionStream({
+      onFrame: (frame) => {
+        if (frame.event === 'token') tokens.push(JSON.parse(frame.data).content);
+      },
+    });
+    expect(tokens).toEqual(['你', '好']);
   });
 
   it('未激活时不分发', async () => {
     const seen: string[] = [];
-    await replaySessionStream({ onToken: (c) => seen.push(c) });
+    await replaySessionStream({ onFrame: (f) => seen.push(f.event) });
     expect(seen).toEqual([]);
   });
 
@@ -66,7 +78,7 @@ describe('replaySessionStream', () => {
     const controller = new AbortController();
     const seen: string[] = [];
     controller.abort();
-    await replaySessionStream({ onToken: (c) => seen.push(c) }, controller.signal);
+    await replaySessionStream({ onFrame: (f) => seen.push(f.event) }, controller.signal);
     expect(seen).toEqual([]);
   });
 });

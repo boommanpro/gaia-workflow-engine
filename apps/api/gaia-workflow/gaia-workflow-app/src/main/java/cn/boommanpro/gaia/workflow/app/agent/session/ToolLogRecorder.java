@@ -42,6 +42,7 @@ public class ToolLogRecorder implements AgentEventSink {
     private final AgentEventSink delegate;
     private final AgentSessionService sessionService;
     private final AgentSessionEventService eventService;
+    private final SessionEventDbWriter dbWriter;
     private final String runId;
     private final String eventSessionKey;
     /** 触发本次 run 的用户消息（作为条目标题，方便审查列表定位） */
@@ -64,9 +65,16 @@ public class ToolLogRecorder implements AgentEventSink {
     public ToolLogRecorder(AgentEventSink delegate, AgentSessionService sessionService,
                            AgentSessionEventService eventService, String runId,
                            String eventSessionKey, String userMessage) {
+        this(delegate, sessionService, eventService, null, runId, eventSessionKey, userMessage);
+    }
+
+    public ToolLogRecorder(AgentEventSink delegate, AgentSessionService sessionService,
+                           AgentSessionEventService eventService, SessionEventDbWriter dbWriter,
+                           String runId, String eventSessionKey, String userMessage) {
         this.delegate = delegate;
         this.sessionService = sessionService;
         this.eventService = eventService;
+        this.dbWriter = dbWriter;
         this.runId = runId;
         this.eventSessionKey = eventSessionKey;
         this.userMessage = userMessage;
@@ -94,13 +102,13 @@ public class ToolLogRecorder implements AgentEventSink {
 
     // ---------------- 持久事件日志（v2） ----------------
 
-    /** 并行工具任务会并发外发事件：seq 分配与落表必须串行化，保证日志序确定 */
+    /** 并行工具任务会并发外发事件：seq 分配与入队必须串行化，保证日志序确定 */
     private synchronized void persistEvent(AgentEvent event) {
-        if (eventService == null || event == null || event.getType() == null) {
+        if (event == null || event.getType() == null) {
             return;
         }
         String type = event.getType();
-        // 高频流事件不入表（token 每秒几十条，落表只有噪声）；
+        // 高频流事件不入表（token 合帧后每秒至多 25 条，落表只有噪声）；
         // 其余事件全量落库不截断 ——「model-visible ⟺ logged」：
         // 模型看过的工具参数/结果必须能从事件日志完整重建
         if ("token".equals(type) || "thinking".equals(type)) {
@@ -117,7 +125,24 @@ public class ToolLogRecorder implements AgentEventSink {
         row.setEventType(type);
         row.setPayload(event.getData() != null ? event.getData().toString() : null);
         row.setCreatedAt(java.time.LocalDateTime.now().toString());
-        eventService.save(row);
+        // 异步批量落库：写入不再占用 run 线程（run 收尾由 flushAndWait 对账）
+        if (dbWriter != null) {
+            dbWriter.enqueue(row);
+        } else if (eventService != null) {
+            eventService.save(row);
+        }
+    }
+
+    /** run 收尾：同步等事件账落库（终态 durable before finish），再并 debug_data */
+    public synchronized void flushAndWait(String sessionKey, long timeoutMillis) {
+        if (dbWriter != null) {
+            try {
+                dbWriter.flush(timeoutMillis);
+            } catch (Exception e) {
+                log.debug("[tool-log] flush wait failed (ignored): {}", e.getMessage());
+            }
+        }
+        flush(sessionKey);
     }
 
     // ---------------- debug_data 录制（原有行为） ----------------

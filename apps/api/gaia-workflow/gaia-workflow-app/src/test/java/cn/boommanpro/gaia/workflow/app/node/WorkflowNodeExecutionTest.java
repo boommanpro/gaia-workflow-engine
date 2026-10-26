@@ -171,4 +171,5 @@ class WorkflowNodeExecutionTest {
             WorkflowNode.setSchemaResolver(id -> "sub_flow".equals(id) ? subFlowSchema() : null);
         }
     }
+
 }

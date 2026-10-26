@@ -1,0 +1,504 @@
+{
+  "caseId": "C03",
+  "sessionKey": "8f51ce7231684b44807132e5c1cd9728",
+  "elapsedSec": 45,
+  "turns": [
+    {
+      "utterance": "做个小工具：给它一个城市的经纬度，它帮我查当前天气，返回温度数值和风速。",
+      "runStatus": "done",
+      "asksAnswered": [],
+      "lastAssistant": "先确认一下天气 API 的选择。我用 Open-Meteo 免费 API（无需 key），它接受经纬度直接返回天气数据。\n\n现在创建 HTTP 节点来调用天气 API：\n\n需要先在 start 节点定义 latitude 和 longitude 输出。\n\n现在添加 Code 节点来解析 HTTP 返回的天气数据：\n\nCode 节点的 script 字段需要嵌套结构。让我修正：\n\n现在配置 End 节点，输出温度和风速：\n\n现在接线：start_1 → http_1 → code_2 → end_1：\n\n现在整流试跑，用北京坐标（纬度 39.9，经度 116.4）测试：\n\nHTTP 返回的 body 结构可能不同，先看看 http_1 的实际输出：\n\nbody 是 string 类型，需要解析 JSON。修正 code 节点：\n\nbody 变量已存在（作为 string），需要换个变量名：\n\n所有节点都跑通了，但 outputs 为空，说明 end 节点没有正确输出。让我检查一下 code_2 的输出字段：\n\ncode_2 不在上游字段列表中，说明 code_2 没有声明 outputs。需要给 code_2 加上输出白名单：\n\n北京坐标跑通了，返回温度 10.9°C，风速 4.3。再换一组反向输入测试（上海坐标）：\n\n两组输入都跑通了。沉淀测试用例：\n\n✅ 工作流已完成并验证通过。\n\n## 做了什么\n\n| 节点 | 作用 |\n|------|------|\n| **start_1** | 接收输入：`latitude`（纬度）、`longitude`（经度） |\n| **http_1** | 调用 Open-Meteo 免费天气 API，传入经纬度查询当前天气 |\n| **code_2** | 解析 API 返回的 JSON，提取 `temperature_2m`（温度）和 `wind_speed_10m`（风速） |\n| **end_1** | 输出最终结果：`temperature` 和 `windSpeed` |\n\n## 验证结果\n\n- **北京** (39.9, 116.4) → 温度 10.9°C，风速 4.3\n- **上海** (31.23, 121.47) → 温度 17.8°C，风速 11.2\n\n两组输入均通过，`failedNodes` 为空。\n\n## 使用方式\n\n传入城市经纬度即可：\n```json\n{\n  \"latitude\": 39.9,\n  \"longitude\": 116.4\n}\n```\n\n返回：\n```json\n{\n  \"temperature\": 10.9,\n  \"windSpeed\": 4.3\n}\n```\n\n> ⚠️ 草稿已验证通过，请**保存为版本**以持久化。"
+    }
+  ],
+  "pass": true,
+  "checks": [
+    {
+      "case": "C03",
+      "name": "存在 http 节点",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "case": "C03",
+      "name": "method 为 GET",
+      "pass": true,
+      "detail": "{\"method\":\"GET\",\"url\":{\"type\":\"template\",\"content\":\"https://api.open-meteo.com/v1/forecast?latitude={{start_1.latitude}}&longitude={{start_1.longitude}}&current=temperature_2m,wind_speed_10m\"}}"
+    },
+    {
+      "case": "C03",
+      "name": "试运行成功",
+      "pass": true,
+      "detail": "status=success"
+    },
+    {
+      "case": "C03",
+      "name": "温度为数字且合理",
+      "pass": true,
+      "detail": "{\"temperature\":10.9,\"windSpeed\":4.3}"
+    },
+    {
+      "case": "C03",
+      "name": "风速为非负数字",
+      "pass": true,
+      "detail": "{\"temperature\":10.9,\"windSpeed\":4.3}"
+    }
+  ],
+  "doc": {
+    "edges": [
+      {
+        "sourceNodeID": "start_1",
+        "targetNodeID": "http_1"
+      },
+      {
+        "sourceNodeID": "http_1",
+        "targetNodeID": "code_2"
+      },
+      {
+        "sourceNodeID": "code_2",
+        "targetNodeID": "end_1"
+      }
+    ],
+    "version": 13,
+    "nodes": [
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "latitude": {
+                "description": "latitude",
+                "type": "number",
+                "title": "城市纬度",
+                "default": 0
+              },
+              "input": {
+                "description": "input",
+                "type": "string",
+                "default": ""
+              },
+              "longitude": {
+                "description": "longitude",
+                "type": "number",
+                "title": "城市经度",
+                "default": 0
+              }
+            }
+          },
+          "title": "开始"
+        },
+        "type": "start",
+        "meta": {
+          "position": {
+            "x": 180,
+            "y": 180
+          }
+        },
+        "id": "start_1"
+      },
+      {
+        "data": {
+          "inputsValues": {
+            "temperature": {
+              "type": "ref",
+              "content": [
+                "code_2",
+                "temperature"
+              ]
+            },
+            "windSpeed": {
+              "type": "ref",
+              "content": [
+                "code_2",
+                "windSpeed"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "temperature": {
+                "type": "string"
+              },
+              "windSpeed": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "结束"
+        },
+        "type": "end",
+        "meta": {
+          "position": {
+            "x": 1140,
+            "y": 180
+          }
+        },
+        "id": "end_1"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "headers": {
+                "type": "string"
+              },
+              "body": {
+                "type": "string"
+              },
+              "statusCode": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "查询天气",
+          "headersValues": {},
+          "paramsValues": {},
+          "api": {
+            "method": "GET",
+            "url": {
+              "type": "template",
+              "content": "https://api.open-meteo.com/v1/forecast?latitude={{start_1.latitude}}&longitude={{start_1.longitude}}&current=temperature_2m,wind_speed_10m"
+            }
+          }
+        },
+        "type": "http",
+        "meta": {
+          "position": {
+            "x": 500,
+            "y": 180
+          }
+        },
+        "id": "http_1"
+      },
+      {
+        "data": {
+          "outputs": {
+            "type": "object",
+            "properties": {
+              "temperature": {
+                "type": "number"
+              },
+              "windSpeed": {
+                "type": "number"
+              }
+            }
+          },
+          "inputsValues": {
+            "body": {
+              "type": "ref",
+              "content": [
+                "http_1",
+                "body"
+              ]
+            }
+          },
+          "inputs": {
+            "type": "object",
+            "properties": {
+              "body": {
+                "type": "string"
+              }
+            }
+          },
+          "title": "解析天气数据",
+          "script": {
+            "language": "javascript",
+            "content": "const data = JSON.parse(body);\nconst current = data.current;\n({\n  temperature: current.temperature_2m,\n  windSpeed: current.wind_speed_10m\n})"
+          }
+        },
+        "type": "code",
+        "meta": {
+          "position": {
+            "x": 820,
+            "y": 180
+          }
+        },
+        "id": "code_2"
+      }
+    ]
+  },
+  "trialRuns": [
+    {
+      "ok": true,
+      "taskId": "072e6f29-55b9-4437-9ede-2ab4181ed2c4",
+      "workflowStatus": "success",
+      "outputs": {
+        "temperature": 10.9,
+        "windSpeed": 4.3
+      },
+      "nodes": {
+        "code_2": {
+          "id": "code_2",
+          "status": "succeeded",
+          "startTime": 1792934396614,
+          "endTime": 1792934396627,
+          "timeCost": 13,
+          "snapshots": [
+            {
+              "nodeID": "code_2",
+              "inputs": {
+                "body": "{\"latitude\":39.89455,\"longitude\":116.35983,\"generationtime_ms\":0.042438507080078125,\"utc_offset_seconds\":0,\"timezone\":\"GMT\",\"timezone_abbreviation\":\"GMT\",\"elevation\":49.0,\"current_units\":{\"time\":\"iso8601\",\"interval\":\"seconds\",\"temperature_2m\":\"°C\",\"wind_speed_10m\":\"km/h\"},\"current\":{\"time\":\"2026-10-25T13:15\",\"interval\":900,\"temperature_2m\":10.9,\"wind_speed_10m\":4.3}}"
+              },
+              "outputs": {
+                "temperature": 10.9,
+                "windSpeed": 4.3
+              },
+              "data": {
+                "temperature": 10.9,
+                "windSpeed": 4.3
+              },
+              "branch": "",
+              "error": "",
+              "id": "code_2"
+            }
+          ]
+        },
+        "http_1": {
+          "id": "http_1",
+          "status": "succeeded",
+          "startTime": 1792934395995,
+          "endTime": 1792934396614,
+          "timeCost": 619,
+          "snapshots": [
+            {
+              "nodeID": "http_1",
+              "inputs": {},
+              "outputs": {
+                "headers": {
+                  "Transfer-Encoding": [
+                    "chunked"
+                  ],
+                  "Connection": [
+                    "keep-alive"
+                  ],
+                  "Date": [
+                    "Sun, 25 Oct 2026 13:19:56 GMT"
+                  ],
+                  "Content-Encoding": [
+                    "gzip"
+                  ],
+                  "Content-Type": [
+                    "application/json; charset=utf-8"
+                  ]
+                },
+                "body": "{\"latitude\":39.89455,\"longitude\":116.35983,\"generationtime_ms\":0.042438507080078125,\"utc_offset_seconds\":0,\"timezone\":\"GMT\",\"timezone_abbreviation\":\"GMT\",\"elevation\":49.0,\"current_units\":{\"time\":\"iso8601\",\"interval\":\"seconds\",\"temperature_2m\":\"°C\",\"wind_speed_10m\":\"km/h\"},\"current\":{\"time\":\"2026-10-25T13:15\",\"interval\":900,\"temperature_2m\":10.9,\"wind_speed_10m\":4.3}}",
+                "statusCode": 200
+              },
+              "data": {
+                "headers": {
+                  "Transfer-Encoding": [
+                    "chunked"
+                  ],
+                  "Connection": [
+                    "keep-alive"
+                  ],
+                  "Date": [
+                    "Sun, 25 Oct 2026 13:19:56 GMT"
+                  ],
+                  "Content-Encoding": [
+                    "gzip"
+                  ],
+                  "Content-Type": [
+                    "application/json; charset=utf-8"
+                  ]
+                },
+                "body": "{\"latitude\":39.89455,\"longitude\":116.35983,\"generationtime_ms\":0.042438507080078125,\"utc_offset_seconds\":0,\"timezone\":\"GMT\",\"timezone_abbreviation\":\"GMT\",\"elevation\":49.0,\"current_units\":{\"time\":\"iso8601\",\"interval\":\"seconds\",\"temperature_2m\":\"°C\",\"wind_speed_10m\":\"km/h\"},\"current\":{\"time\":\"2026-10-25T13:15\",\"interval\":900,\"temperature_2m\":10.9,\"wind_speed_10m\":4.3}}",
+                "statusCode": 200
+              },
+              "branch": "",
+              "error": "",
+              "id": "http_1"
+            }
+          ]
+        },
+        "start_1": {
+          "id": "start_1",
+          "status": "succeeded",
+          "startTime": 1792934395994,
+          "endTime": 1792934395994,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "start_1",
+              "inputs": {
+                "latitude": 39.9,
+                "longitude": 116.4
+              },
+              "outputs": {
+                "latitude": 39.9,
+                "input": "",
+                "longitude": 116.4
+              },
+              "data": {
+                "latitude": 39.9,
+                "longitude": 116.4
+              },
+              "branch": "",
+              "error": "",
+              "id": "start_1"
+            }
+          ]
+        },
+        "end_1": {
+          "id": "end_1",
+          "status": "succeeded",
+          "startTime": 1792934396628,
+          "endTime": 1792934396628,
+          "timeCost": 0,
+          "snapshots": [
+            {
+              "nodeID": "end_1",
+              "inputs": {
+                "latitude": 39.9,
+                "http_1": {
+                  "headers": {
+                    "Transfer-Encoding": [
+                      "chunked"
+                    ],
+                    "Connection": [
+                      "keep-alive"
+                    ],
+                    "Date": [
+                      "Sun, 25 Oct 2026 13:19:56 GMT"
+                    ],
+                    "Content-Encoding": [
+                      "gzip"
+                    ],
+                    "Content-Type": [
+                      "application/json; charset=utf-8"
+                    ]
+                  },
+                  "body": "{\"latitude\":39.89455,\"longitude\":116.35983,\"generationtime_ms\":0.042438507080078125,\"utc_offset_seconds\":0,\"timezone\":\"GMT\",\"timezone_abbreviation\":\"GMT\",\"elevation\":49.0,\"current_units\":{\"time\":\"iso8601\",\"interval\":\"seconds\",\"temperature_2m\":\"°C\",\"wind_speed_10m\":\"km/h\"},\"current\":{\"time\":\"2026-10-25T13:15\",\"interval\":900,\"temperature_2m\":10.9,\"wind_speed_10m\":4.3}}",
+                  "statusCode": 200
+                },
+                "code_2": {
+                  "temperature": 10.9,
+                  "windSpeed": 4.3
+                },
+                "longitude": 116.4,
+                "start_1": {
+                  "latitude": 39.9,
+                  "input": "",
+                  "longitude": 116.4
+                }
+              },
+              "outputs": {
+                "temperature": 10.9,
+                "windSpeed": 4.3
+              },
+              "data": {
+                "latitude": 39.9,
+                "http_1": {
+                  "headers": {
+                    "Transfer-Encoding": [
+                      "chunked"
+                    ],
+                    "Connection": [
+                      "keep-alive"
+                    ],
+                    "Date": [
+                      "Sun, 25 Oct 2026 13:19:56 GMT"
+                    ],
+                    "Content-Encoding": [
+                      "gzip"
+                    ],
+                    "Content-Type": [
+                      "application/json; charset=utf-8"
+                    ]
+                  },
+                  "body": "{\"latitude\":39.89455,\"longitude\":116.35983,\"generationtime_ms\":0.042438507080078125,\"utc_offset_seconds\":0,\"timezone\":\"GMT\",\"timezone_abbreviation\":\"GMT\",\"elevation\":49.0,\"current_units\":{\"time\":\"iso8601\",\"interval\":\"seconds\",\"temperature_2m\":\"°C\",\"wind_speed_10m\":\"km/h\"},\"current\":{\"time\":\"2026-10-25T13:15\",\"interval\":900,\"temperature_2m\":10.9,\"wind_speed_10m\":4.3}}",
+                  "statusCode": 200
+                },
+                "code_2": {
+                  "temperature": 10.9,
+                  "windSpeed": 4.3
+                },
+                "longitude": 116.4,
+                "start_1": {
+                  "latitude": 39.9,
+                  "input": "",
+                  "longitude": 116.4
+                }
+              },
+              "branch": "",
+              "error": "",
+              "id": "end_1"
+            }
+          ]
+        }
+      },
+      "runDetail": {
+        "nodes": [
+          {
+            "id": 61,
+            "runTaskId": "072e6f29-55b9-4437-9ede-2ab4181ed2c4",
+            "nodeId": "code_2",
+            "nodeType": "code",
+            "title": "解析天气数据",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"body\":\"{\\\"latitude\\\":39.89455,\\\"longitude\\\":116.35983,\\\"generationtime_ms\\\":0.042438507080078125,\\\"utc_offset_seconds\\\":0,\\\"timezone\\\":\\\"GMT\\\",\\\"timezone_abbreviation\\\":\\\"GMT\\\",\\\"elevation\\\":49.0,\\\"current_units\\\":{\\\"time\\\":\\\"iso8601\\\",\\\"interval\\\":\\\"seconds\\\",\\\"temperature_2m\\\":\\\"°C\\\",\\\"wind_speed_10m\\\":\\\"km/h\\\"},\\\"current\\\":{\\\"time\\\":\\\"2026-10-25T13:15\\\",\\\"interval\\\":900,\\\"temperature_2m\\\":10.9,\\\"wind_speed_10m\\\":4.3}}\"}",
+            "outputJson": "{\"temperature\":10.9,\"windSpeed\":4.3}",
+            "timeCostMs": 13,
+            "createdAt": "2026-10-25T21:19:56.632175"
+          },
+          {
+            "id": 62,
+            "runTaskId": "072e6f29-55b9-4437-9ede-2ab4181ed2c4",
+            "nodeId": "http_1",
+            "nodeType": "http",
+            "title": "查询天气",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{}",
+            "outputJson": "{\"headers\":{\"Transfer-Encoding\":[\"chunked\"],\"Connection\":[\"keep-alive\"],\"Date\":[\"Sun, 25 Oct 2026 13:19:56 GMT\"],\"Content-Encoding\":[\"gzip\"],\"Content-Type\":[\"application/json; charset=utf-8\"]},\"body\":\"{\\\"latitude\\\":39.89455,\\\"longitude\\\":116.35983,\\\"generationtime_ms\\\":0.042438507080078125,\\\"utc_offset_seconds\\\":0,\\\"timezone\\\":\\\"GMT\\\",\\\"timezone_abbreviation\\\":\\\"GMT\\\",\\\"elevation\\\":49.0,\\\"current_units\\\":{\\\"time\\\":\\\"iso8601\\\",\\\"interval\\\":\\\"seconds\\\",\\\"temperature_2m\\\":\\\"°C\\\",\\\"wind_speed_10m\\\":\\\"km/h\\\"},\\\"current\\\":{\\\"time\\\":\\\"2026-10-25T13:15\\\",\\\"interval\\\":900,\\\"temperature_2m\\\":10.9,\\\"wind_speed_10m\\\":4.3}}\",\"statusCode\":200}",
+            "timeCostMs": 619,
+            "createdAt": "2026-10-25T21:19:56.632175"
+          },
+          {
+            "id": 63,
+            "runTaskId": "072e6f29-55b9-4437-9ede-2ab4181ed2c4",
+            "nodeId": "start_1",
+            "nodeType": "start",
+            "title": "开始",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"latitude\":39.9,\"longitude\":116.4}",
+            "outputJson": "{\"latitude\":39.9,\"input\":\"\",\"longitude\":116.4}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T21:19:56.632175"
+          },
+          {
+            "id": 64,
+            "runTaskId": "072e6f29-55b9-4437-9ede-2ab4181ed2c4",
+            "nodeId": "end_1",
+            "nodeType": "end",
+            "title": "结束",
+            "status": "succeeded",
+            "errorMessage": "",
+            "inputsJson": "{\"latitude\":39.9,\"http_1\":{\"headers\":{\"Transfer-Encoding\":[\"chunked\"],\"Connection\":[\"keep-alive\"],\"Date\":[\"Sun, 25 Oct 2026 13:19:56 GMT\"],\"Content-Encoding\":[\"gzip\"],\"Content-Type\":[\"application/json; charset=utf-8\"]},\"body\":\"{\\\"latitude\\\":39.89455,\\\"longitude\\\":116.35983,\\\"generationtime_ms\\\":0.042438507080078125,\\\"utc_offset_seconds\\\":0,\\\"timezone\\\":\\\"GMT\\\",\\\"timezone_abbreviation\\\":\\\"GMT\\\",\\\"elevation\\\":49.0,\\\"current_units\\\":{\\\"time\\\":\\\"iso8601\\\",\\\"interval\\\":\\\"seconds\\\",\\\"temperature_2m\\\":\\\"°C\\\",\\\"wind_speed_10m\\\":\\\"km/h\\\"},\\\"current\\\":{\\\"time\\\":\\\"2026-10-25T13:15\\\",\\\"interval\\\":900,\\\"temperature_2m\\\":10.9,\\\"wind_speed_10m\\\":4.3}}\",\"statusCode\":200},\"code_2\":{\"temperature\":10.9,\"windSpeed\":4.3},\"longitude\":116.4,\"start_1\":{\"latitude\":39.9,\"input\":\"\",\"longitude\":116.4}}",
+            "outputJson": "{\"temperature\":10.9,\"windSpeed\":4.3}",
+            "timeCostMs": 0,
+            "createdAt": "2026-10-25T21:19:56.632175"
+          }
+        ],
+        "run": {
+          "id": 16,
+          "taskId": "072e6f29-55b9-4437-9ede-2ab4181ed2c4",
+          "workflowCode": null,
+          "status": "success",
+          "errorMessage": null,
+          "inputsJson": "{\"latitude\":39.9,\"longitude\":116.4}",
+          "outputsJson": "{\"temperature\":10.9,\"windSpeed\":4.3}",
+          "nodeCount": 4,
+          "durationMs": 637,
+          "triggerChannel": "editor",
+          "startedAt": "2026-10-25T21:19:55.995175",
+          "finishedAt": "2026-10-25T21:19:56.632175",
+          "createdAt": "2026-10-25T21:19:56.632175"
+        }
+      }
+    }
+  ]
+}

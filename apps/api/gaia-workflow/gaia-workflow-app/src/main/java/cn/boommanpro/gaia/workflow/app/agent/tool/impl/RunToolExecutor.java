@@ -58,7 +58,6 @@ public class RunToolExecutor implements ToolExecutor {
         String nodeId = args.getStr("nodeId");
         JSONObject node = draftService.getNode(ctx.getSessionKey(), nodeId);
         if (node == null) return ToolResult.notFound("节点 " + nodeId);
-        draftRunService.fillLlmDefaults(node, null);
         SingleNodeRunInput input = new SingleNodeRunInput();
         input.setNode(node.toString());
         JSONObject mock = args.getJSONObject("mockInputs");
@@ -70,7 +69,7 @@ public class RunToolExecutor implements ToolExecutor {
         return ToolResult.ok(payload.toString(), out.isSuccess() ? "节点试跑通过" : "节点试跑失败: " + out.getError());
     }
 
-    /** 整流试跑：真正执行会话草稿（同步、60s 超时），回 end 输出 + 每节点状态。
+    /** 整流试跑：真正执行会话草稿（同步、180s 超时），回 end 输出 + 每节点状态。
      * 每次整流试跑落一条 test_report 产物（成功/失败都记）——产物面板此前定义了
      * 该类型却无任何写入方，对话内试跑历史无处可查。 */
     private ToolResult runWorkflow(JSONObject args, AgentRunContext ctx) {
@@ -102,6 +101,8 @@ public class RunToolExecutor implements ToolExecutor {
             JSONObject payload = new JSONObject()
                 .set("status", report.success ? "passed" : "failed")
                 .set("success", report.success)
+                // 观测与版本绑定：这份结果对应哪一版草稿（节点增删/属性修改会 +1，纯布局不变）
+                .set("draftRevision", draftService.getDraftRevision(ctx.getSessionKey()))
                 .set("outputs", report.outputs)
                 .set("failedNodes", report.failedNodes)
                 .set("notExecuted", report.notExecuted)
@@ -142,10 +143,48 @@ public class RunToolExecutor implements ToolExecutor {
             JSONObject item = new JSONObject().set("caseId", run.getCaseId()).set("name", tc.getName())
                 .set("status", run.getStatus());
             if (!ok && run.getError() != null) item.set("error", run.getError());
-            if (!ok && run.getAssertResultsJson() != null) item.set("asserts", cn.hutool.json.JSONUtil.parseArray(run.getAssertResultsJson()));
+            JSONArray asserts = null;
+            if (!ok && run.getAssertResultsJson() != null) {
+                asserts = cn.hutool.json.JSONUtil.parseArray(run.getAssertResultsJson());
+                item.set("asserts", asserts);
+            }
+            // 一句话失败原因：模型据此直接决定「修节点」还是「修断言」，不必自己从 asserts/error 里拼
+            if (!ok) item.set("failReason", failReason(run.getStatus(), run.getError(), asserts));
             results.add(item);
         }
-        return ToolResult.ok(new JSONObject().set("total", results.size()).set("passed", passed)
-            .set("results", results).toString(), passed + "/" + results.size() + " 通过");
+        JSONObject out = new JSONObject().set("total", results.size()).set("passed", passed).set("results", results);
+        if (passed < results.size()) {
+            out.set("hint", "逐条看 results[].failReason：status=error 是工作流本身运行出错，按点名的节点去修；"
+                + "status=failed 是断言不符，核对字段是否为 end 节点输出字段、修正期望值。"
+                + "修完直接再 run(target=tests)；不要重复创建同名用例（同名 test_case 会覆盖更新，不会新建）。");
+        }
+        return ToolResult.ok(out.toString(), passed + "/" + results.size() + " 通过");
+    }
+
+    /** 失败原因一句话：error/stale 用运行错误；failed 列出未通过断言（带字段提示） */
+    static String failReason(String status, String error, JSONArray asserts) {
+        if (!"failed".equals(status)) {
+            return ("error".equals(status) ? "运行出错：" : "") + (error != null ? error : status);
+        }
+        StringBuilder sb = new StringBuilder("断言未通过：");
+        int n = 0;
+        if (asserts != null) {
+            for (int i = 0; i < asserts.size(); i++) {
+                JSONObject a = asserts.getJSONObject(i);
+                if (Boolean.TRUE.equals(a.getBool("pass"))) continue;
+                if (n++ > 0) sb.append("；");
+                sb.append(a.getStr("field")).append('(').append(a.getStr("op")).append(") 期望=")
+                    .append(abbreviate(a.get("expected"))).append(" 实际=").append(abbreviate(a.get("actual")));
+                String hint = a.getStr("hint");
+                if (hint != null) sb.append(" ← ").append(hint);
+            }
+        }
+        if (error != null) sb.append("；运行提示：").append(error);
+        return sb.toString();
+    }
+
+    private static String abbreviate(Object value) {
+        String s = String.valueOf(value);
+        return s.length() > 80 ? s.substring(0, 80) + "…" : s;
     }
 }

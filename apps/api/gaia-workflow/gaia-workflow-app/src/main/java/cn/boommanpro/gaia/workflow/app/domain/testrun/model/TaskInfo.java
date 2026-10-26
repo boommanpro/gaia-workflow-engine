@@ -5,6 +5,7 @@ import lombok.Data;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 代码功能
@@ -18,6 +19,7 @@ public class TaskInfo {
     private final Map<String, Object> inputs;
     private Map<String, Object> outputs;
     private final WorkflowStatus workflowStatus;
+    /** 运行中会被执行线程持续写入、report 轮询线程并发读取：必须弱一致容器，否则 Jackson 序列化 CME 500 */
     private Map<String, NodeReport> nodeReports;
     private Messages messages;
 
@@ -30,9 +32,9 @@ public class TaskInfo {
     public TaskInfo(String schema, Map<String, Object> inputs) {
         this.schema = schema;
         this.inputs = inputs;
-        this.outputs = new HashMap<>();
+        this.outputs = new ConcurrentHashMap<>();
         this.workflowStatus = new WorkflowStatus("idle", false);
-        this.nodeReports = new HashMap<>();
+        this.nodeReports = new ConcurrentHashMap<>();
         this.messages = new Messages();
     }
 

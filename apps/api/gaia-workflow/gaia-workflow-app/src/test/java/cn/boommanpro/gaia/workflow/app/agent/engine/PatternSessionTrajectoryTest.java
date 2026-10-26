@@ -9,6 +9,7 @@ import cn.boommanpro.gaia.workflow.app.agent.core.ConversationStore;
 import cn.boommanpro.gaia.workflow.app.agent.event.AgentEvent;
 import cn.boommanpro.gaia.workflow.app.agent.llm.LlmMessage;
 import cn.boommanpro.gaia.workflow.app.agent.session.SessionArtifactStore;
+import cn.boommanpro.gaia.workflow.app.agent.session.SessionEventBus;
 import cn.boommanpro.gaia.workflow.app.agent.session.SessionWorkflowDraftService;
 import cn.boommanpro.gaia.workflow.app.agent.session.SessionWorkflowStore;
 import cn.boommanpro.gaia.workflow.app.agent.tool.ToolExecutor;
@@ -108,7 +109,8 @@ class PatternSessionTrajectoryTest {
     private Harness buildHarness(String scriptedResource, ConversationStore store) {
         SessionWorkflowDraftService draftService = new SessionWorkflowDraftService(
             new SessionArtifactStore(mock(AgentArtifactService.class), null),
-            mock(SessionWorkflowStore.class));
+            mock(SessionWorkflowStore.class),
+            new SessionEventBus());
 
         AgentProperties properties = new AgentProperties();
         properties.getLlm().setScripted(true);
@@ -132,8 +134,7 @@ class PatternSessionTrajectoryTest {
         when(modelConfigService.getLlmConfig(anyString()))
             .thenReturn(mock(AgentModelConfigService.LlmConfig.class));
         DraftRunService draftRunService = new DraftRunService(modelConfigService);
-        stubExecutor(executors, "get", new GetToolExecutor(draftService, mock(AgentSkillCatalog.class),
-            mock(cn.boommanpro.gaia.workflow.infra.manage.service.GaiaWorkflowService.class)));
+                stubExecutor(executors, "get", new GetToolExecutor(draftService, mock(AgentSkillCatalog.class), null, modelConfigService, null));
         stubExecutor(executors, "node", new NodeToolExecutor(draftService));
         stubExecutor(executors, "edge", new EdgeToolExecutor(draftService));
         stubExecutor(executors, "run", new RunToolExecutor(
@@ -376,4 +377,5 @@ class PatternSessionTrajectoryTest {
             return new String(is.readAllBytes(), StandardCharsets.UTF_8);
         }
     }
+
 }

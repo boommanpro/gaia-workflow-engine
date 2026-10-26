@@ -71,7 +71,7 @@ public class WorkflowDslApplyService {
         // —— 下游（画布、执行引擎）只认规范结构，这一步不能省。
         // LLM 节点缺凭证时自动填平台默认模型，避免运行时空壳节点。
         WorkflowDslCanonicalizer.Result canonical =
-            WorkflowDslCanonicalizer.canonicalize(workflowData, platformLlmDefaults());
+            WorkflowDslCanonicalizer.canonicalize(workflowData);
         if (canonical.getJson() == null) {
             result.setSuccess(false);
             result.setError("dsl 结构无法识别：未解析出任何合法节点");
@@ -252,19 +252,6 @@ public class WorkflowDslApplyService {
     }
 
     /** 平台默认模型配置（读失败时返回 null，规范化按不填充处理） */
-    private WorkflowDslCanonicalizer.LlmDefaults platformLlmDefaults() {
-        try {
-            AgentModelConfigService.LlmConfig llm = modelConfigService.getLlmConfig();
-            if (llm == null) {
-                return null;
-            }
-            return new WorkflowDslCanonicalizer.LlmDefaults(llm.getApiHost(), llm.getApiKey(), llm.getModel());
-        } catch (Exception e) {
-            log.warn("[dsl-apply] 读取平台默认模型配置失败，跳过 LLM 凭证填充: {}", e.getMessage());
-            return null;
-        }
-    }
-
     /** 解析版本号：v1.0 → v1.1；没有历史版本则 v1.0 */
     String nextVersionNumber(List<GaiaWorkflowVersion> versions) {
         if (versions == null || versions.isEmpty()) {

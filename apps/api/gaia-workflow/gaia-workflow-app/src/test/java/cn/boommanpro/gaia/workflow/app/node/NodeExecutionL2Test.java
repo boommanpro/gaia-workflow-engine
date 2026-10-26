@@ -242,4 +242,5 @@ class NodeExecutionL2Test extends AbstractNodeTest {
         SingleNodeRunOutput blockEndOutput = executor.execute(blockEndInput);
         assertTrue(blockEndOutput.isSuccess(), "block-end 独立执行应成功: " + blockEndOutput.getError());
     }
+
 }

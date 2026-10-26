@@ -11,7 +11,7 @@ import { merge } from 'lodash-es';
 
 import { createNodeByType } from '../agent/node-templates';
 import { autoLayoutDsl } from './layout';
-import { migrateLegacyDsl } from './migrations';
+import { applyRenderCompat } from './render-compat';
 import { validateDsl } from './validate';
 import type {
   DslEdge,
@@ -37,7 +37,8 @@ export class WorkflowDocument {
     return new WorkflowDocument({ nodes: [], edges: [] });
   }
 
-  /** 从任意 JSON（版本数据 / 模板数据 / LLM 输出）构造，自动归一化 */
+  /** 从任意 JSON（版本数据 / 模板数据 / agent 草稿）构造——源头均为规范形状，直接接入；
+   *  接入前过展示层兼容归一（裸 url 包装 / 模板 token 空格 / llm required 口径，见 render-compat） */
   static fromJSON(raw: unknown): WorkflowDocument {
     if (raw instanceof WorkflowDocument) return raw;
     let parsed = raw;
@@ -49,17 +50,12 @@ export class WorkflowDocument {
       }
     }
     const obj = (parsed && typeof parsed === 'object' ? parsed : {}) as Partial<WorkflowDsl>;
-    // 载入统一过迁移层：历史形状（如 multi-condition）在进画布前先变成当前契约，
-    // 否则存量节点会被后端校验门禁打回（未知类型 error）
-    const migrated = migrateLegacyDsl({
+    const compat = applyRenderCompat({
       nodes: Array.isArray(obj.nodes) ? obj.nodes : [],
       edges: Array.isArray(obj.edges) ? obj.edges : [],
-    });
-    return new WorkflowDocument({
-      nodes: migrated.nodes,
-      edges: migrated.edges,
       ...(obj.globalVariable ? { globalVariable: obj.globalVariable } : {}),
     });
+    return new WorkflowDocument(compat as WorkflowDsl);
   }
 
   // ---------------- 读 ----------------

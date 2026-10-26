@@ -1,7 +1,7 @@
 /**
  * Helpers for localizing node labels and descriptions.
  *
- * Nodes carry an English `type` (e.g. `llm`, `multi-condition`). The node
+ * Nodes carry an English `type` (e.g. `llm`). The node
  * panel and form header previously used that raw `type` as the visible label
  * and an English `info.description`. We centralize the lookup here so every
  * surface shows the user-facing language consistently.
@@ -26,8 +26,6 @@ export const getNodeLabel = (type: string): string => {
       return t('node.label.variable');
     case WorkflowNodeType.Condition:
       return t('node.label.condition');
-    case WorkflowNodeType.MultiCondition:
-      return t('node.label.multi-condition');
     case WorkflowNodeType.Branches:
       return t('node.label.branches');
     case WorkflowNodeType.Loop:
@@ -70,8 +68,6 @@ export const getNodeDescription = (type: string): string => {
       return t('node.desc.variable');
     case WorkflowNodeType.Condition:
       return t('node.desc.condition');
-    case WorkflowNodeType.MultiCondition:
-      return t('node.desc.multi-condition');
     case WorkflowNodeType.Branches:
       return t('node.desc.branches');
     case WorkflowNodeType.Loop:
