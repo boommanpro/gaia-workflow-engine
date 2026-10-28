@@ -26,7 +26,13 @@ import { TestCaseSheetButton } from './components/test-case-panel';
 import { useLanguage, t } from './i18n';
 import { LanguageToggle } from './components/language-toggle';
 import { EditorCanvasBridge } from './agent';
-import { pushCanvasDraftToSession } from './agent/canvas-draft-sync';
+import {
+  pushCanvasDraftToSession,
+  hasUnsyncedLocalEdits,
+  saveCanvasDraft,
+  resolveDraftTargetSession,
+} from './agent/canvas-draft-sync';
+import { agentApi } from './agent/api';
 import { setRunWorkflowContext } from './plugins/runtime-plugin/runtime-service';
 import { WorkflowDocument, workflowDocumentStore, useWorkflowDocumentState, applyRenderCompat } from './document';
 import { getSessionKeyForWorkflow } from './ai-workspace/session-scope';
@@ -50,6 +56,15 @@ function readDraftDsl(): any {
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     return parsed?.nodes?.length ? applyRenderCompat(parsed) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** 交接草稿归属的会话 key（openEditorWithDraft 写入；history.state 丢失时的兜底） */
+function readHandoffSessionKey(): string | null {
+  try {
+    return sessionStorage.getItem('gaia.artifactDraftSession') || null;
   } catch {
     return null;
   }
@@ -144,7 +159,7 @@ export const Editor = () => {
       const nextCode = code && code !== DRAFT_CODE ? code : undefined;
       // 换了一份工作流 → 上一份的版本历史不该跟过来，否则时间线会串成两件事
       if (nextCode && prevCode && prevCode !== nextCode) {
-        workflowDocumentStore.clear();
+        workflowDocumentStore.clear({ wipePersisted: true });
       }
       workflowDocumentStore.replace(doc, { kind: 'replace', source: 'system', reason: 'import' });
       workflowDocumentStore.markSaved({
@@ -209,6 +224,34 @@ export const Editor = () => {
         setWorkflowInfo((prev: any) => prev || { workflowName: carriedName });
       }
       setLoading(false);
+
+      // —— 刷新恢复（2026-10-27）：上面的交接副本只是「精修进入瞬间」的快照，
+      // 之后的手改都已推到服务端会话草稿。刷新后 store 清空、副本陈旧 ——
+      // 用交接的 sessionKey 拉服务端草稿顶回画布，副本降级为拉取失败时的兜底。
+      const stateSession = (location.state as any)?.sessionKey;
+      const handoffSession =
+        typeof stateSession === 'string' && stateSession ? stateSession : readHandoffSessionKey();
+      if (handoffSession && !handoffSession.startsWith('draft-')) {
+        void agentApi.getSessionDocument(handoffSession).then((doc: any) => {
+          if (!doc || !Array.isArray(doc.nodes) || doc.nodes.length === 0) return;
+          // 路由已换走 / 拉取期间用户已手改：本地优先，不顶掉
+          if (handledCodeRef.current !== DRAFT_CODE) return;
+          if (hasUnsyncedLocalEdits()) return;
+          if (workflowDocumentStore.getSnapshot().meta.ownerSession === handoffSession) return;
+          try {
+            const restored = WorkflowDocument.fromJSON({ nodes: doc.nodes, edges: doc.edges || [] });
+            if (restored.isEmpty) return;
+            workflowDocumentStore.replace(restored, { kind: 'replace', source: 'system', reason: 'import' });
+            // 归属会话显式写回：手改自动同步（resolveDraftTargetSession）与切会话冲刷都靠它定位
+            workflowDocumentStore.setMeta({ producedBy: 'ai', ownerSession: handoffSession });
+            // 画布必须显式重挂：下方 store 订阅漏斗只认「结构键」（节点/边 id 集），
+            // 刷新恢复常常只差坐标（结构同键）会被它短路——表现为刷回来还是旧位置
+            setWorkflowData(restored.toJSON());
+            setRemountKey((k) => k + 1);
+          } catch { /* 服务端草稿不可解析时保留交接副本 */ }
+        }).catch(() => { /* 拉取失败：保留交接副本 */ });
+      }
+
       if (!firstRun) setRemountKey((k) => k + 1);
       return;
     }
@@ -329,6 +372,19 @@ export const Editor = () => {
     };
   }, []);
 
+  // 未保存守卫：刷新/关闭页面前浏览器原生确认（保存制下未保存修改刷新即丢，
+  // 必须在离开前给一次反悔机会）。实时读 store，无依赖。
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (workflowDocumentStore.getSnapshot().meta.dirtySinceSave === true) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, []);
+
   const handleSwitchVersion = useCallback(async (versionId: number) => {
     try {
       const version = await workflowApi.getVersionById(versionId);
@@ -443,6 +499,56 @@ export const WorkflowViewer = ({
   );
 };
 
+/** 会话草稿模式（保存制）的头部按钮区：未保存角标 + 「保存」按钮。
+ *  保存 = 把眼前画布推成会话草稿（AI 可见）；落版仍走会话页「保存为版本」，
+ *  与正式模式「保存落版」的语义分层保持一致。 */
+const DraftSaveControls = ({
+  saving,
+  saved,
+  unsaved,
+  onSave,
+}: {
+  saving: boolean;
+  saved: boolean;
+  unsaved: boolean;
+  onSave: () => void;
+}) => (
+  <>
+    {unsaved && (
+      <span
+        style={{
+          fontSize: 10,
+          fontWeight: 600,
+          color: '#d4a017',
+          background: 'rgba(212, 160, 23, 0.12)',
+          borderRadius: 4,
+          padding: '2px 6px',
+        }}
+        title={t('editor.unsavedHint')}
+      >
+        {t('editor.unsavedBadge')}
+      </span>
+    )}
+    <button
+      onClick={onSave}
+      disabled={saving}
+      style={{
+        background: saving ? '#c5c5e8' : ACCENT,
+        border: 'none',
+        color: '#fff',
+        padding: '7px 22px',
+        borderRadius: '6px',
+        cursor: saving ? 'not-allowed' : 'pointer',
+        fontSize: '13px',
+        fontWeight: 600,
+        transition: 'background 0.15s',
+      }}
+    >
+      {saving ? t('Saving') : saved ? `✓ ${t('Saved')}` : t('Save')}
+    </button>
+  </>
+);
+
 // Header with back button, version selector, and save button
 // Transparent white minimalist style
 const EditorHeader = ({
@@ -473,11 +579,11 @@ const EditorHeader = ({
 }) => {
   const ctx = useClientContext();
   useLanguage();
-  // 未保存判定（阶段 1.3）：按变更来源维护的 store 标记，markSaved 时清除。
-  // AI 修改、手改、回滚都会置位 —— 版本意义上它们都还没落进任何正式版本。
+  // 未保存判定（阶段 1.3 + 2026-10-27 保存制）：dirtySinceSave 按变更来源维护，
+  // markSaved 清除 —— 手改/AI 修改/回滚/纯布局拖动都置位，两种模式同样生效。
   // 不用「序列化对比」：首挂时 flowgram 规整序列化会产生派生字段差异，必误报。
   const { meta: headerMeta } = useWorkflowDocumentState();
-  const unsaved = !draftMode && headerMeta.dirtySinceSave === true;
+  const unsaved = headerMeta.dirtySinceSave === true;
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [codeAskOpen, setCodeAskOpen] = useState(false);
@@ -562,6 +668,28 @@ const EditorHeader = ({
     } catch (error) {
       // 失败保留现场：画布与输入不动，只报错（阶段 1.2）
       console.error('Save failed:', error);
+      alert(t('editor.saveFailed') + (error as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /** 草稿模式保存：把眼前画布推成归属会话的服务端草稿（AI 可见），并清未保存标记。
+   *  落版不在这里 —— 版本化动作统一在会话页「保存为版本」。 */
+  const handleDraftSave = async () => {
+    const target = resolveDraftTargetSession();
+    if (!target) {
+      alert(t('editor.syncNoSession'));
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await saveCanvasDraft({ source: 'manual-save' });
+      if (!res.ok) throw new Error(res.error || 'save failed');
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (error) {
+      console.error('Draft save failed:', error);
       alert(t('editor.saveFailed') + (error as Error).message);
     } finally {
       setSaving(false);
@@ -758,22 +886,30 @@ const EditorHeader = ({
           />
         )}
 
-        {/* 草稿模式标识：画布编辑经手改自动同步（scheduleManualDraftPush）实时推给会话，
-            不再放「同步到对话」按钮 —— 与自动同步重复；正式模式才需要显式「保存」落版 */}
+        {/* 草稿模式：标识 + 「保存」按钮（保存 = 推给会话草稿，AI 可见；
+            落版统一走会话页「保存为版本」）。未保存角标含纯布局拖动。 */}
         {draftMode && (
-          <span
-            style={{
-              fontSize: '12px',
-              color: '#5558c8',
-              background: '#eef0ff',
-              border: '1px solid #dcdff8',
-              borderRadius: '6px',
-              padding: '5px 10px',
-              marginRight: 8,
-            }}
-          >
-            {t('editor.sessionDraft')}
-          </span>
+          <>
+            <span
+              style={{
+                fontSize: '12px',
+                color: '#5558c8',
+                background: '#eef0ff',
+                border: '1px solid #dcdff8',
+                borderRadius: '6px',
+                padding: '5px 10px',
+                marginRight: 8,
+              }}
+            >
+              {t('editor.sessionDraft')}
+            </span>
+            <DraftSaveControls
+              saving={saving}
+              saved={saved}
+              unsaved={unsaved}
+              onSave={handleDraftSave}
+            />
+          </>
         )}
         {!draftMode && (
           <button

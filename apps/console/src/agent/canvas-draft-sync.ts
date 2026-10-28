@@ -1,18 +1,18 @@
 /**
- * 画布草稿回推 —— 「前端本地草稿 → 服务端会话草稿」缺失的半边链路（阶段 1.1 / 2.1）。
+ * 画布草稿回推 —— 「前端本地草稿 → 服务端会话草稿」的半边链路。
  *
  * 历史断点：AI 的修改经 SSE 单向流入本地 store，而本地（尤其专家模式编辑器里的
  * 手改与回滚）没有任何通道写回服务端 —— 于是「回滚后再保存」落的是撤销前的
  * 服务端旧内容、「提问」时 AI 读的是旧参数（它只认服务端草稿）。
  *
- * 同步点把「用户眼前的画布」推成服务端权威草稿：
- *   1. 回滚后（rollbackCanvasTo —— 本文件的统一入口）
- *   2. 提问前（AgentContext.sendMessage，/chat 与编辑器一视同仁）
- *   3. 会话「保存为版本」前（ArtifactPanel.handleSave）
- *   4. 编辑器保存成功后回写（editor.tsx），让 AI 的下一轮与保存结果一致
- *   5. 手改自动同步（scheduleManualDraftPush，编辑停止 ~1.2s 后推送）——
- *      「让模型感知」不再依赖用户保存：草稿就是会话内编辑的持久化层，
- *      「保存为版本」只是显式的落版动作，与感知彻底无关
+ * 推送触发点（2026-10-27 保存制回归：编辑停止后的自动推送已按产品决策移除，
+ * 用户显式保存是主通道，两个关键节点保留自动兜底）：
+ *   1. 编辑器「保存」按钮（草稿模式与正式模式对齐的用户确认动作）
+ *   2. 提问前（sendMessage：仅当有未保存修改时自动保存，AI 基于所见内容回答）
+ *   3. 切会话确认「保存并离开」（AgentContext.switchSession）
+ *   4. 回滚后（rollbackCanvasTo —— 撤销要同步撤销，否则保存/提问仍基于撤销前内容）
+ *   5. 会话「保存为版本」前（ArtifactPanel.handleSave 对齐所见即所存）
+ *   6. 编辑器落版保存成功后回写（editor.tsx settleSaved），让 AI 的下一轮与保存结果一致
  */
 import { workflowDocumentStore } from '../document';
 import { getSessionKeyForWorkflow } from '../ai-workspace/session-scope';
@@ -28,9 +28,19 @@ export interface DraftPushResult {
   error?: string;
 }
 
-/** 同步记账：本地是否与服务端草稿对齐（AI document 守卫的按需条件） */
-let lastSyncedAt = 0;
-let dirtySince = 0;
+/**
+ * 这份画布的草稿该推给哪段会话。
+ *
+ * 优先 store 里记录的画布归属会话（ownerSession，AI document 事件应用时写入）——
+ * AI 全新生成、从未「保存为版本」的草稿没有 workflowCode，靠编码反查必然为空，
+ * 手改同步曾在整个「对话 → 精修」主流程上静默失效（2026-10-27 修复）。
+ * 编码反查只作兜底（正式模式落版后的路径）。
+ */
+export function resolveDraftTargetSession(): string | null {
+  const { meta } = workflowDocumentStore.getSnapshot();
+  if (meta.ownerSession && !meta.ownerSession.startsWith('draft-')) return meta.ownerSession;
+  return getSessionKeyForWorkflow(meta.workflowCode || '');
+}
 
 /** 最近一次推送的内容指纹（回声判定）：我们刚推上去的 DSL 广播回来时不该
  *  再应用一次 —— 画布侧与 store 侧的序列化字段集不同，「与本地对比等价」
@@ -88,18 +98,14 @@ export function isEchoOfLastPush(dsl: unknown): boolean {
 }
 
 /**
- * 本地是否有尚未同步到服务端草稿的手改。
- * AI 的 document 事件是整份 DSL：本地干净时直接应用；有未同步手改时才拦截成
+ * 本地是否有尚未保存（= 未推送到服务端草稿）的修改。
+ * 保存制下「未同步」与「未保存」同义：数据源是 store 的 dirtySinceSave
+ * （手改/AI 修改/回滚置位，markSaved 清除；纯布局拖动也置位）。
+ * AI 的 document 事件是整份 DSL：本地干净时直接应用；有未保存修改时才拦截成
  * 「待应用变更」，防止 AI 的整表替换冲掉用户刚改的内容。
  */
 export function hasUnsyncedLocalEdits(): boolean {
-  return dirtySince > lastSyncedAt;
-}
-
-/** 本地已与服务端草稿对齐（AI 修改直接应用到 store 后调用；store 内容即服务端内容） */
-export function markSyncedWithServer(): void {
-  lastSyncedAt = Date.now();
-  dirtySince = 0;
+  return workflowDocumentStore.getSnapshot().meta.dirtySinceSave === true;
 }
 
 /** 把当前本地画布推成会话的服务端草稿（非空校验 + 绑定码随行） */
@@ -112,7 +118,9 @@ export async function pushCanvasDraftToSession(
   }
   const startedAt = Date.now();
   const { doc, meta } = workflowDocumentStore.getSnapshot();
-  if (doc.isEmpty) return { ok: true, skipped: true, reason: 'empty' };
+  if (doc.isEmpty) {
+    return { ok: true, skipped: true, reason: 'empty' };
+  }
   const dsl = opts?.dsl ?? doc.toJSON();
   if (!dsl || !Array.isArray(dsl.nodes) || dsl.nodes.length === 0) {
     return { ok: true, skipped: true, reason: 'empty' };
@@ -126,11 +134,9 @@ export async function pushCanvasDraftToSession(
     if (!res?.success) {
       return { ok: false, error: res?.error || 'push failed' };
     }
-    lastSyncedAt = startedAt;
-    if (dirtySince <= startedAt) dirtySince = 0;
     // 记录指纹：这次推送触发的服务端 document 广播回来时按它识别回声
     try {
-      lastPushedFingerprint = { at: Date.now(), canon: contentFingerprint(dsl) };
+      lastPushedFingerprint = { at: startedAt, canon: contentFingerprint(dsl) };
     } catch { /* ignore */ }
     return { ok: true };
   } catch (e) {
@@ -138,29 +144,18 @@ export async function pushCanvasDraftToSession(
   }
 }
 
-/** 手改自动推送的防抖句柄（连续编辑只推最后一次） */
-let manualPushTimer: ReturnType<typeof setTimeout> | null = null;
-
 /**
- * 手改自动同步（去保存化）：编辑停止 ~1.2s 后把眼前画布推成服务端草稿。
- * 服务端会记草稿修订号并对 manual-edit/rollback 推送写「[画布更新]」注记进对话，
- * 模型由此感知用户改了什么 —— 不再需要用户「保存」才让 AI 看见。
- * 运行中不推：AI 正在改服务端草稿，此时推送会互相覆盖（手改走待应用变更队列语义）。
- * 由编辑器的变更漏斗（use-editor-props.flushCanvasChange）调用；sessionKey 由
- * 画布绑定的 workflowCode 反查，无绑定时静默跳过。
+ * 保存画布草稿（保存制的主通道）：定位归属会话 → 推送 → 清未保存标记。
+ * 编辑器「保存」按钮、提问前自动保存、切会话「保存并离开」都走这里，
+ * 避免「推送成功但未保存标记还亮着」的三处重复记账。
  */
-export function scheduleManualDraftPush(): void {
-  if (manualPushTimer) clearTimeout(manualPushTimer);
-  // 排队即「有未同步手改」：push 成功后才解除（AI document 守卫按此判断是否拦截）
-  dirtySince = Date.now();
-  manualPushTimer = setTimeout(() => {
-    manualPushTimer = null;
-    if (sessionRuntime.getState().streaming) return;
-    const { meta } = workflowDocumentStore.getSnapshot();
-    void pushCanvasDraftToSession(getSessionKeyForWorkflow(meta.workflowCode || ''), {
-      source: 'manual-edit',
-    });
-  }, 1200);
+export async function saveCanvasDraft(opts?: { source?: string }): Promise<DraftPushResult> {
+  const target = resolveDraftTargetSession();
+  const res = await pushCanvasDraftToSession(target, { source: opts?.source });
+  if (res.ok && !res.skipped) {
+    workflowDocumentStore.markSaved();
+  }
+  return res;
 }
 
 /**

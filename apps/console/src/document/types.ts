@@ -83,6 +83,11 @@ export interface DslChange {
   messageId?: string;
   /** 变更原因，决定快照在时间线上的标签 */
   reason?: SnapshotReason;
+  /**
+   * 应用服务端权威内容时置 true（恢复/对齐/增量对账）：此刻本地内容就等于
+   * 服务端草稿，「未保存」不成立。source=ai 只说明内容是谁写的，不代表没保存。
+   */
+  keepClean?: boolean;
 }
 
 /** 快照产生原因（与 document/history.ts 同源，放在此处避免循环依赖） */

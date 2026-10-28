@@ -167,7 +167,7 @@ export const enUS: I18nLanguage = {
     'editor.effective': 'EFFECTIVE',
     'editor.viewing': 'VIEWING',
     'editor.setEffective': 'Set Effective',
-    'editor.sessionDraft': 'Session draft · edits are visible to the AI in real time',
+    'editor.sessionDraft': 'Session draft · save to share edits with the AI',
     'editor.syncToChat': 'Sync to chat',
     'editor.syncing': 'Syncing…',
     'editor.synced': 'Synced',

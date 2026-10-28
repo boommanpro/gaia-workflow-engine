@@ -18,6 +18,9 @@ export function openEditorWithDraft(opts: {
 }): void {
   try {
     sessionStorage.setItem('gaia.artifactDraft', JSON.stringify(opts.dsl));
+    // 草稿归属会话：刷新后 history.state 理论上还在，但编辑器恢复服务端草稿
+    // （editor.tsx 刷新恢复）需要它，这里落一份 sessionStorage 兜底
+    if (opts.sessionKey) sessionStorage.setItem('gaia.artifactDraftSession', opts.sessionKey);
   } catch {
     /* 忽略隐私模式下的写入失败 */
   }

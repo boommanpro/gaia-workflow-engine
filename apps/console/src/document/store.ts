@@ -43,7 +43,9 @@ export interface WorkflowMeta {
   ownerSession?: string | null;
   /**
    * 自上次 markSaved 以来画布是否发生内容级变化。按变更来源维护：
-   * 用户/AI 的结构变化与回滚置 true；纯拖动（layout）、系统加载（import）不置。
+   * 用户/AI 的结构变化与回滚置 true；系统加载（import）不置。
+   * 纯布局拖动也置位（2026-10-27 保存制回归）：拖完不保存就会丢，「未保存」
+   * 必须如实反映；快照历史仍不记纯布局（避免历史被拖动刷屏）。
    */
   dirtySinceSave?: boolean;
   updatedAt?: number;
@@ -354,7 +356,10 @@ class WorkflowDocumentStore {
   ): void {
     if (doc === this.state.doc) return; // 无变更
 
-    const affectsContent = change.kind !== 'layout' && change.source !== 'system';
+    // 未保存标记：用户/AI 来源都算（含纯布局——拖完不保存就丢，必须如实显示）；
+    // keepClean（应用服务端权威内容：恢复/对齐/增量对账）与系统加载不算——
+    // 此刻本地内容就等于服务端草稿，「未保存」不成立。快照仍跳过纯布局，两件事分开。
+    const affectsContent = change.source !== 'system' && !change.keepClean;
     this.state = {
       ...this.state,
       doc,
@@ -392,9 +397,15 @@ class WorkflowDocumentStore {
    * 服务端 document 增量 ops 应用（版本对齐时）。
    * baseVersion 传入时做门禁：与本地 serverDocVersion 不符返回 false（调用方应拉全量）——
    * 契约此前只写在注释里、实现在调用方，任何新调用点漏检都会把增量写到错误基线上（静默丢更新）。
+   * keepClean：会话草稿画布应用服务端权威内容 = 本地即服务端，不算未保存。
    * 返回 false = 版本不符或内容无变化。
    */
-  applyServerOps(ops: DocumentOp[], version: number, baseVersion?: number): boolean {
+  applyServerOps(
+    ops: DocumentOp[],
+    version: number,
+    baseVersion?: number,
+    opts?: { keepClean?: boolean }
+  ): boolean {
     if (baseVersion != null && baseVersion > 0 && this.state.serverDocVersion !== baseVersion) {
       return false;
     }
@@ -444,17 +455,19 @@ class WorkflowDocumentStore {
       kind: 'replace',
       source: 'ai',
       reason: 'ai-edit',
+      ...(opts?.keepClean ? { keepClean: true } : {}),
     });
     return true;
   }
 
-  /** 服务端全量文档应用（含版本号） */
-  applyServerDoc(dsl: WorkflowDsl, version: number): void {
+  /** 服务端全量文档应用（含版本号）。keepClean 语义见 applyServerOps */
+  applyServerDoc(dsl: WorkflowDsl, version: number, opts?: { keepClean?: boolean }): void {
     this.state = { ...this.state, serverDocVersion: version > 0 ? version : this.state.serverDocVersion };
     this.replace(WorkflowDocument.fromJSON(dsl), {
       kind: 'replace',
       source: 'ai',
       reason: 'ai-edit',
+      ...(opts?.keepClean ? { keepClean: true } : {}),
     });
   }
 
@@ -496,7 +509,13 @@ class WorkflowDocumentStore {
     this.emit();
   }
 
-  clear(): void {
+  /**
+   * 清空画布与历史。wipePersisted 控制是否连 IndexedDB 里的快照一起删除：
+   * 只应在「同 scope 内换工作流」这类确实要丢弃历史的场景传 true。会话切换
+   * 不能传 —— 切会话时 scope 往往已指向新会话，按旧实现会把新会话的快照
+   * 历史误删（2026-10-27 修复），而旧会话的历史本就该留着供下次切回恢复。
+   */
+  clear(opts: { wipePersisted?: boolean } = {}): void {
     this.state = {
       doc: WorkflowDocument.empty(),
       meta: {},
@@ -505,7 +524,7 @@ class WorkflowDocumentStore {
       cursor: -1,
       serverDocVersion: 0,
     };
-    if (this.scope) void saveSnapshots(this.scope, null);
+    if (opts.wipePersisted && this.scope) void saveSnapshots(this.scope, null);
     this.emit();
   }
 
@@ -572,6 +591,12 @@ function deriveReason(change: DslChange, current?: CanvasSnapshot): SnapshotReas
 }
 
 export const workflowDocumentStore = new WorkflowDocumentStore();
+
+// dev 调试钩子：控制台可直接检查画布事实源（脏标记/归属/lastChange），
+// 生产构建剔除。排查「未保存为什么亮/归属对不对」时不必再加临时日志。
+if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
+  (window as any).__gaiaDocStore = workflowDocumentStore;
+}
 
 /** 订阅整份状态 */
 export function useWorkflowDocumentState(): WorkflowDocumentState {

@@ -190,6 +190,10 @@ class CanvasSyncEngine {
       changeTypes.length > 0
         ? changeTypes.every((type) => NON_STRUCTURAL_CHANGES.has(type)) || !structuralDiff
         : !structuralDiff;
+    // 纯序列化噪音（挂载时框架规整派生字段 / 空点选）：结构没变、坐标也没动 →
+    // 不写 store。否则在保存制下会造成「一进编辑器就未保存」的假脏角标
+    // （旧设计里只是多推一次相同草稿，无害；保存制后成为可见误报）。
+    if (!structuralDiff && !positionsChanged(current, incoming)) return;
 
     this.pulling = true;
     try {
@@ -288,6 +292,15 @@ class CanvasSyncEngine {
     this.binding?.selectNode?.(nodeId);
     this.binding?.fitView();
   }
+}
+
+/** 两份 DSL 的节点坐标是否有差异（id 集相同的前提下；结构性差异由 structuralDifference 负责） */
+function positionsChanged(a: WorkflowDsl, b: WorkflowDsl): boolean {
+  const prev = new Map(a.nodes.map((n) => [n.id, JSON.stringify(n.meta?.position ?? null)]));
+  for (const node of b.nodes) {
+    if (prev.get(node.id) !== JSON.stringify(node.meta?.position ?? null)) return true;
+  }
+  return false;
 }
 
 /** 两份 DSL 之间是否存在结构差异（忽略坐标与框架派生字段） */

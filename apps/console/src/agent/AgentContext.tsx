@@ -25,7 +25,11 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { nanoid } from 'nanoid';
 
 import { agentApi } from './api';
-import { pushCanvasDraftToSession, hasUnsyncedLocalEdits, isEchoOfLastPush } from './canvas-draft-sync';
+import {
+  hasUnsyncedLocalEdits,
+  isEchoOfLastPush,
+  saveCanvasDraft,
+} from './canvas-draft-sync';
 import { getWorkflowOfSession, bindSessionToWorkflow } from '../ai-workspace/session-scope';
 import { aiPendingChangeStore } from './ai-pending-change';
 import { sessionEventStore } from './session-event-store';
@@ -309,6 +313,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   }, [reloadMessages]);
 
   // 会话切换：runtime 复位 + 历史加载 + 画布归属清空 + 服务端草稿恢复
+  // （未保存修改的守卫在 switchSession 里：确认弹窗「保存并离开 / 直接离开」）
   useEffect(() => {
     if (!currentSessionKey) return;
     const sessionKey = currentSessionKey;
@@ -332,7 +337,8 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         const dsl = doc && Array.isArray(doc.nodes) ? doc : null;
         if (dsl && dsl.nodes.length > 0) {
           try {
-            workflowDocumentStore.applyServerDoc(dsl, Number(doc?.version) || 0);
+            // 会话草稿恢复 = 应用服务端权威内容，本地即服务端，不算未保存
+            workflowDocumentStore.applyServerDoc(dsl, Number(doc?.version) || 0, { keepClean: true });
             // 显式归属：草稿恢复填进来的画布属于本会话 —— 切走时按归属清空
             workflowDocumentStore.setMeta({ producedBy: 'ai', ownerSession: sessionKey });
           } catch { /* ignore */ }
@@ -498,9 +504,49 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const switchSession = useCallback(async (sessionKey: string) => {
-    if (currentSessionKeyRef.current && currentSessionKeyRef.current !== sessionKey) {
-      draftMetaRef.current.delete(currentSessionKeyRef.current);
-      if (currentSessionKeyRef.current.startsWith('draft-')) setDraftSetup(null);
+    const prevKey = currentSessionKeyRef.current;
+    if (prevKey && prevKey !== sessionKey) {
+      draftMetaRef.current.delete(prevKey);
+      if (prevKey.startsWith('draft-')) setDraftSetup(null);
+    }
+    // 保存制守卫（2026-10-27）：画布归属某段会话且有未保存修改、目标又不是归属
+    // 会话本身时，切换会按归属清空画布 —— 先问「保存并离开 / 直接离开」。
+    // 按画布归属（ownerSession）判断而不是 prevKey：编辑器页整页刷新后
+    // AgentContext 的会话上下文是空的（prevKey=null），但画布归属仍在 store 里。
+    // 流式运行中不打断（此时推送会与 AI 的服务端写入互相覆盖，维持旧行为）。
+    const canvasMeta = workflowDocumentStore.getSnapshot().meta;
+    const switchingAwayFromDirtyCanvas =
+      canvasMeta.ownerSession != null
+      && canvasMeta.ownerSession !== sessionKey
+      && hasUnsyncedLocalEdits()
+      && !sessionRuntime.getState().streaming;
+    if (switchingAwayFromDirtyCanvas) {
+      const leave = await new Promise<boolean>((resolve) => {
+        // 动态加载：AgentContext 会被 node 环境单测导入，semi-ui 顶层 import 会连坐
+        // CJS 依赖破坏测试；弹窗只在守卫触发时才需要
+        void import('@douyinfe/semi-ui').then(({ Modal }) => {
+          Modal.confirm({
+            title: '有未保存修改',
+            content: '离开将丢失未保存的画布修改，是否保存后离开？',
+            okText: '保存并离开',
+            cancelText: '直接离开',
+            maskClosable: false,
+            onOk: () =>
+              saveCanvasDraft({ source: 'manual-save' }).then((res) => {
+                if (!res.ok) {
+                  sessionRuntime.dispatch({
+                    type: 'error-row',
+                    text: `[错误] 画布保存失败：${res.error || '未知错误'}。已留在当前会话，可重试或直接离开。`,
+                  });
+                  return Promise.reject(new Error(res.error || 'save failed'));
+                }
+                resolve(true);
+              }),
+            onCancel: () => resolve(true),
+          });
+        });
+      });
+      if (!leave) return;
     }
     setCurrentSessionKey(sessionKey);
     setDockOpen(true);
@@ -593,12 +639,12 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         return false;
       }
 
-      // 提问前同步：AI 读的是服务端会话草稿，而用户手改可能只落在本地 ——
-      // 不先推上去 AI 就基于旧参数回答。同步失败则拦截本次提问并保留输入。
-      if (!sessionRuntime.getState().streaming) {
-        const sync = await pushCanvasDraftToSession(sessionKey, { source: 'ask' });
+      // 提问前保存（保存制兜底，2026-10-27 产品决策）：仅当有未保存修改时自动保存，
+      // AI 基于所见内容回答；保存失败则拦截本次提问并保留输入。
+      if (!sessionRuntime.getState().streaming && hasUnsyncedLocalEdits()) {
+        const sync = await saveCanvasDraft({ source: 'ask' });
         if (!sync.ok) {
-          sessionRuntime.dispatch({ type: 'error-row', text: `[错误] 画布同步失败：${sync.error || '未知错误'}。本次未发送，请检查网络后重试。` });
+          sessionRuntime.dispatch({ type: 'error-row', text: `[错误] 画布保存失败：${sync.error || '未知错误'}。本次未发送，请检查网络后重试。` });
           return false;
         }
       }
@@ -669,7 +715,11 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         workflowDocumentStore.alignServerDocVersion(version);
         return;
       }
-      workflowDocumentStore.applyServerDoc(doc, version);
+      workflowDocumentStore.applyServerDoc(doc, version, {
+        // 会话草稿画布（未绑正式编码）：对齐服务端权威内容不算未保存；
+        // 正式工作流画布保持脏语义（AI 改完与落版基线有差异，须保存版本）
+        keepClean: !workflowDocumentStore.getSnapshot().meta.workflowCode,
+      });
       workflowDocumentStore.setMeta({ producedBy: 'ai', ownerSession: sessionKey });
     }).catch(() => { /* 拉取失败静默：下一轮重连再对账 */ });
   }, []);
@@ -702,7 +752,9 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         sessionRuntime.dispatch({ type: 'doc-synced', version });
         return;
       }
-      workflowDocumentStore.applyServerDoc(data.dsl, version);
+      workflowDocumentStore.applyServerDoc(data.dsl, version, {
+        keepClean: !workflowDocumentStore.getSnapshot().meta.workflowCode,
+      });
       workflowDocumentStore.setMeta({ producedBy: 'ai', ownerSession: sessionKey });
       sessionRuntime.dispatch({ type: 'doc-synced', version });
       return;
@@ -713,7 +765,8 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       const applied = workflowDocumentStore.applyServerOps(
         data.ops as DocumentOp[],
         version,
-        base > 0 ? base : undefined
+        base > 0 ? base : undefined,
+        { keepClean: !workflowDocumentStore.getSnapshot().meta.workflowCode }
       );
       if (applied) {
         workflowDocumentStore.setMeta({ producedBy: 'ai', ownerSession: sessionKey });
@@ -721,7 +774,9 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         // 本地版本落后（服务端重启 / 错过事件）：拉全量兜底
         agentApi.getSessionDocument(sessionKey).then((doc: any) => {
           if (currentSessionKeyRef.current !== sessionKey || !doc?.nodes?.length) return;
-          workflowDocumentStore.applyServerDoc(doc, Number(doc?.version) || 0);
+          workflowDocumentStore.applyServerDoc(doc, Number(doc?.version) || 0, {
+            keepClean: !workflowDocumentStore.getSnapshot().meta.workflowCode,
+          });
           workflowDocumentStore.setMeta({ producedBy: 'ai', ownerSession: sessionKey });
           sessionRuntime.dispatch({ type: 'doc-synced', version: Number(doc?.version) || 0 });
         }).catch(() => {});

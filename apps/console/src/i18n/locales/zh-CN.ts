@@ -167,7 +167,7 @@ export const zhCN: I18nLanguage = {
     'editor.effective': '生效中',
     'editor.viewing': '查看中',
     'editor.setEffective': '设为生效',
-    'editor.sessionDraft': '会话草稿 · 修改对 AI 实时可见',
+    'editor.sessionDraft': '会话草稿 · 修改需保存后对 AI 可见',
     'editor.syncToChat': '同步到对话',
     'editor.syncing': '同步中…',
     'editor.synced': '已同步',
