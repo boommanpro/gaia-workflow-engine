@@ -128,7 +128,6 @@ class NodeExecutionL2Test extends AbstractNodeTest {
         SingleNodeExecutor executor = new SingleNodeExecutor();
         assertFalse(executor.isSupported("note"));
         assertFalse(executor.isSupported("group"));
-        assertFalse(executor.isSupported("assignee"));
         assertFalse(executor.isSupported("multi-condition"));
 
         SingleNodeRunInput input = new SingleNodeRunInput();

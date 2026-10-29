@@ -316,7 +316,7 @@ export const zhCN: I18nLanguage = {
     'singleNode.executionFailed': '执行失败',
     'singleNode.running': '执行中…',
     'singleNode.unsupportedType': '该节点类型不参与执行，无法单独测试',
-    'singleNode.unsupportedHint': '仅画布标注类节点（注释/分组/负责人等）不支持；其余类型（含循环、嵌套工作流）均可直接单节点试运行',
+    'singleNode.unsupportedHint': '仅画布标注类节点（注释/分组等）不支持；其余类型（含循环、嵌套工作流）均可直接单节点试运行',
     'singleNode.requestFailed': '请求失败：',
     'singleNode.placeholderMockValue': '输入模拟值',
     'singleNode.placeholderJson': '请输入 JSON',
@@ -338,7 +338,6 @@ export const zhCN: I18nLanguage = {
     'node.label.break': '中断',
     'node.label.string-format': '字符串格式化',
     'node.label.workflow': '工作流',
-    'node.label.assignee': '负责人',
 
     /* ---------- Node descriptions ---------- */
     'node.desc.start': '工作流的起始节点，用于设置启动工作流所需的信息。',
@@ -356,7 +355,6 @@ export const zhCN: I18nLanguage = {
     'node.desc.break': '跳出当前循环。',
     'node.desc.string-format': '字符串格式化。',
     'node.desc.workflow': '嵌入另一个工作流，支持参数传递和结果返回。',
-    'node.desc.assignee': '负责人标记组件，用于标记相关责任人。',
 
     /* ---------- HTTP form ---------- */
     'http.api': 'API',
@@ -390,16 +388,6 @@ export const zhCN: I18nLanguage = {
     'workflow.selectToEmbed': '请选择要嵌入的工作流',
     'workflow.inputParams': '输入参数',
     'workflow.outputParams': '输出参数',
-
-    /* ---------- Assignee node ---------- */
-    'assignee.searchPlaceholder': '搜索负责人…',
-    'assignee.empty': '尚未选择任何负责人',
-    'assignee.markTitle': '负责人标记',
-    'assignee.listTitle': '负责人列表',
-    'assignee.searching': '搜索中…',
-    'assignee.noResults': '未找到结果',
-    'assignee.selectedTitle': '已选择的负责人：',
-    'assignee.none': '暂无负责人',
 
     /* ---------- Agent ---------- */
     'agent.title': 'Agent 对话',

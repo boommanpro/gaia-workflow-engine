@@ -47,21 +47,23 @@ class NodeKnowledgeContractTest {
     }
 
     @Test
-    @DisplayName("multi-condition 不出现在知识库（前端已下架，防止模型重建）")
-    void multiConditionAbsentFromKnowledge() throws Exception {
+    @DisplayName("multi-condition/assignee 不出现在知识库（下架/删除类型，防止模型重建）")
+    void removedTypesAbsentFromKnowledge() throws Exception {
         for (Object item : knowledgeSeed()) {
             JSONObject entry = (JSONObject) item;
             assertFalse("multi-condition".equals(entry.getStr("nodeType")),
                 "multi-condition 已下架，知识库不应再教模型建它");
+            assertFalse("assignee".equals(entry.getStr("nodeType")),
+                "assignee（负责人节点）2026-10-28 已整体删除，知识库不应再教模型建它");
         }
     }
 
     @Test
-    @DisplayName("类型白名单门禁：multi-condition/assignee 不可由 agent 创建")
+    @DisplayName("类型白名单门禁：multi-condition 不可由 agent 创建")
     void supportedTypeGate() {
         assertFalse(WorkflowDslCanonicalizer.isSupportedType("multi-condition"));
         assertFalse(WorkflowDslCanonicalizer.isSupportedType("assignee"),
-            "assignee 是画布标注节点，2026-10-16 起移出 agent 可建清单");
+            "assignee（负责人节点）已整体删除，不得重新进入 agent 可建清单");
         assertTrue(WorkflowDslCanonicalizer.isSupportedType("comment"));
     }
 

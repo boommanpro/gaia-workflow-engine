@@ -162,7 +162,6 @@ class SingleNodeExecutionTest extends AbstractNodeTest {
         assertFalse(executor.isSupported("group"));
         assertFalse(executor.isSupported("note"));
         assertFalse(executor.isSupported("comment"));
-        assertFalse(executor.isSupported("assignee"));
         assertFalse(executor.isSupported("multi-condition"));
     }
 

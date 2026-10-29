@@ -21,5 +21,4 @@ export enum WorkflowNodeType {
   Break = 'break',
   StringFormat = 'string-format',
   Workflow = 'workflow',
-  Assignee = 'assignee',
 }

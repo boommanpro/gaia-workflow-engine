@@ -3,6 +3,7 @@
  * · http api.url / body.json 裸字符串 → template 包装（表单控件按包装形状读取，裸串显示空）；
  * · 已是包装形状的 template 值收敛 {{ a.b }} → {{a.b}}（官方渲染层拆段不 trim，带空格显示 Unknown）；
  * · llm 存量 inputs（旧 5 项必填 / 仅 prompt / 裸声明）整体对齐契约 x-gaia-form-inputs（凭证三字段必填）；
+ * · 已删除节点类型的存量剥离：负责人（assignee）2026-10-28 删除，载入时剥离节点与两端引用边；
  * · 全程不可变 + 幂等：无变化返回原引用，不修改输入对象。
  */
 import { describe, expect, it } from 'vitest';
@@ -218,6 +219,41 @@ describe('applyRenderCompat', () => {
     expect(order.properties.buyer.properties.country).toEqual({ type: 'string' });
     // plain 是 string：深层越界引用不猜（校验器的事）
     expect(out.nodes[0].data.outputs.properties.plain.properties).toBeUndefined();
+  });
+
+  it('存量剥离：assignee（负责人）节点删除后，旧文档载入时剥离该节点与两端引用边', () => {
+    const dsl = {
+      nodes: [
+        { id: 'start_1', type: 'start', data: { outputs: { type: 'object', properties: { q: { type: 'string' } } } } },
+        {
+          id: 'assignee_old',
+          type: 'assignee',
+          meta: { position: { x: 1, y: 1 } },
+          data: { title: '负责人标记_1', assignees: [] },
+        },
+        { id: 'end_1', type: 'end', data: { inputsValues: { r: { type: 'ref', content: ['start_1', 'q'] } } } },
+      ],
+      edges: [
+        { sourceNodeID: 'start_1', targetNodeID: 'end_1' },
+        // assignee 无端口，正常不会产生连线；防御性断言两端引用被剥节点时边一并移除
+        { sourceNodeID: 'start_1', targetNodeID: 'assignee_old' },
+      ],
+    };
+    const snapshot = JSON.stringify(dsl);
+    const out: any = applyRenderCompat(dsl);
+    expect(JSON.stringify(dsl)).toBe(snapshot);
+    expect(out.nodes.map((n: any) => n.id)).toEqual(['start_1', 'end_1']);
+    expect(out.edges).toEqual([{ sourceNodeID: 'start_1', targetNodeID: 'end_1' }]);
+    // 幂等：剥离结果再过一遍不再变化
+    expect(applyRenderCompat(out)).toBe(out);
+  });
+
+  it('存量剥离：无 assignee 的文档返回原引用（不产生新对象）', () => {
+    const dsl = {
+      nodes: [{ id: 'start_1', type: 'start', data: { outputs: { type: 'object' } } }],
+      edges: [],
+    };
+    expect(applyRenderCompat(dsl)).toBe(dsl);
   });
 
   it('非对象/缺 nodes 的输入原样返回', () => {

@@ -34,8 +34,8 @@ public final class WorkflowDslCanonicalizer {
 
     /** 与前端 node-templates 保持一致的受支持节点类型。
      *  出现即 fatal 打回（2026-10-16 起不再静默降级 variable）；多条件互斥分支用 branches，
-     *  单条件用 condition。assignee 是画布标注节点（无执行语义），2026-10-16 起移出 agent
-     *  可建清单（存量文档仍保留不执行）；note/group 同理不在 agent 可建清单。
+     *  单条件用 condition。assignee（负责人标注节点）2026-10-28 起整体删除，AI 产出含它的
+     *  草稿按未知类型 fatal 打回；note/group 同理不在 agent 可建清单。
      *  workflow（子流程）有真实解析器（infra WorkflowNodeParser）且契约文件齐备，
      *  2026-10-23 起加入白名单——此前被 fatal 打回导致子流程永远无法落版。 */
     private static final Set<String> SUPPORTED_TYPES = NodeSchemaRegistry.aiCreatableTypes();

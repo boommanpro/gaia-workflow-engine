@@ -316,7 +316,7 @@ export const enUS: I18nLanguage = {
     'singleNode.executionFailed': 'Execution Failed',
     'singleNode.running': 'Running…',
     'singleNode.unsupportedType': 'This node type is not executable and cannot be tested standalone',
-    'singleNode.unsupportedHint': 'Only annotation nodes (note/group/assignee etc.) are unsupported; all other types (incl. loop and nested workflow) can run standalone',
+    'singleNode.unsupportedHint': 'Only annotation nodes (note/group etc.) are unsupported; all other types (incl. loop and nested workflow) can run standalone',
     'singleNode.requestFailed': 'Request failed: ',
     'singleNode.placeholderMockValue': 'Enter mock value',
     'singleNode.placeholderJson': 'Enter JSON',
@@ -338,7 +338,6 @@ export const enUS: I18nLanguage = {
     'node.label.break': 'Break',
     'node.label.string-format': 'String Format',
     'node.label.workflow': 'Workflow',
-    'node.label.assignee': 'Assignee',
 
     /* ---------- Node descriptions ---------- */
     'node.desc.start': 'The starting node of the workflow, used to set the information needed to initiate the workflow.',
@@ -356,7 +355,6 @@ export const enUS: I18nLanguage = {
     'node.desc.break': 'Break out of the current loop.',
     'node.desc.string-format': 'String format.',
     'node.desc.workflow': 'Embed another workflow, supporting parameter passing and result returning.',
-    'node.desc.assignee': 'Assignee marker component, used to mark relevant responsible persons.',
 
     /* ---------- HTTP form ---------- */
     'http.api': 'API',
@@ -390,16 +388,6 @@ export const enUS: I18nLanguage = {
     'workflow.selectToEmbed': 'Select a workflow to embed',
     'workflow.inputParams': 'Input parameters',
     'workflow.outputParams': 'Output parameters',
-
-    /* ---------- Assignee node ---------- */
-    'assignee.searchPlaceholder': 'Search assignee…',
-    'assignee.empty': 'No assignee selected',
-    'assignee.markTitle': 'Assignee Marker',
-    'assignee.listTitle': 'Assignee List',
-    'assignee.searching': 'Searching…',
-    'assignee.noResults': 'No results found',
-    'assignee.selectedTitle': 'Selected assignees: ',
-    'assignee.none': 'No assignees',
 
     /* ---------- Agent ---------- */
     'agent.title': 'Agent Chat',

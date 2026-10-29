@@ -89,7 +89,6 @@ const handleAddComponentInternal = (componentData: any) => {
       '变量': WorkflowNodeType.Variable,
       '字符串格式化': WorkflowNodeType.StringFormat,
       '工作流': WorkflowNodeType.Workflow,
-      '分配人': WorkflowNodeType.Assignee,
       '分支': WorkflowNodeType.Branches,
       'LLM': WorkflowNodeType.LLM,
       '开始': WorkflowNodeType.Start,

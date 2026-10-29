@@ -43,7 +43,7 @@ import java.util.Set;
  *   <li>block-start / block-end / continue / break：loop 内部控制节点，独立执行仅回显控制
  *       标记（loop.control）或空输出，主要用于排查节点配置</li>
  * </ul>
- * 不支持：group, note, comment, assignee（画布标注类，后端本就不执行）、
+ * 不支持：group, note, comment（画布标注类，后端本就不执行）、
  * multi-condition（后端无解析器；画布载入时会自动迁移为 branches）。
  *
  * @author <a href="mailto:boommanpro@gmail.com">boommanpro</a>
@@ -53,11 +53,11 @@ import java.util.Set;
 public class SingleNodeExecutor {
 
     /**
-     * 不支持单节点测试的节点类型：非执行节点（group/note/comment/assignee，引擎 parse 阶段
-     * 本就跳过）与无解析器类型（multi-condition）。
+     * 不支持单节点测试的节点类型：非执行节点（group/note/comment，引擎 parse 阶段
+     * 本就跳过）与无解析器类型（multi-condition）。assignee 节点已整体删除（2026-10-28）。
      */
     private static final Set<String> UNSUPPORTED_TYPES = new HashSet<>(Arrays.asList(
-            "group", "note", "comment", "assignee", "multi-condition"
+            "group", "note", "comment", "multi-condition"
     ));
 
     /**

@@ -28,7 +28,8 @@ class AiCreatableTypesContractTest {
         assertEquals(expected, NodeSchemaRegistry.aiCreatableTypes());
         assertEquals(expected, WorkflowDslCanonicalizer.supportedTypes());
         assertTrue(expected.contains("comment"));
-        for (String type : Arrays.asList(null, "", "unknown", "assignee", "note", "group", "block-start", "block-end", "break", "continue")) {
+        // assignee（负责人）2026-10-28 整体删除，已删除类型由 WorkflowDslValidatorTest 的 UNKNOWN_TYPE 回归守卫
+        for (String type : Arrays.asList(null, "", "unknown", "note", "group", "block-start", "block-end", "break", "continue")) {
             assertFalse(WorkflowDslCanonicalizer.isSupportedType(type), type);
         }
         assertThrows(UnsupportedOperationException.class, () -> WorkflowDslCanonicalizer.supportedTypes().add("unknown"));

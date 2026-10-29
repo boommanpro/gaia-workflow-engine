@@ -44,8 +44,6 @@ export const getNodeLabel = (type: string): string => {
       return t('node.label.string-format');
     case WorkflowNodeType.Workflow:
       return t('node.label.workflow');
-    case WorkflowNodeType.Assignee:
-      return t('node.label.assignee');
     default:
       return type;
   }
@@ -84,8 +82,6 @@ export const getNodeDescription = (type: string): string => {
       return t('node.desc.string-format');
     case WorkflowNodeType.Workflow:
       return t('node.desc.workflow');
-    case WorkflowNodeType.Assignee:
-      return t('node.desc.assignee');
     default:
       return '';
   }

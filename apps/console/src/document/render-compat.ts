@@ -13,8 +13,10 @@
  *   （required / extra.formComponent / description 均来自它，后端 NodeDataNormalizer.alignFormInputs
  *   同源）——存量草稿里的旧口径（5 项全必填 / 仅 prompt 必填 / 裸 inputs 无 formComponent）接入时整体对齐，
  *   内容相同只是键序不同的不动（渲染顺序由表单按 schema 顺序决定）。
+ * · 已删除节点类型的存量剥离（stripRemovedNodes）：负责人（assignee）节点 2026-10-28 整体删除，
+ *   它是标注节点、无输入输出端口（不产生连线、无执行语义），载入时剥离对执行与引用无损。
  *
- * 全部转换语义无损、幂等；不改 id/type/meta/连线结构。
+ * 形状收敛全部语义无损、幂等；不改 id/type/meta/连线结构（例外：已删除节点类型的存量剥离）。
  */
 import { isEqual } from 'lodash-es';
 
@@ -165,13 +167,42 @@ function completeObjectOutputDeclarations(nodes: any[]): boolean {
 }
 
 /**
+ * 已删除的节点类型：存量草稿 / 版本历史载入时剥离，避免画布渲染未注册类型。
+ * assignee（负责人标注）2026-10-28 整体删除（前端注册、后端枚举/校验同步移除）。
+ */
+const REMOVED_NODE_TYPES = new Set(['assignee']);
+
+/** 剥离存量文档中已删除类型的节点及两端引用它们的连线；无命中返回原引用 */
+function stripRemovedNodes(dsl: any): any {
+  const nodes = dsl.nodes;
+  const removedIds = new Set<string>();
+  for (const node of nodes) {
+    if (node && typeof node === 'object' && REMOVED_NODE_TYPES.has(String(node.type))) {
+      removedIds.add(String(node.id));
+    }
+  }
+  if (removedIds.size === 0) return dsl;
+  const keptNodes = nodes.filter(
+    (node: any) => !(node && typeof node === 'object' && REMOVED_NODE_TYPES.has(String(node.type))),
+  );
+  const next: any = { ...dsl, nodes: keptNodes };
+  if (Array.isArray(dsl.edges)) {
+    next.edges = dsl.edges.filter(
+      (edge: any) => !removedIds.has(String(edge?.sourceNodeID)) && !removedIds.has(String(edge?.targetNodeID)),
+    );
+  }
+  return next;
+}
+
+/**
  * 对整份 DSL 做展示层兼容归一（不可变：无变化时返回原引用，不修改输入对象）。
  * 接入点：WorkflowDocument.fromJSON 与编辑器的原始数据入口。
  */
 export function applyRenderCompat(dsl: any): any {
   if (!dsl || !Array.isArray(dsl.nodes)) return dsl;
-  let changed = false;
-  const nodes = dsl.nodes.map((node: any) => {
+  const base = stripRemovedNodes(dsl);
+  let changed = base !== dsl;
+  const nodes = base.nodes.map((node: any) => {
     if (!node || typeof node !== 'object') return node;
     const data = normalizeNodeData(String(node.type || ''), node.data);
     if (data === node.data) return node;
@@ -182,7 +213,7 @@ export function applyRenderCompat(dsl: any): any {
   // 保证「无变化返回原引用、不修改输入对象」契约（测试断言依赖）
   const probe = JSON.parse(JSON.stringify(nodes));
   if (completeObjectOutputDeclarations(probe)) {
-    return { ...dsl, nodes: probe };
+    return { ...base, nodes: probe };
   }
-  return changed ? { ...dsl, nodes } : dsl;
+  return changed ? { ...base, nodes } : dsl;
 }

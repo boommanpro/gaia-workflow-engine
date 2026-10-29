@@ -25,8 +25,7 @@ public enum NodeTypeEnum  {
     BLOCK_END("block-end", "块结束节点"),
     CONTINUE("continue", "继续节点"),
     BREAK("break", "中断节点"),
-    WORKFLOW("workflow", "工作流节点"),
-    ASSIGNEE("assignee","负责人节点")
+    WORKFLOW("workflow", "工作流节点")
 
     ;
 
@@ -34,7 +33,7 @@ public enum NodeTypeEnum  {
     private final String description;
 
     private static final NodeTypeEnum[] NO_PARSE = new NodeTypeEnum[]{
-            GROUP, NOTE, COMMENT,ASSIGNEE
+            GROUP, NOTE, COMMENT
     };
 
     public static NodeTypeEnum of(String type) {

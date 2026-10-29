@@ -33,7 +33,6 @@ import {
   createVariablePanelPlugin,
 } from '../plugins';
 import { defaultFormMeta } from '../nodes/default-form-meta';
-import { AssigneeRender } from '../nodes/assignee';
 import { WorkflowNodeType } from '../nodes';
 import { testRunPanelFactory } from '../components/testrun/testrun-panel';
 import { nodeFormPanelFactory } from '../components/sidebar';
@@ -221,7 +220,6 @@ export function useEditorProps(
         renderDefaultNode: BaseNode,
         renderNodes: {
           [WorkflowNodeType.Comment]: CommentRender,
-          [WorkflowNodeType.Assignee]: AssigneeRender,
         },
       },
       /**

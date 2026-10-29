@@ -23,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * 节点解析器层单测 —— 覆盖 {@link NodeTypeEnum} 中全部用户可见节点类型。
  * <p>
  * 维度一：JSON → ChainNode 的解析正确性（id/type/类型特有字段）。
- * 非执行节点（group/note/comment/assignee）校验其被 ChainParser 正确跳过。
+ * 非执行节点（group/note/comment）校验其被 ChainParser 正确跳过。
  *
  * @author <a href="mailto:boommanpro@gmail.com">boommanpro</a>
  */
@@ -226,12 +226,6 @@ class NodeParserTest extends AbstractNodeTest {
         @DisplayName("comment: notParse=true")
         void commentSkipped() {
             assertTrue(NodeTypeEnum.notParse("comment"));
-        }
-
-        @Test
-        @DisplayName("assignee: notParse=true")
-        void assigneeSkipped() {
-            assertTrue(NodeTypeEnum.notParse("assignee"));
         }
 
         @Test

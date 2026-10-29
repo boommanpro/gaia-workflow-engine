@@ -21,7 +21,6 @@ import { BreakNodeRegistry } from './break';
 import { BranchNodeRegistry } from './branches';
 import { BlockStartNodeRegistry } from './block-start';
 import { BlockEndNodeRegistry } from './block-end';
-import { AssigneeNodeRegistry } from './assignee';
 
 export { WorkflowNodeType } from './constants';
 
@@ -44,5 +43,4 @@ export const nodeRegistries: FlowNodeRegistry[] = [
   // 存量数据由 document/migrations.ts 载入时迁移为 branches
   StringFormatNodeRegistry,
   WorkflowNodeRegistry,
-  AssigneeNodeRegistry,
 ];

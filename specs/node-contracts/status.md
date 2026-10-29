@@ -140,6 +140,23 @@
   新建条目并设为默认后 node-default 立即跟随；禁用该条目后回退不返回空凭证。未验证：浏览器内手动添加 llm 节点的实际渲染
   （预填闪动、必填星、行序）；存量多 end / 旧 inputs 草稿在真实库上的回归。
 
+- 2026-10-28（用户决策：负责人节点整体删除）：
+  assignee（负责人标注节点）从前端注册、后端枚举与校验链全量移除——console 删除 `nodes/assignee/`（注册/渲染/表单/类型）与
+  `assets/icon-assignee`，`WorkflowNodeType`/节点 i18n/initial-data 示例/`wujie-communication` 分配人映射/
+  run-node-panel 不支持清单同步清理；后端 `NodeTypeEnum` 删 `ASSIGNEE`（含 NO_PARSE），`SingleNodeExecutor`、
+  `WorkflowDslCanonicalizer` 注释与清单收敛。存量数据处理：assignee 是无端口标注节点（不产生连线、无执行语义），
+  前端 `document/render-compat.ts` 新增 `stripRemovedNodes`——旧草稿/版本历史载入时剥离该类节点并防御性过滤两端引用边
+  （无损、幂等，保持「无变化返回原引用」契约）；后端不再放行：`WorkflowDslValidator` 对 assignee 报 UNKNOWN_TYPE、
+  canonicalizer 对 AI 产出 fatal 打回（历史已发布版本若含 assignee，引擎 ChainParser 会明确报「不支持的节点类型」，
+  需重新保存后运行）。知识库 seed（node-knowledge.json）本无 assignee 词条；NodeKnowledgeContractTest 增加缺席守卫
+  防止回归。测试资源删除孤儿夹具 `test/resources/nodes/assignee.json`。
+  验证：`mvn -B -pl gaia-workflow-app -am -Dtest=NodeParserTest,NodeExecutionL2Test,SingleNodeExecutionTest,
+  AiCreatableTypesContractTest,NodeKnowledgeContractTest,WorkflowDslValidatorTest,NodeCatalogTest,
+  NodeSchemaBadcaseCorpusTest,GetKnowledgeCatalogTest test`（90 通过 0 失败，含新增
+  WorkflowDslValidatorTest.assigneeIsDeletedType 回归）；前端 `vitest run src/document/__tests__/render-compat.test.ts`
+  （9 通过，新增存量剥离 2 项）；`npm run ts-check` 结果见交付说明。未验证：浏览器端到端打开含 assignee 的存量草稿、
+  真实库中存量 assignee 版本的分布统计。
+
 ## 未完成及注意事项
 
 | 规范 | 当前边界 | 后续验收 |

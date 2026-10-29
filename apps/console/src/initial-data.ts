@@ -595,29 +595,6 @@ export const initialData: FlowDocumentJSON = {
         },
       },
     },
-    {
-      id: 'assignee_M3j85',
-      type: 'assignee',
-      meta: {
-        position: {
-          x: 1987.8056186134213,
-          y: -163.89919968547113,
-        },
-      },
-      data: {
-        title: '负责人标记_1',
-        assignees: [],
-        data: {
-          assignees: [
-            {
-              id: '1',
-              name: 'zhangsan',
-              avatar: 'https://avatars.githubusercontent.com/u/1?v=4',
-            },
-          ],
-        },
-      },
-    },
   ],
   edges: [
     {

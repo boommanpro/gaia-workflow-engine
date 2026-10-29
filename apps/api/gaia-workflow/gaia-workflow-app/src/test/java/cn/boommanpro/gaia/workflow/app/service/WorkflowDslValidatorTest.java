@@ -52,7 +52,7 @@ class WorkflowDslValidatorTest {
     }
 
     @Test
-    @DisplayName("正例：note/comment/group/assignee 标注类节点放行（不执行）")
+    @DisplayName("正例：note/comment/group 标注类节点放行（不执行）")
     void annotationNodesAreAccepted() {
         String dsl = doc(
             start() + ","
@@ -87,6 +87,19 @@ class WorkflowDslValidatorTest {
         List<WorkflowDslValidator.Issue> issues = WorkflowDslValidator.validate(dsl);
         assertTrue(codes(issues).contains("UNKNOWN_TYPE"), "multi-condition 必须被打回: " + issues);
         assertTrue(issues.get(0).getMessage().contains("branches"), "打回信息要指引替代方案");
+    }
+
+    @Test
+    @DisplayName("S1: assignee（负责人节点）已删除 → UNKNOWN_TYPE（2026-10-28 删除回归守卫）")
+    void assigneeIsDeletedType() {
+        String dsl = doc(
+            start() + ","
+                + "{\"id\":\"assignee_0\",\"type\":\"assignee\",\"data\":{\"title\":\"负责人标记_1\"},"
+                + "\"meta\":{\"position\":{\"x\":1,\"y\":0}}},"
+                + endWithRef("start_0", "q"),
+            "{\"sourceNodeID\":\"start_0\",\"targetNodeID\":\"end_0\"}");
+        List<WorkflowDslValidator.Issue> issues = WorkflowDslValidator.validate(dsl);
+        assertTrue(codes(issues).contains("UNKNOWN_TYPE"), "已删除类型必须被打回: " + issues);
     }
 
     @Test

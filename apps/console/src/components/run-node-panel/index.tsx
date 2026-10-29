@@ -14,7 +14,7 @@
  * - condition: data.conditions[].value.left / .right
  * - variable: data.assign[].right
  *
- * 不支持：loop, block-start, block-end, continue, break, branches, workflow, group, note, comment, assignee
+ * 不支持：group, note, comment（画布标注类，与后端 SingleNodeExecutor.UNSUPPORTED_TYPES 对齐）
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -47,7 +47,6 @@ const UNSUPPORTED_NODE_TYPES = new Set([
   'group',
   'note',
   'comment',
-  'assignee',
 ]);
 
 interface SingleNodeTestPanelProps {
