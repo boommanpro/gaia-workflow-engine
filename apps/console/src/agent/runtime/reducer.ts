@@ -50,6 +50,8 @@ export type RuntimeAction =
       runs?: any[];
       turnUsage?: any[];
     }
+  /** 开始拉取整段会话历史（切换目标会话时置位；history 落位时清除） */
+  | { type: 'history-begin' }
   /** 子代理调试：开一条子代理行（SubagentCard 渲染） */
   | { type: 'subagent-open'; id: string }
   /** 子代理调试：原地更新该行的 subagentSteps/Result（mutate 为纯函数） */
@@ -138,9 +140,13 @@ export function reduce(state: RuntimeState, action: RuntimeAction): RuntimeState
     case 'doc-synced':
       if (state.docVersion === action.version && !state.docDesync) return state;
       return { ...state, docVersion: action.version, docDesync: false };
+    case 'history-begin':
+      if (state.historyLoading) return state;
+      return { ...state, historyLoading: true };
     case 'history':
       return {
         ...state,
+        historyLoading: false,
         artifacts: action.artifacts ?? state.artifacts,
         messages: rebuildMessages({
           history: action.history,
@@ -606,6 +612,7 @@ export function RuntimeStateInitial(sessionKey: string | null): RuntimeState {
     thinking: '',
     messages: [],
     liveMessageId: null,
+    historyLoading: false,
     artifacts: [],
     docVersion: 0,
     docDesync: false,

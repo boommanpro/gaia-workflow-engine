@@ -317,8 +317,18 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!currentSessionKey) return;
     const sessionKey = currentSessionKey;
-    // 立刻清空上一段会话的消息：旧会话内容不得显示到新请求返回（快速切换跨会话串数据）
-    sessionRuntime.reset(sessionKey);
+    // 立刻清空上一段会话的消息：旧会话内容不得显示到新请求返回（快速切换跨会话串数据）。
+    // switchSession 已同步 reset 过时不再重复 reset：重复 reset 会把刚置位的历史加载态
+    // （以及极端时序下刚落位的历史）一并抹掉，欢迎页会在加载期间闪现。
+    if (sessionRuntime.getState().sessionKey !== sessionKey) {
+      const prevRuntimeKey = sessionRuntime.getState().sessionKey;
+      sessionRuntime.reset(sessionKey);
+      // 真实会话的直连/刷新进入历史加载态；草稿物化（发首条消息建会话）豁免——
+      // 欢迎页要原地过渡到乐观用户消息，插入加载占位反而是闪烁
+      if (!sessionKey.startsWith('draft-') && !prevRuntimeKey?.startsWith('draft-')) {
+        sessionRuntime.dispatch({ type: 'history-begin' });
+      }
+    }
     // 画布文档是模块级单例：切会话时只保留「不属于任何会话」的页面级内容
     const canvasSnapshot = workflowDocumentStore.getSnapshot();
     const canvasOwner = canvasSnapshot.meta.ownerSession;
@@ -548,6 +558,15 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       });
       if (!leave) return;
     }
+    // 切换即清场（与 setState 同批，杜绝「旧消息 + 新会话标题」的错位帧）；
+    // 目标是真实会话时同时进入历史加载态，对话区显示加载占位而不是欢迎页闪现。
+    // 守卫弹窗之后才清场：保存失败留在当前会话时不得误清当前消息。
+    if (prevKey !== sessionKey) {
+      sessionRuntime.reset(sessionKey);
+      if (!sessionKey.startsWith('draft-')) {
+        sessionRuntime.dispatch({ type: 'history-begin' });
+      }
+    }
     setCurrentSessionKey(sessionKey);
     setDockOpen(true);
   }, []);
@@ -701,6 +720,13 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
    */
   const reconcileDocumentOnConnect = useCallback((sessionKey: string) => {
     if (/^\/(editor|template-editor)/.test(pathnameRef.current) && hasUnsyncedLocalEdits()) return;
+    // 编辑器页画布归工作流所有（与 applyDocumentEvent 同口径）：与当前工作流无
+    // 归属关系的会话草稿不得借连接对账糊上画布。否则从工作流库直达时，画布先显示
+    // 落版版本、1~2 秒后被「最近活跃会话」的草稿整页顶掉（表现为打开后又刷新了一下），
+    // 还会误亮未保存角标。/editor/:code 取 URL 编码判定，避免依赖 meta 写入时序；
+    // /editor、/editor/__draft__、模板编辑器不在此列，草稿承接行为不变。
+    const editorWfCode = (/^\/editor\/([^/]+)/.exec(pathnameRef.current) || ({} as RegExpExecArray))[1];
+    if (editorWfCode && editorWfCode !== '__draft__' && getWorkflowOfSession(sessionKey) !== editorWfCode) return;
     agentApi.getSessionDocument(sessionKey).then((doc: any) => {
       if (!doc?.nodes?.length) return;
       if (currentSessionKeyRef.current !== sessionKey) return;

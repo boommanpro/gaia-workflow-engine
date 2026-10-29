@@ -34,6 +34,8 @@ export interface RuntimeState {
   // ---- 会话消息（历史 + live 占位 + ask 卡 + 产物卡） ----
   messages: DisplayMessage[];
   liveMessageId: string | null;
+  /** 正在拉取整段会话历史（会话切换的加载占位依据；此刻 messages 为空是「加载中」而非「空会话」） */
+  historyLoading: boolean;
 
   // ---- 产物（当前会话） ----
   artifacts: AgentArtifactDto[];

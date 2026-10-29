@@ -8,7 +8,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { takeInitialPrompt, peekInitialPrompt } from '../agent/initialPrompt';
-import { Tag } from '@douyinfe/semi-ui';
+import { Tag, Spin } from '@douyinfe/semi-ui';
 import { IconHistory } from '@douyinfe/semi-icons';
 
 import { useAgent, useRunStreaming } from '../agent/AgentContext';
@@ -53,6 +53,7 @@ export const AiWorkspace: React.FC = () => {
     updateDraftSetup,
   } = useAgent();
   const messages = useRuntime((s) => s.messages);
+  const historyLoading = useRuntime((s) => s.historyLoading);
   const streaming = useRunStreaming();
 
   /** 新任务草稿（draft-）：欢迎页显示「任务设置」面板，首条消息时选项生效 */
@@ -125,7 +126,9 @@ export const AiWorkspace: React.FC = () => {
     [sessions, currentSessionKey]
   );
 
-  const showWelcome = messages.length === 0 && !streaming;
+  // 欢迎态只在「确认没有历史」时出现：切换会话的加载期（historyLoading）显示加载占位，
+  // 不渲染欢迎页——否则每次切换都会闪一遍 hero 输入卡再换成消息列表（闪烁感的来源）
+  const showWelcome = messages.length === 0 && !streaming && !historyLoading;
   // 上下文容量：run 落定（streaming→false）后 bump，触发容量条重取最新调用规模
   const [capacityTick, setCapacityTick] = useState(0);
   const wasStreamingRef = useRef(false);
@@ -265,6 +268,11 @@ export const AiWorkspace: React.FC = () => {
           <div style={{ flex: 1, minHeight: 0 }}>
             {!showWelcome && chatView === 'trajectory' ? (
               <TrajectoryPanel sessionKey={currentSessionKey || undefined} streaming={streaming} />
+            ) : historyLoading && messages.length === 0 ? (
+              /* 会话切换加载期：中间内容空白 + 轻量加载指示，布局（标签/底部输入）保持不动 */
+              <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Spin size="middle" />
+              </div>
             ) : showWelcome ? (
               /* 欢迎态：输入卡是主角，问候在其上；任务选项收敛进卡顶 chips（draft 会话才有） */
               <div className="chat-scroll" style={{ height: '100%', overflowY: 'auto' }}>

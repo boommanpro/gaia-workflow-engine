@@ -430,3 +430,42 @@ describe('频道重建（后端重启 / 空闲回收）后的 seq 游标对齐',
     expect(d.s).toBe(before);
   });
 });
+
+describe('历史加载态（会话切换占位：historyLoading）', () => {
+  it('history-begin 置位 → history 落位清除（欢迎页在加载期不得闪现）', () => {
+    const d = driver();
+    expect(d.s.historyLoading).toBe(false);
+
+    d.dispatch({ type: 'history-begin' });
+    expect(d.s.historyLoading).toBe(true);
+    expect(d.s.messages).toHaveLength(0);
+
+    d.dispatch({ type: 'history', history: [{ id: 'm1', role: 'user', content: '你好' }] as any });
+    expect(d.s.historyLoading).toBe(false);
+    expect(d.s.messages).toHaveLength(1);
+  });
+
+  it('history-begin 幂等：重复置位返回同一状态引用', () => {
+    const d = driver();
+    d.dispatch({ type: 'history-begin' });
+    const loading = d.s;
+    d.dispatch({ type: 'history-begin' });
+    expect(d.s).toBe(loading);
+  });
+
+  it('reset 重建初始状态：加载态一并清零', () => {
+    const d = driver();
+    d.dispatch({ type: 'history-begin' });
+    d.dispatch({ type: 'reset', sessionKey: 's2' });
+    expect(d.s.historyLoading).toBe(false);
+    expect(d.s.sessionKey).toBe('s2');
+  });
+
+  it('空历史落位也清除加载态（空会话切换 = 加载占位 → 欢迎页，不卡在占位）', () => {
+    const d = driver();
+    d.dispatch({ type: 'history-begin' });
+    d.dispatch({ type: 'history', history: [] });
+    expect(d.s.historyLoading).toBe(false);
+    expect(d.s.messages).toHaveLength(0);
+  });
+});
