@@ -10,7 +10,6 @@ import { nanoid } from 'nanoid';
 import { merge } from 'lodash-es';
 
 import { createNodeByType } from '../agent/node-templates';
-import { autoLayoutDsl } from './layout';
 import { applyRenderCompat } from './render-compat';
 import { validateDsl } from './validate';
 import type {
@@ -179,12 +178,6 @@ export class WorkflowDocument {
     const nodes = [...this.dsl.nodes];
     nodes[index] = { ...nodes[index], meta: { ...(nodes[index].meta || {}), position } };
     return this.next({ ...this.dsl, nodes });
-  }
-
-  autoLayout(): WorkflowDocument {
-    const copy = this.clone();
-    autoLayoutDsl(copy.dsl);
-    return copy;
   }
 
   setNodes(nodes: DslNode[]): WorkflowDocument {

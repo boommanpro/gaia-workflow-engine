@@ -157,6 +157,50 @@
   （9 通过，新增存量剥离 2 项）；`npm run ts-check` 结果见交付说明。未验证：浏览器端到端打开含 assignee 的存量草稿、
   真实库中存量 assignee 版本的分布统计。
 
+- 2026-10-29（用户会话实证「condition_1.if_pass 后端合法、前端画布查不到」，变更记录
+  [changes/archive/2026-10-29-dynamic-node-output-materialization](../changes/archive/2026-10-29-dynamic-node-output-materialization/proposal.md)）：
+  condition/branches 动态输出物化，画布变量引擎与引擎运行时口径拉齐——
+  · 前端 `nodes/derived-outputs.ts` 单一规则纯函数；condition/branches form-meta 用
+    `createEffectFromVariableProvider`（variable 节点 infer-assign 同机制）把派生 schema 喂进 FlowGram 变量引擎
+    （变量选择器 + `{{ }}` 模板校验同源可见），formatOnSubmit 物化进 data.outputs；
+    `document/upstream-variables.ts` 改用同一函数（前端规则拷贝归一）。
+  · 后端 `NodeDataNormalizer` deriveBooleanOutputs 整体重算 outputs.properties（幂等；canvas 回推/agent
+    add/update/canonicalize 全入口覆盖）；condition/branches schema 放行派生 outputs（严格 boolean 形状）、
+    catalog defaults 补空 outputs（前端模板经共享 import 自动跟随）；
+    `inferOutputFields` 与 `ConditionNode/BranchesNode.getOutputParameters` 对空字段名跳过（与 legalPortsOf 同口径）。
+  · 跨端 parity：specs/node-contracts/fixtures/dynamic-node-outputs.json 共享样例；
+    后端 NodeDataNormalizerDynamicOutputsContractTest 断言归一化产物=运行时 getOutputParameters=inferOutputFields
+    （4 项，含物化产物过严格 schema、canonicalize 为存量无 outputs 草稿补齐）；
+    前端 nodes/__tests__/derived-outputs.test.ts 引用同一份 fixture。
+  验证：`mvn -pl gaia-workflow-app -am test`（383 通过，1 既有跳过）；前端 `vitest run`（181 通过，26 文件）；
+  `npm run ts-check` 改动文件 0 错误（30 个既有错误均在未改动文件）；改动文件 eslint 0 错误 0 警告。
+  未验证：浏览器端到端（真实画布选变量/模板徽标）、wf_087b971f1357 全链路回归、存量草稿物化规模统计。
+
+- 2026-10-29（用户实测「AI 生成画布打开就一坨」，调研与决策记录
+  [docs/canvas-auto-layout-elk-2026-10-29.md](../../docs/canvas-auto-layout-elk-2026-10-29.md)，方案 A 用户确认）：
+  画布布局收口到后端 ELK layered——旧 BFS 分层步长（X=320/Y=200、碰撞盒 240×120）小于画布真实节点尺寸
+  （宽 360、llm/http/code 高 390），重叠是数学必然；且 `autoLayoutIfUntouched` 的宽高比 ≥6 门槛让宽扁乱图
+  永远漏网。改动：
+  · 新增 `WorkflowLayoutEngine`（ELK 0.10.0 纯 Java headless，EPL-2.0；guava 钉 33.3.1 防 elk.graph 开区间漂移）：
+    按类型真实尺寸布局、condition/branches 出边端口约束（EAST 按声明顺序）、节点按 id 排序 + 固定 RANDOM_SEED
+    保证确定性（run 结束重排不跳动）；ELK 异常回退内置简单分层，不阻断落版/草稿链路。
+  · 尺寸单一来源：唯一事实源保持前端 `nodes/<type>/index.ts` 注册表（NC-01），
+    `WorkflowLayoutEngineNodeSizeContractTest` 解析 TS 源码断言后端镜像逐类型一致（P-01 可测试派生）。
+  · 接线：canonicalize 缺坐标兜底、`autoLayoutIfUntouched`（保留 layoutUserTouched 让位，删 ratio 门槛）、
+    agent autoLayout 工具（经 `WorkflowDslCanonicalizer.applyLayout` 委托）全部走 ELK；
+    `CanvasPlacement` 搭建期增量步长修正 520/470、碰撞盒 360×390。
+    新增 `POST /api/agent/session/{key}/auto-layout`（AgentSessionRunController，autoLayoutIfUntouched
+    改返回 boolean）：接口建草稿（push-draft）后的验收/运维入口，未来前端「整理」可切此端点统一 ELK。
+  · 前端删除无调用方的 headless 布局链：`document/layout.ts`、`normalize-dsl.ts`、`WorkflowDocument.autoLayout`、
+    CanvasBinding/CanvasContext 的 autoLayout 契约（P-07 不并行维护两套布局）；手动「自动整理」按钮保留
+    FlowGram 内置 dagre。loop 容器内 blocks v1 不参与布局（容器当叶节点）。
+  验证：`mvn -B -pl gaia-workflow-app -am test`（357 通过 0 失败，1 既有跳过；含合并树上并行会话的新增契约测试；
+  新增 WorkflowLayoutEngineTest 10 项——菱形/条件端口/确定性/重排幂等/missing-only/长蛇收敛/环/孤立节点，
+  WorkflowLayoutEngineNodeSizeContractTest 1 项，SessionDraftLayoutRevisionTest 更新为「宽扁图也重排」+ 保留让位语义）；
+  前端 `npm test`（181 通过 26 文件）、`npm run ts-check`（29 个既有错误均在未改动文件，改动文件 0）、
+  `npm run build`（rsbuild 产物正常）。未验证：真实模型端到端生成后的画布目测、存量草稿重开回归、
+  ELK 在 Spring Boot fat jar 中的启动实测（本机 mvn test 已在 classpath 验证，fat jar 打包仅差 deploy 验证）。
+
 ## 未完成及注意事项
 
 | 规范 | 当前边界 | 后续验收 |

@@ -925,51 +925,34 @@ public class SessionWorkflowDraftService {
     }
 
     /**
-     * AI 构建完成后的自动分层布局（2026-10-25，一字长蛇阵修复）：
-     * agent 的 node 工具无 position，顺序链式构建会把全部节点排在同一行，
-     * 缩略图/编辑器里成为一条细线。run 结束时若<b>用户从未手动摆过布局</b>
-     * （_meta.layoutUserTouched 未置位）则重排为 BFS 分层；用户摆过一次即永久让位。
+     * AI 构建完成后的自动分层布局（2026-10-29 布局收口）：
+     * agent 的 node 工具无 position，增量落点在搭建期只保证不重叠，run 结束统一重排为
+     * ELK layered 分层布局。门控：仅对<b>用户从未手动摆过布局</b>（_meta.layoutUserTouched
+     * 未置位）的草稿生效，摆过一次即永久让位。旧版「宽高比 ≥6 才重排」门槛已删——
+     * WorkflowLayoutEngine 确定性保证同输入同坐标，已整理的图再跑不跳；此前宽扁乱图
+     * （比值 <6）永远得不到整理，正是「打开一坨」的另一半成因。
      * 布局是展示层变更：不 bump draftRevision（与 push 的 layout-only 语义同口径）。
+     *
+     * @return true=本次实际执行了重排；false=被门控跳过（用户摆过 / 节点不足 / 无草稿）
      */
-    public void autoLayoutIfUntouched(String sessionKey) {
+    public boolean autoLayoutIfUntouched(String sessionKey) {
         JSONObject doc = drafts.get(sessionKey);
         if (doc == null) {
-            return;
+            return false;
         }
         JSONObject meta = doc.getJSONObject(META_KEY);
         if (meta != null && meta.getBool("layoutUserTouched", false)) {
-            return;
+            return false;
         }
         JSONArray nodes = doc.getJSONArray("nodes");
         if (nodes == null || nodes.size() < 3) {
-            return;
-        }
-        // 布局已接近分层（宽高比 < 6）就不折腾——避免每次小修改后节点跳动
-        double ratio = boundsAspectRatio(nodes);
-        if (ratio > 0 && ratio < 6) {
-            return;
+            return false;
         }
         WorkflowDslCanonicalizer.applyLayout(doc, true);
         persistArtifact(sessionKey, "stable", "自动分层布局 · " + nodes.size() + " 节点");
         broadcastDocument(sessionKey);
-        log.info("[draft] {} auto-layout applied ({} nodes, ratio was {})", sessionKey, nodes.size(), String.format("%.1f", ratio));
-    }
-
-    /** 内容包围盒宽高比（无坐标节点按 0 计，返回 0 表示无法判定） */
-    private static double boundsAspectRatio(JSONArray nodes) {
-        long minX = Long.MAX_VALUE, minY = Long.MAX_VALUE, maxX = Long.MIN_VALUE, maxY = Long.MIN_VALUE;
-        for (int i = 0; i < nodes.size(); i++) {
-            JSONObject meta = nodes.getJSONObject(i).getJSONObject("meta");
-            JSONObject pos = meta != null ? meta.getJSONObject("position") : null;
-            if (pos == null) {
-                return 0;
-            }
-            long x = pos.getLong("x", 0L), y = pos.getLong("y", 0L);
-            minX = Math.min(minX, x); minY = Math.min(minY, y);
-            maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
-        }
-        long w = Math.max(1, maxX - minX), h = Math.max(1, maxY - minY);
-        return (double) Math.max(w, h) / Math.min(w, h);
+        log.info("[draft] {} auto-layout applied ({} nodes)", sessionKey, nodes.size());
+        return true;
     }
 
     /**

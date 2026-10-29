@@ -58,13 +58,6 @@ function createHeadlessCanvasContext(): CanvasContext {
       });
     },
 
-    autoLayout: () => {
-      workflowDocumentStore.mutate((doc) => doc.autoLayout(), {
-        kind: 'layout',
-        source: applySource('ai'),
-      });
-    },
-
     // WorkflowDocument.updateNode 内部已做深合并（数组整体替换）
     updateNodeData: (nodeId, data) => {
       const before = snapshotDoc();

@@ -4,10 +4,8 @@ import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 
-import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.ArrayList;
-import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -39,11 +37,6 @@ public final class WorkflowDslCanonicalizer {
      *  workflow（子流程）有真实解析器（infra WorkflowNodeParser）且契约文件齐备，
      *  2026-10-23 起加入白名单——此前被 fatal 打回导致子流程永远无法落版。 */
     private static final Set<String> SUPPORTED_TYPES = NodeSchemaRegistry.aiCreatableTypes();
-
-    private static final int X_BASE = 180;
-    private static final int X_STEP = 320;
-    private static final int Y_BASE = 180;
-    private static final int Y_STEP = 200;
 
     private WorkflowDslCanonicalizer() {
     }
@@ -286,7 +279,7 @@ public final class WorkflowDslCanonicalizer {
             }
         }
         if (missingPosition) {
-            autoLayout(nodes, edges);
+            WorkflowLayoutEngine.layoutNodeList(nodes, edges, false);
             repairs.add("部分节点缺少坐标，已自动分层布局");
         }
 
@@ -332,9 +325,10 @@ public final class WorkflowDslCanonicalizer {
 
     /**
      * 每个节点类型的合法出边端口集合：
-     * condition=conditions[].key+else、branches=branches[].id+else，其余类型=null（不允许 fromPort）
+     * condition=conditions[].key+else、branches=branches[].id+else，其余类型=null（不允许 fromPort）。
+     * 声明顺序即连线校验与布局引擎（WorkflowLayoutEngine 端口排布）共用顺序。
      */
-    private static Set<String> legalPortsOf(JSONObject node) {
+    public static Set<String> legalPortsOf(JSONObject node) {
         if (node == null) {
             return null;
         }
@@ -854,12 +848,13 @@ public final class WorkflowDslCanonicalizer {
     }
 
     /**
-     * 供服务端画布草稿的 autoLayout 操作复用。
+     * 供服务端画布草稿的 autoLayout 操作复用。实现已收口到 {@link WorkflowLayoutEngine}
+     * （2026-10-29 布局收口：ELK layered 按真实节点尺寸布局，替代旧 BFS 固定步长）。
      *
      * @param doc 含 nodes / edges 的文档对象
      */
     public static void applyLayout(JSONObject doc) {
-        applyLayout(doc, false);
+        WorkflowLayoutEngine.applyLayout(doc, false);
     }
 
     /**
@@ -867,96 +862,7 @@ public final class WorkflowDslCanonicalizer {
      *              false=只补缺失坐标的节点（落版「缺坐标自动布局」既有语义）
      */
     public static void applyLayout(JSONObject doc, boolean force) {
-        if (doc == null) {
-            return;
-        }
-        JSONArray nodes = doc.getJSONArray("nodes");
-        if (nodes == null) {
-            return;
-        }
-        List<JSONObject> nodeList = new ArrayList<>();
-        for (int i = 0; i < nodes.size(); i++) {
-            nodeList.add(nodes.getJSONObject(i));
-        }
-        JSONArray edges = doc.getJSONArray("edges");
-        List<JSONObject> edgeList = new ArrayList<>();
-        if (edges != null) {
-            for (int i = 0; i < edges.size(); i++) {
-                edgeList.add(edges.getJSONObject(i));
-            }
-        }
-        autoLayout(nodeList, edgeList, force);
-    }
-
-    /** 分层布局：按 BFS 深度定 x，同层依次错开 y，避免节点重叠 */
-    private static void autoLayout(List<JSONObject> nodes, List<JSONObject> edges) {
-        autoLayout(nodes, edges, false);
-    }
-
-    private static void autoLayout(List<JSONObject> nodes, List<JSONObject> edges, boolean force) {
-        Map<String, List<String>> outgoing = new HashMap<>();
-        Map<String, Integer> indegree = new HashMap<>();
-        for (JSONObject n : nodes) {
-            indegree.put(n.getStr("id"), 0);
-        }
-        for (JSONObject e : edges) {
-            String s = e.getStr("sourceNodeID");
-            String t = e.getStr("targetNodeID");
-            outgoing.computeIfAbsent(s, k -> new ArrayList<>()).add(t);
-            indegree.merge(t, 1, Integer::sum);
-        }
-
-        Map<String, Integer> depth = new HashMap<>();
-        Deque<String> queue = new ArrayDeque<>();
-        for (JSONObject n : nodes) {
-            String id = n.getStr("id");
-            String type = n.getStr("type");
-            // 起点优先从 start / 入度为 0 的节点出发
-            if ("start".equals(type) || indegree.getOrDefault(id, 0) == 0) {
-                if (!depth.containsKey(id)) {
-                    depth.put(id, 0);
-                    queue.add(id);
-                }
-            }
-        }
-        if (queue.isEmpty() && !nodes.isEmpty()) {
-            depth.put(nodes.get(0).getStr("id"), 0);
-            queue.add(nodes.get(0).getStr("id"));
-        }
-
-        int guard = 0;
-        while (!queue.isEmpty() && guard++ < nodes.size() * 8) {
-            String current = queue.poll();
-            int d = depth.get(current);
-            for (String next : outgoing.getOrDefault(current, new ArrayList<>())) {
-                int candidate = d + 1;
-                Integer existing = depth.get(next);
-                if (existing == null || existing < candidate) {
-                    depth.put(next, candidate);
-                    queue.add(next);
-                }
-            }
-        }
-        // 环或孤立节点兜底
-        for (JSONObject n : nodes) {
-            depth.putIfAbsent(n.getStr("id"), 0);
-        }
-
-        Map<Integer, Integer> layerCursor = new HashMap<>();
-        for (JSONObject n : nodes) {
-            int d = depth.get(n.getStr("id"));
-            int indexInLayer = layerCursor.merge(d, 1, Integer::sum) - 1;
-            JSONObject meta = n.getJSONObject("meta");
-            if (meta == null) {
-                meta = new JSONObject();
-                n.set("meta", meta);
-            }
-            if (force || meta.getJSONObject("position") == null) {
-                meta.set("position", new JSONObject()
-                    .set("x", X_BASE + d * X_STEP)
-                    .set("y", Y_BASE + indexInLayer * Y_STEP));
-            }
-        }
+        WorkflowLayoutEngine.applyLayout(doc, force);
     }
 
 

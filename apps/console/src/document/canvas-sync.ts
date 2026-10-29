@@ -30,8 +30,6 @@ export interface CanvasBinding {
   removeEdge: (edge: DslEdge) => void;
   /** 整份重建（AI 大改 / 回滚时用，比逐条打补丁可靠） */
   replaceAll: (dsl: WorkflowDsl) => void;
-  /** 自动布局 */
-  autoLayout: () => void;
   /** 视野自适应 */
   fitView: () => void;
   /** 选中并高亮节点（可选） */

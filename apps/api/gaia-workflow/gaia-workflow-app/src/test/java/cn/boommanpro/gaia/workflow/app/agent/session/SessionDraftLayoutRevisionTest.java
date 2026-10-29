@@ -6,16 +6,18 @@ import cn.hutool.json.JSONObject;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 修订语义与自动布局回归（2026-10-25 用户定义）：
+ * 修订语义与自动布局回归（2026-10-25 用户定义；2026-10-29 布局收口调整触发）：
  * · 节点增删/属性修改 = 实质变更（draftRevision +1）；仅坐标变化 = layout 变更
  *   （revision 不动，但记 _meta.layoutUserTouched）；
  * · run 结束的自动分层布局只对「用户从未摆过」的草稿生效；摆过一次永久让位；
- * · 一字长蛇阵（宽高比 > 6）才重排，接近分层的布局不折腾（防每次小改后节点跳动）。
+ * · 旧「宽高比 ≥6 才重排」门槛已删：WorkflowLayoutEngine 确定性保证同输入同坐标，
+ *   已整理的图再跑不跳（用 relayoutIsStable 同款断言守卫）；宽扁乱图不再漏网。
  */
 @DisplayName("会话草稿：layout-only 修订语义 + 自动分层布局门控")
 class SessionDraftLayoutRevisionTest {
@@ -94,13 +96,13 @@ class SessionDraftLayoutRevisionTest {
         assertFalse(service.getMeta("s").containsKey("layoutUserTouched"),
             "自动布局不得置位用户标记");
 
-        // 已分层（宽高比 < 6）后再跑：位置不动
+        // 已分层后再跑：确定性布局同输入同坐标，位置不动（防节点跳动的新结构保证）
         JSONObject laid = new JSONObject(service.get("s").toString());
         service.autoLayoutIfUntouched("s");
         JSONObject again = service.get("s");
         assertEquals(laid.getJSONArray("nodes").getJSONObject(1).getJSONObject("meta").getJSONObject("position").getLong("x"),
             again.getJSONArray("nodes").getJSONObject(1).getJSONObject("meta").getJSONObject("position").getLong("x"),
-            "接近分层的布局不得重排（防节点跳动）");
+            "确定性布局不得移动已整理的图（防节点跳动）");
 
         // 用户手动摆一次后：即使摆成蛇形也不再自动布局
         JSONObject snakeAgain = snakeDsl(6);
@@ -110,5 +112,39 @@ class SessionDraftLayoutRevisionTest {
         assertEquals(before.getJSONArray("nodes").getJSONObject(3).getJSONObject("meta").getJSONObject("position").getLong("x"),
             service.get("s").getJSONArray("nodes").getJSONObject(3).getJSONObject("meta").getJSONObject("position").getLong("x"),
             "用户摆过后自动布局必须让位");
+    }
+
+    @Test
+    @DisplayName("宽扁乱图（旧宽高比<6 门槛下永不整理）现在 run 结束也被重排")
+    void wideMessGetsLaidOut() {
+        // 2 列 × 3 行的散乱摆位（宽高比 2.5，旧 ratio>=6 门槛下不会触发重排）
+        SessionWorkflowDraftService service = newService();
+        JSONObject doc = new JSONObject();
+        JSONArray nodes = new JSONArray();
+        JSONArray edges = new JSONArray();
+        String prev = null;
+        for (int i = 0; i < 6; i++) {
+            String id = "n" + i;
+            int x = (i % 2 == 0) ? 137 : 1137;
+            int y = 431 + (i / 2) * 200;
+            nodes.set(new JSONObject().set("id", id)
+                .set("type", i == 0 ? "start" : (i == 5 ? "end" : "code"))
+                .set("meta", new JSONObject().set("position", new JSONObject().set("x", x).set("y", y)))
+                .set("data", new JSONObject().set("title", "节点" + i)));
+            if (prev != null) {
+                edges.set(new JSONObject().set("sourceNodeID", prev).set("targetNodeID", id));
+            }
+            prev = id;
+        }
+        doc.set("nodes", nodes).set("edges", edges);
+        service.push("s", doc, null, null);
+
+        long yBefore = service.get("s").getJSONArray("nodes").getJSONObject(1)
+            .getJSONObject("meta").getJSONObject("position").getLong("y");
+        service.autoLayoutIfUntouched("s");
+        long yAfter = service.get("s").getJSONArray("nodes").getJSONObject(1)
+            .getJSONObject("meta").getJSONObject("position").getLong("y");
+
+        assertThat(yAfter).as("宽扁乱图必须被重排（不再漏网）").isNotEqualTo(yBefore);
     }
 }

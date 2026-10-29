@@ -10,6 +10,7 @@ import cn.boommanpro.gaia.workflow.infra.manage.entity.GaiaWorkflow;
 import cn.boommanpro.gaia.workflow.infra.manage.entity.GaiaWorkflowVersion;
 import cn.boommanpro.gaia.workflow.infra.manage.service.GaiaWorkflowService;
 import cn.boommanpro.gaia.workflow.infra.manage.service.GaiaWorkflowVersionService;
+import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import lombok.extern.slf4j.Slf4j;
@@ -233,6 +234,23 @@ public class AgentSessionRunController {
     public Map<String, Object> document(@PathVariable String sessionKey) {
         JSONObject doc = draftService.publicDocWithVersion(sessionKey);
         return doc;
+    }
+
+    /**
+     * 服务端自动布局（ELK layered，2026-10-29 布局收口）：对当前会话草稿执行
+     * autoLayoutIfUntouched（用户未摆过布局才生效）并回传重排后的文档。
+     * 验收/运维入口：接口建草稿（push-draft）后调它，即可在前端看到分层布局。
+     */
+    @PostMapping("/{sessionKey}/auto-layout")
+    public Map<String, Object> autoLayout(@PathVariable String sessionKey) {
+        boolean applied = draftService.autoLayoutIfUntouched(sessionKey);
+        JSONObject doc = draftService.publicDocWithVersion(sessionKey);
+        JSONArray nodes = doc.getJSONArray("nodes");
+        return new JSONObject()
+            .set("success", true)
+            .set("applied", applied)
+            .set("nodeCount", nodes == null ? 0 : nodes.size())
+            .set("doc", doc);
     }
 
     /**

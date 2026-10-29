@@ -91,6 +91,25 @@
             <artifactId>agentscope-extensions-model-openai</artifactId>
             <version>${agentscope.version}</version>
         </dependency>
+
+        <!-- ELK layered：服务端自动布局（WorkflowLayoutEngine，2026-10-29 布局收口）。
+             纯 Java headless 运行，无 UI 依赖；OSGi packaging 的普通 jar 可直接上 classpath。
+             guava 显式钉版：elk.graph 声明的是 [15.0,) 开区间，不钉会随中央仓库漂移。 -->
+        <dependency>
+            <groupId>org.eclipse.elk</groupId>
+            <artifactId>org.eclipse.elk.core</artifactId>
+            <version>0.10.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.elk</groupId>
+            <artifactId>org.eclipse.elk.alg.layered</artifactId>
+            <version>0.10.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>33.3.1-jre</version>
+        </dependency>
     </dependencies>
 
     <dependencyManagement>

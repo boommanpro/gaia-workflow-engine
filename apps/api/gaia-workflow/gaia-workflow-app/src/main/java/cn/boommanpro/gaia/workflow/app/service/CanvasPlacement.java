@@ -7,20 +7,23 @@ import cn.hutool.json.JSONObject;
  * 画布节点放置服务 —— node(action=add) 的「LLM 无感知布局」。
  *
  * <p>agent 的 node 工具 schema 里没有 position 字段：新节点落点全部由这里计算。
- * 规则（步长与 WorkflowDslCanonicalizer.autoLayout 对齐 X_STEP=320 / Y_STEP=200）：</p>
+ * 这是<b>搭建期</b>的增量落点（用户看着节点一个个出现），只保证不重叠；
+ * run 结束由 {@link WorkflowLayoutEngine} 统一重排为分层布局。
+ * 步长与碰撞盒按画布真实节点尺寸取上界（2026-10-29 修正：旧 320/200/240×120
+ * 小于节点实际 360 宽、390 高，增量摆放阶段就会叠罗汉）：</p>
  * <ul>
- *   <li>有来源锚点（connect.from）：放锚点右侧一格；碰撞盒（240×120）被占则向下探测，</li>
+ *   <li>有来源锚点（connect.from）：放锚点右侧一格；碰撞盒（360×390）被占则向下探测，</li>
  *   <li>无锚点：放画布内容包围盒右缘一格，纵向取包围盒中心；</li>
  *   <li>绝不移动既有节点、不做全图重排——用户摆好的布局神圣不可侵犯。</li>
  * </ul>
  */
 public final class CanvasPlacement {
 
-    private static final int X_STEP = 320;
-    private static final int Y_STEP = 200;
-    /** 碰撞检测盒：新节点占用 宽240×高120 的区域 */
-    private static final int BOX_W = 240;
-    private static final int BOX_H = 120;
+    private static final int X_STEP = 520;
+    private static final int Y_STEP = 470;
+    /** 碰撞检测盒：取常规节点尺寸上界（宽360×高390，llm/http/code 为最大件） */
+    private static final int BOX_W = 360;
+    private static final int BOX_H = 390;
     private static final int MAX_PROBES = 20;
 
     private CanvasPlacement() {

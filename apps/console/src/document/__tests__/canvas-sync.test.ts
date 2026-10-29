@@ -49,7 +49,6 @@ class FakeBinding implements CanvasBinding {
   replaceAll(dsl: WorkflowDsl) {
     this.current = dsl;
   }
-  autoLayout() {}
   fitView() {
     this.fitViewCalls += 1;
   }

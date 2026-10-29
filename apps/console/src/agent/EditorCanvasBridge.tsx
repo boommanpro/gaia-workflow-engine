@@ -131,19 +131,6 @@ export const EditorCanvasBridge: React.FC<{ sync?: boolean }> = ({ sync = true }
         }
       },
 
-      autoLayout: () => {
-        void tools.autoLayout({
-          enableAnimation: true,
-          animationDuration: 800,
-          layoutConfig: {
-            rankdir: 'LR',
-            align: undefined,
-            nodesep: 100,
-            ranksep: 100,
-          },
-        });
-      },
-
       updateNodeData: (nodeId: string, data: Record<string, any>) => {
         const node = ctx.document.getNode(nodeId) as any;
         if (!node) return false;
@@ -273,8 +260,6 @@ export const EditorCanvasBridge: React.FC<{ sync?: boolean }> = ({ sync = true }
         ctx.document.clear();
         ctx.document.fromJSON({ nodes: dsl.nodes, edges: dsl.edges } as any);
       },
-
-      autoLayout: () => canvasContext.autoLayout(),
 
       fitView: () => {
         // 数据推送后的视野收敛必须瞬时（easing=false）：canvas-sync 在挂载/对账/

@@ -16,8 +16,6 @@ export interface CanvasContext {
   addLine: (line: { sourceNodeID: string; targetNodeID: string; sourcePortID?: string }) => void;
   /** 删除连线 */
   removeLine: (from: string, to: string) => void;
-  /** 自动布局 */
-  autoLayout: () => void;
   /** Deep merge node data (arrays replaced wholesale) */
   updateNodeData: (nodeId: string, data: Record<string, any>) => boolean;
   /** Get available variables grouped by source node */
