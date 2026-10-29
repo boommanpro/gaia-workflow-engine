@@ -336,8 +336,13 @@ export const Editor = () => {
     };
     let lastKey = structureKeyOf(workflowDocumentStore.getSnapshot().doc.toJSON());
     const applyNow = () => {
-      lastKey = structureKeyOf(workflowDocumentStore.getSnapshot().doc.toJSON());
       const dsl = workflowDocumentStore.getSnapshot().doc.toJSON();
+      lastKey = structureKeyOf(dsl);
+      // store 结构与画布当前内容一致时不重挂：打开工作流时，加载回写/草稿恢复
+      // 写进 store 的常是画布已有的同一份结构，重挂只会让整个编辑器无故重建一次
+      // （表现为打开 1~2 秒后页面又「刷新」了一下）。数据级差异由 canvas-sync
+      // 增量补丁负责，只有结构相对画布真的变了才走这里的整份重挂。
+      if (structureKeyOf(workflowDataRef.current) === lastKey) return;
       setWorkflowData(dsl);
       setRemountKey((k) => k + 1);
     };
