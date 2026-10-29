@@ -185,6 +185,10 @@ public class ConditionNode extends BaseNode {
     public List<Parameter> getOutputParameters() {
         List<Parameter> parameters = new ArrayList<>();
         for (Condition condition : conditions) {
+            // 空 key 跳过：不可引用也不可做出边端口（schema minLength:1，与 legalPortsOf 同口径）
+            if (condition.getKey() == null || condition.getKey().trim().isEmpty()) {
+                continue;
+            }
             Parameter parameter = new Parameter();
             parameter.setName(condition.getKey());
             parameter.setType(DataType.Boolean);

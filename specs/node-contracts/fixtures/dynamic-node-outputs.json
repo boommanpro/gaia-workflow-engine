@@ -1,0 +1,85 @@
+{
+  "$comment": "动态输出物化 parity 契约样例。前端 apps/console/src/nodes/__tests__/derived-outputs.test.ts 与后端 NodeDataNormalizerDynamicOutputsContractTest 引用同一份文件：condition/branches 的 outputs 派生规则（keys/ids + else，布尔）单边改动必然导致另一侧测试红灯。expectedOutputs 即 data.outputs.properties 的期望形状。",
+  "cases": [
+    {
+      "name": "condition-multi-keys",
+      "type": "condition",
+      "conditions": [
+        { "key": "if_pass", "value": { "operator": "contains", "left": { "type": "ref", "content": ["start_1", "text"] }, "right": { "type": "constant", "content": "ok" } } },
+        { "key": "if_match", "value": { "operator": "is_true", "left": { "type": "ref", "content": ["start_1", "flag"] } } }
+      ],
+      "expectedOutputs": {
+        "type": "object",
+        "properties": {
+          "if_pass": { "type": "boolean" },
+          "if_match": { "type": "boolean" },
+          "else": { "type": "boolean" }
+        }
+      }
+    },
+    {
+      "name": "condition-skips-blank-keys",
+      "type": "condition",
+      "conditions": [
+        { "key": "", "value": { "operator": "is_true", "left": { "type": "constant", "content": true } } },
+        { "key": "real_key", "value": { "operator": "is_true", "left": { "type": "constant", "content": true } } }
+      ],
+      "expectedOutputs": {
+        "type": "object",
+        "properties": {
+          "real_key": { "type": "boolean" },
+          "else": { "type": "boolean" }
+        }
+      }
+    },
+    {
+      "name": "condition-empty",
+      "type": "condition",
+      "conditions": [],
+      "expectedOutputs": {
+        "type": "object",
+        "properties": {
+          "else": { "type": "boolean" }
+        }
+      }
+    },
+    {
+      "name": "condition-missing-config",
+      "type": "condition",
+      "conditions": null,
+      "expectedOutputs": {
+        "type": "object",
+        "properties": {
+          "else": { "type": "boolean" }
+        }
+      }
+    },
+    {
+      "name": "branches-multi-ids",
+      "type": "branches",
+      "branches": [
+        { "id": "high_risk", "logic": "and", "conditions": [ { "key": "c1", "value": { "operator": "contains", "left": { "type": "ref", "content": ["start_1", "level"] }, "right": { "type": "constant", "content": "high" } } } ] },
+        { "id": "low_risk", "logic": "or", "conditions": [ { "key": "c2", "value": { "operator": "is_empty", "left": { "type": "ref", "content": ["start_1", "level"] } } } ] }
+      ],
+      "expectedOutputs": {
+        "type": "object",
+        "properties": {
+          "high_risk": { "type": "boolean" },
+          "low_risk": { "type": "boolean" },
+          "else": { "type": "boolean" }
+        }
+      }
+    },
+    {
+      "name": "branches-empty",
+      "type": "branches",
+      "branches": [],
+      "expectedOutputs": {
+        "type": "object",
+        "properties": {
+          "else": { "type": "boolean" }
+        }
+      }
+    }
+  ]
+}

@@ -10,6 +10,12 @@
  * 前后端必须用同一套输出口径，规则变更时两边契约测试同时红灯。
  */
 
+import {
+  deriveBranchesOutputs,
+  deriveConditionOutputs,
+  fieldsOfDerivedOutputs,
+} from '../nodes/derived-outputs';
+
 export interface UpstreamField {
   name: string;
   type: string;
@@ -63,18 +69,11 @@ function fieldsOf(type: string, data: Record<string, any>): UpstreamField[] | nu
   }
   switch (type) {
     case 'condition': {
-      const keys = (data?.conditions || [])
-        .map((c: any) => c?.key)
-        .filter((k: string | undefined) => !!k)
-        .map((k: string) => ({ name: k, type: 'boolean' }));
-      return [...keys, { name: 'else', type: 'boolean' }];
+      // 与 nodes/derived-outputs.ts 同一规则函数（= 后端 NodeDataNormalizer 口径）
+      return fieldsOfDerivedOutputs(deriveConditionOutputs(data?.conditions));
     }
     case 'branches': {
-      const ids = (data?.branches || [])
-        .map((b: any) => b?.id)
-        .filter((id: string | undefined) => !!id)
-        .map((id: string) => ({ name: id, type: 'boolean' }));
-      return [...ids, { name: 'else', type: 'boolean' }];
+      return fieldsOfDerivedOutputs(deriveBranchesOutputs(data?.branches));
     }
     case 'start':
     case 'code':

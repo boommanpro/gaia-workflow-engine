@@ -353,8 +353,10 @@ public final class WorkflowDslValidator {
                     if (conditions != null) {
                         for (int i = 0; i < conditions.size(); i++) {
                             JSONObject c = conditions.getJSONObject(i);
-                            if (c != null && c.getStr("key") != null) {
-                                fields.add(c.getStr("key"));
+                            String key = c == null ? null : c.getStr("key");
+                            // 空 key 跳过：不可引用也不可做出边端口（与 canonicalizer legalPortsOf 同口径）
+                            if (key != null && !key.trim().isEmpty()) {
+                                fields.add(key);
                             }
                         }
                     }
@@ -367,8 +369,9 @@ public final class WorkflowDslValidator {
                     if (branches != null) {
                         for (int i = 0; i < branches.size(); i++) {
                             JSONObject b = branches.getJSONObject(i);
-                            if (b != null && b.getStr("id") != null) {
-                                fields.add(b.getStr("id"));
+                            String branchId = b == null ? null : b.getStr("id");
+                            if (branchId != null && !branchId.trim().isEmpty()) {
+                                fields.add(branchId);
                             }
                         }
                     }

@@ -90,11 +90,19 @@
   },
   "condition": {
     "title": "Condition",
-    "conditions": []
+    "conditions": [],
+    "outputs": {
+      "type": "object",
+      "properties": {}
+    }
   },
   "branches": {
     "title": "Branches",
-    "branches": []
+    "branches": [],
+    "outputs": {
+      "type": "object",
+      "properties": {}
+    }
   },
   "loop": {
     "title": "Loop",

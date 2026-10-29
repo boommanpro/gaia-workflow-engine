@@ -225,6 +225,10 @@ public class BranchesNode extends BaseNode {
     public List<Parameter> getOutputParameters() {
         List<Parameter> parameters = new ArrayList<>();
         for (Branch branch : branches) {
+            // 空 id 跳过：不可引用也不可做出边端口（与 canonicalizer legalPortsOf 同口径）
+            if (branch.getId() == null || branch.getId().trim().isEmpty()) {
+                continue;
+            }
             Parameter parameter = new Parameter();
             parameter.setName(branch.getId());
             parameter.setType(DataType.Boolean);

@@ -3,7 +3,7 @@
   "$id": "https://gaia.workflow/schemas/node/condition",
   "title": "condition",
   "type": "object",
-  "description": "条件节点（单条件 if/else）。conditions[].key 同时是输出字段名与出边端口名；operator 合法值：contains/not_contains/eq/neq/gt/gte/lt/lte/is_empty/is_not_empty/is_true/is_false（注意是 neq/gte/lte，不是 ne/ge/le）。出边 fromPort 必须用 key 或 else，不能用 true/false。outputs 是每个 key 的布尔判定结果（命中=true，否则走 else 时 else=true），不是业务结果——要产出分支专属文案/数值，请在各分支后接 string-format/code 生成，再汇入 end；不要把 condition 的布尔输出直接引用为业务结果。",
+  "description": "条件节点（单条件 if/else）。conditions[].key 同时是输出字段名与出边端口名；operator 合法值：contains/not_contains/eq/neq/gt/gte/lt/lte/is_empty/is_not_empty/is_true/is_false（注意是 neq/gte/lte，不是 ne/ge/le）。出边 fromPort 必须用 key 或 else，不能用 true/false。outputs 是每个 key 的布尔判定结果（命中=true，否则走 else 时 else=true），不是业务结果——要产出分支专属文案/数值，请在各分支后接 string-format/code 生成，再汇入 end；不要把 condition 的布尔输出直接引用为业务结果。outputs 为系统派生字段（勿手写）：保存时自动从 conditions 重算每个 key + else 的布尔声明。",
   "definitions": {
     "constantValue": {
       "type": "object",
@@ -195,6 +195,34 @@
         ],
         "additionalProperties": false
       }
+    },
+    "outputs": {
+      "type": "object",
+      "description": "派生字段（系统自动生成，模型/用户勿手写）：每次保存从 conditions（或 branches）整体重算——每个 key/分支 id 的布尔命中结果 + 恒在的 else（布尔）。模型只需维护 conditions/branches 本身。",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "properties": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "boolean"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
     }
   },
   "required": [

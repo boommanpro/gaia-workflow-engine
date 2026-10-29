@@ -44,6 +44,12 @@ public final class NodeDataNormalizer {
             case "string-format":
                 normalizeStringFormat(data);
                 break;
+            case "condition":
+                deriveConditionOutputs(data);
+                break;
+            case "branches":
+                deriveBranchesOutputs(data);
+                break;
             case "loop":
                 // 模型常把循环体 blocks/edges 写进 data（schema additionalProperties:false 正确拒绝，
                 // 但模型屡教不改——2026-10-25 C09 实证）。data 层直接剥离，避免契约探针噪音；
@@ -599,6 +605,47 @@ public final class NodeDataNormalizer {
         }
         if (!properties.containsKey("formatStringResult")) {
             properties.set("formatStringResult", new JSONObject().set("type", "string"));
+        }
+    }
+
+    /**
+     * condition 动态输出物化（派生字段，整体重算）：outputs = 每个 conditions[].key 的
+     * 布尔命中结果 + 恒在的 else。此前 condition 节点文档里没有 outputs——运行时
+     * （ConditionNode.execute）明明产出这些布尔值，前端画布变量引擎却查不到
+     * condition_x.&lt;key&gt;/else，下游模板引用被误报 Unknown Variable。
+     * <p>outputs 是纯派生数据：每次归一化从 conditions 重算整体替换（同名机制见
+     * fillStaticOutputs 的固定输出对齐），画布表单 effect 与本规则同口径
+     * （前端 nodes/derived-outputs.ts），跨端 parity 由
+     * specs/node-contracts/fixtures/dynamic-node-outputs.json 钉住。</p>
+     */
+    private static void deriveConditionOutputs(JSONObject data) {
+        JSONArray conditions = data.getJSONArray("conditions");
+        deriveBooleanOutputs(data, conditions, "key");
+    }
+
+    /** branches 同机制：每个 branches[].id 的布尔命中结果 + else */
+    private static void deriveBranchesOutputs(JSONObject data) {
+        JSONArray branches = data.getJSONArray("branches");
+        deriveBooleanOutputs(data, branches, "id");
+    }
+
+    /** 按 nameField 收集布尔输出名（空名字段跳过，else 恒在且排最后），整体替换 outputs.properties */
+    private static void deriveBooleanOutputs(JSONObject data, JSONArray items, String nameField) {
+        JSONObject properties = new JSONObject();
+        if (items != null) {
+            for (int i = 0; i < items.size(); i++) {
+                JSONObject item = items.getJSONObject(i);
+                String name = item == null ? null : item.getStr(nameField);
+                if (name != null && !name.trim().isEmpty()) {
+                    properties.set(name, new JSONObject().set("type", "boolean"));
+                }
+            }
+        }
+        properties.set("else", new JSONObject().set("type", "boolean"));
+        JSONObject outputs = asObjectOrNew(data, "outputs");
+        outputs.set("properties", properties);
+        if (outputs.getStr("type") == null) {
+            outputs.set("type", "object");
         }
     }
 
