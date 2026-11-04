@@ -51,13 +51,19 @@ public final class WorkflowLayoutEngine {
     /** 画布边距原点（与前端历史 ORIGIN≈(80,120) 同视觉习惯） */
     private static final int MARGIN_X = 80;
     private static final int MARGIN_Y = 80;
-    /** 同层节点纵向间距 / 相邻层横向间距（对齐前端 dagre 整理的 nodesep/ranksep=100 观感）。
-     *  注意相邻层间距是 layered 独立选项（默认仅 20px——首版只设了 SPACING_NODE_NODE，
-     *  列与列几乎贴死，2026-10-29 用户验收反馈修正）；层间长边走廊同扩，避免连线贴节点边。 */
-    private static final double SPACING_NODE_NODE = 120;
-    private static final double SPACING_NODE_NODE_BETWEEN_LAYERS = 120;
-    private static final double SPACING_EDGE_NODE = 100;
-    private static final double SPACING_EDGE_NODE_BETWEEN_LAYERS = 80;
+    /**
+     * 间距与放置策略对齐前端 dagre 整理（nodesep/ranksep=100）的观感（2026-11-03 用户验收
+     * 「前端效果好」驱动，参数由 /tmp 探针对比实验选定）：
+     * · NODE_PLACEMENT_STRATEGY=NETWORK_SIMPLEX —— dagre 的定位正是 network simplex（Gansner
+     *   论文同源）。默认 BK 放置按「覆盖子节点」拉伸，分支群会把整图拉偏（主链浮上方），
+     *   NS 放置则把每层向流轴居中，主链/分支中心重合，与前端整理结果一致；
+     * · 边走廊压到 10 —— 画布自绘连线、不消费 ELK 边路由，默认/大边距只会白白撑大列距
+     *   （首版 80 时列距 480~530 参差，压到 10 后列距收敛为整齐的 460=360+100）。
+     */
+    private static final double SPACING_NODE_NODE = 100;
+    private static final double SPACING_NODE_NODE_BETWEEN_LAYERS = 100;
+    private static final double SPACING_EDGE_NODE = 10;
+    private static final double SPACING_EDGE_NODE_BETWEEN_LAYERS = 10;
 
     /**
      * 节点尺寸表（宽, 高）：布局用的只读镜像，唯一事实源是
@@ -178,6 +184,8 @@ public final class WorkflowLayoutEngine {
         root.setProperty(LayeredOptions.SPACING_NODE_NODE_BETWEEN_LAYERS, SPACING_NODE_NODE_BETWEEN_LAYERS);
         root.setProperty(CoreOptions.SPACING_EDGE_NODE, SPACING_EDGE_NODE);
         root.setProperty(LayeredOptions.SPACING_EDGE_NODE_BETWEEN_LAYERS, SPACING_EDGE_NODE_BETWEEN_LAYERS);
+        root.setProperty(LayeredOptions.NODE_PLACEMENT_STRATEGY,
+            org.eclipse.elk.alg.layered.options.NodePlacementStrategy.NETWORK_SIMPLEX);
         root.setProperty(LayeredOptions.RANDOM_SEED, 42);
 
         // 节点按 id 排序建图 —— 与 RANDOM_SEED 一起保证同输入同输出（确定性，防 run 结束重排跳动）
@@ -230,22 +238,128 @@ public final class WorkflowLayoutEngine {
 
         new RecursiveGraphLayoutEngine().layout(root, new BasicProgressMonitor());
 
-        // 归一化到边距原点（ELK 可能带 padding 偏移；坐标为 top-left，与 meta.position 同语义）
-        double minX = Double.MAX_VALUE;
-        double minY = Double.MAX_VALUE;
-        for (ElkNode elkNode : root.getChildren()) {
-            minX = Math.min(minX, elkNode.getX());
-            minY = Math.min(minY, elkNode.getY());
+        Map<String, long[]> raw = new LinkedHashMap<>();
+        for (JSONObject n : sortedNodes) {
+            ElkNode elkNode = elkById.get(n.getStr("id"));
+            raw.put(n.getStr("id"), new long[]{Math.round(elkNode.getX()), Math.round(elkNode.getY())});
         }
-        double shiftX = (minX == Double.MAX_VALUE ? 0 : minX) - MARGIN_X;
-        double shiftY = (minY == Double.MAX_VALUE ? 0 : minY) - MARGIN_Y;
+        // dagre 式层内居中（balance）：ELK NS 放置后主干被直边锚住、分支群不上不下，
+        // dagre 观感的最后一步是把每个节点朝「邻居中点」收拢（clamp 同层不重叠）
+        centerNodesTowardNeighborMidpoint(sortedNodes, edges, raw);
+
+        // 归一化到边距原点（ELK 可能带 padding 偏移；坐标为 top-left，与 meta.position 同语义）
+        long minX = Long.MAX_VALUE;
+        long minY = Long.MAX_VALUE;
+        for (long[] p : raw.values()) {
+            minX = Math.min(minX, p[0]);
+            minY = Math.min(minY, p[1]);
+        }
+        long shiftX = (minX == Long.MAX_VALUE ? 0 : minX) - MARGIN_X;
+        long shiftY = (minY == Long.MAX_VALUE ? 0 : minY) - MARGIN_Y;
         for (JSONObject n : sortedNodes) {
             if (!force && hasPosition(n)) {
                 continue;
             }
-            ElkNode elkNode = elkById.get(n.getStr("id"));
-            writePosition(n, Math.round(elkNode.getX() - shiftX), Math.round(elkNode.getY() - shiftY));
+            long[] p = raw.get(n.getStr("id"));
+            writePosition(n, p[0] - shiftX, p[1] - shiftY);
         }
+    }
+
+    /**
+     * dagre position 阶段 solve 之后的 balance 内核（2026-11-03 前端观感对齐）：
+     * 每个节点的目标中心 = 其全部前后驱邻居中心的「中点」，在「不与同层邻节点重叠」
+     * 的区间内尽量移动。两轮（列序正反各一遍）固定扫描，确定性。只动 y 不动 x——
+     * 分层与交叉结果保持 ELK 原样，仅收敛层内位置。
+     */
+    private static void centerNodesTowardNeighborMidpoint(List<JSONObject> nodes,
+                                                          List<JSONObject> edges,
+                                                          Map<String, long[]> raw) {
+        Map<String, int[]> sizeById = new LinkedHashMap<>();
+        Map<String, Long> topById = new LinkedHashMap<>();
+        Map<String, java.util.List<String>> pred = new LinkedHashMap<>();
+        Map<String, java.util.List<String>> succ = new LinkedHashMap<>();
+        for (JSONObject n : nodes) {
+            String id = n.getStr("id");
+            sizeById.put(id, sizeOf(n));
+            pred.put(id, new ArrayList<>());
+            succ.put(id, new ArrayList<>());
+        }
+        for (JSONObject e : edges) {
+            String s = e.getStr("sourceNodeID");
+            String t = e.getStr("targetNodeID");
+            if (succ.containsKey(s) && pred.containsKey(t)) {
+                succ.get(s).add(t);
+                pred.get(t).add(s);
+            }
+        }
+        // 列分组（x 相等视为同列）+ 层内纵向排序
+        java.util.TreeMap<Long, java.util.List<String>> columns = new java.util.TreeMap<>();
+        for (JSONObject n : nodes) {
+            String id = n.getStr("id");
+            topById.put(id, raw.get(id)[1]);
+            columns.computeIfAbsent(raw.get(id)[0], k -> new ArrayList<>()).add(id);
+        }
+        java.util.List<java.util.List<String>> orderedColumns = new ArrayList<>();
+        for (java.util.List<String> col : columns.values()) {
+            col.sort(java.util.Comparator.comparingLong(id -> topById.get(id)));
+            orderedColumns.add(col);
+        }
+
+        for (int round = 0; round < 2; round++) {
+            for (int dir = 0; dir < 2; dir++) {
+                for (int ci = (dir == 0 ? 0 : orderedColumns.size() - 1);
+                     0 <= ci && ci < orderedColumns.size(); ci += (dir == 0 ? 1 : -1)) {
+                    java.util.List<String> col = orderedColumns.get(ci);
+                    // 移动区间基于同层当前包围盒计算（上方留白 / 下方留白）
+                    for (int i = 0; i < col.size(); i++) {
+                        String id = col.get(i);
+                        int h = sizeById.get(id)[1];
+                        long top = topById.get(id);
+                        long minTop = i == 0 ? Long.MIN_VALUE / 4
+                            : topById.get(col.get(i - 1)) + sizeById.get(col.get(i - 1))[1] + (long) SPACING_NODE_NODE;
+                        long maxTop = i == col.size() - 1 ? Long.MAX_VALUE / 4
+                            : topById.get(col.get(i + 1)) - h - (long) SPACING_NODE_NODE;
+                        if (minTop > maxTop) {
+                            continue; // 层内本就挤满（NS 已保证 ≥gap，理论不触发）
+                        }
+                        long center = top + h / 2;
+                        long lo = Long.MAX_VALUE;
+                        long hi = Long.MIN_VALUE;
+                        for (String p : pred.get(id)) {
+                            lo = Math.min(lo, topById.get(p) + sizeById.get(p)[1] / 2L);
+                            hi = Math.max(hi, topById.get(p) + sizeById.get(p)[1] / 2L);
+                        }
+                        for (String s : succ.get(id)) {
+                            lo = Math.min(lo, topById.get(s) + sizeById.get(s)[1] / 2L);
+                            hi = Math.max(hi, topById.get(s) + sizeById.get(s)[1] / 2L);
+                        }
+                        if (lo > Long.MAX_VALUE / 2 || hi < Long.MIN_VALUE / 2) {
+                            continue; // 孤立节点不动
+                        }
+                        long targetCenter = (lo + hi) / 2;
+                        long targetTop = Math.max(minTop, Math.min(maxTop, targetCenter - h / 2));
+                        topById.put(id, targetTop);
+                        if (targetTop != top && Math.abs(targetCenter - center) > 1) {
+                            // 移动后同层后续节点区间随之变化，重排顺序保持 y 单调
+                            if (targetTop > top) {
+                                int j = i;
+                                while (j + 1 < col.size() && topById.get(col.get(j)) > topById.get(col.get(j + 1))) {
+                                    java.util.Collections.swap(col, j, j + 1);
+                                    j++;
+                                }
+                            } else {
+                                int j = i;
+                                while (j - 1 >= 0 && topById.get(col.get(j)) < topById.get(col.get(j - 1))) {
+                                    java.util.Collections.swap(col, j, j - 1);
+                                    j--;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        raw.forEach((id, p) -> p[1] = topById.get(id));
     }
 
     /** ELK 不可用时的保底：与旧实现同语义的 BFS 分层（先修重叠死穴，不追求美观） */

@@ -121,7 +121,7 @@ class WorkflowLayoutEngineTest {
     }
 
     @Test
-    @DisplayName("条件节点双分支（带端口）两路子节点不重叠")
+    @DisplayName("条件节点双分支（带端口）两路子节点不重叠、分支群居中")
     void conditionBranchesNoOverlap() {
         JSONObject cond = node("condition", "condition").set("data", new JSONObject()
             .set("title", "判断")
@@ -129,12 +129,16 @@ class WorkflowLayoutEngineTest {
                 .set(new JSONObject().set("key", "if_match"))));
         JSONObject d = doc(node("start", "start"), cond,
             node("t", "llm"), node("f", "llm"), node("end", "end"));
-        connect(d, "start", "condition", "end");
+        // 规范合法形状：condition 出边全部带 fromPort（无端口出边会被校验 fatal 打回），
+        // 分支在下游汇合到同一个 end
         JSONArray edges = d.getJSONArray("edges");
+        edges.set(new JSONObject().set("sourceNodeID", "start").set("targetNodeID", "condition"));
         edges.set(new JSONObject().set("sourceNodeID", "condition")
             .set("sourcePortID", "if_match").set("targetNodeID", "t"));
         edges.set(new JSONObject().set("sourceNodeID", "condition")
             .set("sourcePortID", "else").set("targetNodeID", "f"));
+        edges.set(new JSONObject().set("sourceNodeID", "t").set("targetNodeID", "end"));
+        edges.set(new JSONObject().set("sourceNodeID", "f").set("targetNodeID", "end"));
 
         WorkflowLayoutEngine.applyLayout(d, true);
 
@@ -142,6 +146,29 @@ class WorkflowLayoutEngineTest {
         assertNonNegative(d);
         Map<String, long[]> pos = positions(d);
         assertThat(pos.get("t")[1]).as("两分支纵向错开").isNotEqualTo(pos.get("f")[1]);
+
+        // dagre 观感钉子（2026-11-03 用户验收「前端效果好」）：NS 放置 + 层内居中后处理下
+        // 分支群中心与分支源节点中心必须大致对齐 —— 无后处理时偏差 200+（主干被直边锚住）
+        int[] condSize = sizeOf((JSONObject) docNode(d, "condition"));
+        long tTop = pos.get("t")[1];
+        long fTop = pos.get("f")[1];
+        long tH = sizeOf((JSONObject) docNode(d, "t"))[1];
+        long fH = sizeOf((JSONObject) docNode(d, "f"))[1];
+        long branchCenter = (Math.min(tTop, fTop) + Math.max(tTop + tH, fTop + fH)) / 2;
+        long conditionCenter = pos.get("condition")[1] + condSize[1] / 2;
+        assertThat(Math.abs(branchCenter - conditionCenter))
+            .as("分支群中心 y=%d 应与条件节点中心 y=%d 大致对齐（dagre 观感；NS 裸放置偏差 210）",
+                branchCenter, conditionCenter)
+            .isLessThanOrEqualTo(100);
+    }
+
+    private static Object docNode(JSONObject doc, String id) {
+        for (Object o : doc.getJSONArray("nodes")) {
+            if (id.equals(((JSONObject) o).getStr("id"))) {
+                return o;
+            }
+        }
+        throw new IllegalStateException("node not found: " + id);
     }
 
     @Test

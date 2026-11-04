@@ -201,6 +201,78 @@
   `npm run build`（rsbuild 产物正常）。未验证：真实模型端到端生成后的画布目测、存量草稿重开回归、
   ELK 在 Spring Boot fat jar 中的启动实测（本机 mvn test 已在 classpath 验证，fat jar 打包仅差 deploy 验证）。
 
+- 2026-11-03（用户验收反馈「间距太少」两轮 + 「前端（dagre 整理）效果好」，对标调参）：
+  · 第一轮（列贴列）：ELK 相邻层间距是独立选项 `SPACING_NODE_NODE_BETWEEN_LAYERS`（默认仅 20px），
+    首版漏设——补设并回归断言「链式图相邻列净距 ≥100」。
+  · 第二轮（对齐 dagre 观感，探针对比实验选定参数）：① NODE_PLACEMENT_STRATEGY=NETWORK_SIMPLEX
+    （dagre 定位即 network simplex，Gansner 论文同源）——默认 BK 放置按「覆盖子节点」拉伸，分支群
+    整体下沉 457px、主链浮上方；NS 下分支群中心与分支源节点中心对齐。② 间距收敛 100/100（对齐
+    dagre nodesep/ranksep），边走廊压到 10（画布自绘连线不消费 ELK 边路由，大边距只会撑大列距，
+    列距从 480~530 参差收敛为均匀 460）。③ 新增 `centerNodesTowardNeighborMidpoint` 层内居中后处理
+    ——复刻 dagre position 阶段的 balance 内核（目标=邻居中点，clamp 同层不重叠，两轮双向扫描），
+    补上 ELK 缺的「主干向分支群中点收拢」一步；只动 y 不动 x，分层与交叉结果保持 ELK 原样，确定性不变。
+  · 测试：conditionBranchesNoOverlap 改为规范合法形状（condition 出边全带 fromPort、分支汇合同一 end
+    ——无端口出边本就会被校验 fatal，原测试图是非法形状），新增「分支群中心与条件节点中心偏差 ≤100」
+    观感钉子（无后处理时偏差 210）；15/15 通过。接口验收（/tmp 脚本对运行中后端实测）：9 节点三分支图
+    分支群中心与条件中心偏差 0、列距均匀 460、主链围绕同一轴心，浏览器截图目测与前端 dagre 整理一致。
+  验证：`mvn -B -pl gaia-workflow-app -am -Dtest=WorkflowLayoutEngineTest,WorkflowLayoutEngineNodeSizeContractTest,
+  SessionDraftLayoutRevisionTest test`（15 通过）；重启后端 + push-draft/auto-layout/document 接口实测 +
+  IAB 截图目测。未验证：真实模型生成的复杂图（深嵌套/多汇合点）目测、本轮改动的前端回归未重跑（无前端改动）。
+
+- 2026-10-30（用户决策：落版记来源会话 + AI 起草版本说明，发布门槛不变）：
+  · 版本溯源：`gaia_workflow_version` 新增 `source_session` 列——会话页「保存为版本」
+    （SessionDraftPublishService → WorkflowDslApplyService.ApplyOptions.sourceSession）落版时记录
+    产出该版本的会话 key；REST 直接落版（编辑器专家模式）为 null。存量库迁移由
+    `SqliteColumnMigrator`（ApplicationRunner，PRAGMA table_info 探测后 ALTER ADD COLUMN）
+    幂等补列，新库走 schema.sql。
+  · 版本说明建议（AI 只起草、用户落版）：新增 `POST /api/agent/session/{key}/version-desc-suggestion`
+    （VersionDescSuggestionService）——当前草稿 vs 目标工作流生效版本的 diff 交 LLM 概括成
+    ≤20 字一句话（复用 LlmCompletionService，10 秒超时独立守护线程），LLM 失败/超时回退
+    WorkflowDiffService.summarize 确定性摘要，无结构变更不花模型调用直达固定文案；
+    保存弹窗（ArtifactPanel）打开时预填描述框，等待期用户已打字则不覆盖。
+    原默认文案「AI 生成」（用户不改就原样入库）替换为空 + placeholder。
+  验证：`mvn -B -pl gaia-workflow-app -am test`（365 通过 0 失败，1 项既有跳过；新增
+  VersionDescSuggestionServiceTest 5 项——LLM 优先/失败回退/更新场景计数/无变更跳过 LLM/空草稿、
+  SqliteColumnMigratorTest 2 项——补列幂等/新列可写）；前端 `npm test`（181 通过 26 文件）、
+  `npm run ts-check`（改动文件 0 错误，29 个既有错误均在未改动文件）。
+  未验证：浏览器端到端（弹窗预填实际交互、LLM 真实调用延迟体验）、存量库重启后
+  source_session 迁移实测（单测覆盖迁移逻辑，未在真实 gaia_workflow.db 上执行）。
+
+- 2026-11-03（呈现层改版：历史统一时间线，移除「设为生效」直切，纯前端）：
+  · 背景：原「画布历史」弹窗分「本会话版本 vN / 落版版本 vN.M」两区，两套 vN 编号同框；
+    「回滚到此」与「设为生效」并排一词两义，「设为生效」一键直切线上。产品调研
+    （Dify 草稿/发布、Replit checkpoint/commit 混排时间线）后用户确认：合并为一条时间线。
+  · 实现（apps/console，后端零改动）：CanvasHistoryPopover 重构为 CanvasHistoryTimeline
+    （纯内容）+ Popover 壳——快照=紧凑行（时间+来源+AI 摘要，不再编号 vN）、版本=里程碑
+    卡片（v 号+生效中 Tag+描述+来源 meta：source_session→会话落版 / createdBy=user→手动保存 /
+    其余→编辑器落版）；过滤 chips 全部/仅版本；动作统一为 载入/对比（快照对比复用
+    DeltaDetailsView 本地渲染，版本对比仍走 getVersionDiff）。「设为生效」直切按钮移除，
+    set-current 端点保留——线上切换唯一入口改为编辑器头部「载入旧版 → 预览态 → 发布生效
+    （Popconfirm 确认）」（指针回拨，不产生新版本行，符合 NC-08「回滚恢复旧指针」）。
+  · 会话侧「载入」：canvas-draft-sync 新增 loadVersionIntoSessionCanvas（getVersionById →
+    store.replace reason='import' → push-draft source='rollback'，streaming 拒绝）——只改会话
+    草稿不动 is_current；会话入口按钮「画布历史 vN」→「历史 · 未保存圆点」，显示条件放宽为
+    快照>0 或已绑定 workflowCode。数据模型、校验链、发布门槛、draft_<sessionKey> 机制零改动。
+  · GaiaWorkflowVersion TS 类型补 diffJson/sourceSession（后端实体早已返回）。
+  · 同日迭代（用户反馈「载入一次多一条版本」）：载入在数据层仍记 reason='import' 快照（撤销链
+    与「当前」标记完整性需要），但其内容与被载入的里程碑完全相同——渲染层按内容键隐藏
+    （versionContentKey 走与快照相同的 fromJSON→toJSON 序列化管线，字符串直接比对；指纹不匹配
+    时兜底显示），被载入的里程碑高亮「当前」（按内容判定，替代原 viewingVersionId 的 id 判定，
+    编辑器/会话两场景统一），编辑器首次打开的幽灵 import 行同样消失。快照标签「载入版本」→
+    「载入」（「版本」一词收归里程碑）。CanvasHistoryPopover/Timeline 的 viewingVersionId prop
+    移除（editor.tsx 调用点同步）。
+  验证：前端 `npm run ts-check`（改动文件 0 错误，总数 29 与基线一致均在未改动文件）、
+  `npm test`（188 通过 27 文件，新增 canvas-history-popover.render.test.tsx 7 项——混排同列/
+  无设为生效/里程碑动作与来源 meta/仅版本过滤/未落版引导/底部说明/载入不留行）、`npm run lint`
+  （改动文件 0 error）。浏览器实测（localhost:3001 + 48080 真实数据）：会话页「历史」弹窗
+  （快照行+未落版引导+底部说明）；编辑器 wf_087b971f1357（3 版本）时间线里程碑与来源 meta
+  正确、载入 v1.2 → 头部「预览 v1.2 · 生效 v1.1」+「发布生效」→ 确认弹窗文案正确后取消；
+  迭代后复验——刷新编辑器幽灵「载入版本」行消失、v1.1 标「生效中+当前」且无载入按钮，
+  载入 v1.2 后时间线零新增行、v1.2 里程碑标「当前」、v1.1 恢复载入按钮。
+  未验证：确认弹窗点「确认发布」后的 set-current 实际切换（避免动真实数据，端点行为未改动）；
+  会话侧旧版「载入」的浏览器端到端（单测与代码链路已覆盖，未找绑定工作流的会话实测）；
+  en-US 界面仅静态文案检查未切语言实测。
+
 ## 未完成及注意事项
 
 | 规范 | 当前边界 | 后续验收 |
