@@ -14,10 +14,11 @@
  *   5. 会话「保存为版本」前（ArtifactPanel.handleSave 对齐所见即所存）
  *   6. 编辑器落版保存成功后回写（editor.tsx settleSaved），让 AI 的下一轮与保存结果一致
  */
-import { workflowDocumentStore } from '../document';
+import { workflowApi } from '../services/workflow-api';
+import { WorkflowDocument, workflowDocumentStore } from '../document';
 import { getSessionKeyForWorkflow } from '../ai-workspace/session-scope';
-import { agentApi } from './api';
 import { sessionRuntime } from './runtime/store';
+import { agentApi } from './api';
 
 export interface DraftPushResult {
   ok: boolean;
@@ -111,7 +112,7 @@ export function hasUnsyncedLocalEdits(): boolean {
 /** 把当前本地画布推成会话的服务端草稿（非空校验 + 绑定码随行） */
 export async function pushCanvasDraftToSession(
   sessionKey: string | null | undefined,
-  opts?: { workflowCode?: string; source?: string; dsl?: any },
+  opts?: { workflowCode?: string; source?: string; dsl?: any }
 ): Promise<DraftPushResult> {
   if (!sessionKey || sessionKey.startsWith('draft-')) {
     return { ok: true, skipped: true, reason: 'no-session' };
@@ -137,7 +138,9 @@ export async function pushCanvasDraftToSession(
     // 记录指纹：这次推送触发的服务端 document 广播回来时按它识别回声
     try {
       lastPushedFingerprint = { at: startedAt, canon: contentFingerprint(dsl) };
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     return { ok: true };
   } catch (e) {
     return { ok: false, error: (e as Error).message };
@@ -174,11 +177,49 @@ export type RollbackResult = boolean | 'streaming';
 export function rollbackCanvasTo(
   snapshotId: string,
   sessionKey: string | null | undefined,
-  onSyncFailed?: (error: string) => void,
+  onSyncFailed?: (error: string) => void
 ): RollbackResult {
   if (sessionRuntime.getState().streaming) return 'streaming';
   const ok = workflowDocumentStore.rollbackTo(snapshotId);
   if (!ok) return false;
+  void pushCanvasDraftToSession(sessionKey, { source: 'rollback' }).then((res) => {
+    if (!res.ok && !res.skipped) onSyncFailed?.(res.error || 'sync failed');
+  });
+  return true;
+}
+
+/**
+ * 载入落版版本到会话画布（统一时间线「载入」的会话侧实现，2026-11-03）：
+ * 拉版本 DSL → 替换本地画布（记一条 reason='import' 的快照，时间线上可追溯）
+ * → 推回服务端草稿，AI 下一轮与「保存为版本」都基于载入后的内容。
+ *
+ * 与 rollbackCanvasTo 同一守卫：AI 运行中拒绝，避免与服务端广播互相覆盖。
+ * 注意：这里只改会话草稿，不动任何版本的 is_current —— 会话侧想让线上变化，
+ * 唯一路径是把载入后的画布「保存为版本」（产生新版本），符合「线上只被
+ * 用户显式发布动作改变」的改版不变式。
+ *
+ * 返回值与 RollbackResult 同义：true=已载入（服务端同步已发起）/ false=版本
+ * 不存在或 DSL 为空 / 'streaming'=AI 运行中。
+ */
+export async function loadVersionIntoSessionCanvas(
+  sessionKey: string | null | undefined,
+  versionId: number,
+  onSyncFailed?: (error: string) => void
+): Promise<RollbackResult> {
+  if (sessionRuntime.getState().streaming) return 'streaming';
+  try {
+    const version = await workflowApi.getVersionById(versionId);
+    const raw =
+      typeof version?.workflowData === 'string'
+        ? JSON.parse(version.workflowData)
+        : version?.workflowData;
+    if (!raw) return false;
+    const doc = WorkflowDocument.fromJSON(raw);
+    if (doc.isEmpty) return false;
+    workflowDocumentStore.replace(doc, { kind: 'replace', source: 'system', reason: 'import' });
+  } catch {
+    return false;
+  }
   void pushCanvasDraftToSession(sessionKey, { source: 'rollback' }).then((res) => {
     if (!res.ok && !res.skipped) onSyncFailed?.(res.error || 'sync failed');
   });

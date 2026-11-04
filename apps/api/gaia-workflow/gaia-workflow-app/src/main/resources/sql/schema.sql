@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS gaia_workflow_version (
     created_by VARCHAR(64),
     created_at TEXT,
     is_current TINYINT DEFAULT 0,
+    source_session VARCHAR(64),
     UNIQUE(workflow_code, version_number)
 );
 

@@ -62,4 +62,11 @@ public class GaiaWorkflowVersion {
      */
     @TableField("is_current")
     private Integer isCurrent;
+
+    /**
+     * 来源会话 key（仅会话页「保存为版本」落版的行有值）：审计时可回答
+     * 「该版本从哪次对话产出」。REST 直接落版（编辑器专家模式等）为 null。
+     */
+    @TableField("source_session")
+    private String sourceSession;
 }

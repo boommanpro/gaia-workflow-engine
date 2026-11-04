@@ -51,25 +51,34 @@ export const enUS: I18nLanguage = {
     'features.title': 'Everything you need to build AI workflows',
     'features.subtitle': 'A complete toolkit for visual AI pipeline development',
     'feature.canvas.title': 'Visual Canvas',
-    'feature.canvas.desc': 'An infinite, zoomable canvas with drag-and-drop nodes. Design complex workflows with loops, branches, and conditional logic.',
+    'feature.canvas.desc':
+      'An infinite, zoomable canvas with drag-and-drop nodes. Design complex workflows with loops, branches, and conditional logic.',
     'feature.nodes.title': 'AI Node Types',
-    'feature.nodes.desc': 'Built-in support for LLM calls, code execution, HTTP requests, string formatting, and variable management.',
+    'feature.nodes.desc':
+      'Built-in support for LLM calls, code execution, HTTP requests, string formatting, and variable management.',
     'feature.preview.title': 'Real-time Preview',
-    'feature.preview.desc': 'Test individual nodes or the entire workflow with live input/output inspection and execution history.',
+    'feature.preview.desc':
+      'Test individual nodes or the entire workflow with live input/output inspection and execution history.',
     'feature.version.title': 'Version Management',
-    'feature.version.desc': 'Every save creates a version. Switch between versions, track changes, and roll back with one click.',
+    'feature.version.desc':
+      'Every save creates a version. Switch between versions, track changes, and roll back with one click.',
     'feature.template.title': 'Template System',
-    'feature.template.desc': 'Create reusable workflow templates. Spin up new workflows from templates with a single click.',
+    'feature.template.desc':
+      'Create reusable workflow templates. Spin up new workflows from templates with a single click.',
     'feature.plugin.title': 'Extensible Plugins',
-    'feature.plugin.desc': 'Plugin architecture: minimap, auto-layout, snap lines, node panel, and more.',
+    'feature.plugin.desc':
+      'Plugin architecture: minimap, auto-layout, snap lines, node panel, and more.',
     'steps.title': 'From idea to deployment in three steps',
     'steps.subtitle': 'A streamlined workflow for building AI applications',
     'step.create.title': 'Create',
-    'step.create.desc': 'Start from scratch or pick a template. Name your workflow and you are ready to design.',
+    'step.create.desc':
+      'Start from scratch or pick a template. Name your workflow and you are ready to design.',
     'step.design.title': 'Design',
-    'step.design.desc': 'Drag nodes onto the canvas, connect them, configure inputs. Test as you go with real-time preview.',
+    'step.design.desc':
+      'Drag nodes onto the canvas, connect them, configure inputs. Test as you go with real-time preview.',
     'step.deploy.title': 'Deploy',
-    'step.deploy.desc': 'Save your workflow with version tracking. Revisit, iterate, and roll back anytime.',
+    'step.deploy.desc':
+      'Save your workflow with version tracking. Revisit, iterate, and roll back anytime.',
     'tech.title': 'Built on a solid foundation',
     'tech.subtitle': 'Open-source technologies, battle-tested at scale',
     'docs.title': 'Documentation',
@@ -81,7 +90,8 @@ export const enUS: I18nLanguage = {
     'docs.backendNote': 'API server runs on port 48080',
     'docs.deployTitle': 'Deployment Options',
     'deploy.standalone.title': 'Standalone',
-    'deploy.standalone.desc': 'Frontend and backend deployed separately for large distributed systems.',
+    'deploy.standalone.desc':
+      'Frontend and backend deployed separately for large distributed systems.',
     'deploy.allinone.title': 'All-in-One',
     'deploy.allinone.desc': 'Bundled as a single application for small to medium teams.',
     'deploy.ghpages.title': 'GitHub Pages',
@@ -96,7 +106,8 @@ export const enUS: I18nLanguage = {
     'home.subtitle': 'Gaia',
     'home.subtitleAlt': 'AI Workflow Editor',
     'serverConfig.title': 'Configure Server Address',
-    'serverConfig.desc': 'Cannot connect to the backend service. Please enter your backend server address (e.g., http://127.0.0.1:48080/api). The page will reload after saving.',
+    'serverConfig.desc':
+      'Cannot connect to the backend service. Please enter your backend server address (e.g., http://127.0.0.1:48080/api). The page will reload after saving.',
     'serverConfig.saveReconnect': 'Save & Reconnect',
     'serverConfig.returnHome': 'Return to Home',
 
@@ -161,18 +172,25 @@ export const enUS: I18nLanguage = {
     'editor.loadingTemplate': 'Loading template…',
     'editor.version': 'Version',
     'editor.versionEffective': 'Effective {{v}}',
+    'editor.previewLabel': 'Preview {{v}}',
     'editor.unsavedBadge': 'Unsaved',
-    'editor.unsavedHint': 'The canvas differs from the last saved version (manual edits / AI changes / rollbacks all produce an unsaved state)',
+    'editor.unsavedHint':
+      'The canvas differs from the last saved version (manual edits / AI changes / rollbacks all produce an unsaved state)',
     'editor.current': 'CURRENT',
     'editor.effective': 'EFFECTIVE',
-    'editor.viewing': 'VIEWING',
-    'editor.setEffective': 'Set Effective',
+    'editor.viewing': 'LOADED',
+    'editor.publishEffective': 'Make effective',
+    'editor.publishEffectiveTitle': 'Make {{v}} the effective version?',
+    'editor.publishEffectiveContent':
+      'The live API switches to {{v}} immediately; all versions are kept and you can switch back anytime.',
+    'editor.publishEffectiveOk': 'Confirm',
     'editor.sessionDraft': 'Session draft · save to share edits with the AI',
     'editor.syncToChat': 'Sync to chat',
     'editor.syncing': 'Syncing…',
     'editor.synced': 'Synced',
     'editor.syncFailed': 'Sync failed: ',
-    'editor.syncNoSession': 'This canvas is not bound to a session; open it from the chat page to refine.',
+    'editor.syncNoSession':
+      'This canvas is not bound to a session; open it from the chat page to refine.',
     'chat.historySumNodeAdded': 'Added nodes ',
     'chat.historySumNodeRemoved': 'Removed nodes ',
     'chat.historySumNodeUpdated': 'Updated nodes ',
@@ -191,7 +209,8 @@ export const enUS: I18nLanguage = {
     'editor.saveFailed': 'Save failed: ',
     'editor.saveAsVersionFailed': 'Save as new version failed: ',
     'editor.needCodeTitle': 'Workflow code required',
-    'editor.needCodeDesc': 'This canvas has no workflow code yet (AI draft). Enter one to save it as the initial version, which also becomes the effective version of the new workflow.',
+    'editor.needCodeDesc':
+      'This canvas has no workflow code yet (AI draft). Enter one to save it as the initial version, which also becomes the effective version of the new workflow.',
     'editor.aiPendingTitle': 'AI submitted canvas changes',
     'editor.aiPendingStreaming': 'AI is modifying the canvas',
     'editor.aiPendingView': 'View diff',
@@ -200,9 +219,11 @@ export const enUS: I18nLanguage = {
     'editor.aiPendingApplied': 'AI canvas changes applied',
     'editor.aiPendingApplyFailed': 'Apply failed: ',
     'editor.aiPendingDiffTitle': 'Preview AI changes',
-    'editor.aiPendingDiffDesc': 'Comparing current canvas → AI draft. Apply updates the canvas to the AI version.',
+    'editor.aiPendingDiffDesc':
+      'Comparing current canvas → AI draft. Apply updates the canvas to the AI version.',
     'editor.aiPendingConflictTitle': 'Your manual edits detected',
-    'editor.aiPendingConflictDesc': 'Applying the AI version will overwrite the manual edits listed below. Cancel first and save the current canvas as a version if you want to keep them.',
+    'editor.aiPendingConflictDesc':
+      'Applying the AI version will overwrite the manual edits listed below. Cancel first and save the current canvas as a version if you want to keep them.',
     'editor.aiPendingConflictApply': 'Apply anyway',
 
     /* ---------- Tools ---------- */
@@ -307,7 +328,8 @@ export const enUS: I18nLanguage = {
     'singleNode.testThisNode': 'Test This Node',
     'singleNode.runNode': 'Run Node',
     'singleNode.refInputs': 'Reference Variables',
-    'singleNode.refInputsHint': 'Enter mock values for referenced upstream variables. Constant config is already set in the node.',
+    'singleNode.refInputsHint':
+      'Enter mock values for referenced upstream variables. Constant config is already set in the node.',
     'singleNode.noRefFields': 'This node has no upstream references. Ready to run.',
     'singleNode.result': 'Result',
     'singleNode.outputs': 'Outputs',
@@ -315,8 +337,10 @@ export const enUS: I18nLanguage = {
     'singleNode.success': 'Success',
     'singleNode.executionFailed': 'Execution Failed',
     'singleNode.running': 'Running…',
-    'singleNode.unsupportedType': 'This node type is not executable and cannot be tested standalone',
-    'singleNode.unsupportedHint': 'Only annotation nodes (note/group etc.) are unsupported; all other types (incl. loop and nested workflow) can run standalone',
+    'singleNode.unsupportedType':
+      'This node type is not executable and cannot be tested standalone',
+    'singleNode.unsupportedHint':
+      'Only annotation nodes (note/group etc.) are unsupported; all other types (incl. loop and nested workflow) can run standalone',
     'singleNode.requestFailed': 'Request failed: ',
     'singleNode.placeholderMockValue': 'Enter mock value',
     'singleNode.placeholderJson': 'Enter JSON',
@@ -340,21 +364,28 @@ export const enUS: I18nLanguage = {
     'node.label.workflow': 'Workflow',
 
     /* ---------- Node descriptions ---------- */
-    'node.desc.start': 'The starting node of the workflow, used to set the information needed to initiate the workflow.',
-    'node.desc.end': 'The final node of the workflow, used to return the result information after the workflow is run.',
-    'node.desc.llm': 'Call the large language model and use variables and prompt words to generate responses.',
+    'node.desc.start':
+      'The starting node of the workflow, used to set the information needed to initiate the workflow.',
+    'node.desc.end':
+      'The final node of the workflow, used to return the result information after the workflow is run.',
+    'node.desc.llm':
+      'Call the large language model and use variables and prompt words to generate responses.',
     'node.desc.http': 'Call the HTTP API.',
     'node.desc.code': 'Run the script.',
     'node.desc.variable': 'Variable assign and declaration.',
-    'node.desc.condition': 'Connect multiple downstream branches. Only the corresponding branch will be executed if the set conditions are met.',
-    'node.desc.branches': 'Connect multiple downstream branches. Only the corresponding branch will be executed if the set conditions are met.',
-    'node.desc.loop': 'Used to repeatedly execute a series of tasks by setting the number of iterations and logic.',
+    'node.desc.condition':
+      'Connect multiple downstream branches. Only the corresponding branch will be executed if the set conditions are met.',
+    'node.desc.branches':
+      'Connect multiple downstream branches. Only the corresponding branch will be executed if the set conditions are met.',
+    'node.desc.loop':
+      'Used to repeatedly execute a series of tasks by setting the number of iterations and logic.',
     'node.desc.block-start': 'The starting node of the block.',
     'node.desc.block-end': 'The final node of the block.',
     'node.desc.continue': 'Skip the current loop iteration and continue with the next one.',
     'node.desc.break': 'Break out of the current loop.',
     'node.desc.string-format': 'String format.',
-    'node.desc.workflow': 'Embed another workflow, supporting parameter passing and result returning.',
+    'node.desc.workflow':
+      'Embed another workflow, supporting parameter passing and result returning.',
 
     /* ---------- HTTP form ---------- */
     'http.api': 'API',
@@ -400,7 +431,8 @@ export const enUS: I18nLanguage = {
     'agent.inputPlaceholderStreaming': 'Replying…',
     'agent.emptySession': 'Click + to start a new chat',
     'agent.welcomeTitle': 'Start chatting with Agent',
-    'agent.welcomeDesc': 'Ask me to create workflows, query data, or manipulate nodes on the canvas',
+    'agent.welcomeDesc':
+      'Ask me to create workflows, query data, or manipulate nodes on the canvas',
     'agent.noSession': 'No sessions',
     'agent.unnamedSession': 'Untitled session',
     'agent.doubleClickToRename': 'Double-click to rename',
@@ -462,7 +494,8 @@ export const enUS: I18nLanguage = {
     'workspace.newConversation': 'New conversation',
     'workspace.artifact': 'Workflow artifact',
     'workspace.artifactEmpty': 'No artifact yet',
-    'workspace.artifactEmptyDesc': 'Describe the workflow you want — the AI will produce a runnable orchestration',
+    'workspace.artifactEmptyDesc':
+      'Describe the workflow you want — the AI will produce a runnable orchestration',
     'workspace.artifactRecords': 'Artifact records',
     'workspace.stats': '{{nodes}} nodes · {{edges}} edges',
     'workspace.tabPreview': 'Preview',
@@ -474,22 +507,26 @@ export const enUS: I18nLanguage = {
     'workspace.saveVersion': 'Save as version',
     'workspace.saveTarget': 'Save to',
     'workspace.saveAsNew': 'New workflow',
-    'workspace.saveVersionDesc': 'Write the current artifact as a new workflow version and set it active',
+    'workspace.saveVersionDesc':
+      'Write the current artifact as a new workflow version and set it active',
     'workspace.workflowCode': 'Workflow code',
     'workspace.versionDesc': 'Version description',
+    'workspace.versionDescPlaceholder': 'One line describing this change (AI-drafted, editable)',
     'workspace.copyDsl': 'Copy DSL',
     'workspace.validation': 'Validation',
     'workspace.copied': 'Copied',
     'workspace.downloadDsl': 'Download JSON',
     'workspace.collapseArtifact': 'Collapse artifact panel',
     'workspace.expandArtifact': 'Expand artifact panel',
-    'workspace.inputPlaceholder': 'Describe the workflow you want — the AI will produce the full orchestration…',
+    'workspace.inputPlaceholder':
+      'Describe the workflow you want — the AI will produce the full orchestration…',
     'workspace.inputHint': 'Enter to send · Shift+Enter for a new line',
     'workspace.stop': 'Stop generating',
     'workspace.adminConsole': 'Admin console',
     'workspace.workflowLibrary': 'Workflow library',
     'workspace.greeting': 'What workflow do you want to build?',
-    'workspace.greetingDesc': 'Describe your goal in one sentence — the AI produces the complete orchestration.',
+    'workspace.greetingDesc':
+      'Describe your goal in one sentence — the AI produces the complete orchestration.',
     'workspace.producedBy': 'Produced by AI',
     'workspace.dirtyHint': 'Unsaved changes',
     'workspace.savedHint': 'Up to date',
@@ -512,8 +549,10 @@ export const enUS: I18nLanguage = {
     'workspace.openWorkflow': 'Open workflow',
     'workspace.copilot': 'AI copilot',
     'workspace.copilotEmpty': 'No conversation for this workflow yet',
-    'workspace.copilotEmptyDesc': 'The conversation is shared with the AI workspace, so the copilot sees every change on the canvas.',
-    'workspace.copilotScopedDesc': 'The current conversation belongs to another workflow. Start a dedicated one so the context stays clean.',
+    'workspace.copilotEmptyDesc':
+      'The conversation is shared with the AI workspace, so the copilot sees every change on the canvas.',
+    'workspace.copilotScopedDesc':
+      'The current conversation belongs to another workflow. Start a dedicated one so the context stays clean.',
     'workspace.startScopedChat': 'Start a conversation for this workflow',
     'workspace.resumeOwningChat': 'Continue with the conversation that created it',
     'workspace.copilotPlaceholder': 'Describe a change — the AI edits the canvas directly…',
@@ -528,14 +567,16 @@ export const enUS: I18nLanguage = {
     // —— Expert mode: canvas context awareness ——
     'workspace.changeBar': 'AI just updated the canvas to v{{n}}',
     'workspace.undoChange': 'Undo this',
-    'workspace.undoConfirmContent': 'This will undo the AI\'s latest canvas changes and restore the previous version; the server draft and subsequent AI context are restored together.',
+    'workspace.undoConfirmContent':
+      "This will undo the AI's latest canvas changes and restore the previous version; the server draft and subsequent AI context are restored together.",
     'workspace.referenceNode': 'Selected "{{name}}"',
     'workspace.clearReference': 'Clear reference',
     'workspace.referenceHint': 'This message will carry the node context',
     'workspace.quickExplain': 'Explain this node',
     'workspace.quickOptimize': 'Optimize its config',
     'workspace.quickRename': 'Rename this node',
-    'workspace.versionHint': 'Current canvas version — switch or roll back via "Version" in the editor header',
+    'workspace.versionHint':
+      'Current canvas version — switch or roll back via "Version" in the editor header',
 
     // —— Shared chat copy (general mode + expert mode) ——
     'chat.welcomeTitle': 'What can I help you build?',
@@ -571,12 +612,15 @@ export const enUS: I18nLanguage = {
     'chat.waitingYourAnswer': 'Waiting for your answer… (AI is paused until you pick or type)',
     'chat.askAutoAnswered': 'Auto-selected after timeout',
     'chat.askRecommended': 'Recommended',
-    'chat.askExpired': 'This question has closed (timed out or run stopped). Continue in the composer below.',
+    'chat.askExpired':
+      'This question has closed (timed out or run stopped). Continue in the composer below.',
     'chat.askInputPlaceholder': 'Or type your answer…',
     'chat.askSubmit': 'Send',
     'shell.langPending': 'Coming soon',
-    'shell.langPendingTitle': 'Language switching is paused: focusing on the Chinese experience first',
-    'shell.langPendingNote': 'Language switching is not implemented yet.\nFocusing on the Chinese experience first; English support will come later.',
+    'shell.langPendingTitle':
+      'Language switching is paused: focusing on the Chinese experience first',
+    'shell.langPendingNote':
+      'Language switching is not implemented yet.\nFocusing on the Chinese experience first; English support will come later.',
     'chat.copyFailed': 'Copy failed',
     'chat.debug': 'Debug details',
     'chat.reconnecting': 'Connection lost, reconnecting…',
@@ -584,7 +628,8 @@ export const enUS: I18nLanguage = {
     'chat.toolRunning': 'running…',
     'chat.stepTypeThink': 'Think',
     'chat.contextCapacity': 'Context capacity',
-    'chat.contextCapacityHint': 'Current context usage = real prompt size of the latest model call. Unlike the per-run cumulative usage pill (each call resends the full history, so that number is much larger).',
+    'chat.contextCapacityHint':
+      'Current context usage = real prompt size of the latest model call. Unlike the per-run cumulative usage pill (each call resends the full history, so that number is much larger).',
     'chat.contextMessages': 'Messages',
     'chat.contextTools': 'Tools',
     'chat.contextSystemPrompt': 'System prompt',
@@ -593,8 +638,10 @@ export const enUS: I18nLanguage = {
     'chat.contextSampled': 'last {{count}} calls',
     'chat.contextExpand': 'Details',
     'chat.contextFree': 'Free',
-    'chat.capacityHintBelow': 'Past {{percent}}%, history is auto-compacted once before the next run',
-    'chat.capacityHintOver': 'Past the compaction threshold ({{percent}}%) · history is auto-compacted once before the next run; start a new session to keep the full text',
+    'chat.capacityHintBelow':
+      'Past {{percent}}%, history is auto-compacted once before the next run',
+    'chat.capacityHintOver':
+      'Past the compaction threshold ({{percent}}%) · history is auto-compacted once before the next run; start a new session to keep the full text',
     'chat.capacityEstimatedNote': 'Estimated; based on the last real call',
     'chat.usagePillLabel': 'Usage',
     'chat.usageCacheShort': 'cache',
@@ -613,11 +660,8 @@ export const enUS: I18nLanguage = {
     'chat.scrollToBottom': 'Back to bottom',
 
     // —— Canvas snapshots / versions / rollback ——
-    'chat.snapshotVersion': 'v{{n}}',
     'chat.snapshotCurrent': 'Current',
-    'chat.snapshotView': 'View',
     'chat.snapshotCompare': 'Compare with previous',
-    'chat.snapshotRollback': 'Roll back here',
     'chat.snapshotRollbackTo': 'Roll back to v{{n}}',
     'chat.snapshotRollbackConfirm':
       'Go back to v{{n}}? The canvas switches immediately; nothing is deleted and you can always come back.',
@@ -627,7 +671,7 @@ export const enUS: I18nLanguage = {
     'chat.snapshotReasonUserEdit': 'Manual edit',
     'chat.snapshotReasonLayout': 'Layout adjusted',
     'chat.snapshotReasonRollback': 'Rollback',
-    'chat.snapshotReasonImport': 'Version loaded',
+    'chat.snapshotReasonImport': 'Loaded',
     'chat.snapshotReasonInit': 'Initial version',
     'chat.snapshotInitial': 'Initial {{nodes}} nodes · {{edges}} edges',
     'chat.snapshotAddedNodes': '+{{count}} nodes',
@@ -645,7 +689,8 @@ export const enUS: I18nLanguage = {
     'chat.snapshotFailedDesc':
       'This turn produced no usable workflow, so the canvas kept its previous state and was not corrupted.',
     'chat.snapshotRetry': 'Retry this turn',
-    'chat.snapshotRetryPrompt': 'The previous turn produced no usable workflow. Please try generating it again.',
+    'chat.snapshotRetryPrompt':
+      'The previous turn produced no usable workflow. Please try generating it again.',
     'chat.snapshotThumbAlt': 'Canvas thumbnail',
     'chat.applyDiffDetail': 'Diff detail',
     'chat.testReportTitle': 'Test run report',
@@ -657,16 +702,25 @@ export const enUS: I18nLanguage = {
     'chat.rollbackFailed': 'Rollback failed: that version is empty',
     'chat.rollbackSyncFailed': 'Canvas rolled back, but syncing to the session draft failed: ',
     'chat.rollbackConfirmTitle': 'Roll back to this version?',
-    'chat.rollbackConfirmContent': 'The canvas will return to this snapshot; later changes (including unsaved edits) will be discarded. The server draft and subsequent AI context are restored together.',
+    'chat.rollbackConfirmContent':
+      'The canvas will return to this snapshot; later changes (including unsaved edits) will be discarded. The server draft and subsequent AI context are restored together.',
     'chat.rollbackConfirmOk': 'Roll back',
-    'chat.rollbackBlockedStreaming': 'AI is still editing the canvas. Stop the run before rolling back.',
+    'chat.rollbackBlockedStreaming':
+      'AI is still editing the canvas. Stop the run before rolling back.',
     'chat.diffEdges': 'Edge changes',
     'chat.diffEdgesCount': '{count} edge changes',
-    'chat.snapshotEdgesOnlyLegacy': '(+{added} / -{removed} edge changes; field details unavailable for older snapshots)',
-    'chat.historyTitle': 'Canvas history',
-    'chat.historySnapshots': 'Versions in this conversation',
-    'chat.historyVersions': 'Published versions',
-    'chat.historyEmpty': 'No version history yet',
+    'chat.snapshotEdgesOnlyLegacy':
+      '(+{added} / -{removed} edge changes; field details unavailable for older snapshots)',
+    'chat.historyTitle': 'History',
+    'chat.timelineAll': 'All',
+    'chat.timelineVersionsOnly': 'Versions only',
+    'chat.loadAction': 'Load',
+    'chat.loadVersionHint': '"Load" only switches the canvas and never changes the live version',
+    'chat.msFromSession': 'From conversation',
+    'chat.msFromEditor': 'From editor',
+    'chat.msFromManual': 'Manual save',
+    'chat.snapshotDiffTitle': 'Snapshot diff',
+    'chat.historyEmpty': 'No history yet',
     'chat.historyNoWorkflow': 'This artifact is not published yet — save it as a version first',
     'chat.historyNoVersion': 'No published version yet',
     'chat.publishVersion': 'Publish new version',
@@ -709,7 +763,8 @@ export const enUS: I18nLanguage = {
     'shell.newTaskInProject': 'New task in this project',
     'shell.noProject': 'No projects yet',
     'shell.ungrouped': 'Unfiled',
-    'shell.deleteProjectConfirm': 'Delete this project? Its tasks will be moved to Unfiled, not deleted',
+    'shell.deleteProjectConfirm':
+      'Delete this project? Its tasks will be moved to Unfiled, not deleted',
     'shell.backToWorkspace': 'Back to workspace',
     'newTask.project': 'Project',
     'newTask.startMode': 'Start from',
@@ -719,7 +774,8 @@ export const enUS: I18nLanguage = {
     'newTask.inheritDesc': 'Carry the workflow\u2019s current version into a new session',
     'newTask.settingsHint': 'Options apply when the first message is sent',
     'newTask.carryDraftChip': 'Carry last draft',
-    'newTask.carryDraftDesc': 'The draft snapshot includes unsaved edits from the last session — send the first message to keep working on it',
+    'newTask.carryDraftDesc':
+      'The draft snapshot includes unsaved edits from the last session — send the first message to keep working on it',
     'newTask.lastSessionCaption': 'Last session',
     'newTask.workflowSearch': 'Search workflows…',
     'newTask.workflowEmpty': 'No matching workflows',
@@ -730,7 +786,8 @@ export const enUS: I18nLanguage = {
     'admin.workflow.unfiled': 'Unfiled',
     'admin.editMeta': 'Edit info',
     'workspace.forkSession': 'Fork session',
-    'workspace.forkSessionDesc': 'Start a new session from the current draft — handy when context is nearly full',
+    'workspace.forkSessionDesc':
+      'Start a new session from the current draft — handy when context is nearly full',
     'workspace.forkQueued': 'New task ready with the current draft — send a message to start',
     'shell.pinSession': 'Pin',
     'shell.unpinSession': 'Unpin',
@@ -750,7 +807,8 @@ export const enUS: I18nLanguage = {
 
     'landing.tagline': 'Gaia · Conversation as API',
     'landing.title': 'Turn workflows into callable APIs — by just talking',
-    'landing.subtitle': 'Describe what you need and Gaia orchestrates a workflow and publishes it as an API you can call immediately.',
+    'landing.subtitle':
+      'Describe what you need and Gaia orchestrates a workflow and publishes it as an API you can call immediately.',
     'landing.placeholder': 'e.g. build an API that returns weather for a given city…',
     'landing.send': 'Send',
     'landing.examples': 'Try these',
@@ -771,7 +829,8 @@ export const enUS: I18nLanguage = {
     'landing.footer': 'Conversation as API',
 
     'preview.title': 'Preview',
-    'preview.subtitle': 'See what workflows and conversations built through conversation look like.',
+    'preview.subtitle':
+      'See what workflows and conversations built through conversation look like.',
     'preview.openEditor': 'Open editor',
     'preview.viewApi': 'API docs',
     'preview.previewConversation': 'Preview conversation',
@@ -802,16 +861,19 @@ export const enUS: I18nLanguage = {
     'apiDocs.apiKey': 'API Key',
     'apiDocs.apiName': 'API name',
     'apiDocs.apiDesc': 'API description',
-    'apiDocs.apiDescPlaceholder': 'One line describing what this API does, so callers understand it',
+    'apiDocs.apiDescPlaceholder':
+      'One line describing what this API does, so callers understand it',
     'apiDocs.showKey': 'Show key',
     'apiDocs.regenerate': 'Rotate key',
     'apiDocs.unpublish': 'Unpublish',
-    'apiDocs.unpublishConfirm': 'Unpublish this API? The endpoint will stop working immediately and callers will no longer be able to reach it.',
+    'apiDocs.unpublishConfirm':
+      'Unpublish this API? The endpoint will stop working immediately and callers will no longer be able to reach it.',
     'apiDocs.publish': 'Publish as API',
     'apiDocs.publishSuccess': 'Published as an API. Key generated.',
     'apiDocs.keyRotated': 'Key rotated.',
     'apiDocs.unpublishSuccess': 'API unpublished.',
-    'apiDocs.publishHintInline': 'Publishing generates an endpoint and API key instantly — no editor needed.',
+    'apiDocs.publishHintInline':
+      'Publishing generates an endpoint and API key instantly — no editor needed.',
 
     'releases.latest': 'LATEST',
     'releases.readMore': 'Read more',

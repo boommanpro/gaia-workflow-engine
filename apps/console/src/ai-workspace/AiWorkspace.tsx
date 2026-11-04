@@ -5,33 +5,29 @@
  * 【左栏：新建任务 / 工作流管理 / 项目列表】｜【中区：对话】｜【右栏：产物】。
  * URL 即状态：会话 key 永远落在地址栏，可收藏、可分享、可前进后退。
  */
-import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { takeInitialPrompt, peekInitialPrompt } from '../agent/initialPrompt';
-import { Tag, Spin } from '@douyinfe/semi-ui';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+
+import { Tag, Spin, Toast } from '@douyinfe/semi-ui';
 import { IconHistory } from '@douyinfe/semi-icons';
 
-import { useAgent, useRunStreaming } from '../agent/AgentContext';
-import { useRuntime } from '../agent/runtime/store';
 import { useLanguage, t } from '../i18n';
 import { useWorkflowDocumentState } from '../document';
-import { TodoCard, extractLatestTodoSteps } from './components/TodoCard';
-import {
-  CHAT,
-  ChatComposer,
-  ChatMessageList,
-  ChatStyles,
-  WelcomeGreeting,
-} from '../chat';
 import { AppShell, AppRail } from '../components/app-shell';
-import { ArtifactPanel } from './artifact/ArtifactPanel';
-import { useWorkflowArtifactSync } from './artifact/useWorkflowArtifactSync';
+import { useRuntime } from '../agent/runtime/store';
+import { loadVersionIntoSessionCanvas } from '../agent/canvas-draft-sync';
 import { HeadlessCanvasBridge } from './HeadlessCanvasBridge';
-import { CanvasHistoryPopover } from './components/CanvasHistoryPopover';
 import { TrajectoryPanel } from './components/TrajectoryPanel';
-import { ModelPicker } from './components/ModelPicker';
-import { StatsPills } from '../chat/StatsPills';
+import { TodoCard, extractLatestTodoSteps } from './components/TodoCard';
 import { NewTaskChips } from './components/NewTaskChips';
+import { ModelPicker } from './components/ModelPicker';
+import { CanvasHistoryPopover } from './components/CanvasHistoryPopover';
+import { useWorkflowArtifactSync } from './artifact/useWorkflowArtifactSync';
+import { CHAT, ChatComposer, ChatMessageList, ChatStyles, WelcomeGreeting } from '../chat';
+import { ArtifactPanel } from './artifact/ArtifactPanel';
+import { StatsPills } from '../chat/StatsPills';
+import { takeInitialPrompt, peekInitialPrompt } from '../agent/initialPrompt';
+import { useAgent, useRunStreaming } from '../agent/AgentContext';
 
 export const AiWorkspace: React.FC = () => {
   useLanguage();
@@ -44,14 +40,8 @@ export const AiWorkspace: React.FC = () => {
   /** 会话 URL 前缀（统一任务模式只有一套地址空间） */
   const sessionBase = '/chat';
 
-  const {
-    sessions,
-    currentSessionKey,
-    switchSession,
-    sendMessage,
-    draftSetup,
-    updateDraftSetup,
-  } = useAgent();
+  const { sessions, currentSessionKey, switchSession, sendMessage, draftSetup, updateDraftSetup } =
+    useAgent();
   const messages = useRuntime((s) => s.messages);
   const historyLoading = useRuntime((s) => s.historyLoading);
   const streaming = useRunStreaming();
@@ -61,7 +51,7 @@ export const AiWorkspace: React.FC = () => {
 
   // 产物同步挂在「始终存在」的层上：面板收起时也继续跟进
   useWorkflowArtifactSync();
-  const { doc, meta, snapshots, cursor } = useWorkflowDocumentState();
+  const { doc, meta, snapshots } = useWorkflowDocumentState();
   const hasArtifact = !doc.isEmpty;
 
   const [inspectorOpen, setInspectorOpen] = useState<boolean>(hasArtifact);
@@ -174,14 +164,19 @@ export const AiWorkspace: React.FC = () => {
               }}
               title={currentSession?.title}
             >
-              {currentSession?.title
-                || (isNewTaskDraft ? t('shell.newTask') : t('workspace.brand'))}
+              {currentSession?.title ||
+                (isNewTaskDraft ? t('shell.newTask') : t('workspace.brand'))}
             </span>
             {currentSession?.engine === 'ark' && (
               <Tag
                 size="small"
                 shape="circle"
-                style={{ flexShrink: 0, background: '#f9f0ff', border: '1px solid #d3adf7', color: '#531dab' }}
+                style={{
+                  flexShrink: 0,
+                  background: '#f9f0ff',
+                  border: '1px solid #d3adf7',
+                  color: '#531dab',
+                }}
               >
                 方舟托管
               </Tag>
@@ -190,8 +185,21 @@ export const AiWorkspace: React.FC = () => {
         }
         actions={
           <>
-            {snapshots.length > 0 && (
-              <CanvasHistoryPopover workflowCode={meta.workflowCode}>
+            {(snapshots.length > 0 || !!meta.workflowCode) && (
+              <CanvasHistoryPopover
+                workflowCode={meta.workflowCode}
+                onLoadVersion={(versionId) => {
+                  // 会话侧「载入」：替换会话草稿画布并同步服务端，线上版本不受影响；
+                  // 想让线上变化，把载入后的画布「保存为版本」
+                  void loadVersionIntoSessionCanvas(currentSessionKey, versionId, (err) =>
+                    Toast.error(`${t('chat.rollbackSyncFailed')}${err}`)
+                  ).then((ok) => {
+                    if (ok === 'streaming') Toast.warning(t('chat.rollbackBlockedStreaming'));
+                    else if (ok !== true) Toast.error(t('chat.rollbackFailed'));
+                    else Toast.success(t('chat.rollbackDone'));
+                  });
+                }}
+              >
                 <button
                   type="button"
                   title={t('chat.historyTitle')}
@@ -210,17 +218,27 @@ export const AiWorkspace: React.FC = () => {
                   }}
                 >
                   <IconHistory size="small" />
-                  {t('chat.snapshotVersion', { n: cursor + 1 })}
+                  {t('chat.historyTitle')}
+                  {meta.dirtySinceSave === true && (
+                    <span
+                      aria-hidden
+                      title={t('editor.unsavedHint')}
+                      style={{
+                        width: 7,
+                        height: 7,
+                        borderRadius: '50%',
+                        background: CHAT.warn,
+                        display: 'inline-block',
+                        flexShrink: 0,
+                      }}
+                    />
+                  )}
                 </button>
               </CanvasHistoryPopover>
             )}
           </>
         }
-        inspector={
-          inspectorOpen ? (
-            <ArtifactPanel onCollapse={closeInspector} />
-          ) : undefined
-        }
+        inspector={inspectorOpen ? <ArtifactPanel onCollapse={closeInspector} /> : undefined}
         inspectorAvailable
         inspectorOpen={inspectorOpen}
         onToggleInspector={toggleInspectorFromShell}
@@ -229,8 +247,8 @@ export const AiWorkspace: React.FC = () => {
             空会话（新建任务欢迎态）没有任何投影可切，不显示标签 */}
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
           {!showWelcome && (
-          <div className="ws-view-tabs" role="tablist">
-            <style>{`
+            <div className="ws-view-tabs" role="tablist">
+              <style>{`
               .ws-view-tabs { display: flex; gap: 28px; padding: 4px 20px 0; border-bottom: 1px solid var(--g-line); }
               .ws-view-tab {
                 position: relative; padding: 4px 2px 8px; border: none; background: none;
@@ -245,32 +263,39 @@ export const AiWorkspace: React.FC = () => {
               .ws-view-tab.on { color: var(--g-text); }
               .ws-view-tab.on::after { background: var(--g-text); }
             `}</style>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={chatView === 'chat'}
-              className={`ws-view-tab${chatView === 'chat' ? ' on' : ''}`}
-              onClick={() => setChatView('chat')}
-            >
-              {t('trace.view.chat')}
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={chatView === 'trajectory'}
-              className={`ws-view-tab${chatView === 'trajectory' ? ' on' : ''}`}
-              onClick={() => setChatView('trajectory')}
-            >
-              {t('trace.view.trajectory')}
-            </button>
-          </div>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={chatView === 'chat'}
+                className={`ws-view-tab${chatView === 'chat' ? ' on' : ''}`}
+                onClick={() => setChatView('chat')}
+              >
+                {t('trace.view.chat')}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={chatView === 'trajectory'}
+                className={`ws-view-tab${chatView === 'trajectory' ? ' on' : ''}`}
+                onClick={() => setChatView('trajectory')}
+              >
+                {t('trace.view.trajectory')}
+              </button>
+            </div>
           )}
           <div style={{ flex: 1, minHeight: 0 }}>
             {!showWelcome && chatView === 'trajectory' ? (
               <TrajectoryPanel sessionKey={currentSessionKey || undefined} streaming={streaming} />
             ) : historyLoading && messages.length === 0 ? (
               /* 会话切换加载期：中间内容空白 + 轻量加载指示，布局（标签/底部输入）保持不动 */
-              <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div
+                style={{
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
                 <Spin size="middle" />
               </div>
             ) : showWelcome ? (

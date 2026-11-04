@@ -97,6 +97,8 @@ public class SessionDraftPublishService {
         AgentSession session = agentSessionService.getOne(
             new QueryWrapper<AgentSession>().eq("session_key", sessionKey).last("LIMIT 1"));
         options.setFolderId(session != null ? session.getFolderId() : null);
+        // 版本行记来源会话：审计时可回答「该版本从哪次对话产出」
+        options.setSourceSession(sessionKey);
 
         WorkflowDslApplyService.ApplyResult apply = dslApplyService.apply(code, doc, options);
         if (!apply.isSuccess()) {

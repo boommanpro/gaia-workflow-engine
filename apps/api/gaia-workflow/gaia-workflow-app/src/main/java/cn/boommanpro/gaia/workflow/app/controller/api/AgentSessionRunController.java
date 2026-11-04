@@ -6,6 +6,7 @@ import cn.boommanpro.gaia.workflow.app.agent.session.SessionCompactionService;
 import cn.boommanpro.gaia.workflow.app.agent.session.SessionEventBus;
 import cn.boommanpro.gaia.workflow.app.agent.session.SessionDraftPublishService;
 import cn.boommanpro.gaia.workflow.app.agent.session.SessionWorkflowDraftService;
+import cn.boommanpro.gaia.workflow.app.agent.session.VersionDescSuggestionService;
 import cn.boommanpro.gaia.workflow.infra.manage.entity.GaiaWorkflow;
 import cn.boommanpro.gaia.workflow.infra.manage.entity.GaiaWorkflowVersion;
 import cn.boommanpro.gaia.workflow.infra.manage.service.GaiaWorkflowService;
@@ -37,6 +38,8 @@ import java.util.concurrent.atomic.AtomicReference;
  *  POST /api/agent/session/{key}/stop      停止当前运行
  *  GET  /api/agent/session/{key}/document  当前服务端画布草稿
  *  POST /api/agent/session/{key}/push-draft 前端画布草稿回推（回滚后/提问前/保存前对齐）
+ *  POST /api/agent/session/{key}/save       保存为版本（用户动作，AI 无落版工具）
+ *  POST /api/agent/session/{key}/version-desc-suggestion  版本说明建议（保存弹窗预填）
  *  GET  /api/agent/session/{key}/artifacts 会话产物列表（workflow/plan/test_report/release）
  * </pre>
  */
@@ -56,6 +59,7 @@ public class AgentSessionRunController {
     private final SessionDraftPublishService publishService;
     private final cn.boommanpro.gaia.workflow.infra.manage.service.AgentMessageService messageService;
     private final cn.boommanpro.gaia.workflow.app.service.LlmCompletionService llmCompletionService;
+    private final cn.boommanpro.gaia.workflow.app.agent.session.VersionDescSuggestionService versionDescSuggestionService;
 
     public AgentSessionRunController(AgentSessionRunService runService,
                                      SessionWorkflowDraftService draftService,
@@ -67,7 +71,8 @@ public class AgentSessionRunController {
                                      SessionDraftPublishService publishService,
                                      cn.boommanpro.gaia.workflow.app.agent.session.AskUserRoundOrchestrator askRoundOrchestrator,
                                      cn.boommanpro.gaia.workflow.infra.manage.service.AgentMessageService messageService,
-                                     cn.boommanpro.gaia.workflow.app.service.LlmCompletionService llmCompletionService) {
+                                     cn.boommanpro.gaia.workflow.app.service.LlmCompletionService llmCompletionService,
+                                     cn.boommanpro.gaia.workflow.app.agent.session.VersionDescSuggestionService versionDescSuggestionService) {
         this.runService = runService;
         this.draftService = draftService;
         this.compactionService = compactionService;
@@ -79,6 +84,7 @@ public class AgentSessionRunController {
         this.askRoundOrchestrator = askRoundOrchestrator;
         this.messageService = messageService;
         this.llmCompletionService = llmCompletionService;
+        this.versionDescSuggestionService = versionDescSuggestionService;
     }
 
     /** 用户回答 ask_user 提问：答案成为新一轮对话（唤醒挂起工具 + 停旧 run + 以答案启动新 run） */
@@ -225,6 +231,27 @@ public class AgentSessionRunController {
             response.putAll(result.payload);
         } else {
             response.set("error", result.error);
+        }
+        return response;
+    }
+
+    /**
+     * 版本说明建议（保存弹窗预填用）：当前草稿 vs 目标工作流生效版本的 diff
+     * 交 LLM 概括成一句话。AI 只起草文本，落版仍由用户点击保存触发；
+     * LLM 超时/失败自动回退为确定性 diff 摘要，不阻断保存弹窗。
+     */
+    @PostMapping("/{sessionKey}/version-desc-suggestion")
+    public Map<String, Object> versionDescSuggestion(@PathVariable String sessionKey,
+                                                     @RequestBody(required = false) Map<String, Object> body) {
+        String targetCode = body != null && body.get("workflowCode") != null
+            ? String.valueOf(body.get("workflowCode")) : null;
+        VersionDescSuggestionService.Suggestion suggestion =
+            versionDescSuggestionService.suggest(sessionKey, targetCode);
+        JSONObject response = new JSONObject().set("success", suggestion.success);
+        if (suggestion.success) {
+            response.set("desc", suggestion.desc).set("source", suggestion.source);
+        } else {
+            response.set("error", suggestion.error);
         }
         return response;
     }

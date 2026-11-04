@@ -184,6 +184,7 @@ public class WorkflowDslApplyService {
                 log.debug("[dsl-apply] diff compute failed (ignored): {}", e.getMessage());
             }
             version.setCreatedBy("agent");
+            version.setSourceSession(opts.getSourceSession());
             version.setCreatedAt(LocalDateTime.now());
             // 先以非生效版本落行，切换由下面的原子 CAS 完成——
             // 并发竞争失败时这行会被回滚删除，不会留下指向它的悬空状态
@@ -327,6 +328,8 @@ public class WorkflowDslApplyService {
         private Long expectedRevision;
         /** 新建工作流时归属的项目（agent_work_folder.id，可空=未分组） */
         private Long folderId;
+        /** 来源会话 key（会话页「保存为版本」时记录，审计追溯版本从哪次对话产出；可空） */
+        private String sourceSession;
     }
 
     /** 落版结果 */

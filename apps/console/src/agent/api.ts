@@ -201,6 +201,13 @@ export const agentApi = {
       { method: 'POST', body: JSON.stringify(opts ?? {}) },
     ),
 
+  /** 版本说明建议：AI 把草稿与生效版本的 diff 概括成一句话（保存弹窗预填，用户可改） */
+  suggestVersionDesc: (sessionKey: string, workflowCode?: string) =>
+    request<{ success: boolean; desc?: string; source?: 'ai' | 'diff'; error?: string }>(
+      `/agent/session/${sessionKey}/version-desc-suggestion`,
+      { method: 'POST', body: JSON.stringify({ workflowCode }) },
+    ),
+
   /** 基于工作流当前落版初始化会话草稿（「基于工作流迭代」入口） */
   seedDraft: (sessionKey: string, workflowCode: string) =>
     request<{ success: boolean; versionNumber?: string; nodeCount?: number; error?: string }>(

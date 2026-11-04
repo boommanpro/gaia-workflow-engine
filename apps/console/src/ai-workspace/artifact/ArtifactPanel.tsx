@@ -46,7 +46,9 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
   const [saveVisible, setSaveVisible] = useState(false);
   const [saving, setSaving] = useState(false);
   const [workflowCode, setWorkflowCode] = useState('');
-  const [versionDesc, setVersionDesc] = useState('AI 生成');
+  const [versionDesc, setVersionDesc] = useState('');
+  /** 版本说明建议生成中：输入框 placeholder 反馈，返回前用户已打字则不覆盖 */
+  const [descLoading, setDescLoading] = useState(false);
   /** 落版目标：''=新建工作流，否则为所选已有工作流编码（对其新增版本） */
   const [saveTarget, setSaveTarget] = useState('');
   const [workflows, setWorkflows] = useState<GaiaWorkflow[]>([]);
@@ -67,19 +69,33 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
     return [...list].filter((a) => a.type !== 'workflow').reverse();
   }, [artifactState, currentSessionKey]);
 
-  /** 打开落版弹窗：默认选中草稿绑定的已有工作流（对其新增版本），否则新建 */
+  /** 打开落版弹窗：默认选中草稿绑定的已有工作流（对其新增版本），否则新建。
+   *  版本说明由 AI 预填（草稿 vs 生效版本 diff 的一句话概括，失败留空可手填）——
+   *  AI 只起草文本，落版动作始终是用户点「保存」。 */
   const openSaveModal = useCallback(() => {
     setWorkflowCode(meta.workflowCode || '');
-    setVersionDesc('AI 生成');
     setSaveTarget(meta.workflowCode || '');
     setSaveVisible(true);
+    if (currentSessionKey) {
+      setVersionDesc('');
+      setDescLoading(true);
+      agentApi.suggestVersionDesc(currentSessionKey, meta.workflowCode || undefined)
+        .then((res) => {
+          if (res.success && res.desc) {
+            // 用户在等待期间已自行输入时不覆盖
+            setVersionDesc((prev) => (prev === '' ? res.desc! : prev));
+          }
+        })
+        .catch(() => { /* 建议是锦上添花：失败留空，用户自行填写 */ })
+        .finally(() => setDescLoading(false));
+    }
     if (workflows.length === 0) {
       workflowApi.listWorkflows()
         .then((list) => setWorkflows(list || []))
         .catch(() => { /* 选择器退化成「新建」，保存仍可用 */ });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [meta.workflowCode, workflows.length]);
+  }, [meta.workflowCode, workflows.length, currentSessionKey]);
 
   const handleSave = useCallback(async () => {
     setSaving(true);
@@ -505,7 +521,11 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
             <div style={{ fontSize: 12, marginBottom: 4, color: CHAT.textSub }}>
               {t('workspace.versionDesc')}
             </div>
-            <Input value={versionDesc} onChange={setVersionDesc} />
+            <Input
+              value={versionDesc}
+              onChange={setVersionDesc}
+              placeholder={descLoading ? 'AI 生成中…' : t('workspace.versionDescPlaceholder')}
+            />
           </div>
           <div style={{ fontSize: 11, color: CHAT.textMuted, display: 'flex', alignItems: 'center', gap: 4 }}>
             <IconCode size="small" />

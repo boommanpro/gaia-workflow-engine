@@ -96,7 +96,8 @@ export const zhCN: I18nLanguage = {
     'home.subtitle': '盖亚',
     'home.subtitleAlt': 'AI 工作流编辑器',
     'serverConfig.title': '配置服务端地址',
-    'serverConfig.desc': '无法连接到后端服务。请输入您的后端服务地址（例如：http://127.0.0.1:48080/api）。保存后将自动刷新页面。',
+    'serverConfig.desc':
+      '无法连接到后端服务。请输入您的后端服务地址（例如：http://127.0.0.1:48080/api）。保存后将自动刷新页面。',
     'serverConfig.saveReconnect': '保存并重连',
     'serverConfig.returnHome': '返回首页',
 
@@ -161,12 +162,18 @@ export const zhCN: I18nLanguage = {
     'editor.loadingTemplate': '正在加载模板…',
     'editor.version': '版本',
     'editor.versionEffective': '生效 {{v}}',
+    'editor.previewLabel': '预览 {{v}}',
     'editor.unsavedBadge': '未保存',
-    'editor.unsavedHint': '画布内容与最近一次保存的版本不一致（手改 / AI 修改 / 回滚都会产生未保存状态）',
+    'editor.unsavedHint':
+      '画布内容与最近一次保存的版本不一致（手改 / AI 修改 / 回滚都会产生未保存状态）',
     'editor.current': '当前',
     'editor.effective': '生效中',
-    'editor.viewing': '查看中',
-    'editor.setEffective': '设为生效',
+    'editor.viewing': '已载入',
+    'editor.publishEffective': '发布生效',
+    'editor.publishEffectiveTitle': '将 {{v}} 设为生效版本？',
+    'editor.publishEffectiveContent':
+      '线上 API 将立即切换到 {{v}}；所有历史版本保留，可随时再次载入切换。',
+    'editor.publishEffectiveOk': '确认发布',
     'editor.sessionDraft': '会话草稿 · 修改需保存后对 AI 可见',
     'editor.syncToChat': '同步到对话',
     'editor.syncing': '同步中…',
@@ -191,7 +198,8 @@ export const zhCN: I18nLanguage = {
     'editor.saveFailed': '保存失败：',
     'editor.saveAsVersionFailed': '保存为新版本失败：',
     'editor.needCodeTitle': '保存需要工作流编码',
-    'editor.needCodeDesc': '这份画布还没有工作流编码（AI 草稿模式）。填写一个编码后保存为首版；新工作流的首版即生效版，之后每次保存都会生成新版本。',
+    'editor.needCodeDesc':
+      '这份画布还没有工作流编码（AI 草稿模式）。填写一个编码后保存为首版；新工作流的首版即生效版，之后每次保存都会生成新版本。',
     'editor.aiPendingTitle': 'AI 提交了画布修改',
     'editor.aiPendingStreaming': 'AI 正在修改画布',
     'editor.aiPendingView': '查看差异',
@@ -200,9 +208,11 @@ export const zhCN: I18nLanguage = {
     'editor.aiPendingApplied': '已应用 AI 的画布修改',
     'editor.aiPendingApplyFailed': '应用失败：',
     'editor.aiPendingDiffTitle': 'AI 的修改预览',
-    'editor.aiPendingDiffDesc': '对比：当前画布 → AI 提交的草稿。点「应用」后画布更新为 AI 的版本。',
+    'editor.aiPendingDiffDesc':
+      '对比：当前画布 → AI 提交的草稿。点「应用」后画布更新为 AI 的版本。',
     'editor.aiPendingConflictTitle': '检测到你手动修改过画布',
-    'editor.aiPendingConflictDesc': '应用 AI 的版本会覆盖下面列出的手动修改。想保留手改请先取消，把当前画布保存为一个版本后再让 AI 继续。',
+    'editor.aiPendingConflictDesc':
+      '应用 AI 的版本会覆盖下面列出的手动修改。想保留手改请先取消，把当前画布保存为一个版本后再让 AI 继续。',
     'editor.aiPendingConflictApply': '仍要应用',
 
     /* ---------- Tools ---------- */
@@ -316,7 +326,8 @@ export const zhCN: I18nLanguage = {
     'singleNode.executionFailed': '执行失败',
     'singleNode.running': '执行中…',
     'singleNode.unsupportedType': '该节点类型不参与执行，无法单独测试',
-    'singleNode.unsupportedHint': '仅画布标注类节点（注释/分组等）不支持；其余类型（含循环、嵌套工作流）均可直接单节点试运行',
+    'singleNode.unsupportedHint':
+      '仅画布标注类节点（注释/分组等）不支持；其余类型（含循环、嵌套工作流）均可直接单节点试运行',
     'singleNode.requestFailed': '请求失败：',
     'singleNode.placeholderMockValue': '输入模拟值',
     'singleNode.placeholderJson': '请输入 JSON',
@@ -452,7 +463,6 @@ export const zhCN: I18nLanguage = {
 
     /* ---------- Permission Settings ---------- */
 
-
     /* ---------- Trajectory 视图（对话区上方的视图标签，对标 dsh） ---------- */
     'trace.view.chat': '对话',
     'trace.view.trajectory': 'Trajectory',
@@ -478,6 +488,7 @@ export const zhCN: I18nLanguage = {
     'workspace.saveVersionDesc': '将当前产物写入工作流的一个新版本并设为生效版本',
     'workspace.workflowCode': '工作流编码',
     'workspace.versionDesc': '版本描述',
+    'workspace.versionDescPlaceholder': '一句话说明这版改了什么（AI 已代拟，可修改）',
     'workspace.copyDsl': '复制 DSL',
     'workspace.validation': '结构校验',
     'workspace.copied': '已复制',
@@ -514,7 +525,8 @@ export const zhCN: I18nLanguage = {
     'workspace.copilot': 'AI 助手',
     'workspace.copilotEmpty': '这个工作流还没有对话',
     'workspace.copilotEmptyDesc': '侧边栏与主页面共用同一个会话，画布上的每一步 AI 都看得到。',
-    'workspace.copilotScopedDesc': '当前会话属于另一个工作流。为这个工作流单独开一段，上下文才不会被串。',
+    'workspace.copilotScopedDesc':
+      '当前会话属于另一个工作流。为这个工作流单独开一段，上下文才不会被串。',
     'workspace.startScopedChat': '为这个工作流开一段对话',
     'workspace.resumeOwningChat': '用产出它的那段对话继续',
     'workspace.copilotPlaceholder': '说一句修改意见，AI 直接在画布上动手…',
@@ -529,7 +541,8 @@ export const zhCN: I18nLanguage = {
     // —— 专家模式：画布上下文感知 ——
     'workspace.changeBar': 'AI 刚把画布更新到 v{{n}}',
     'workspace.undoChange': '撤销这次',
-    'workspace.undoConfirmContent': '将撤销 AI 本轮对画布的修改，恢复到上一版；服务端草稿与后续 AI 上下文一并恢复。',
+    'workspace.undoConfirmContent':
+      '将撤销 AI 本轮对画布的修改，恢复到上一版；服务端草稿与后续 AI 上下文一并恢复。',
     'workspace.referenceNode': '已选中「{{name}}」',
     'workspace.clearReference': '取消引用',
     'workspace.referenceHint': '这一句会带上该节点的上下文',
@@ -585,7 +598,8 @@ export const zhCN: I18nLanguage = {
     'chat.toolRunning': '执行中…',
     'chat.stepTypeThink': '思考',
     'chat.contextCapacity': '上下文容量',
-    'chat.contextCapacityHint': '当前上下文占用 = 最近一次模型调用的真实提示词规模（与消息尾部「本轮模型用量」的累计计费口径不同：累计口径每轮都重发全部历史，所以数字大得多）',
+    'chat.contextCapacityHint':
+      '当前上下文占用 = 最近一次模型调用的真实提示词规模（与消息尾部「本轮模型用量」的累计计费口径不同：累计口径每轮都重发全部历史，所以数字大得多）',
     'chat.contextMessages': '消息',
     'chat.contextTools': '工具',
     'chat.contextSystemPrompt': '系统提示词',
@@ -595,7 +609,8 @@ export const zhCN: I18nLanguage = {
     'chat.contextExpand': '查看明细',
     'chat.contextFree': '空闲',
     'chat.capacityHintBelow': '超过 {{percent}}% 后，下一轮开跑前会自动压缩一次',
-    'chat.capacityHintOver': '已过压缩阈值（{{percent}}%）· 下一轮开跑前会自动压缩一次，想保留全文可另开会话',
+    'chat.capacityHintOver':
+      '已过压缩阈值（{{percent}}%）· 下一轮开跑前会自动压缩一次，想保留全文可另开会话',
     'chat.capacityEstimatedNote': '估算值以最近一次真实调用为准',
     'chat.usagePillLabel': '用量',
     'chat.usageCacheShort': '缓存',
@@ -614,20 +629,18 @@ export const zhCN: I18nLanguage = {
     'chat.scrollToBottom': '回到底部',
 
     // —— 画布快照 / 版本 / 回滚 ——
-    'chat.snapshotVersion': 'v{{n}}',
     'chat.snapshotCurrent': '当前',
-    'chat.snapshotView': '查看',
     'chat.snapshotCompare': '对比上一版',
-    'chat.snapshotRollback': '回滚到此',
     'chat.snapshotRollbackTo': '回滚到 v{{n}}',
-    'chat.snapshotRollbackConfirm': '回到 v{{n}}？画布会立刻切过去；历史不会被删除，随时可以再回来。',
+    'chat.snapshotRollbackConfirm':
+      '回到 v{{n}}？画布会立刻切过去；历史不会被删除，随时可以再回来。',
     'chat.snapshotRollbackDo': '确认回滚',
     'chat.snapshotReasonGenerate': 'AI 生成',
     'chat.snapshotReasonAiEdit': 'AI 修改',
     'chat.snapshotReasonUserEdit': '手动编辑',
     'chat.snapshotReasonLayout': '调整布局',
     'chat.snapshotReasonRollback': '回滚',
-    'chat.snapshotReasonImport': '载入版本',
+    'chat.snapshotReasonImport': '载入',
     'chat.snapshotReasonInit': '初始版本',
     'chat.snapshotInitial': '初始 {{nodes}} 节点 · {{edges}} 连线',
     'chat.snapshotAddedNodes': '+{{count}} 节点',
@@ -656,16 +669,23 @@ export const zhCN: I18nLanguage = {
     'chat.rollbackFailed': '回滚失败：该版本内容为空',
     'chat.rollbackSyncFailed': '画布已回滚，但同步到会话草稿失败：',
     'chat.rollbackConfirmTitle': '回滚到这一版？',
-    'chat.rollbackConfirmContent': '画布将回到该快照，其后的修改（含未保存的手改）会被丢弃；服务端草稿与后续 AI 上下文一并恢复。',
+    'chat.rollbackConfirmContent':
+      '画布将回到该快照，其后的修改（含未保存的手改）会被丢弃；服务端草稿与后续 AI 上下文一并恢复。',
     'chat.rollbackConfirmOk': '回滚',
     'chat.rollbackBlockedStreaming': 'AI 正在修改画布，请先停止运行再回滚',
     'chat.diffEdges': '连线变更',
     'chat.diffEdgesCount': '{count} 处连线变更',
     'chat.snapshotEdgesOnlyLegacy': '（另有 +{added} / -{removed} 处连线变更，旧快照无字段明细）',
-    'chat.historyTitle': '画布历史',
-    'chat.historySnapshots': '本会话版本',
-    'chat.historyVersions': '落版版本',
-    'chat.historyEmpty': '还没有版本记录',
+    'chat.historyTitle': '历史',
+    'chat.timelineAll': '全部',
+    'chat.timelineVersionsOnly': '仅版本',
+    'chat.loadAction': '载入',
+    'chat.loadVersionHint': '「载入」只切换画布内容，不影响线上版本',
+    'chat.msFromSession': '会话落版',
+    'chat.msFromEditor': '编辑器落版',
+    'chat.msFromManual': '手动保存',
+    'chat.snapshotDiffTitle': '快照差异',
+    'chat.historyEmpty': '还没有历史记录',
     'chat.historyNoWorkflow': '这份产物还没有落版，先保存为版本再看',
     'chat.historyNoVersion': '还没有落版版本',
     'chat.publishVersion': '发布新版本',
@@ -729,7 +749,8 @@ export const zhCN: I18nLanguage = {
     'admin.workflow.unfiled': '未分组',
     'admin.editMeta': '编辑信息',
     'workspace.forkSession': '换新会话继续',
-    'workspace.forkSessionDesc': '基于当前草稿新建会话：上下文快满或想换方向时，带上这份产物重新开始',
+    'workspace.forkSessionDesc':
+      '基于当前草稿新建会话：上下文快满或想换方向时，带上这份产物重新开始',
     'workspace.forkQueued': '已进入新任务并携带当前草稿，发送第一条消息生效',
     'shell.pinSession': '置顶',
     'shell.unpinSession': '取消置顶',
