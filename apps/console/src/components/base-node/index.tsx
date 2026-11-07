@@ -3,41 +3,35 @@
  * SPDX-License-Identifier: MIT
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 
 import { FlowNodeEntity, useClientContext, useNodeRender } from '@flowgram.ai/free-layout-editor';
 import { ConfigProvider } from '@douyinfe/semi-ui';
 
 import { NodeStatusBar } from '../testrun/node-status-bar';
 import { CompactNodeCard } from '../compact-node';
-import { useEditorPrefs } from '../../editor-prefs';
+import { useNodeCompact } from '../../node-compact-store';
 import { NodeRenderContext } from '../../context';
 import { ErrorIcon } from './styles';
 import { NodeWrapper } from './node-wrapper';
 
 export const BaseNode = ({ node }: { node: FlowNodeEntity }) => {
   /**
-   * Provides methods related to node rendering
+   * 提供节点渲染相关的方法
    * 提供节点渲染相关的方法
    */
   const nodeRender = useNodeRender();
   const ctx = useClientContext();
-  const prefs = useEditorPrefs();
 
   /**
-   * 紧凑密度（docs/node-compact-mode-redesign-2026-11-06.md 方案 A）：
-   * 独立渲染分支渲染胶囊卡（CompactNodeCard），不再经 CSS 硬压表单。
-   * 容器节点（loop 等有子块）不参与紧凑；双击胶囊可临时展开单个节点。
+   * 节点级紧凑密度（2026-11-07，替代全局偏好 gaia.editor.prefs.compact）：
+   * 完整卡悬停/选中时上方浮出「框按钮」收起（NodeWrapper），双击紧凑卡展开；
+   * 状态按工作流存 localStorage（node-compact-store），不进 DSL。
+   * 容器节点（loop 等有子块）不参与紧凑；非专家编辑器画布（只读预览）不启用。
    */
   const isContainer = Boolean(node.getNodeMeta().isContainer);
-  const compactable = prefs.compact && !isContainer;
-  const [expandedOverride, setExpandedOverride] = useState(false);
-  const compact = compactable && !expandedOverride;
-  const toggleCompact = useCallback(() => {
-    if (compactable) {
-      setExpandedOverride((v) => !v);
-    }
-  }, [compactable]);
+  const { collapsed, toggle } = useNodeCompact(node);
+  const compact = collapsed && !isContainer;
 
   /**
    * It can only be used when nodeEngine is enabled
@@ -57,7 +51,7 @@ export const BaseNode = ({ node }: { node: FlowNodeEntity }) => {
   return (
     <ConfigProvider getPopupContainer={getPopupContainer}>
       <NodeRenderContext.Provider value={nodeRender}>
-        <NodeWrapper compact={compact} onToggleCompact={toggleCompact}>
+        <NodeWrapper compact={compact} onToggleCompact={toggle}>
           {form?.state.invalid && <ErrorIcon />}
           {compact ? <CompactNodeCard /> : form?.render()}
         </NodeWrapper>

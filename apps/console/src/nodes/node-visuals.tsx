@@ -385,6 +385,34 @@ export const NODE_VISUALS: Record<string, NodeVisual> = {
 
 const FALLBACK_VISUAL: NodeVisual = { category: 'canvas', Icon: StickyNote };
 
+/**
+ * 注册表 info.icon（2026-11-07）：变量 chip / 变量 Dock 等处使用的节点图标。
+ * 与卡片头同风格：实底分类色圆角块 + 白色图形（.gaia-node-chip 同口径，2026-11-07 用户确认），
+ * 替代各注册表散落的 assets/icon-*.jpg|png 位图。
+ */
+export const registryIcon = (type: string): React.ReactNode => {
+  const { Icon, category } = getNodeVisual(type);
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 16,
+        height: 16,
+        borderRadius: 5,
+        background: categoryColorVar(category),
+        color: '#fff',
+        flex: 'none',
+        marginRight: 6,
+        lineHeight: 0,
+      }}
+    >
+      <Icon size={10} />
+    </span>
+  );
+};
+
 /** 未知类型走兜底（灰），不抛错——画布渲染不因展示层失败中断 */
 export const getNodeVisual = (type: unknown): NodeVisual =>
   NODE_VISUALS[String(type)] ?? FALLBACK_VISUAL;

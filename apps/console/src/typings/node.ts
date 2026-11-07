@@ -50,6 +50,8 @@ export interface FlowNodeJSON extends FlowNodeJSONDefault {
  * 你可以自定义节点的meta
  */
 export interface FlowNodeMeta extends WorkflowNodeMeta {
+  /** 节点级紧凑态（2026-11-07 用户决策入 DSL）：随草稿/版本持久化，载入即还原折叠形态 */
+  compact?: boolean;
   sidebarDisabled?: boolean;
   nodePanelHidden?: boolean;
   wrapperStyle?: React.CSSProperties;
@@ -63,7 +65,7 @@ export interface FlowNodeMeta extends WorkflowNodeMeta {
 export interface FlowNodeRegistry extends FlowNodeRegistryDefault {
   meta: FlowNodeMeta;
   info?: {
-    icon: string;
+    icon: string | React.ReactNode;
     description: string;
   };
   canAdd?: (ctx: FreeLayoutPluginContext) => boolean;

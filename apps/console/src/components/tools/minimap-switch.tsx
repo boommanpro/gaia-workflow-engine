@@ -5,8 +5,8 @@
 
 import { Tooltip, IconButton } from '@douyinfe/semi-ui';
 
-import { UIIconMinimap } from './styles';
 import { useLanguage, t } from '../../i18n';
+import { UIIconMinimap } from './styles';
 
 export const MinimapSwitch = (props: {
   minimapVisible: boolean;
@@ -21,6 +21,7 @@ export const MinimapSwitch = (props: {
         type="tertiary"
         theme="borderless"
         icon={<UIIconMinimap visible={minimapVisible} />}
+        aria-label={t('tool.minimap')}
         onClick={() => setMinimapVisible(!minimapVisible)}
       />
     </Tooltip>

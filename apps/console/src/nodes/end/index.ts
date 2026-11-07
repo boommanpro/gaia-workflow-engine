@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: MIT
  */
 
+import { registryIcon } from '../node-visuals';
 import { FlowNodeRegistry } from '../../typings';
-import iconEnd from '../../assets/icon-end.jpg';
 import { formMeta } from './form-meta';
 import { WorkflowNodeType } from '../constants';
 
@@ -21,7 +21,7 @@ export const EndNodeRegistry: FlowNodeRegistry = {
     },
   },
   info: {
-    icon: iconEnd,
+    icon: registryIcon(WorkflowNodeType.End),
     description:
       'The final node of the workflow, used to return the result information after the workflow is run.',
   },

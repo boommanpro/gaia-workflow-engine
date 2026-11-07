@@ -4,19 +4,23 @@
  */
 
 import { generateValidId } from '../utils';
+import { registryIcon } from '../node-visuals';
 import { WorkflowNodeType } from '../constants';
 import { FlowNodeRegistry } from '../../typings';
-import iconLLM from '../../assets/icon-llm.jpg';
 import { cloneDefaultData } from '../../agent/node-templates';
+import {
+  fillCredentialDefaults,
+  loadPlatformLlmDefault,
+  peekPlatformLlmDefault,
+} from './platform-default';
 import { formMeta } from './form-meta';
-import { fillCredentialDefaults, loadPlatformLlmDefault, peekPlatformLlmDefault } from './platform-default';
 
 let index = 0;
 export const LLMNodeRegistry: FlowNodeRegistry = {
   type: WorkflowNodeType.LLM,
   formMeta,
   info: {
-    icon: iconLLM,
+    icon: registryIcon(WorkflowNodeType.LLM),
     description:
       'Call the large language model and use variables and prompt words to generate responses.',
   },

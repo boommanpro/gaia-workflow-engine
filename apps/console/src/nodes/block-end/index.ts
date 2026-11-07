@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: MIT
  */
 
+import { registryIcon } from '../node-visuals';
 import { FlowNodeRegistry } from '../../typings';
-import iconStart from '../../assets/icon-start.jpg';
 import { formMeta } from './form-meta';
 import { WorkflowNodeType } from '../constants';
 
@@ -30,7 +30,7 @@ export const BlockEndNodeRegistry: FlowNodeRegistry = {
     },
   },
   info: {
-    icon: iconStart,
+    icon: registryIcon(WorkflowNodeType.BlockEnd),
     description: 'The final node of the block.',
   },
   /**

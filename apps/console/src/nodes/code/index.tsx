@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: MIT
  */
 
+import { registryIcon } from '../node-visuals';
 import { WorkflowNodeType } from '../constants';
 import { FlowNodeRegistry } from '../../typings';
-import iconCode from '../../assets/icon-script.png';
 import { formMeta } from './form-meta';
 import { generateValidId } from '../utils';
 import { cloneDefaultData } from '../../agent/node-templates';
@@ -15,7 +15,7 @@ let index = 0;
 export const CodeNodeRegistry: FlowNodeRegistry = {
   type: WorkflowNodeType.Code,
   info: {
-    icon: iconCode,
+    icon: registryIcon(WorkflowNodeType.Code),
     description: 'Run the Script',
   },
   meta: {

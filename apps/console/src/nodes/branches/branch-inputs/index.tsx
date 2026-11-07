@@ -70,8 +70,21 @@ export function BranchInputs() {
                         ) : (
                           <div
                             onDoubleClick={() => !readonly && setEditingBranchIndex(branchIndex)}
+                            // 2026-11-07 用户决策：画布卡片只显示分支短名（Branch 1），
+                            // 完整「标题 (id)」走悬浮；右侧表单面板维持全串展示
+                            title={
+                              !isSidebar
+                                ? `${branch.value.title || `Branch ${branchIndex + 1}`} (${
+                                    branch.value.id
+                                  })`
+                                : undefined
+                            }
                           >
-                            {branch.value.title || `Branch ${branchIndex + 1}`} ({branch.value.id})
+                            {!isSidebar
+                              ? branch.value.title || `Branch ${branchIndex + 1}`
+                              : `${branch.value.title || `Branch ${branchIndex + 1}`} (${
+                                  branch.value.id
+                                })`}
                           </div>
                         )}
                       </BranchTitle>

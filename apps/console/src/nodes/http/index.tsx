@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: MIT
  */
 
+import { registryIcon } from '../node-visuals';
 import { WorkflowNodeType } from '../constants';
 import { FlowNodeRegistry } from '../../typings';
-import iconHTTP from '../../assets/icon-http.svg';
 import { formMeta } from './form-meta';
 import { generateValidId } from '../utils';
 import { cloneDefaultData } from '../../agent/node-templates';
@@ -15,7 +15,7 @@ let index = 0;
 export const HTTPNodeRegistry: FlowNodeRegistry = {
   type: WorkflowNodeType.HTTP,
   info: {
-    icon: iconHTTP,
+    icon: registryIcon(WorkflowNodeType.HTTP),
     description: 'Call the HTTP API',
   },
   meta: {

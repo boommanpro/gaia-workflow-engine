@@ -16,8 +16,8 @@ import {
 import { IconButton, Tooltip } from '@douyinfe/semi-ui';
 
 import { WorkflowNodeType } from '../../nodes';
-import { IconComment } from '../../assets/icon-comment';
 import { useLanguage, t } from '../../i18n';
+import { IconComment } from '../../assets/icon-comment';
 
 export const Comment = () => {
   const playground = usePlayground();

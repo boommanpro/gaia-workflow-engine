@@ -34,6 +34,12 @@ import {
 import { WorkflowRuntimeClient } from '../client';
 import { GetGlobalVariableSchema } from '../../variable-panel-plugin';
 import { WorkflowNodeType } from '../../../nodes';
+import {
+  planReplayDistribution,
+  replayStore,
+  type HistoryNodeReportInput,
+  type ReplayState,
+} from './history-replay';
 
 const SYNC_TASK_REPORT_INTERVAL = 500;
 const MAX_HISTORY_SIZE = 50;
@@ -52,6 +58,16 @@ interface NodeRunningStatus {
   status: WorkflowStatus;
   nodeResultLength: number;
 }
+
+export {
+  historyStatusToKind,
+  historyStatusToWorkflowStatus,
+  historyNodeToReport,
+  planReplayDistribution,
+  type HistoryNodeReportInput,
+  type ReplayState,
+  type ReplayStatusKind,
+} from './history-replay';
 
 export interface TestRunRecord {
   id: string;
@@ -113,6 +129,14 @@ export class WorkflowRuntimeService {
   private currentRunSchema?: Record<string, unknown>;
 
   private testRunHistory: TestRunRecord[] = [];
+
+  /** 历史回放状态：undefined 表示不在回放（实时试运行态） */
+  private replay?: ReplayState;
+
+  private replayEmitter = new Emitter<ReplayState | null>();
+
+  /** 回放状态变化（进入 / 切换记录 / 退出），null 表示退出 */
+  public onReplayChanged = this.replayEmitter.event;
 
   private historyEmitter = new Emitter<TestRunRecord[]>();
 
@@ -365,10 +389,90 @@ export class WorkflowRuntimeService {
     this.nodeReports.clear();
     this.runningNodes = [];
     this.lastReport = undefined;
+    // 新的实时试运行开启：历史回放态随之退出（画布状态由实时报告接管）
+    if (this.replay) {
+      this.replay = undefined;
+      this.replayEmitter.fire(null);
+      replayStore.publish(null);
+    }
     if (this.syncTaskReportIntervalID) {
       clearInterval(this.syncTaskReportIntervalID);
     }
     this.resetEmitter.fire({});
+  }
+
+  /**
+   * 历史回放：把一次持久化运行的节点明细分发到当前画布节点上。
+   * 与 updateReport（实时轮询）共用 reportEmitter 分发链——节点头状态点、
+   * NodeStatusBar、紧凑态光环零新增渲染代码；不写 lastReport/currentReport，
+   * 报告编辑器仍只看实时运行。画布上不存在于该次运行的节点保持无状态
+   * （历史图与当前图不一致时不误导），匹配数经 onReplayChanged 透出。
+   */
+  public applyHistoryReport(input: {
+    taskId: string;
+    label: string;
+    nodes: HistoryNodeReportInput[];
+  }): ReplayState | undefined {
+    // 实时试运行进行中：500ms 轮询会立刻盖掉回放，不套用（保留现有回放态）
+    if (this.taskID) {
+      return this.replay;
+    }
+    const executableNodes = this.document
+      .getAllNodes()
+      .filter(
+        (node) =>
+          ![WorkflowNodeType.BlockStart, WorkflowNodeType.BlockEnd].includes(
+            node.flowNodeType as WorkflowNodeType
+          )
+      );
+    const { applied, matched, total } = planReplayDistribution(
+      input.nodes,
+      executableNodes.map((node) => node.id)
+    );
+
+    this.runningNodes = [];
+    this.nodeRunningStatus = new Map();
+    this.nodeReports.clear();
+    applied.forEach((nodeReport) => {
+      this.nodeReports.set(nodeReport.id, nodeReport);
+      this.nodeRunningStatus.set(nodeReport.id, {
+        nodeID: nodeReport.id,
+        status: nodeReport.status,
+        nodeResultLength: nodeReport.snapshots.length,
+      });
+      this.reportEmitter.fire(nodeReport);
+    });
+    this.document.linesManager.forceUpdate();
+
+    const state: ReplayState = {
+      taskId: input.taskId,
+      label: input.label,
+      matched,
+      total,
+    };
+    this.replay = state;
+    this.replayEmitter.fire(state);
+    // 画布横幅走模块 store（其渲染位置解析不到本服务，见 history-replay 注释）
+    replayStore.publish({ state, exit: () => this.exitReplay() });
+    return state;
+  }
+
+  /** 退出回放：清节点运行状态（画布回到无运行态），不影响实时试运行 */
+  public exitReplay(): void {
+    if (!this.replay) {
+      return;
+    }
+    this.replay = undefined;
+    this.runningNodes = [];
+    this.nodeRunningStatus = new Map();
+    this.nodeReports.clear();
+    this.replayEmitter.fire(null);
+    replayStore.publish(null);
+    this.resetEmitter.fire({});
+  }
+
+  public getReplay(): ReplayState | undefined {
+    return this.replay;
   }
 
   private async syncTaskReport(): Promise<void> {

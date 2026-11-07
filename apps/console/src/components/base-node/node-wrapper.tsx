@@ -10,20 +10,25 @@ import { WorkflowPortRender } from '@flowgram.ai/free-layout-editor';
 import { useClientContext } from '@flowgram.ai/free-layout-editor';
 import { Tooltip } from '@douyinfe/semi-ui';
 
+import { useNodeReport } from '../testrun/node-status-bar';
 import { FlowNodeMeta } from '../../typings';
 import { useNodeRenderContext, usePortClick } from '../../hooks';
 import { getSubtitle } from '../../form-components/form-header/utils';
 import { scrollToView } from './utils';
 import { NodeWrapperStyle } from './styles';
 import { nodeFormPanelFactory } from '../sidebar';
+import { t } from '../../i18n';
 
 export interface NodeWrapperProps {
   isScrollToView?: boolean;
   children: React.ReactNode;
-  /** 紧凑密度：胶囊形态 + 双击临时展开 + 抑制端口「+」创建 */
+  /** 紧凑密度：n8n 方卡 + 双击展开 + 抑制端口「+」创建 */
   compact?: boolean;
+  /** 收起/展开切换（节点级，node-compact-store；非专家编辑器画布为 undefined） */
   onToggleCompact?: () => void;
 }
+
+/** 收起按钮已移至卡片头 FormHeader（2026-11-07 固定入口）；本组件只保留紧凑态交互 */
 
 /**
  * Used for drag-and-drop/click events and ports rendering of nodes
@@ -39,8 +44,12 @@ export const NodeWrapper: React.FC<NodeWrapperProps> = (props) => {
   const ctx = useClientContext();
   const onPortClick = usePortClick();
   const meta = node.getNodeMeta<FlowNodeMeta>();
+  const report = useNodeReport();
 
   const panelManager = usePanelManager();
+
+  // 紧凑态试运行光环：.st-processing/.st-succeeded/.st-failed（色环见 styles.tsx，口径同 statusDotColor）
+  const statusClass = compact && report ? ` st-${String(report.status).toLowerCase()}` : '';
 
   const portsRender = ports.map((p) => (
     <WorkflowPortRender
@@ -53,7 +62,7 @@ export const NodeWrapper: React.FC<NodeWrapperProps> = (props) => {
 
   const wrapper = (
     <NodeWrapperStyle
-      className={selected ? (compact ? 'selected compact' : 'selected') : compact ? 'compact' : ''}
+      className={`${selected ? 'selected' : ''} ${compact ? 'compact' : ''}${statusClass}`.trim()}
       ref={nodeRef}
       draggable
       onDragStart={(e) => {
@@ -79,7 +88,7 @@ export const NodeWrapper: React.FC<NodeWrapperProps> = (props) => {
           }
         }
       }}
-      onDoubleClick={compact ? onToggleCompact : undefined}
+      onDoubleClick={compact && onToggleCompact ? onToggleCompact : undefined}
       onMouseUp={() => setIsDragging(false)}
       onFocus={onFocus}
       onBlur={onBlur}
@@ -94,7 +103,7 @@ export const NodeWrapper: React.FC<NodeWrapperProps> = (props) => {
     </NodeWrapperStyle>
   );
 
-  // 紧凑胶囊：悬停 0.5s 显示「标题 + 副标题 + 双击展开」摘要（Dify/n8n 悬停延迟口径）
+  // 紧凑方卡：悬停 0.5s 显示「标题 + 副标题 + 双击展开」摘要（Coze/n8n 悬停延迟口径）
   const title: string = form?.values?.title || node.flowNodeType;
   const subtitle = getSubtitle(node);
   const wrapped =
@@ -103,7 +112,10 @@ export const NodeWrapper: React.FC<NodeWrapperProps> = (props) => {
         content={
           <div>
             <div>{title}</div>
-            {subtitle && <div style={{ opacity: 0.65 }}>{subtitle}</div>}
+            <div style={{ opacity: 0.65 }}>
+              {subtitle ? `${subtitle} · ` : ''}
+              {t('nodeCompact.dblclickHint')}
+            </div>
           </div>
         }
         position="top"

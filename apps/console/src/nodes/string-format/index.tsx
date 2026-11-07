@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: MIT
  */
 
+import { registryIcon } from '../node-visuals';
 import { WorkflowNodeType } from '../constants';
 import { FlowNodeRegistry } from '../../typings';
-import iconCode from '../../assets/icon-script.png';
 import { formMeta } from './form-meta';
 import { generateValidId } from '../utils';
 
@@ -26,7 +26,7 @@ Supported template languages:
 export const StringFormatNodeRegistry: FlowNodeRegistry = {
   type: WorkflowNodeType.StringFormat,
   info: {
-    icon: iconCode,
+    icon: registryIcon(WorkflowNodeType.StringFormat),
     description: 'String Format',
   },
   meta: {

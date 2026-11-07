@@ -210,10 +210,30 @@
 .gaia-prefs-check { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ge-text); padding: 2px 0; }
 .gaia-prefs-note { font-size: 11px; color: var(--ge-text-2); border-top: 1px solid var(--ge-border); padding-top: 8px; margin-top: 2px; }
 
-/* 左侧节点面板 */
-.gaia-prefs-more { display: flex; flex-direction: column; gap: 2px; align-items: stretch; }
-.gaia-prefs-more .gaia-prefs-row { padding: 2px 2px; border-radius: 7px; }
-.gaia-prefs-more .gaia-prefs-row:hover { background: var(--ge-surface-2); }
+/* 头部：标题 + 专家模式 Tag（2026-11-07 改版） */
+.gaia-prefs-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+
+/* 「更多」分区：整行可点条目（替代 行标签 + 小『打开』按钮） */
+.gaia-prefs-actions { display: flex; flex-direction: column; gap: 2px; align-items: stretch; }
+.gaia-prefs-action {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  min-height: 30px; padding: 0 8px; border: none; border-radius: var(--semi-border-radius-small, 6px);
+  background: transparent; color: var(--semi-color-text-0, var(--ge-text));
+  font-size: 12.5px; cursor: pointer; text-align: left;
+  transition: background-color 0.15s ease;
+}
+.gaia-prefs-action:hover:not(:disabled) { background: var(--semi-color-fill-0, rgba(28, 31, 35, 0.05)); }
+.gaia-prefs-action:disabled { color: var(--semi-color-disabled-text, rgba(28, 31, 35, 0.35)); cursor: not-allowed; }
+.gaia-prefs-action-icon { color: var(--semi-color-text-2, var(--ge-text-2)); flex: none; }
+.gaia-prefs-action-label { flex: 1; min-width: 0; }
+.gaia-prefs-action-arrow { color: var(--semi-color-text-2, var(--ge-text-2)); flex: none; }
+
+
+/* 画布节点卡变量 chip（2026-11-07 用户决策）：卡片上只显示 图标 + 末段变量名，
+   隐藏「节点标题 - 」前缀（条件/分支/赋值行通用；完整「节点 - 变量」悬停 Popover 本就存在）。
+   仅作用于卡片容器 [data-node-compact]，右侧表单面板不受影响；chip 的悬停 Popover 渲染在
+   弹层容器（不在卡片内），不受影响。 */
+[data-node-compact] .gedit-m-variable-selector-root-title { display: none; }
 
 /* ===== 左侧节点面板（2026-11-04 二轮打磨） ===== */
 .gaia-palette-rail {

@@ -54,9 +54,24 @@ export const NodePaletteRail = () => {
   const [dragging, setDragging] = useState(false);
   const railRootRef = useRef<HTMLDivElement | null>(null);
   // 拖拽会话标志同时挂到 window：编辑器加载期的结构对齐重挂据此避让，
-  // 防止刚拖入、未同步进 store 的节点被整份重挂吞掉
+  // 防止刚拖入、未同步进 store 的节点被整份重挂吞掉。
+  // 2026-11-07 二次修复（首次拖入一闪即逝复发）：松手后延迟 900ms 才释放标志——
+  // 画布回流 store 有 600ms 防抖（use-editor-props.flushCanvasChange），立即放行会让
+  // 加载期的对齐重挂恰好落在「已松手、尚未回流」窗口，用旧 store 整份重挂吞掉新节点。
+  const dragFlagTimer = useRef<number | null>(null);
   const setDragFlag = (v: boolean) => {
-    (window as unknown as { __gaiaPaletteDrag?: boolean }).__gaiaPaletteDrag = v;
+    if (dragFlagTimer.current !== null) {
+      window.clearTimeout(dragFlagTimer.current);
+      dragFlagTimer.current = null;
+    }
+    if (v) {
+      (window as unknown as { __gaiaPaletteDrag?: boolean }).__gaiaPaletteDrag = true;
+    } else {
+      dragFlagTimer.current = window.setTimeout(() => {
+        dragFlagTimer.current = null;
+        (window as unknown as { __gaiaPaletteDrag?: boolean }).__gaiaPaletteDrag = false;
+      }, 900);
+    }
   };
 
   // 指针拖拽会话：卡片按下即建立；光标进入画布时一次性物化为真实节点并交接给画布拖拽

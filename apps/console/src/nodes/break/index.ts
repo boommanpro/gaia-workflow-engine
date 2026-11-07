@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: MIT
  */
 
+import { registryIcon } from '../node-visuals';
 import { FlowNodeRegistry } from '../../typings';
-import iconBreak from '../../assets/icon-break.jpg';
 import { formMeta } from './form-meta';
 import { generateValidId } from '../utils';
 import { WorkflowNodeType } from '../constants';
@@ -23,7 +23,7 @@ export const BreakNodeRegistry: FlowNodeRegistry = {
     onlyInContainer: WorkflowNodeType.Loop,
   },
   info: {
-    icon: iconBreak,
+    icon: registryIcon(WorkflowNodeType.Break),
     description:
       'The final node of the workflow, used to return the result information after the workflow is run.',
   },

@@ -10,21 +10,27 @@ import { CanvasDescription, EmptyHint, FormTitleDescription, FormWrapper } from 
 import { Feedback } from '../feedback';
 
 /**
- * 节点描述（2026-11-05 改版）：
+ * 节点描述（2026-11-05 改版；2026-11-07 修复画布就地编辑丢字）：
  * · 完全可空——为空时画布卡片整行不渲染（零占位），侧栏显示「双击添加描述」引导行；
  * · 双击就地编辑：画布单行 Input（Enter 保存 / Esc 取消 / 失焦保存），侧栏 TextArea；
  * · 不再回填 i18n 默认文案——旧实现 `value || 默认文案` 让描述永远至少占一行且清不掉。
  * 编辑事件 stopPropagation，避免冒泡到 NodeWrapper 的「点击打开表单面板」。
+ *
+ * 2026-11-07 bug 修复：提交值不再读 `inputRef.current?.value`——Semi Input 的 ref 是
+ * 组件实例而非原生 input（TextArea 恰好直达 DOM 才一直正常），读实例的 `.value` 得
+ * undefined，画布上任何一次提交都会把描述清空。改为受控 draft state，ref 只用于 focus。
  */
 export function FormContent(props: { children?: React.ReactNode }) {
   const { readonly } = useContext(NodeRenderContext);
 
   const isSidebar = useIsSidebar();
   const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState('');
   const inputRef = useRef<any>(null);
 
-  const startEdit = () => {
+  const startEdit = (value: string) => {
     if (readonly) return;
+    setDraft(value ?? '');
     setIsEditing(true);
     setTimeout(() => inputRef.current?.focus(), 0);
   };
@@ -32,7 +38,7 @@ export function FormContent(props: { children?: React.ReactNode }) {
   const stopEdit = () => setIsEditing(false);
 
   const commit = (onChange: (value: string) => void) => {
-    onChange(inputRef.current?.value || '');
+    onChange(draft.trim());
     stopEdit();
   };
 
@@ -44,7 +50,8 @@ export function FormContent(props: { children?: React.ReactNode }) {
           <TextArea
             ref={inputRef}
             autosize
-            defaultValue={value || ''}
+            value={draft}
+            onChange={(v: string) => setDraft(v)}
             onBlur={() => commit(onChange)}
             onEnterPress={() => commit(onChange)}
           />
@@ -56,7 +63,8 @@ export function FormContent(props: { children?: React.ReactNode }) {
         <Input
           ref={inputRef}
           size="small"
-          defaultValue={value || ''}
+          value={draft}
+          onChange={(v: string) => setDraft(v)}
           onBlur={() => commit(onChange)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') commit(onChange);
@@ -76,16 +84,22 @@ export function FormContent(props: { children?: React.ReactNode }) {
               renderEditor(value, onChange)
             ) : value ? (
               isSidebar ? (
-                <FormTitleDescription onDoubleClick={startEdit} title={t('nodeDesc.editHint')}>
+                <FormTitleDescription
+                  onDoubleClick={() => startEdit(value)}
+                  title={t('nodeDesc.editHint')}
+                >
                   {value}
                 </FormTitleDescription>
               ) : (
-                <CanvasDescription onDoubleClick={startEdit} title={t('nodeDesc.editHint')}>
+                <CanvasDescription
+                  onDoubleClick={() => startEdit(value)}
+                  title={t('nodeDesc.editHint')}
+                >
                   {value}
                 </CanvasDescription>
               )
             ) : isSidebar ? (
-              <EmptyHint onDoubleClick={startEdit}>{t('nodeDesc.placeholder')}</EmptyHint>
+              <EmptyHint onDoubleClick={() => startEdit('')}>{t('nodeDesc.placeholder')}</EmptyHint>
             ) : null}
             <Feedback errors={fieldState?.errors} />
           </>

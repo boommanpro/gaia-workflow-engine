@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: MIT
  */
 
+import { registryIcon } from '../node-visuals';
 import { WorkflowNodeType } from '../constants';
 import { FlowNodeRegistry } from '../../typings';
-import iconVariable from '../../assets/icon-variable.png';
 import { formMeta } from './form-meta';
 import { generateValidId } from '../utils';
 
@@ -14,7 +14,7 @@ let index = 0;
 export const VariableNodeRegistry: FlowNodeRegistry = {
   type: WorkflowNodeType.Variable,
   info: {
-    icon: iconVariable,
+    icon: registryIcon(WorkflowNodeType.Variable),
     description: 'Variable Assign and Declaration',
   },
   meta: {

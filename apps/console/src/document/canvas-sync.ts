@@ -9,10 +9,10 @@
  * 回流时会把变更分类：只有坐标动了算 layout（不产生快照），
  * 结构动了才算一次真正的版本推进 —— 否则用户拖一下节点就多一个版本，历史会烂掉。
  */
-import { workflowDocumentStore } from './store';
 import { WorkflowDocument } from './workflow-document';
-import { nodeDataSignature } from './history';
 import type { DslEdge, DslNode, WorkflowDsl } from './types';
+import { workflowDocumentStore } from './store';
+import { nodeDataSignature } from './history';
 
 /** 画布侧需要实现的最小能力集 */
 export interface CanvasBinding {
@@ -68,9 +68,7 @@ export function diffDsl(from: WorkflowDsl, to: WorkflowDsl): DslDiff {
     }
   }
 
-  const removedNodeIds = from.nodes
-    .filter((n) => !toNodes.has(n.id))
-    .map((n) => n.id);
+  const removedNodeIds = from.nodes.filter((n) => !toNodes.has(n.id)).map((n) => n.id);
 
   const fromEdges = new Map(from.edges.map((e) => [edgeKey(e), e]));
   const toEdges = new Map(to.edges.map((e) => [edgeKey(e), e]));
@@ -107,6 +105,7 @@ export type CanvasChangeType =
   | 'DELETE_LINE'
   | 'LINE_DATA_CHANGE'
   | 'META_CHANGE'
+  | 'NODE_COMPACT_CHANGE'
   | string;
 
 /** 这些变更只影响观感/位置，不该在版本历史里占一格 */
@@ -114,16 +113,22 @@ const NON_STRUCTURAL_CHANGES = new Set<CanvasChangeType>([
   'MOVE_NODE',
   'META_CHANGE',
   'LINE_DATA_CHANGE',
+  'NODE_COMPACT_CHANGE',
 ]);
 
 class CanvasSyncEngine {
   private binding: CanvasBinding | null = null;
+
   private unsubscribe: (() => void) | null = null;
+
   /** 正在把 store 推给画布，抑制画布回流，避免死循环 */
   private pushing = false;
+
   /** 画布正在回流给 store */
   private pulling = false;
+
   private lastSyncedRevision = -1;
+
   /**
    * 已推送过的节点 data 签名（nodeId → store data JSON）。
    *
@@ -174,7 +179,15 @@ class CanvasSyncEngine {
     } catch {
       return;
     }
-    if (next.isEmpty && workflowDocumentStore.getSnapshot().doc.isEmpty) return;
+    if (next.isEmpty) {
+      // 2026-11-07 防御：空画布不覆盖草稿。旧守卫只在「双空」时跳过——
+      // 编辑器崩溃/HMR 崩溃窗口里的手动回流曾把空文档刷进草稿，画布全丢（v1.9 后端无损，
+      // 草稿需手动恢复）。空内容要么是异常要么是没意义，一律丢弃并记录。
+      if (!workflowDocumentStore.getSnapshot().doc.isEmpty) {
+        console.warn('[canvas-sync] ignore empty canvas flush (draft kept)');
+      }
+      return;
+    }
 
     const current = workflowDocumentStore.getSnapshot().doc.toJSON();
     const incoming = next.toJSON();
@@ -191,7 +204,10 @@ class CanvasSyncEngine {
     // 纯序列化噪音（挂载时框架规整派生字段 / 空点选）：结构没变、坐标也没动 →
     // 不写 store。否则在保存制下会造成「一进编辑器就未保存」的假脏角标
     // （旧设计里只是多推一次相同草稿，无害；保存制后成为可见误报）。
-    if (!structuralDiff && !positionsChanged(current, incoming)) return;
+    // NODE_COMPACT_CHANGE：meta 直改不触发画布 content change，由 node-compact-store
+    // 手动回流；纯紧凑变化结构/坐标都不动，须显式放行否则会被当噪音丢弃（2026-11-07）
+    const compactChanged = changeTypes.includes('NODE_COMPACT_CHANGE');
+    if (!structuralDiff && !positionsChanged(current, incoming) && !compactChanged) return;
 
     this.pulling = true;
     try {
@@ -232,7 +248,10 @@ class CanvasSyncEngine {
 
       // 改动过大（AI 整份重写、或用户回滚到很久以前）时，逐条打补丁既慢又容易残留，
       // 直接整份重建，语义上更干净。
-      if (diff.changeRatio > 0.6 && (diff.removedNodeIds.length > 0 || diff.addedNodes.length > 3)) {
+      if (
+        diff.changeRatio > 0.6 &&
+        (diff.removedNodeIds.length > 0 || diff.addedNodes.length > 3)
+      ) {
         binding.replaceAll(target);
         this.pushedNodeSigs.clear();
         this.lastSyncedRevision = state.revision;

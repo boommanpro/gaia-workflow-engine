@@ -9,8 +9,8 @@ import {
   FlowNodeTransformData,
 } from '@flowgram.ai/free-layout-editor';
 
+import { registryIcon } from '../node-visuals';
 import { FlowNodeRegistry } from '../../typings';
-import iconLoop from '../../assets/icon-loop.jpg';
 import { formMeta } from './form-meta';
 import { generateValidId } from '../utils';
 import { WorkflowNodeType } from '../constants';
@@ -19,7 +19,7 @@ let index = 0;
 export const LoopNodeRegistry: FlowNodeRegistry = {
   type: WorkflowNodeType.Loop,
   info: {
-    icon: iconLoop,
+    icon: registryIcon(WorkflowNodeType.Loop),
     description:
       'Used to repeatedly execute a series of tasks by setting the number of iterations and logic.',
   },

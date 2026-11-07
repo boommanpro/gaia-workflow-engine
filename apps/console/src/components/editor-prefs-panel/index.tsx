@@ -1,15 +1,17 @@
 /**
- * 编辑器偏好设置弹层（齿轮入口）——约定优于配置（2026-11-05 收敛）：
- *   面板只保留「左侧节点面板（拖拽放入）」一个开关 + 「更多」工具行；
- *   主题/背景/工具栏位置/密度/强调色等一律走默认（主题跟随应用、工具栏下部居中），
- *   其余节点添加方式全部默认开启、不再展示开关。
+ * 编辑器偏好设置弹层（齿轮入口）——约定优于配置（2026-11-05 收敛，2026-11-07 改版）：
+ *   · 面板只保留「左侧节点面板（拖拽放入）」一个开关 + 交互偏好 + 「更多」工具行；
+ *   · 主题/背景/工具栏位置/强调色等一律走默认（主题跟随应用、工具栏下部居中）；
+ *   · 2026-11-07 改版（用户反馈）：风格对齐 Semi——「更多」分区由「行标签 + 小『打开』按钮」
+ *     改为整行可点条目（图标 + 标题 + 箭头/开关，命中区整行），只读锁定改为 Switch 行；
+ *     标题区用 Semi Tag/Title，间距与字号走统一 CSS（styles/index.css .gaia-prefs-*）。
  */
 import { useState } from 'react';
 
 import { usePlaygroundTools } from '@flowgram.ai/free-layout-editor';
 import type { InteractiveType as IdeInteractiveType } from '@flowgram.ai/free-layout-editor';
-import { Popover, Button, Switch, Typography, Radio, RadioGroup } from '@douyinfe/semi-ui';
-import { IconSetting } from '@douyinfe/semi-icons';
+import { Popover, Button, Switch, Tag, Typography, Radio, RadioGroup } from '@douyinfe/semi-ui';
+import { IconChevronRight, IconHelpCircle, IconSetting } from '@douyinfe/semi-icons';
 
 import { SchemaEditor } from '../tools/schema-editor';
 import { ReportEditor } from '../tools/report-editor';
@@ -26,13 +28,6 @@ import { EditorPrefs, setEditorPrefs, useEditorPrefs } from '../../editor-prefs'
 const { Title: SemiTitle } = Typography;
 
 const Section = ({ label }: { label: string }) => <div className="gaia-prefs-sec">{label}</div>;
-
-const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
-  <div className="gaia-prefs-row">
-    <span className="gaia-prefs-row-label">{label}</span>
-    <div className="gaia-prefs-row-ctrl">{children}</div>
-  </div>
-);
 
 export const EditorPrefsPanel = () => {
   useLanguage();
@@ -53,25 +48,15 @@ export const EditorPrefsPanel = () => {
 
   const content = (
     <div className="gaia-prefs-pop" role="group" aria-label={t('prefs.title')}>
-      <SemiTitle heading={6} style={{ marginBottom: 4 }}>
-        {t('prefs.title')}
-      </SemiTitle>
-
-      {/* 形态标识从顶部栏移入（2026-11-05 顶部栏归位）：这里是「专家模式」 */}
-      <span
-        style={{
-          display: 'inline-block',
-          fontSize: 10,
-          fontWeight: 600,
-          color: 'var(--g-editor-accent, #4d53e8)',
-          background: 'color-mix(in srgb, var(--g-editor-accent, #4d53e8) 10%, transparent)',
-          borderRadius: 4,
-          padding: '2px 6px',
-          marginBottom: 6,
-        }}
-      >
-        {t('workspace.modeExpert')}
-      </span>
+      <div className="gaia-prefs-head">
+        <SemiTitle heading={6} style={{ margin: 0 }}>
+          {t('prefs.title')}
+        </SemiTitle>
+        {/* 形态标识从顶部栏移入（2026-11-05）：这里是「专家模式」 */}
+        <Tag size="small" color="purple">
+          {t('workspace.modeExpert')}
+        </Tag>
+      </div>
 
       <Section label={t('prefs.secAddNode')} />
       <div className="gaia-prefs-checks">
@@ -85,48 +70,29 @@ export const EditorPrefsPanel = () => {
         </label>
       </div>
 
-      <Section label={t('prefs.secWorkspace')} />
-      <div className="gaia-prefs-checks">
-        <label className="gaia-prefs-check">
-          <Switch size="small" checked={prefs.compact} onChange={(v) => patch({ compact: v })} />
-          <span>{t('prefs.compactMode')}</span>
-        </label>
-      </div>
-      <div className="gaia-prefs-more">
-        <Row label={t('prefs.interaction')}>
-          <RadioGroup
-            type="button"
-            buttonSize="small"
-            value={interactiveType}
-            onChange={(e) => applyInteractive(e.target.value as InteractiveType)}
-          >
-            <Radio value={InteractiveType.Mouse}>{t('tool.mouseFriendly')}</Radio>
-            <Radio value={InteractiveType.Pad}>{t('tool.touchpadFriendly')}</Radio>
-          </RadioGroup>
-        </Row>
+      <Section label={t('prefs.interaction')} />
+      <div className="gaia-prefs-row">
+        <RadioGroup
+          type="button"
+          buttonSize="small"
+          value={interactiveType}
+          onChange={(e) => applyInteractive(e.target.value as InteractiveType)}
+        >
+          <Radio value={InteractiveType.Mouse}>{t('tool.mouseFriendly')}</Radio>
+          <Radio value={InteractiveType.Pad}>{t('tool.touchpadFriendly')}</Radio>
+        </RadioGroup>
       </div>
 
       <Section label={t('prefs.secMore')} />
-      <div className="gaia-prefs-more">
-        <Row label={t('prefs.readonly')}>
-          <Readonly />
-        </Row>
-        <Row label={t('prefs.report')}>
-          <ReportEditor />
-        </Row>
-        <Row label={t('prefs.dsl')}>
-          <SchemaEditor />
-        </Row>
-        <Row label={t('prefs.help.title')}>
-          <Button
-            theme="borderless"
-            size="small"
-            onClick={() => setHelpOpen(true)}
-            aria-label={t('prefs.help.title')}
-          >
-            {t('prefs.moreOpen')}
-          </Button>
-        </Row>
+      <div className="gaia-prefs-actions">
+        <Readonly />
+        <ReportEditor />
+        <SchemaEditor />
+        <button type="button" className="gaia-prefs-action" onClick={() => setHelpOpen(true)}>
+          <IconHelpCircle size="small" className="gaia-prefs-action-icon" />
+          <span className="gaia-prefs-action-label">{t('prefs.help.title')}</span>
+          <IconChevronRight size="small" className="gaia-prefs-action-arrow" />
+        </button>
       </div>
 
       <div className="gaia-prefs-note">{t('prefs.note')}</div>

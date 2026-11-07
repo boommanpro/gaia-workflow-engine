@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { useClientContext, usePlayground } from '@flowgram.ai/free-layout-editor';
-import { Button, Tooltip } from '@douyinfe/semi-ui';
-import { IconTerminal } from '@douyinfe/semi-icons';
+import { IconChevronRight, IconTerminal } from '@douyinfe/semi-icons';
 
 import { CodeEditorModal } from '../code-editor-modal';
 import { useLanguage, t } from '../../i18n';
@@ -62,15 +61,17 @@ export const SchemaEditor = () => {
 
   return (
     <>
-      <Tooltip content={t('tool.schemaEditor')}>
-        <Button
-          disabled={playground.config.readonly}
-          type="tertiary"
-          icon={<IconTerminal />}
-          theme="borderless"
-          onClick={consoleJSON}
-        />
-      </Tooltip>
+      {/* 2026-11-07 改版：偏好面板整行条目（原小图标钮命中区过小） */}
+      <button
+        type="button"
+        className="gaia-prefs-action"
+        disabled={playground.config.readonly}
+        onClick={consoleJSON}
+      >
+        <IconTerminal size="small" className="gaia-prefs-action-icon" />
+        <span className="gaia-prefs-action-label">{t('tool.schemaEditor')}</span>
+        <IconChevronRight size="small" className="gaia-prefs-action-arrow" />
+      </button>
       <CodeEditorModal
         value={showData}
         language={'json'}
@@ -78,6 +79,8 @@ export const SchemaEditor = () => {
         onVisibleChange={setShowModal}
         onChange={saveData}
         options={{ readOnly: false }}
+        // 2026-11-07 用户决策：与「查看 Schema」统一为非全屏（960px 居中）
+        fullScreen={false}
       />
     </>
   );

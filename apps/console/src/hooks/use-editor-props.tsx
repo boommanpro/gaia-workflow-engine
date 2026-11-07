@@ -22,8 +22,10 @@ import {
 import { createFreeGroupPlugin } from '@flowgram.ai/free-group-plugin';
 import { createContainerNodePlugin } from '@flowgram.ai/free-container-plugin';
 
+import { trackAndRestoreViewport } from '../utils/viewport-restore';
+import { getApiBaseUrl } from '../utils/apiConfig';
 import { canContainNode, onDragLineEnd } from '../utils';
-import { FlowDocumentJSON, FlowNodeRegistry } from '../typings';
+import { FlowDocumentJSON, FlowNodeMeta, FlowNodeRegistry } from '../typings';
 import { shortcuts } from '../shortcuts';
 import { CustomService } from '../services';
 import { WorkflowRuntimeService } from '../plugins/runtime-plugin/runtime-service';
@@ -34,17 +36,15 @@ import {
 } from '../plugins';
 import { defaultFormMeta } from '../nodes/default-form-meta';
 import { WorkflowNodeType } from '../nodes';
+import { getCurrentLocale } from '../i18n';
+import { canvasSync, type CanvasChangeType } from '../document';
 import { variableDockPanelFactory } from '../components/variable-dock';
 import { testRunPanelFactory } from '../components/testrun/testrun-panel';
 import { nodeFormPanelFactory } from '../components/sidebar';
 import { SelectorBoxPopover } from '../components/selector-box-popover';
-import { runHistoryPanelFactory } from '../components/run-history';
 import { singleNodeTestPanelFactory } from '../components/run-node-panel';
+import { runHistoryPanelFactory } from '../components/run-history';
 import { BaseNode, CommentRender, GroupNodeRender, LineAddButton, NodePanel } from '../components';
-import { getApiBaseUrl } from '../utils/apiConfig';
-import { trackAndRestoreViewport } from '../utils/viewport-restore';
-import { getCurrentLocale } from '../i18n';
-import { canvasSync, type CanvasChangeType } from '../document';
 
 /**
  * 画布变更类型的累积缓冲。
@@ -135,6 +135,12 @@ export function useEditorProps(
        * @param json
        */
       toNodeJSON(node, json) {
+        // 2026-11-07 节点级紧凑态入 DSL：free-layout 默认只序列化 position，
+        // compact 经此透传（node-compact-store 写入 getNodeMeta/metaFromJSON）
+        const compact = node.getNodeMeta<FlowNodeMeta>().compact;
+        if (compact && json && typeof json === 'object') {
+          return { ...json, meta: { ...json.meta, compact: true } };
+        }
         return json;
       },
       lineColor: {
@@ -426,15 +432,22 @@ export function useEditorProps(
               const url = new URL(fullUrl);
               return {
                 domain: url.hostname,
-                port: url.port ? parseInt(url.port) : (url.protocol === 'https:' ? 443 : 80),
+                port: url.port ? parseInt(url.port) : url.protocol === 'https:' ? 443 : 80,
                 protocol: url.protocol.replace(':', ''),
-                  pathname: url.pathname,
+                pathname: url.pathname,
               };
             } catch (error) {
-              console.warn('Failed to parse API base URL for runtime plugin, using current origin:', error);
+              console.warn(
+                'Failed to parse API base URL for runtime plugin, using current origin:',
+                error
+              );
               return {
                 domain: window.location.hostname,
-                port: window.location.port ? parseInt(window.location.port) : (window.location.protocol === 'https:' ? 443 : 80),
+                port: window.location.port
+                  ? parseInt(window.location.port)
+                  : window.location.protocol === 'https:'
+                  ? 443
+                  : 80,
                 protocol: window.location.protocol.replace(':', ''),
                 pathname: '/api',
               };

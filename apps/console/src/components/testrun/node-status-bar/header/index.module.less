@@ -10,8 +10,11 @@
   position: absolute;
   top: calc(100% + 8px);
   left: 0;
+  /* 宽度与所属节点卡一致（2026-11-07 用户反馈：原 min-width:360px 比窄节点宽，
+     状态条超出节点边界）。内容超出时在条内滚动，不再外扩。 */
   width: 100%;
-  min-width: 360px;
+  min-width: 0;
+  overflow-x: auto;
   &-content {
     display: flex;
     align-items: center;

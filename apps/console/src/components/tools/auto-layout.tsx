@@ -8,8 +8,8 @@ import { useCallback } from 'react';
 import { usePlayground, usePlaygroundTools } from '@flowgram.ai/free-layout-editor';
 import { IconButton, Tooltip } from '@douyinfe/semi-ui';
 
-import { IconAutoLayout } from '../../assets/icon-auto-layout';
 import { useLanguage, t } from '../../i18n';
+import { IconAutoLayout } from '../../assets/icon-auto-layout';
 
 export const AutoLayout = () => {
   const tools = usePlaygroundTools();

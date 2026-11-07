@@ -15,6 +15,8 @@ export const CodeEditorModal = ({
   handleCancel,
   onVisibleChange, // 新增：用于控制 Modal 的显示/隐藏
   options: externalOptions, // 新增：支持外部传递 options
+  title,
+  fullScreen = true,
 }: {
   value: string;
   onChange?: (value: string) => void;
@@ -24,6 +26,10 @@ export const CodeEditorModal = ({
   handleCancel?: () => void;
   onVisibleChange?: (visible: boolean) => void; // 新增：控制 Modal 的显示/隐藏
   options?: monaco.editor.IStandaloneEditorConstructionOptions; // 新增：支持外部传递 options
+  /** 弹窗标题（默认「代码编辑器」） */
+  title?: string;
+  /** 全屏形态（默认 true）；2026-11-07 用户决策：DSL 编辑器与查看 Schema 均传 false（960px 居中非全屏） */
+  fullScreen?: boolean;
 }) => {
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   useLanguage();
@@ -61,12 +67,19 @@ export const CodeEditorModal = ({
 
   return (
     <Modal
-      title={t('codeEditor.title')}
+      title={title ?? t('codeEditor.title')}
       visible={visible}
       onOk={handleCurrentOk}
       onCancel={handleCurrentCancel}
       closeOnEsc
-      fullScreen
+      fullScreen={fullScreen}
+      {...(fullScreen
+        ? {}
+        : {
+            width: 960,
+            centered: true,
+            bodyStyle: { height: '64vh', padding: 0 },
+          })}
       style={{ zIndex: 1000 }}
       getPopupContainer={() => document.body}
     >

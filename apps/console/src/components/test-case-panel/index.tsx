@@ -1123,11 +1123,10 @@ export const TestCaseSheetButton: FC<TestCasePanelProps & { variant?: 'header' |
           <IconButton
             type="tertiary"
             theme="borderless"
+            icon={IconTestCase}
             aria-label={label}
             onClick={() => setOpen(true)}
-          >
-            {IconTestCase}
-          </IconButton>
+          />
         </Tooltip>
       ) : (
         <button

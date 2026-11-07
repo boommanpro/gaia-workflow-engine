@@ -11,8 +11,8 @@ import {
 } from '@flowgram.ai/free-layout-editor';
 import { Tooltip, Popover } from '@douyinfe/semi-ui';
 
-import { MousePadSelector } from './mouse-pad-selector';
 import { useLanguage, t } from '../../i18n';
+import { MousePadSelector } from './mouse-pad-selector';
 
 export const CACHE_KEY = 'workflow_prefer_interactive_type';
 export const IS_MAC_OS = /(Macintosh|MacIntel|MacPPC|Mac68K|iPad)/.test(navigator.userAgent);
@@ -46,7 +46,9 @@ export const Interactive = () => {
   const [showInteractivePanel, setShowInteractivePanel] = useState(false);
 
   const mousePadTooltip =
-    interactiveType === InteractiveType.Mouse ? t('tool.mouseFriendly') : t('tool.touchpadFriendly');
+    interactiveType === InteractiveType.Mouse
+      ? t('tool.mouseFriendly')
+      : t('tool.touchpadFriendly');
 
   useEffect(() => {
     // read from localStorage

@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: MIT
  */
 
+import { registryIcon } from '../node-visuals';
 import { WorkflowNodeType } from '../constants';
 import { FlowNodeRegistry } from '../../typings';
-import iconWorkflow from '../../assets/icon-workflow.svg';
 import { formMeta } from './form-meta';
 import { generateValidId } from '../utils';
 import { cloneDefaultData } from '../../agent/node-templates';
@@ -25,7 +25,7 @@ export interface WorkflowNodeData {
 export const WorkflowNodeRegistry: FlowNodeRegistry = {
   type: WorkflowNodeType.Workflow,
   info: {
-    icon: iconWorkflow,
+    icon: registryIcon(WorkflowNodeType.Workflow),
     description: '嵌入另一个工作流，支持参数传递和结果返回',
   },
   meta: {

@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: MIT
  */
 
+import { registryIcon } from '../node-visuals';
 import { FlowNodeRegistry } from '../../typings';
-import iconCondition from '../../assets/icon-condition.svg';
 import { formMeta } from './form-meta';
 import { generateValidId } from '../utils';
 import { WorkflowNodeType } from '../constants';
@@ -12,7 +12,7 @@ import { WorkflowNodeType } from '../constants';
 export const BranchNodeRegistry: FlowNodeRegistry = {
   type: WorkflowNodeType.Branches,
   info: {
-    icon: iconCondition,
+    icon: registryIcon(WorkflowNodeType.Branches),
     description:
       'Connect multiple downstream branches. Only the corresponding branch will be executed if the set conditions are met.',
   },

@@ -17,11 +17,7 @@ import { IconChevronDown, IconEdit, IconHistory } from '@douyinfe/semi-icons';
 import '@flowgram.ai/free-layout-editor/index.css';
 import './index.css';
 import './styles/index.css';
-import {
-  workflowApi,
-  GaiaWorkflowVersion,
-  GaiaWorkflowTemplate,
-} from './services/workflow-api';
+import { workflowApi, GaiaWorkflowVersion, GaiaWorkflowTemplate } from './services/workflow-api';
 import { setRunWorkflowContext } from './plugins/runtime-plugin/runtime-service';
 import { nodeRegistries } from './nodes';
 import { initialData, emptyWorkflowData } from './initial-data';
@@ -37,6 +33,7 @@ import {
   versionContentKey,
 } from './document';
 import { DemoTools } from './components/tools';
+import { RunReplayBanner } from './components/run-history/replay-banner';
 import { NodePaletteRail } from './components/node-palette-rail';
 import { LanguageToggle } from './components/language-toggle';
 import { EditorPrefsPanel } from './components/editor-prefs-panel';
@@ -522,7 +519,7 @@ export const Editor = () => {
     <div style={{ display: 'flex', height: '100vh', width: '100%', overflow: 'hidden' }}>
       {/* 画布工作台（专家模式主位）——对话在 /chat 页，这里不再内嵌 AI 悬浮窗 */}
       <div
-        className={`gaia-editor-page${prefs.compact ? ' gaia-editor-compact' : ''}`}
+        className="gaia-editor-page"
         data-editor-theme={prefs.theme === 'auto' ? undefined : prefs.theme}
         style={{
           flex: 1,
@@ -550,6 +547,8 @@ export const Editor = () => {
             <div className="demo-container" style={{ width: '100%', height: '100%' }}>
               <EditorRenderer className="demo-editor" />
             </div>
+            {/* 历史回放激活时浮在画布顶部（运行历史面板点击记录触发） */}
+            <RunReplayBanner />
             {prefs.addPalette && <NodePaletteRail />}
             <DemoTools hideSave testWorkflowCode={effectiveCode} />
           </div>
@@ -1009,7 +1008,8 @@ const EditorHeader = ({
               padding: '3px 8px',
             }}
           >
-            {t('editor.sessionDraft')}{unsaved ? ` · ${t('editor.unsavedBadge')}` : ''}
+            {t('editor.sessionDraft')}
+            {unsaved ? ` · ${t('editor.unsavedBadge')}` : ''}
           </span>
         )}
       </div>
@@ -1166,7 +1166,6 @@ const EditorHeader = ({
           }
         />
       </Modal>
-
     </div>
   );
 };

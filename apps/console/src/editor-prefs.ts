@@ -1,5 +1,6 @@
 /**
- * 编辑器偏好（gaia.editor.*）：工具栏位置 / 节点密度 / 节点添加方式 / 画布外观。
+ * 编辑器偏好（gaia.editor.*）：工具栏位置 / 节点添加方式 / 画布外观。
+ * （节点紧凑密度已于 2026-11-07 改为节点级交互，见 node-compact-store。）
  *
  * 设计依据 docs/editor-ux-benchmark-proposal-2026-11-03.md §4.6（2026-11-04 用户确认）。
  * 全部为展示层偏好：只存 localStorage，不进工作流 JSON、不影响节点契约（NC-01/P-01）。
@@ -19,11 +20,8 @@ export interface EditorPrefs {
   accent: string;
   /** 工具栏位置，默认下部居中（2026-11-04 确认） */
   toolbarPosition: ToolbarPosition;
-  /** 节点密度：紧凑=节点折叠为「芯片+标题」胶囊 */
-  compact: boolean;
-  /** 节点添加方式五项开关（默认全开） */
+  /** 节点添加方式开关（左侧面板；其余添加方式全开、无开关） */
   addPalette: boolean;
-  addToolbarBtn: boolean;
   addPortPlus: boolean;
   addContextMenu: boolean;
   addDragLine: boolean;
@@ -45,25 +43,23 @@ export const DEFAULT_EDITOR_PREFS: EditorPrefs = {
   canvasBg: 'dots',
   accent: '#4d53e8',
   toolbarPosition: 'center',
-  compact: false,
   addPalette: false,
-  addToolbarBtn: true,
   addPortPlus: true,
   addContextMenu: true,
   addDragLine: true,
 };
 
 export const getEditorPrefs = (): EditorPrefs => {
+  // 2026-11-07 密度下线：紧凑模式改为节点级交互（node-compact-store），不再有全局偏好。
   // 2026-11-05 约定优于配置：设置面板只保留「左侧节点面板」开关，
-  // 其余项一律默认（主题跟随应用/点阵背景/工具栏下部居中/舒适密度/添加方式全开）。
-  // 旧存储里的其余键一概忽略，避免历史值（如深色覆盖）造成口径漂移。
+  // 其余项一律默认（主题跟随应用/点阵背景/工具栏下部居中/添加方式全开）。
+  // 旧存储里的其余键一概忽略，避免历史值（如深色覆盖、全局紧凑）造成口径漂移。
   try {
     const raw = localStorage.getItem(EDITOR_PREFS_KEY);
     const p = raw ? (JSON.parse(raw) as Partial<EditorPrefs>) : {};
     return {
       ...DEFAULT_EDITOR_PREFS,
       addPalette: typeof p.addPalette === 'boolean' ? p.addPalette : false,
-      compact: typeof p.compact === 'boolean' ? p.compact : false,
     };
   } catch {
     return { ...DEFAULT_EDITOR_PREFS };

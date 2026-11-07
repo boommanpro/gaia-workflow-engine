@@ -27,18 +27,7 @@ export const Title = styled.div`
   width: 0;
 `;
 
-export const Subtitle = styled.div`
-  font-size: 12px;
-  line-height: 18px;
-  color: var(--ge-text-2, #7b8090);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  padding: 0 10px 6px;
-  background: var(--ge-node-head, linear-gradient(#f2f2ff 0%, rgb(251, 251, 251) 100%));
-  width: 100%;
-  box-sizing: border-box;
-`;
+/* Subtitle 已删（2026-11-07）：卡片头不再展示参数摘要副标题 */
 
 export const Operators = styled.div`
   display: flex;

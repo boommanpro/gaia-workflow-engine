@@ -3,4 +3,10 @@
  * SPDX-License-Identifier: MIT
  */
 
-export { RUN_HISTORY_PANEL, runHistoryPanelFactory, RunHistoryPanel, RunHistoryButton } from './run-history-panel';
+export {
+  RUN_HISTORY_PANEL,
+  runHistoryPanelFactory,
+  RunHistoryPanel,
+  RunHistoryButton,
+} from './run-history-panel';
+export { RunReplayBanner } from './replay-banner';

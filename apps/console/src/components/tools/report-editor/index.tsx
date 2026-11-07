@@ -1,11 +1,11 @@
 import { useCallback, useState } from 'react';
 
 import { useService } from '@flowgram.ai/free-layout-editor';
-import { Button, Toast, Tooltip } from '@douyinfe/semi-ui';
-import { IconFile } from '@douyinfe/semi-icons';
+import { Toast } from '@douyinfe/semi-ui';
+import { IconChevronRight, IconFile } from '@douyinfe/semi-icons';
 
-import { WorkflowRuntimeService } from '../../../plugins/runtime-plugin/runtime-service';
 import { CodeEditorModal } from '../../code-editor-modal';
+import { WorkflowRuntimeService } from '../../../plugins/runtime-plugin/runtime-service';
 import { useLanguage, t } from '../../../i18n';
 
 export const ReportEditor = () => {
@@ -91,9 +91,12 @@ export const ReportEditor = () => {
 
   return (
     <>
-      <Tooltip content={t('tool.reportEditor')}>
-        <Button type="tertiary" icon={<IconFile />} theme="borderless" onClick={openModal} />
-      </Tooltip>
+      {/* 2026-11-07 改版：偏好面板整行条目（原小图标钮命中区过小） */}
+      <button type="button" className="gaia-prefs-action" onClick={openModal}>
+        <IconFile size="small" className="gaia-prefs-action-icon" />
+        <span className="gaia-prefs-action-label">{t('tool.reportEditor')}</span>
+        <IconChevronRight size="small" className="gaia-prefs-action-arrow" />
+      </button>
       <CodeEditorModal
         value={reportData}
         language="json"
