@@ -6,9 +6,9 @@
  *   · 语言 / 主题：右侧显示当前值，悬停或点击展开右侧子菜单（与 Codex 一致）
  *   · 设置 / 退出登录
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
+import { createPortal } from 'react-dom';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useLanguage, t } from '../../i18n';
 import { CHAT, useThemeMode, setThemeMode, type ThemeMode } from '../../chat/theme';
@@ -53,7 +53,16 @@ const Chevron: React.FC<{ up?: boolean; dir?: 'down' | 'right' }> = ({ up, dir =
 );
 
 const Check: React.FC = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M20 6L9 17l-5-5" />
   </svg>
 );
@@ -85,11 +94,8 @@ const GearIcon: React.FC = () => (
   </Svg>
 );
 
-const ExitIcon: React.FC = () => (
-  <Svg>
-    <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" />
-  </Svg>
-);
+// 审计 A31：「退出登录」菜单项与 ExitIcon 一并停用（本地单账号无登出目标，
+// 恢复功能时从 git 历史取回：菜单项在本文件尾部注释块中）
 
 /* ---------------- 样式 ---------------- */
 
@@ -170,7 +176,11 @@ export const UserMenu: React.FC = () => {
     const el = rootRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    setPos({ left: rect.left, bottom: window.innerHeight - rect.top + 8, width: Math.max(rect.width, 236) });
+    setPos({
+      left: rect.left,
+      bottom: window.innerHeight - rect.top + 8,
+      width: Math.max(rect.width, 236),
+    });
   }, []);
 
   useEffect(() => {
@@ -239,9 +249,27 @@ export const UserMenu: React.FC = () => {
         <img
           src={avatarUrl}
           alt={name}
-          style={{ width: 26, height: 26, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: `1px solid ${CHAT.line}` }}
+          style={{
+            width: 26,
+            height: 26,
+            borderRadius: '50%',
+            objectFit: 'cover',
+            flexShrink: 0,
+            border: `1px solid ${CHAT.line}`,
+          }}
         />
-        <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 500, color: CHAT.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <span
+          style={{
+            flex: 1,
+            minWidth: 0,
+            fontSize: 13,
+            fontWeight: 500,
+            color: CHAT.text,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
           {name}
         </span>
         <span style={{ display: 'flex', color: CHAT.textMuted }}>
@@ -267,125 +295,152 @@ export const UserMenu: React.FC = () => {
               zIndex: 1400,
             }}
           >
-          {/* 账户信息 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 8px 10px' }}>
-            <img
-              src={avatarUrl}
-              alt={name}
-              style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: `1px solid ${CHAT.line}` }}
-            />
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 600, color: CHAT.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {name}
-              </div>
-              <div style={{ fontSize: 11.5, color: CHAT.textMuted }}>{t('shell.localAccount')}</div>
-            </div>
-          </div>
-
-          <div style={{ height: 1, background: CHAT.lineSoft, margin: '0 4px 6px' }} />
-
-          {/* 语言 */}
-          <div
-            style={{ position: 'relative' }}
-            onMouseLeave={() => setOpenSub((v) => (v === 'language' ? null : v))}
-          >
-            <HoverRow
-              onClick={() => setOpenSub((v) => (v === 'language' ? null : 'language'))}
-              onMouseEnter={() => setOpenSub('language')}
-              active={openSub === 'language'}
+            {/* 账户信息 */}
+            <div
+              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 8px 10px' }}
             >
-              <span style={{ display: 'flex', color: CHAT.textSub }}>
-                <GlobeIcon />
-              </span>
-              <span style={{ flex: 1, color: CHAT.text }}>{t('shell.language')}</span>
-              <span style={{ fontSize: 12.5, color: CHAT.textMuted }}>{langLabel}</span>
-              <span style={{ display: 'flex', color: CHAT.textMuted }}>
-                <Chevron dir="right" />
-              </span>
-            </HoverRow>
-
-            {openSub === 'language' && (
-              <div style={submenuStyle}>
-                {/* 语言切换暂缓开放：先把中文体验打磨稳定，两套文案的维护成本之后再说 */}
+              <img
+                src={avatarUrl}
+                alt={name}
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: '50%',
+                  objectFit: 'cover',
+                  flexShrink: 0,
+                  border: `1px solid ${CHAT.line}`,
+                }}
+              />
+              <div style={{ minWidth: 0 }}>
                 <div
                   style={{
-                    padding: '10px 14px',
-                    color: CHAT.textMuted,
-                    fontSize: 12,
-                    lineHeight: 1.6,
-                    whiteSpace: 'pre-line',
+                    fontSize: 13.5,
+                    fontWeight: 600,
+                    color: CHAT.text,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
                   }}
                 >
-                  {t('shell.langPendingNote')}
+                  {name}
+                </div>
+                <div style={{ fontSize: 11.5, color: CHAT.textMuted }}>
+                  {t('shell.localAccount')}
                 </div>
               </div>
-            )}
-          </div>
+            </div>
 
-          {/* 主题 */}
-          <div
-            style={{ position: 'relative' }}
-            onMouseLeave={() => setOpenSub((v) => (v === 'theme' ? null : v))}
-          >
+            <div style={{ height: 1, background: CHAT.lineSoft, margin: '0 4px 6px' }} />
+
+            {/* 语言 */}
+            <div
+              style={{ position: 'relative' }}
+              onMouseLeave={() => setOpenSub((v) => (v === 'language' ? null : v))}
+            >
+              <HoverRow
+                onClick={() => setOpenSub((v) => (v === 'language' ? null : 'language'))}
+                onMouseEnter={() => setOpenSub('language')}
+                active={openSub === 'language'}
+              >
+                <span style={{ display: 'flex', color: CHAT.textSub }}>
+                  <GlobeIcon />
+                </span>
+                <span style={{ flex: 1, color: CHAT.text }}>{t('shell.language')}</span>
+                <span style={{ fontSize: 12.5, color: CHAT.textMuted }}>{langLabel}</span>
+                <span style={{ display: 'flex', color: CHAT.textMuted }}>
+                  <Chevron dir="right" />
+                </span>
+              </HoverRow>
+
+              {openSub === 'language' && (
+                <div style={submenuStyle}>
+                  {/* 语言切换暂缓开放：先把中文体验打磨稳定，两套文案的维护成本之后再说 */}
+                  <div
+                    style={{
+                      padding: '10px 14px',
+                      color: CHAT.textMuted,
+                      fontSize: 12,
+                      lineHeight: 1.6,
+                      whiteSpace: 'pre-line',
+                    }}
+                  >
+                    {t('shell.langPendingNote')}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 主题 */}
+            <div
+              style={{ position: 'relative' }}
+              onMouseLeave={() => setOpenSub((v) => (v === 'theme' ? null : v))}
+            >
+              <HoverRow
+                onClick={() => setOpenSub((v) => (v === 'theme' ? null : 'theme'))}
+                onMouseEnter={() => setOpenSub('theme')}
+                active={openSub === 'theme'}
+              >
+                <span style={{ display: 'flex', color: CHAT.textSub }}>
+                  {theme === 'dark' ? <MoonIcon /> : <SunIcon />}
+                </span>
+                <span style={{ flex: 1, color: CHAT.text }}>{t('shell.theme')}</span>
+                <span style={{ fontSize: 12.5, color: CHAT.textMuted }}>{themeLabel}</span>
+                <span style={{ display: 'flex', color: CHAT.textMuted }}>
+                  <Chevron dir="right" />
+                </span>
+              </HoverRow>
+
+              {openSub === 'theme' && (
+                <div style={submenuStyle}>
+                  {themeOptions.map((item) => {
+                    const selected = item.value === theme;
+                    return (
+                      <HoverRow
+                        key={item.value}
+                        onClick={() => {
+                          setThemeMode(item.value);
+                          setOpen(false);
+                          setOpenSub(null);
+                        }}
+                      >
+                        <span
+                          style={{
+                            flex: 1,
+                            color: selected ? CHAT.text : CHAT.textBody,
+                            fontWeight: selected ? 600 : 400,
+                          }}
+                        >
+                          {item.label}
+                        </span>
+                        {selected && (
+                          <span style={{ display: 'flex', color: CHAT.accent }}>
+                            <Check />
+                          </span>
+                        )}
+                      </HoverRow>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* 设置：进入设置二级区（模板管理 / Agent 配置中心；侧边栏顶部出现「返回 App」） */}
             <HoverRow
-              onClick={() => setOpenSub((v) => (v === 'theme' ? null : 'theme'))}
-              onMouseEnter={() => setOpenSub('theme')}
-              active={openSub === 'theme'}
+              onClick={() => {
+                setOpen(false);
+                navigate('/manage/templates');
+              }}
             >
               <span style={{ display: 'flex', color: CHAT.textSub }}>
-                {theme === 'dark' ? <MoonIcon /> : <SunIcon />}
+                <GearIcon />
               </span>
-              <span style={{ flex: 1, color: CHAT.text }}>{t('shell.theme')}</span>
-              <span style={{ fontSize: 12.5, color: CHAT.textMuted }}>{themeLabel}</span>
-              <span style={{ display: 'flex', color: CHAT.textMuted }}>
-                <Chevron dir="right" />
-              </span>
+              <span style={{ flex: 1, color: CHAT.text }}>{t('shell.settings')}</span>
             </HoverRow>
 
-            {openSub === 'theme' && (
-              <div style={submenuStyle}>
-                {themeOptions.map((item) => {
-                  const selected = item.value === theme;
-                  return (
-                    <HoverRow
-                      key={item.value}
-                      onClick={() => {
-                        setThemeMode(item.value);
-                        setOpen(false);
-                        setOpenSub(null);
-                      }}
-                    >
-                      <span style={{ flex: 1, color: selected ? CHAT.text : CHAT.textBody, fontWeight: selected ? 600 : 400 }}>
-                        {item.label}
-                      </span>
-                      {selected && (
-                        <span style={{ display: 'flex', color: CHAT.accent }}>
-                          <Check />
-                        </span>
-                      )}
-                    </HoverRow>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+            <div style={{ height: 1, background: CHAT.lineSoft, margin: '6px 4px' }} />
 
-          {/* 设置：进入设置二级区（模板管理 / Agent 配置中心；侧边栏顶部出现「返回 App」） */}
-          <HoverRow
-            onClick={() => {
-              setOpen(false);
-              navigate('/manage/templates');
-            }}
-          >
-            <span style={{ display: 'flex', color: CHAT.textSub }}>
-              <GearIcon />
-            </span>
-            <span style={{ flex: 1, color: CHAT.text }}>{t('shell.settings')}</span>
-          </HoverRow>
-
-          <div style={{ height: 1, background: CHAT.lineSoft, margin: '6px 4px' }} />
-
-          {/* 退出登录 */}
+            {/* 审计 A31：「退出登录」此前点击无任何作用（onClick 只关菜单）——本地单账号
+              场景没有登出目标，先隐藏；实现登出后再恢复。
           <HoverRow
             onClick={() => {
               setOpen(false);
@@ -396,8 +451,9 @@ export const UserMenu: React.FC = () => {
             </span>
             <span style={{ flex: 1, color: CHAT.text }}>{t('shell.signOut')}</span>
           </HoverRow>
+          */}
           </div>,
-          document.body,
+          document.body
         )}
     </div>
   );

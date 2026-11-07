@@ -11,9 +11,9 @@
  */
 import React, { useState } from 'react';
 
-import { agentApi } from '../agent/api';
-import { normalizeAskOptions, type AskCardData } from '../agent/types';
 import { useLanguage, t } from '../i18n';
+import { normalizeAskOptions, type AskCardData } from '../agent/types';
+import { agentApi } from '../agent/api';
 import { CHAT } from './theme';
 
 export const AskCard: React.FC<{
@@ -54,7 +54,9 @@ export const AskCard: React.FC<{
         maxWidth: 560,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9, marginBottom: closed ? 8 : 11 }}>
+      <div
+        style={{ display: 'flex', alignItems: 'flex-start', gap: 9, marginBottom: closed ? 8 : 11 }}
+      >
         <span
           aria-hidden
           style={{
@@ -71,13 +73,30 @@ export const AskCard: React.FC<{
             color: CHAT.textSub,
           }}
         >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22z" />
             <path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3" />
             <path d="M12 17h.01" />
           </svg>
         </span>
-        <div style={{ fontSize: 13.5, lineHeight: 1.65, color: CHAT.textBody, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+        <div
+          style={{
+            fontSize: 13.5,
+            lineHeight: 1.65,
+            color: CHAT.textBody,
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+          }}
+        >
           {ask.question}
         </div>
       </div>
@@ -85,10 +104,15 @@ export const AskCard: React.FC<{
       {answered ? (
         <div
           style={{
-            display: 'flex', alignItems: 'flex-start', gap: 6,
-            padding: '7px 10px', borderRadius: 8,
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 6,
+            padding: '7px 10px',
+            borderRadius: 8,
             background: ask.auto ? CHAT.hover : CHAT.successSoft,
-            color: ask.auto ? CHAT.textSub : CHAT.success, fontSize: 12.5, lineHeight: 1.6,
+            color: ask.auto ? CHAT.textSub : CHAT.success,
+            fontSize: 12.5,
+            lineHeight: 1.6,
           }}
         >
           <span style={{ flexShrink: 0 }}>{ask.auto ? '⌛' : '✓'}</span>
@@ -99,9 +123,15 @@ export const AskCard: React.FC<{
       ) : expired ? (
         <div
           style={{
-            display: 'flex', alignItems: 'flex-start', gap: 6,
-            padding: '7px 10px', borderRadius: 8,
-            background: CHAT.hover, color: CHAT.textSub, fontSize: 12.5, lineHeight: 1.6,
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 6,
+            padding: '7px 10px',
+            borderRadius: 8,
+            background: CHAT.hover,
+            color: CHAT.textSub,
+            fontSize: 12.5,
+            lineHeight: 1.6,
           }}
         >
           <span style={{ flexShrink: 0 }}>⌛</span>
@@ -118,25 +148,49 @@ export const AskCard: React.FC<{
                   disabled={sending}
                   onClick={() => void answer(option.label)}
                   style={{
-                    display: 'block', width: '100%', textAlign: 'left', cursor: sending ? 'default' : 'pointer',
-                    padding: '8px 12px', borderRadius: 9,
+                    display: 'block',
+                    width: '100%',
+                    textAlign: 'left',
+                    cursor: sending ? 'default' : 'pointer',
+                    padding: '8px 12px',
+                    borderRadius: 9,
                     border: `1px solid ${option.recommended ? CHAT.accentBorder : CHAT.line}`,
                     background: CHAT.bg,
-                    color: CHAT.textBody, fontSize: 13, lineHeight: 1.5, fontFamily: 'inherit',
+                    color: CHAT.textBody,
+                    fontSize: 13,
+                    lineHeight: 1.5,
+                    fontFamily: 'inherit',
                     transition: 'border-color .14s, background .14s',
                     opacity: sending ? 0.6 : 1,
                   }}
-                  onMouseEnter={(e) => { if (!sending) { e.currentTarget.style.borderColor = CHAT.accent; e.currentTarget.style.background = CHAT.hover; } }}
-                  onMouseLeave={(e) => { if (!sending) { e.currentTarget.style.borderColor = option.recommended ? CHAT.accentBorder : CHAT.line; e.currentTarget.style.background = CHAT.bg; } }}
+                  onMouseEnter={(e) => {
+                    if (!sending) {
+                      e.currentTarget.style.borderColor = CHAT.accent;
+                      e.currentTarget.style.background = CHAT.hover;
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!sending) {
+                      e.currentTarget.style.borderColor = option.recommended
+                        ? CHAT.accentBorder
+                        : CHAT.line;
+                      e.currentTarget.style.background = CHAT.bg;
+                    }
+                  }}
                 >
                   <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     {option.label}
                     {option.recommended && (
                       <span
                         style={{
-                          flexShrink: 0, padding: '1px 6px', borderRadius: 999,
-                          border: `1px solid ${CHAT.accentBorder}`, background: CHAT.accentSoft,
-                          color: CHAT.textSub, fontSize: 10.5, lineHeight: 1.5,
+                          flexShrink: 0,
+                          padding: '1px 6px',
+                          borderRadius: 999,
+                          border: `1px solid ${CHAT.accentBorder}`,
+                          background: CHAT.accentSoft,
+                          color: CHAT.textSub,
+                          fontSize: 10.5,
+                          lineHeight: 1.5,
                         }}
                       >
                         {t('chat.askRecommended')}
@@ -144,7 +198,9 @@ export const AskCard: React.FC<{
                     )}
                   </span>
                   {option.detail && (
-                    <span style={{ display: 'block', marginTop: 2, fontSize: 12, color: CHAT.textSub }}>
+                    <span
+                      style={{ display: 'block', marginTop: 2, fontSize: 12, color: CHAT.textSub }}
+                    >
                       {option.detail}
                     </span>
                   )}
@@ -158,11 +214,26 @@ export const AskCard: React.FC<{
               disabled={sending}
               placeholder={t('chat.askInputPlaceholder')}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void answer(input); } }}
+              onKeyDown={(e) => {
+                // 审计 A12：IME 组合中的 Enter 是选词不是发送（Safari 下
+                // compositionend 后的 commit-Enter 也要靠 keyCode 229 兜底）
+                const composing = e.nativeEvent.isComposing || e.keyCode === 229;
+                if (e.key === 'Enter' && !composing) {
+                  e.preventDefault();
+                  void answer(input);
+                }
+              }}
               style={{
-                flex: 1, minWidth: 0, padding: '7px 12px', fontSize: 13, fontFamily: 'inherit',
-                border: `1px solid ${CHAT.line}`, borderRadius: 8, outline: 'none',
-                background: CHAT.bg, color: CHAT.text,
+                flex: 1,
+                minWidth: 0,
+                padding: '7px 12px',
+                fontSize: 13,
+                fontFamily: 'inherit',
+                border: `1px solid ${CHAT.line}`,
+                borderRadius: 8,
+                outline: 'none',
+                background: CHAT.bg,
+                color: CHAT.text,
               }}
             />
             <button
@@ -170,8 +241,14 @@ export const AskCard: React.FC<{
               disabled={sending || !input.trim()}
               onClick={() => void answer(input)}
               style={{
-                padding: '7px 14px', fontSize: 13, fontFamily: 'inherit', cursor: input.trim() && !sending ? 'pointer' : 'default',
-                border: 'none', borderRadius: 8, background: CHAT.accent, color: CHAT.accentFg,
+                padding: '7px 14px',
+                fontSize: 13,
+                fontFamily: 'inherit',
+                cursor: input.trim() && !sending ? 'pointer' : 'default',
+                border: 'none',
+                borderRadius: 8,
+                background: CHAT.accent,
+                color: CHAT.accentFg,
                 opacity: input.trim() && !sending ? 1 : 0.5,
               }}
             >

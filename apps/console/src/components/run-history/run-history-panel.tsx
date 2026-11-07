@@ -4,7 +4,7 @@
  */
 
 import { useParams } from 'react-router-dom';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
 import { PanelFactory, usePanelManager } from '@flowgram.ai/panel-manager-plugin';
 import { useService } from '@flowgram.ai/free-layout-editor';
@@ -258,11 +258,15 @@ export const RunHistoryPanel = () => {
     }
   }, [workflowCode]);
 
+  /** 审计 A20：快速连点两条记录时，只认最后一次选择的响应（last-write-wins 竞态） */
+  const selectSeqRef = useRef(0);
   const selectRun = useCallback(
     async (run: WorkflowRunRecord) => {
+      const seq = ++selectSeqRef.current;
       setSelectedRun(run);
       try {
         const runDetail = await workflowApi.getTaskRunDetail(run.taskId);
+        if (selectSeqRef.current !== seq) return; // 过期响应：用户已改选
         setDetail(runDetail);
         // 详情拉取成功才回放：失败时保留画布现状，不叠加半份数据
         runtimeService.applyHistoryReport({
@@ -271,6 +275,7 @@ export const RunHistoryPanel = () => {
           nodes: runDetail?.nodes ?? [],
         });
       } catch {
+        if (selectSeqRef.current !== seq) return;
         setDetail(null);
       }
     },
@@ -301,9 +306,15 @@ export const RunHistoryPanel = () => {
       setReplay(state ?? undefined);
     });
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        panelManager.close(RUN_HISTORY_PANEL);
-      }
+      if (e.key !== 'Escape') return;
+      // 审计 A37：Esc 只在没有更高层（输入焦点/对话框）接管时收起本面板，
+      // 不再连坐关闭叠在上面的 Modal
+      if (e.defaultPrevented) return;
+      const el = e.target as HTMLElement | null;
+      const tag = el?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || el?.isContentEditable) return;
+      if (document.querySelector('[role="dialog"]')) return;
+      panelManager.close(RUN_HISTORY_PANEL);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => {
@@ -311,6 +322,17 @@ export const RunHistoryPanel = () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [panelManager, runtimeService]);
+
+  // 审计 A37：keepDOM 面板关闭后列表/选中不会自动更新——重开时重新拉取
+  useEffect(() => {
+    const panel = panelManager.getPanels('bottom').find((p) => p.key === RUN_HISTORY_PANEL);
+    if (!panel) return;
+    const unsub = panel.store.subscribe(() => {
+      const { visible } = panel.store.getState();
+      if (visible) void loadRuns();
+    });
+    return unsub;
+  }, [panelManager, loadRuns]);
 
   const dayGroups = useMemo(() => groupRunsByDay(runs), [runs]);
 

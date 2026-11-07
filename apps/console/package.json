@@ -7,7 +7,7 @@
   "main": "./src/index.ts",
   "files": [
     "src/",
-    "eslint.config.js",
+    "eslint.config.cjs",
     ".gitignore",
     "index.html",
     "package.json",
@@ -44,7 +44,6 @@
     "postcss-loader": "^8.1.1",
     "react": "^18",
     "react-dom": "^18",
-    "react-draggable": "^4.4.6",
     "react-router-dom": "^6.22.0",
     "styled-components": "^5",
     "tailwindcss": "3"
@@ -74,13 +73,13 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "build": "node_modules/.bin/cross-env NODE_ENV=production rsbuild build",
+    "build": "node_modules/.bin/cross-env NODE_ENV=production NODE_OPTIONS=--max-old-space-size=6144 rsbuild build",
     "build:prod": "node_modules/.bin/cross-env NODE_ENV=production ENV_FILE=.env.production rsbuild build",
     "build:electron": "node_modules/.bin/cross-env NODE_ENV=production ENV_FILE=.env.electron rsbuild build",
     "build:fast": "exit 0",
     "build:watch": "exit 0",
     "clean": "rimraf dist",
-    "dev": "node_modules/.bin/cross-env NODE_ENV=development rsbuild dev --open",
+    "dev": "node_modules/.bin/cross-env NODE_ENV=development NODE_OPTIONS=--max-old-space-size=6144 rsbuild dev --open",
     "prod": "node_modules/.bin/cross-env NODE_ENV=production rsbuild dev --open",
     "lint": "node_modules/.bin/eslint ./src --cache",
     "lint:fix": "node_modules/.bin/eslint ./src --fix",
@@ -92,5 +91,6 @@
     "build:gh-pages": "node_modules/.bin/cross-env NODE_ENV=production ENV_FILE=.env.github  rsbuild build",
     "test:watch": "vitest",
     "e2e": "playwright test"
-  }
+  },
+  "type": "module"
 }

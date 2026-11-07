@@ -8,11 +8,13 @@
  * - 保存后自动刷新，让全站以新的地址重新拉取数据。
  */
 import React, { useState } from 'react';
+
 import { Modal, Input, Button } from '@douyinfe/semi-ui';
 import { IconWifi, IconLoading } from '@douyinfe/semi-icons';
-import { useHealthCheck } from '../hooks/useHealthCheck';
+
 import { getApiBaseUrl, updateApiBaseUrl } from '../utils/apiConfig';
 import { t } from '../i18n';
+import { useHealthCheck } from '../hooks/useHealthCheck';
 
 const ACCENT = 'var(--g-accent)';
 const DEFAULT_BASE_URL = 'http://127.0.0.1:48080/api';
@@ -83,6 +85,7 @@ export const ConnectionStatus: React.FC = () => {
       </button>
 
       <Modal
+        motion={false}
         title={t('serverConfig.title')}
         visible={open}
         onCancel={() => setOpen(false)}
@@ -100,7 +103,9 @@ export const ConnectionStatus: React.FC = () => {
           </div>
         }
       >
-        <p style={{ margin: '0 0 12px', color: 'var(--g-text-sub)', fontSize: 13, lineHeight: 1.6 }}>
+        <p
+          style={{ margin: '0 0 12px', color: 'var(--g-text-sub)', fontSize: 13, lineHeight: 1.6 }}
+        >
           {t('serverConfig.desc')}
         </p>
         <Input

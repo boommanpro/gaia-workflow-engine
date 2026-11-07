@@ -5,12 +5,20 @@
  * 右下角是一颗圆形发送键；流式输出时它变成「停止」。
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Toast, Tooltip } from '@douyinfe/semi-ui';
-import { IconSend, IconStop, IconImage, IconClose, IconFile, IconLoading } from '@douyinfe/semi-icons';
 
-import { useAgent, useRunStreaming } from '../agent/AgentContext';
-import { useRuntime, shallowEqual } from '../agent/runtime/store';
+import { Toast, Tooltip } from '@douyinfe/semi-ui';
+import {
+  IconSend,
+  IconStop,
+  IconImage,
+  IconClose,
+  IconFile,
+  IconLoading,
+} from '@douyinfe/semi-icons';
+
 import { useLanguage, t } from '../i18n';
+import { useRuntime, shallowEqual } from '../agent/runtime/store';
+import { useAgent, useRunStreaming } from '../agent/AgentContext';
 import { CHAT, ChatStyles } from './theme';
 import { inlineAttachments } from './attachments';
 
@@ -23,7 +31,9 @@ const TEXT_EXT_RE =
   /\.(txt|md|markdown|json|csv|tsv|xml|yaml|yml|log|ini|conf|toml|properties|js|ts|jsx|tsx|py|java|go|rs|c|cpp|h|hpp|cs|php|rb|sql|sh|bat|css|scss|less|html|vue|svelte|dockerfile|makefile)$/i;
 
 function isTextLikeFile(f: File): boolean {
-  return f.type.startsWith('text/') || /json|xml|yaml|toml/i.test(f.type) || TEXT_EXT_RE.test(f.name);
+  return (
+    f.type.startsWith('text/') || /json|xml|yaml|toml/i.test(f.type) || TEXT_EXT_RE.test(f.name)
+  );
 }
 
 function formatBytes(n: number): string {
@@ -131,8 +141,7 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
   }, [files]);
 
   const blocked = disabled;
-  const canSend =
-    (value.trim().length > 0 || images.length > 0 || files.length > 0) && !blocked;
+  const canSend = (value.trim().length > 0 || images.length > 0 || files.length > 0) && !blocked;
 
   // 自适应高度：随内容长高，到上限后内部滚动
   useEffect(() => {
@@ -238,8 +247,10 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
     // 附件拼在输入之后：会话命名（slice 0..24）与标题派生均不受附件影响
     const text = `${prefix}${raw}${inlineAttachments(files)}`;
     const payload = images.length > 0 ? images : undefined;
-    // 这段对话的第一句话顺便当会话名，免得会话列表里全是「新对话」
-    if (emptyHistory && raw && currentSessionKey) {
+    // 这段对话的第一句话顺便当会话名，免得会话列表里全是「新对话」。
+    // 审计 A41：draft- 伪键在服务端不存在，rename 必 404（未处理拒绝刷控制台）；
+    // 真实标题由 sendMessage 物化时的 createSession(title) 承担，这里直接跳过。
+    if (emptyHistory && raw && currentSessionKey && !currentSessionKey.startsWith('draft-')) {
       void renameSession(currentSessionKey, raw.length > 24 ? `${raw.slice(0, 24)}…` : raw);
     }
     // 先发再清空：sendMessage 被拦截（画布同步失败 / 会话创建失败）时输入保留，
@@ -257,12 +268,25 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
         submittingRef.current = false;
       });
     requestAnimationFrame(() => textareaRef.current?.focus());
-  }, [blocked, value, images, files, emptyHistory, sendMessage, currentSessionKey, renameSession, prefixBuilder, setValue]);
+  }, [
+    blocked,
+    value,
+    images,
+    files,
+    emptyHistory,
+    sendMessage,
+    currentSessionKey,
+    renameSession,
+    prefixBuilder,
+    setValue,
+  ]);
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      // 中文输入法合成期间回车不应发送
-      if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+      // 中文输入法合成期间回车不应发送；Safari 的 commit-Enter 发生在
+      // compositionend 之后（isComposing 已 false），需 keyCode 229 兜底（审计 A12）
+      const composing = event.nativeEvent.isComposing || event.keyCode === 229;
+      if (event.key === 'Enter' && !event.shiftKey && !composing) {
         event.preventDefault();
         submit();
       }
@@ -270,19 +294,12 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
     [submit]
   );
 
-  const borderColor = dragging
-    ? CHAT.accent
-    : focused
-      ? CHAT.accentBorder
-      : CHAT.line;
+  const borderColor = dragging ? CHAT.accent : focused ? CHAT.accentBorder : CHAT.line;
   const boxShadow = focused
     ? '0 0 0 3px rgba(13, 13, 13, 0.06)'
     : '0 1px 3px rgba(20, 20, 40, 0.05)';
 
-  const hintText = useMemo(
-    () => hint ?? t('chat.inputHint'),
-    [hint]
-  );
+  const hintText = useMemo(() => hint ?? t('chat.inputHint'), [hint]);
 
   return (
     <div
@@ -339,7 +356,13 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
                 <img
                   src={src}
                   alt=""
-                  style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 7, display: 'block' }}
+                  style={{
+                    width: 36,
+                    height: 36,
+                    objectFit: 'cover',
+                    borderRadius: 7,
+                    display: 'block',
+                  }}
                 />
                 <span style={{ fontSize: 12, color: CHAT.textSub, whiteSpace: 'nowrap' }}>
                   {t('chat.imageName', { n: index + 1 })}
@@ -407,7 +430,9 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
                   title={f.name}
                 >
                   {f.name}
-                  <span style={{ color: CHAT.textFaint, marginLeft: 6 }}>{formatBytes(f.size)}</span>
+                  <span style={{ color: CHAT.textFaint, marginLeft: 6 }}>
+                    {formatBytes(f.size)}
+                  </span>
                 </span>
                 <button
                   type="button"
@@ -451,7 +476,11 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
             border: 'none',
             outline: 'none',
             resize: 'none',
-            padding: compact ? '10px 12px 2px' : variant === 'hero' ? '20px 20px 4px' : '15px 16px 2px',
+            padding: compact
+              ? '10px 12px 2px'
+              : variant === 'hero'
+              ? '20px 20px 4px'
+              : '15px 16px 2px',
             fontSize: compact ? 13 : variant === 'hero' ? 15 : 14,
             lineHeight: variant === 'hero' ? 1.7 : 1.65,
             color: CHAT.text,
@@ -520,7 +549,15 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
           </div>
 
           {/* 右侧：完整快捷键提示 + 发送 / 停止 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto', flexShrink: 0 }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              marginLeft: 'auto',
+              flexShrink: 0,
+            }}
+          >
             {!compact && (
               <span
                 style={{
@@ -533,60 +570,60 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
               </span>
             )}
             {streaming ? (
-            <Tooltip content={stopping ? t('chat.stopping') : t('chat.stop')} position="top">
+              <Tooltip content={stopping ? t('chat.stopping') : t('chat.stop')} position="top">
+                <button
+                  type="button"
+                  onClick={stopStreaming}
+                  disabled={stopping}
+                  title={stopping ? t('chat.stopping') : t('chat.stop')}
+                  style={{
+                    width: 32,
+                    height: 32,
+                    flexShrink: 0,
+                    border: `1px solid ${CHAT.line}`,
+                    borderRadius: '50%',
+                    background: 'var(--g-bg-raised)',
+                    color: CHAT.textSub,
+                    cursor: stopping ? 'not-allowed' : 'pointer',
+                    opacity: stopping ? 0.6 : 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {stopping ? <IconLoading size="small" /> : <IconStop size="small" />}
+                </button>
+              </Tooltip>
+            ) : (
               <button
                 type="button"
-                onClick={stopStreaming}
-                disabled={stopping}
-                title={stopping ? t('chat.stopping') : t('chat.stop')}
+                onClick={submit}
+                disabled={!canSend}
+                title={t('chat.send')}
                 style={{
                   width: 32,
                   height: 32,
                   flexShrink: 0,
-                  border: `1px solid ${CHAT.line}`,
+                  border: 'none',
                   borderRadius: '50%',
-                  background: 'var(--g-bg-raised)',
-                  color: CHAT.textSub,
-                  cursor: stopping ? 'not-allowed' : 'pointer',
-                  opacity: stopping ? 0.6 : 1,
+                  background: canSend ? CHAT.accent : 'var(--g-line)',
+                  color: 'var(--g-bg-raised)',
+                  cursor: canSend ? 'pointer' : 'not-allowed',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  transition: 'background .15s',
+                }}
+                onMouseEnter={(e) => {
+                  if (canSend) e.currentTarget.style.background = CHAT.accentHover;
+                }}
+                onMouseLeave={(e) => {
+                  if (canSend) e.currentTarget.style.background = CHAT.accent;
                 }}
               >
-                {stopping ? <IconLoading size="small" /> : <IconStop size="small" />}
+                <IconSend size="small" />
               </button>
-            </Tooltip>
-          ) : (
-            <button
-              type="button"
-              onClick={submit}
-              disabled={!canSend}
-              title={t('chat.send')}
-              style={{
-                width: 32,
-                height: 32,
-                flexShrink: 0,
-                border: 'none',
-                borderRadius: '50%',
-                background: canSend ? CHAT.accent : 'var(--g-line)',
-                color: 'var(--g-bg-raised)',
-                cursor: canSend ? 'pointer' : 'not-allowed',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'background .15s',
-              }}
-              onMouseEnter={(e) => {
-                if (canSend) e.currentTarget.style.background = CHAT.accentHover;
-              }}
-              onMouseLeave={(e) => {
-                if (canSend) e.currentTarget.style.background = CHAT.accent;
-              }}
-            >
-              <IconSend size="small" />
-            </button>
-          )}
+            )}
           </div>
         </div>
       </div>

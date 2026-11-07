@@ -7,13 +7,14 @@
  * 转成它要的 DslChangeDetails。
  */
 import React, { useCallback, useEffect, useState } from 'react';
+
 import { Modal, Spin } from '@douyinfe/semi-ui';
 
 import { workflowApi, type WorkflowVersionDiffResponse } from '../../services/workflow-api';
-import { DeltaDetailsView } from '../../document/DeltaDetailsView';
-import { backendDiffToChangeDetails } from './version-diff-mapping';
 import { useLanguage, t } from '../../i18n';
+import { DeltaDetailsView } from '../../document/DeltaDetailsView';
 import { CHAT } from '../../chat/theme';
+import { backendDiffToChangeDetails } from './version-diff-mapping';
 
 export interface VersionDiffModalProps {
   versionId: number | null;
@@ -65,6 +66,7 @@ export const VersionDiffModal: React.FC<VersionDiffModalProps> = ({
 
   return (
     <Modal
+      motion={false}
       title={t('editor.versionDiffTitle')}
       visible={visible}
       onCancel={onClose}

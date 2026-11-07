@@ -4,13 +4,17 @@
  * - 下拉分组：思考档位（全局）+ 模型列表（会话绑定 > 全局默认）+ 管理模型入口
  * - 能力判断在服务端（thinking-levels），不支持的档位灰置并给 note
  */
-import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import React, { useCallback, useEffect, useState } from 'react';
+
 import { Dropdown } from '@douyinfe/semi-ui';
 import { IconChevronDown } from '@douyinfe/semi-icons';
+
+import { t } from '../../i18n';
+import { CHAT } from '../../chat/theme';
+import { draftModelPick } from '../../agent/draft-model-pick';
 import { agentApi } from '../../agent/api';
 import { useAgent } from '../../agent/AgentContext';
-import { CHAT } from '../../chat/theme';
 
 interface ModelEntry {
   id: number;
@@ -22,11 +26,11 @@ interface ModelEntry {
 }
 
 const THINKING_LABELS: Record<string, string> = {
-  auto: '思考 · 默认',
-  off: '思考 · 关闭',
-  low: '思考 · 低',
-  medium: '思考 · 中',
-  high: '思考 · 高',
+  auto: t('model.thinkAuto'),
+  off: t('model.thinkOff'),
+  low: t('model.thinkLow'),
+  medium: t('model.thinkMedium'),
+  high: t('model.thinkHigh'),
 };
 
 export const ModelPicker: React.FC = () => {
@@ -54,14 +58,25 @@ export const ModelPicker: React.FC = () => {
     }
   }, []);
 
-  useEffect(() => { void reload(); }, [reload, visible]);
+  useEffect(() => {
+    void reload();
+  }, [reload, visible]);
+
+  // 审计 A14：draft- 伪键服务端不存在——查询必 404、写入必失败，
+  // 草稿期先读本地暂存（物化后由 AgentContext 真正生效）
+  const isDraftSession = !!currentSessionKey?.startsWith('draft-');
 
   useEffect(() => {
     if (!currentSessionKey) {
       setSessionModelId(null);
       return;
     }
-    agentApi.getSessionModel(currentSessionKey)
+    if (currentSessionKey.startsWith('draft-')) {
+      setSessionModelId(draftModelPick.get(currentSessionKey) ?? null);
+      return;
+    }
+    agentApi
+      .getSessionModel(currentSessionKey)
       .then((r) => setSessionModelId(r.modelId ?? null))
       .catch(() => {});
   }, [currentSessionKey]);
@@ -72,14 +87,22 @@ export const ModelPicker: React.FC = () => {
   }
 
   const current = models.find((m) => m.id === (sessionModelId ?? activeModelId));
-  const label = current ? current.displayName : '平台默认模型';
+  const label = current ? current.displayName : t('model.platformDefault');
 
   const pickSessionModel = async (id: number | null) => {
     if (!currentSessionKey) return;
+    if (isDraftSession) {
+      // 草稿期：本地暂存 + 立即反馈选中态；发送首条消息物化后生效
+      draftModelPick.set(currentSessionKey, id);
+      setSessionModelId(id);
+      return;
+    }
     try {
       await agentApi.setSessionModel(currentSessionKey, id);
       setSessionModelId(id);
-    } catch { /* 忽略 */ }
+    } catch {
+      /* 忽略 */
+    }
   };
 
   const pickThinking = async (level: string) => {
@@ -88,18 +111,26 @@ export const ModelPicker: React.FC = () => {
       setGlobalThinking(level);
       const lv = await agentApi.thinkingLevels(activeModelId ?? undefined);
       setLevels(lv.levels || []);
-    } catch { /* 忽略 */ }
+    } catch {
+      /* 忽略 */
+    }
   };
 
   const groupTitle: React.CSSProperties = {
-    fontSize: 11, opacity: 0.55, padding: '6px 12px 3px', userSelect: 'none',
+    fontSize: 11,
+    opacity: 0.55,
+    padding: '6px 12px 3px',
+    userSelect: 'none',
   };
   const itemStyle = (selected: boolean, disabled = false): React.CSSProperties => ({
     padding: '6px 12px',
     cursor: disabled ? 'not-allowed' : 'pointer',
     opacity: disabled ? 0.4 : 1,
     background: selected ? 'var(--semi-color-fill-0)' : undefined,
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
     fontSize: 12.5,
   });
 
@@ -110,7 +141,7 @@ export const ModelPicker: React.FC = () => {
       onClickOutSide={() => setVisible(false)}
       render={
         <div style={{ minWidth: 260, padding: '4px 0 6px', maxHeight: 420, overflowY: 'auto' }}>
-          <div style={groupTitle}>思考档位（全局）</div>
+          <div style={groupTitle}>{t('model.thinkingGroup')}</div>
           {levels.map((lv) => (
             <div
               key={lv.level}
@@ -122,23 +153,32 @@ export const ModelPicker: React.FC = () => {
               }}
             >
               <span>{THINKING_LABELS[lv.level] || lv.level}</span>
-              {globalThinking === lv.level && <span style={{ color: CHAT.accent, fontSize: 12 }}>✓</span>}
-              {!lv.supported && <span style={{ fontSize: 11, opacity: 0.6 }}>不可用</span>}
+              {globalThinking === lv.level && (
+                <span style={{ color: CHAT.accent, fontSize: 12 }}>✓</span>
+              )}
+              {!lv.supported && (
+                <span style={{ fontSize: 11, opacity: 0.6 }}>{t('model.unavailable')}</span>
+              )}
             </div>
           ))}
           <div style={{ borderTop: `1px solid ${CHAT.lineSoft}`, margin: '4px 0' }} />
-          <div style={groupTitle}>对话模型{currentSessionKey ? '（本会话）' : ''}</div>
+          <div style={groupTitle}>
+            对话模型
+            {currentSessionKey ? (isDraftSession ? '（发送首条消息后生效）' : '（本会话）') : ''}
+          </div>
           <div
             style={itemStyle(sessionModelId === null)}
-            onClick={() => { void pickSessionModel(null); }}
+            onClick={() => {
+              void pickSessionModel(null);
+            }}
           >
-            <span>跟随平台默认</span>
+            <span>{t('model.followDefault')}</span>
             {sessionModelId === null && <span style={{ color: CHAT.accent, fontSize: 12 }}>✓</span>}
           </div>
           {models.map((m) => (
             <div
               key={m.id}
-              title={m.enabled === false ? '已停用' : undefined}
+              title={m.enabled === false ? t('model.disabled') : undefined}
               style={itemStyle(sessionModelId === m.id, m.enabled === false)}
               onClick={() => {
                 if (m.enabled === false) return;
@@ -149,11 +189,11 @@ export const ModelPicker: React.FC = () => {
                 {m.displayName}
                 <span style={{ fontSize: 11, opacity: 0.55, marginLeft: 6 }}>{m.modelId}</span>
               </span>
-              {sessionModelId === m.id
-                ? <span style={{ color: CHAT.accent, fontSize: 12 }}>✓</span>
-                : m.active
-                  ? <span style={{ fontSize: 11, opacity: 0.6 }}>默认</span>
-                  : null}
+              {sessionModelId === m.id ? (
+                <span style={{ color: CHAT.accent, fontSize: 12 }}>✓</span>
+              ) : m.active ? (
+                <span style={{ fontSize: 11, opacity: 0.6 }}>{t('model.default')}</span>
+              ) : null}
             </div>
           ))}
           <div style={{ borderTop: `1px solid ${CHAT.lineSoft}`, margin: '4px 0' }} />
@@ -161,7 +201,7 @@ export const ModelPicker: React.FC = () => {
             style={{ ...itemStyle(false), color: CHAT.textSub }}
             onClick={() => navigate('/manage/agent-config')}
           >
-            <span>管理模型</span>
+            <span>{t('model.manage')}</span>
             <span style={{ fontSize: 11, opacity: 0.55 }}>→</span>
           </div>
         </div>
@@ -186,8 +226,12 @@ export const ModelPicker: React.FC = () => {
           whiteSpace: 'nowrap',
           transition: 'background .14s',
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.background = CHAT.hover; }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = CHAT.hover;
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'transparent';
+        }}
       >
         {label}
         <IconChevronDown size="small" />

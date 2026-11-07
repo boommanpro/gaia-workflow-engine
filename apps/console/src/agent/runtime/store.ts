@@ -19,10 +19,15 @@ import { RuntimeStateInitial, isStreamFrame, reduce, type RuntimeAction } from '
 
 class SessionRuntime {
   private state: RuntimeState = RuntimeStateInitial(null);
+
   private listeners = new Set<() => void>();
+
   private microScheduled = false;
+
   private frameScheduled = false;
+
   private frameHandle: number | undefined;
+
   private fallbackTimer: ReturnType<typeof setTimeout> | undefined;
 
   subscribe = (listener: () => void): (() => void) => {
@@ -45,6 +50,18 @@ class SessionRuntime {
   reset(sessionKey: string | null): void {
     this.cancelFrame();
     this.state = RuntimeStateInitial(sessionKey);
+    this.notify();
+  }
+
+  /**
+   * 会话身份改写而不清场（审计 A10）：草稿物化（draft- → 真实 key）时，
+   * 消息/流式标志/排队数都是同一现场，只是身份换了。此后 [currentSessionKey]
+   * 切换效应的 `state.sessionKey !== sessionKey` 守卫不再触发 reset，
+   * 乐观消息与流式状态得以保留。
+   */
+  adopt(sessionKey: string): void {
+    if (this.state.sessionKey === sessionKey) return;
+    this.state = { ...this.state, sessionKey };
     this.notify();
   }
 

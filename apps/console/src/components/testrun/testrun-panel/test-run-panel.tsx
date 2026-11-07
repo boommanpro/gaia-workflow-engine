@@ -30,7 +30,11 @@ export const TestRunSidePanel: FC<TestRunSidePanelProps> = () => {
   const panelManager = usePanelManager();
   useLanguage();
   const [isRunning, setRunning] = useState(false);
+  /** 审计 A17：启动往返期间按钮进入 loading，杜绝连点双任务 */
+  const [starting, setStarting] = useState(false);
   const [hasStoredResult, setHasStoredResult] = useState(false);
+  /** 审计 A7：最近一次运行为用户取消（区别于成功/失败） */
+  const [canceled, setCanceled] = useState(false);
   const [values, setValues] = useState<Record<string, unknown>>({});
   const [errors, setErrors] = useState<string[]>();
   const [errorItems, setErrorItems] = useState<TestRunErrorItem[]>();
@@ -55,6 +59,7 @@ export const TestRunSidePanel: FC<TestRunSidePanelProps> = () => {
   };
 
   const onTestRun = async () => {
+    if (starting) return; // 审计 A17：启动往返期间忽略重复点击
     if (isRunning) {
       await runtimeService.taskCancel();
       setRunning(false);
@@ -78,16 +83,23 @@ export const TestRunSidePanel: FC<TestRunSidePanelProps> = () => {
     setErrors(undefined);
     setErrorItems(undefined);
     setWarnings(undefined);
+    setCanceled(false);
     setHasStoredResult(false);
 
-    const taskID = await runtimeService.taskRun(values, true);
-    if (taskID) {
-      setRunning(true);
+    setStarting(true);
+    try {
+      const taskID = await runtimeService.taskRun(values, true);
+      if (taskID) {
+        setRunning(true);
+      }
+    } finally {
+      setStarting(false);
     }
   };
 
   const onClose = async () => {
-    setValues({});
+    // 审计 A18：关闭面板不再清空输入值（keepDOM 下面板只是隐藏），
+    // 显式「重新运行」时上方已有 hasStoredResult 分支负责清场
     setRunning(false);
     panelManager.close(testRunPanelFactory.key);
   };
@@ -165,13 +177,21 @@ export const TestRunSidePanel: FC<TestRunSidePanelProps> = () => {
   const renderButton = (
     <Button
       onClick={onTestRun}
+      disabled={starting}
+      loading={starting}
       icon={isRunning ? <IconCancel /> : <IconPlay size="small" />}
       className={classnames(styles.button, {
         [styles.running]: isRunning,
         [styles.default]: !isRunning,
       })}
     >
-      {isRunning ? t('testRun.cancel') : hasStoredResult ? t('testRun.rerun') : t('tool.testRun')}
+      {isRunning
+        ? t('testRun.cancel')
+        : starting
+        ? t('Submitting')
+        : hasStoredResult || canceled
+        ? t('testRun.rerun')
+        : t('tool.testRun')}
     </Button>
   );
 
@@ -187,20 +207,23 @@ export const TestRunSidePanel: FC<TestRunSidePanelProps> = () => {
   }, [runtimeService]);
 
   useEffect(() => {
-    const disposer = runtimeService.onResultChanged(({ result, errors, errorItems, warnings }) => {
-      setRunning(false);
-      setResult(result);
-      setHasStoredResult(!!result);
-      if (errors || errorItems?.length || warnings?.length) {
-        setErrors(errors);
-        setErrorItems(errorItems?.length ? errorItems : undefined);
-        setWarnings(warnings?.length ? warnings : undefined);
-      } else {
-        setErrors(undefined);
-        setErrorItems(undefined);
-        setWarnings(undefined);
+    const disposer = runtimeService.onResultChanged(
+      ({ result, errors, errorItems, warnings, canceled: runCanceled }) => {
+        setRunning(false);
+        setCanceled(!!runCanceled);
+        setResult(result);
+        setHasStoredResult(!!result && !runCanceled);
+        if (errors || errorItems?.length || warnings?.length) {
+          setErrors(errors);
+          setErrorItems(errorItems?.length ? errorItems : undefined);
+          setWarnings(warnings?.length ? warnings : undefined);
+        } else {
+          setErrors(undefined);
+          setErrorItems(undefined);
+          setWarnings(undefined);
+        }
       }
-    });
+    );
     return () => disposer.dispose();
   }, [runtimeService]);
 
@@ -219,6 +242,12 @@ export const TestRunSidePanel: FC<TestRunSidePanelProps> = () => {
       </div>
       <div className={styles['testrun-panel-content']}>
         {isRunning ? renderRunning : renderForm}
+        {!isRunning && canceled ? (
+          // 审计 A7：取消的运行如实显示「已取消」，不再出现成功/伪错
+          <div className={styles['warning-list']}>
+            <div className={styles['warning-item']}>{t('testRun.canceledNote')}</div>
+          </div>
+        ) : null}
       </div>
       <div className={styles['testrun-panel-footer']}>{renderButton}</div>
     </div>
@@ -228,5 +257,8 @@ export const TestRunSidePanel: FC<TestRunSidePanelProps> = () => {
 export const testRunPanelFactory: PanelFactory<TestRunSidePanelProps> = {
   key: 'test-run-panel',
   defaultSize: 400,
+  // 审计 A18：keepDOM 让面板隐藏而非卸载——点选节点打开表单面板不会杀掉运行中的
+  // 试运行面板，重开时输入值/结果都在（同运行历史/变量 Dock 的口径）
+  keepDOM: true,
   render: () => <TestRunSidePanel />,
 };

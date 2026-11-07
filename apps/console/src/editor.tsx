@@ -3,7 +3,7 @@
  * Based on flowgram.ai free-layout editor
  */
 
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, type NavigateFunction } from 'react-router-dom';
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 
 import {
@@ -33,6 +33,8 @@ import {
   versionContentKey,
 } from './document';
 import { DemoTools } from './components/tools';
+import { appConfirm } from './components/safe-modal';
+import { replayStore } from './plugins/runtime-plugin/runtime-service/history-replay';
 import { RunReplayBanner } from './components/run-history/replay-banner';
 import { NodePaletteRail } from './components/node-palette-rail';
 import { LanguageToggle } from './components/language-toggle';
@@ -49,6 +51,26 @@ import {
 } from './agent/canvas-draft-sync';
 import { agentApi } from './agent/api';
 import { EditorCanvasBridge } from './agent';
+
+/**
+ * 审计 A5：编辑器（正式/模板两入口）离开前的脏守卫。
+ * SPA 导航不触发 beforeunload，未保存修改必须在跳转前确认。
+ */
+const leaveEditorWithDirtyGuard = (navigate: NavigateFunction, target: string): void => {
+  const leave = () => navigate(target);
+  if (workflowDocumentStore.getSnapshot().meta.dirtySinceSave !== true) {
+    leave();
+    return;
+  }
+  appConfirm({
+    title: t('editor.dirtyBackTitle'),
+    content: t('editor.dirtyBackContent'),
+    okType: 'danger',
+    okText: t('editor.dirtyBackOk'),
+    cancelText: t('Cancel'),
+    onOk: leave,
+  });
+};
 
 const ACCENT = '#4d53e8';
 
@@ -463,6 +485,21 @@ export const Editor = () => {
   const handleSwitchVersion = useCallback(
     async (versionId: number) => {
       try {
+        // 审计 A6：载入旧版本会整体替换画布并清除脏标记，未保存修改必须先确认
+        if (workflowDocumentStore.getSnapshot().meta.dirtySinceSave === true) {
+          const proceed = await new Promise<boolean>((resolve) => {
+            appConfirm({
+              title: t('editor.dirtySwitchTitle'),
+              content: t('editor.dirtySwitchContent'),
+              okType: 'danger',
+              okText: t('editor.dirtySwitchOk'),
+              cancelText: t('Cancel'),
+              onOk: () => resolve(true),
+              onCancel: () => resolve(false),
+            });
+          });
+          if (!proceed) return;
+        }
         const version = await workflowApi.getVersionById(versionId);
         if (version && version.workflowData) {
           const raw =
@@ -493,6 +530,29 @@ export const Editor = () => {
     applyEditorPrefsSideEffects();
   }, []);
 
+  // 审计 A44 收口（用户实测反馈）：画布身份变化（切工作流 / 载入版本 / 结构重挂）
+  // 时清掉模块级回放状态——回放横幅与运行历史面板的旧内容不得跨画布存活。
+  // replayStore 是模块单例，plugin onDispose 在容器拆除窗口期可能取不到服务，
+  // 这里按确定性触发源兜底。
+  useEffect(() => {
+    replayStore.publish(null);
+  }, [workflowCode, remountKey]);
+
+  // 返回目标：state.from 优先（对话页 / 工作流管理页带过来的来源路径），否则回对话主页。
+  // 只接受站内路径，避免把任意字符串当跳转目标。
+  const stateFrom = (location.state as any)?.from;
+  const backTo =
+    typeof stateFrom === 'string' && /^\/(chat|work|admin|manage|workflows)(\/|$)/.test(stateFrom)
+      ? stateFrom
+      : '/chat';
+
+  // 审计 A5：返回前有未保存修改先确认（SPA 导航不触发 beforeunload，此前直接丢改动）。
+  // 必须在下方 if (loading) 提前 return 之前声明——useCallback 属于 hooks，
+  // 放在条件 return 之后会造成两次渲染 hooks 数量不一致（React 直接抛错）。
+  const handleBack = useCallback(() => {
+    leaveEditorWithDirtyGuard(navigate, backTo);
+  }, [backTo, navigate]);
+
   if (loading) {
     return (
       <div
@@ -506,14 +566,6 @@ export const Editor = () => {
   // 草稿模式若已被 AI 落版，就用真实编码去操作版本，避免进了专家模式却存不下来
   const storeCode = workflowDocumentStore.getSnapshot().meta.workflowCode;
   const effectiveCode = workflowCode === DRAFT_CODE ? storeCode || undefined : workflowCode;
-
-  // 返回目标：state.from 优先（对话页 / 工作流管理页带过来的来源路径），否则回对话主页。
-  // 只接受站内路径，避免把任意字符串当跳转目标。
-  const stateFrom = (location.state as any)?.from;
-  const backTo =
-    typeof stateFrom === 'string' && /^\/(chat|work|admin|manage|workflows)(\/|$)/.test(stateFrom)
-      ? stateFrom
-      : '/chat';
 
   return (
     <div style={{ display: 'flex', height: '100vh', width: '100%', overflow: 'hidden' }}>
@@ -530,11 +582,13 @@ export const Editor = () => {
         }}
       >
         <FreeLayoutEditorProvider {...editorProps} key={`${remountKey}-${prefs.canvasBg}`}>
-          <EditorCanvasBridge />
-          <EditorHeader
+          {/* 直接子节点显式 key：flowgram 内部会把 children 拼进数组，缺 key 会报
+              React key 警告（审计 console 清零） */}
+          <EditorCanvasBridge key="canvas-bridge" />
+          <EditorHeader key="header"
             workflowCode={effectiveCode}
             workflowName={workflowInfo ? workflowInfo.workflowName : t('editor.newWorkflow')}
-            onBack={() => navigate(backTo)}
+            onBack={handleBack}
             versions={versions}
             onSwitchVersion={handleSwitchVersion}
             onVersionsChanged={() => effectiveCode && loadVersions(effectiveCode)}
@@ -542,8 +596,8 @@ export const Editor = () => {
             draftMode={draftMode}
           />
           {/* AI 待应用变更条（阶段 2.2）：AI 在专家模式提交的修改浮出在这里 */}
-          <AiPendingBanner />
-          <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+          <AiPendingBanner key="ai-pending" />
+          <div key="canvas-wrap" style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
             <div className="demo-container" style={{ width: '100%', height: '100%' }}>
               <EditorRenderer className="demo-editor" />
             </div>
@@ -829,7 +883,8 @@ const EditorHeader = ({
   const handleDraftSave = async () => {
     const target = resolveDraftTargetSession();
     if (!target) {
-      alert(t('editor.syncNoSession'));
+      // 审计 A40：原生 alert 换 Toast（阻塞线程且与 Semi 风格不符）
+      Toast.error(t('editor.syncNoSession'));
       return;
     }
     setSaving(true);
@@ -840,7 +895,7 @@ const EditorHeader = ({
       setTimeout(() => setSaved(false), 2000);
     } catch (error) {
       console.error('Draft save failed:', error);
-      alert(t('editor.saveFailed') + (error as Error).message);
+      Toast.error(t('editor.saveFailed') + (error as Error).message);
     } finally {
       setSaving(false);
     }
@@ -1102,6 +1157,7 @@ const EditorHeader = ({
           而不是静默「已保存」（阶段 1.2）。新建后经 applyDsl 落为首版（即生效版）。
           2026-11-04 单身份改版：入口从「保存」移到「发布生效」。 */}
       <Modal
+        motion={false} // 审计 A1
         title={t('editor.needCodeTitle')}
         visible={codeAskOpen}
         onCancel={() => setCodeAskOpen(false)}
@@ -1117,7 +1173,8 @@ const EditorHeader = ({
           value={newCode}
           onChange={(v) => setNewCode(v)}
           placeholder="e.g. order-approval"
-          onKeyPress={(e) => {
+          // 审计 A40：onKeyPress 已废弃，换 onKeyDown
+          onKeyDown={(e) => {
             if (e.key === 'Enter') void handleSaveWithNewCode();
           }}
         />
@@ -1144,6 +1201,7 @@ const EditorHeader = ({
       {/* 发布确认弹窗（2026-11-04 单身份改版）：applyDsl 生成新版本并立即生效。
           版本说明有归属会话时 AI 代拟（失败留空）；版本号后端统一编排。 */}
       <Modal
+        motion={false} // 审计 A1
         title={t('editor.publishEffective')}
         visible={publishModalOpen}
         onCancel={() => setPublishModalOpen(false)}
@@ -1229,7 +1287,7 @@ export const TemplateEditor = () => {
       <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
         <TemplateEditorHeader
           templateInfo={templateInfo}
-          onBack={() => navigate('/admin/templates')}
+          onBack={() => leaveEditorWithDirtyGuard(navigate, '/admin/templates')}
         />
         <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
           <div className="demo-container" style={{ width: '100%', height: '100%' }}>
@@ -1271,7 +1329,7 @@ const TemplateEditorHeader = ({
       setTimeout(() => setSaved(false), 2000);
     } catch (error) {
       console.error('Save failed:', error);
-      alert(t('editor.saveFailed') + (error as Error).message);
+      Toast.error(t('editor.saveFailed') + (error as Error).message);
     } finally {
       setSaving(false);
     }

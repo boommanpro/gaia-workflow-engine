@@ -5,9 +5,11 @@
  * 所以每行 hover 时露出「改名 / 删除」两个图标，改名进内联输入态。
  */
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { Button, Tooltip } from '@douyinfe/semi-ui';
+
+import { Button, Toast, Tooltip } from '@douyinfe/semi-ui';
 import { IconPlus, IconDelete, IconEdit } from '@douyinfe/semi-icons';
 
+import { appConfirm } from '../components/safe-modal';
 import { useAgent } from './AgentContext';
 import { useLanguage, t } from '../i18n';
 import { CHAT } from '../chat/theme';
@@ -50,12 +52,12 @@ function formatWhen(value?: string): string {
   return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`;
 }
 
-const RowAction: React.FC<{ title: string; danger?: boolean; onClick: (e: React.MouseEvent<HTMLButtonElement>) => void; children: React.ReactNode }> = ({
-  title,
-  danger,
-  onClick,
-  children,
-}) => (
+const RowAction: React.FC<{
+  title: string;
+  danger?: boolean;
+  onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  children: React.ReactNode;
+}> = ({ title, danger, onClick, children }) => (
   <Tooltip content={title} position="top">
     <button
       type="button"
@@ -92,7 +94,14 @@ const RowAction: React.FC<{ title: string; danger?: boolean; onClick: (e: React.
   </Tooltip>
 );
 
-export const SessionList: React.FC<SessionListProps> = ({ onClose, onSelect, onCreate, hideChrome, filter, variant = 'list' }) => {
+export const SessionList: React.FC<SessionListProps> = ({
+  onClose,
+  onSelect,
+  onCreate,
+  hideChrome,
+  filter,
+  variant = 'list',
+}) => {
   const {
     sessions,
     currentSessionKey,
@@ -122,7 +131,12 @@ export const SessionList: React.FC<SessionListProps> = ({ onClose, onSelect, onC
   const commitEdit = useCallback(() => {
     if (editingKey) {
       const trimmed = editingTitle.trim();
-      if (trimmed) void renameSession(editingKey, trimmed);
+      // 审计 A28：改名失败要有反馈（此前 void 掉的 rejection 静默无操作）
+      if (trimmed) {
+        void renameSession(editingKey, trimmed).catch((e: Error) =>
+          Toast.error(`重命名失败：${e.message || '网络错误'}`)
+        );
+      }
       setEditingKey(null);
     }
   }, [editingKey, editingTitle, renameSession]);
@@ -138,6 +152,10 @@ export const SessionList: React.FC<SessionListProps> = ({ onClose, onSelect, onC
   const handleSelect = useCallback(
     (key: string) => {
       if (key === currentSessionKey) {
+        // 审计 A45（用户反馈）：当前会话 ≠ 已在对话页——在 /workflows、/manage 等
+        // 页面点当前会话行仍要回对话页。onSelect（AppRail 导航）照常放行，
+        // 由调用方决定是否真的跳转；无 onSelect 的默认路径保持原样（同键切换无意义）。
+        if (onSelect) onSelect(key);
         onClose?.();
         return;
       }
@@ -187,10 +205,21 @@ export const SessionList: React.FC<SessionListProps> = ({ onClose, onSelect, onC
 
       <div
         className={nested ? undefined : 'chat-scroll'}
-        style={nested ? { padding: '0 0 4px 22px' } : { flex: 1, overflowY: 'auto', padding: '2px 8px 8px' }}
+        style={
+          nested
+            ? { padding: '0 0 4px 22px' }
+            : { flex: 1, overflowY: 'auto', padding: '2px 8px 8px' }
+        }
       >
         {visible.length === 0 ? (
-          <div style={{ padding: nested ? '4px 0 6px' : '28px 8px', textAlign: 'center', fontSize: 12, color: CHAT.textFaint }}>
+          <div
+            style={{
+              padding: nested ? '4px 0 6px' : '28px 8px',
+              textAlign: 'center',
+              fontSize: 12,
+              color: CHAT.textFaint,
+            }}
+          >
             {t('agent.noSession')}
           </div>
         ) : (
@@ -218,12 +247,16 @@ export const SessionList: React.FC<SessionListProps> = ({ onClose, onSelect, onC
                 }}
                 onMouseEnter={(e) => {
                   if (!isCurrent) e.currentTarget.style.background = CHAT.hover;
-                  const actions = e.currentTarget.querySelector('.row-actions') as HTMLElement | null;
+                  const actions = e.currentTarget.querySelector(
+                    '.row-actions'
+                  ) as HTMLElement | null;
                   if (actions) actions.style.opacity = '1';
                 }}
                 onMouseLeave={(e) => {
                   if (!isCurrent) e.currentTarget.style.background = 'transparent';
-                  const actions = e.currentTarget.querySelector('.row-actions') as HTMLElement | null;
+                  const actions = e.currentTarget.querySelector(
+                    '.row-actions'
+                  ) as HTMLElement | null;
                   if (actions) actions.style.opacity = '0';
                 }}
               >
@@ -275,12 +308,37 @@ export const SessionList: React.FC<SessionListProps> = ({ onClose, onSelect, onC
 
                     <span
                       className="row-actions"
-                      style={{ display: 'flex', gap: 0, opacity: 0, transition: 'opacity .12s', flexShrink: 0 }}
+                      style={{
+                        display: 'flex',
+                        gap: 0,
+                        opacity: 0,
+                        transition: 'opacity .12s',
+                        flexShrink: 0,
+                      }}
                     >
-                      <RowAction title={t('agent.renameSession')} onClick={() => startEdit(s.sessionKey, s.title)}>
+                      <RowAction
+                        title={t('agent.renameSession')}
+                        onClick={() => startEdit(s.sessionKey, s.title)}
+                      >
                         <IconEdit size="small" />
                       </RowAction>
-                      <RowAction title={t('agent.deleteSession')} danger onClick={() => void deleteSession(s.sessionKey)}>
+                      <RowAction
+                        title={t('agent.deleteSession')}
+                        danger
+                        onClick={() => {
+                          // 审计 A3：删除整个会话是不可逆操作，必须确认（文件头自述「删除不该没有提示」）
+                          appConfirm({
+                            title: t('agent.deleteSession'),
+                            content: `确定要删除会话「${
+                              s.title || s.sessionKey
+                            }」吗？整段对话与画布草稿将一并删除，且不可恢复。`,
+                            okType: 'danger',
+                            okText: t('Delete'),
+                            cancelText: t('Cancel'),
+                            onOk: () => deleteSession(s.sessionKey),
+                          });
+                        }}
+                      >
                         <IconDelete size="small" />
                       </RowAction>
                     </span>

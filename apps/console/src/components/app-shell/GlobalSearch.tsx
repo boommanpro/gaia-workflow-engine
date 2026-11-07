@@ -4,14 +4,15 @@
  * 统一搜索三类对象：会话 / 工作流 / 模板。
  * 打开时并行拉取，任一失败不影响其余；键盘 ↑↓ 选择、Enter 打开、Esc 关闭。
  */
-import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
 import { IconSearch } from '@douyinfe/semi-icons';
 
-import { agentApi } from '../../agent/api';
 import { workflowApi } from '../../services/workflow-api';
-import { CHAT } from '../../chat/theme';
 import { useLanguage, t } from '../../i18n';
+import { CHAT } from '../../chat/theme';
+import { agentApi } from '../../agent/api';
 import { IconChatLine, IconManageSliders, IconWorkFolder } from './icons';
 
 type SearchGroup = 'session' | 'workflow' | 'template';
@@ -48,13 +49,12 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ visible, onClose }) 
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<SearchItem[]>([]);
   const [active, setActive] = useState(0);
+  /** 审计 A36：三源全部失败 */
+  const [loadFailed, setLoadFailed] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // 每次打开都重新拉取一次，保证结果新鲜；关闭时清空输入
-  useEffect(() => {
-    if (!visible) return;
-    setQuery('');
-    setActive(0);
+  /** 拉取三源数据（打开与重试共用）；三源全挂 → loadFailed（审计 A36） */
+  const runLoad = useCallback(() => {
     setLoading(true);
     Promise.allSettled([
       agentApi.listSessions(),
@@ -75,18 +75,42 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ visible, onClose }) 
         }
         if (workflows.status === 'fulfilled') {
           workflows.value.forEach((w) =>
-            next.push({ group: 'workflow', key: w.workflowCode, title: w.workflowName, sub: w.workflowCode })
+            next.push({
+              group: 'workflow',
+              key: w.workflowCode,
+              title: w.workflowName,
+              sub: w.workflowCode,
+            })
           );
         }
         if (templates.status === 'fulfilled') {
           templates.value.forEach((tp) =>
-            next.push({ group: 'template', key: tp.templateCode, title: tp.templateName, sub: tp.templateCode })
+            next.push({
+              group: 'template',
+              key: tp.templateCode,
+              title: tp.templateName,
+              sub: tp.templateCode,
+            })
           );
         }
         setItems(next);
+        // 审计 A36：三源全挂时明确提示加载失败（不再伪装成「没有匹配的结果」）
+        const failed = [sessions, workflows, templates].filter(
+          (r) => r.status === 'rejected'
+        ).length;
+        setLoadFailed(failed === 3);
       })
       .finally(() => setLoading(false));
-  }, [visible]);
+  }, []);
+
+  // 每次打开都重新拉取一次，保证结果新鲜；关闭时清空输入
+  useEffect(() => {
+    if (!visible) return;
+    setQuery('');
+    setActive(0);
+    setLoadFailed(false);
+    runLoad();
+  }, [visible, runLoad]);
 
   useEffect(() => {
     if (!visible) return;
@@ -215,13 +239,55 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ visible, onClose }) 
         </div>
 
         {/* 结果 */}
-        <div className="chat-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 6 }}>
+        <div
+          className="chat-scroll"
+          style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 6 }}
+        >
           {loading ? (
-            <div style={{ padding: '26px 8px', textAlign: 'center', fontSize: 12.5, color: CHAT.textFaint }}>
+            <div
+              style={{
+                padding: '26px 8px',
+                textAlign: 'center',
+                fontSize: 12.5,
+                color: CHAT.textFaint,
+              }}
+            >
               {t('Loading')}
             </div>
+          ) : loadFailed ? (
+            // 审计 A36：数据源全挂 → 明确失败态 + 重试
+            <div
+              style={{ padding: '20px 8px', textAlign: 'center', fontSize: 12.5, color: '#e5404e' }}
+            >
+              <div style={{ marginBottom: 8 }}>{t('shell.searchLoadFailed')}</div>
+              <button
+                type="button"
+                onClick={() => {
+                  setLoadFailed(false);
+                  runLoad();
+                }}
+                style={{
+                  fontSize: 12,
+                  padding: '4px 14px',
+                  borderRadius: 7,
+                  cursor: 'pointer',
+                  border: '1px solid currentColor',
+                  background: 'transparent',
+                  color: 'inherit',
+                }}
+              >
+                {t('testCase.retry')}
+              </button>
+            </div>
           ) : flat.length === 0 ? (
-            <div style={{ padding: '26px 8px', textAlign: 'center', fontSize: 12.5, color: CHAT.textFaint }}>
+            <div
+              style={{
+                padding: '26px 8px',
+                textAlign: 'center',
+                fontSize: 12.5,
+                color: CHAT.textFaint,
+              }}
+            >
               {t('shell.searchEmpty')}
             </div>
           ) : (
@@ -263,7 +329,13 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ visible, onClose }) 
                         fontFamily: 'inherit',
                       }}
                     >
-                      <span style={{ display: 'flex', flexShrink: 0, color: isActive ? CHAT.accent : CHAT.textMuted }}>
+                      <span
+                        style={{
+                          display: 'flex',
+                          flexShrink: 0,
+                          color: isActive ? CHAT.accent : CHAT.textMuted,
+                        }}
+                      >
                         {GROUP_ICON[item.group]}
                       </span>
                       <span

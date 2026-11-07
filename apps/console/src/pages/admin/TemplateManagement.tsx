@@ -3,13 +3,16 @@
  * 表格展示模板列表，支持新建、编辑元数据、删除
  * 点击"打开编辑器"进入可视化编辑
  */
-import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
-import { Modal, Toast } from '@douyinfe/semi-ui';
+import { useEffect, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
+
+import { Toast } from '@douyinfe/semi-ui';
+
 import { workflowApi, type GaiaWorkflowTemplate } from '../../services/workflow-api';
 import { emptyWorkflowData } from '../../initial-data';
-import type { CSSProperties } from 'react';
 import { useLanguage, t } from '../../i18n';
+import { appConfirm } from '../../components/safe-modal';
 import type { AdminOutletContext } from './AdminLayout';
 
 const ACCENT = 'var(--g-accent)';
@@ -33,7 +36,9 @@ const formatDateTime = (iso?: string): string => {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return '—';
   const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(
+    d.getHours()
+  )}:${pad(d.getMinutes())}`;
 };
 
 /* ---------------- Component ---------------- */
@@ -45,7 +50,10 @@ export const TemplateManagement = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<GaiaWorkflowTemplate | null>(null);
   const [templateForm, setTemplateForm] = useState<TemplateForm>(EMPTY_FORM);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // 审计 A27：首帧不闪空态
+  const [loadError, setLoadError] = useState(false); // 审计 A27：失败态与空态区分
+  const [formError, setFormError] = useState<string | null>(null); // 审计 A23：内联校验
+  const [formTouched, setFormTouched] = useState(false); // 审计 A23：Esc 守卫
   const [submitting, setSubmitting] = useState(false);
 
   const loadData = async () => {
@@ -53,8 +61,11 @@ export const TemplateManagement = () => {
     try {
       const list = await workflowApi.listTemplates();
       setTemplates(list || []);
+      setLoadError(false);
     } catch (err) {
       console.error('Failed to load templates:', err);
+      setLoadError(true);
+      Toast.error(`模板列表加载失败：${(err as Error).message || ''}`);
     } finally {
       setLoading(false);
     }
@@ -67,6 +78,8 @@ export const TemplateManagement = () => {
   const openCreateModal = () => {
     setEditingTemplate(null);
     setTemplateForm(EMPTY_FORM);
+    setFormError(null);
+    setFormTouched(false);
     setShowCreateModal(true);
   };
 
@@ -77,6 +90,8 @@ export const TemplateManagement = () => {
       templateCode: tpl.templateCode || '',
       templateDesc: tpl.templateDesc || '',
     });
+    setFormError(null);
+    setFormTouched(false);
     setShowCreateModal(true);
   };
 
@@ -84,13 +99,34 @@ export const TemplateManagement = () => {
     setShowCreateModal(false);
     setEditingTemplate(null);
     setTemplateForm(EMPTY_FORM);
+    setFormError(null);
+    setFormTouched(false);
   };
+
+  /** 表单更新统一入口：置 touched（Esc 守卫用，审计 A23） */
+  const upd = (patch: Partial<TemplateForm>) => {
+    setFormTouched(true);
+    setTemplateForm((prev) => ({ ...prev, ...patch }));
+  };
+
+  // 审计 A23：Esc 仅在表单干净时关闭
+  useEffect(() => {
+    if (!showCreateModal) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      if (!formTouched) closeModal();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // 依赖刻意收窄（见上注释）
+  }, [showCreateModal, formTouched]);
 
   const handleSubmit = async () => {
     if (!templateForm.templateName.trim() || !templateForm.templateCode.trim()) {
-      alert(t('admin.validate.nameAndCode'));
+      setFormError(t('admin.validate.nameAndCode'));
       return;
     }
+    setFormError(null);
     setSubmitting(true);
     try {
       if (editingTemplate) {
@@ -113,7 +149,7 @@ export const TemplateManagement = () => {
       await loadData();
     } catch (err) {
       console.error('Submit failed:', err);
-      alert(t('admin.saveFailed') + (err as Error).message);
+      setFormError(t('admin.saveFailed') + (err as Error).message);
     } finally {
       setSubmitting(false);
     }
@@ -122,7 +158,7 @@ export const TemplateManagement = () => {
   const handleDelete = (tpl: GaiaWorkflowTemplate) => {
     const templateId = tpl.id;
     if (templateId == null) return;
-    Modal.confirm({
+    appConfirm({
       title: t('admin.deleteTemplate.title'),
       content: t('admin.deleteTemplate.confirm', { name: tpl.templateName }),
       okType: 'danger',
@@ -167,30 +203,71 @@ export const TemplateManagement = () => {
                 t('admin.template.createdAt'),
                 t('admin.template.actions'),
               ].map((h) => (
-                <th key={h} style={thStyle}>{h}</th>
+                <th key={h} style={thStyle}>
+                  {h}
+                </th>
               ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={5} style={emptyTdStyle}>{t('Loading')}</td>
+                <td colSpan={5} style={emptyTdStyle}>
+                  {t('Loading')}
+                </td>
+              </tr>
+            ) : loadError ? (
+              <tr>
+                <td colSpan={5} style={emptyTdStyle}>
+                  <span style={{ color: 'var(--g-danger)' }}>{t('admin.loadFailedRow')}</span>
+                  {'  '}
+                  <button
+                    onClick={() => loadData()}
+                    style={{ ...actionBtnBlueStyle, marginLeft: 8 }}
+                  >
+                    {t('testCase.retry')}
+                  </button>
+                </td>
               </tr>
             ) : templates.length === 0 ? (
               <tr>
-                <td colSpan={5} style={emptyTdStyle}>{t('admin.noData')}</td>
+                <td colSpan={5} style={emptyTdStyle}>
+                  {t('admin.noData')}
+                </td>
               </tr>
             ) : (
               templates.map((tpl) => (
-                <tr key={tpl.id ?? tpl.templateCode} style={{ borderTop: '1px solid var(--g-line-soft)' }}>
+                <tr
+                  key={tpl.id ?? tpl.templateCode}
+                  style={{ borderTop: '1px solid var(--g-line-soft)' }}
+                >
                   <td style={tdStyle}>{tpl.templateName}</td>
-                  <td style={{ ...tdStyle, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 13, color: 'var(--g-text-sub)' }}>{tpl.templateCode}</td>
-                  <td style={{ ...tdStyle, color: 'var(--g-text-sub)', maxWidth: 180 }}>{tpl.templateDesc || '—'}</td>
-                  <td style={{ ...tdStyle, color: 'var(--g-text-sub)', whiteSpace: 'nowrap' }}>{formatDateTime(tpl.createdAt)}</td>
+                  <td
+                    style={{
+                      ...tdStyle,
+                      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                      fontSize: 13,
+                      color: 'var(--g-text-sub)',
+                    }}
+                  >
+                    {tpl.templateCode}
+                  </td>
+                  <td style={{ ...tdStyle, color: 'var(--g-text-sub)', maxWidth: 180 }}>
+                    {tpl.templateDesc || '—'}
+                  </td>
+                  <td style={{ ...tdStyle, color: 'var(--g-text-sub)', whiteSpace: 'nowrap' }}>
+                    {formatDateTime(tpl.createdAt)}
+                  </td>
                   <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
-                    <button onClick={() => openEditModal(tpl)} style={actionBtnBlueStyle}>{t('Edit')}</button>
-                    <button onClick={() => handleOpenEditor(tpl)} style={actionBtnPurpleStyle}>{t('admin.openEditor')}</button>
-                    <button onClick={() => handleDelete(tpl)} style={actionBtnRedStyle}>{t('Delete')}</button>
+                    <button onClick={() => openEditModal(tpl)} style={actionBtnBlueStyle}>
+                      {t('Edit')}
+                    </button>
+                    <button onClick={() => handleOpenEditor(tpl)} style={actionBtnPurpleStyle}>
+                      {t('admin.openEditor')}
+                    </button>
+                    <button onClick={() => handleDelete(tpl)} style={actionBtnRedStyle}>
+                      {t('Delete')}
+                    </button>
                   </td>
                 </tr>
               ))
@@ -201,30 +278,50 @@ export const TemplateManagement = () => {
 
       {/* ---------- Create/Edit Modal ---------- */}
       {showCreateModal && (
-        <div onClick={closeModal} style={modalOverlayStyle}>
+        <div style={modalOverlayStyle}>
           <div onClick={(e) => e.stopPropagation()} style={modalCardStyle}>
-            <h2 style={{ margin: '0 0 22px 0', fontSize: 18, fontWeight: 700, letterSpacing: '-0.01em' }}>
+            <h2
+              style={{
+                margin: '0 0 22px 0',
+                fontSize: 18,
+                fontWeight: 700,
+                letterSpacing: '-0.01em',
+              }}
+            >
               {editingTemplate ? t('admin.modal.editTemplate') : t('admin.modal.createTemplate')}
             </h2>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={fieldLabelStyle}>{t('admin.modal.templateName')} <span style={{ color: 'var(--g-danger)' }}>*</span></label>
+              <label style={fieldLabelStyle}>
+                {t('admin.modal.templateName')} <span style={{ color: 'var(--g-danger)' }}>*</span>
+              </label>
               <input
                 type="text"
                 value={templateForm.templateName}
-                onChange={(e) => setTemplateForm({ ...templateForm, templateName: e.target.value })}
+                onChange={(e) => upd({ templateName: e.target.value })}
                 style={inputStyle}
                 placeholder={t('admin.modal.placeholder.name')}
               />
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={fieldLabelStyle}>{t('admin.modal.templateCode')} <span style={{ color: 'var(--g-danger)' }}>*</span></label>
+              <label style={fieldLabelStyle}>
+                {t('admin.modal.templateCode')} <span style={{ color: 'var(--g-danger)' }}>*</span>
+              </label>
               <input
                 type="text"
                 value={templateForm.templateCode}
-                onChange={(e) => setTemplateForm({ ...templateForm, templateCode: e.target.value })}
-                style={editingTemplate ? { ...inputStyle, background: 'var(--g-bg-sunken)', color: 'var(--g-text-muted)', cursor: 'not-allowed' } : inputStyle}
+                onChange={(e) => upd({ templateCode: e.target.value })}
+                style={
+                  editingTemplate
+                    ? {
+                        ...inputStyle,
+                        background: 'var(--g-bg-sunken)',
+                        color: 'var(--g-text-muted)',
+                        cursor: 'not-allowed',
+                      }
+                    : inputStyle
+                }
                 placeholder={t('admin.modal.placeholder.code')}
                 disabled={!!editingTemplate}
               />
@@ -234,19 +331,30 @@ export const TemplateManagement = () => {
               <label style={fieldLabelStyle}>{t('admin.modal.templateDesc')}</label>
               <textarea
                 value={templateForm.templateDesc}
-                onChange={(e) => setTemplateForm({ ...templateForm, templateDesc: e.target.value })}
+                onChange={(e) => upd({ templateDesc: e.target.value })}
                 style={{ ...inputStyle, resize: 'vertical', minHeight: 60 }}
                 placeholder={t('admin.modal.placeholder.desc')}
                 rows={3}
               />
             </div>
 
+            {formError && (
+              <div style={{ margin: '0 0 12px', fontSize: 12.5, color: 'var(--g-danger)' }}>
+                {formError}
+              </div>
+            )}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
-              <button onClick={closeModal} style={cancelBtnStyle}>{t('Cancel')}</button>
+              <button onClick={closeModal} style={cancelBtnStyle}>
+                {t('Cancel')}
+              </button>
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
-                style={{ ...submitBtnStyle, opacity: submitting ? 0.6 : 1, cursor: submitting ? 'not-allowed' : 'pointer' }}
+                style={{
+                  ...submitBtnStyle,
+                  opacity: submitting ? 0.6 : 1,
+                  cursor: submitting ? 'not-allowed' : 'pointer',
+                }}
               >
                 {submitting ? t('Submitting') : t('Submit')}
               </button>
@@ -305,7 +413,11 @@ const actionBtnBase: CSSProperties = {
 
 const actionBtnBlueStyle: CSSProperties = { ...actionBtnBase, color: 'var(--g-link)' };
 const actionBtnPurpleStyle: CSSProperties = { ...actionBtnBase, color: ACCENT };
-const actionBtnRedStyle: CSSProperties = { ...actionBtnBase, color: 'var(--g-danger)', marginRight: 0 };
+const actionBtnRedStyle: CSSProperties = {
+  ...actionBtnBase,
+  color: 'var(--g-danger)',
+  marginRight: 0,
+};
 
 const modalOverlayStyle: CSSProperties = {
   position: 'fixed',

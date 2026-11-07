@@ -7,19 +7,20 @@
  * 不静默覆盖 —— 这是「手工修改受到保护」的落点。
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+
 import { Button, Modal, Toast } from '@douyinfe/semi-ui';
 import { IconTick, IconClose, IconEyeOpened } from '@douyinfe/semi-icons';
 
 import { t } from '../../i18n';
-import { useRunStreaming } from '../../agent/AgentContext';
-import { aiPendingChangeStore, useAiPendingChange } from '../../agent/ai-pending-change';
+import { DeltaDetailsView } from '../../document/DeltaDetailsView';
 import {
   WorkflowDocument,
   computeDslChangeDetails,
   workflowDocumentStore,
   type DslChangeDetails,
 } from '../../document';
-import { DeltaDetailsView } from '../../document/DeltaDetailsView';
+import { aiPendingChangeStore, useAiPendingChange } from '../../agent/ai-pending-change';
+import { useRunStreaming } from '../../agent/AgentContext';
 
 const ACCENT = '#4d53e8';
 
@@ -135,7 +136,17 @@ export const AiPendingBanner: React.FC = () => {
         <span style={{ fontSize: 12.5, color: '#333', fontWeight: 600, flexShrink: 0 }}>
           {streaming ? t('editor.aiPendingStreaming') : t('editor.aiPendingTitle')}
         </span>
-        <span style={{ fontSize: 12, color: '#666', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <span
+          style={{
+            fontSize: 12,
+            color: '#666',
+            flex: 1,
+            minWidth: 0,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
           {summaryText(details)}
         </span>
         <Button
@@ -171,37 +182,69 @@ export const AiPendingBanner: React.FC = () => {
 
       {/* 差异预览：当前画布 → AI 的草稿 */}
       <Modal
+        motion={false}
         title={t('editor.aiPendingDiffTitle')}
         visible={diffOpen}
         onCancel={() => setDiffOpen(false)}
         footer={[
-          <Button key="cancel" onClick={() => setDiffOpen(false)}>{t('Cancel')}</Button>,
-          <Button key="apply" theme="solid" type="primary" loading={applying} onClick={applyWithConflictCheck} style={{ background: ACCENT }}>
+          <Button key="cancel" onClick={() => setDiffOpen(false)}>
+            {t('Cancel')}
+          </Button>,
+          <Button
+            key="apply"
+            theme="solid"
+            type="primary"
+            loading={applying}
+            onClick={applyWithConflictCheck}
+            style={{ background: ACCENT }}
+          >
             {t('editor.aiPendingApply')}
           </Button>,
         ]}
         width={Math.min(680, typeof window !== 'undefined' ? window.innerWidth - 80 : 680)}
         bodyStyle={{ maxHeight: '58vh', overflow: 'auto' }}
       >
-        <div style={{ fontSize: 12, color: '#888', marginBottom: 10 }}>{t('editor.aiPendingDiffDesc')}</div>
+        <div style={{ fontSize: 12, color: '#888', marginBottom: 10 }}>
+          {t('editor.aiPendingDiffDesc')}
+        </div>
         <DeltaDetailsView details={details} />
       </Modal>
 
       {/* 冲突确认：用户手改过画布，不静默覆盖 */}
       <Modal
+        motion={false}
         title={t('editor.aiPendingConflictTitle')}
         visible={!!conflict}
         onCancel={() => setConflict(null)}
         footer={[
-          <Button key="cancel" onClick={() => setConflict(null)}>{t('Cancel')}</Button>,
-          <Button key="apply" theme="solid" type="primary" loading={applying} onClick={doApply} style={{ background: ACCENT }}>
+          <Button key="cancel" onClick={() => setConflict(null)}>
+            {t('Cancel')}
+          </Button>,
+          <Button
+            key="apply"
+            theme="solid"
+            type="primary"
+            loading={applying}
+            onClick={doApply}
+            style={{ background: ACCENT }}
+          >
             {t('editor.aiPendingConflictApply')}
           </Button>,
         ]}
         width={Math.min(680, typeof window !== 'undefined' ? window.innerWidth - 80 : 680)}
         bodyStyle={{ maxHeight: '58vh', overflow: 'auto' }}
       >
-        <div style={{ fontSize: 12.5, color: '#b76e00', background: '#fffaf0', borderRadius: 8, padding: '8px 10px', marginBottom: 10, lineHeight: 1.6 }}>
+        <div
+          style={{
+            fontSize: 12.5,
+            color: '#b76e00',
+            background: '#fffaf0',
+            borderRadius: 8,
+            padding: '8px 10px',
+            marginBottom: 10,
+            lineHeight: 1.6,
+          }}
+        >
           {t('editor.aiPendingConflictDesc')}
         </div>
         {conflict && <DeltaDetailsView details={conflict} />}

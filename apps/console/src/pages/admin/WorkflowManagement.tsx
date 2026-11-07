@@ -5,14 +5,21 @@
  * 打开编辑器 / 编辑信息 / API 文档 / 删除。
  * 「发起会话」已移除——携带工作流开新会话统一走对话页的「新建任务 → 继承已有工作流」。
  */
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
-import { Modal, Toast, Dropdown } from '@douyinfe/semi-ui';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
+
+import { Toast, Dropdown } from '@douyinfe/semi-ui';
 import { IconMore } from '@douyinfe/semi-icons';
-import { workflowApi, type GaiaWorkflow, type GaiaWorkflowTemplate } from '../../services/workflow-api';
-import { useAgent } from '../../agent/AgentContext';
+
+import {
+  workflowApi,
+  type GaiaWorkflow,
+  type GaiaWorkflowTemplate,
+} from '../../services/workflow-api';
 import { useLanguage, t } from '../../i18n';
+import { appConfirm } from '../../components/safe-modal';
 import { ApiDocModal } from '../../components/ApiDocModal';
+import { useAgent } from '../../agent/AgentContext';
 import type { AdminOutletContext } from './AdminLayout';
 
 const ACCENT = 'var(--g-accent)';
@@ -40,7 +47,9 @@ const formatDateTime = (iso?: string): string => {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return '—';
   const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(
+    d.getHours()
+  )}:${pad(d.getMinutes())}`;
 };
 
 /* ---------------- Component ---------------- */
@@ -53,22 +62,28 @@ export const WorkflowManagement = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingWorkflow, setEditingWorkflow] = useState<GaiaWorkflow | null>(null);
   const [workflowForm, setWorkflowForm] = useState<WorkflowForm>(EMPTY_FORM);
-  const [loading, setLoading] = useState(false);
+  // 审计 A27：初始即加载中（首帧不闪「暂无数据」）；失败态与空态区分
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  /** 审计 A23：内联校验/提交错误（替代原生 alert） */
+  const [formError, setFormError] = useState<string | null>(null);
+  /** 审计 A23：表单是否已被编辑（Esc 只在干净时直接关） */
+  const [formTouched, setFormTouched] = useState(false);
   const [templates, setTemplates] = useState<GaiaWorkflowTemplate[]>([]);
   // 「API 文档」行内弹窗：选中的工作流；null 表示关闭
   const [apiDocsWorkflow, setApiDocsWorkflow] = useState<GaiaWorkflow | null>(null);
-
-  const folderName = (folderId?: number | null): string =>
-    folderId == null ? t('admin.workflow.unfiled') : folders.find((f) => f.id === folderId)?.name || t('admin.workflow.unfiled');
 
   const loadData = async () => {
     setLoading(true);
     try {
       const wfList = await workflowApi.listWorkflows();
       setWorkflows(wfList || []);
+      setLoadError(false);
     } catch (err) {
       console.error('Failed to load data:', err);
+      setLoadError(true);
+      Toast.error(t('admin.loadFailed') + ((err as Error).message || ''));
     } finally {
       setLoading(false);
     }
@@ -78,9 +93,25 @@ export const WorkflowManagement = () => {
     loadData();
   }, []);
 
+  // 审计 A23：Esc 关闭弹窗——仅在表单干净时（有编辑时误触不丢内容）
+  useEffect(() => {
+    if (!showCreateModal) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (e.defaultPrevented) return;
+      if (formTouched) return;
+      closeModal();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // 依赖刻意收窄（见上注释）
+  }, [showCreateModal, formTouched]);
+
   const openCreateModal = async () => {
     setEditingWorkflow(null);
     setWorkflowForm(EMPTY_FORM);
+    setFormError(null);
+    setFormTouched(false);
     setShowCreateModal(true);
     // 加载模板列表供下拉选择
     if (templates.length === 0) {
@@ -102,6 +133,8 @@ export const WorkflowManagement = () => {
       templateCode: '',
       folderId: wf.folderId ?? null,
     });
+    setFormError(null);
+    setFormTouched(false);
     setShowCreateModal(true);
   };
 
@@ -109,13 +142,23 @@ export const WorkflowManagement = () => {
     setShowCreateModal(false);
     setEditingWorkflow(null);
     setWorkflowForm(EMPTY_FORM);
+    setFormError(null);
+    setFormTouched(false);
+  };
+
+  /** 表单更新统一入口：置 touched（Esc 守卫用，审计 A23） */
+  const upd = (patch: Partial<WorkflowForm>) => {
+    setFormTouched(true);
+    setWorkflowForm((prev) => ({ ...prev, ...patch }));
   };
 
   const handleSubmit = async () => {
+    // 审计 A23：校验改内联提示（原生 alert 阻塞线程且风格不符）
     if (!workflowForm.workflowName.trim() || !workflowForm.workflowCode.trim()) {
-      alert(t('admin.validate.nameAndCode'));
+      setFormError(t('admin.validate.nameAndCode'));
       return;
     }
+    setFormError(null);
     setSubmitting(true);
     try {
       if (editingWorkflow) {
@@ -140,7 +183,7 @@ export const WorkflowManagement = () => {
       await loadData();
     } catch (err) {
       console.error('Submit failed:', err);
-      alert(t('admin.saveFailed') + (err as Error).message);
+      setFormError(t('admin.saveFailed') + (err as Error).message); // 审计 A23：留在弹窗内就地显示
     } finally {
       setSubmitting(false);
     }
@@ -148,7 +191,7 @@ export const WorkflowManagement = () => {
 
   const handleDelete = (wf: GaiaWorkflow) => {
     if (wf.id == null) return;
-    Modal.confirm({
+    appConfirm({
       title: t('admin.deleteWorkflow.title'),
       content: t('admin.deleteWorkflow.confirm', { name: wf.workflowName }),
       okType: 'danger',
@@ -188,12 +231,8 @@ export const WorkflowManagement = () => {
   /** 行「更多」菜单：低频操作收在这里；「打开编辑器」是高频动作，直接露在行内 */
   const rowMenu = (wf: GaiaWorkflow) => (
     <Dropdown.Menu>
-      <Dropdown.Item onClick={() => openEditModal(wf)}>
-        {t('admin.editMeta')}
-      </Dropdown.Item>
-      <Dropdown.Item onClick={() => handleOpenApiDocs(wf)}>
-        {t('admin.apiDocs')}
-      </Dropdown.Item>
+      <Dropdown.Item onClick={() => openEditModal(wf)}>{t('admin.editMeta')}</Dropdown.Item>
+      <Dropdown.Item onClick={() => handleOpenApiDocs(wf)}>{t('admin.apiDocs')}</Dropdown.Item>
       <Dropdown.Divider />
       <Dropdown.Item type="danger" onClick={() => handleDelete(wf)}>
         {t('Delete')}
@@ -211,32 +250,66 @@ export const WorkflowManagement = () => {
               {[
                 t('admin.workflow.name'),
                 t('admin.workflow.code'),
-                t('admin.workflow.project'),
                 t('admin.workflow.createdAt'),
                 t('admin.workflow.actions'),
               ].map((h) => (
-                <th key={h} style={thStyle}>{h}</th>
+                <th key={h} style={thStyle}>
+                  {h}
+                </th>
               ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={5} style={emptyTdStyle}>{t('Loading')}</td>
+                <td colSpan={4} style={emptyTdStyle}>
+                  {t('Loading')}
+                </td>
+              </tr>
+            ) : loadError ? (
+              // 审计 A27：加载失败不再是「暂无数据」（会被误读成数据没了）
+              <tr>
+                <td colSpan={4} style={emptyTdStyle}>
+                  <span style={{ color: 'var(--g-danger)' }}>{t('admin.loadFailedRow')}</span>
+                  {'  '}
+                  <button
+                    onClick={() => loadData()}
+                    style={{ ...actionBtnBlueStyle, marginLeft: 8 }}
+                  >
+                    {t('testCase.retry')}
+                  </button>
+                </td>
               </tr>
             ) : workflows.length === 0 ? (
               <tr>
-                <td colSpan={5} style={emptyTdStyle}>{t('admin.noData')}</td>
+                <td colSpan={4} style={emptyTdStyle}>
+                  {t('admin.noData')}
+                </td>
               </tr>
             ) : (
               workflows.map((wf) => (
-                <tr key={wf.id ?? wf.workflowCode} style={{ borderTop: '1px solid var(--g-line-soft)' }}>
+                <tr
+                  key={wf.id ?? wf.workflowCode}
+                  style={{ borderTop: '1px solid var(--g-line-soft)' }}
+                >
                   <td style={tdStyle}>{wf.workflowName}</td>
-                  <td style={{ ...tdStyle, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 13, color: 'var(--g-text-sub)' }}>{wf.workflowCode}</td>
-                  <td style={{ ...tdStyle, color: 'var(--g-text-sub)' }}>{folderName(wf.folderId)}</td>
-                  <td style={{ ...tdStyle, color: 'var(--g-text-sub)', whiteSpace: 'nowrap' }}>{formatDateTime(wf.createdAt)}</td>
-                  <td style={{ ...tdStyle, whiteSpace: 'nowrap', textAlign: 'right' }}>
-                    <button onClick={() => handleOpenEditor(wf)} style={actionBtnBlueStyle}>{t('admin.openEditor')}</button>
+                  <td
+                    style={{
+                      ...tdStyle,
+                      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                      fontSize: 13,
+                      color: 'var(--g-text-sub)',
+                    }}
+                  >
+                    {wf.workflowCode}
+                  </td>
+                  <td style={{ ...tdStyle, color: 'var(--g-text-sub)', whiteSpace: 'nowrap' }}>
+                    {formatDateTime(wf.createdAt)}
+                  </td>
+                  <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
+                    <button onClick={() => handleOpenEditor(wf)} style={actionBtnBlueStyle}>
+                      {t('admin.openEditor')}
+                    </button>
                     <Dropdown trigger="click" position="bottomRight" render={rowMenu(wf)}>
                       <button
                         type="button"
@@ -255,8 +328,12 @@ export const WorkflowManagement = () => {
                           color: 'var(--g-text-muted)',
                           cursor: 'pointer',
                         }}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--g-bg-sunken)'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'var(--g-bg-sunken)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'transparent';
+                        }}
                       >
                         <IconMore />
                       </button>
@@ -269,32 +346,52 @@ export const WorkflowManagement = () => {
         </table>
       </div>
 
-      {/* ---------- Modal ---------- */}
+      {/* ---------- Modal（审计 A23：点遮罩不再关闭——手滑不丢已填内容；Esc 仅干净时关闭） ---------- */}
       {showCreateModal && (
-        <div onClick={closeModal} style={modalOverlayStyle}>
+        <div style={modalOverlayStyle}>
           <div onClick={(e) => e.stopPropagation()} style={modalCardStyle}>
-            <h2 style={{ margin: '0 0 22px 0', fontSize: 18, fontWeight: 700, letterSpacing: '-0.01em' }}>
+            <h2
+              style={{
+                margin: '0 0 22px 0',
+                fontSize: 18,
+                fontWeight: 700,
+                letterSpacing: '-0.01em',
+              }}
+            >
               {editingWorkflow ? t('admin.modal.editWorkflow') : t('admin.modal.createWorkflow')}
             </h2>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={fieldLabelStyle}>{t('admin.modal.workflowName')} <span style={{ color: 'var(--g-danger)' }}>*</span></label>
+              <label style={fieldLabelStyle}>
+                {t('admin.modal.workflowName')} <span style={{ color: 'var(--g-danger)' }}>*</span>
+              </label>
               <input
                 type="text"
                 value={workflowForm.workflowName}
-                onChange={(e) => setWorkflowForm({ ...workflowForm, workflowName: e.target.value })}
+                onChange={(e) => upd({ workflowName: e.target.value })}
                 style={inputStyle}
                 placeholder={t('admin.modal.placeholder.name')}
               />
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={fieldLabelStyle}>{t('admin.modal.workflowCode')} <span style={{ color: 'var(--g-danger)' }}>*</span></label>
+              <label style={fieldLabelStyle}>
+                {t('admin.modal.workflowCode')} <span style={{ color: 'var(--g-danger)' }}>*</span>
+              </label>
               <input
                 type="text"
                 value={workflowForm.workflowCode}
-                onChange={(e) => setWorkflowForm({ ...workflowForm, workflowCode: e.target.value })}
-                style={editingWorkflow ? { ...inputStyle, background: 'var(--g-bg-sunken)', color: 'var(--g-text-muted)', cursor: 'not-allowed' } : inputStyle}
+                onChange={(e) => upd({ workflowCode: e.target.value })}
+                style={
+                  editingWorkflow
+                    ? {
+                        ...inputStyle,
+                        background: 'var(--g-bg-sunken)',
+                        color: 'var(--g-text-muted)',
+                        cursor: 'not-allowed',
+                      }
+                    : inputStyle
+                }
                 placeholder={t('admin.modal.placeholder.code')}
                 disabled={!!editingWorkflow}
               />
@@ -304,12 +401,16 @@ export const WorkflowManagement = () => {
               <label style={fieldLabelStyle}>{t('admin.workflow.project')}</label>
               <select
                 value={workflowForm.folderId == null ? '' : String(workflowForm.folderId)}
-                onChange={(e) => setWorkflowForm({ ...workflowForm, folderId: e.target.value === '' ? null : Number(e.target.value) })}
+                onChange={(e) =>
+                  upd({ folderId: e.target.value === '' ? null : Number(e.target.value) })
+                }
                 style={inputStyle}
               >
                 <option value="">{t('admin.workflow.unfiled')}</option>
                 {folders.map((f) => (
-                  <option key={f.id} value={f.id}>{f.name}</option>
+                  <option key={f.id} value={f.id}>
+                    {f.name}
+                  </option>
                 ))}
               </select>
             </div>
@@ -318,7 +419,7 @@ export const WorkflowManagement = () => {
               <label style={fieldLabelStyle}>{t('admin.modal.workflowDesc')}</label>
               <textarea
                 value={workflowForm.workflowDesc}
-                onChange={(e) => setWorkflowForm({ ...workflowForm, workflowDesc: e.target.value })}
+                onChange={(e) => upd({ workflowDesc: e.target.value })}
                 style={{ ...inputStyle, resize: 'vertical', minHeight: 72 }}
                 placeholder={t('admin.modal.placeholder.desc')}
                 rows={3}
@@ -330,7 +431,7 @@ export const WorkflowManagement = () => {
                 <label style={fieldLabelStyle}>{t('admin.modal.template')}</label>
                 <select
                   value={workflowForm.templateCode}
-                  onChange={(e) => setWorkflowForm({ ...workflowForm, templateCode: e.target.value })}
+                  onChange={(e) => upd({ templateCode: e.target.value })}
                   style={inputStyle}
                 >
                   <option value="">{t('admin.modal.placeholder.template')}</option>
@@ -343,12 +444,23 @@ export const WorkflowManagement = () => {
               </div>
             )}
 
+            {formError && (
+              <div style={{ margin: '0 0 12px', fontSize: 12.5, color: 'var(--g-danger)' }}>
+                {formError}
+              </div>
+            )}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
-              <button onClick={closeModal} style={cancelBtnStyle}>{t('Cancel')}</button>
+              <button onClick={closeModal} style={cancelBtnStyle}>
+                {t('Cancel')}
+              </button>
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
-                style={{ ...submitBtnStyle, opacity: submitting ? 0.6 : 1, cursor: submitting ? 'not-allowed' : 'pointer' }}
+                style={{
+                  ...submitBtnStyle,
+                  opacity: submitting ? 0.6 : 1,
+                  cursor: submitting ? 'not-allowed' : 'pointer',
+                }}
               >
                 {submitting ? t('Submitting') : t('Submit')}
               </button>

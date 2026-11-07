@@ -24,9 +24,17 @@ export function mapPersistedTimeline(
     text?: string;
     source?: string;
     call?: { id?: string; name?: string; args?: any; result?: string };
-  }> = typeof entries === 'string'
-    ? (() => { try { const parsed = JSON.parse(entries); return Array.isArray(parsed) ? parsed : []; } catch { return []; } })()
-    : (entries || []);
+  }> =
+    typeof entries === 'string'
+      ? (() => {
+          try {
+            const parsed = JSON.parse(entries);
+            return Array.isArray(parsed) ? parsed : [];
+          } catch {
+            return [];
+          }
+        })()
+      : entries || [];
   const out: TimelineItem[] = [];
   for (const item of raw) {
     if (!item || !item.kind) continue;
@@ -42,9 +50,19 @@ export function mapPersistedTimeline(
         },
       });
     } else if (item.kind === 'notice') {
-      out.push({ kind: 'notice', id: item.id || `tl-notice-${out.length}`, text: item.text || '', source: item.source });
+      out.push({
+        kind: 'notice',
+        id: item.id || `tl-notice-${out.length}`,
+        text: item.text || '',
+        source: item.source,
+      });
     } else if (item.kind === 'text' || item.kind === 'thinking') {
-      out.push({ kind: item.kind, id: item.id || `tl-${item.kind}-${out.length}`, text: item.text || '', closed: true });
+      out.push({
+        kind: item.kind,
+        id: item.id || `tl-${item.kind}-${out.length}`,
+        text: item.text || '',
+        closed: true,
+      });
     }
   }
   return out;
@@ -57,7 +75,11 @@ export function mapPersistedTimeline(
  * 避免刷新后任务清单里残留永远旋转的"进行中"步骤。
  */
 function mapRestoredTodoStatus(raw: unknown): PlanStep['status'] {
-  switch (String(raw ?? '').trim().toLowerCase()) {
+  switch (
+    String(raw ?? '')
+      .trim()
+      .toLowerCase()
+  ) {
     case 'completed':
     case 'done':
     case 'finished':
@@ -116,7 +138,9 @@ export function convertMessages(msgs: AgentMessage[]): DisplayMessage[] {
         answer = parsed.answer != null ? String(parsed.answer) : undefined;
         auto = parsed.auto === true;
         answeredOnlyByTimeout = parsed.timeout === true && parsed.auto !== true;
-      } catch { /* 结果不是 JSON：当无答案处理 */ }
+      } catch {
+        /* 结果不是 JSON：当无答案处理 */
+      }
     }
     return {
       askId: callId,
@@ -193,7 +217,9 @@ export function convertMessages(msgs: AgentMessage[]): DisplayMessage[] {
         try {
           const parsed = JSON.parse(msg.images);
           if (Array.isArray(parsed)) images = parsed;
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
       result.push({
         id: `msg-${msg.id}`,
@@ -205,7 +231,16 @@ export function convertMessages(msgs: AgentMessage[]): DisplayMessage[] {
       continue;
     }
     if (msg.role === 'assistant') {
-      if (!group) group = { firstId: `msg-${msg.id}`, ts, contents: [], thinkings: [], steps: [], timeline: [], asks: [] };
+      if (!group)
+        group = {
+          firstId: `msg-${msg.id}`,
+          ts,
+          contents: [],
+          thinkings: [],
+          steps: [],
+          timeline: [],
+          asks: [],
+        };
       // 时间线按真实落库顺序推进：思考 → （正文若有）→ 工具调用 → …
       if (msg.thinking) {
         group.thinkings.push(msg.thinking);
@@ -222,7 +257,9 @@ export function convertMessages(msgs: AgentMessage[]): DisplayMessage[] {
             let args = {};
             try {
               args = JSON.parse(tc.function?.arguments || '{}');
-            } catch { /* ignore */ }
+            } catch {
+              /* ignore */
+            }
             const toolResult = toolResultMap.get(tc.id);
             // ask_user 调用重建为持久提问卡（详见 flush）
             if (tc.function?.name === 'ask_user') {
@@ -238,7 +275,9 @@ export function convertMessages(msgs: AgentMessage[]): DisplayMessage[] {
             group.steps.push(step);
             group.timeline.push({ kind: 'tool', id: tc.id, call: step });
           }
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
       // 行自带持久化时间线（run 收尾落库）时整组替换：它才是真实调用链路，
       // 上面按行重建的只是行粒度粗的兜底（思考/正文各合并成一块）
@@ -271,7 +310,11 @@ export function convertMessages(msgs: AgentMessage[]): DisplayMessage[] {
     const card = result[i];
     if (card.ask?.answered && card.ask.answer) {
       const bubble = result[i - 2];
-      if (result[i - 1].role === 'assistant' && bubble.role === 'user' && bubble.content === card.ask.answer) {
+      if (
+        result[i - 1].role === 'assistant' &&
+        bubble.role === 'user' &&
+        bubble.content === card.ask.answer
+      ) {
         result[i - 2] = result[i - 1];
         result[i - 1] = card;
         result[i] = bubble;
@@ -319,11 +362,23 @@ export function appendEphemeralRows(
       next = [...next, m];
     }
   }
+  // 审计 A10：乐观用户行（local-*）在服务端尚未持久化时不能被历史重建丢掉。
+  // 以 id 前缀识别客户端-only 行；内容与历史某条用户消息一致则视为已落库，跳过。
+  for (const m of prev) {
+    if (m.role !== 'user' || !m.id.startsWith('local-')) continue;
+    const dup = next.some((n) => n.role === 'user' && n.content === m.content);
+    if (!dup && !next.some((n) => n.id === m.id)) {
+      next = [...next, m];
+    }
+  }
   return next;
 }
 
 /** 用后端 plan 事件 upsert PlanCard 消息 */
-export function upsertPlanCard(prev: DisplayMessage[], plan: { id: string; steps: any[] }): DisplayMessage[] {
+export function upsertPlanCard(
+  prev: DisplayMessage[],
+  plan: { id: string; steps: any[] }
+): DisplayMessage[] {
   const planSteps = (plan.steps || []).map((s: any, idx: number) => ({
     id: `plan-${plan.id}-${idx}`,
     intent: s.intent || s.description || `Step ${idx + 1}`,
@@ -366,7 +421,10 @@ export function upsertAskRow(prev: DisplayMessage[], ask: AskCardData): DisplayM
 }
 
 /** 用产物事件 upsert 一张产物卡消息（release；test_report 走工具行不单独成卡） */
-export function upsertArtifactCard(prev: DisplayMessage[], artifact: AgentArtifactDto): DisplayMessage[] {
+export function upsertArtifactCard(
+  prev: DisplayMessage[],
+  artifact: AgentArtifactDto
+): DisplayMessage[] {
   if (artifact.type !== 'release') return prev;
   const id = artifactCardId(artifact);
   const existingIdx = prev.findIndex((m) => m.id === id);
@@ -383,7 +441,10 @@ export function upsertArtifactCard(prev: DisplayMessage[], artifact: AgentArtifa
  * （后端 artifact 没有直接挂 messageId，用「插在最后一条更早的消息后面」归位；
  * live 运行时的卡由 upsertArtifactCard 追加，两者通过同一消息 id 去重）。
  */
-export function placeArtifactCards(msgs: DisplayMessage[], artifacts: AgentArtifactDto[]): DisplayMessage[] {
+export function placeArtifactCards(
+  msgs: DisplayMessage[],
+  artifacts: AgentArtifactDto[]
+): DisplayMessage[] {
   if (!artifacts || artifacts.length === 0) return msgs;
   const cardArts = artifacts.filter(
     (a) => a.type === 'release' && !msgs.some((m) => m.id === artifactCardId(a))
@@ -419,7 +480,7 @@ export function attachRunUsage(
   msgs: DisplayMessage[],
   runs: any[],
   skipId?: string | null,
-  turnUsage?: Array<{ runId: string; cachedTokens: number; model?: string }>,
+  turnUsage?: Array<{ runId: string; cachedTokens: number; model?: string }>
 ): DisplayMessage[] {
   const usageByRun = new Map((turnUsage ?? []).map((u) => [u.runId, u]));
   const usable = (Array.isArray(runs) ? runs : []).filter(
@@ -427,7 +488,8 @@ export function attachRunUsage(
   );
   if (usable.length === 0) return msgs;
   const asc = [...usable].sort((a, b) =>
-    String(a.startedAt || '').localeCompare(String(b.startedAt || '')));
+    String(a.startedAt || '').localeCompare(String(b.startedAt || ''))
+  );
   const ts = (raw: unknown) => {
     const t = new Date(String(raw || '')).getTime();
     return Number.isFinite(t) ? t : 0;
@@ -463,9 +525,5 @@ export function rebuildMessages(opts: {
 }): DisplayMessage[] {
   const rows = convertMessages(opts.history || []);
   const withUsage = attachRunUsage(rows, opts.runs || [], opts.liveId, opts.turnUsage);
-  return appendEphemeralRows(
-    placeArtifactCards(withUsage, opts.artifacts),
-    opts.prev,
-    opts.liveId
-  );
+  return appendEphemeralRows(placeArtifactCards(withUsage, opts.artifacts), opts.prev, opts.liveId);
 }

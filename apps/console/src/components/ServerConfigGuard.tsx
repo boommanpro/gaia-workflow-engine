@@ -4,12 +4,13 @@
  * 挂载时探活 /workflow/health：未连接则弹窗让用户配置服务端地址，
  * 已连接则直接渲染子内容。从 AdminLayout 抽出：设置区与工作流管理页共用。
  */
-import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+
 import { Modal, Input, Button as SemiButton } from '@douyinfe/semi-ui';
 
-import { workflowApi } from '../services/workflow-api';
 import { getApiBaseUrl, updateApiBaseUrl } from '../utils/apiConfig';
+import { workflowApi } from '../services/workflow-api';
 import { useLanguage, t } from '../i18n';
 import { CHAT } from '../chat/theme';
 
@@ -21,17 +22,29 @@ export const ServerConfigGuard: React.FC<{ children: React.ReactNode }> = ({ chi
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    workflowApi.health().then(() => setChecking(false)).catch(() => {
-      // 后端未连接，自动弹窗让用户配置服务端地址
-      setChecking(false);
-      setServerUrl(getApiBaseUrl());
-      setShowServerConfig(true);
-    });
+    workflowApi
+      .health()
+      .then(() => setChecking(false))
+      .catch(() => {
+        // 后端未连接，自动弹窗让用户配置服务端地址
+        setChecking(false);
+        setServerUrl(getApiBaseUrl());
+        setShowServerConfig(true);
+      });
   }, []);
 
   if (checking) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: CHAT.textMuted, fontSize: 15 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100%',
+          color: CHAT.textMuted,
+          fontSize: 15,
+        }}
+      >
         {t('admin.connecting')}
       </div>
     );
@@ -43,6 +56,7 @@ export const ServerConfigGuard: React.FC<{ children: React.ReactNode }> = ({ chi
 
       {/* 后端未连接时弹窗配置服务端地址 */}
       <Modal
+        motion={false}
         title={t('serverConfig.title')}
         visible={showServerConfig}
         closable={false}

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { useClientContext, usePlayground } from '@flowgram.ai/free-layout-editor';
+import { Toast } from '@douyinfe/semi-ui';
 import { IconChevronRight, IconTerminal } from '@douyinfe/semi-icons';
 
 import { CodeEditorModal } from '../code-editor-modal';
@@ -20,7 +21,16 @@ export const SchemaEditor = () => {
 
   const saveData = useCallback(
     async (data: any) => {
-      await ctx.document.reload(JSON.parse(data));
+      // 审计 A22：JSON 非法时明确报错（与节点级「查看 Schema」同口径），
+      // 此前静默失败只剩控制台未处理拒绝
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(data);
+      } catch (e) {
+        Toast.error(t('nodeSchema.jsonInvalid') + `（${(e as Error).message}）`);
+        throw e; // 继续抛出让 CodeEditorModal 保持打开、内容不丢
+      }
+      await ctx.document.reload(parsed as Parameters<typeof ctx.document.reload>[0]);
       setTimeout(() => {
         ctx.document.fitView();
       }, 100);

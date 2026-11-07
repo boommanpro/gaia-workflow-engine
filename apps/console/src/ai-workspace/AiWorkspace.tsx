@@ -23,9 +23,9 @@ import { NewTaskChips } from './components/NewTaskChips';
 import { ModelPicker } from './components/ModelPicker';
 import { CanvasHistoryPopover } from './components/CanvasHistoryPopover';
 import { useWorkflowArtifactSync } from './artifact/useWorkflowArtifactSync';
-import { CHAT, ChatComposer, ChatMessageList, ChatStyles, WelcomeGreeting } from '../chat';
 import { ArtifactPanel } from './artifact/ArtifactPanel';
 import { StatsPills } from '../chat/StatsPills';
+import { CHAT, ChatComposer, ChatMessageList, ChatStyles, WelcomeGreeting } from '../chat';
 import { takeInitialPrompt, peekInitialPrompt } from '../agent/initialPrompt';
 import { useAgent, useRunStreaming } from '../agent/AgentContext';
 
@@ -58,6 +58,16 @@ export const AiWorkspace: React.FC = () => {
   const userToggledRef = useRef(false);
   /** 对话区视图（dsh 式：对话 | Trajectory），切会话不重置 —— Trajectory 是查看视角不是会话状态 */
   const [chatView, setChatView] = useState<'chat' | 'trajectory'>('chat');
+  // 审计 A15：停在「轨迹」标签时新建任务，视图重置回「对话」——
+  // 否则首条消息后直接进新会话的轨迹视图，流式回复不可见
+  const prevSessionKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    const prev = prevSessionKeyRef.current;
+    prevSessionKeyRef.current = currentSessionKey ?? null;
+    if (prev && !prev.startsWith('draft-') && currentSessionKey?.startsWith('draft-')) {
+      setChatView('chat');
+    }
+  }, [currentSessionKey]);
 
   // 产物面板默认开合跟随产物有无：AI 产出首个产物自动展开，
   // 新建任务/切到无产物的会话自动收起；用户手动开过后（toggled）交给用户
@@ -317,6 +327,7 @@ export const AiWorkspace: React.FC = () => {
                     <WelcomeGreeting />
                     <ChatComposer
                       variant="hero"
+                      key={currentSessionKey || 'hero'}
                       maxWidth="clamp(820px, 62vw, 1200px)"
                       disabled={!currentSessionKey}
                       placeholder={t('workspace.inputPlaceholder')}
@@ -353,9 +364,11 @@ export const AiWorkspace: React.FC = () => {
           </div>
         </div>
 
-        {/* 底部常驻输入：欢迎态已由居中 hero 输入卡承担，不重复渲染 */}
+        {/* 底部常驻输入：欢迎态已由居中 hero 输入卡承担，不重复渲染。
+            审计 A16：按会话挂载——草稿不串进别的会话（此前 A 的半截话会发进 B） */}
         {!showWelcome && (
           <ChatComposer
+            key={currentSessionKey || 'none'}
             disabled={!currentSessionKey}
             placeholder={t('workspace.inputPlaceholder')}
             hint={t('workspace.inputHint')}

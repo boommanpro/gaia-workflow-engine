@@ -64,6 +64,15 @@ export default defineConfig({
   },
   tools: {
     rspack: (config) => {
+      // 三方（monaco-editor 0.52 ESM）无法在应用侧修复的打包告警，显式忽略：
+      // · worker 文件里的动态 require（Critical dependency）
+      // · worker/语言服务里对 __filename/__dirname 的引用（rspack 已 mock）
+      config.ignoreWarnings = [
+        ...(config.ignoreWarnings || []),
+        /Critical dependency: require function is used/,
+        /"__filename" is used and has been mocked/,
+        /"__dirname" is used and has been mocked/,
+      ];
       // GitHub Pages SPA fallback: 构建完成后复制 dist/index.html 为 dist/404.html
       // 当直接访问 /admin/workflows 等深链时，GitHub Pages 返回 404.html，
       // 其内容与构建后的 index.html 完全相同（含注入的 JS/CSS），从而让 React Router 接管路由
@@ -83,8 +92,12 @@ export default defineConfig({
       config.plugins.push(new CopyIndexTo404Plugin());
       /**
        * ignore warnings from @coze-editor/editor/language-typescript
+       * （与上方 monaco 告警合并，勿覆盖——覆盖会吃掉前面的过滤规则）
        */
-      config.ignoreWarnings = [/Critical dependency: the request of a dependency is an expression/];
+      config.ignoreWarnings = [
+        ...(config.ignoreWarnings || []),
+        /Critical dependency: the request of a dependency is an expression/,
+      ];
     },
   },
 });

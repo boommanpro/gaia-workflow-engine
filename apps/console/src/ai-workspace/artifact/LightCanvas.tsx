@@ -30,6 +30,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { categoryColor, getNodeVisual } from '../../nodes/node-visuals';
+import { t } from '../../i18n';
 import type { WorkflowDsl } from '../../document';
 
 interface NodeBox {
@@ -547,8 +548,8 @@ export const LightCanvas: React.FC<{ dsl: WorkflowDsl }> = ({ dsl }) => {
       >
         <button
           type="button"
-          aria-label="缩小"
-          title="缩小"
+          aria-label={t('canvas.zoomOut')}
+          title={t('canvas.zoomOut')}
           onClick={() => zoomBy(1 / ZOOM_STEP)}
           style={{
             width: 24,
@@ -566,7 +567,7 @@ export const LightCanvas: React.FC<{ dsl: WorkflowDsl }> = ({ dsl }) => {
         </button>
         <span
           onClick={resetView}
-          title="点击恢复 100%"
+          title={t('canvas.resetZoom')}
           style={{
             minWidth: 38,
             textAlign: 'center',
@@ -580,8 +581,8 @@ export const LightCanvas: React.FC<{ dsl: WorkflowDsl }> = ({ dsl }) => {
         </span>
         <button
           type="button"
-          aria-label="放大"
-          title="放大"
+          aria-label={t('canvas.zoomIn')}
+          title={t('canvas.zoomIn')}
           onClick={() => zoomBy(ZOOM_STEP)}
           style={{
             width: 24,
@@ -599,7 +600,7 @@ export const LightCanvas: React.FC<{ dsl: WorkflowDsl }> = ({ dsl }) => {
         </button>
         <button
           type="button"
-          aria-label="适应画布"
+          aria-label={t('canvas.fitView')}
           title="适应画布（重置缩放与平移）"
           onClick={resetView}
           style={{

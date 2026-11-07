@@ -9,6 +9,8 @@
  * running 用旋转环、done 用对勾，与消息流里的执行过程折叠条同一观感。
  */
 import React, { useState } from 'react';
+
+import { t } from '../../i18n';
 import type { PlanStep } from '../../agent/types';
 
 const successColor = 'var(--g-success, #1a7f37)';
@@ -37,7 +39,18 @@ const Chevron: React.FC<{ open: boolean }> = ({ open }) => (
 );
 
 const CheckIcon: React.FC = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={successColor} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ flexShrink: 0 }}>
+  <svg
+    width="12"
+    height="12"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke={successColor}
+    strokeWidth="2.4"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden
+    style={{ flexShrink: 0 }}
+  >
     <path d="M20 6 9 17l-5-5" />
   </svg>
 );
@@ -64,7 +77,17 @@ const StepIcon: React.FC<{ status: PlanStep['status'] | undefined }> = ({ status
   if (status === 'running' || status === 'testing') return <RunRing />;
   if (status === 'error' || status === 'testFailed') {
     return (
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={dangerColor} strokeWidth="2.2" strokeLinecap="round" aria-hidden style={{ flexShrink: 0 }}>
+      <svg
+        width="12"
+        height="12"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke={dangerColor}
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        aria-hidden
+        style={{ flexShrink: 0 }}
+      >
         <path d="M18 6 6 18M6 6l12 12" />
       </svg>
     );
@@ -73,15 +96,31 @@ const StepIcon: React.FC<{ status: PlanStep['status'] | undefined }> = ({ status
     <span
       aria-hidden
       style={{
-        width: 8, height: 8, borderRadius: '50%', flexShrink: 0, margin: '1px 2px',
-        border: '1.5px solid var(--g-text-faint, #b8b8b8)', display: 'inline-block',
+        width: 8,
+        height: 8,
+        borderRadius: '50%',
+        flexShrink: 0,
+        margin: '1px 2px',
+        border: '1.5px solid var(--g-text-faint, #b8b8b8)',
+        display: 'inline-block',
       }}
     />
   );
 };
 
 const ListIcon: React.FC = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ flexShrink: 0, color: 'var(--g-text-muted, #8f8f8f)' }}>
+  <svg
+    width="13"
+    height="13"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden
+    style={{ flexShrink: 0, color: 'var(--g-text-muted, #8f8f8f)' }}
+  >
     <path d="M3 6l1.5 1.5L7 5" />
     <path d="M3 12l1.5 1.5L7 11" />
     <path d="M11 6h10" />
@@ -128,7 +167,9 @@ export const TodoCard: React.FC<{ steps: PlanStep[] }> = ({ steps }) => {
         }}
       >
         <ListIcon />
-        <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--g-text, #0d0d0d)' }}>任务清单</span>
+        <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--g-text, #0d0d0d)' }}>
+          {t('todo.title')}
+        </span>
         <span
           style={{
             fontSize: 11,
@@ -144,7 +185,16 @@ export const TodoCard: React.FC<{ steps: PlanStep[] }> = ({ steps }) => {
           {done}/{steps.length}
         </span>
         {runningIdx >= 0 && !collapsed && (
-          <span style={{ fontSize: 12, color: 'var(--g-text-sub, #5d5d5d)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+          <span
+            style={{
+              fontSize: 12,
+              color: 'var(--g-text-sub, #5d5d5d)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              flex: 1,
+            }}
+          >
             {steps[runningIdx].intent}
           </span>
         )}
@@ -154,9 +204,24 @@ export const TodoCard: React.FC<{ steps: PlanStep[] }> = ({ steps }) => {
       </button>
       {collapsed ? (
         latest && (
-          <div style={{ padding: '0 12px 9px', display: 'flex', alignItems: 'center', gap: 7, fontSize: 12 }}>
+          <div
+            style={{
+              padding: '0 12px 9px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 7,
+              fontSize: 12,
+            }}
+          >
             <StepIcon status={latest.status} />
-            <span style={{ color: 'var(--g-text-sub, #303030)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <span
+              style={{
+                color: 'var(--g-text-sub, #303030)',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
               {latest.intent}
             </span>
           </div>
@@ -164,7 +229,10 @@ export const TodoCard: React.FC<{ steps: PlanStep[] }> = ({ steps }) => {
       ) : (
         <div style={{ padding: '2px 12px 9px', display: 'flex', flexDirection: 'column', gap: 5 }}>
           {steps.map((step) => (
-            <div key={step.id} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12.5 }}>
+            <div
+              key={step.id}
+              style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12.5 }}
+            >
               <StepIcon status={step.status} />
               <span
                 style={{
@@ -199,9 +267,7 @@ function latestEventStep(steps: PlanStep[]): PlanStep | null {
 }
 
 /** 从消息列表提取最新的任务清单步骤（取最后一条非空 planSteps） */
-export function extractLatestTodoSteps(
-  messages: { planSteps?: PlanStep[] }[]
-): PlanStep[] | null {
+export function extractLatestTodoSteps(messages: { planSteps?: PlanStep[] }[]): PlanStep[] | null {
   for (let i = messages.length - 1; i >= 0; i--) {
     const steps = messages[i].planSteps;
     if (steps && steps.length > 0) {

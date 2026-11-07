@@ -12,6 +12,7 @@
  * 对话编排仍是「纯后端自治」：sendMessage 只把消息 POST 给后端触发一次异步 run，
  * 后端在服务端跑完整循环（含工具执行），过程事件经 SSE 推给 runtime 渲染。
  */
+import { useLocation, useNavigate } from 'react-router-dom';
 import React, {
   createContext,
   useContext,
@@ -21,31 +22,23 @@ import React, {
   useRef,
   useMemo,
 } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+
 import { nanoid } from 'nanoid';
 
-import { agentApi } from './api';
-import {
-  hasUnsyncedLocalEdits,
-  isEchoOfLastPush,
-  saveCanvasDraft,
-} from './canvas-draft-sync';
+import { splitAttachments } from '../chat/attachments';
 import { getWorkflowOfSession, bindSessionToWorkflow } from '../ai-workspace/session-scope';
-import { aiPendingChangeStore } from './ai-pending-change';
-import { sessionEventStore } from './session-event-store';
+import type { AgentSession, PageContext, WorkFolder, AgentArtifactDto } from './types';
 import { subscribeSessionEvents } from './sse-client';
+import { sessionEventStore } from './session-event-store';
 import { sessionRuntime, useRuntime } from './runtime/store';
 import type { RuntimeState } from './runtime/state';
-import { workflowDocumentStore, type DocumentOp } from '../document';
+import { draftModelPick } from './draft-model-pick';
+import { hasUnsyncedLocalEdits, isEchoOfLastPush, saveCanvasDraft } from './canvas-draft-sync';
+import { agentApi } from './api';
+import { aiPendingChangeStore } from './ai-pending-change';
 import { getCurrentLocale } from '../i18n';
-import { splitAttachments } from '../chat/attachments';
+import { workflowDocumentStore, type DocumentOp } from '../document';
 import { getCanvasContext } from './canvas-context';
-import type {
-  AgentSession,
-  PageContext,
-  WorkFolder,
-  AgentArtifactDto,
-} from './types';
 
 // 运行时纯函数与类型重导出（旧测试与外部引用兼容）
 export { convertMessages, appendLiveRow } from './runtime/messages';
@@ -61,8 +54,15 @@ interface AgentContextValue {
   /** 重新拉取会话列表（外部入口新建会话后左栏对齐；不改动 currentSessionKey） */
   refreshSessions: () => Promise<void>;
   /** 新任务草稿（draft- 会话）的选项：欢迎页「任务设置」面板读写；非草稿会话为 null。 */
-  draftSetup: { folderId: number | null; inheritWorkflowCode: string | null; carryDraft?: boolean } | null;
-  updateDraftSetup: (patch: { folderId?: number | null; inheritWorkflowCode?: string | null }) => void;
+  draftSetup: {
+    folderId: number | null;
+    inheritWorkflowCode: string | null;
+    carryDraft?: boolean;
+  } | null;
+  updateDraftSetup: (patch: {
+    folderId?: number | null;
+    inheritWorkflowCode?: string | null;
+  }) => void;
   createFolder: (name: string) => Promise<WorkFolder | void>;
   renameFolder: (id: number, name: string) => Promise<void>;
   deleteFolder: (id: number) => Promise<void>;
@@ -90,12 +90,15 @@ interface AgentContextValue {
   }>;
   clearDebugEntries: () => void;
 
-  createSession: (title?: string, opts?: {
-    scope?: 'chat' | 'work';
-    folderId?: number | null;
-    inheritWorkflowCode?: string | null;
-    inheritDsl?: boolean;
-  }) => Promise<string>;
+  createSession: (
+    title?: string,
+    opts?: {
+      scope?: 'chat' | 'work';
+      folderId?: number | null;
+      inheritWorkflowCode?: string | null;
+      inheritDsl?: boolean;
+    }
+  ) => Promise<string>;
   switchSession: (sessionKey: string) => Promise<void>;
   renameSession: (sessionKey: string, title: string) => Promise<void>;
   deleteSession: (sessionKey: string) => Promise<void>;
@@ -109,7 +112,10 @@ interface AgentContextValue {
   activePlan: null;
 
   /** 画布加载完成时注入画布摘要（兼容保留；画布摘要经 getPageContextJson 随每次 run 提交） */
-  injectCanvasInfo: (summary: { nodes: Array<{ id: string; type: string; title: string }>; edges: Array<{ from: string; to: string }> }) => void;
+  injectCanvasInfo: (summary: {
+    nodes: Array<{ id: string; type: string; title: string }>;
+    edges: Array<{ from: string; to: string }>;
+  }) => void;
 }
 
 const AgentActionsContext = createContext<AgentContextValue | null>(null);
@@ -123,15 +129,20 @@ export function useAgent(): AgentContextValue {
 /** 后端 navigate ui_action 参数 → 路由路径 */
 function navigatePathFor(target: string, args: any): string | null {
   switch (target) {
-    case 'home': return '/chat';
+    case 'home':
+      return '/chat';
     case 'admin':
       if (args?.tab === 'templates') return '/manage/templates';
       if (args?.tab === 'agent') return '/manage/agent-config';
       return '/workflows';
-    case 'releases': return '/releases';
-    case 'editor': return args?.workflowCode ? `/editor/${args.workflowCode}` : '/editor';
-    case 'templateEditor': return `/template-editor/${args?.templateCode}`;
-    default: return null;
+    case 'releases':
+      return '/releases';
+    case 'editor':
+      return args?.workflowCode ? `/editor/${args.workflowCode}` : '/editor';
+    case 'templateEditor':
+      return `/template-editor/${args?.templateCode}`;
+    default:
+      return null;
   }
 }
 
@@ -151,22 +162,31 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   const [currentSessionKey, setCurrentSessionKey] = useState<string | null>(null);
   const [folders, setFolders] = useState<WorkFolder[]>([]);
   /** 新任务草稿的选项（所属项目 / 继承工作流）；仅 currentSessionKey 是 draft- 时非空 */
-  const [draftSetup, setDraftSetup] = useState<{ folderId: number | null; inheritWorkflowCode: string | null; carryDraft?: boolean } | null>(null);
+  const [draftSetup, setDraftSetup] = useState<{
+    folderId: number | null;
+    inheritWorkflowCode: string | null;
+    carryDraft?: boolean;
+  } | null>(null);
   /** 订阅重启信号：草稿会话物化为真实会话时递增，强制 SSE 订阅 effect 重跑 */
   const [sessionEpoch, setSessionEpoch] = useState(0);
 
   // Token usage tracking
-  const [tokenUsage, setTokenUsage] = useState<{ estimated: number; limit: number }>({ estimated: 0, limit: 32768 });
+  const [tokenUsage, setTokenUsage] = useState<{ estimated: number; limit: number }>({
+    estimated: 0,
+    limit: 32768,
+  });
 
   // Debug entries
-  const [debugEntries, setDebugEntries] = useState<Array<{
-    id: string;
-    timestamp: number;
-    request?: any;
-    response?: any;
-    context?: any;
-    toolResults?: any;
-  }>>([]);
+  const [debugEntries, setDebugEntries] = useState<
+    Array<{
+      id: string;
+      timestamp: number;
+      request?: any;
+      response?: any;
+      context?: any;
+      toolResults?: any;
+    }>
+  >([]);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -191,7 +211,9 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     try {
       const list = await agentApi.listFolders();
       setFolders(list || []);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   /** 重新拉取会话列表（新建任务弹窗等外部入口落库后，左栏立即对齐） */
@@ -199,8 +221,18 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     try {
       const list = await agentApi.listSessions();
       setSessions(list || []);
-    } catch { /* ignore */ }
-  }, []);
+      // 审计 A4：当前会话已不存在于列表（如另一入口删除/刷新落在已删地址）时归位，
+      // 避免「仍可聊天但不在列表」的幽灵会话；草稿 key 不在此列。
+      const cur = currentSessionKeyRef.current;
+      if (cur && !cur.startsWith('draft-') && !(list || []).some((s) => s.sessionKey === cur)) {
+        setCurrentSessionKey(null);
+        sessionRuntime.reset(null);
+        navigate('/chat');
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [navigate]);
 
   useEffect(() => {
     void refreshFolders();
@@ -223,51 +255,69 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /** 会话移入/移出文件夹 */
-  const moveSessionToFolder = useCallback(async (sessionKey: string, folderId: number | null) => {
-    await agentApi.setSessionFolder(sessionKey, folderId);
-    setSessions((prev) =>
-      prev.map((s) => (s.sessionKey === sessionKey ? { ...s, folderId } : s))
-    );
-    void refreshFolders();
-  }, [refreshFolders]);
+  const moveSessionToFolder = useCallback(
+    async (sessionKey: string, folderId: number | null) => {
+      await agentApi.setSessionFolder(sessionKey, folderId);
+      setSessions((prev) =>
+        prev.map((s) => (s.sessionKey === sessionKey ? { ...s, folderId } : s))
+      );
+      void refreshFolders();
+    },
+    [refreshFolders]
+  );
 
-  const createFolder = useCallback(async (name: string) => {
-    const folder = await agentApi.createFolder(name);
-    void refreshFolders();
-    return folder;
-  }, [refreshFolders]);
+  const createFolder = useCallback(
+    async (name: string) => {
+      const folder = await agentApi.createFolder(name);
+      void refreshFolders();
+      return folder;
+    },
+    [refreshFolders]
+  );
 
-  const renameFolder = useCallback(async (id: number, name: string) => {
-    await agentApi.renameFolder(id, name);
-    void refreshFolders();
-  }, [refreshFolders]);
+  const renameFolder = useCallback(
+    async (id: number, name: string) => {
+      await agentApi.renameFolder(id, name);
+      void refreshFolders();
+    },
+    [refreshFolders]
+  );
 
-  const deleteFolder = useCallback(async (id: number) => {
-    await agentApi.deleteFolder(id);
-    setSessions((prev) =>
-      prev.map((s) => (s.folderId === id ? { ...s, folderId: null } : s))
-    );
-    void refreshFolders();
-  }, [refreshFolders]);
+  const deleteFolder = useCallback(
+    async (id: number) => {
+      await agentApi.deleteFolder(id);
+      setSessions((prev) => prev.map((s) => (s.folderId === id ? { ...s, folderId: null } : s)));
+      void refreshFolders();
+    },
+    [refreshFolders]
+  );
 
   // 初始化：加载会话列表 + 默认权限 + 模型配置
   useEffect(() => {
-    agentApi.listSessions().then((list) => {
-      setSessions(list || []);
-      if (list && list.length > 0) {
-        setCurrentSessionKey(list[0].sessionKey);
-      }
-    }).catch(() => {});
-    agentApi.listConfigs('llm_config').then((configs) => {
-      if (configs && configs.length > 0) {
-        try {
-          const cfg = JSON.parse(configs[0].configData || '{}');
-          if (cfg.contextWindow && cfg.contextWindow > 0) {
-            setTokenUsage((prev) => ({ estimated: prev.estimated, limit: cfg.contextWindow }));
+    agentApi
+      .listSessions()
+      .then((list) => {
+        setSessions(list || []);
+        if (list && list.length > 0) {
+          setCurrentSessionKey(list[0].sessionKey);
+        }
+      })
+      .catch(() => {});
+    agentApi
+      .listConfigs('llm_config')
+      .then((configs) => {
+        if (configs && configs.length > 0) {
+          try {
+            const cfg = JSON.parse(configs[0].configData || '{}');
+            if (cfg.contextWindow && cfg.contextWindow > 0) {
+              setTokenUsage((prev) => ({ estimated: prev.estimated, limit: cfg.contextWindow }));
+            }
+          } catch {
+            /* ignore */
           }
-        } catch { /* ignore */ }
-      }
-    }).catch(() => {});
+        }
+      })
+      .catch(() => {});
   }, []);
 
   // ---------------- 历史加载 / 会话切换 ----------------
@@ -291,26 +341,32 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       });
       opts?.onSettled?.();
     });
-    agentApi.listSessions().then((list) => {
-      if (currentSessionKeyRef.current === sessionKey) {
-        setSessions(list || []);
-      }
-    }).catch(() => {});
+    agentApi
+      .listSessions()
+      .then((list) => {
+        if (currentSessionKeyRef.current === sessionKey) {
+          setSessions(list || []);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   /**
    * run 收敛（done / error / stopped / run_state 终态统一入口）：
    * runtime 落定（reducer 关闭全部条目）→ 历史重载 → 落位成功后才摘除 live 占位行。
    */
-  const settleRun = useCallback((sessionKey: string) => {
-    sessionRuntime.dispatch({ type: 'end-run' });
-    reloadMessages(sessionKey, {
-      onSettled: () => {
-        if (currentSessionKeyRef.current !== sessionKey) return;
-        sessionRuntime.dispatch({ type: 'live-clear' });
-      },
-    });
-  }, [reloadMessages]);
+  const settleRun = useCallback(
+    (sessionKey: string) => {
+      sessionRuntime.dispatch({ type: 'end-run' });
+      reloadMessages(sessionKey, {
+        onSettled: () => {
+          if (currentSessionKeyRef.current !== sessionKey) return;
+          sessionRuntime.dispatch({ type: 'live-clear' });
+        },
+      });
+    },
+    [reloadMessages]
+  );
 
   // 会话切换：runtime 复位 + 历史加载 + 画布归属清空 + 服务端草稿恢复
   // （未保存修改的守卫在 switchSession 里：确认弹窗「保存并离开 / 直接离开」）
@@ -332,45 +388,57 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     // 画布文档是模块级单例：切会话时只保留「不属于任何会话」的页面级内容
     const canvasSnapshot = workflowDocumentStore.getSnapshot();
     const canvasOwner = canvasSnapshot.meta.ownerSession;
-    const canvasForeign = !canvasSnapshot.doc.isEmpty && (
-      (canvasOwner != null && canvasOwner !== sessionKey) ||
-      (canvasOwner == null && canvasSnapshot.meta.producedBy === 'ai')
-    );
+    const canvasForeign =
+      !canvasSnapshot.doc.isEmpty &&
+      ((canvasOwner != null && canvasOwner !== sessionKey) ||
+        (canvasOwner == null && canvasSnapshot.meta.producedBy === 'ai'));
     if (canvasForeign) {
       workflowDocumentStore.clear();
     }
     reloadMessages(sessionKey);
     // 服务端会话草稿恢复（独立于订阅 effect：路由切换不重建 SSE 订阅）
     if (!/^\/(editor|template-editor)/.test(location.pathname)) {
-      agentApi.getSessionDocument(sessionKey).then((doc: any) => {
-        if (currentSessionKeyRef.current !== sessionKey) return;
-        const dsl = doc && Array.isArray(doc.nodes) ? doc : null;
-        if (dsl && dsl.nodes.length > 0) {
-          try {
-            // 会话草稿恢复 = 应用服务端权威内容，本地即服务端，不算未保存
-            workflowDocumentStore.applyServerDoc(dsl, Number(doc?.version) || 0, { keepClean: true });
-            // 显式归属：草稿恢复填进来的画布属于本会话 —— 切走时按归属清空
-            workflowDocumentStore.setMeta({ producedBy: 'ai', ownerSession: sessionKey });
-          } catch { /* ignore */ }
-        }
-      }).catch(() => {});
+      agentApi
+        .getSessionDocument(sessionKey)
+        .then((doc: any) => {
+          if (currentSessionKeyRef.current !== sessionKey) return;
+          const dsl = doc && Array.isArray(doc.nodes) ? doc : null;
+          if (dsl && dsl.nodes.length > 0) {
+            try {
+              // 会话草稿恢复 = 应用服务端权威内容，本地即服务端，不算未保存
+              workflowDocumentStore.applyServerDoc(dsl, Number(doc?.version) || 0, {
+                keepClean: true,
+              });
+              // 显式归属：草稿恢复填进来的画布属于本会话 —— 切走时按归属清空
+              workflowDocumentStore.setMeta({ producedBy: 'ai', ownerSession: sessionKey });
+            } catch {
+              /* ignore */
+            }
+          }
+        })
+        .catch(() => {});
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // 依赖刻意收窄（见上注释）
   }, [currentSessionKey, reloadMessages]);
 
   // 会话切换时从 localStorage 和后端 DB 加载调试历史
   const refreshDebugData = useCallback((sessionKey: string) => {
-    agentApi.getDebugData(sessionKey).then((data) => {
-      if (data && data.trim()) {
-        try {
-          const parsed = JSON.parse(data);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setDebugEntries(parsed);
-            localStorage.setItem(`agent-debug-${sessionKey}`, data);
+    agentApi
+      .getDebugData(sessionKey)
+      .then((data) => {
+        if (data && data.trim()) {
+          try {
+            const parsed = JSON.parse(data);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setDebugEntries(parsed);
+              localStorage.setItem(`agent-debug-${sessionKey}`, data);
+            }
+          } catch {
+            /* ignore */
           }
-        } catch { /* ignore */ }
-      }
-    }).catch(() => {});
+        }
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -453,65 +521,80 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     return JSON.stringify(ctx);
   }, [location.pathname]);
 
-  const createSession = useCallback(async (title?: string, opts?: {
-    scope?: 'chat' | 'work';
-    folderId?: number | null;
-    inheritWorkflowCode?: string | null;
-    inheritDsl?: boolean;
-  }) => {
-    // 新建对话只生成本地草稿 key，不请求后端；首条消息发送时（postMessage）才真正创建会话。
-    const key = `draft-${nanoid(8)}`;
-    let inheritDslJson: string | null = null;
-    let inheritCode = opts?.inheritWorkflowCode ?? null;
-    if (opts?.inheritDsl) {
-      // 「换新会话继续」：把当前画布（含未保存手改）快照进草稿元信息
-      try {
-        const snap = workflowDocumentStore.getSnapshot();
-        if (!snap.doc.isEmpty) {
-          inheritDslJson = JSON.stringify(snap.doc.toJSON());
-          if (snap.meta.workflowCode) inheritCode = snap.meta.workflowCode;
+  const createSession = useCallback(
+    async (
+      title?: string,
+      opts?: {
+        scope?: 'chat' | 'work';
+        folderId?: number | null;
+        inheritWorkflowCode?: string | null;
+        inheritDsl?: boolean;
+      }
+    ) => {
+      // 新建对话只生成本地草稿 key，不请求后端；首条消息发送时（postMessage）才真正创建会话。
+      const key = `draft-${nanoid(8)}`;
+      let inheritDslJson: string | null = null;
+      let inheritCode = opts?.inheritWorkflowCode ?? null;
+      if (opts?.inheritDsl) {
+        // 「换新会话继续」：把当前画布（含未保存手改）快照进草稿元信息
+        try {
+          const snap = workflowDocumentStore.getSnapshot();
+          if (!snap.doc.isEmpty) {
+            inheritDslJson = JSON.stringify(snap.doc.toJSON());
+            if (snap.meta.workflowCode) inheritCode = snap.meta.workflowCode;
+          }
+        } catch {
+          /* 快照失败退化为普通新任务 */
         }
-      } catch { /* 快照失败退化为普通新任务 */ }
-    }
-    draftMetaRef.current.set(key, {
-      scope: opts?.scope || 'chat',
-      folderId: opts?.folderId ?? null,
-      inheritWorkflowCode: inheritCode,
-      inheritDslJson,
-    });
-    setDraftSetup({
-      folderId: opts?.folderId ?? null,
-      inheritWorkflowCode: inheritDslJson != null ? (inheritCode ?? '') : inheritCode,
-      carryDraft: inheritDslJson != null,
-    });
-    setCurrentSessionKey(key);
-    sessionRuntime.reset(key);
-    setDockOpen(true);
-    return key;
-  }, []);
+      }
+      draftMetaRef.current.set(key, {
+        scope: opts?.scope || 'chat',
+        folderId: opts?.folderId ?? null,
+        inheritWorkflowCode: inheritCode,
+        inheritDslJson,
+      });
+      setDraftSetup({
+        folderId: opts?.folderId ?? null,
+        inheritWorkflowCode: inheritDslJson != null ? inheritCode ?? '' : inheritCode,
+        carryDraft: inheritDslJson != null,
+      });
+      setCurrentSessionKey(key);
+      sessionRuntime.reset(key);
+      setDockOpen(true);
+      return key;
+    },
+    []
+  );
 
   /** 新任务草稿的当前选项（仅 draft- 会话非空）：欢迎页「任务设置」面板的数据源 */
-  const updateDraftSetup = useCallback((patch: { folderId?: number | null; inheritWorkflowCode?: string | null }) => {
-    const key = currentSessionKeyRef.current;
-    if (!key || !key.startsWith('draft-')) return;
-    setDraftSetup((prev) => {
-      const next = {
-        folderId: patch.folderId !== undefined ? patch.folderId : prev?.folderId ?? null,
-        inheritWorkflowCode: patch.inheritWorkflowCode !== undefined ? patch.inheritWorkflowCode : prev?.inheritWorkflowCode ?? null,
-        carryDraft: patch.inheritWorkflowCode !== undefined ? false : prev?.carryDraft ?? false,
-      };
-      const meta = draftMetaRef.current.get(key);
-      if (meta) {
-        draftMetaRef.current.set(key, {
-          scope: next.folderId != null ? 'work' : 'chat',
-          folderId: next.folderId,
-          inheritWorkflowCode: next.inheritWorkflowCode,
-          inheritDslJson: patch.inheritWorkflowCode !== undefined ? null : meta.inheritDslJson ?? null,
-        });
-      }
-      return next;
-    });
-  }, []);
+  const updateDraftSetup = useCallback(
+    (patch: { folderId?: number | null; inheritWorkflowCode?: string | null }) => {
+      const key = currentSessionKeyRef.current;
+      if (!key || !key.startsWith('draft-')) return;
+      setDraftSetup((prev) => {
+        const next = {
+          folderId: patch.folderId !== undefined ? patch.folderId : prev?.folderId ?? null,
+          inheritWorkflowCode:
+            patch.inheritWorkflowCode !== undefined
+              ? patch.inheritWorkflowCode
+              : prev?.inheritWorkflowCode ?? null,
+          carryDraft: patch.inheritWorkflowCode !== undefined ? false : prev?.carryDraft ?? false,
+        };
+        const meta = draftMetaRef.current.get(key);
+        if (meta) {
+          draftMetaRef.current.set(key, {
+            scope: next.folderId != null ? 'work' : 'chat',
+            folderId: next.folderId,
+            inheritWorkflowCode: next.inheritWorkflowCode,
+            inheritDslJson:
+              patch.inheritWorkflowCode !== undefined ? null : meta.inheritDslJson ?? null,
+          });
+        }
+        return next;
+      });
+    },
+    []
+  );
 
   const switchSession = useCallback(async (sessionKey: string) => {
     const prevKey = currentSessionKeyRef.current;
@@ -526,14 +609,15 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     // 流式运行中不打断（此时推送会与 AI 的服务端写入互相覆盖，维持旧行为）。
     const canvasMeta = workflowDocumentStore.getSnapshot().meta;
     const switchingAwayFromDirtyCanvas =
-      canvasMeta.ownerSession != null
-      && canvasMeta.ownerSession !== sessionKey
-      && hasUnsyncedLocalEdits()
-      && !sessionRuntime.getState().streaming;
+      canvasMeta.ownerSession != null &&
+      canvasMeta.ownerSession !== sessionKey &&
+      hasUnsyncedLocalEdits() &&
+      !sessionRuntime.getState().streaming;
     if (switchingAwayFromDirtyCanvas) {
       const leave = await new Promise<boolean>((resolve) => {
         // 动态加载：AgentContext 会被 node 环境单测导入，semi-ui 顶层 import 会连坐
-        // CJS 依赖破坏测试；弹窗只在守卫触发时才需要
+        // CJS 依赖破坏测试；弹窗只在守卫触发时才需要。
+        // motion:false —— 关闭不依赖 animationend，规避遮罩残留竞态（审计 A1）
         void import('@douyinfe/semi-ui').then(({ Modal }) => {
           Modal.confirm({
             title: '有未保存修改',
@@ -541,12 +625,15 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
             okText: '保存并离开',
             cancelText: '直接离开',
             maskClosable: false,
+            motion: false,
             onOk: () =>
               saveCanvasDraft({ source: 'manual-save' }).then((res) => {
                 if (!res.ok) {
                   sessionRuntime.dispatch({
                     type: 'error-row',
-                    text: `[错误] 画布保存失败：${res.error || '未知错误'}。已留在当前会话，可重试或直接离开。`,
+                    text: `[错误] 画布保存失败：${
+                      res.error || '未知错误'
+                    }。已留在当前会话，可重试或直接离开。`,
                   });
                   return Promise.reject(new Error(res.error || 'save failed'));
                 }
@@ -573,34 +660,54 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
 
   const renameSession = useCallback(async (sessionKey: string, title: string) => {
     await agentApi.renameSession(sessionKey, title);
-    setSessions((prev) =>
-      prev.map((s) => (s.sessionKey === sessionKey ? { ...s, title } : s))
-    );
+    setSessions((prev) => prev.map((s) => (s.sessionKey === sessionKey ? { ...s, title } : s)));
   }, []);
 
-  const deleteSession = useCallback(async (sessionKey: string) => {
-    await agentApi.deleteSession(sessionKey);
-    setSessions((prev) => prev.filter((s) => s.sessionKey !== sessionKey));
-    if (currentSessionKeyRef.current === sessionKey) {
-      setCurrentSessionKey(null);
-      sessionRuntime.reset(null);
-    }
-  }, []);
+  const deleteSession = useCallback(
+    async (sessionKey: string) => {
+      await agentApi.deleteSession(sessionKey);
+      setSessions((prev) => prev.filter((s) => s.sessionKey !== sessionKey));
+      if (currentSessionKeyRef.current === sessionKey) {
+        // 审计 A4：删除当前会话必须同步离开该地址。此前只清 key 不导航，
+        // AiWorkspace 的 URL→state 效应会把已删除的 key 重新设为当前，
+        // 形成仍可聊天但不在侧栏列表的「幽灵会话」。
+        setCurrentSessionKey(null);
+        sessionRuntime.reset(null);
+        navigate('/chat');
+      }
+    },
+    [navigate]
+  );
 
   /** 直发一条消息给后端（steering 语义）：run 进行中时后端在 turn 边界注入。 */
-  const postMessage = useCallback(async (sessionKey: string, text: string, images?: string[]) => {
-    sessionRuntime.dispatch({ type: 'run-accepted' });
-    try {
-      const res = await agentApi.startRun(sessionKey, text, getPageContextJson(), images, getCurrentLocale());
-      if (!res?.accepted) {
+  const postMessage = useCallback(
+    async (sessionKey: string, text: string, images?: string[]) => {
+      sessionRuntime.dispatch({ type: 'run-accepted' });
+      try {
+        const res = await agentApi.startRun(
+          sessionKey,
+          text,
+          getPageContextJson(),
+          images,
+          getCurrentLocale()
+        );
+        if (!res?.accepted) {
+          // 审计 A13：请求期间用户已切到别的会话时，错误不注入新会话视图
+          if (currentSessionKeyRef.current !== sessionKey) return;
+          sessionRuntime.dispatch({ type: 'end-run' });
+          sessionRuntime.dispatch({
+            type: 'error-row',
+            text: `[错误] ${res?.error || '运行未受理'}`,
+          });
+        }
+      } catch (e) {
+        if (currentSessionKeyRef.current !== sessionKey) return;
         sessionRuntime.dispatch({ type: 'end-run' });
-        sessionRuntime.dispatch({ type: 'error-row', text: `[错误] ${res?.error || '运行未受理'}` });
+        sessionRuntime.dispatch({ type: 'error-row', text: `[错误] ${(e as Error).message}` });
       }
-    } catch (e) {
-      sessionRuntime.dispatch({ type: 'end-run' });
-      sessionRuntime.dispatch({ type: 'error-row', text: `[错误] ${(e as Error).message}` });
-    }
-  }, [getPageContextJson]);
+    },
+    [getPageContextJson]
+  );
 
   /** 发送消息：入队，串行触发后端自治运行。返回 false = 发送前被拦截（输入应保留） */
   const sendMessage = useCallback(
@@ -622,7 +729,16 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
           draftMetaRef.current.delete(sessionKey);
           sessionKey = real.sessionKey;
           currentSessionKeyRef.current = sessionKey;
+          // 审计 A10：物化 = 同一现场换身份，不是切会话。先把 runtime 身份同步过去，
+          // 这样随后 [currentSessionKey] 效应的 sessionKey 守卫不成立、不会 reset
+          // 清场（此前乐观消息 + 流式标志被抹掉，欢迎页闪回、输入框中途恢复）。
+          sessionRuntime.adopt(sessionKey);
           setCurrentSessionKey(sessionKey);
+          // 审计 A14：草稿期选的模型此刻才真正落到服务端会话
+          const draftModel = draftModelPick.take(sessionKey);
+          if (draftModel !== undefined) {
+            void agentApi.setSessionModel(sessionKey, draftModel).catch(() => {});
+          }
           // 强制订阅 effect 重跑：draft → 真实会话的确定性触发源
           setSessionEpoch((e) => e + 1);
           setSessions((prev) => [real, ...prev]);
@@ -634,16 +750,23 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
                 dsl: JSON.parse(draft.inheritDslJson),
                 workflowCode: draft.inheritWorkflowCode || undefined,
               });
-              if (draft.inheritWorkflowCode) bindSessionToWorkflow(sessionKey, draft.inheritWorkflowCode);
+              if (draft.inheritWorkflowCode)
+                bindSessionToWorkflow(sessionKey, draft.inheritWorkflowCode);
             } catch (e) {
-              sessionRuntime.dispatch({ type: 'error-row', text: `[提示] 草稿携带失败：${(e as Error).message}。任务已创建，可继续对话。` });
+              sessionRuntime.dispatch({
+                type: 'error-row',
+                text: `[提示] 草稿携带失败：${(e as Error).message}。任务已创建，可继续对话。`,
+              });
             }
           } else if (draft.inheritWorkflowCode) {
             try {
               await agentApi.seedDraft(sessionKey, draft.inheritWorkflowCode);
               bindSessionToWorkflow(sessionKey, draft.inheritWorkflowCode);
             } catch (e) {
-              sessionRuntime.dispatch({ type: 'error-row', text: `[提示] 工作流继承失败：${(e as Error).message}。任务已创建，可继续对话。` });
+              sessionRuntime.dispatch({
+                type: 'error-row',
+                text: `[提示] 工作流继承失败：${(e as Error).message}。任务已创建，可继续对话。`,
+              });
             }
           }
         } catch (e) {
@@ -654,7 +777,10 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
 
       // 防御：没有草稿元信息却还是 draft- 伪键 —— 伪键无法被 SSE 订阅，明确拦下杜绝静默失败
       if (sessionKey.startsWith('draft-')) {
-        sessionRuntime.dispatch({ type: 'error-row', text: '[错误] 会话尚未创建成功，请新建任务后重新发送。' });
+        sessionRuntime.dispatch({
+          type: 'error-row',
+          text: '[错误] 会话尚未创建成功，请新建任务后重新发送。',
+        });
         return false;
       }
 
@@ -663,7 +789,12 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       if (!sessionRuntime.getState().streaming && hasUnsyncedLocalEdits()) {
         const sync = await saveCanvasDraft({ source: 'ask' });
         if (!sync.ok) {
-          sessionRuntime.dispatch({ type: 'error-row', text: `[错误] 画布保存失败：${sync.error || '未知错误'}。本次未发送，请检查网络后重试。` });
+          sessionRuntime.dispatch({
+            type: 'error-row',
+            text: `[错误] 画布保存失败：${
+              sync.error || '未知错误'
+            }。本次未发送，请检查网络后重试。`,
+          });
           return false;
         }
       }
@@ -693,12 +824,17 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     if (sessionRuntime.getState().stopping) return; // 停止请求已发出，等待确认
 
     sessionRuntime.dispatch({ type: 'begin-stop' });
+    // 审计 A42：兜底定时器只结算「当时那一轮」——若期间用户已发起新 run（runId 变了），
+    // 旧定时器不得把新 run 的 UI 提前收敛
+    const runIdAtStop = sessionRuntime.getState().runId;
     void agentApi.stopRun(sessionKey).then(
       () => {
         // 请求已受理：终态事件（done/interrupted）经 settleRun 真正结束；
         // 10s 兜底（SSE 断线时终态永远不来）
         setTimeout(() => {
-          if (currentSessionKeyRef.current === sessionKey && sessionRuntime.getState().streaming) {
+          if (currentSessionKeyRef.current !== sessionKey) return;
+          if (sessionRuntime.getState().runId !== runIdAtStop) return;
+          if (sessionRuntime.getState().streaming) {
             workflowDocumentStore.captureAiRunSnapshot(undefined);
             settleRun(sessionKey);
           }
@@ -707,7 +843,10 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       (error) => {
         // 停止失败：回到运行态，明确报错可重试（不吞错假装停了）
         sessionRuntime.dispatch({ type: 'cancel-stop' });
-        sessionRuntime.dispatch({ type: 'error-row', text: `[错误] 停止请求失败：${(error as Error).message}。运行仍在进行，可重试停止。` });
+        sessionRuntime.dispatch({
+          type: 'error-row',
+          text: `[错误] 停止请求失败：${(error as Error).message}。运行仍在进行，可重试停止。`,
+        });
       }
     );
   }, [settleRun]);
@@ -725,29 +864,47 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     // 落版版本、1~2 秒后被「最近活跃会话」的草稿整页顶掉（表现为打开后又刷新了一下），
     // 还会误亮未保存角标。/editor/:code 取 URL 编码判定，避免依赖 meta 写入时序；
     // /editor、/editor/__draft__、模板编辑器不在此列，草稿承接行为不变。
-    const editorWfCode = (/^\/editor\/([^/]+)/.exec(pathnameRef.current) || ({} as RegExpExecArray))[1];
-    if (editorWfCode && editorWfCode !== '__draft__' && getWorkflowOfSession(sessionKey) !== editorWfCode) return;
-    agentApi.getSessionDocument(sessionKey).then((doc: any) => {
-      if (!doc?.nodes?.length) return;
-      if (currentSessionKeyRef.current !== sessionKey) return;
-      const structureKeyOf = (d: any) => [
-        (d?.nodes || []).map((n: any) => n.id).sort().join(','),
-        (d?.edges || []).map((e: any) => `${e.sourceNodeID}->${e.targetNodeID}`).sort().join(','),
-      ].join('|');
-      const local = workflowDocumentStore.getSnapshot().doc.toJSON();
-      const version = Number(doc?.version) || 0;
-      if (structureKeyOf(local) === structureKeyOf(doc)) {
-        // 结构一致只对齐版本号（后端重启会重置计数），避免无谓的画布重挂
-        workflowDocumentStore.alignServerDocVersion(version);
-        return;
-      }
-      workflowDocumentStore.applyServerDoc(doc, version, {
-        // 会话草稿画布（未绑正式编码）：对齐服务端权威内容不算未保存；
-        // 正式工作流画布保持脏语义（AI 改完与落版基线有差异，须保存版本）
-        keepClean: !workflowDocumentStore.getSnapshot().meta.workflowCode,
+    const editorWfCode = (/^\/editor\/([^/]+)/.exec(pathnameRef.current) ||
+      ({} as RegExpExecArray))[1];
+    if (
+      editorWfCode &&
+      editorWfCode !== '__draft__' &&
+      getWorkflowOfSession(sessionKey) !== editorWfCode
+    )
+      return;
+    agentApi
+      .getSessionDocument(sessionKey)
+      .then((doc: any) => {
+        if (!doc?.nodes?.length) return;
+        if (currentSessionKeyRef.current !== sessionKey) return;
+        const structureKeyOf = (d: any) =>
+          [
+            (d?.nodes || [])
+              .map((n: any) => n.id)
+              .sort()
+              .join(','),
+            (d?.edges || [])
+              .map((e: any) => `${e.sourceNodeID}->${e.targetNodeID}`)
+              .sort()
+              .join(','),
+          ].join('|');
+        const local = workflowDocumentStore.getSnapshot().doc.toJSON();
+        const version = Number(doc?.version) || 0;
+        if (structureKeyOf(local) === structureKeyOf(doc)) {
+          // 结构一致只对齐版本号（后端重启会重置计数），避免无谓的画布重挂
+          workflowDocumentStore.alignServerDocVersion(version);
+          return;
+        }
+        workflowDocumentStore.applyServerDoc(doc, version, {
+          // 会话草稿画布（未绑正式编码）：对齐服务端权威内容不算未保存；
+          // 正式工作流画布保持脏语义（AI 改完与落版基线有差异，须保存版本）
+          keepClean: !workflowDocumentStore.getSnapshot().meta.workflowCode,
+        });
+        workflowDocumentStore.setMeta({ producedBy: 'ai', ownerSession: sessionKey });
+      })
+      .catch(() => {
+        /* 拉取失败静默：下一轮重连再对账 */
       });
-      workflowDocumentStore.setMeta({ producedBy: 'ai', ownerSession: sessionKey });
-    }).catch(() => { /* 拉取失败静默：下一轮重连再对账 */ });
   }, []);
 
   // ---------------- SSE 订阅绑定（帧 → runtime + 宿主副作用） ----------------
@@ -766,8 +923,14 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       if (editorPage && hasUnsyncedLocalEdits()) {
         try {
           const base = workflowDocumentStore.getSnapshot().doc.toJSON();
-          aiPendingChangeStore.set(data.dsl, base, sessionRuntime.getState().liveMessageId ?? undefined);
-        } catch { /* ignore */ }
+          aiPendingChangeStore.set(
+            data.dsl,
+            base,
+            sessionRuntime.getState().liveMessageId ?? undefined
+          );
+        } catch {
+          /* ignore */
+        }
         return;
       }
       // 自己刚推上去的草稿被服务端广播回来（manual-edit/rollback 推送的回声）：
@@ -798,14 +961,17 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         workflowDocumentStore.setMeta({ producedBy: 'ai', ownerSession: sessionKey });
       } else {
         // 本地版本落后（服务端重启 / 错过事件）：拉全量兜底
-        agentApi.getSessionDocument(sessionKey).then((doc: any) => {
-          if (currentSessionKeyRef.current !== sessionKey || !doc?.nodes?.length) return;
-          workflowDocumentStore.applyServerDoc(doc, Number(doc?.version) || 0, {
-            keepClean: !workflowDocumentStore.getSnapshot().meta.workflowCode,
-          });
-          workflowDocumentStore.setMeta({ producedBy: 'ai', ownerSession: sessionKey });
-          sessionRuntime.dispatch({ type: 'doc-synced', version: Number(doc?.version) || 0 });
-        }).catch(() => {});
+        agentApi
+          .getSessionDocument(sessionKey)
+          .then((doc: any) => {
+            if (currentSessionKeyRef.current !== sessionKey || !doc?.nodes?.length) return;
+            workflowDocumentStore.applyServerDoc(doc, Number(doc?.version) || 0, {
+              keepClean: !workflowDocumentStore.getSnapshot().meta.workflowCode,
+            });
+            workflowDocumentStore.setMeta({ producedBy: 'ai', ownerSession: sessionKey });
+            sessionRuntime.dispatch({ type: 'doc-synced', version: Number(doc?.version) || 0 });
+          })
+          .catch(() => {});
       }
     }
   }, []);
@@ -822,7 +988,9 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
 
     /** run 终态收敛（done/error/run_state 终态）—— 收敛后延迟拉调试数据 */
     const settleFromStream = () => {
-      workflowDocumentStore.captureAiRunSnapshot(sessionRuntime.getState().liveMessageId ?? undefined);
+      workflowDocumentStore.captureAiRunSnapshot(
+        sessionRuntime.getState().liveMessageId ?? undefined
+      );
       settleRun(sessionKey);
       if (settleTimer) clearTimeout(settleTimer);
       settleTimer = setTimeout(() => refreshDebugData(sessionKey), 1200);
@@ -837,7 +1005,8 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         return; // 忽略无法解析的帧
       }
       const name = frame.event || 'message';
-      const seq = frame.id != null && Number.isFinite(Number(frame.id)) ? Number(frame.id) : undefined;
+      const seq =
+        frame.id != null && Number.isFinite(Number(frame.id)) ? Number(frame.id) : undefined;
       // 活账本记账（派生视图数据源；高频流式帧不记）
       sessionEventStore.append(sessionKey, name, data);
       // 宿主副作用（先于 dispatch，画布/路由与状态同步生效）
@@ -879,7 +1048,14 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       controller.abort();
       if (settleTimer) clearTimeout(settleTimer);
     };
-  }, [currentSessionKey, sessionEpoch, settleRun, refreshDebugData, applyDocumentEvent, reconcileDocumentOnConnect]);
+  }, [
+    currentSessionKey,
+    sessionEpoch,
+    settleRun,
+    refreshDebugData,
+    applyDocumentEvent,
+    reconcileDocumentOnConnect,
+  ]);
 
   /** 压缩上下文：前半段历史摘要为「前情摘要」，压缩后重新加载消息 */
   const compactContext = useCallback(async () => {
@@ -895,7 +1071,10 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
 
   /** 画布加载完成时注入画布摘要（兼容保留） */
   const injectCanvasInfo = useCallback(
-    (summary: { nodes: Array<{ id: string; type: string; title: string }>; edges: Array<{ from: string; to: string }> }) => {
+    (summary: {
+      nodes: Array<{ id: string; type: string; title: string }>;
+      edges: Array<{ from: string; to: string }>;
+    }) => {
       void summary;
     },
     []
@@ -916,25 +1095,40 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
 
       try {
         const { streamSubagent } = await import('./sse-client');
-        await streamSubagent(subagentSessionKey, instruction, getPageContextJson(), (name, data) => {
-          if (name === 'subagent_tool_call') {
-            patch((m) => ({
-              ...m,
-              subagentSteps: [...(m.subagentSteps || []), { action: data.action, args: data.args, status: 'running' as const }],
-            }));
-          } else if (name === 'subagent_round_done') {
-            patch((m) => {
-              if (!m.subagentSteps) return m;
-              const steps = [...m.subagentSteps];
-              if (steps.length > 0) steps[steps.length - 1] = { ...steps[steps.length - 1], status: 'done' as const };
-              return { ...m, subagentSteps: steps };
-            });
-          } else if (name === 'subagent_final_result') {
-            patch((m) => ({ ...m, subagentResult: { success: true, content: data.content } }));
-          } else if (name === 'error') {
-            patch((m) => ({ ...m, subagentResult: { success: false, content: String(data?.message || '子代理执行失败') } }));
+        await streamSubagent(
+          subagentSessionKey,
+          instruction,
+          getPageContextJson(),
+          (name, data) => {
+            if (name === 'subagent_tool_call') {
+              patch((m) => ({
+                ...m,
+                subagentSteps: [
+                  ...(m.subagentSteps || []),
+                  { action: data.action, args: data.args, status: 'running' as const },
+                ],
+              }));
+            } else if (name === 'subagent_round_done') {
+              patch((m) => {
+                if (!m.subagentSteps) return m;
+                const steps = [...m.subagentSteps];
+                if (steps.length > 0)
+                  steps[steps.length - 1] = { ...steps[steps.length - 1], status: 'done' as const };
+                return { ...m, subagentSteps: steps };
+              });
+            } else if (name === 'subagent_final_result') {
+              patch((m) => ({ ...m, subagentResult: { success: true, content: data.content } }));
+            } else if (name === 'error') {
+              patch((m) => ({
+                ...m,
+                subagentResult: {
+                  success: false,
+                  content: String(data?.message || '子代理执行失败'),
+                },
+              }));
+            }
           }
-        });
+        );
       } catch (e) {
         patch((m) => ({ ...m, subagentResult: { success: false, content: (e as Error).message } }));
       }
@@ -944,41 +1138,64 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
 
   // ---------------- Context value（低频变化；高频对话数据在 runtime） ----------------
 
-  const value = useMemo<AgentContextValue>(() => ({
-    dockOpen,
-    setDockOpen,
-    sessions,
-    currentSessionKey,
-    folders,
-    refreshFolders,
-    refreshSessions,
-    createFolder,
-    renameFolder,
-    deleteFolder,
-    moveSessionToFolder,
-    pinSession,
-    archiveSession,
-    tokenUsage,
-    compactContext,
-    debugEntries,
-    clearDebugEntries: () => setDebugEntries([]),
-    createSession,
-    updateDraftSetup,
-    draftSetup,
-    switchSession,
-    renameSession,
-    deleteSession,
-    sendMessage,
-    stopStreaming,
-    debugNode,
-    activePlan: null,
-    injectCanvasInfo,
-  }), [
-    dockOpen, sessions, currentSessionKey, folders, refreshFolders, refreshSessions,
-    createFolder, renameFolder, deleteFolder, moveSessionToFolder, pinSession, archiveSession,
-    tokenUsage, compactContext, debugEntries, createSession, updateDraftSetup, draftSetup,
-    switchSession, renameSession, deleteSession, sendMessage, stopStreaming, debugNode,
-  ]);
+  const value = useMemo<AgentContextValue>(
+    () => ({
+      dockOpen,
+      setDockOpen,
+      sessions,
+      currentSessionKey,
+      folders,
+      refreshFolders,
+      refreshSessions,
+      createFolder,
+      renameFolder,
+      deleteFolder,
+      moveSessionToFolder,
+      pinSession,
+      archiveSession,
+      tokenUsage,
+      compactContext,
+      debugEntries,
+      clearDebugEntries: () => setDebugEntries([]),
+      createSession,
+      updateDraftSetup,
+      draftSetup,
+      switchSession,
+      renameSession,
+      deleteSession,
+      sendMessage,
+      stopStreaming,
+      debugNode,
+      activePlan: null,
+      injectCanvasInfo,
+    }),
+    [
+      dockOpen,
+      sessions,
+      currentSessionKey,
+      folders,
+      refreshFolders,
+      refreshSessions,
+      createFolder,
+      renameFolder,
+      deleteFolder,
+      moveSessionToFolder,
+      pinSession,
+      archiveSession,
+      tokenUsage,
+      compactContext,
+      debugEntries,
+      createSession,
+      updateDraftSetup,
+      draftSetup,
+      switchSession,
+      renameSession,
+      deleteSession,
+      sendMessage,
+      stopStreaming,
+      debugNode,
+    ]
+  );
 
   return <AgentActionsContext.Provider value={value}>{children}</AgentActionsContext.Provider>;
 }

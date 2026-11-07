@@ -5,13 +5,15 @@
  * 未归属项目的会话收进「未分组」区。项目行 hover 露出「更多（…）/ 新建任务（⊕）」，
  * 「更多」菜单：在此项目新建任务 / 重命名 / 删除。整个区域一个滚动容器。
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
+import { Toast } from '@douyinfe/semi-ui';
+
+import { useLanguage, t } from '../../i18n';
+import { CHAT } from '../../chat/theme';
 import { SessionList } from '../../agent/SessionList';
 import { useAgent } from '../../agent/AgentContext';
-import { CHAT } from '../../chat/theme';
-import { useLanguage, t } from '../../i18n';
 import { IconChatLine, IconFolder } from './icons';
 
 interface ProjectRailProps {
@@ -21,14 +23,31 @@ interface ProjectRailProps {
 }
 
 const PlusIcon: React.FC<{ size?: number }> = ({ size = 13 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round">
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.9"
+    strokeLinecap="round"
+  >
     <path d="M12 5v14M5 12h14" />
   </svg>
 );
 
 /** 圆形加号：项目行右侧的「新建任务」 */
 const CirclePlusIcon: React.FC<{ size?: number }> = ({ size = 15 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.6"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <circle cx="12" cy="12" r="8.5" />
     <path d="M12 8.5v7M8.5 12h7" />
   </svg>
@@ -44,13 +63,31 @@ const MoreIcon: React.FC<{ size?: number }> = ({ size = 15 }) => (
 );
 
 const TrashIcon: React.FC<{ size?: number }> = ({ size = 14 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.7"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13" />
   </svg>
 );
 
 const EditIcon: React.FC<{ size?: number }> = ({ size = 14 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.7"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17z" />
     <path d="M13.5 6.5l3 3" />
   </svg>
@@ -74,7 +111,11 @@ const ChevronIcon: React.FC<{ open: boolean; size?: number }> = ({ open, size = 
 );
 
 /** 弹出菜单项 */
-const MenuItem: React.FC<{ danger?: boolean; onClick: () => void; children: React.ReactNode }> = ({ danger, onClick, children }) => (
+const MenuItem: React.FC<{ danger?: boolean; onClick: () => void; children: React.ReactNode }> = ({
+  danger,
+  onClick,
+  children,
+}) => (
   <button
     type="button"
     onClick={onClick}
@@ -93,8 +134,12 @@ const MenuItem: React.FC<{ danger?: boolean; onClick: () => void; children: Reac
       textAlign: 'left',
       fontFamily: 'inherit',
     }}
-    onMouseEnter={(e) => { e.currentTarget.style.background = CHAT.hover; }}
-    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+    onMouseEnter={(e) => {
+      e.currentTarget.style.background = CHAT.hover;
+    }}
+    onMouseLeave={(e) => {
+      e.currentTarget.style.background = 'transparent';
+    }}
   >
     {children}
   </button>
@@ -102,7 +147,8 @@ const MenuItem: React.FC<{ danger?: boolean; onClick: () => void; children: Reac
 
 export const ProjectRail: React.FC<ProjectRailProps> = ({ onSelect, onNewTask }) => {
   useLanguage();
-  const { folders, createFolder, renameFolder, deleteFolder, sessions, currentSessionKey } = useAgent();
+  const { folders, createFolder, renameFolder, deleteFolder, sessions, currentSessionKey } =
+    useAgent();
 
   // 展开的项目（手风琴，可多个同时展开）；未分组区独立开关
   const [expanded, setExpanded] = useState<Set<number>>(() => new Set());
@@ -131,7 +177,9 @@ export const ProjectRail: React.FC<ProjectRailProps> = ({ onSelect, onNewTask })
   const committedRef = useRef(false);
 
   // 「更多」弹出菜单（portal 到 body，避免被滚动容器裁切）
-  const [menu, setMenu] = useState<{ folderId: number; pos: { top: number; left: number } } | null>(null);
+  const [menu, setMenu] = useState<{ folderId: number; pos: { top: number; left: number } } | null>(
+    null
+  );
   const anchorRef = useRef<HTMLElement | null>(null);
 
   const unfiledSessions = sessions.filter((s) => s.folderId == null);
@@ -181,7 +229,10 @@ export const ProjectRail: React.FC<ProjectRailProps> = ({ onSelect, onNewTask })
     e.stopPropagation();
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     anchorRef.current = e.currentTarget as HTMLElement;
-    setMenu({ folderId, pos: { top: rect.bottom + 6, left: Math.max(8, rect.right - 184) } });
+    // 审计 A39：菜单位置 clamp 到视口内——侧栏底部的项目行不再把菜单推出屏幕
+    const MENU_H = 120;
+    const top = Math.min(rect.bottom + 6, Math.max(8, window.innerHeight - MENU_H - 8));
+    setMenu({ folderId, pos: { top, left: Math.max(8, rect.right - 184) } });
   }, []);
 
   const openCreate = useCallback(() => {
@@ -200,7 +251,9 @@ export const ProjectRail: React.FC<ProjectRailProps> = ({ onSelect, onNewTask })
       try {
         const folder = await createFolder(name);
         if (folder && folder.id) expandFolder(folder.id);
-      } catch { /* ignore */ }
+      } catch (e) {
+        Toast.error(`${t('shell.projectCreateFailed')}${(e as Error).message || ''}`);
+      }
     }
   }, [newName, createFolder, expandFolder]);
 
@@ -220,16 +273,23 @@ export const ProjectRail: React.FC<ProjectRailProps> = ({ onSelect, onNewTask })
     if (id != null && name) {
       try {
         await renameFolder(id, name);
-      } catch { /* ignore */ }
+      } catch (e) {
+        Toast.error(`${t('shell.projectRenameFailed')}${(e as Error).message || ''}`);
+      }
     }
   }, [editingId, editingName, renameFolder]);
 
-  const handleDelete = useCallback(async (id: number) => {
-    if (!window.confirm(t('shell.deleteProjectConfirm'))) return;
-    try {
-      await deleteFolder(id);
-    } catch { /* ignore */ }
-  }, [deleteFolder]);
+  const handleDelete = useCallback(
+    async (id: number) => {
+      if (!window.confirm(t('shell.deleteProjectConfirm'))) return;
+      try {
+        await deleteFolder(id);
+      } catch (e) {
+        Toast.error(`${t('shell.projectDeleteFailed')}${(e as Error).message || ''}`);
+      }
+    },
+    [deleteFolder]
+  );
 
   const rowStyle: React.CSSProperties = {
     width: '100%',
@@ -285,7 +345,7 @@ export const ProjectRail: React.FC<ProjectRailProps> = ({ onSelect, onNewTask })
     icon: React.ReactNode,
     label: string,
     actions?: React.ReactNode,
-    extraStyle?: React.CSSProperties,
+    extraStyle?: React.CSSProperties
   ) => (
     <div
       key={key}
@@ -315,13 +375,28 @@ export const ProjectRail: React.FC<ProjectRailProps> = ({ onSelect, onNewTask })
       <span style={{ display: 'flex', flexShrink: 0, color: isOpen ? CHAT.text : CHAT.textMuted }}>
         {icon}
       </span>
-      <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <span
+        style={{
+          flex: 1,
+          minWidth: 0,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+      >
         {label}
       </span>
       {actions && (
         <span
           className="group-actions"
-          style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0, opacity: 0, transition: 'opacity .12s' }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+            flexShrink: 0,
+            opacity: 0,
+            transition: 'opacity .12s',
+          }}
         >
           {actions}
         </span>
@@ -352,8 +427,14 @@ export const ProjectRail: React.FC<ProjectRailProps> = ({ onSelect, onNewTask })
           title={t('shell.newProject')}
           onClick={openCreate}
           style={rowBtnStyle}
-          onMouseEnter={(e) => { e.currentTarget.style.background = CHAT.hover; e.currentTarget.style.color = CHAT.textSub; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = CHAT.textMuted; }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = CHAT.hover;
+            e.currentTarget.style.color = CHAT.textSub;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'transparent';
+            e.currentTarget.style.color = CHAT.textMuted;
+          }}
         >
           <PlusIcon />
         </button>
@@ -367,7 +448,11 @@ export const ProjectRail: React.FC<ProjectRailProps> = ({ onSelect, onNewTask })
           onBlur={() => void commitCreate()}
           onKeyDown={(e) => {
             if (e.key === 'Enter') void commitCreate();
-            else if (e.key === 'Escape') { committedRef.current = true; setCreating(false); setNewName(''); }
+            else if (e.key === 'Escape') {
+              committedRef.current = true;
+              setCreating(false);
+              setNewName('');
+            }
           }}
           placeholder={t('shell.projectNamePlaceholder')}
           style={inputStyle}
@@ -388,7 +473,11 @@ export const ProjectRail: React.FC<ProjectRailProps> = ({ onSelect, onNewTask })
               onBlur={() => void commitRename()}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') void commitRename();
-                else if (e.key === 'Escape') { committedRef.current = true; setEditingId(null); setEditingName(''); }
+                else if (e.key === 'Escape') {
+                  committedRef.current = true;
+                  setEditingId(null);
+                  setEditingName('');
+                }
               }}
               style={inputStyle}
             />
@@ -410,8 +499,14 @@ export const ProjectRail: React.FC<ProjectRailProps> = ({ onSelect, onNewTask })
                   title={t('shell.moreActions')}
                   onClick={(e) => openMenu(e, f.id)}
                   style={rowBtnStyle}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = CHAT.bgRaised; e.currentTarget.style.color = CHAT.textSub; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = CHAT.textMuted; }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = CHAT.bgRaised;
+                    e.currentTarget.style.color = CHAT.textSub;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent';
+                    e.currentTarget.style.color = CHAT.textMuted;
+                  }}
                 >
                   <MoreIcon />
                 </button>
@@ -420,14 +515,24 @@ export const ProjectRail: React.FC<ProjectRailProps> = ({ onSelect, onNewTask })
                   type="button"
                   aria-label={t('shell.newTaskInProject')}
                   title={t('shell.newTaskInProject')}
-                  onClick={(e) => { e.stopPropagation(); expandFolder(f.id); onNewTask(f.id); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    expandFolder(f.id);
+                    onNewTask(f.id);
+                  }}
                   style={rowBtnStyle}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = CHAT.bgRaised; e.currentTarget.style.color = CHAT.textSub; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = CHAT.textMuted; }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = CHAT.bgRaised;
+                    e.currentTarget.style.color = CHAT.textSub;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent';
+                    e.currentTarget.style.color = CHAT.textMuted;
+                  }}
                 >
                   <CirclePlusIcon />
                 </button>
-              </>,
+              </>
             )}
 
             {/* 展开时的嵌套任务（会话）列表：不再区分 scope，按项目归属展示 */}
@@ -457,7 +562,7 @@ export const ProjectRail: React.FC<ProjectRailProps> = ({ onSelect, onNewTask })
             unfiledOpen,
             () => setUnfiledOpen((v) => !v),
             <IconChatLine size={13} />,
-            t('shell.ungrouped'),
+            t('shell.ungrouped')
           )}
           {unfiledOpen && (
             <SessionList
@@ -497,7 +602,9 @@ export const ProjectRail: React.FC<ProjectRailProps> = ({ onSelect, onNewTask })
                 onNewTask(id);
               }}
             >
-              <span style={{ display: 'flex', color: CHAT.textMuted }}><PlusIcon size={14} /></span>
+              <span style={{ display: 'flex', color: CHAT.textMuted }}>
+                <PlusIcon size={14} />
+              </span>
               {t('shell.folderNewTask')}
             </MenuItem>
             <MenuItem
@@ -507,7 +614,9 @@ export const ProjectRail: React.FC<ProjectRailProps> = ({ onSelect, onNewTask })
                 if (target) startRename(target.id, target.name);
               }}
             >
-              <span style={{ display: 'flex', color: CHAT.textMuted }}><EditIcon /></span>
+              <span style={{ display: 'flex', color: CHAT.textMuted }}>
+                <EditIcon />
+              </span>
               {t('shell.renameFolder')}
             </MenuItem>
             <div style={{ height: 1, background: CHAT.lineSoft, margin: '4px 4px' }} />
@@ -519,11 +628,13 @@ export const ProjectRail: React.FC<ProjectRailProps> = ({ onSelect, onNewTask })
                 void handleDelete(id);
               }}
             >
-              <span style={{ display: 'flex' }}><TrashIcon /></span>
+              <span style={{ display: 'flex' }}>
+                <TrashIcon />
+              </span>
               {t('Delete')}
             </MenuItem>
           </div>,
-          document.body,
+          document.body
         )}
     </div>
   );

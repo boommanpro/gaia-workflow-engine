@@ -8,8 +8,9 @@
  * 旧的「预览」tab 已移除：执行路径与节点构成和对话流卡片、画布重复；
  * 「DSL」tab 收进弹层，不再占一个常驻页签。
  */
-import React, { useCallback, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import React, { useCallback, useMemo, useState } from 'react';
+
 import { Button, Input, Modal, Toast, Tooltip } from '@douyinfe/semi-ui';
 import {
   IconAlertTriangle,
@@ -20,17 +21,17 @@ import {
   IconTickCircle,
 } from '@douyinfe/semi-icons';
 
-import { useWorkflowDocumentState, workflowDocumentStore } from '../../document';
-import { t } from '../../i18n';
-import { workflowApi, type GaiaWorkflow } from '../../services/workflow-api';
-import { useAgent, useRunStreaming, useSessionArtifacts } from '../../agent/AgentContext';
-import type { AgentArtifactDto } from '../../agent/types';
-import { agentApi } from '../../agent/api';
-import { pushCanvasDraftToSession } from '../../agent/canvas-draft-sync';
 import { bindSessionToWorkflow } from '../session-scope';
 import { openEditorWithDraft } from '../openEditorWithDraft';
-import { CHAT } from '../../chat/theme';
+import { workflowApi, type GaiaWorkflow } from '../../services/workflow-api';
+import { t } from '../../i18n';
+import { useWorkflowDocumentState, workflowDocumentStore } from '../../document';
 import { IconPanelRight } from '../../components/app-shell/icons';
+import { CHAT } from '../../chat/theme';
+import type { AgentArtifactDto } from '../../agent/types';
+import { pushCanvasDraftToSession } from '../../agent/canvas-draft-sync';
+import { agentApi } from '../../agent/api';
+import { useAgent, useRunStreaming, useSessionArtifacts } from '../../agent/AgentContext';
 import { LightCanvas } from './LightCanvas';
 
 export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollapse }) => {
@@ -46,6 +47,8 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
   const [saveVisible, setSaveVisible] = useState(false);
   const [saving, setSaving] = useState(false);
   const [workflowCode, setWorkflowCode] = useState('');
+  /** 审计 A11：新建工作流的名称——此前弹窗没有名称字段，落版后列表里名称=原始编码 */
+  const [workflowName, setWorkflowName] = useState('');
   const [versionDesc, setVersionDesc] = useState('');
   /** 版本说明建议生成中：输入框 placeholder 反馈，返回前用户已打字则不覆盖 */
   const [descLoading, setDescLoading] = useState(false);
@@ -74,27 +77,34 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
    *  AI 只起草文本，落版动作始终是用户点「保存」。 */
   const openSaveModal = useCallback(() => {
     setWorkflowCode(meta.workflowCode || '');
+    setWorkflowName(meta.workflowName || '');
     setSaveTarget(meta.workflowCode || '');
     setSaveVisible(true);
     if (currentSessionKey) {
       setVersionDesc('');
       setDescLoading(true);
-      agentApi.suggestVersionDesc(currentSessionKey, meta.workflowCode || undefined)
+      agentApi
+        .suggestVersionDesc(currentSessionKey, meta.workflowCode || undefined)
         .then((res) => {
           if (res.success && res.desc) {
             // 用户在等待期间已自行输入时不覆盖
             setVersionDesc((prev) => (prev === '' ? res.desc! : prev));
           }
         })
-        .catch(() => { /* 建议是锦上添花：失败留空，用户自行填写 */ })
+        .catch(() => {
+          /* 建议是锦上添花：失败留空，用户自行填写 */
+        })
         .finally(() => setDescLoading(false));
     }
     if (workflows.length === 0) {
-      workflowApi.listWorkflows()
+      workflowApi
+        .listWorkflows()
         .then((list) => setWorkflows(list || []))
-        .catch(() => { /* 选择器退化成「新建」，保存仍可用 */ });
+        .catch(() => {
+          /* 选择器退化成「新建」，保存仍可用 */
+        });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // 依赖刻意收窄（见上注释）
   }, [meta.workflowCode, workflows.length, currentSessionKey]);
 
   const handleSave = useCallback(async () => {
@@ -102,6 +112,12 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
     try {
       // 落版目标：所选已有工作流（新增版本）或新建编码（留空 = 草稿绑定的编码）
       const targetCode = saveTarget || workflowCode.trim();
+      // 审计 A11：新建工作流必须有名称（编码可留空由后端生成），否则列表里名称=原始编码
+      const newName = workflowName.trim();
+      if (!saveTarget && !newName) {
+        Toast.warning(t('workspace.needName'));
+        return;
+      }
       if (currentSessionKey) {
         // 保存前对齐（阶段 1.1）：把「眼前的画布」推成服务端权威草稿再落版 ——
         // 回滚 / 编辑器手改可能让本地领先于服务端，不对齐就会出现「保存的内容
@@ -117,14 +133,17 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
         // 保存到已有工作流时不传 name —— 避免把别人的工作流顺带改名。
         const res = await agentApi.saveDraftAsVersion(currentSessionKey, {
           workflowCode: targetCode || undefined,
-          name: saveTarget ? undefined : meta.workflowName || workflowCode.trim() || undefined,
+          name: saveTarget ? undefined : newName,
           versionDesc,
         });
         if (!res.success) {
           throw new Error(res.error || 'save failed');
         }
         if (res.workflowCode) {
-          workflowDocumentStore.markSaved({ workflowCode: res.workflowCode, workflowName: meta.workflowName });
+          workflowDocumentStore.markSaved({
+            workflowCode: res.workflowCode,
+            workflowName: meta.workflowName,
+          });
           workflowDocumentStore.setMeta({ workflowCode: res.workflowCode });
           // 会话↔工作流绑定跟随落版目标（编辑器返回/手改同步的反查依据）
           bindSessionToWorkflow(currentSessionKey, res.workflowCode);
@@ -139,7 +158,7 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
           return;
         }
         const applyRes = await workflowApi.applyDsl(targetCode, dsl, {
-          workflowName: meta.workflowName || targetCode,
+          workflowName: newName || meta.workflowName || targetCode,
           versionDesc,
           createIfMissing: true,
         });
@@ -172,7 +191,15 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
       from: location.pathname,
       sessionKey: currentSessionKey,
     });
-  }, [dsl, meta.workflowCode, meta.workflowName, navigate, location.pathname, currentSessionKey, sessions]);
+  }, [
+    dsl,
+    meta.workflowCode,
+    meta.workflowName,
+    navigate,
+    location.pathname,
+    currentSessionKey,
+    sessions,
+  ]);
 
   /**
    * 换新会话继续（产运多版本迭代）：不调后端——直接进入新任务草稿态，
@@ -195,14 +222,21 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
     if (!iso) return '';
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return '';
-    return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(
+      2,
+      '0'
+    )} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   };
 
   const recordIcon = (artifact: AgentArtifactDto) => {
-    const failed = artifact.type === 'test_report' && /fail|error|timeout/i.test(String(artifact.payload?.status || ''));
+    const failed =
+      artifact.type === 'test_report' &&
+      /fail|error|timeout/i.test(String(artifact.payload?.status || ''));
     if (failed) return <IconAlertTriangle size="small" style={{ color: CHAT.danger }} />;
-    if (artifact.type === 'release') return <IconExternalOpen size="small" style={{ color: CHAT.success }} />;
-    if (artifact.type === 'plan') return <IconTickCircle size="small" style={{ color: CHAT.accent }} />;
+    if (artifact.type === 'release')
+      return <IconExternalOpen size="small" style={{ color: CHAT.success }} />;
+    if (artifact.type === 'plan')
+      return <IconTickCircle size="small" style={{ color: CHAT.accent }} />;
     return <IconTickCircle size="small" style={{ color: CHAT.success }} />;
   };
 
@@ -218,7 +252,13 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
       }}
     >
       {/* 头部：标题 + 收起（校验提示 / DSL 查看复制下载已按需求移除） */}
-      <div style={{ padding: '12px 14px 10px', borderBottom: `1px solid ${CHAT.lineSoft}`, flexShrink: 0 }}>
+      <div
+        style={{
+          padding: '12px 14px 10px',
+          borderBottom: `1px solid ${CHAT.lineSoft}`,
+          flexShrink: 0,
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: CHAT.text, flexShrink: 0 }}>
             {t('workspace.artifact')}
@@ -338,7 +378,14 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
                   fontWeight: 600,
                 }}
               >
-                <span style={{ transform: recordsOpen ? 'rotate(90deg)' : 'none', transition: 'transform .15s' }}>▸</span>
+                <span
+                  style={{
+                    transform: recordsOpen ? 'rotate(90deg)' : 'none',
+                    transition: 'transform .15s',
+                  }}
+                >
+                  ▸
+                </span>
                 {t('workspace.artifactRecords')}
                 <span style={{ color: CHAT.textFaint, fontWeight: 400 }}>({records.length})</span>
               </button>
@@ -375,7 +422,9 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
                         }}
                       >
                         {a.title}
-                        {a.summary ? <span style={{ color: CHAT.textMuted }}> · {a.summary}</span> : null}
+                        {a.summary ? (
+                          <span style={{ color: CHAT.textMuted }}> · {a.summary}</span>
+                        ) : null}
                       </span>
                       <span style={{ flexShrink: 0, fontSize: 10.5, color: CHAT.textFaint }}>
                         {formatTime(a.updatedAt)}
@@ -401,7 +450,12 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
               theme="solid"
               type="primary"
               onClick={handleRefine}
-              style={{ flex: 1, borderRadius: 9, background: CHAT.accent, borderColor: CHAT.accent }}
+              style={{
+                flex: 1,
+                borderRadius: 9,
+                background: CHAT.accent,
+                borderColor: CHAT.accent,
+              }}
               icon={<IconExternalOpen />}
             >
               {meta.workflowCode ? t('workspace.openWorkflow') : t('workspace.openInEditor')}
@@ -433,6 +487,7 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
 
       {/* 产物记录详情 */}
       <Modal
+        motion={false}
         title={recordDetail?.title || t('workspace.artifactRecords')}
         visible={!!recordDetail}
         onCancel={() => setRecordDetail(null)}
@@ -443,7 +498,9 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
         {recordDetail && (
           <>
             {recordDetail.summary && (
-              <div style={{ fontSize: 12, color: CHAT.textSub, marginBottom: 10 }}>{recordDetail.summary}</div>
+              <div style={{ fontSize: 12, color: CHAT.textSub, marginBottom: 10 }}>
+                {recordDetail.summary}
+              </div>
             )}
             <pre
               style={{
@@ -468,6 +525,7 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
 
       {/* 落版弹窗：可另存为已有工作流（对其新增版本）或新建编码 */}
       <Modal
+        motion={false}
         title={t('workspace.saveVersion')}
         visible={saveVisible}
         onCancel={() => setSaveVisible(false)}
@@ -510,12 +568,29 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
             </select>
           </div>
           {!saveTarget && (
-            <div>
-              <div style={{ fontSize: 12, marginBottom: 4, color: CHAT.textSub }}>
-                {t('workspace.workflowCode')}
+            <>
+              {/* 审计 A11：新建工作流先有名称（必填），编码可留空由后端生成 */}
+              <div>
+                <div style={{ fontSize: 12, marginBottom: 4, color: CHAT.textSub }}>
+                  {t('workspace.workflowName')} <span style={{ color: '#e5404e' }}>*</span>
+                </div>
+                <Input
+                  value={workflowName}
+                  onChange={setWorkflowName}
+                  placeholder={t('workspace.workflowNamePlaceholder')}
+                />
               </div>
-              <Input value={workflowCode} onChange={setWorkflowCode} placeholder="e.g. sentiment-analysis" />
-            </div>
+              <div>
+                <div style={{ fontSize: 12, marginBottom: 4, color: CHAT.textSub }}>
+                  {t('workspace.workflowCode')}
+                </div>
+                <Input
+                  value={workflowCode}
+                  onChange={setWorkflowCode}
+                  placeholder={t('workspace.workflowCodePlaceholder')}
+                />
+              </div>
+            </>
           )}
           <div>
             <div style={{ fontSize: 12, marginBottom: 4, color: CHAT.textSub }}>
@@ -527,7 +602,15 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
               placeholder={descLoading ? 'AI 生成中…' : t('workspace.versionDescPlaceholder')}
             />
           </div>
-          <div style={{ fontSize: 11, color: CHAT.textMuted, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <div
+            style={{
+              fontSize: 11,
+              color: CHAT.textMuted,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+            }}
+          >
             <IconCode size="small" />
             {t('workspace.stats', { nodes: dsl.nodes.length, edges: (dsl.edges || []).length })}
           </div>

@@ -17,10 +17,9 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { agentApi } from '../../agent/api';
-import { useSessionEventLedger } from '../../agent/session-event-store';
 import { useLanguage } from '../../i18n';
-
+import { useSessionEventLedger } from '../../agent/session-event-store';
+import { agentApi } from '../../agent/api';
 import {
   KIND_META,
   buildRecords,
@@ -50,9 +49,7 @@ const TrajectoryTimeline: React.FC<{
       : timed.length;
     let offset = 0;
     const out = timed.map((r) => {
-      const units = byDuration
-        ? Math.max(1, r.durationMs ?? (r.endAt ? r.endAt - r.at : 1))
-        : 1;
+      const units = byDuration ? Math.max(1, r.durationMs ?? (r.endAt ? r.endAt - r.at : 1)) : 1;
       const left = (offset / totalUnits) * 100;
       const width = (units / totalUnits) * 100;
       offset += units;
@@ -82,7 +79,9 @@ const TrajectoryTimeline: React.FC<{
         {spans.spans.map((s) => (
           <i
             key={s.id}
-            className={`tjp-span k-${s.kind}${s.isError ? ' is-error' : ''}${s.isRunning ? ' is-running' : ''}${s.id === selectedId ? ' is-selected' : ''}`}
+            className={`tjp-span k-${s.kind}${s.isError ? ' is-error' : ''}${
+              s.isRunning ? ' is-running' : ''
+            }${s.id === selectedId ? ' is-selected' : ''}`}
             style={{ top: s.lane * 14 + 6, left: `${s.left}%`, width: `${s.width}%` }}
             title={s.text}
             onClick={() => onSelect(s.id)}
@@ -154,9 +153,11 @@ const DlRow: React.FC<{ k: string; v: React.ReactNode; danger?: boolean }> = ({ 
 );
 
 /** dsh OverviewSection：标题按钮（点开对应标签页）+ 滚动预览区 */
-const OverviewSection: React.FC<{ label: string; onOpen: () => void; children: React.ReactNode }> = ({
-  label, onOpen, children,
-}) => (
+const OverviewSection: React.FC<{
+  label: string;
+  onOpen: () => void;
+  children: React.ReactNode;
+}> = ({ label, onOpen, children }) => (
   <section className="tjp-ovsection">
     <h3>
       <button type="button" onClick={onOpen}>
@@ -225,7 +226,11 @@ const DetailPanel: React.FC<{
         {record.status != null && (
           <DlRow
             k="状态"
-            v={{ ok: '成功', error: '失败', empty: '空响应', SUCCESS: '成功', running: '进行中' }[record.status] || record.status}
+            v={
+              { ok: '成功', error: '失败', empty: '空响应', SUCCESS: '成功', running: '进行中' }[
+                record.status
+              ] || record.status
+            }
             danger={record.isError}
           />
         )}
@@ -236,22 +241,30 @@ const DetailPanel: React.FC<{
         {u && (u.promptTokens != null || u.completionTokens != null) && (
           <>
             <DlRow k="输入 tokens" v={u.promptTokens ? u.promptTokens.toLocaleString() : '—'} />
-            <DlRow k="输出 tokens" v={u.completionTokens ? u.completionTokens.toLocaleString() : '—'} />
-            {u.cachedTokens ? <DlRow k="缓存命中" v={`${u.cachedTokens.toLocaleString()} tok`} /> : null}
+            <DlRow
+              k="输出 tokens"
+              v={u.completionTokens ? u.completionTokens.toLocaleString() : '—'}
+            />
+            {u.cachedTokens ? (
+              <DlRow k="缓存命中" v={`${u.cachedTokens.toLocaleString()} tok`} />
+            ) : null}
           </>
         )}
       </dl>
       <div className="tjp-ovsections">
-        {record.request != null && tabs.some((t) => t.id === 'request')
-          && !record.requestMeta?.digestOnly
-          && (!record.requestMeta?.incremental || record.requestMeta.assembled) && (
-          <OverviewSection label="完整请求（可复现）" onOpen={() => setTab('request')}>
-            <pre>{pretty(record.request).slice(0, 600)}</pre>
-          </OverviewSection>
-        )}
+        {record.request != null &&
+          tabs.some((t) => t.id === 'request') &&
+          !record.requestMeta?.digestOnly &&
+          (!record.requestMeta?.incremental || record.requestMeta.assembled) && (
+            <OverviewSection label="完整请求（可复现）" onOpen={() => setTab('request')}>
+              <pre>{pretty(record.request).slice(0, 600)}</pre>
+            </OverviewSection>
+          )}
         {record.response != null && tabs.some((t) => t.id === 'response') && (
           <OverviewSection
-            label={record.requestMeta?.responseDigestOnly ? '模型响应（截断摘要）' : '模型响应（全量）'}
+            label={
+              record.requestMeta?.responseDigestOnly ? '模型响应（截断摘要）' : '模型响应（全量）'
+            }
             onOpen={() => setTab('response')}
           >
             <pre>{pretty(record.response).slice(0, 600)}</pre>
@@ -282,9 +295,11 @@ const DetailPanel: React.FC<{
       <DlRow k="输出" v={u.completionTokens ? `${u.completionTokens.toLocaleString()} tok` : '—'} />
       <DlRow
         k="合计"
-        v={u.promptTokens || u.completionTokens
-          ? `${((u.promptTokens ?? 0) + (u.completionTokens ?? 0)).toLocaleString()} tok`
-          : '—（旧记录未回填用量）'}
+        v={
+          u.promptTokens || u.completionTokens
+            ? `${((u.promptTokens ?? 0) + (u.completionTokens ?? 0)).toLocaleString()} tok`
+            : '—（旧记录未回填用量）'
+        }
       />
       {u.cachedTokens != null && u.cachedTokens > 0 && (
         <DlRow k="缓存命中" v={`${u.cachedTokens.toLocaleString()} tok`} />
@@ -292,7 +307,11 @@ const DetailPanel: React.FC<{
       {u.promptTokens ? (
         <DlRow
           k="缓存命中率"
-          v={u.cachedTokens ? `${Math.round((u.cachedTokens / Math.max(1, u.promptTokens)) * 100)}%` : '—'}
+          v={
+            u.cachedTokens
+              ? `${Math.round((u.cachedTokens / Math.max(1, u.promptTokens)) * 100)}%`
+              : '—'
+          }
         />
       ) : null}
     </dl>
@@ -309,9 +328,13 @@ const DetailPanel: React.FC<{
       <div className="tjp-details-header">
         <div className="tjp-details-title">
           <span className={`tjp-kind k-${record.kind}`}>{kindMeta.label}</span>
-          <span className="tjp-details-loc">第 {record.run} 轮 · {firstLine(record.text, 48)}</span>
+          <span className="tjp-details-loc">
+            第 {record.run} 轮 · {firstLine(record.text, 48)}
+          </span>
         </div>
-        <button type="button" className="tjp-details-close" aria-label="关闭" onClick={onClose}>×</button>
+        <button type="button" className="tjp-details-close" aria-label="关闭" onClick={onClose}>
+          ×
+        </button>
       </div>
       <div className="tjp-detail-tabs" role="tablist">
         {tabs.map((t) => (
@@ -329,38 +352,70 @@ const DetailPanel: React.FC<{
       </div>
       <div className="tjp-detail-body" role="tabpanel">
         {tab === 'overview' && overview}
-        {tab === 'request' && (record.request != null ? (
-          <>
-            {record.requestMeta?.incremental && (
-              <div className={`tjp-prov${record.requestMeta.assembled ? '' : ' is-warn'}`}>
-                {record.requestMeta.assembled ? (
-                  <>增量账本行 · 已按请求 #{record.requestMeta.baseRequestNo} 拼回全量（共享前缀 {record.requestMeta.sharedPrefix} 条消息，工具 schema 已并入）。模型实际收到的请求如下。
-                    <button type="button" className="tjp-prov-toggle" onClick={() => setShowRawRequest((v) => !v)}>
-                      {showRawRequest ? '看拼回全量' : '看原始存储'}
-                    </button>
-                  </>
-                ) : (
-                  <>增量账本行 · 未找到该轮请求 #1 基准（可能超出账本拉取上限），以下为存储尾部，非完整请求。</>
-                )}
-              </div>
-            )}
-            {record.requestMeta?.digestOnly && (
-              <div className="tjp-prov is-warn">该行未存全量请求，以下为挖洞截断的摘要口径，仅供定位，不可当完整上下文。</div>
-            )}
-            <JsonBody value={showRawRequest && record.requestRaw != null ? record.requestRaw : record.request} />
-          </>
-        ) : <p className="tjp-nopayload">无请求数据</p>)}
-        {tab === 'response' && (record.response != null ? (
-          <>
-            {record.requestMeta?.responseDigestOnly && (
-              <div className="tjp-prov is-warn">该行未存全量响应，以下为挖洞截断的摘要口径。</div>
-            )}
-            <JsonBody value={record.response} />
-          </>
-        ) : <p className="tjp-nopayload">无响应数据</p>)}
+        {tab === 'request' &&
+          (record.request != null ? (
+            <>
+              {record.requestMeta?.incremental && (
+                <div className={`tjp-prov${record.requestMeta.assembled ? '' : ' is-warn'}`}>
+                  {record.requestMeta.assembled ? (
+                    <>
+                      增量账本行 · 已按请求 #{record.requestMeta.baseRequestNo} 拼回全量（共享前缀{' '}
+                      {record.requestMeta.sharedPrefix} 条消息，工具 schema
+                      已并入）。模型实际收到的请求如下。
+                      <button
+                        type="button"
+                        className="tjp-prov-toggle"
+                        onClick={() => setShowRawRequest((v) => !v)}
+                      >
+                        {showRawRequest ? '看拼回全量' : '看原始存储'}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      增量账本行 · 未找到该轮请求 #1
+                      基准（可能超出账本拉取上限），以下为存储尾部，非完整请求。
+                    </>
+                  )}
+                </div>
+              )}
+              {record.requestMeta?.digestOnly && (
+                <div className="tjp-prov is-warn">
+                  该行未存全量请求，以下为挖洞截断的摘要口径，仅供定位，不可当完整上下文。
+                </div>
+              )}
+              <JsonBody
+                value={
+                  showRawRequest && record.requestRaw != null ? record.requestRaw : record.request
+                }
+              />
+            </>
+          ) : (
+            <p className="tjp-nopayload">无请求数据</p>
+          ))}
+        {tab === 'response' &&
+          (record.response != null ? (
+            <>
+              {record.requestMeta?.responseDigestOnly && (
+                <div className="tjp-prov is-warn">该行未存全量响应，以下为挖洞截断的摘要口径。</div>
+              )}
+              <JsonBody value={record.response} />
+            </>
+          ) : (
+            <p className="tjp-nopayload">无响应数据</p>
+          ))}
         {tab === 'usage' && usagePanel}
-        {tab === 'args' && (record.args != null ? <JsonBody value={record.args} /> : <p className="tjp-nopayload">无参数</p>)}
-        {tab === 'result' && (record.result != null ? <JsonBody value={record.result} /> : <p className="tjp-nopayload">无结果</p>)}
+        {tab === 'args' &&
+          (record.args != null ? (
+            <JsonBody value={record.args} />
+          ) : (
+            <p className="tjp-nopayload">无参数</p>
+          ))}
+        {tab === 'result' &&
+          (record.result != null ? (
+            <JsonBody value={record.result} />
+          ) : (
+            <p className="tjp-nopayload">无结果</p>
+          ))}
         {tab === 'content' && <TextBody value={record.content} />}
         {tab === 'thinking' && <TextBody value={record.thinking} />}
       </div>
@@ -376,7 +431,10 @@ export const TrajectoryPanel: React.FC<{ sessionKey?: string; streaming?: boolea
 }) => {
   useLanguage();
   /** 权威拉取结果（挂载 / run 边界时刷新），records 在其上派生 */
-  const [fetched, setFetched] = useState<{ events: any[]; llmCalls: any[] }>({ events: [], llmCalls: [] });
+  const [fetched, setFetched] = useState<{ events: any[]; llmCalls: any[] }>({
+    events: [],
+    llmCalls: [],
+  });
   const [loading, setLoading] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   /** dsh 工具栏状态：时长模式 / 轮次折叠 / 调用折叠 / 搜索 */
@@ -419,12 +477,16 @@ export const TrajectoryPanel: React.FC<{ sessionKey?: string; streaming?: boolea
   } | null>(null);
   const [serviceLoading, setServiceLoading] = useState(false);
   const [serviceError, setServiceError] = useState('');
+  /** 审计 A43：load 请求代际（跨会话快速切换丢弃过期响应） */
+  const loadGenRef = useRef(0);
 
   const load = useCallback(async () => {
     if (!sessionKey || sessionKey.startsWith('draft-')) {
       setFetched({ events: [], llmCalls: [] });
       return;
     }
+    // 审计 A43：跨会话快速切换时旧响应可能后到，只认最后一次请求的结果
+    const gen = ++loadGenRef.current;
     setLoading(true);
     try {
       const [events, llmCalls] = await Promise.all([
@@ -433,14 +495,16 @@ export const TrajectoryPanel: React.FC<{ sessionKey?: string; streaming?: boolea
         // 截断会把基准裁掉，导致增量行无法还原完整请求
         agentApi.getRunLlmCalls(sessionKey, undefined, 1000),
       ]);
+      if (loadGenRef.current !== gen) return;
       setFetched({
         events: Array.isArray(events) ? events : [],
         llmCalls: Array.isArray(llmCalls) ? llmCalls : [],
       });
     } catch {
+      if (loadGenRef.current !== gen) return;
       setFetched({ events: [], llmCalls: [] });
     } finally {
-      setLoading(false);
+      if (loadGenRef.current === gen) setLoading(false);
     }
   }, [sessionKey]);
 
@@ -502,11 +566,12 @@ export const TrajectoryPanel: React.FC<{ sessionKey?: string; streaming?: boolea
     row?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }, [selectedId]);
 
-  // 切换会话时重置 Service 对话视图
+  // 切换会话时重置 Service 对话视图与选中行（审计 A43：选中行残留会指向旧会话记录）
   useEffect(() => {
     setServiceView(false);
     setServiceData(null);
     setServiceError('');
+    setSelectedId(null);
   }, [sessionKey]);
 
   /** 折叠/搜索派生出的展示记录 */
@@ -536,7 +601,9 @@ export const TrajectoryPanel: React.FC<{ sessionKey?: string; streaming?: boolea
           ...rs[0],
           id: `collapse-run-${run}`,
           kind: 'info',
-          text: `第 ${run} 轮 · ${rs.length} 条记录 · 模型 ${models} · 工具 ${tools}${errs ? ` · 失败 ${errs}` : ''}`,
+          text: `第 ${run} 轮 · ${rs.length} 条记录 · 模型 ${models} · 工具 ${tools}${
+            errs ? ` · 失败 ${errs}` : ''
+          }`,
           resultText: undefined,
           endAt: undefined,
           durationMs: dur,
@@ -626,7 +693,8 @@ export const TrajectoryPanel: React.FC<{ sessionKey?: string; streaming?: boolea
     if (!pane) return;
     dragRef.current = {
       startX: e.clientX,
-      startWidth: pane.querySelector<HTMLElement>('.tjp-details')?.getBoundingClientRect().width || 420,
+      startWidth:
+        pane.querySelector<HTMLElement>('.tjp-details')?.getBoundingClientRect().width || 420,
     };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     e.preventDefault();
@@ -696,7 +764,9 @@ export const TrajectoryPanel: React.FC<{ sessionKey?: string; streaming?: boolea
           </span>
         </div>
         <div className="tjp-search">
-          <span className="tjp-search-icon" aria-hidden="true">🔍</span>
+          <span className="tjp-search-icon" aria-hidden="true">
+            🔍
+          </span>
           <input
             type="search"
             aria-label="搜索轨迹"
@@ -705,7 +775,12 @@ export const TrajectoryPanel: React.FC<{ sessionKey?: string; streaming?: boolea
             onChange={(e) => setQuery(e.currentTarget.value)}
           />
         </div>
-        {streaming ? <span className="tjp-run"><i />跟随中</span> : null}
+        {streaming ? (
+          <span className="tjp-run">
+            <i />
+            跟随中
+          </span>
+        ) : null}
         <button
           type="button"
           className="tjp-refresh"
@@ -717,145 +792,174 @@ export const TrajectoryPanel: React.FC<{ sessionKey?: string; streaming?: boolea
       </div>
 
       {serviceView ? (
-        <ServiceConversationView
-          loading={serviceLoading}
-          error={serviceError}
-          data={serviceData}
-        />
+        <ServiceConversationView loading={serviceLoading} error={serviceError} data={serviceData} />
       ) : (
-      <>
-      {view.length ? (
-        <TrajectoryTimeline
-          records={view}
-          mode={durationMode ? 'duration' : 'sequence'}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
-        />
-      ) : null}
-
-      <div className="tjp-split">
-        <div className="tjp-tablepane" ref={tablePaneRef}>
-          {loading && !records.length ? (
-            <div className="tjp-empty">加载中…</div>
-          ) : view.length ? (
-            <table className="tjp-table">
-              <colgroup>
-                <col className="tjp-col-event" />
-                <col />
-              </colgroup>
-              <tbody>
-                {view.map((r) => {
-                  const flags = rowFlags.get(r.id);
-                  const meta = KIND_META[r.kind];
-                  const isCollapsedRow = r.id.startsWith('collapse-');
-                  return (
-                    <tr
-                      key={r.id}
-                      data-record-id={r.id}
-                      data-kind={r.kind}
-                      data-selected={r.id === selectedId || undefined}
-                      data-error={r.isError || undefined}
-                      data-running={r.isRunning || undefined}
-                      data-turn-start={flags?.turnStart || undefined}
-                      data-run-end={flags?.runEnd || undefined}
-                      tabIndex={0}
-                      aria-selected={r.id === selectedId}
-                      title={isCollapsedRow ? '点击展开' : `${meta.label} · ${firstLine(r.text, 120)}`}
-                      onClick={() => setSelectedId(isCollapsedRow ? null : r.id)}
-                      onDoubleClick={() => {
-                        if (isCollapsedRow) {
-                          if (r.id.startsWith('collapse-tools-')) setToolsCollapsed(false);
-                          else setTurnsCollapsed(false);
-                        }
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          setSelectedId(isCollapsedRow ? null : r.id);
-                        }
-                      }}
-                    >
-                      <td className="tjp-event">
-                        {/* 模型行：请求边界点（dsh requestBoundaryControl 同位） */}
-                        {r.kind === 'model' && r.requestNo != null && (
-                          <button
-                            type="button"
-                            className={r.id === selectedId ? 'tjp-reqdot on' : 'tjp-reqdot'}
-                            aria-label={`请求 #${r.requestNo}`}
-                            title={`请求 #${r.requestNo} · 点击查看请求/响应`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedId(r.id);
-                            }}
-                          >
-                            {r.requestNo}
-                          </button>
-                        )}
-                        {flags?.turnStart && !isCollapsedRow && (
-                          <span className="tjp-turnlabel">第 {r.run} 轮</span>
-                        )}
-                        <div className="tjp-event-inner">
-                          <span className={`tjp-kind k-${r.kind}`}>
-                            <span className="tjp-kind-icon" aria-hidden="true">{meta.icon}</span>
-                            <span className="tjp-kind-label">{meta.label}</span>
-                          </span>
-                        </div>
-                      </td>
-                      <td className="tjp-content">
-                        <span className={r.resultText == null ? 'tjp-text' : 'tjp-text has-result'}>
-                          <span className={r.isError ? 'is-error-text' : undefined}>{r.text || '—'}</span>
-                          {r.resultText != null && (
-                            <span className={r.isError ? 'tjp-inline-result is-error' : 'tjp-inline-result'}>
-                              <span className="tjp-arrow">→</span>
-                              {r.resultText || '（无输出）'}
-                            </span>
-                          )}
-                        </span>
-                        <span className="tjp-trailing">
-                          {r.usage && (r.usage.promptTokens || r.usage.completionTokens) && r.kind === 'message' && (
-                            <>
-                              <span className="tjp-metric">{fmtTok(r.usage.promptTokens)}</span>
-                              <span className="tjp-metric">{fmtTok(r.usage.completionTokens)}</span>
-                            </>
-                          )}
-                          {r.usage && (r.usage.promptTokens || r.usage.completionTokens) && r.kind === 'model' && (
-                            <span className="tjp-metric" title="输入 / 输出 tokens">
-                              {fmtTok(r.usage.promptTokens)}→{fmtTok(r.usage.completionTokens)}
-                            </span>
-                          )}
-                          <span className="tjp-time">
-                            {r.isRunning ? '…' : fmtDuration(r.durationMs ?? (r.endAt ? r.endAt - r.at : null))}
-                          </span>
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          ) : (
-            <div className="tjp-empty">{query ? '没有匹配的记录' : '这个会话还没有执行记录。发一条消息，模型和工具的每一步都会记在这里。'}</div>
-          )}
-        </div>
-
-        {selected && (
-          <>
-            <div
-              className="tjp-resize"
-              role="separator"
-              aria-orientation="vertical"
-              aria-label="拖拽调整详情宽度（双击复位）"
-              title="拖拽调整宽度 · 双击复位"
-              onPointerDown={onResizeDown}
-              onPointerMove={onResizeMove}
-              onPointerUp={onResizeUp}
-              onDoubleClick={() => setDetailsWidth(null)}
+        <>
+          {view.length ? (
+            <TrajectoryTimeline
+              records={view}
+              mode={durationMode ? 'duration' : 'sequence'}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
             />
-            <DetailPanel record={selected} width={detailsWidth ?? undefined} onClose={() => setSelectedId(null)} />
-          </>
-        )}
-      </div>
-      </>
+          ) : null}
+
+          <div className="tjp-split">
+            <div className="tjp-tablepane" ref={tablePaneRef}>
+              {loading && !records.length ? (
+                <div className="tjp-empty">加载中…</div>
+              ) : view.length ? (
+                <table className="tjp-table">
+                  <colgroup>
+                    <col className="tjp-col-event" />
+                    <col />
+                  </colgroup>
+                  <tbody>
+                    {view.map((r) => {
+                      const flags = rowFlags.get(r.id);
+                      const meta = KIND_META[r.kind];
+                      const isCollapsedRow = r.id.startsWith('collapse-');
+                      return (
+                        <tr
+                          key={r.id}
+                          data-record-id={r.id}
+                          data-kind={r.kind}
+                          data-selected={r.id === selectedId || undefined}
+                          data-error={r.isError || undefined}
+                          data-running={r.isRunning || undefined}
+                          data-turn-start={flags?.turnStart || undefined}
+                          data-run-end={flags?.runEnd || undefined}
+                          tabIndex={0}
+                          aria-selected={r.id === selectedId}
+                          title={
+                            isCollapsedRow
+                              ? '点击展开'
+                              : `${meta.label} · ${firstLine(r.text, 120)}`
+                          }
+                          onClick={() => setSelectedId(isCollapsedRow ? null : r.id)}
+                          onDoubleClick={() => {
+                            if (isCollapsedRow) {
+                              if (r.id.startsWith('collapse-tools-')) setToolsCollapsed(false);
+                              else setTurnsCollapsed(false);
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              setSelectedId(isCollapsedRow ? null : r.id);
+                            }
+                          }}
+                        >
+                          <td className="tjp-event">
+                            {/* 模型行：请求边界点（dsh requestBoundaryControl 同位） */}
+                            {r.kind === 'model' && r.requestNo != null && (
+                              <button
+                                type="button"
+                                className={r.id === selectedId ? 'tjp-reqdot on' : 'tjp-reqdot'}
+                                aria-label={`请求 #${r.requestNo}`}
+                                title={`请求 #${r.requestNo} · 点击查看请求/响应`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedId(r.id);
+                                }}
+                              >
+                                {r.requestNo}
+                              </button>
+                            )}
+                            {flags?.turnStart && !isCollapsedRow && (
+                              <span className="tjp-turnlabel">第 {r.run} 轮</span>
+                            )}
+                            <div className="tjp-event-inner">
+                              <span className={`tjp-kind k-${r.kind}`}>
+                                <span className="tjp-kind-icon" aria-hidden="true">
+                                  {meta.icon}
+                                </span>
+                                <span className="tjp-kind-label">{meta.label}</span>
+                              </span>
+                            </div>
+                          </td>
+                          <td className="tjp-content">
+                            <span
+                              className={r.resultText == null ? 'tjp-text' : 'tjp-text has-result'}
+                            >
+                              <span className={r.isError ? 'is-error-text' : undefined}>
+                                {r.text || '—'}
+                              </span>
+                              {r.resultText != null && (
+                                <span
+                                  className={
+                                    r.isError ? 'tjp-inline-result is-error' : 'tjp-inline-result'
+                                  }
+                                >
+                                  <span className="tjp-arrow">→</span>
+                                  {r.resultText || '（无输出）'}
+                                </span>
+                              )}
+                            </span>
+                            <span className="tjp-trailing">
+                              {r.usage &&
+                                (r.usage.promptTokens || r.usage.completionTokens) &&
+                                r.kind === 'message' && (
+                                  <>
+                                    <span className="tjp-metric">
+                                      {fmtTok(r.usage.promptTokens)}
+                                    </span>
+                                    <span className="tjp-metric">
+                                      {fmtTok(r.usage.completionTokens)}
+                                    </span>
+                                  </>
+                                )}
+                              {r.usage &&
+                                (r.usage.promptTokens || r.usage.completionTokens) &&
+                                r.kind === 'model' && (
+                                  <span className="tjp-metric" title="输入 / 输出 tokens">
+                                    {fmtTok(r.usage.promptTokens)}→
+                                    {fmtTok(r.usage.completionTokens)}
+                                  </span>
+                                )}
+                              <span className="tjp-time">
+                                {r.isRunning
+                                  ? '…'
+                                  : fmtDuration(r.durationMs ?? (r.endAt ? r.endAt - r.at : null))}
+                              </span>
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="tjp-empty">
+                  {query
+                    ? '没有匹配的记录'
+                    : '这个会话还没有执行记录。发一条消息，模型和工具的每一步都会记在这里。'}
+                </div>
+              )}
+            </div>
+
+            {selected && (
+              <>
+                <div
+                  className="tjp-resize"
+                  role="separator"
+                  aria-orientation="vertical"
+                  aria-label="拖拽调整详情宽度（双击复位）"
+                  title="拖拽调整宽度 · 双击复位"
+                  onPointerDown={onResizeDown}
+                  onPointerMove={onResizeMove}
+                  onPointerUp={onResizeUp}
+                  onDoubleClick={() => setDetailsWidth(null)}
+                />
+                <DetailPanel
+                  record={selected}
+                  width={detailsWidth ?? undefined}
+                  onClose={() => setSelectedId(null)}
+                />
+              </>
+            )}
+          </div>
+        </>
       )}
 
       <style>{`
@@ -1169,13 +1273,25 @@ const ServiceConversationView: React.FC<{
     snapshotError?: string;
   } | null;
 }> = ({ loading, error, data }) => {
-  if (loading && !data) return <div className="tjp-svc"><div className="tjp-note">加载 Service 会话中…</div></div>;
-  if (error) return <div className="tjp-svc"><div className="tjp-svc-error">{error}</div></div>;
+  if (loading && !data)
+    return (
+      <div className="tjp-svc">
+        <div className="tjp-note">加载 Service 会话中…</div>
+      </div>
+    );
+  if (error)
+    return (
+      <div className="tjp-svc">
+        <div className="tjp-svc-error">{error}</div>
+      </div>
+    );
   if (!data) return null;
   if (!data.linked) {
     return (
       <div className="tjp-svc">
-        <div className="tjp-svc-note">该会话未通过 AgentScope Service（as-service 引擎）托管运行，没有远端对话。</div>
+        <div className="tjp-svc-note">
+          该会话未通过 AgentScope Service（as-service 引擎）托管运行，没有远端对话。
+        </div>
       </div>
     );
   }
@@ -1187,10 +1303,14 @@ const ServiceConversationView: React.FC<{
     );
   }
 
-  const items = [...(data.snapshot?.items || [])].sort((a, b) => (a.created_at || 0) - (b.created_at || 0));
+  const items = [...(data.snapshot?.items || [])].sort(
+    (a, b) => (a.created_at || 0) - (b.created_at || 0)
+  );
   const prettyArgs = (v: unknown) => {
     try {
-      return typeof v === 'string' ? JSON.stringify(JSON.parse(v), null, 2) : JSON.stringify(v, null, 2);
+      return typeof v === 'string'
+        ? JSON.stringify(JSON.parse(v), null, 2)
+        : JSON.stringify(v, null, 2);
     } catch {
       return String(v);
     }
@@ -1236,7 +1356,10 @@ const ServiceConversationView: React.FC<{
                   const out = (part.output || []).map((o) => o.text || '').join('\n');
                   return (
                     <div className="tjp-svc-tool" key={pi}>
-                      <b>↳ 工具结果 · {part.name || '?'}{part.state ? `（${part.state}）` : ''}</b>
+                      <b>
+                        ↳ 工具结果 · {part.name || '?'}
+                        {part.state ? `（${part.state}）` : ''}
+                      </b>
                       {out ? <pre>{out}</pre> : null}
                     </div>
                   );
@@ -1257,7 +1380,9 @@ const ServiceConversationView: React.FC<{
                         </details>
                       ) : null}
                       {bodyText ? (
-                        <div className={`tjp-svc-bubble${isUser ? ' is-user' : ''}`}>{bodyText}</div>
+                        <div className={`tjp-svc-bubble${isUser ? ' is-user' : ''}`}>
+                          {bodyText}
+                        </div>
                       ) : null}
                     </React.Fragment>
                   );

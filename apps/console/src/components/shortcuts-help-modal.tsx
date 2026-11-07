@@ -29,6 +29,7 @@ export const ShortcutsHelpModal = ({
   onClose: () => void;
 }) => (
   <Modal
+    motion={false}
     title={t('prefs.help.title')}
     visible={visible}
     onCancel={onClose}

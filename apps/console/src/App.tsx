@@ -1,21 +1,27 @@
-import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
+import { Component, type ErrorInfo, type ReactNode } from 'react';
+// 审计 A35：ErrorBoundary 挂 location key —— 路由切换即复位，崩溃页不再黏住后续导航
 
 import { Releases } from './pages/Releases';
 import { LandingPage } from './pages/LandingPage';
 import { Home } from './pages/Home';
-import { Editor, TemplateEditor } from './editor';
-import { AdminLayout } from './pages/admin/AdminLayout';
 import { WorkflowsLayout } from './pages/admin/WorkflowsLayout';
 import { WorkflowManagement } from './pages/admin/WorkflowManagement';
 import { TemplateManagement } from './pages/admin/TemplateManagement';
 import { AgentConfigManagement } from './pages/admin/AgentConfigManagement';
-import { AgentProvider } from './agent';
-import { AiWorkspace } from './ai-workspace';
+import { AdminLayout } from './pages/admin/AdminLayout';
+import { Editor, TemplateEditor } from './editor';
 import ScrollPage from './components/ScrollPage';
+import { ModalSweeper } from './components/safe-modal';
+import { AiWorkspace } from './ai-workspace';
+import { AgentProvider } from './agent';
 
-/** 路由级兜底：任何页面组件崩溃时给出错误提示和出路，绝不整页白屏 */
-class RouteErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+/** 路由级兜底：任何页面组件崩溃时给出错误提示和出路，绝不整页白屏。
+ *  审计 A35：resetKey（pathname）变化时复位崩溃态——此前崩溃页黏住所有后续导航。 */
+class RouteErrorBoundary extends Component<
+  { children: ReactNode; resetKey?: string },
+  { error: Error | null }
+> {
   state = { error: null as Error | null };
 
   static getDerivedStateFromError(error: Error) {
@@ -24,6 +30,12 @@ class RouteErrorBoundary extends Component<{ children: ReactNode }, { error: Err
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('[app] route crashed:', error, info);
+  }
+
+  componentDidUpdate(prevProps: { resetKey?: string }) {
+    if (prevProps.resetKey !== this.props.resetKey && this.state.error) {
+      this.setState({ error: null });
+    }
   }
 
   render() {
@@ -63,7 +75,9 @@ class RouteErrorBoundary extends Component<{ children: ReactNode }, { error: Err
               刷新页面
             </button>
             <button
-              onClick={() => { window.location.href = '/'; }}
+              onClick={() => {
+                window.location.href = '/';
+              }}
               style={{ padding: '6px 18px', borderRadius: 6, cursor: 'pointer' }}
             >
               回首页
@@ -111,46 +125,64 @@ const LegacyWorkRedirect = () => {
  * 以 /api 开头的前端路由会被代理吞掉直接命中后端，页面报 Whitelabel 404。
  */
 function App() {
+  const location = useLocation();
   return (
     <AgentProvider>
       <div style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
-        <RouteErrorBoundary>
+        {/* 审计 A1：清理 animationend 竞态下未卸载的 Modal 遮罩（兜底，主修复是 motion=false） */}
+        <ModalSweeper />
+        {/* 审计 A35：resetKey=pathname —— 崩溃状态随路由切换复位，不重挂子树 */}
+        <RouteErrorBoundary resetKey={location.pathname}>
           <Routes>
-          {/* 产品宣传首页 */}
-          <Route path="/" element={<LandingPage />} />
+            {/* 产品宣传首页 */}
+            <Route path="/" element={<LandingPage />} />
 
-          {/* 对话主页（任务即会话） */}
-          <Route path="/chat" element={<AiWorkspace />} />
-          <Route path="/chat/:sessionKey" element={<AiWorkspace />} />
+            {/* 对话主页（任务即会话） */}
+            <Route path="/chat" element={<AiWorkspace />} />
+            <Route path="/chat/:sessionKey" element={<AiWorkspace />} />
 
-          {/* 工作流管理（应用态一级页面） */}
-          <Route path="/workflows" element={<WorkflowsLayout />}>
-            <Route index element={<WorkflowManagement />} />
-          </Route>
+            {/* 工作流管理（应用态一级页面） */}
+            <Route path="/workflows" element={<WorkflowsLayout />}>
+              <Route index element={<WorkflowManagement />} />
+            </Route>
 
-          {/* 旧地址重定向 */}
-          <Route path="/c/:sessionKey" element={<LegacyChatRedirect />} />
-          <Route path="/work" element={<Navigate to="/chat" replace />} />
-          <Route path="/work/c/:sessionKey" element={<LegacyWorkRedirect />} />
-          <Route path="/admin/*" element={<LegacyAdminRedirect />} />
+            {/* 旧地址重定向 */}
+            <Route path="/c/:sessionKey" element={<LegacyChatRedirect />} />
+            <Route path="/work" element={<Navigate to="/chat" replace />} />
+            <Route path="/work/c/:sessionKey" element={<LegacyWorkRedirect />} />
+            <Route path="/admin/*" element={<LegacyAdminRedirect />} />
 
-          {/* 内容页 */}
-          <Route path="/preview" element={<ScrollPage><Home /></ScrollPage>} />
-          <Route path="/releases" element={<ScrollPage><Releases /></ScrollPage>} />
+            {/* 内容页 */}
+            <Route
+              path="/preview"
+              element={
+                <ScrollPage>
+                  <Home />
+                </ScrollPage>
+              }
+            />
+            <Route
+              path="/releases"
+              element={
+                <ScrollPage>
+                  <Releases />
+                </ScrollPage>
+              }
+            />
 
-          {/* 设置二级区（偏后台的能力；左下角「设置」进入） */}
-          <Route path="/manage" element={<AdminLayout />}>
-            <Route index element={<Navigate to="/manage/templates" replace />} />
-            <Route path="templates" element={<TemplateManagement />} />
-            <Route path="agent-config" element={<AgentConfigManagement />} />
-          </Route>
+            {/* 设置二级区（偏后台的能力；左下角「设置」进入） */}
+            <Route path="/manage" element={<AdminLayout />}>
+              <Route index element={<Navigate to="/manage/templates" replace />} />
+              <Route path="templates" element={<TemplateManagement />} />
+              <Route path="agent-config" element={<AgentConfigManagement />} />
+            </Route>
 
-          {/* 专家模式 */}
-          <Route path="/editor" element={<Editor />} />
-          <Route path="/editor/:workflowCode" element={<Editor />} />
-          <Route path="/template-editor/:templateCode" element={<TemplateEditor />} />
+            {/* 专家模式 */}
+            <Route path="/editor" element={<Editor />} />
+            <Route path="/editor/:workflowCode" element={<Editor />} />
+            <Route path="/template-editor/:templateCode" element={<TemplateEditor />} />
 
-          <Route path="*" element={<Navigate to="/chat" replace />} />
+            <Route path="*" element={<Navigate to="/chat" replace />} />
           </Routes>
         </RouteErrorBoundary>
       </div>

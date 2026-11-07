@@ -67,6 +67,7 @@ export const CodeEditorModal = ({
 
   return (
     <Modal
+      motion={false}
       title={title ?? t('codeEditor.title')}
       visible={visible}
       onOk={handleCurrentOk}

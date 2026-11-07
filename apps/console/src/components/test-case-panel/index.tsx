@@ -145,6 +145,8 @@ export const TestCasePanel: FC<TestCasePanelProps> = ({
 }) => {
   const [cases, setCases] = useState<TestCase[]>([]);
   const [loading, setLoading] = useState(false);
+  /** 审计 A21：列表加载失败态（与空态区分） */
+  const [loadError, setLoadError] = useState(false);
   const [runsByCase, setRunsByCase] = useState<Record<number, TestRun>>({});
   const [expanded, setExpanded] = useState<Record<number, boolean>>({});
   // 运行中的用例（运行按钮转 loading，避免「没反应」感）
@@ -152,6 +154,9 @@ export const TestCasePanel: FC<TestCasePanelProps> = ({
 
   // 手工新建（保留阶段 1.4 语义：非法 JSON 就地报错、保留现场）
   const [creating, setCreating] = useState(false);
+  /** 审计 A21：创建/AI 批量保存的 in-flight 守卫，杜绝双击重复建用例 */
+  const [creatingInFlight, setCreatingInFlight] = useState(false);
+  const [savingAi, setSavingAi] = useState(false);
   const [name, setName] = useState('');
   const [nodeId, setNodeId] = useState('');
   const [inputsText, setInputsText] = useState('{}');
@@ -177,7 +182,15 @@ export const TestCasePanel: FC<TestCasePanelProps> = ({
       const res = await fetch(
         `${getApiBaseUrl()}/test-case/list?workflowCode=${encodeURIComponent(workflowCode)}`
       );
-      setCases(res.ok ? await res.json() : []);
+      if (!res.ok) {
+        // 审计 A21：加载失败与「暂无用例」区分，避免误以为用例全没了
+        setLoadError(true);
+        return;
+      }
+      setLoadError(false);
+      setCases(await res.json());
+    } catch {
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -255,6 +268,7 @@ export const TestCasePanel: FC<TestCasePanelProps> = ({
   }, [workflowCode, canvasSchema]);
 
   const create = useCallback(async () => {
+    if (creatingInFlight) return; // 审计 A21：往返期间忽略重复点击
     const expected = expectedRows
       .filter((row) => row.field.trim())
       .map((row) => ({
@@ -271,28 +285,36 @@ export const TestCasePanel: FC<TestCasePanelProps> = ({
       return;
     }
     setInputsError(null);
-    const res = await fetch(`${getApiBaseUrl()}/test-case/create`, {
-      method: 'POST',
-      headers: JSON_HEADERS,
-      body: JSON.stringify({
-        workflowCode,
-        nodeId: nodeId || null,
-        name: name.trim(),
-        inputs,
-        expected,
-      }),
-    });
-    if (!res.ok) {
-      setInputsError(t('testCase.createFailed', { status: res.status }));
-      return;
+    setCreatingInFlight(true);
+    try {
+      const res = await fetch(`${getApiBaseUrl()}/test-case/create`, {
+        method: 'POST',
+        headers: JSON_HEADERS,
+        body: JSON.stringify({
+          workflowCode,
+          nodeId: nodeId || null,
+          name: name.trim(),
+          inputs,
+          expected,
+        }),
+      });
+      if (!res.ok) {
+        setInputsError(t('testCase.createFailed', { status: res.status }));
+        return;
+      }
+      setName('');
+      setNodeId('');
+      setInputsText('{}');
+      setExpectedRows([{ field: '', op: 'exists', value: '' }]);
+      setCreating(false);
+      await reload();
+    } catch (e) {
+      // 审计 A21：网络异常此前是未处理拒绝，界面无反馈
+      setInputsError(t('testCase.createFailed', { status: (e as Error).message || 'network' }));
+    } finally {
+      setCreatingInFlight(false);
     }
-    setName('');
-    setNodeId('');
-    setInputsText('{}');
-    setExpectedRows([{ field: '', op: 'exists', value: '' }]);
-    setCreating(false);
-    await reload();
-  }, [workflowCode, nodeId, name, inputsText, expectedRows, reload]);
+  }, [workflowCode, nodeId, name, inputsText, expectedRows, reload, creatingInFlight]);
 
   const remove = useCallback(
     async (id: number) => {
@@ -341,29 +363,45 @@ export const TestCasePanel: FC<TestCasePanelProps> = ({
   );
 
   const saveAiDrafts = useCallback(async () => {
+    if (savingAi) return; // 审计 A21：批量保存期间忽略重复点击（整批防重）
     const picked = aiDrafts.filter((_, i) => aiPicked[i]);
     if (picked.length === 0) return;
-    let ok = 0;
-    for (const d of picked) {
-      const res = await fetch(`${getApiBaseUrl()}/test-case/create`, {
-        method: 'POST',
-        headers: JSON_HEADERS,
-        body: JSON.stringify({
-          workflowCode,
-          nodeId: d.nodeId || null,
-          name: d.name,
-          description: d.description,
-          inputs: d.inputs ?? {},
-          expected: d.expected ?? [],
-        }),
-      });
-      if (res.ok) ok += 1;
+    setSavingAi(true);
+    try {
+      let ok = 0;
+      let failed = 0;
+      for (const d of picked) {
+        try {
+          const res = await fetch(`${getApiBaseUrl()}/test-case/create`, {
+            method: 'POST',
+            headers: JSON_HEADERS,
+            body: JSON.stringify({
+              workflowCode,
+              nodeId: d.nodeId || null,
+              name: d.name,
+              description: d.description,
+              inputs: d.inputs ?? {},
+              expected: d.expected ?? [],
+            }),
+          });
+          if (res.ok) ok += 1;
+          else failed += 1;
+        } catch {
+          failed += 1;
+        }
+      }
+      if (failed > 0) {
+        Toast.warning(t('testCase.aiSavedPartial', { n: ok, f: failed }));
+      } else {
+        Toast.success(t('testCase.aiSaved', { n: ok }));
+      }
+      setAiDrafts([]);
+      setAiOpen(false);
+      await reload();
+    } finally {
+      setSavingAi(false);
     }
-    Toast.success(t('testCase.aiSaved', { n: ok }));
-    setAiDrafts([]);
-    setAiOpen(false);
-    await reload();
-  }, [aiDrafts, aiPicked, workflowCode, reload]);
+  }, [aiDrafts, aiPicked, workflowCode, reload, savingAi]);
 
   /** AI 补断言：依据最近一次实际输出给建议，勾选合并进 expected */
   const aiSuggest = useCallback(
@@ -668,7 +706,8 @@ export const TestCasePanel: FC<TestCasePanelProps> = ({
                 <Button
                   size="small"
                   theme="solid"
-                  disabled={aiPickedCount === 0}
+                  disabled={savingAi || aiPickedCount === 0}
+                  loading={savingAi}
                   onClick={saveAiDrafts}
                 >
                   {t('testCase.aiSave', { n: aiPickedCount })}
@@ -795,7 +834,10 @@ export const TestCasePanel: FC<TestCasePanelProps> = ({
               size="small"
               theme="solid"
               onClick={create}
-              disabled={!name.trim() || !expectedRows.some((r) => r.field.trim())}
+              loading={creatingInFlight}
+              disabled={
+                creatingInFlight || !name.trim() || !expectedRows.some((r) => r.field.trim())
+              }
             >
               {t('testCase.saveCase')}
             </Button>
@@ -804,7 +846,25 @@ export const TestCasePanel: FC<TestCasePanelProps> = ({
       )}
 
       {/* 用例列表 */}
-      {cases.length === 0 && !loading && <Empty description={t('testCase.emptyDesc')} />}
+      {loadError && !loading ? (
+        // 审计 A21：加载失败给出明确错误与重试，不再伪装成空列表
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 8,
+            padding: 16,
+          }}
+        >
+          <Empty description={t('testCase.loadFailedDesc')} />
+          <Button size="small" onClick={() => reload()}>
+            {t('testCase.retry')}
+          </Button>
+        </div>
+      ) : (
+        cases.length === 0 && !loading && <Empty description={t('testCase.emptyDesc')} />
+      )}
       {loading && (
         <div style={{ display: 'flex', justifyContent: 'center', padding: 12 }}>
           <Spin />
@@ -1150,6 +1210,7 @@ export const TestCaseSheetButton: FC<TestCasePanelProps & { variant?: 'header' |
         width={520}
         visible={open}
         onCancel={() => setOpen(false)}
+        closeOnEsc
         bodyStyle={{ padding: 0 }}
       >
         {open && <TestCasePanel {...props} />}

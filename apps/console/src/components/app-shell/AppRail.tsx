@@ -6,14 +6,14 @@
  * 「任务设置」面板里调，发出第一条消息时生效。
  * 偏后台的能力（模板管理 / Agent 配置中心）在左下角「设置」二级区，不在这里出现。
  */
-import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import React from 'react';
 
-import { ProjectRail } from './ProjectRail';
-import { useAgent } from '../../agent/AgentContext';
-import { getWorkflowOfSession } from '../../ai-workspace/session-scope';
-import { CHAT } from '../../chat/theme';
 import { useLanguage, t } from '../../i18n';
+import { CHAT } from '../../chat/theme';
+import { getWorkflowOfSession } from '../../ai-workspace/session-scope';
+import { useAgent } from '../../agent/AgentContext';
+import { ProjectRail } from './ProjectRail';
 
 /** 带加号的对话气泡：新建任务 */
 const IconChatPlus: React.FC<{ size?: number }> = ({ size = 16 }) => (
@@ -140,7 +140,12 @@ export const AppRail: React.FC = () => {
       {/* 项目列表（任务按项目分组） */}
       <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
         <ProjectRail
-          onSelect={(key) => navigate(`/chat/${key}`)}
+          onSelect={(key) => {
+            // 审计 A45：已在目标会话地址时不重复压栈（同路径 navigate 会产生无谓的历史记录）
+            if (location.pathname !== `/chat/${key}`) {
+              navigate(`/chat/${key}`);
+            }
+          }}
           onNewTask={startNewTask}
         />
       </div>

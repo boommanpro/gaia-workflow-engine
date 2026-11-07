@@ -53,6 +53,12 @@ export interface CanvasHistoryTimelineProps {
   onLoadVersion?: (versionId: number) => void;
   /** 发布新版本：交给外层打开落版弹窗 */
   onPublish?: () => void;
+  /**
+   * 审计 A8：版本对比交由外层渲染。此前 VersionDiffModal 渲染在 Popover content 内，
+   * Modal portal 到 body 后任何一次点击都被 Popover 视为 outside-mousedown，
+   * 弹层连同 Modal 一起卸载——「对比上一版」弹窗第一次点击就消失。
+   */
+  onOpenDiff?: (version: { id: number; versionNumber?: string }) => void;
 }
 
 /** 版本历史（纯内容）：只渲染里程碑卡片 */
@@ -62,13 +68,10 @@ export const CanvasHistoryTimeline: React.FC<CanvasHistoryTimelineProps> = ({
   loading = false,
   onLoadVersion,
   onPublish,
+  onOpenDiff,
 }) => {
   useLanguage();
   const { doc } = useWorkflowDocumentState();
-  /** 版本对比弹层：正在对比的版本 */
-  const [diffVersion, setDiffVersion] = useState<{ id: number; versionNumber?: string } | null>(
-    null
-  );
 
   /** 画布当前内容键命中哪个里程碑：内容键含坐标后同键概率极低，但仍取第一个命中
    *  （列表按时间倒序 = 最新）唯一标记「当前」——同键多版本时的确定性 tie-break */
@@ -175,8 +178,9 @@ export const CanvasHistoryTimeline: React.FC<CanvasHistoryTimelineProps> = ({
                   size="small"
                   theme="borderless"
                   type="tertiary"
+                  disabled={!onOpenDiff}
                   onClick={() =>
-                    setDiffVersion({ id: version.id!, versionNumber: version.versionNumber })
+                    onOpenDiff?.({ id: version.id!, versionNumber: version.versionNumber })
                   }
                   style={{ borderRadius: 7, flexShrink: 0 }}
                 >
@@ -203,13 +207,6 @@ export const CanvasHistoryTimeline: React.FC<CanvasHistoryTimelineProps> = ({
           {t('chat.publishVersion')}
         </Button>
       )}
-
-      <VersionDiffModal
-        visible={diffVersion !== null}
-        versionId={diffVersion?.id ?? null}
-        versionNumber={diffVersion?.versionNumber}
-        onClose={() => setDiffVersion(null)}
-      />
     </div>
   );
 };
@@ -232,6 +229,10 @@ export const CanvasHistoryPopover: React.FC<CanvasHistoryPopoverProps> = ({
   const [visible, setVisible] = useState(false);
   const [versions, setVersions] = useState<GaiaWorkflowVersion[]>([]);
   const [loading, setLoading] = useState(false);
+  /** 审计 A8：对比弹窗状态在 Popover 外层持有，弹层关闭不连坐卸载 Modal */
+  const [diffVersion, setDiffVersion] = useState<{ id: number; versionNumber?: string } | null>(
+    null
+  );
 
   const loadVersions = useCallback(async () => {
     if (!workflowCode) {
@@ -254,30 +255,40 @@ export const CanvasHistoryPopover: React.FC<CanvasHistoryPopoverProps> = ({
   }, [visible, loadVersions]);
 
   return (
-    <Popover
-      content={
-        <CanvasHistoryTimeline
-          workflowCode={workflowCode}
-          versions={versions}
-          loading={loading}
-          onLoadVersion={onLoadVersion}
-          onPublish={
-            onPublish
-              ? () => {
-                  setVisible(false);
-                  onPublish();
-                }
-              : undefined
-          }
-        />
-      }
-      trigger="click"
-      position="bottomRight"
-      visible={visible}
-      onVisibleChange={setVisible}
-    >
-      {children}
-    </Popover>
+    <>
+      <Popover
+        content={
+          <CanvasHistoryTimeline
+            workflowCode={workflowCode}
+            versions={versions}
+            loading={loading}
+            onLoadVersion={onLoadVersion}
+            onPublish={
+              onPublish
+                ? () => {
+                    setVisible(false);
+                    onPublish();
+                  }
+                : undefined
+            }
+            onOpenDiff={setDiffVersion}
+          />
+        }
+        trigger="click"
+        position="bottomRight"
+        visible={visible}
+        onVisibleChange={setVisible}
+      >
+        {children}
+      </Popover>
+      {/* 审计 A8：与 Popover 平级渲染——Modal 点击/遮罩不再触发弹层卸载连坐 */}
+      <VersionDiffModal
+        visible={diffVersion !== null}
+        versionId={diffVersion?.id ?? null}
+        versionNumber={diffVersion?.versionNumber}
+        onClose={() => setDiffVersion(null)}
+      />
+    </>
   );
 };
 

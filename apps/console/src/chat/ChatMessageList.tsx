@@ -9,6 +9,7 @@
  *   · 对话居中成一条窄栏，宽屏不会拉成一整行
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
 import { Tooltip, Toast } from '@douyinfe/semi-ui';
 import {
   IconCopy,
@@ -18,27 +19,29 @@ import {
   IconTerminal,
 } from '@douyinfe/semi-icons';
 
-import { useAgent, useLatestArtifact, useLiveMessageId, useQueueLength, useRunStreaming } from '../agent/AgentContext';
-import { useRuntime } from '../agent/runtime/store';
+import { useLanguage, t } from '../i18n';
 import type { DisplayMessage } from '../agent/types';
+import SubagentCard from '../agent/SubagentCard';
+import { useRuntime } from '../agent/runtime/store';
+import { PlanCard } from '../agent/PlanCard';
 import Markdown from '../agent/Markdown';
 import { LiveAssistantContent, TimelineView, ThinkingItem } from '../agent/LiveAssistantMessage';
-import SubagentCard from '../agent/SubagentCard';
-import { PlanCard } from '../agent/PlanCard';
-import { useLanguage, t } from '../i18n';
-import { CHAT, CHAT_COLUMN_WIDTH, ChatStyles } from './theme';
-import { splitAttachments } from './attachments';
-import { ToolSteps } from './ToolSteps';
-import { TaskCollapse } from './TaskCollapse';
-import { AskCard } from './AskCard';
 import {
-  LiveCanvasCard,
-  ReleaseCard,
-} from './ArtifactCards';
+  useAgent,
+  useLatestArtifact,
+  useLiveMessageId,
+  useQueueLength,
+  useRunStreaming,
+} from '../agent/AgentContext';
+import { ToolSteps } from './ToolSteps';
+import { CHAT, CHAT_COLUMN_WIDTH, ChatStyles } from './theme';
+import { TaskCollapse } from './TaskCollapse';
+import { splitAttachments } from './attachments';
+import { AskCard } from './AskCard';
+import { LiveCanvasCard, ReleaseCard } from './ArtifactCards';
 
 /** token 数缩写（dsh token-format 观感）：12345 → 12.3k */
-const fmtTok = (n: number): string =>
-  n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
+const fmtTok = (n: number): string => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
 
 const MONO: React.CSSProperties = { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' };
 
@@ -53,7 +56,6 @@ const fmtTime = (ts?: number): string => {
 /** 本轮耗时（ms → 秒，向上取整）；无数据返回 undefined，折叠行退化为「执行过程」 */
 const durMsToSec = (ms?: number): number | undefined =>
   ms != null && ms > 0 ? Math.round(ms / 1000) : undefined;
-
 
 /** 历史时间线渲染体：过程项（思考/工具/播报）折叠进「任务耗时」，正文文本块直接渲染 */
 const HistoryTimeline: React.FC<{
@@ -79,9 +81,15 @@ const AssistantAvatar: React.FC = () => (
   <span
     aria-hidden
     style={{
-      width: 30, height: 30, borderRadius: 9, flexShrink: 0,
-      background: CHAT.accent, color: CHAT.accentFg,
-      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      width: 30,
+      height: 30,
+      borderRadius: 9,
+      flexShrink: 0,
+      background: CHAT.accent,
+      color: CHAT.accentFg,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
     }}
   >
     {/* 黑白版 logo：结构与 public/logo.svg 一致，渐变/彩色圆点统一替换为 currentColor；
@@ -118,23 +126,34 @@ const MessageTitle: React.FC<{ ts?: number }> = ({ ts }) => (
  * （输入/缓存/输出拆分 + 耗时/速度 + 模型）。账目来自 run_end + /turn-usage 聚合。
  */
 const TokenUsagePill: React.FC<{
-  usage: { promptTokens: number; completionTokens: number; durationMs?: number; cachedTokens?: number; model?: string };
+  usage: {
+    promptTokens: number;
+    completionTokens: number;
+    durationMs?: number;
+    cachedTokens?: number;
+    model?: string;
+  };
 }> = ({ usage }) => {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLSpanElement | null>(null);
   const total = usage.promptTokens + usage.completionTokens;
   if (total <= 0) return null;
 
-  const hasCache = usage.cachedTokens != null && usage.cachedTokens > 0 && usage.promptTokens > usage.cachedTokens;
+  const hasCache =
+    usage.cachedTokens != null && usage.cachedTokens > 0 && usage.promptTokens > usage.cachedTokens;
   const cachePct = hasCache ? (usage.cachedTokens! / usage.promptTokens) * 100 : null;
-  const secs = usage.durationMs != null && usage.durationMs > 0 ? (usage.durationMs / 1000).toFixed(1) : null;
-  const speed = secs && usage.completionTokens > 0
-    ? Math.round(usage.completionTokens / (usage.durationMs! / 1000))
-    : null;
+  const secs =
+    usage.durationMs != null && usage.durationMs > 0 ? (usage.durationMs / 1000).toFixed(1) : null;
+  const speed =
+    secs && usage.completionTokens > 0
+      ? Math.round(usage.completionTokens / (usage.durationMs! / 1000))
+      : null;
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent): void => { if (e.key === 'Escape') setOpen(false); };
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setOpen(false);
+    };
     const onClick = (e: MouseEvent): void => {
       if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
     };
@@ -176,7 +195,14 @@ const TokenUsagePill: React.FC<{
           e.currentTarget.style.color = CHAT.textFaint;
         }}
       >
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <svg
+          width="11"
+          height="11"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
           <ellipse cx="12" cy="5" rx="8" ry="3" />
           <path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5" />
           <path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" />
@@ -185,7 +211,8 @@ const TokenUsagePill: React.FC<{
         {cachePct != null && (
           <>
             {' · '}
-            {t('chat.usageCacheShort')} <b style={{ ...MONO, fontWeight: 600 }}>{Math.round(cachePct)}%</b>
+            {t('chat.usageCacheShort')}{' '}
+            <b style={{ ...MONO, fontWeight: 600 }}>{Math.round(cachePct)}%</b>
           </>
         )}
       </button>
@@ -205,46 +232,125 @@ const TokenUsagePill: React.FC<{
             zIndex: 40,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12.5, fontWeight: 600, color: CHAT.text }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 7,
+              fontSize: 12.5,
+              fontWeight: 600,
+              color: CHAT.text,
+            }}
+          >
             {t('chat.turnUsageTitle')}
-            <span style={{ marginLeft: 'auto', fontWeight: 500, ...MONO, fontSize: 11.5, color: CHAT.textSub }}>
+            <span
+              style={{
+                marginLeft: 'auto',
+                fontWeight: 500,
+                ...MONO,
+                fontSize: 11.5,
+                color: CHAT.textSub,
+              }}
+            >
               {total.toLocaleString()} tokens
             </span>
           </div>
           <div style={{ height: 1, background: CHAT.lineSoft, margin: '10px 0 11px' }} />
-          <dl style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', rowGap: 7, columnGap: 18, fontSize: 12, margin: 0 }}>
+          <dl
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'auto 1fr',
+              rowGap: 7,
+              columnGap: 18,
+              fontSize: 12,
+              margin: 0,
+            }}
+          >
             <dt style={{ color: CHAT.textMuted, fontWeight: 400 }}>{t('chat.usageInput')}</dt>
-            <dd style={{ margin: 0, textAlign: 'right', ...MONO, fontSize: 11.5, color: CHAT.textBody }}>
+            <dd
+              style={{
+                margin: 0,
+                textAlign: 'right',
+                ...MONO,
+                fontSize: 11.5,
+                color: CHAT.textBody,
+              }}
+            >
               {(usage.promptTokens - (hasCache ? usage.cachedTokens! : 0)).toLocaleString()}
             </dd>
             {hasCache && (
               <>
                 <dt style={{ color: CHAT.textMuted, fontWeight: 400 }}>{t('chat.usageCached')}</dt>
-                <dd style={{ margin: 0, textAlign: 'right', ...MONO, fontSize: 11.5, color: CHAT.textBody }}>
+                <dd
+                  style={{
+                    margin: 0,
+                    textAlign: 'right',
+                    ...MONO,
+                    fontSize: 11.5,
+                    color: CHAT.textBody,
+                  }}
+                >
                   {usage.cachedTokens!.toLocaleString()}
                 </dd>
               </>
             )}
             <dt style={{ color: CHAT.textMuted, fontWeight: 400 }}>{t('chat.usageOutput')}</dt>
-            <dd style={{ margin: 0, textAlign: 'right', ...MONO, fontSize: 11.5, color: CHAT.textBody }}>
+            <dd
+              style={{
+                margin: 0,
+                textAlign: 'right',
+                ...MONO,
+                fontSize: 11.5,
+                color: CHAT.textBody,
+              }}
+            >
               {usage.completionTokens.toLocaleString()}
             </dd>
             {(secs || speed) && (
               <>
-                <dt style={{ color: CHAT.textMuted, fontWeight: 400 }}>{t('chat.turnUsageTimeSpeed')}</dt>
-                <dd style={{ margin: 0, textAlign: 'right', ...MONO, fontSize: 11.5, color: CHAT.textBody }}>
-                  {secs ?? '—'}{speed ? ` · ${speed} tok/s` : ''}
+                <dt style={{ color: CHAT.textMuted, fontWeight: 400 }}>
+                  {t('chat.turnUsageTimeSpeed')}
+                </dt>
+                <dd
+                  style={{
+                    margin: 0,
+                    textAlign: 'right',
+                    ...MONO,
+                    fontSize: 11.5,
+                    color: CHAT.textBody,
+                  }}
+                >
+                  {secs ?? '—'}
+                  {speed ? ` · ${speed} tok/s` : ''}
                 </dd>
               </>
             )}
             {usage.model && (
               <>
                 <dt style={{ color: CHAT.textMuted, fontWeight: 400 }}>{t('chat.usageModel')}</dt>
-                <dd style={{ margin: 0, textAlign: 'right', ...MONO, fontSize: 11.5, color: CHAT.textBody }}>{usage.model}</dd>
+                <dd
+                  style={{
+                    margin: 0,
+                    textAlign: 'right',
+                    ...MONO,
+                    fontSize: 11.5,
+                    color: CHAT.textBody,
+                  }}
+                >
+                  {usage.model}
+                </dd>
               </>
             )}
           </dl>
-          <div style={{ marginTop: 10, paddingTop: 8, borderTop: `1px solid ${CHAT.lineSoft}`, fontSize: 11, color: CHAT.textFaint }}>
+          <div
+            style={{
+              marginTop: 10,
+              paddingTop: 8,
+              borderTop: `1px solid ${CHAT.lineSoft}`,
+              fontSize: 11,
+              color: CHAT.textFaint,
+            }}
+          >
             {t('chat.turnUsageNote')}
           </div>
         </div>
@@ -264,7 +370,10 @@ const CompactionCard: React.FC<{ content: string; compact?: boolean }> = ({ cont
   const body = lines.slice(1).join('\n').trim();
   const expandable = body.length > 0;
   return (
-    <div className="chat-fade" style={{ display: 'flex', justifyContent: 'center', padding: '6px 0' }}>
+    <div
+      className="chat-fade"
+      style={{ display: 'flex', justifyContent: 'center', padding: '6px 0' }}
+    >
       <div style={{ maxWidth: '86%', minWidth: 0 }}>
         <button
           type="button"
@@ -306,11 +415,25 @@ const CompactionCard: React.FC<{ content: string; compact?: boolean }> = ({ cont
               flexShrink: 0,
             }}
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <path d="M4 8h16M4 16h10" />
             </svg>
           </span>
-          <span style={{ fontSize: compact ? 12 : 12.5, fontWeight: 600, color: CHAT.text, flexShrink: 0 }}>
+          <span
+            style={{
+              fontSize: compact ? 12 : 12.5,
+              fontWeight: 600,
+              color: CHAT.text,
+              flexShrink: 0,
+            }}
+          >
             {t('chat.compactionTitle')}
           </span>
           <span style={{ flex: '0 1 26px', height: 1, background: CHAT.line }} />
@@ -388,7 +511,10 @@ const IconButton: React.FC<{
 );
 
 const TypingIndicator: React.FC = () => (
-  <div className="chat-fade" style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 0 2px' }}>
+  <div
+    className="chat-fade"
+    style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 0 2px' }}
+  >
     {[0, 1, 2].map((i) => (
       <span
         key={i}
@@ -412,7 +538,7 @@ interface ChatMessageListProps {
   dense?: boolean;
   /** 2026-10-17：todo 改由顶部 TodoCard 固定渲染，消息流不再内嵌计划卡 */
   hidePlanCards?: boolean;
-  }
+}
 
 export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   compact = false,
@@ -507,8 +633,11 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
     const nodes: React.ReactNode[] = [];
     // 轮次起点（每个 user 消息开启一轮）：默认只保留最近 turnsWindow 轮
     const userIdx: number[] = [];
-    messages.forEach((mm, idx) => { if (mm.role === 'user') userIdx.push(idx); });
-    const firstVisibleIdx = userIdx.length > turnsWindow ? userIdx[userIdx.length - turnsWindow] : 0;
+    messages.forEach((mm, idx) => {
+      if (mm.role === 'user') userIdx.push(idx);
+    });
+    const firstVisibleIdx =
+      userIdx.length > turnsWindow ? userIdx[userIdx.length - turnsWindow] : 0;
     const hiddenCount = firstVisibleIdx > 0 ? firstVisibleIdx : 0;
     let i = 0;
     if (hiddenCount > 0) {
@@ -528,262 +657,343 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
               cursor: 'pointer',
             }}
           >
-            显示更早的 {hiddenCount} 条消息
+            {t('chat.showEarlier', { n: hiddenCount })}
           </button>
-        </div>,
+        </div>
       );
     }
     while (i < messages.length) {
       const m = messages[i];
       const iterStart = i;
       try {
+        if (
+          m.role === 'assistant' &&
+          m.id !== liveMessageId &&
+          !m.content &&
+          !m.thinking &&
+          !m.subagentSteps &&
+          !m.subagentResult &&
+          !m.planSteps &&
+          !m.toolSteps &&
+          !m.ask
+        ) {
+          // 空的助手占位消息（历史重建的产物）：无正文无卡片，直接跳过
+          i += 1;
+          continue;
+        }
 
-      if (m.role === 'assistant' && m.id !== liveMessageId && !m.content && !m.thinking && !m.subagentSteps && !m.subagentResult && !m.planSteps && !m.toolSteps && !m.ask) {
-        // 空的助手占位消息（历史重建的产物）：无正文无卡片，直接跳过
-        i += 1;
-        continue;
-      }
+        if (m.subagentSteps || m.subagentResult) {
+          nodes.push(<SubagentCard key={`sub-${m.id}`} message={m} />);
+          i += 1;
+          continue;
+        }
 
-      if (m.subagentSteps || m.subagentResult) {
-        nodes.push(<SubagentCard key={`sub-${m.id}`} message={m} />);
-        i += 1;
-        continue;
-      }
-
-      // ask_user 提问卡：流式期间也可交互（工具正挂起等待这个回答）；与助手消息同栏位，视觉上同属 AI 发起
-      if (m.ask) {
-        nodes.push(
-          <div key={`ask-${m.id}`} className="chat-fade" style={{ display: 'flex', gap: 12, padding: '4px 0' }}>
-            <AssistantAvatar />
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <AskCard ask={m.ask} sessionKey={currentSessionKey || undefined} />
+        // ask_user 提问卡：流式期间也可交互（工具正挂起等待这个回答）；与助手消息同栏位，视觉上同属 AI 发起
+        if (m.ask) {
+          nodes.push(
+            <div
+              key={`ask-${m.id}`}
+              className="chat-fade"
+              style={{ display: 'flex', gap: 12, padding: '4px 0' }}
+            >
+              <AssistantAvatar />
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <AskCard ask={m.ask} sessionKey={currentSessionKey || undefined} />
+              </div>
             </div>
-          </div>
-        );
-        i += 1;
-        continue;
-      }
+          );
+          i += 1;
+          continue;
+        }
 
-      if (m.role === 'tool') {
-        // 计划行的消费必须与「是否渲染」解耦：hidePlanCards 时跳过渲染但必须前进 i，
-        // 否则掉进下面的分组循环后 break 不推进，外层 while 用同一个 i 无限重跑（页面冻死）。
-        if (m.planSteps && m.planSteps.length > 0) {
-          if (!hidePlanCards) {
-            nodes.push(<PlanCard key={m.id} steps={m.planSteps} />);
-          }
-          i += 1;
-          continue;
-        }
-        if (m.artifact) {
-          // 试运行（test_report）不再单独渲染卡：run 本身就是一次工具调用，
-          // IN/OUT 由工具行承载（dsh 同款语义）；发布（release）仍保留收口卡
-          if (m.artifact.type === 'release') {
-            nodes.push(<ReleaseCard key={m.id} artifact={m.artifact} />);
-          }
-          i += 1;
-          continue;
-        }
-        const group: DisplayMessage[] = [];
-        while (i < messages.length && messages[i].role === 'tool') {
-          const tm = messages[i];
-          if (tm.planSteps && tm.planSteps.length > 0) break;
-          if (!tm.content && !tm.toolCall && !tm.subagentSteps) {
+        if (m.role === 'tool') {
+          // 计划行的消费必须与「是否渲染」解耦：hidePlanCards 时跳过渲染但必须前进 i，
+          // 否则掉进下面的分组循环后 break 不推进，外层 while 用同一个 i 无限重跑（页面冻死）。
+          if (m.planSteps && m.planSteps.length > 0) {
+            if (!hidePlanCards) {
+              nodes.push(<PlanCard key={m.id} steps={m.planSteps} />);
+            }
             i += 1;
             continue;
           }
-          group.push(tm);
-          i += 1;
+          if (m.artifact) {
+            // 试运行（test_report）不再单独渲染卡：run 本身就是一次工具调用，
+            // IN/OUT 由工具行承载（dsh 同款语义）；发布（release）仍保留收口卡
+            if (m.artifact.type === 'release') {
+              nodes.push(<ReleaseCard key={m.id} artifact={m.artifact} />);
+            }
+            i += 1;
+            continue;
+          }
+          const group: DisplayMessage[] = [];
+          while (i < messages.length && messages[i].role === 'tool') {
+            const tm = messages[i];
+            if (tm.planSteps && tm.planSteps.length > 0) break;
+            if (!tm.content && !tm.toolCall && !tm.subagentSteps) {
+              i += 1;
+              continue;
+            }
+            group.push(tm);
+            i += 1;
+          }
+          if (group.length > 0) {
+            nodes.push(
+              <ToolSteps key={`tools-${group[0].id}`} messages={group} compact={compact} />
+            );
+          }
+          continue;
         }
-        if (group.length > 0) {
-          nodes.push(<ToolSteps key={`tools-${group[0].id}`} messages={group} compact={compact} />);
-        }
-        continue;
-      }
 
-      if (m.role === 'user') {
-        // 上下文摘要（后端 compaction 产物）：dsh CompactionItem 皮肤的系统注记卡，不占用户气泡
-        if (m.content && m.content.startsWith('【前情摘要】')) {
-          nodes.push(<CompactionCard key={m.id} content={m.content} compact={compact} />);
+        if (m.role === 'user') {
+          // 上下文摘要（后端 compaction 产物）：dsh CompactionItem 皮肤的系统注记卡，不占用户气泡
+          if (m.content && m.content.startsWith('【前情摘要】')) {
+            nodes.push(<CompactionCard key={m.id} content={m.content} compact={compact} />);
+            i += 1;
+            continue;
+          }
+          // 用户新开一轮对话块：右对齐气泡 + 头像，与上一轮之间留呼吸感（首条消息顶部留白由容器 padding 承担）
+          const atts = m.content ? splitAttachments(m.content) : { text: '', files: [] };
+          nodes.push(
+            <div
+              key={m.id}
+              className="chat-fade"
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: 12,
+                padding: '2px 0',
+                marginTop: 22,
+              }}
+            >
+              <div
+                style={{
+                  maxWidth: compact ? '88%' : '78%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-end',
+                  gap: 6,
+                  minWidth: 0,
+                }}
+              >
+                {atts.text && (
+                  <div
+                    style={{
+                      padding: '9px 14px',
+                      borderRadius: 16,
+                      background: CHAT.userBubble,
+                      color: CHAT.userBubbleText,
+                      fontSize: compact ? 13 : 14,
+                      lineHeight: 1.65,
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    {atts.text}
+                  </div>
+                )}
+                {atts.files.length > 0 && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: 6,
+                      flexWrap: 'wrap',
+                      justifyContent: 'flex-end',
+                    }}
+                  >
+                    {atts.files.map((name) => (
+                      <span
+                        key={name}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          padding: '5px 10px',
+                          borderRadius: 10,
+                          border: `1px solid ${CHAT.line}`,
+                          background: CHAT.bgSunken,
+                          fontSize: 12,
+                          color: CHAT.textSub,
+                          maxWidth: 260,
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <IconFile size="small" />
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {m.images && m.images.length > 0 && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: 6,
+                      flexWrap: 'wrap',
+                      justifyContent: 'flex-end',
+                    }}
+                  >
+                    {m.images.map((img, index) => (
+                      <img
+                        key={index}
+                        src={img}
+                        alt=""
+                        style={{
+                          width: 96,
+                          height: 96,
+                          objectFit: 'cover',
+                          borderRadius: 12,
+                          border: `1px solid ${CHAT.line}`,
+                          display: 'block',
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
           i += 1;
           continue;
         }
-        // 用户新开一轮对话块：右对齐气泡 + 头像，与上一轮之间留呼吸感（首条消息顶部留白由容器 padding 承担）
-        const atts = m.content ? splitAttachments(m.content) : { text: '', files: [] };
+
+        // assistant：一次 run 合并为一条回复 —— 头像 + 身份行在前，过程行折叠，正文在后
+        // 发送失败行（[错误] 前缀，阶段 3.3）：就地挂「重试」按钮，重发它的前一条用户输入 ——
+        // 输入框内容可能已被用户改动，重试必须用失败时的原文
+        const isErrorRow =
+          m.role === 'assistant' && typeof m.content === 'string' && m.content.startsWith('[错误]');
+        // 审计 A30：重试要连同当时的图片一起重发（此前只取文本，图片静默丢失）
+        const retrySource = isErrorRow
+          ? [...messages.slice(0, i)]
+              .reverse()
+              .find((x) => x.role === 'user' && x.content && !x.content.startsWith('【'))
+          : undefined;
+        const retryText = retrySource?.content;
+        const retryImages = retrySource?.images?.length ? retrySource.images : undefined;
         nodes.push(
-          <div key={m.id} className="chat-fade" style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, padding: '2px 0', marginTop: 22 }}>
-            <div style={{ maxWidth: compact ? '88%' : '78%', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, minWidth: 0 }}>
-              {atts.text && (
-                <div
-                  style={{
-                    padding: '9px 14px',
-                    borderRadius: 16,
-                    background: CHAT.userBubble,
-                    color: CHAT.userBubbleText,
-                    fontSize: compact ? 13 : 14,
-                    lineHeight: 1.65,
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
-                  }}
-                >
-                  {atts.text}
+          <div
+            key={m.id}
+            className="chat-msg chat-fade"
+            style={{ display: 'flex', gap: 12, padding: '4px 0' }}
+          >
+            <AssistantAvatar />
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <MessageTitle ts={m.timestamp} />
+              {isErrorRow && retryText && (
+                <div style={{ marginBottom: 6 }}>
+                  <button
+                    type="button"
+                    onClick={() => void sendMessage(retryText, retryImages)}
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: CHAT.accent,
+                      background: 'transparent',
+                      border: `1px solid ${CHAT.accent}`,
+                      borderRadius: 8,
+                      padding: '4px 12px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {t('chat.retrySend')}
+                  </button>
                 </div>
               )}
-              {atts.files.length > 0 && (
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                  {atts.files.map((name) => (
-                    <span
-                      key={name}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        padding: '5px 10px',
-                        borderRadius: 10,
-                        border: `1px solid ${CHAT.line}`,
-                        background: CHAT.bgSunken,
-                        fontSize: 12,
-                        color: CHAT.textSub,
-                        maxWidth: 260,
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                      }}
-                    >
-                      <IconFile size="small" />
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
-                    </span>
-                  ))}
-                </div>
+              {/* TRAE 式极简（2026-10-17 二次反馈）：思考 + 工具过程默认收进「任务耗时」一行，
+                点击才展开。live 行的过程由 store 时间线渲染（LiveAssistantContent 内），
+                此处只管历史消息 —— 条件里排除 liveMessageId 防止双路重复 */}
+              {!m.timeline?.length &&
+                m.id !== liveMessageId &&
+                (m.thinking || (m.toolSteps && m.toolSteps.length > 0)) && (
+                  <TaskCollapse elapsedSec={durMsToSec(m.tokenUsage?.durationMs)}>
+                    {m.thinking && <ThinkingItem text={m.thinking} />}
+                    {m.toolSteps && m.toolSteps.length > 0 && (
+                      <ToolSteps
+                        messages={m.toolSteps.map((ts) => ({
+                          id: `ts-${ts.id}`,
+                          role: 'tool' as const,
+                          content: '',
+                          toolCall: ts,
+                          timestamp: m.timestamp,
+                        }))}
+                        compact={compact}
+                      />
+                    )}
+                  </TaskCollapse>
+                )}
+              {m.planSteps && m.planSteps.length > 0 && !hidePlanCards && (
+                <PlanCard key={`plan-${m.id}`} steps={m.planSteps} />
               )}
-              {m.images && m.images.length > 0 && (
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                  {m.images.map((img, index) => (
-                    <img
-                      key={index}
-                      src={img}
-                      alt=""
-                      style={{
-                        width: 96,
-                        height: 96,
-                        objectFit: 'cover',
-                        borderRadius: 12,
-                        border: `1px solid ${CHAT.line}`,
-                        display: 'block',
-                      }}
-                    />
-                  ))}
-                </div>
+              {/* live 行渲染体不要求 streaming=true：done→reload 交接期（streaming 已落定、
+                历史重载未返回）store.timeline 仍持有完整内容，避免闪一帧空回复 */}
+              {m.id === liveMessageId ? (
+                <LiveAssistantContent />
+              ) : m.timeline && m.timeline.length > 0 ? (
+                <HistoryTimeline
+                  timeline={m.timeline}
+                  elapsedSec={durMsToSec(m.tokenUsage?.durationMs)}
+                />
+              ) : (
+                <Markdown
+                  content={m.content}
+                  onOptionClick={handleOptionClick}
+                  optionsDisabled={streaming}
+                  optionsRetired={!!lastAssistantId && m.id !== lastAssistantId}
+                />
               )}
+              <div
+                className="chat-msg-actions"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2,
+                  marginTop: 4,
+                  marginLeft: -4,
+                }}
+              >
+                <IconButton title={t('chat.copy')} onClick={() => copyMessage(m.content)}>
+                  <IconCopy size="small" />
+                </IconButton>
+                {m.debugEntryId && (
+                  <IconButton
+                    title={t('chat.debug')}
+                    onClick={() => openDebug(m.debugEntryId as string)}
+                  >
+                    <IconTerminal size="small" />
+                  </IconButton>
+                )}
+                {m.tokenUsage && m.id !== liveMessageId && <TokenUsagePill usage={m.tokenUsage} />}
+              </div>
             </div>
           </div>
         );
         i += 1;
-        continue;
-      }
-
-      // assistant：一次 run 合并为一条回复 —— 头像 + 身份行在前，过程行折叠，正文在后
-      // 发送失败行（[错误] 前缀，阶段 3.3）：就地挂「重试」按钮，重发它的前一条用户输入 ——
-      // 输入框内容可能已被用户改动，重试必须用失败时的原文
-      const isErrorRow =
-        m.role === 'assistant' && typeof m.content === 'string' && m.content.startsWith('[错误]');
-      const retryText = isErrorRow
-        ? [...messages.slice(0, i)].reverse().find((x) => x.role === 'user' && x.content && !x.content.startsWith('【'))?.content
-        : undefined;
-      nodes.push(
-        <div
-          key={m.id}
-          className="chat-msg chat-fade"
-          style={{ display: 'flex', gap: 12, padding: '4px 0' }}
-        >
-          <AssistantAvatar />
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <MessageTitle ts={m.timestamp} />
-            {isErrorRow && retryText && (
-              <div style={{ marginBottom: 6 }}>
-                <button
-                  type="button"
-                  onClick={() => void sendMessage(retryText)}
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: CHAT.accent,
-                    background: 'transparent',
-                    border: `1px solid ${CHAT.accent}`,
-                    borderRadius: 8,
-                    padding: '4px 12px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  {t('chat.retrySend')}
-                </button>
-              </div>
-            )}
-            {/* TRAE 式极简（2026-10-17 二次反馈）：思考 + 工具过程默认收进「任务耗时」一行，
-                点击才展开。live 行的过程由 store 时间线渲染（LiveAssistantContent 内），
-                此处只管历史消息 —— 条件里排除 liveMessageId 防止双路重复 */}
-            {!m.timeline?.length && m.id !== liveMessageId && (m.thinking || (m.toolSteps && m.toolSteps.length > 0)) && (
-              <TaskCollapse elapsedSec={durMsToSec(m.tokenUsage?.durationMs)}>
-                {m.thinking && <ThinkingItem text={m.thinking} />}
-                {m.toolSteps && m.toolSteps.length > 0 && (
-                  <ToolSteps
-                    messages={m.toolSteps.map((ts) => ({
-                      id: `ts-${ts.id}`,
-                      role: 'tool' as const,
-                      content: '',
-                      toolCall: ts,
-                      timestamp: m.timestamp,
-                    }))}
-                    compact={compact}
-                  />
-                )}
-              </TaskCollapse>
-            )}
-            {m.planSteps && m.planSteps.length > 0 && !hidePlanCards && <PlanCard key={`plan-${m.id}`} steps={m.planSteps} />}
-            {/* live 行渲染体不要求 streaming=true：done→reload 交接期（streaming 已落定、
-                历史重载未返回）store.timeline 仍持有完整内容，避免闪一帧空回复 */}
-            {m.id === liveMessageId ? (
-              <LiveAssistantContent />
-            ) : m.timeline && m.timeline.length > 0 ? (
-              <HistoryTimeline timeline={m.timeline} elapsedSec={durMsToSec(m.tokenUsage?.durationMs)} />
-            ) : (
-              <Markdown
-                content={m.content}
-                onOptionClick={handleOptionClick}
-                optionsDisabled={streaming}
-                optionsRetired={!!lastAssistantId && m.id !== lastAssistantId}
-              />
-            )}
-            <div
-              className="chat-msg-actions"
-              style={{ display: 'flex', alignItems: 'center', gap: 2, marginTop: 4, marginLeft: -4 }}
-            >
-              <IconButton title={t('chat.copy')} onClick={() => copyMessage(m.content)}>
-                <IconCopy size="small" />
-              </IconButton>
-              {m.debugEntryId && (
-                <IconButton title={t('chat.debug')} onClick={() => openDebug(m.debugEntryId as string)}>
-                  <IconTerminal size="small" />
-                </IconButton>
-              )}
-              {m.tokenUsage && m.id !== liveMessageId && <TokenUsagePill usage={m.tokenUsage} />}
-            </div>
-          </div>
-        </div>
-      );
-      i += 1;
       } finally {
         // 防御：任何分支忘记推进游标都在这里兜底，消息分组循环永不死循环
         if (i === iterStart) i += 1;
       }
     }
     return nodes;
-  }, [messages, compact, streaming, liveMessageId, lastAssistantId, handleOptionClick, copyMessage, openDebug]);
+  }, [
+    messages,
+    compact,
+    streaming,
+    liveMessageId,
+    lastAssistantId,
+    handleOptionClick,
+    copyMessage,
+    openDebug,
+  ]);
 
   const lastMsg = messages[messages.length - 1];
   // 打字点只兜「无 live 占位行」的空窗（历史末条是 assistant 且非 live，如重连间隙）；
   // live 行自身已带 WaitingDots + 状态行，再渲染 TypingIndicator 会出现两个 AI 头像
-  const showTyping = streaming && !!lastMsg && lastMsg.role === 'assistant'
-    && lastMsg.id !== liveMessageId
-    && !hasLiveContent;
+  const showTyping =
+    streaming &&
+    !!lastMsg &&
+    lastMsg.role === 'assistant' &&
+    lastMsg.id !== liveMessageId &&
+    !hasLiveContent;
 
   // 画布活卡只在「这一轮真的动过画布」时出现：streaming 开始时记下当前产物版本，
   // 版本号在本轮内发生过变化才亮卡；run 结束即定格（对话流交还给快照卡）。
@@ -797,7 +1007,10 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
       setLiveCanvasVersion(null);
     }
     if (streaming && liveWorkflowArtifact) {
-      if (versionAtStartRef.current !== null && versionAtStartRef.current !== liveWorkflowArtifact.version) {
+      if (
+        versionAtStartRef.current !== null &&
+        versionAtStartRef.current !== liveWorkflowArtifact.version
+      ) {
         setLiveCanvasVersion(liveWorkflowArtifact.version);
       } else if (versionAtStartRef.current === null && liveWorkflowArtifact.version > 0) {
         // run 从零构建：本会话此前没有产物，第一次 upsert 就算「动了」
@@ -812,7 +1025,6 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
     prevStreamingRef.current = streaming;
   }, [streaming, liveWorkflowArtifact]);
 
-
   return (
     <div style={{ position: 'relative', height: '100%', minHeight: 0 }}>
       <ChatStyles />
@@ -823,11 +1035,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
         style={{
           height: '100%',
           overflowY: 'auto',
-          padding: dense
-            ? '4px 0 8px'
-            : compact
-              ? '10px 12px 12px'
-              : '18px 24px 24px',
+          padding: dense ? '4px 0 8px' : compact ? '10px 12px 12px' : '18px 24px 24px',
         }}
       >
         <div

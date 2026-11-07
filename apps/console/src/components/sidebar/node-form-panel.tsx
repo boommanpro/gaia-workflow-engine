@@ -59,6 +59,9 @@ export const NodeFormPanel: React.FC<NodeFormPanelProps> = ({ nodeId }) => {
         handleClose();
       } else if (selection.selection.length === 1 && selection.selection[0] !== node) {
         handleClose();
+      } else if (selection.selection.length > 1) {
+        // 审计 A38：框选多节点时表单不再显示其中某个旧节点（避免误导编辑）
+        handleClose();
       }
     });
     return () => toDispose.dispose();

@@ -3,10 +3,11 @@
  * 独立发布日志页面，具备 Home / Release Log 导航
  */
 
-import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ReleaseTimeline } from '../components/ReleaseTimeline';
+import { useEffect, useState } from 'react';
+
 import { publicPath } from '../utils/public-path';
+import { ReleaseTimeline } from '../components/ReleaseTimeline';
 
 type Lang = 'en' | 'zh';
 
@@ -16,7 +17,8 @@ const FONT_STACK =
 
 export const Releases = () => {
   const navigate = useNavigate();
-  const [lang, setLang] = useState<Lang>('en');
+  // 审计 A32：默认跟随全局语言（应用钉死 zh-CN，此前这里默认 en 出现整页英文）
+  const [lang, setLang] = useState<Lang>('zh');
 
   const t = {
     nav: {
@@ -36,7 +38,8 @@ export const Releases = () => {
   useEffect(() => {
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap';
+    link.href =
+      'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap';
     document.head.appendChild(link);
     return () => {
       document.head.removeChild(link);
@@ -44,22 +47,29 @@ export const Releases = () => {
   }, []);
 
   return (
-    <div style={{ fontFamily: FONT_STACK, background: '#fff', color: '#1a1a1a', minHeight: '100vh' }}>
+    <div
+      style={{ fontFamily: FONT_STACK, background: '#fff', color: '#1a1a1a', minHeight: '100vh' }}
+    >
       {/* Navigation */}
-      <nav style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 100,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 48px',
-        height: '64px',
-        background: 'rgba(255,255,255,0.9)',
-        backdropFilter: 'blur(12px)',
-        borderBottom: '1px solid #f0f0f2',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }} onClick={() => navigate('/')}>
+      <nav
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 100,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 48px',
+          height: '64px',
+          background: 'rgba(255,255,255,0.9)',
+          backdropFilter: 'blur(12px)',
+          borderBottom: '1px solid #f0f0f2',
+        }}
+      >
+        <div
+          style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
+          onClick={() => navigate('/')}
+        >
           <img src={publicPath('logo.svg')} alt="Gaia" style={{ width: 48, height: 48 }} />
           <div>
             <div style={{ fontSize: '18px', fontWeight: 700, lineHeight: 1 }}>Gaia</div>
@@ -136,7 +146,9 @@ export const Releases = () => {
       <section id="releases" style={{ padding: '80px 48px' }}>
         <div style={{ maxWidth: '800px', margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-            <h1 style={{ fontSize: 'clamp(28px, 3.5vw, 36px)', fontWeight: 700, margin: '0 0 12px' }}>
+            <h1
+              style={{ fontSize: 'clamp(28px, 3.5vw, 36px)', fontWeight: 700, margin: '0 0 12px' }}
+            >
               {t.title}
             </h1>
             <p style={{ fontSize: '16px', color: '#666' }}>{t.subtitle}</p>
@@ -147,11 +159,13 @@ export const Releases = () => {
       </section>
 
       {/* Footer */}
-      <footer style={{
-        padding: '32px 48px',
-        borderTop: '1px solid #f0f0f2',
-        textAlign: 'center',
-      }}>
+      <footer
+        style={{
+          padding: '32px 48px',
+          borderTop: '1px solid #f0f0f2',
+          textAlign: 'center',
+        }}
+      >
         <div style={{ fontSize: '14px', color: '#999', marginBottom: '4px' }}>{t.footer.desc}</div>
         <div style={{ fontSize: '13px', color: '#bbb' }}>{t.footer.copyright}</div>
       </footer>

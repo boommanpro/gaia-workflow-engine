@@ -72,7 +72,7 @@ export {
 export interface TestRunRecord {
   id: string;
   timestamp: number;
-  status: 'success' | 'error' | 'running';
+  status: 'success' | 'error' | 'running' | 'canceled';
   schema: Record<string, unknown>;
   inputs: WorkflowInputs;
   outputs: WorkflowOutputs;
@@ -108,6 +108,8 @@ export class WorkflowRuntimeService {
     errorItems?: TestRunErrorItem[];
     /** 校验放行但应关注的告警（后端 warning 级） */
     warnings?: string[];
+    /** 审计 A7：用户取消（区别于成功/失败，不显示误导性排查文案） */
+    canceled?: boolean;
     result?: {
       inputs: WorkflowInputs;
       outputs: WorkflowOutputs;
@@ -121,6 +123,12 @@ export class WorkflowRuntimeService {
   private lastResult?: { inputs: WorkflowInputs; outputs: WorkflowOutputs };
 
   private lastError?: string[];
+
+  /** 审计 A19：TaskReport 连续失败计数（成功即清零） */
+  private reportFailCount = 0;
+
+  /** 审计 A17：taskRun 启动中标志（校验 + TaskRun 往返期间防重入） */
+  private startInFlight = false;
 
   private lastReport?: IReport;
 
@@ -147,7 +155,7 @@ export class WorkflowRuntimeService {
   }
 
   private saveToHistory(
-    status: 'success' | 'error',
+    status: 'success' | 'error' | 'canceled',
     schema: Record<string, unknown>,
     inputs: WorkflowInputs,
     outputs: WorkflowOutputs,
@@ -214,6 +222,21 @@ export class WorkflowRuntimeService {
     if (cancelExisting && this.taskID) {
       await this.taskCancel();
     }
+    // 审计 A17：启动中（校验/TaskRun 往返期间）重复调用直接忽略，
+    // 防止连点产生双任务（旧任务在后端继续跑但轮询被顶掉，成为孤儿任务）
+    if (this.startInFlight) {
+      return undefined;
+    }
+    this.startInFlight = true;
+    try {
+      return await this.taskRunInner(inputs);
+    } finally {
+      this.startInFlight = false;
+    }
+  }
+
+  private async taskRunInner(inputs: WorkflowInputs): Promise<string | undefined> {
+    this.reportFailCount = 0; // 审计 A19：新一轮运行重置轮询失败计数
     const formErrors = await this.validateForm();
     if (formErrors.length > 0) {
       this.fireValidationBlocked(formErrors, []);
@@ -483,14 +506,31 @@ export class WorkflowRuntimeService {
       taskID: this.taskID,
     });
     if (!report) {
-      clearInterval(this.syncTaskReportIntervalID);
-      console.error('Sync task report failed');
+      // 审计 A19：单次轮询失败不再永久卡死「运行中」——连续失败 3 次才放弃，
+      // 放弃时清 taskID 并给出可见错误（此前 interval 清了但 taskID 永远留着，
+      // isTaskRunning() 恒真，面板永远转圈）
+      this.reportFailCount += 1;
+      console.error(`Sync task report failed (${this.reportFailCount}/3)`);
+      if (this.reportFailCount >= 3) {
+        clearInterval(this.syncTaskReportIntervalID);
+        this.taskID = undefined;
+        this.reportFailCount = 0;
+        const errors = ['运行状态查询连续失败，已停止跟踪。请重新运行或检查网络。'];
+        this.resultEmitter.fire({ errors });
+        this.saveError(errors);
+      }
       return;
     }
+    this.reportFailCount = 0;
     const { workflowStatus, inputs, outputs, messages } = report;
     if (workflowStatus.terminated) {
       clearInterval(this.syncTaskReportIntervalID);
       this.taskID = undefined;
+      // 审计 A7：取消就是取消——不落入「成功但无产出」分支，不用伪错甩锅给工作流
+      if (workflowStatus.status === WorkflowStatus.Cancelled) {
+        this.saveCanceled(report, inputs);
+        return;
+      }
       const hasOutputs = outputs && Object.keys(outputs).length > 0;
       const errorMessages = messages?.error?.filter((message) => message.message) ?? [];
       const titleOf = this.buildTitleLookup();
@@ -530,6 +570,17 @@ export class WorkflowRuntimeService {
       }
     }
     this.updateReport(report);
+  }
+
+  /** 审计 A7：取消的运行按 canceled 归档，面板显示「已取消」而非成功/伪错 */
+  private saveCanceled(report?: IReport, inputs?: WorkflowInputs): void {
+    this.lastResult = undefined;
+    this.lastError = undefined;
+    this.resultEmitter.fire({ canceled: true, result: { inputs: inputs || {}, outputs: {} } });
+    if (this.currentRunSchema) {
+      this.saveToHistory('canceled', this.currentRunSchema, inputs || {}, {}, report);
+      this.currentRunSchema = undefined;
+    }
   }
 
   public updateReport(report: IReport): void {
@@ -644,5 +695,17 @@ export class WorkflowRuntimeService {
   public clearResult(): void {
     this.lastResult = undefined;
     this.lastError = undefined;
+  }
+
+  /** 审计 A44：随 runtime plugin 销毁——清轮询、清任务态、清模块级 replayStore，
+   *  避免编辑器重挂后旧回放横幅浮在新画布上 */
+  public dispose(): void {
+    if (this.syncTaskReportIntervalID) {
+      clearInterval(this.syncTaskReportIntervalID);
+    }
+    this.taskID = undefined;
+    this.reportFailCount = 0;
+    this.startInFlight = false;
+    replayStore.publish(null);
   }
 }
