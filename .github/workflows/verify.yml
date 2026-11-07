@@ -19,7 +19,9 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          # 21：Java 代码节点运行时编译硬编码 -source 21（JavaCompilerEngine），
+          # 17 下所有 java 执行类测试报 invalid source release
+          java-version: '21'
           cache: maven
 
       - name: Run tests

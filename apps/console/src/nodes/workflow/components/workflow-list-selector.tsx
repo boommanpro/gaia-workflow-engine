@@ -55,7 +55,7 @@ export const WorkflowListSelector: React.FC<WorkflowListSelectorProps> = ({
 
   useEffect(() => {
     loadOptions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // 依赖刻意收窄（见上注释）——eslint-disable 指令在 CI 旧版 eslint 下报「规则不存在」
   }, []);
 
   useEffect(() => {

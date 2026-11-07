@@ -7,7 +7,7 @@
   "main": "./src/index.ts",
   "files": [
     "src/",
-    "eslint.config.cjs",
+    "eslint.config.js",
     ".gitignore",
     "index.html",
     "package.json",

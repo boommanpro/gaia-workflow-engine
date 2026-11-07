@@ -63,7 +63,7 @@ A modern visual rule engine platform for orchestrating complex AI workflows. Des
 | Requirement | Version |
 |-------------|---------|
 | Node.js     | >= 18   |
-| Java        | >= 17   |
+| Java        | >= 21 (runtime compile for code nodes) |
 | Maven       | 3.x     |
 | Git         | any     |
 
