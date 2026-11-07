@@ -273,6 +273,205 @@
   会话侧旧版「载入」的浏览器端到端（单测与代码链路已覆盖，未找绑定工作流的会话实测）；
   en-US 界面仅静态文案检查未切语言实测。
 
+- 2026-11-04（单身份改版：版本只由「发布」产生，编辑器「保存」退役）：
+  · 背景与决策：全量盘点版本表 6 个写入点（W1 草稿镜像 / W2 新建工作流 v1.0 即生效 /
+    W3 apply 链路即生效 / W4 编辑器 create 不生效 / W5 set-current 指针 / W6 update 无前端入口），
+    结合 Dify/Coze（版本=发布）与 Replit/Voiceflow（版本=commit+环境）对标，用户确认收敛为
+    单身份模型——时间线上每个里程碑 = 一次用户显式发布，「保存了但不生效」状态从产品里删除。
+  · 实现（apps/console，后端零改动）：
+    ① editor.tsx 正式模式「保存」按钮移除（本地 IndexedDB 自动持久化 + beforeunload 守卫承担
+    "别丢"职责），W4 前端停用（createVersion 调用、前端算版本号、首版特判、三次 listVersions
+    回捞全删）；② 常驻「发布生效」按钮按内容键路由（document/version-content.ts 共享模块，
+    fromJSON→toJSON 同管线字符串比对）：画布恰好等于某旧版本 → Popconfirm → set-current
+    指针回拨；否则 → 确认弹窗（版本说明，有归属会话时 AI 代拟预填）→ applyDsl 生成新版本即生效
+    （版本号后端统一编排）；无编码首存并入发布入口（编码弹窗文案改发布语义）；③ 头部状态徽标
+    三态：✓与生效版本一致（vX）/ 预览 vX · 线上 vY / ●有未发布的修改（悬停说明已本地保存），
+    替代 vN 三态标签与未保存角标；④ EditorHeader 的 currentVersionId prop 与父组件同名 state
+    连根移除（内容键判定取代 id 记账）；⑤ 里程碑来源 meta 补 createdBy=system →「初始创建」
+    （W2 初始版）；⑥ i18n 新增 12 key、清理 5 个无引用 key（saveAsNewVersion/versionEffective/
+    previewLabel 等）。
+  验证：`npm run ts-check`（改动文件 0 错误，总数 29=基线）、`npm test`（189 通过 27 文件，
+    新增里程碑来源 system 用例）、`npm run lint`（改动文件 0 error）。浏览器实测
+    （wf_087b971f1357）：刷新后头部「历史 + ✓与生效版本一致（v1.1）+ 发布生效[置灰]」，保存按钮
+    消失；指针路径端到端——载入 v1.2 → 徽标「预览 v1.2 · 线上 v1.1」→ 发布生效 → Popconfirm
+    「将 v1.2 设为生效版本」→ 确认 → 生效中切 v1.2、徽标转一致；再载入 v1.1 → 发布生效 →
+    恢复 v1.1（数据净零变化）。
+  未验证：apply 生成新版本路径的编辑器端到端点击（flowgram 画布节点自动化操作受限未能制造
+    脏画布；弹窗/路由为静态+类型验证，applyDsl 端点与会话页「保存为版本」同源且久经浏览器验证）；
+    draftMode（/chat 精修）头部回归未浏览器实测（代码路径未动，保存草稿控件保留）；
+    en-US 仅静态检查。遗留规范债：W6 /update 端点可原地改已发布版本正文，与 NC-08 精神冲突
+    （无前端入口，建议后续收口或加只读约束）。
+
+- 2026-11-04 晚（用户实测反馈修复：多 CURRENT 数据完整性 bug + 时间线收敛为纯版本）：
+  · 后端修复（is_current 归一化）：WorkflowDslApplyService.apply 的无 CAS 路径（编辑器「发布生效」
+    不传 expectedRevision）此前直接以 is_current=1 落行并跳过清旧归一化——同一工作流累积多个
+    is_current=1（wf_087b971f1357 实发三条：v1.0/v1.4/v1.5）。修复为归一化无条件执行
+    （清旧 workflow_code 维度 + 设新 id 维度两条 UPDATE）。会话保存带 CAS 落行 0 历来走归一化，
+    故此前未暴露。存量脏数据经 PUT set-current/197 归一（CURRENT 唯一 → v1.5）。
+  · 时间线收敛（用户决策「仅仅需要版本功能」）：快照（回滚/修改节点/AI 每轮等前端变动记录）
+    不再进入历史 UI——CanvasHistoryTimeline 只渲染版本里程碑；过滤 chips、AI 摘要批量拉取、
+    快照对比弹窗、载入快照 Popconfirm 全部移除（撤销仍走 Ctrl+Z，引擎快照机制保留）。
+    「当前」按内容键判定，同键多版本（连续发布仅坐标不同）取最新命中唯一标记。
+  · 内容键忽略节点坐标（canvasContentKey，document/version-content.ts）：纯拖动是排版不是
+    内容变更——随意移动节点不再产生「可发布差异」，编辑器发布按钮保持置灰（起因：用户拖动后
+    点发布产生了仅坐标不同的 v1.3/v1.4/v1.5 垃圾版本）。里程碑「当前」与发布路由共用该键。
+  · i18n 清理 22 个无引用 key（timelineAll/VersionsOnly、snapshotReason* 族、rollbackConfirm* 等）。
+  验证：后端 `mvn -pl gaia-workflow-app -am test`（366 通过 0 失败，含新增回归钉子
+    noCasPathStillNormalizesIsCurrent——无 CAS 路径归一化两条 UPDATE 必须无条件执行）；
+    前端 `npm test`（192 通过 28 文件，新增 version-content 单测 4 项——坐标剥离/参数敏感/
+    双管线一致/空输入兜底，渲染契约重写 7 项——快照不进 UI/无设为生效/里程碑动作与来源/
+    内容键当前唯一标记/未落版引导/底部说明/初始创建）、`npm run ts-check`（本次改动文件 0 错误；
+    总数 56 中 27 为并行开发新文件的既有错误，如 node-visualts/editor-prefs-panel/prefs.* 类型未接入）。
+    浏览器复验：头部「✓ 与生效版本一致（v1.5）」发布置灰；时间线 6 张里程碑、生效中×1、当前×1、
+    载入×5（v1.0-v1.4）、无快照行无过滤 chips。
+  未验证：拖动节点后发布按钮保持置灰的浏览器端到端（画布自动化拖动受限；坐标剥离有单测覆盖，
+    且用户复测即可）；运行中后端进程仍为修复前代码，**需重启后端**使归一化修复生效（数据已归一，
+    重启前再从编辑器发布仍可能累积多 CURRENT）。
+
+- 2026-11-04 深夜（两项收口：后端重启生效 + 一致性标准改 B「完全按直觉」）：
+  · 后端重启落地：旧 jar（11-03 19:48 启动，SIGTERM 未退出，kill -9 后以新 jar 重启，pid 36261）
+    ——归一化修复运行时验证：对 wf_087b971f1357 真实 apply 一次（v1.7，desc「归一化修复运行时验证」，
+    内容与 v1.6 全同），生成后 CURRENT 唯一（v1.6 被正确清零）；21:12 旧代码造成的双 CURRENT
+    已先经 set-current 归一。
+  · 一致性标准改 B（用户决策，推翻同日晚间的「坐标剥离」标准）：内容键恢复全字段比对（含
+    meta.position）——拖动节点即产生「未发布的修改」，可发布携带新坐标的新版本；防垃圾版本
+    的职责交还给发布确认弹窗的差异说明（AI 代拟版本说明）。version-content.ts 的坐标剥离移除，
+    canvasContentKey=全字段序列化；同键多版本 tie-break（取最新命中）保留为确定性防御。
+    单测同步反转（坐标移动必须改变键），渲染测试注释更新。
+  验证：`npm test`（192 通过 28 文件）、ts-check 本次改动文件 0 错误（其余错误在并行开发文件）；
+  浏览器刷新后画布与 v1.7 全字段一致 → 徽标「✓ 与生效版本一致（v1.7）」发布置灰。
+  未验证：拖动后徽标即时翻转的浏览器端到端（画布自动化受限；单测已锁行为，用户拖动即可复测）。
+
+
+- 2026-11-04 深夜二（头部收纳：测试用例进工具栏、发布API 回工作流管理页）：
+  · 编辑器头部「发布为 API」按钮及其私有弹窗/handlePublish/5 个死状态整体移除——API 发布/文档/
+    重置/下架能力本就完整存在于工作流管理页行内「更多 → API 文档」（ApiDocModal，未发布可在弹窗
+    内原位发布），编辑器不再重复入口；「测试用例」从头部移进画布工具栏运行组（DemoTools 新增
+    testWorkflowCode prop，TestCaseSheetButton 新增 toolbar 图标变体并顺手 i18n 化 editor.testCases，
+    画布取数经 useClientContext 就地封装）。模板编辑器不传（无运行组）。
+  · 过程记录（git stash 事故与恢复）：验证类型基线时误用 git stash 对比，与用户并行改动
+    （run-history-panel.tsx）冲突导致 pop 受阻——经分离 stash、格式化等价合并后全量恢复，
+    diff 确认仅存预期差异（IconPulse），stash 已清空；lesson：并行开发期禁用整库 stash 类操作。
+  验证：`npm test`（192 通过）、ts-check 改动文件无新错误（test-case-panel 的 5 个 TS2589 为
+    既有 Semi 类型深度问题，HEAD 上即存在）；浏览器复验——编辑器头部只剩「历史/状态徽标/发布生效/
+    添加节点/试运行」，测试用例图标按钮确认在 .demo-free-layout-tools 工具栏运行组内。
+  未验证：测试用例 SideSheet 从工具栏打开的面板功能回归（数据面未改动）；/workflows 行内
+    「更多 → API 文档」发布链路（ApiDocModal 未改动）。
+
+- 2026-11-04（编辑器 UX 方案一基线落地，docs/editor-ux-benchmark-proposal-2026-11-03.md §4.6 用户确认方向，纯前端展示层、DSL 零改动）：
+  · 偏好系统 `gaia.editor.prefs`（localStorage，单键 JSON）：主题(跟随应用/浅/深)、画布背景(点阵/无，网格待插件级支持)、
+    强调色(4 预设，写 --g-workflow-line/port-color)、工具栏位置(默认下部居中/左下/顶部/左侧)、节点密度(紧凑=仅渲染表单头+224px 胶囊)、
+    节点添加方式五开关(左栏面板/工具栏按钮/端口+/右键菜单/拖线)；齿轮弹层 components/editor-prefs-panel。
+  · 图标单源 `nodes/node-visuals.tsx`：24px 线性 SVG + 六类分类色(--g-nodecat-*)，节点头/节点面板/LightCanvas 三处消费收敛，
+    移除 img 位图依赖（assets 旧图标文件保留未删）；节点头新增副标题摘要（llm 模型名/http host/code 行数等，只读派生）。
+  · 工具栏重组 components/tools：视图/编辑/插入/运行四段 + 「···」溢出(只读/报告/DSL/快捷键帮助 Modal)；小地图独立左下；
+    位置随偏好实时移动。左侧节点面板 components/node-palette-rail（搜索+分类+点击放置，与右键菜单同创建链路）。
+  · 主题 token 化：--ge-* 变量 + [data-theme=dark] 覆盖（头部/工具栏/节点卡/表单头），编辑器页随应用深色模式。
+  · SelectorBoxPopover 硬编码英文接入 t()；i18n zh/en 增 ~60 key（语言包字面量改 as I18nLanguage 断言以携带自定义键）。
+  验证：`npx tsc --noEmit`（30 个既有错误均在未改动文件，改动文件 0，与基线一致）；`npm test`（192 通过 28 文件；
+  首轮出现过 version-content 2 例失败，单文件与全量复跑均绿，判定为一次性运行抖动）；`npx eslint 改动文件`（0 error，
+  prettier 警告已 --fix）。未验证：浏览器端到端（深色/工具栏移位/紧凑/左栏放置的实际交互）、`npm run build`、e2e replay。
+  未实施（后续分期）：连线样式偏好、画布网格背景、左栏真拖拽放置(现为点击放置)、节点悬停快捷操作/菜单增强/分组折叠描述（P1 余项）。
+
+- 2026-11-05（呈现层改版二批：卡片摘要重写 + description 可空 + Schema 查看 + 工具栏/顶部栏归位，对标 Coze/Dify 视觉稿用户确认）：
+  · 副标题摘要重写 `nodes/node-visuals.tsx`：卡片头部一行只放「决定行为的关键参数」——llm 显示解包后的
+    模型名+温度+JSON 输出、http 显示 `METHOD host/path`（url 解包 template/constant）、code 显示 `函数名 · 语言`
+    （替代“JS·N 行”）、start/end/variable/workloop 显示真实变量名/引用名、loop 显示遍历路径+上限；
+    同时修复 6 处取数字段与 schema 不一致导致的「永不显示」：start 读 outputs（原误读 inputs）、end 读 inputs（原误读
+    outputs）、llm modelName 未解包装、http url 未解包装、variable 读 assign（原误读 assigns）、workflow 读
+    workflowName（原误读 workflowCode）。condition/branches 不再显示「N 个条件/分支」计数（卡片主体逐条渲染）。
+    前端测试：`src/nodes/__tests__/node-visuals.subtitle.test.ts` 13 项钉住全部口径。
+  · description 可空：`form-components/form-content` 去掉 `value || 默认文案` 兜底——画布空描述整行不渲染（零占位）、
+    侧栏显示「双击添加描述」引导；画布双击变单行 Input（Enter/失焦保存、Esc 还原）、侧栏 TextArea（原有），
+    编辑事件 stopPropagation 不再误开表单面板。schema 侧配套：16 个 node-schemas 根级补声明可选 string
+    `description`（此前 data 根级 additionalProperties:false，改过描述的草稿发布/试跑会被 S3 判 INVALID_PARAM——
+    后端测试 `NodeSchemaDescriptionOptionalTest` 钉住「可选放行/类型错拒绝/未知字段仍拒绝」，不降校验强度）。
+  · Schema 查看（P-01/NC-04）：新增 `agent/node-templates/schemas.ts` 直接 import 后端 16 个 schema JSON、
+    `components/node-schema-view`（树视图 + 全屏左右对照弹窗）；侧栏面板页签化「表单/参数 Schema/实例 JSON」，
+    卡片头部 ⤢（原「导出 JSON」按钮升级为契约⇄实例双栏视图）。契约只读派生，前端不复制第二套规则。
+  · 工具栏单胶囊分组 `components/tools`：历史（撤销/重做，走 ctx.history 与 ⌘Z 同源）· 视图（−/%/＋ 三件套 + 适应 +
+    小地图）· 布局（自动布局回归）· 插入 · 变量 Dock · 运行（历史/保存/试运行/测试用例）·「⋯」溢出（交互模式
+    鼠标/触控板）；删除旧 ZoomSelect 单下拉。文档级动作（发布/版本历史）归顶部栏。
+  · 顶部栏归位 `editor.tsx`：工作流名就地编辑（点击变输入框，随下次发布生效）；版本状态徽标移到名称旁；
+    草稿模式合并为一枚「会话草稿 · 未保存」徽标；齿轮置尾；「专家模式」标签移入偏好面板。
+  · 卡片宽度 360→300：base-node + 13 个节点注册表 meta.size 同步，后端镜像 `WorkflowLayoutEngine.NODE_SIZES`
+    与 `CanvasPlacement.BOX_W` 同步（契约测试 WorkflowLayoutEngineNodeSizeContractTest 钉住），蛇形列距测试常量跟随。
+  验证：前端 `npm test`（213 通过 30 文件，新增 subtitle 13 项）；`npm run ts-check`（改动文件 0 错误，31 个既有
+  错误均在未改动文件：ModelManagement/test-case-panel Semi 类型深度等基线）；eslint 改动文件 0 error。后端
+  `mvn -B -pl gaia-workflow-app -am -Dtest=WorkflowLayoutEngineNodeSizeContractTest,WorkflowLayoutEngineTest,
+  NodeSchemaBadcaseCorpusTest,NodeCatalogTest,SessionDraftLayoutRevisionTest,NodeSchemaDescriptionOptionalTest test`
+  （35 通过 0 失败）。浏览器实测（localhost:3001 /editor/wf_087b971f1357，DOM 断言）：开始「输入 input · score」、
+  结束「输出 result」、条件节点无计数副标题、空描述零占位 + 侧栏引导行、卡片 ⤢ 弹窗契约树⇄实例双栏、侧栏三页签、
+  工具栏/顶部栏新布局全部就位。未验证：截图级视觉走查（IAB webview 对 flowgram 画布截图超时，需外部浏览器人工目测）、
+  后端运行时（WorkflowLayoutEngine/CanvasPlacement 改动需重启后端进程才对布局 API 生效）、真实发布链路带 description
+  草稿的端到端（单测覆盖校验语义）。
+  并行协调记录：本批与另一会话（vardock 验证）在同一工作区交错 stash/restore 两次；已从 stash 完整恢复双方改动，
+  stash 条目（vardock-verify*）保留未动，后续如 pop 冲突以工作区现状为准。
+
+- 2026-11-06（画布工具栏/侧边栏/节点菜单交互更新 + 测试用例面板重设计含 AI，纯展示层 + 测试用例 AI 端点，节点契约零改动）：
+  · 工具栏：删除「⋯ 更多」溢出菜单（InteractiveOverflow，仅交互模式两项无使用价值）——交互偏好（鼠标/触控板）
+    迁入齿轮设置弹层「工作区」分组（RadioGroup，存储键 workflow_prefer_interactive_type 不变）；运行组顺序改
+    变量·测试用例·运行历史·试运行（2026-11-06 用户决策：测试用例移到运行历史前）。清理 .gaia-tools-overflow
+    CSS 与 tool.more i18n 键。
+  · 图标单源：新增 assets/icon-test-case（list-checks 勾选清单）、icon-run-history（scroll-text 运行日志）、
+    icon-variable（{x} 变量符号）、icon-sparkles（AI 入口），均 Lucide 几何 ISC、currentColor 线性 SVG，
+    与 IconAutoLayout 同套路（JSX 字面量，icon={X} 传元素）；三处入口替换（变量按钮弃用 PNG 位图）；
+    RunHistoryButton 补齐缺失的 Tooltip/aria-label。
+  · 节点「···」菜单新增「导出 JSON」（node.toJSON() 下载 <nodeId>.json，侧边栏页签退役后实例 JSON 唯一出口）；
+    顺带修复 delete 项反向逻辑（原 !!(canDelete?.() || deleteDisable) 在 canDelete 返回真值时反而禁用，
+    现为 deleteDisable===true || canDelete===false 才禁用——当前无 registry 定义 canDelete，行为无实际变化）。
+  · 侧边栏仅保留表单（node-form-panel 删除 表单/参数Schema/实例JSON 页签与 FormHeader——FormHeader 在侧栏态
+    返回 null，标题/⌈查看Schema⌉/··· 只在画布卡片；新增右上幽灵 ✕；底部「测试此节点」保留）。
+  · 测试用例面板重写（SideSheet 460→520）：状态统计条 + 操作行 + 用例卡（状态图标/✓n✗n 摘要/可展开断言明细，
+    期望 vs 实际等宽对齐，真实图标替代 emoji）；全量 i18n（testCase.* 55 键 zh/en）+ --ge-*/--g-nodecat-* token。
+  · AI 三能力（TestCaseAiService，LlmCompletionService 复用，「AI 起草、用户确认」边界——AI 不落库）：
+    POST /test-case/ai-generate（场景文本输入定向生成，空 prompt 则模型自行设计边界用例——2026-11-06 用户
+    要求；画布摘要只含节点清单/连线/start-end 参数声明，刻意不含节点配置值，凭证零暴露）、
+    /test-case/ai-assertions（依据最近实际输出建议断言，勾选合并进 expected）、
+    /test-case/ai-diagnose（失败断言→结论+可采纳期望值修复）；op 白名单/条数封顶/围栏剥离收敛。
+  验证：前端 `npm test`（216 通过 31 文件，新增 test-case-panel/index.render.test.tsx 3 项——列表统计/AI 定向
+    生成勾选只存所选/非法 JSON 保留现场）、`npx tsc --noEmit`（改动文件新增错误 0；test-case-panel 剩 5 个
+    TS2589 为 HEAD 同类 Semi 泛型深度问题，status 2026-11-04 已记录）、eslint 改动文件 0 error；
+    后端 `mvn -B -pl gaia-workflow-app -am -Dtest=TestCaseAiServiceTest,NodeCatalogTest,
+    GetKnowledgeCatalogTest,NodeKnowledgeContractTest,NodeSchemaBadcaseCorpusTest test`
+    （36 通过 0 失败，TestCaseAiServiceTest 6 项）。浏览器实测（localhost:3001 /editor/wf_087b971f1357，
+    headless Chromium DOM 断言）：工具栏顺序 变量(824)<测试用例(865)<运行历史(913)<试运行(947)、无「更多」、
+    三新图标 svg 渲染；侧边栏无页签/有测试条与幽灵✕；节点···悬停出「导出 JSON」；设置弹层滚动交互行；
+    测试用例面板 AI 输入区（textarea+提示文案）。未验证：AI 端点运行时（48080 后端进程仍为旧代码，需重启后
+    新端点才可用；服务层已有单测覆盖）、真实 LLM 调用生成质量、深色主题走查、en-US 切换实测。
+  用户决策记录：画布节点交互重设计（芯片切换紧凑/n8n 方块/双击完全面板/删设置紧凑开关）本轮不做
+    （视觉稿 docs 外会话记录，用户评价效果不好暂缓）；紧凑模式开关保留在设置弹层。
+  11-07 补记（用户实测「AI 生成报 Not Found」）：根因是 48080 仍跑 11-05 旧 jar（新端点 404，Spring 默认
+    错误体的 error:"Not Found" 被面板 Toast 透传）。已 mvn package 重新打包并原样重启（同 cwd、同
+    java -jar 命令，旧进程 SIGTERM/kill -9，新进程日志 /tmp/gaia-backend-48080.log）。复验：ai-generate
+    200；浏览器端到端（3001 → 编辑器 → 测试用例 → AI 生成，输入场景「空输入兜底与超长文本」）真实 LLM
+    返回 5 条定向建议、勾选区与「保存所选（5）」正常渲染；list/run/models-health 200；新进程日志真实
+    ERROR 0（grep 命中 94 条为 SQL 行转储噪音）。未验证：保存所选入库的真实写库（留用户操作，走既有
+    /test-case/create）；ai-assertions/ai-diagnose 的真实 LLM 调用（服务层单测覆盖，未实测）。
+  11-07 补记二（用户实测「全部运行没反应」）：根因是 run 接口 workflowCode 分支存量 bug——旧代码
+    `JSONUtil.parseObj(runCase(...).toString())` 把 Lombok 实体 toString（"WorkflowTestRun(id=...)"）当
+    JSON 解析，首次有启用用例时必抛 "A JSONObject text must begin with '{'" → 500；此前该工作流无用例，
+    循环不执行故从未暴露。修复：改 List<WorkflowTestRun> 直传 Jackson（与单用例分支同口径）。前端
+    runAll/runOne 补齐错误反馈（非 2xx/error 字段 → Toast）与 loading 态（全部运行按钮、单卡运行 Spin），
+    消除「静默无反应」。已重启后端复验：/run workflowCode 分支 200、5 条用例真实执行（failed 均为断言
+    未过——AI 草稿期望值质量问题，如 equals "null"，属 ai-diagnose 修复场景，非链路错误）；浏览器端到端
+    ——点击全部运行后统计 0 通过/5 失败/0 未运行实时更新、断言明细与 AI 诊断入口渲染；ai-diagnose 真实
+    调用返回 diagnosis+fix 结构、ai-assertions 返回合理建议（result contains "及格"）。验证：前端 vitest
+    面板 3 项过、eslint 0 error；后端重新打包重启（mvn package -DskipTests）。
+  11-07 补记三（用户反馈：侧栏无头太丑）：FormHeader 侧栏态从「返回 null」改为渲染精简头——
+    logo 芯片（分类色单源 getIcon）+ 可编辑标题（TitleInput 新增 singleClickEdit：侧栏单击进入编辑，
+    画布卡片保留双击避免与拖拽误触冲突）+ 运行状态点 + 关闭按钮（并入头部右侧，移除 NodeFormPanel
+    浮层幽灵 ✕）；⤢ 查看 Schema / ··· 菜单仍只在画布卡片，页签不回归。验证：ts-check 改动文件 0 错误、
+    vitest 216 全过、eslint 0 error；浏览器实测（3001，dev server 曾停止已重新拉起）——侧栏头部
+    芯片（逻辑橙）/关闭/无页签/标题显示正常，单击出输入框，改名「-改」后画布卡片同步、还原同步无残留。
+  11-07 补记四（用户反馈「全部运行后按钮被挤到下一行」，视觉稿确认方案 A）：根因是统计与操作同单行
+    flexWrap——「失败」标签条件渲染（0 失败不显示 → 运行后凭空 +70px）、loading 转圈 +16px，行宽突变即
+    换行。修复（test-case-panel）：统计/操作分两行；三个统计标签常驻（失败 0 时 opacity .5 灰态，只改
+    文字不增删）+ 右侧「N 条」计数；操作行 nowrap，「全部运行」minWidth 96 预留 loading 宽度。视觉稿
+    （会话 visualization testcase-actions-redesign，4 变体可交互验证）现状复现跳动 43→79，A/B/C 三方案
+    900/420 宽零跳动；用户选定 A。验证：vitest 面板 3 项过、eslint 0 error、ts-check 改动文件非 TS2589
+    错误 0；浏览器真实运行复验——统计 0失败/5未运行 → 5失败/0未运行 + loading 中，按钮 y=108 全程不变。
+
 ## 未完成及注意事项
 
 | 规范 | 当前边界 | 后续验收 |

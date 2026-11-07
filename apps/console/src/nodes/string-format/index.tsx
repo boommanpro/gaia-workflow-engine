@@ -31,7 +31,7 @@ export const StringFormatNodeRegistry: FlowNodeRegistry = {
   },
   meta: {
     size: {
-      width: 360,
+      width: 300,
       height: 390,
     },
   },

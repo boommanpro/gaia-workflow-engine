@@ -12,6 +12,7 @@ import { IconCopy, IconDeleteStroked, IconExpand, IconShrink } from '@douyinfe/s
 
 import { IconGroup } from '../group';
 import { FlowCommandId } from '../../shortcuts/constants';
+import { t } from '../../i18n';
 
 const BUTTON_HEIGHT = 24;
 
@@ -37,7 +38,7 @@ export const SelectorBoxPopover: FunctionComponent<SelectorBoxPopoverProps> = ({
         size="small"
         style={{ display: 'flex', flexWrap: 'nowrap', height: BUTTON_HEIGHT }}
       >
-        <Tooltip content={'Collapse'}>
+        <Tooltip content={t('sel.collapse')}>
           <Button
             icon={<IconShrink />}
             style={{ height: BUTTON_HEIGHT }}
@@ -49,7 +50,7 @@ export const SelectorBoxPopover: FunctionComponent<SelectorBoxPopoverProps> = ({
           />
         </Tooltip>
 
-        <Tooltip content={'Expand'}>
+        <Tooltip content={t('sel.expand')}>
           <Button
             icon={<IconExpand />}
             style={{ height: BUTTON_HEIGHT }}
@@ -61,7 +62,7 @@ export const SelectorBoxPopover: FunctionComponent<SelectorBoxPopoverProps> = ({
           />
         </Tooltip>
 
-        <Tooltip content={'Create Group'}>
+        <Tooltip content={t('sel.group')}>
           <Button
             icon={<IconGroup size={14} />}
             style={{ height: BUTTON_HEIGHT }}
@@ -73,7 +74,7 @@ export const SelectorBoxPopover: FunctionComponent<SelectorBoxPopoverProps> = ({
           />
         </Tooltip>
 
-        <Tooltip content={'Copy'}>
+        <Tooltip content={t('sel.copy')}>
           <Button
             icon={<IconCopy />}
             style={{ height: BUTTON_HEIGHT }}
@@ -85,7 +86,7 @@ export const SelectorBoxPopover: FunctionComponent<SelectorBoxPopoverProps> = ({
           />
         </Tooltip>
 
-        <Tooltip content={'Delete'}>
+        <Tooltip content={t('sel.delete')}>
           <Button
             type="primary"
             theme="solid"

@@ -4,7 +4,7 @@
  */
 
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 
 import {
   EditorRenderer,
@@ -12,32 +12,34 @@ import {
   useClientContext,
 } from '@flowgram.ai/free-layout-editor';
 import { Button as SemiButton, Modal, Input, Popconfirm, Toast } from '@douyinfe/semi-ui';
-import { IconChevronDown, IconHistory } from '@douyinfe/semi-icons';
+import { IconChevronDown, IconEdit, IconHistory } from '@douyinfe/semi-icons';
 
 import '@flowgram.ai/free-layout-editor/index.css';
 import './index.css';
 import './styles/index.css';
-import { getApiBaseUrl } from './utils/apiConfig';
 import {
   workflowApi,
   GaiaWorkflowVersion,
   GaiaWorkflowTemplate,
-  GaiaApiMeta,
 } from './services/workflow-api';
 import { setRunWorkflowContext } from './plugins/runtime-plugin/runtime-service';
 import { nodeRegistries } from './nodes';
 import { initialData, emptyWorkflowData } from './initial-data';
 import { useLanguage, t } from './i18n';
 import { useEditorProps } from './hooks';
+import { applyEditorPrefsSideEffects, getEditorPrefs, useEditorPrefs } from './editor-prefs';
 import {
   WorkflowDocument,
   workflowDocumentStore,
   useWorkflowDocumentState,
   applyRenderCompat,
+  canvasContentKey,
+  versionContentKey,
 } from './document';
 import { DemoTools } from './components/tools';
-import { TestCaseSheetButton } from './components/test-case-panel';
+import { NodePaletteRail } from './components/node-palette-rail';
 import { LanguageToggle } from './components/language-toggle';
+import { EditorPrefsPanel } from './components/editor-prefs-panel';
 import { getSessionKeyForWorkflow } from './ai-workspace/session-scope';
 import { CanvasHistoryPopover } from './ai-workspace/components/CanvasHistoryPopover';
 import { AiPendingBanner } from './ai-workspace/components/AiPendingBanner';
@@ -151,7 +153,6 @@ export const Editor = () => {
   );
   const [workflowInfo, setWorkflowInfo] = useState<any>(null);
   const [versions, setVersions] = useState<GaiaWorkflowVersion[]>([]);
-  const [currentVersionId, setCurrentVersionId] = useState<number | undefined>();
   const [remountKey, setRemountKey] = useState(0);
   // 记录已经处理过的 code，避免同一路由下重复拉取
   const handledCodeRef = useRef<string | undefined>(undefined);
@@ -160,10 +161,6 @@ export const Editor = () => {
     try {
       const vList = await workflowApi.listVersions(code);
       setVersions(vList || []);
-      const current = vList?.find((v: any) => v.isCurrent === 1);
-      if (current) {
-        setCurrentVersionId(current.id);
-      }
     } catch {
       /* ignore */
     }
@@ -359,7 +356,6 @@ export const Editor = () => {
                 : versionData.workflowData;
             // 版本历史可能存有裸字符串 url / 带空格 token 的旧形状——过展示层兼容归一
             nextData = applyRenderCompat(raw);
-            setCurrentVersionId(versionData.id);
           } catch {
             nextData = emptyWorkflowData;
           }
@@ -402,6 +398,17 @@ export const Editor = () => {
     };
     let lastKey = structureKeyOf(workflowDocumentStore.getSnapshot().doc.toJSON());
     const applyNow = () => {
+      // 拖拽放置进行中不做整份重挂：加载期的对齐重挂会吞掉刚从左侧面板拖入、
+      // 尚未同步进 store 的节点（表现为「首次拖入一闪就消失」，2026-11-05 用户反馈）。
+      // 稍后重试；拖拽结束后 store 已包含新节点，结构键相等即不再重挂。
+      if ((window as unknown as { __gaiaPaletteDrag?: boolean }).__gaiaPaletteDrag) {
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => {
+          timer = null;
+          applyNow();
+        }, 600);
+        return;
+      }
       const dsl = workflowDocumentStore.getSnapshot().doc.toJSON();
       lastKey = structureKeyOf(dsl);
       // store 结构与画布当前内容一致时不重挂：打开工作流时，加载回写/草稿恢复
@@ -466,7 +473,6 @@ export const Editor = () => {
               ? JSON.parse(version.workflowData)
               : version.workflowData;
           setWorkflowData(applyRenderCompat(raw));
-          setCurrentVersionId(versionId);
           adoptIntoStore(raw, workflowCode, workflowInfo?.workflowName);
           setRemountKey((k) => k + 1); // Force remount to reload editor
         }
@@ -477,8 +483,18 @@ export const Editor = () => {
     [workflowCode, workflowInfo, adoptIntoStore]
   );
 
-  const editorProps = useEditorProps(workflowData, nodeRegistries);
+  const prefs = useEditorPrefs();
+  // 画布背景（点阵/无）是构建期插件参数：变更时并入 remount key 生效（罕见操作，可接受重建）
+  const editorProps = {
+    ...useEditorProps(workflowData, nodeRegistries),
+    background: getEditorPrefs().canvasBg === 'dots',
+  };
   const { snapshots } = useWorkflowDocumentState();
+
+  // 全局 CSS 变量副作用（连线/端口读取 --g-workflow-*-color）
+  useEffect(() => {
+    applyEditorPrefsSideEffects();
+  }, []);
 
   if (loading) {
     return (
@@ -506,6 +522,8 @@ export const Editor = () => {
     <div style={{ display: 'flex', height: '100vh', width: '100%', overflow: 'hidden' }}>
       {/* 画布工作台（专家模式主位）——对话在 /chat 页，这里不再内嵌 AI 悬浮窗 */}
       <div
+        className={`gaia-editor-page${prefs.compact ? ' gaia-editor-compact' : ''}`}
+        data-editor-theme={prefs.theme === 'auto' ? undefined : prefs.theme}
         style={{
           flex: 1,
           minWidth: 0,
@@ -514,17 +532,15 @@ export const Editor = () => {
           position: 'relative',
         }}
       >
-        <FreeLayoutEditorProvider {...editorProps} key={remountKey}>
+        <FreeLayoutEditorProvider {...editorProps} key={`${remountKey}-${prefs.canvasBg}`}>
           <EditorCanvasBridge />
           <EditorHeader
             workflowCode={effectiveCode}
             workflowName={workflowInfo ? workflowInfo.workflowName : t('editor.newWorkflow')}
             onBack={() => navigate(backTo)}
             versions={versions}
-            currentVersionId={currentVersionId}
             onSwitchVersion={handleSwitchVersion}
             onVersionsChanged={() => effectiveCode && loadVersions(effectiveCode)}
-            onCurrentVersionChange={setCurrentVersionId}
             hasHistory={snapshots.length > 0 || versions.length > 0}
             draftMode={draftMode}
           />
@@ -534,7 +550,8 @@ export const Editor = () => {
             <div className="demo-container" style={{ width: '100%', height: '100%' }}>
               <EditorRenderer className="demo-editor" />
             </div>
-            <DemoTools hideSave />
+            {prefs.addPalette && <NodePaletteRail />}
+            <DemoTools hideSave testWorkflowCode={effectiveCode} />
           </div>
         </FreeLayoutEditorProvider>
       </div>
@@ -572,7 +589,7 @@ export const WorkflowViewer = ({
       >
         <EditorRenderer className="demo-editor" />
         {/* 可新增节点等工具，但隐藏 Save 与 Test Run（不可运行） */}
-        {!minimal && <DemoTools hideSaveAndTestRun hideSave hideRunHistory hideReportEditor />}
+        {!minimal && <DemoTools hideSaveAndTestRun hideSave hideRunHistory />}
       </div>
     </FreeLayoutEditorProvider>
   );
@@ -635,7 +652,6 @@ const EditorHeader = ({
   workflowName,
   onBack,
   versions,
-  currentVersionId,
   onSwitchVersion,
   onVersionsChanged,
   onCurrentVersionChange,
@@ -646,7 +662,6 @@ const EditorHeader = ({
   workflowName: string;
   onBack: () => void;
   versions: GaiaWorkflowVersion[];
-  currentVersionId?: number;
   onSwitchVersion: (versionId: number) => void;
   onVersionsChanged: () => void;
   /** 保存落版后把头部标签对齐到新版本（阶段 1.3） */
@@ -661,7 +676,7 @@ const EditorHeader = ({
   // 未保存判定（阶段 1.3 + 2026-10-27 保存制）：dirtySinceSave 按变更来源维护，
   // markSaved 清除 —— 手改/AI 修改/回滚/纯布局拖动都置位，两种模式同样生效。
   // 不用「序列化对比」：首挂时 flowgram 规整序列化会产生派生字段差异，必误报。
-  const { meta: headerMeta } = useWorkflowDocumentState();
+  const { meta: headerMeta, doc: headerDoc } = useWorkflowDocumentState();
   const unsaved = headerMeta.dirtySinceSave === true;
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -669,33 +684,127 @@ const EditorHeader = ({
   const [newCode, setNewCode] = useState('');
   /** 首次保存失败原因（校验拒绝等）：显示在弹窗内，画布与输入都保留 */
   const [codeAskError, setCodeAskError] = useState<string | null>(null);
-  const [publishOpen, setPublishOpen] = useState(false);
-  const [apiName, setApiName] = useState('');
-  const [apiDesc, setApiDesc] = useState('');
-  const [publishing, setPublishing] = useState(false);
-  const [publishedMeta, setPublishedMeta] = useState<GaiaApiMeta | null>(null);
 
-  const currentVersion = versions.find((v) => v.id === currentVersionId);
+  /** 名称就地编辑（2026-11-05 顶部栏归位）：正式模式点击标题改名，随下次发布生效 */
+  const [nameEdit, setNameEdit] = useState(false);
+  const [nameDraft, setNameDraft] = useState(workflowName);
+  useEffect(() => {
+    setNameDraft(workflowName);
+  }, [workflowName]);
+  const displayName = nameDraft.trim() ? nameDraft : workflowName;
+
   /** 生效版本（is_current=1）：线上 API 实际执行的那个 */
   const effectiveVersion = versions.find((v) => v.isCurrent === 1);
-  /** 预览态：正在查看的版本 ≠ 生效版本 —— 「发布生效」只在这种状态下出现，
-   *  且必须经确认。这是切换线上版本的唯一入口（历史弹窗里的一键「设为生效」已移除）。 */
-  const previewingOtherVersion =
-    !!currentVersion && !!effectiveVersion && currentVersion.id !== effectiveVersion.id;
-  const [publishingEffective, setPublishingEffective] = useState(false);
 
+  // —— 内容键路由（2026-11-04 单身份改版）——
+  // 画布内容「恰好等于哪个版本」由内容说了算，不依赖 currentVersionId 记账：
+  // 预览态判定、发布路径选择（切指针 vs 生成新版本）、时间线「当前」三者共用同一基准。
+  const versionKeysById = useMemo(() => {
+    const map = new Map<number, string | null>();
+    for (const v of versions) {
+      if (v.id != null) map.set(v.id, versionContentKey(v.workflowData));
+    }
+    return map;
+  }, [versions]);
+  const canvasKey = useMemo(() => {
+    try {
+      // 内容键含全部字段（含节点坐标；2026-11-04 用户决策 B「完全按直觉」）：
+      // 拖动节点即产生「未发布的修改」，可发布携带新坐标的新版本
+      return canvasContentKey(headerDoc.toJSON());
+    } catch {
+      return null;
+    }
+  }, [headerDoc]);
+  const matchedVersion = useMemo(
+    () =>
+      canvasKey
+        ? versions.find((v) => v.id != null && versionKeysById.get(v.id) === canvasKey) || null
+        : null,
+    [versions, versionKeysById, canvasKey]
+  );
+  /** 与生效版本一致：发布按钮置灰，无事可做 */
+  const inSyncWithEffective = !!effectiveVersion && matchedVersion?.id === effectiveVersion.id;
+  /** 预览态：画布恰好是某个旧版本 —— 发布 = set-current 指针回拨（不产生新版本行） */
+  const previewingOtherVersion = !!matchedVersion && !inSyncWithEffective;
+
+  const [publishingEffective, setPublishingEffective] = useState(false);
+  /** 发布确认弹窗（生成新版本路径）：版本说明 + AI 代拟 */
+  const [publishModalOpen, setPublishModalOpen] = useState(false);
+  const [publishDesc, setPublishDesc] = useState('');
+  const [publishDescLoading, setPublishDescLoading] = useState(false);
+  const [publishingVersion, setPublishingVersion] = useState(false);
+
+  /** 指针回拨路径：画布 == 某旧版本，发布即切换生效指针（Popconfirm 确认） */
   const handlePublishEffective = async () => {
-    if (!currentVersion?.id) return;
+    if (!matchedVersion?.id) return;
     setPublishingEffective(true);
     try {
-      await workflowApi.setCurrentVersion(currentVersion.id);
+      await workflowApi.setCurrentVersion(matchedVersion.id);
       Toast.success(t('editor.versionSetCurrent'));
       onVersionsChanged();
-      onCurrentVersionChange?.(currentVersion.id);
+      onCurrentVersionChange?.(matchedVersion.id);
     } catch (error) {
       Toast.error(`${t('editor.versionSetCurrentFailed')}${(error as Error).message}`);
     } finally {
       setPublishingEffective(false);
+    }
+  };
+
+  /** 发布入口：无编码 → 先要编码（applyDsl 建流，首版即生效）；有修改 → 确认弹窗 */
+  const handlePublishClick = () => {
+    if (!workflowCode) {
+      setNewCode('');
+      setCodeAskError(null);
+      setCodeAskOpen(true);
+      return;
+    }
+    setPublishDesc('');
+    setPublishModalOpen(true);
+    // AI 代拟版本说明（有归属会话时；锦上添花，失败留空由用户填写）
+    const sessionKey = getSessionKeyForWorkflow(workflowCode);
+    if (sessionKey) {
+      setPublishDescLoading(true);
+      agentApi
+        .suggestVersionDesc(sessionKey, workflowCode)
+        .then((res) => {
+          if (res?.success && res.desc) {
+            setPublishDesc((prev) => (prev === '' ? res.desc! : prev));
+          }
+        })
+        .catch(() => {})
+        .finally(() => setPublishDescLoading(false));
+    }
+  };
+
+  /** 生成新版本路径：applyDsl 一步落版并生效（版本号后端统一编排，前端不再自行计算） */
+  const handleConfirmPublish = async () => {
+    if (!workflowCode || !ctx?.document) return;
+    setPublishingVersion(true);
+    try {
+      const res = await workflowApi.applyDsl(workflowCode, ctx.document.toJSON(), {
+        workflowName: displayName || workflowCode,
+        versionDesc: publishDesc.trim() || t('editor.publishFromEditor'),
+      });
+      const r = (res || {}) as {
+        success?: boolean;
+        error?: string;
+        versionId?: number;
+        versionNumber?: string;
+      };
+      if (r.success === false) {
+        // 弹窗与画布现场保留，就地报错（校验拒绝多为长文案）
+        Toast.error(r.error || 'publish rejected');
+        return;
+      }
+      setPublishModalOpen(false);
+      Toast.success(t('editor.publishDone', { v: r.versionNumber || '' }));
+      if (r.versionId != null) onCurrentVersionChange?.(r.versionId);
+      onVersionsChanged();
+      settleSaved(workflowCode);
+    } catch (error) {
+      Toast.error(`${t('editor.publishFailed')}${(error as Error).message}`);
+    } finally {
+      setPublishingVersion(false);
     }
   };
 
@@ -711,69 +820,10 @@ const EditorHeader = ({
     setTimeout(() => setSaved(false), 2000);
   };
 
-  const handleSave = async () => {
-    if (!ctx?.document) return;
-    // 草稿模式不再有「保存」按钮：手改自动同步（scheduleManualDraftPush）实时推会话草稿，
-    // 落版只发生在会话页「保存为版本」。
-    // 无编码（AI 草稿模式且未落版）：没有可寻址的版本容器 —— 明确要一个编码，
-    // 不再静默显示「已保存」（阶段 1.2 的虚假成功路径）
-    if (!workflowCode) {
-      setNewCode('');
-      setCodeAskError(null);
-      setCodeAskOpen(true);
-      return;
-    }
-    setSaving(true);
-    try {
-      const jsonData = ctx.document.toJSON();
-      const dataStr = JSON.stringify(jsonData);
-
-      const allVersions = await workflowApi.listVersions(workflowCode);
-      const versionCount = allVersions ? allVersions.length : 0;
-      // 版本号取现存最大 minor + 1：按条数编号在删除历史版本后会重号
-      const maxMinor = (allVersions || []).reduce((max, v) => {
-        const m = /^v\d+\.(\d+)$/.exec(v.versionNumber || '');
-        return m ? Math.max(max, Number(m[1])) : max;
-      }, 0);
-      const newVersionNumber = `v1.${maxMinor + 1}`;
-
-      await workflowApi.createVersion({
-        workflowCode,
-        versionNumber: newVersionNumber,
-        versionDesc: `Version ${newVersionNumber}`,
-        workflowData: dataStr,
-        createdBy: 'user',
-      });
-
-      // 首次保存（无历史版本）时自动设为生效版本；后续保存不改变生效版本
-      if (versionCount === 0) {
-        const newVersions = await workflowApi.listVersions(workflowCode);
-        if (newVersions && newVersions.length > 0) {
-          const newest = newVersions[0];
-          await workflowApi.setCurrentVersion(newest.id!);
-        }
-      }
-
-      // 保存后头部标签与画布内容对齐（阶段 1.3）：否则标签还停在旧版号，
-      // 用户看到的却是刚保存的新内容
-      const refreshed = await workflowApi.listVersions(workflowCode);
-      const newestVersion = (refreshed || []).reduce<GaiaWorkflowVersion | null>((best, v) => {
-        if (!best) return v;
-        const no = (x: string) => Number(/^v\d+\.(\d+)$/.exec(x || '')?.[1] ?? -1);
-        return no(v.versionNumber) > no(best.versionNumber) ? v : best;
-      }, null);
-      if (newestVersion?.id != null) onCurrentVersionChange?.(newestVersion.id);
-
-      onVersionsChanged();
-      settleSaved(workflowCode);
-    } catch (error) {
-      // 失败保留现场：画布与输入不动，只报错（阶段 1.2）
-      console.error('Save failed:', error);
-      alert(t('editor.saveFailed') + (error as Error).message);
-    } finally {
-      setSaving(false);
-    }
-  };
+  // 2026-11-04 单身份改版：正式模式「保存」按钮已移除——本地草稿自动持久化
+  // （IndexedDB + beforeunload 守卫），产生版本的唯一动作是「发布生效」
+  // （handlePublishClick / handleConfirmPublish / handlePublishEffective）。
+  // 旧的 createVersion 路径（前端算版本号 + is_current=0 的"存了不生效"版本）随之停用。
 
   /** 草稿模式保存：把眼前画布推成归属会话的服务端草稿（AI 可见），并清未保存标记。
    *  落版不在这里 —— 版本化动作统一在会话页「保存为版本」。 */
@@ -797,7 +847,7 @@ const EditorHeader = ({
     }
   };
 
-  /** 首次保存：用户给出工作流编码后经 applyDsl 建流落版（新工作流首版即生效版）。
+  /** 首次发布：用户给出工作流编码后经 applyDsl 建流落版（新工作流首版即生效版）。
    *  注意 apply 接口校验拒绝时返回 HTTP 200 + success:false —— 必须检查响应体，
    *  否则又是「没存进去却显示已保存」（阶段 1.2）。 */
   const handleSaveWithNewCode = async () => {
@@ -808,8 +858,8 @@ const EditorHeader = ({
     try {
       const jsonData = ctx.document.toJSON();
       const res = await workflowApi.applyDsl(code, jsonData, {
-        workflowName: workflowName || code,
-        versionDesc: 'Initial version',
+        workflowName: displayName || code,
+        versionDesc: t('editor.publishInitialDesc'),
         createIfMissing: true,
       });
       const r = (res || {}) as { success?: boolean; error?: string };
@@ -828,48 +878,26 @@ const EditorHeader = ({
     }
   };
 
-  const handlePublish = async () => {
-    if (!workflowCode) return;
-    setPublishing(true);
-    try {
-      const meta = await workflowApi.publishApi(
-        workflowCode,
-        apiName,
-        apiDesc,
-        getSessionKeyForWorkflow(workflowCode) || undefined
-      );
-      setPublishedMeta(meta);
-    } catch (e) {
-      alert(t('apiDocs.publish') + ' ' + (e as Error).message);
-    } finally {
-      setPublishing(false);
-    }
-  };
-
   // 设为生效版本 / 切换查看版本都收进了历史面板，头部不再自己实现一遍
 
   return (
     <div
+      className="gaia-editor-head"
       style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '0 24px',
         height: '52px',
-        background: 'rgba(255,255,255,0.85)',
-        backdropFilter: 'blur(12px)',
-        borderBottom: '1px solid #e8e8ea',
         flexShrink: 0,
         zIndex: 10,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <button
           onClick={onBack}
+          className="gaia-head-btn"
           style={{
-            background: 'transparent',
-            border: '1px solid #e0e0e6',
-            color: '#333',
             padding: '5px 14px',
             borderRadius: '6px',
             cursor: 'pointer',
@@ -877,29 +905,113 @@ const EditorHeader = ({
             fontWeight: 500,
             transition: 'background 0.15s',
           }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = '#f5f5f7';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'transparent';
-          }}
         >
           {t('editor.back')}
         </button>
-        <span style={{ fontSize: '15px', fontWeight: 600, color: '#1a1a1a' }}>{workflowName}</span>
-        {/* 形态标识：这里是「专家模式」，与首页的通用模式区分开 */}
-        <span
-          style={{
-            fontSize: '10px',
-            fontWeight: 600,
-            color: ACCENT,
-            background: '#f0f0ff',
-            borderRadius: '4px',
-            padding: '2px 6px',
-          }}
-        >
-          {t('workspace.modeExpert')}
-        </span>
+        {/* 名称就地编辑（2026-11-05）：点击变输入框，Enter/失焦确认、Esc 还原；随下次发布生效 */}
+        {nameEdit ? (
+          <input
+            value={nameDraft}
+            autoFocus
+            aria-label={t('editor.nameEditHint')}
+            onChange={(e) => setNameDraft(e.target.value)}
+            onBlur={() => setNameEdit(false)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+              if (e.key === 'Escape') {
+                setNameDraft(workflowName);
+                setNameEdit(false);
+              }
+            }}
+            style={{
+              fontSize: '15px',
+              fontWeight: 600,
+              padding: '2px 8px',
+              borderRadius: 6,
+              border: '1px solid var(--g-editor-accent, #4d53e8)',
+              outline: 'none',
+              width: 220,
+              background: 'var(--ge-surface, #fff)',
+              color: 'inherit',
+            }}
+          />
+        ) : (
+          <span
+            title={draftMode ? undefined : t('editor.nameEditHint')}
+            onClick={() => !draftMode && setNameEdit(true)}
+            style={{
+              fontSize: '15px',
+              fontWeight: 600,
+              cursor: draftMode ? 'default' : 'text',
+              padding: '2px 6px',
+              borderRadius: 6,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+            }}
+          >
+            {displayName}
+            {!draftMode && <IconEdit size="small" style={{ opacity: 0.4 }} />}
+          </span>
+        )}
+
+        {/* 状态徽标（2026-11-05 从右侧移到名称旁）：生效状态一眼可读，替代旧的 vN 三态标签与未保存角标 */}
+        {!draftMode && workflowCode && versions.length > 0 && (
+          <span
+            style={
+              inSyncWithEffective
+                ? {
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: '#1f9d63',
+                    background: 'rgba(31, 157, 99, 0.12)',
+                    borderRadius: 4,
+                    padding: '3px 8px',
+                  }
+                : {
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: '#d4a017',
+                    background: 'rgba(212, 160, 23, 0.12)',
+                    borderRadius: 4,
+                    padding: '3px 8px',
+                  }
+            }
+            title={
+              inSyncWithEffective
+                ? undefined
+                : previewingOtherVersion
+                ? t('editor.publishEffectiveContent', { v: matchedVersion!.versionNumber })
+                : t('editor.statusUnpublishedHint')
+            }
+          >
+            {inSyncWithEffective
+              ? `✓ ${t('editor.statusInSync', { v: effectiveVersion!.versionNumber })}`
+              : previewingOtherVersion
+              ? t('editor.statusPreview', {
+                  v: matchedVersion!.versionNumber,
+                  cur: effectiveVersion?.versionNumber || '',
+                })
+              : `● ${t('editor.statusUnpublished')}`}
+          </span>
+        )}
+
+        {/* 草稿模式合并徽标（2026-11-05）：替代右侧并置的「会话草稿」标签 + 未保存角标 */}
+        {draftMode && (
+          <span
+            title={t('editor.unsavedHint')}
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              color: '#d4a017',
+              background: 'rgba(212, 160, 23, 0.12)',
+              borderRadius: 4,
+              padding: '3px 8px',
+            }}
+          >
+            {t('editor.sessionDraft')}{unsaved ? ` · ${t('editor.unsavedBadge')}` : ''}
+          </span>
+        )}
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -913,170 +1025,90 @@ const EditorHeader = ({
               icon={<IconHistory />}
               style={{ fontSize: '13px', color: '#555', height: '32px' }}
             >
-              {(() => {
-                // 2026-11-03：标签两态化——正常态「生效 vX」（生效即所见）；
-                // 预览态「预览 v新 · 生效 v旧」（载入了旧版本但还没发布）。
-                // 不再裸露版号：用户不需要自己推断哪个号是线上跑的。
-                if (!effectiveVersion)
-                  return currentVersion ? currentVersion.versionNumber : t('editor.version');
-                if (previewingOtherVersion && currentVersion) {
-                  return `${t('editor.previewLabel', { v: currentVersion.versionNumber })} · ${t(
-                    'editor.versionEffective',
-                    { v: effectiveVersion.versionNumber }
-                  )}`;
-                }
-                return t('editor.versionEffective', { v: effectiveVersion.versionNumber });
-              })()}
-              {unsaved && !draftMode && (
-                <span
-                  style={{
-                    marginLeft: 6,
-                    fontSize: 10,
-                    fontWeight: 600,
-                    color: '#d4a017',
-                    background: 'rgba(212, 160, 23, 0.12)',
-                    borderRadius: 4,
-                    padding: '1px 5px',
-                  }}
-                  title={t('editor.unsavedHint')}
-                >
-                  {t('editor.unsavedBadge')}
-                </span>
-              )}
+              {t('chat.historyTitle')}
               <IconChevronDown size="small" style={{ marginLeft: '4px' }} />
             </SemiButton>
           </CanvasHistoryPopover>
         )}
 
-        {/* 发布生效（2026-11-03）：只在「预览旧版」状态下出现，且必须确认 ——
-            线上版本的唯一切换入口（指针回拨，不产生新版本行）。 */}
-        {previewingOtherVersion && currentVersion && (
-          <Popconfirm
-            title={t('editor.publishEffectiveTitle', { v: currentVersion.versionNumber })}
-            content={t('editor.publishEffectiveContent', { v: currentVersion.versionNumber })}
-            okText={t('editor.publishEffectiveOk')}
-            cancelText={t('common.cancel')}
-            onConfirm={handlePublishEffective}
-          >
-            <SemiButton
-              theme="light"
-              type="primary"
-              loading={publishingEffective}
-              style={{ height: '32px', fontSize: '13px', fontWeight: 600 }}
+        {/* 发布生效（2026-11-04 单身份改版）：正式模式唯一产生版本的动作，常驻。
+            内容路由：画布恰好等于某个旧版本 → set-current 指针回拨（确认弹层）；
+            否则 → applyDsl 生成新版本并立即生效（确认弹窗 + AI 代拟说明）。
+            预览旧版场景 Popconfirm 的 v 号取自 matchedVersion（内容判定）。 */}
+        {!draftMode &&
+          (previewingOtherVersion ? (
+            <Popconfirm
+              title={t('editor.publishEffectiveTitle', { v: matchedVersion!.versionNumber })}
+              content={t('editor.publishEffectiveContent', { v: matchedVersion!.versionNumber })}
+              okText={t('editor.publishEffectiveOk')}
+              cancelText={t('common.cancel')}
+              onConfirm={handlePublishEffective}
             >
-              {t('editor.publishEffective')}
-            </SemiButton>
-          </Popconfirm>
-        )}
-
-        <LanguageToggle />
-
-        {/* 发布为 API */}
-        {workflowCode && (
-          <button
-            onClick={() => {
-              setApiName(workflowName || workflowCode);
-              setApiDesc('');
-              setPublishedMeta(null);
-              setPublishOpen(true);
-            }}
-            style={{
-              background: 'transparent',
-              border: `1px solid ${ACCENT}`,
-              color: ACCENT,
-              padding: '7px 16px',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '13px',
-              fontWeight: 600,
-            }}
-          >
-            {t('apiDocs.publish')}
-          </button>
-        )}
-
-        {/* 测试用例面板入口（2026-10-17 期3）：与 agent 的 test_case / run(target=tests) 同一数据面 */}
-        {workflowCode && (
-          <TestCaseSheetButton
-            workflowCode={workflowCode}
-            getCanvasJson={() => {
-              try {
-                return ctx?.document ? ctx.document.toJSON() : null;
-              } catch {
-                return null;
-              }
-            }}
-            getNodes={() => {
-              try {
-                const json = ctx?.document ? ctx.document.toJSON() : { nodes: [] };
-                return (json.nodes || []).map((n: any) => ({
-                  id: n.id,
-                  type: n.type,
-                  title: n.data?.title || n.type,
-                }));
-              } catch {
-                return [];
-              }
-            }}
-          />
-        )}
-
-        {/* 草稿模式：标识 + 「保存」按钮（保存 = 推给会话草稿，AI 可见；
-            落版统一走会话页「保存为版本」）。未保存角标含纯布局拖动。 */}
-        {draftMode && (
-          <>
-            <span
+              <button
+                disabled={publishingEffective}
+                style={{
+                  background: ACCENT,
+                  border: 'none',
+                  color: '#fff',
+                  padding: '7px 18px',
+                  borderRadius: '6px',
+                  cursor: publishingEffective ? 'not-allowed' : 'pointer',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                }}
+              >
+                {t('editor.publishEffective')}
+              </button>
+            </Popconfirm>
+          ) : (
+            <button
+              onClick={handlePublishClick}
+              disabled={inSyncWithEffective || publishingVersion}
+              title={inSyncWithEffective ? t('editor.statusInSyncHint') : undefined}
               style={{
-                fontSize: '12px',
-                color: '#5558c8',
-                background: '#eef0ff',
-                border: '1px solid #dcdff8',
+                background: inSyncWithEffective || publishingVersion ? '#c5c5e8' : ACCENT,
+                border: 'none',
+                color: '#fff',
+                padding: '7px 18px',
                 borderRadius: '6px',
-                padding: '5px 10px',
-                marginRight: 8,
+                cursor: inSyncWithEffective || publishingVersion ? 'not-allowed' : 'pointer',
+                fontSize: '13px',
+                fontWeight: 600,
+                transition: 'background 0.15s',
               }}
             >
-              {t('editor.sessionDraft')}
-            </span>
-            <DraftSaveControls
-              saving={saving}
-              saved={saved}
-              unsaved={unsaved}
-              onSave={handleDraftSave}
-            />
-          </>
+              {t('editor.publishEffective')}
+            </button>
+          ))}
+
+        {/* 发布为 API 与测试用例已从头部移除（2026-11-04 用户决策）：
+            API 发布/文档收进工作流管理页行内「更多 → API 文档」（ApiDocModal 原位发布）；
+            测试用例收进画布工具栏运行组（DemoTools，testWorkflowCode 传入）。 */}
+
+        {/* 草稿模式保存（2026-11-05）：「会话草稿」标识已并入左侧状态徽标 */}
+        {draftMode && (
+          <DraftSaveControls
+            saving={saving}
+            saved={saved}
+            unsaved={unsaved}
+            onSave={handleDraftSave}
+          />
         )}
-        {!draftMode && (
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            style={{
-              background: saving ? '#c5c5e8' : ACCENT,
-              border: 'none',
-              color: '#fff',
-              padding: '7px 22px',
-              borderRadius: '6px',
-              cursor: saving ? 'not-allowed' : 'pointer',
-              fontSize: '13px',
-              fontWeight: 600,
-              transition: 'background 0.15s',
-            }}
-          >
-            {saving ? t('Saving') : saved ? `✓ ${t('Saved')}` : t('Save')}
-          </button>
-        )}
+        {/* 编辑器偏好（2026-11-05 置尾）：外观 / 工作区 / 节点添加方式；专家模式标识在面板内 */}
+        <EditorPrefsPanel />
       </div>
 
-      {/* 首次保存需要工作流编码：草稿模式下没有可寻址的版本容器，明确要一个编码
-          而不是静默「已保存」（阶段 1.2）。新建后经 applyDsl 落为首版（即生效版） */}
+      {/* 首次发布需要工作流编码：草稿模式下没有可寻址的版本容器，明确要一个编码
+          而不是静默「已保存」（阶段 1.2）。新建后经 applyDsl 落为首版（即生效版）。
+          2026-11-04 单身份改版：入口从「保存」移到「发布生效」。 */}
       <Modal
         title={t('editor.needCodeTitle')}
         visible={codeAskOpen}
         onCancel={() => setCodeAskOpen(false)}
         onOk={handleSaveWithNewCode}
         okButtonProps={{ loading: saving }}
-        okText={t('Save')}
-        cancelText={t('Cancel')}
+        okText={t('editor.publishEffectiveOk')}
+        cancelText={t('common.cancel')}
       >
         <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>
           {t('editor.needCodeDesc')}
@@ -1109,89 +1141,32 @@ const EditorHeader = ({
         )}
       </Modal>
 
-      {/* 发布为 API 弹窗 */}
+      {/* 发布确认弹窗（2026-11-04 单身份改版）：applyDsl 生成新版本并立即生效。
+          版本说明有归属会话时 AI 代拟（失败留空）；版本号后端统一编排。 */}
       <Modal
-        title={t('apiDocs.publish')}
-        visible={publishOpen}
-        onCancel={() => setPublishOpen(false)}
-        footer={
-          publishedMeta ? (
-            <SemiButton
-              theme="solid"
-              style={{ background: ACCENT }}
-              onClick={() => setPublishOpen(false)}
-            >
-              {t('Saved')}
-            </SemiButton>
-          ) : (
-            <SemiButton
-              theme="solid"
-              style={{ background: ACCENT }}
-              loading={publishing}
-              onClick={handlePublish}
-            >
-              {t('apiDocs.publish')}
-            </SemiButton>
-          )
-        }
+        title={t('editor.publishEffective')}
+        visible={publishModalOpen}
+        onCancel={() => setPublishModalOpen(false)}
+        onOk={handleConfirmPublish}
+        okButtonProps={{ loading: publishingVersion }}
+        okText={t('editor.publishEffectiveOk')}
+        cancelText={t('common.cancel')}
       >
-        {publishedMeta ? (
-          <div style={{ fontSize: 13, color: '#444', lineHeight: 1.8 }}>
-            <div style={{ marginBottom: 10 }}>
-              <div style={{ color: '#888', marginBottom: 4 }}>{t('apiDocs.endpoint')}</div>
-              <code
-                style={{
-                  display: 'block',
-                  background: '#f6f6fb',
-                  borderRadius: 8,
-                  padding: '8px 10px',
-                  color: ACCENT,
-                  wordBreak: 'break-all',
-                }}
-              >
-                POST {getApiBaseUrl().replace(/\/+$/, '')}/v1/wf/{publishedMeta.workflowCode}
-              </code>
-            </div>
-            <div style={{ marginBottom: 10 }}>
-              <div style={{ color: '#888', marginBottom: 4 }}>{t('apiDocs.apiKey')}</div>
-              <code
-                style={{
-                  display: 'block',
-                  background: '#fffaf0',
-                  borderRadius: 8,
-                  padding: '8px 10px',
-                  color: '#b76e00',
-                  wordBreak: 'break-all',
-                }}
-              >
-                {publishedMeta.apiKey}
-              </code>
-              <div style={{ marginTop: 4, fontSize: 12, color: '#b76e00' }}>
-                {t('apiDocs.showKey')}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div>
-              <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>
-                {t('apiDocs.apiName')}
-              </div>
-              <Input value={apiName} onChange={(v) => setApiName(v)} placeholder={workflowName} />
-            </div>
-            <div>
-              <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>
-                {t('apiDocs.apiDesc')}
-              </div>
-              <Input
-                value={apiDesc}
-                onChange={(v) => setApiDesc(v)}
-                placeholder={t('apiDocs.apiDescPlaceholder')}
-              />
-            </div>
-          </div>
-        )}
+        <div style={{ fontSize: 12, color: '#888', marginBottom: 10 }}>
+          {t('editor.publishSubtitle')}
+        </div>
+        <div style={{ fontSize: 12, color: '#555', marginBottom: 4 }}>
+          {t('editor.publishDescLabel')}
+        </div>
+        <Input
+          value={publishDesc}
+          onChange={(v) => setPublishDesc(v)}
+          placeholder={
+            publishDescLoading ? t('editor.descGenerating') : t('workspace.versionDescPlaceholder')
+          }
+        />
       </Modal>
+
     </div>
   );
 };

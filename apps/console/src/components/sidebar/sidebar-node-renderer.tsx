@@ -15,7 +15,7 @@ export function SidebarNodeRenderer(props: { node: FlowNodeEntity }) {
     <NodeRenderContext.Provider value={nodeRender}>
       <div
         style={{
-          background: 'rgb(251, 251, 251)',
+          background: 'var(--ge-node-body, rgb(251, 251, 251))',
           height: '100%',
           width: '100%',
           borderRadius: 8,

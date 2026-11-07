@@ -56,7 +56,8 @@ export interface FxExpressionProps {
 
 export function FxNewExpression(props: FxExpressionProps) {
   const { value, onChange, readonly, literal, icon } = props;
-  if (literal) return <InputWrap value={value as any} onChange={onChange as any} readonly={readonly} />;
+  if (literal)
+    return <InputWrap value={value as any} onChange={onChange as any} readonly={readonly} />;
   const isExpression = typeof value === 'object' && value?.type === 'ref';
   const toggleExpression = () => {
     if (isExpression) {

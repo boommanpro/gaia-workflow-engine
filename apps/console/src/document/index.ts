@@ -12,3 +12,4 @@ export * from './history';
 export * from './store';
 export * from './canvas-sync';
 export * from './selection';
+export * from './version-content';

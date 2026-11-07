@@ -20,7 +20,7 @@ export const CodeNodeRegistry: FlowNodeRegistry = {
   },
   meta: {
     size: {
-      width: 360,
+      width: 300,
       height: 390,
     },
   },

@@ -58,7 +58,7 @@ class WorkflowLayoutEngineTest {
     /** 两节点真实尺寸包围盒相交断言用的尺寸读取（未知类型按引擎兜底） */
     private static int[] sizeOf(JSONObject node) {
         int[] size = WorkflowLayoutEngine.NODE_SIZES.get(node.getStr("type"));
-        return size != null ? size : new int[]{360, 390};
+        return size != null ? size : new int[]{300, 390};
     }
 
     private static Map<String, long[]> positions(JSONObject doc) {
@@ -250,9 +250,9 @@ class WorkflowLayoutEngineTest {
         long width = pos.get("n5")[0] - pos.get("n0")[0];
         long height = Math.abs(pos.get("n5")[1] - pos.get("n0")[1]);
         assertThat(height).as("链式图纵向应收敛（旧一字长蛇在 320 步长下已超宽）").isLessThanOrEqualTo(width);
-        assertThat(width).as("6 节点链宽不超过 6 层上限（360+160 间距 ×6）").isLessThan(6L * 520);
+        assertThat(width).as("6 节点链宽不超过 6 层上限（300+160 间距 ×6）").isLessThan(6L * 520);
         for (int i = 0; i < 5; i++) {
-            long gap = pos.get("n" + (i + 1))[0] - pos.get("n" + i)[0] - 360;
+            long gap = pos.get("n" + (i + 1))[0] - pos.get("n" + i)[0] - 300;
             assertThat(gap)
                 .as("相邻层列间距不得小于 100（层间 between-layers 间距必须生效，回归钉子：首版漏设该选项默认 20px 列贴列）")
                 .isGreaterThanOrEqualTo(100);

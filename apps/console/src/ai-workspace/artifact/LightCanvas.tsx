@@ -29,6 +29,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { categoryColor, getNodeVisual } from '../../nodes/node-visuals';
 import type { WorkflowDsl } from '../../document';
 
 interface NodeBox {
@@ -95,25 +96,13 @@ function wheelDeltaToPx(e: WheelEvent): number {
   return e.deltaY;
 }
 
+/** 分类色派生自 nodes/node-visuals 单源（P-01），深浅主题取值跟随 gaia.themeMode */
 function typeColor(type: string): { fill: string; stroke: string } {
-  switch (type) {
-    case 'start':
-      return { fill: 'rgba(59,130,246,0.10)', stroke: '#3b82f6' };
-    case 'end':
-      return { fill: 'rgba(34,197,94,0.10)', stroke: '#22c55e' };
-    case 'llm':
-      return { fill: 'rgba(168,85,247,0.10)', stroke: '#a855f7' };
-    case 'http':
-      return { fill: 'rgba(14,165,233,0.10)', stroke: '#0ea5e9' };
-    case 'code':
-      return { fill: 'rgba(20,184,166,0.10)', stroke: '#14b8a6' };
-    case 'condition':
-      return { fill: 'rgba(245,158,11,0.12)', stroke: '#f59e0b' };
-    case 'loop':
-      return { fill: 'rgba(244,63,94,0.08)', stroke: '#f43f5e' };
-    default:
-      return { fill: 'rgba(148,163,184,0.10)', stroke: '#94a3b8' };
-  }
+  const color = categoryColor(
+    getNodeVisual(type).category,
+    document.documentElement.dataset.theme === 'dark'
+  );
+  return { fill: `${color}1a`, stroke: color };
 }
 
 export const LightCanvas: React.FC<{ dsl: WorkflowDsl }> = ({ dsl }) => {

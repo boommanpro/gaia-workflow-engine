@@ -1,0 +1,196 @@
+/**
+ * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+ * SPDX-License-Identifier: MIT
+ *
+ * 变量 Dock（底部）—— 2026-11-05 方案 A。
+ * 由 panel-manager-plugin 的 bottom 区承载：渲染在 shell 层（画布 world 变换之外），
+ * 缩放/平移不影响定位，点击与滚轮不穿透到画布；高度可拖拽（ResizeBar 由面板系统提供）。
+ */
+
+.variable-dock {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--semi-color-bg-2);
+  color: var(--semi-color-text-0);
+}
+
+.dock-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--semi-color-border);
+
+  :global(.semi-tabs-bar) {
+    margin: 6px 0 0;
+  }
+
+  .search {
+    width: 240px;
+    margin: 6px 0;
+  }
+
+  .spacer {
+    flex: 1;
+  }
+
+  .count {
+    font-size: 12px;
+    color: var(--semi-color-text-2);
+    white-space: nowrap;
+  }
+
+  .kbd {
+    font-size: 11px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--semi-color-text-2);
+    border: 1px solid var(--semi-color-border);
+    border-radius: 4px;
+    padding: 0 5px;
+    line-height: 18px;
+    display: inline-block;
+  }
+}
+
+.dock-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px 16px 12px;
+}
+
+.dock-empty {
+  padding: 28px 0;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--semi-color-text-2);
+}
+
+.dock-group {
+  margin-bottom: 4px;
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 8px;
+  font-size: 12px;
+  color: var(--semi-color-text-2);
+  position: sticky;
+  top: -8px;
+  background: var(--semi-color-bg-2);
+}
+
+.group-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--semi-color-primary);
+
+  :global(svg) {
+    width: 14px;
+    height: 14px;
+  }
+
+  :global(img) {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+.group-label {
+  font-weight: 600;
+}
+
+.group-count {
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.var-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 8px;
+  margin-top: 1px;
+  border-radius: 6px;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--semi-color-fill-0);
+
+    .copy-btn {
+      opacity: 1;
+    }
+  }
+
+  .row-icon {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    color: var(--semi-color-text-2);
+
+    :global(svg),
+    :global(img) {
+      width: 14px;
+      height: 14px;
+    }
+  }
+
+  .row-label {
+    font-size: 12.5px;
+    color: var(--semi-color-text-0);
+    white-space: nowrap;
+  }
+
+  .row-path {
+    margin-left: auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    color: var(--semi-color-text-2);
+    background: var(--semi-color-fill-0);
+    border-radius: 4px;
+    padding: 1px 7px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 45%;
+  }
+
+  .copy-btn {
+    flex: none;
+    opacity: 0;
+    transition: opacity 0.12s;
+  }
+}
+
+.dock-footer {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 16px;
+  border-top: 1px solid var(--semi-color-border);
+  font-size: 11.5px;
+  color: var(--semi-color-text-2);
+
+  .right {
+    margin-left: auto;
+    white-space: nowrap;
+  }
+}
+
+.global-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 16px;
+}

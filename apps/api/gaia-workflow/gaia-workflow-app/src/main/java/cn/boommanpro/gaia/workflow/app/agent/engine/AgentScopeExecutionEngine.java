@@ -308,8 +308,7 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
      * 语义校验（schema/DSL/CAS）仍在各工具执行器内完成。
      *
      * <p>压缩对齐：triggerTokens 按 Qwen 上下文窗 80% 显式设置（框架默认阈值与
-     * 实际窗口无关）；模型重试显式 5 次+指数退避（框架默认 2 次对瞬时故障太薄，
-     * steer4 会话实锤 Retries exhausted）。</p>
+     * 实际窗口无关）；模型重试走 {@link #buildRetryConfig()}（agent.llm.retry 可配）。</p>
      */
     private io.agentscope.harness.agent.HarnessAgent buildAgent(AgentDefinition definition,
                                                                 String systemPrompt,
@@ -333,14 +332,7 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
                 .keepTokens(contextWindow / 5)
                 .keepMessages(HISTORY_KEEP)
                 .build())
-            .modelExecutionConfig(ExecutionConfig.builder()
-                .maxAttempts(5)
-                .initialBackoff(Duration.ofMillis(500))
-                .maxBackoff(Duration.ofSeconds(10))
-                .backoffMultiplier(2.0)
-                .timeout(Duration.ofMinutes(5))
-                .retryOn(ExecutionConfig.RETRYABLE_ERRORS)
-                .build())
+            .modelExecutionConfig(buildRetryConfig())
             // harness 平台能力默认全开（注册空壳工具 schema、注入技能/记忆提示词段、
             // 工作区旁路落盘 MEMORY.md/sessions），与"模型可见工具 ≡ AgentDefinition 白名单"
             // 的不变量冲突，这里逐项显式关停。后续要启用某能力：删掉对应 disable，
@@ -370,6 +362,27 @@ public class AgentScopeExecutionEngine implements AgentExecutionEngine {
         // task_list 等休眠工具（实测 36 个 schema 里 22 个是框架注入的）
         stripForeignTools(agent.getToolkit(), toolkit.getToolNames());
         return agent;
+    }
+
+    /**
+     * 模型调用重试策略（agent.llm.retry 可配，全量透出框架 ExecutionConfig 参数）。
+     *
+     * <p>框架实现是 Reactor Retry.backoff 单一指数曲线：不解析 Retry-After 头、不区分
+     * 错误类型，对免费活动模型的 429 全局限流风暴（free_campaign_global_limit，限流窗
+     * 与所有活动用户共享）只能拉长曲线硬扛。瞬时网络错误共用同一条曲线——agent 会话里
+     * 一次 run 中断（长任务作废整段轨迹）的代价远大于多等几十秒。</p>
+     */
+    ExecutionConfig buildRetryConfig() {
+        AgentProperties.Retry retry = properties.getLlm().getRetry();
+        return ExecutionConfig.builder()
+            // reactor Retry.backoff 要求 ≥1；配置写 0 会直接 IllegalArgumentException
+            .maxAttempts(Math.max(1, retry.getMaxAttempts()))
+            .initialBackoff(Duration.ofMillis(retry.getInitialBackoffMs()))
+            .maxBackoff(Duration.ofMillis(retry.getMaxBackoffMs()))
+            .backoffMultiplier(Math.max(1.0, retry.getBackoffMultiplier()))
+            .timeout(Duration.ofMillis(retry.getTimeoutMs()))
+            .retryOn(ExecutionConfig.RETRYABLE_ERRORS)
+            .build();
     }
 
     /**

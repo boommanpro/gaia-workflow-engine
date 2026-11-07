@@ -224,15 +224,17 @@ public class WorkflowDslApplyService {
                     .setSql("revision = revision + 1")
                     .set("updated_at", LocalDateTime.now()));
             }
-            if (version.getIsCurrent() == null || version.getIsCurrent() != 1) {
-                versionService.update(new UpdateWrapper<GaiaWorkflowVersion>()
-                    .eq("workflow_code", workflowCode)
-                    .ne("id", version.getId())
-                    .set("is_current", 0));
-                versionService.update(new UpdateWrapper<GaiaWorkflowVersion>()
-                    .eq("id", version.getId())
-                    .set("is_current", 1));
-            }
+            // is_current 归一化必须无条件执行（2026-11-04 修复）：无 CAS 路径直接以
+            // is_current=1 落行时，若跳过这里，旧生效版本不会被清零 —— 同一工作流会
+            // 累积多个 is_current=1（编辑器「发布生效」不传 expectedRevision，正是这条
+            // 路径；会话保存带 CAS 基准落行 0 才走归一化，故此前未暴露）。
+            versionService.update(new UpdateWrapper<GaiaWorkflowVersion>()
+                .eq("workflow_code", workflowCode)
+                .ne("id", version.getId())
+                .set("is_current", 0));
+            versionService.update(new UpdateWrapper<GaiaWorkflowVersion>()
+                .eq("id", version.getId())
+                .set("is_current", 1));
 
             // 提交后的 revision 以数据库为准回读（并发下自己拿到的也可能不是最终值）
             GaiaWorkflow committed = workflowService.getOne(

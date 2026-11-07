@@ -16,7 +16,7 @@ export const ContinueNodeRegistry: FlowNodeRegistry = {
     defaultPorts: [{ type: 'input' }],
     sidebarDisabled: true,
     size: {
-      width: 360,
+      width: 300,
       height: 54,
     },
     expandable: false,

@@ -1,6 +1,9 @@
 /**
  * Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
  * SPDX-License-Identifier: MIT
+ *
+ * 全局变量编辑器（自 plugins/variable-panel-plugin/components 迁入，逻辑不变：
+ * 直接编辑 GlobalScope 根变量的 JsonSchema —— 2026-11-05 变量 Dock 改版）。
  */
 
 import { useEffect } from 'react';

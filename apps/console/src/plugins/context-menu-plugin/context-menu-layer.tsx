@@ -19,6 +19,8 @@ import {
 } from '@flowgram.ai/free-layout-editor';
 import { ContainerUtils } from '@flowgram.ai/free-container-plugin';
 
+import { getEditorPrefs } from '../../editor-prefs';
+
 @injectable()
 export class ContextMenuLayer extends Layer {
   @inject(FreeLayoutPluginContext) ctx: FreeLayoutPluginContext;
@@ -43,6 +45,8 @@ export class ContextMenuLayer extends Layer {
   }
 
   openNodePanel(e: MouseEvent) {
+    // 节点添加方式偏好（gaia.editor.prefs.addContextMenu）：右键画布菜单可关
+    if (!getEditorPrefs().addContextMenu) return;
     const mousePos = this.getPosFromMouseEvent(e);
     const containerNode = this.getContainerNode(mousePos);
     this.nodePanelService.callNodePanel({

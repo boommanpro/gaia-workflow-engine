@@ -93,3 +93,261 @@
     position: relative;
     overflow: hidden;
 }
+
+/* ==================================================================
+ * 编辑器主题 token（--ge-*）与节点分类色（--g-nodecat-*）
+ * 深色跟随应用 [data-theme=dark]（gaia.themeMode），或编辑器内覆盖
+ * （.gaia-editor-page[data-editor-theme]）。2026-11-04 方案一基线。
+ * ================================================================== */
+:root {
+  --ge-surface: #ffffff;
+  --ge-surface-2: #f2f3f7;
+  --ge-border: #e5e6ee;
+  --ge-border-strong: rgba(68, 83, 130, 0.25);
+  --ge-text: #22242e;
+  --ge-text-2: #7b8090;
+  --ge-head: rgba(255, 255, 255, 0.85);
+  --ge-canvas: #f7f8fa;
+  --ge-shadow-sm: rgba(0, 0, 0, 0.04) 0px 2px 6px 0px;
+  --ge-dot: rgba(56, 62, 104, 0.24);
+
+  /* 节点卡配色（浅色=原始观感：淡紫头渐变 + 近白内容区） */
+  --ge-node-head: linear-gradient(#f2f2ff 0%, rgb(251, 251, 251) 100%);
+  --ge-node-body: rgb(251, 251, 251);
+  --ge-node-desc: #f5f5fc;
+
+  --g-nodecat-flow: #2f7df6;
+  --g-nodecat-model: #7c5cff;
+  --g-nodecat-logic: #d97706;
+  --g-nodecat-data: #0e9384;
+  --g-nodecat-integration: #0ea5e9;
+  --g-nodecat-canvas: #737a89;
+}
+
+[data-theme='dark'] {
+  --ge-surface: #24252f;
+  --ge-surface-2: #2c2d3a;
+  --ge-border: #363848;
+  --ge-border-strong: rgba(255, 255, 255, 0.18);
+  --ge-text: #e9eaf2;
+  --ge-text-2: #9ba0b3;
+  --ge-head: rgba(33, 34, 46, 0.9);
+  --ge-canvas: #191a22;
+  --ge-shadow-sm: rgba(0, 0, 12, 0.45) 0px 2px 10px 0px;
+  --ge-dot: rgba(255, 255, 255, 0.17);
+
+  /* 节点卡配色（深色） */
+  --ge-node-head: linear-gradient(#2a2b38 0%, #24252f 100%);
+  --ge-node-body: #202128;
+  --ge-node-desc: #2c2d3a;
+
+  --g-nodecat-flow: #6ea8ff;
+  --g-nodecat-model: #a58bff;
+  --g-nodecat-logic: #f0a04b;
+  --g-nodecat-data: #3ecfbb;
+  --g-nodecat-integration: #53c1f5;
+  --g-nodecat-canvas: #9aa1b0;
+
+  /* FlowGram 画布变量（连线已读 var(--g-workflow-*-color)，深色下整体重定义） */
+  --g-editor-background: var(--ge-canvas);
+  --g-workflow-port-color-background: var(--ge-surface);
+}
+
+
+/* 编辑器头部：token 化（原内联 rgba(255,255,255,.85)/#e8e8ea） */
+.gaia-editor-head {
+  background: var(--ge-head);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--ge-border);
+  color: var(--ge-text);
+}
+.gaia-editor-head .gaia-head-btn {
+  background: transparent; border: 1px solid var(--ge-border); color: var(--ge-text);
+}
+.gaia-editor-head .gaia-head-btn:hover { background: var(--ge-surface-2); }
+
+/* 节点图标芯片（单源 nodes/node-visuals；2026-11-06 图标定稿：实底分类色块 + 白色图形，
+   内联 color 为分类色 CSS 变量，深浅主题随变量切换为亮色变体——Dify/Coze 同款语言） */
+.gaia-node-chip {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: 8px; flex: none;
+  background: currentColor;
+}
+.gaia-node-chip > svg {
+  color: #fff;
+}
+
+/* 紧凑密度（偏好 compact）：胶囊形态由组件渲染（components/compact-node +
+   base-node/styles.tsx &.compact），2026-11-06 重设计删除本处 CSS 硬压方案
+   （font-size:0 + !important 清零——曾致文字消失/控件残留/端口错位破版） */
+
+/* FlowGram 自带浅色层的深色覆盖（选择框背景层 + 小地图面板） */
+[data-theme='dark'] .gedit-selector-bounds-background,
+.gaia-editor-page[data-editor-theme='dark'] .gedit-selector-bounds-background {
+  background: transparent;
+}
+[data-theme='dark'] .minimap-panel,
+.gaia-editor-page[data-editor-theme='dark'] .minimap-panel {
+  background: var(--ge-surface) !important;
+  border-color: var(--ge-border) !important;
+}
+
+/* 快捷键帮助列表 */
+.gaia-shortcut-list { display: flex; flex-direction: column; gap: 6px; padding: 4px 2px; }
+.gaia-shortcut-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+.gaia-shortcut-row code { background: var(--ge-surface-2); border: 1px solid var(--ge-border); border-radius: 5px; padding: 1px 8px; font-size: 12px; }
+
+/* 偏好设置弹层 */
+.gaia-prefs-pop { width: 264px; display: flex; flex-direction: column; gap: 6px; }
+.gaia-prefs-sec { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--ge-text-2); margin-top: 6px; }
+.gaia-prefs-sec::after { content: ''; flex: 1; height: 1px; background: var(--ge-border); }
+.gaia-prefs-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.gaia-prefs-row-label { font-size: 12.5px; color: var(--ge-text); }
+.gaia-prefs-swatches { display: flex; gap: 8px; }
+.gaia-prefs-swatch { width: 22px; height: 22px; border-radius: 999px; border: 2px solid transparent; padding: 0; cursor: pointer; }
+.gaia-prefs-swatch[aria-pressed='true'] { border-color: var(--semi-color-text-0); }
+.gaia-prefs-checks { display: grid; grid-template-columns: 1fr; gap: 2px; }
+.gaia-prefs-check { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ge-text); padding: 2px 0; }
+.gaia-prefs-note { font-size: 11px; color: var(--ge-text-2); border-top: 1px solid var(--ge-border); padding-top: 8px; margin-top: 2px; }
+
+/* 左侧节点面板 */
+.gaia-prefs-more { display: flex; flex-direction: column; gap: 2px; align-items: stretch; }
+.gaia-prefs-more .gaia-prefs-row { padding: 2px 2px; border-radius: 7px; }
+.gaia-prefs-more .gaia-prefs-row:hover { background: var(--ge-surface-2); }
+
+/* ===== 左侧节点面板（2026-11-04 二轮打磨） ===== */
+.gaia-palette-rail {
+  position: absolute; left: 12px; top: 12px; bottom: 12px; width: 248px; z-index: 18;
+  display: flex; flex-direction: column; padding: 12px; gap: 8px;
+  background: var(--ge-surface); border: 1px solid var(--ge-border); border-radius: 14px;
+  box-shadow: 0 6px 24px rgba(28, 32, 64, 0.10);
+}
+.gaia-palette-rail--dragging { opacity: 0.8; }
+.gaia-palette-rail--collapsed {
+  position: absolute; left: 12px; top: 12px; z-index: 18;
+  width: 34px; height: 34px; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--ge-surface); border: 1px solid var(--ge-border-strong); border-radius: 10px;
+  color: var(--ge-text-2); cursor: pointer; box-shadow: var(--ge-shadow-sm);
+}
+.gaia-palette-rail--collapsed:hover {
+  color: var(--ge-text);
+  border-color: var(--g-editor-accent, #4d53e8);
+}
+.gaia-palette-rail-head { display: flex; align-items: center; justify-content: space-between; padding: 0 2px; }
+.gaia-palette-rail-title { font-size: 13px; font-weight: 600; color: var(--ge-text); }
+.gaia-palette-rail-head button {
+  display: flex; padding: 4px; border: none; border-radius: 7px;
+  background: transparent; color: var(--ge-text-2); cursor: pointer;
+}
+.gaia-palette-rail-head button:hover { background: var(--ge-surface-2); color: var(--ge-text); }
+.gaia-palette-rail-search {
+  display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 9px;
+  border: 1px solid var(--ge-border); border-radius: 8px;
+  background: var(--ge-canvas); color: var(--ge-text-2);
+  transition: border-color 0.15s;
+}
+.gaia-palette-rail-search:focus-within { border-color: var(--g-editor-accent, #4d53e8); }
+.gaia-palette-rail-search input {
+  border: none; outline: none; background: transparent; width: 100%;
+  font-size: 12px; color: var(--ge-text);
+}
+.gaia-palette-rail-body {
+  flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding-right: 2px;
+}
+.gaia-palette-rail-body::-webkit-scrollbar { width: 5px; }
+.gaia-palette-rail-body::-webkit-scrollbar-thumb { background: var(--ge-border-strong); border-radius: 4px; }
+.gaia-palette-rail-cat { display: flex; flex-direction: column; gap: 5px; margin-bottom: 4px; }
+.gaia-palette-rail-cat-label {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 11px; letter-spacing: 0.04em; color: var(--ge-text-2); padding: 0 2px;
+}
+.gaia-palette-rail-cat-count {
+  font-size: 10px; min-width: 16px; text-align: center; border-radius: 999px;
+  background: var(--ge-surface-2); color: var(--ge-text-2); padding: 0 4px;
+}
+.gaia-palette-rail-item {
+  display: flex; flex-direction: column; gap: 4px; width: 100%; padding: 8px 10px;
+  border: 1px solid var(--ge-border); border-radius: 10px; background: var(--ge-surface);
+  color: var(--ge-text); cursor: grab; text-align: left;
+  transition: border-color 0.12s, box-shadow 0.12s, transform 0.12s;
+}
+.gaia-palette-rail-item:hover {
+  border-color: var(--g-editor-accent, #4d53e8);
+  box-shadow: 0 3px 10px rgba(28, 32, 64, 0.1);
+  transform: translateY(-1px);
+}
+.gaia-palette-rail-item:active { cursor: grabbing; transform: translateY(0); }
+.gaia-palette-rail-item .gaia-node-chip { width: 28px; height: 28px; border-radius: 8px; }
+.gaia-palette-rail-item-row { display: flex; align-items: center; gap: 9px; }
+.gaia-palette-rail-item-label { font-size: 13px; font-weight: 600; flex: 1; }
+.gaia-palette-rail-grip { color: var(--ge-text-2); opacity: 0.55; flex: none; }
+.gaia-palette-rail-item:hover .gaia-palette-rail-grip { opacity: 1; }
+.gaia-palette-rail-item-desc {
+  font-size: 11px; color: var(--ge-text-2); line-height: 1.45; padding-left: 37px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.gaia-palette-rail-empty { font-size: 12px; color: var(--ge-text-2); padding: 10px 4px; text-align: center; }
+.gaia-palette-rail-foot {
+  font-size: 11px; color: var(--ge-text-2); text-align: center;
+  border-top: 1px dashed var(--ge-border); padding-top: 8px;
+}
+
+/* ==================================================================
+ * 参数 Schema 树视图（node-schema-view，2026-11-05）：
+ * 契约源 node-schemas/*.schema.json，侧栏页签与卡片 ⤢ 全屏对照共用。
+ * ================================================================== */
+.gaia-schema-tree { display: flex; flex-direction: column; gap: 1px; }
+.gaia-schema-hint {
+  font-size: 11px; color: var(--ge-text-2); padding: 2px 2px 8px;
+  border-bottom: 1px dashed var(--ge-border); margin-bottom: 6px;
+}
+.gaia-schema-row {
+  display: grid; grid-template-columns: 1fr minmax(72px, auto) 44px;
+  gap: 8px; align-items: center; padding: 4px 6px; border-radius: 6px;
+}
+.gaia-schema-row:hover { background: var(--ge-surface-2); }
+.gaia-schema-row[data-depth='1'] { padding-left: 22px; }
+.gaia-schema-row[data-depth='2'] { padding-left: 44px; }
+.gaia-schema-field {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px; color: var(--ge-text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.gaia-schema-indent { color: var(--ge-text-2); opacity: 0.6; }
+.gaia-schema-type {
+  font-size: 11px; text-align: center; border-radius: 4px; padding: 1px 6px;
+  color: var(--g-nodecat-data, #0e9384);
+  background: color-mix(in srgb, var(--g-nodecat-data, #0e9384) 10%, transparent);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.gaia-schema-type[data-many='1'] { color: var(--g-nodecat-logic, #d97706); background: color-mix(in srgb, var(--g-nodecat-logic, #d97706) 10%, transparent); }
+.gaia-schema-req {
+  font-size: 10.5px; text-align: center; color: var(--ge-text-2);
+}
+.gaia-schema-req[data-req='1'] {
+  color: var(--g-nodecat-logic, #d97706); font-weight: 600;
+}
+.gaia-schema-enum {
+  font-size: 11px; color: var(--ge-text-2); padding: 0 6px 4px 24px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.gaia-schema-row[data-depth='0'] + .gaia-schema-enum { padding-left: 6px; }
+.gaia-schema-empty { font-size: 12px; color: var(--ge-text-2); padding: 14px 6px; }
+
+/* 实例 JSON 对照面板（卡片 ⤢ 全屏 / 侧栏页签共用） */
+.gaia-json-pane {
+  margin: 0; padding: 12px; border-radius: 8px; overflow: auto;
+  background: #1e2030; color: #c8cdea;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px; line-height: 17px; white-space: pre;
+}
+[data-theme='dark'] .gaia-json-pane { background: #14151d; color: #a9b1d3; }
+
+/* 工具栏缩放百分比按钮（zoom-controls，2026-11-05）：− % ＋ 三件套中段 */
+.gaia-zoom-pct {
+  border: none; background: transparent; cursor: pointer;
+  color: var(--ge-text); font-size: 12px; font-variant-numeric: tabular-nums;
+  min-width: 42px; height: 28px; border-radius: 7px; text-align: center;
+}
+.gaia-zoom-pct:hover { background: var(--ge-surface-2); }

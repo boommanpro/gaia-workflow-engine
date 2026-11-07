@@ -118,4 +118,19 @@ class WorkflowDslApplyCasTest {
         verify(versionService).save(captor.capture());
         assertThat(captor.getValue().getIsCurrent()).isEqualTo(0);
     }
+
+    @Test
+    void noCasPathStillNormalizesIsCurrent() {
+        // 2026-11-04 回归钉子：无 CAS 基准（编辑器「发布生效」不传 expectedRevision）时
+        // 版本行直接以 is_current=1 落行，但清旧归一化仍必须执行 ——
+        // 修复前这里被跳过，同一工作流会累积多个 is_current=1（wf_087b971f1357 实发三 CURRENT）
+        WorkflowDslApplyService.ApplyOptions opts = new WorkflowDslApplyService.ApplyOptions();
+
+        WorkflowDslApplyService.ApplyResult result = service.apply("wf_a", DSL, opts);
+
+        assertThat(result.isSuccess()).isTrue();
+        // 归一化两条 UPDATE 无条件执行：清旧（workflow_code 维度，排除新行）+ 设新（id 维度）
+        verify(versionService, times(2))
+            .update(any(com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper.class));
+    }
 }

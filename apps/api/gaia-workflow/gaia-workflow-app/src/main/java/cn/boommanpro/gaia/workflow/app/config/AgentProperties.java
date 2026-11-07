@@ -34,6 +34,29 @@ public class AgentProperties {
         private boolean scripted = false;
         /** 脚本化模型的轨迹脚本（classpath: 或文件路径） */
         private String scriptedResource = "classpath:agent/scripted-trajectory.json";
+
+        /** 模型调用重试（框架 ExecutionConfig 参数全量透出，调参主场景是免费模型 429 限流风暴） */
+        private Retry retry = new Retry();
+    }
+
+    /**
+     * 模型调用重试策略。框架只有单一指数退避曲线（不解析 Retry-After、不区分错误类型），
+     * 免费活动模型的 429 全局限流（free_campaign_global_limit）只能靠拉长曲线硬扛：
+     * 默认 8 次尝试、1s 起步、45s 封顶，累计退避约 2 分钟（2026-11-04 会话 96ba4201
+     * 两轮 Retries exhausted 4/4 的实证：旧默认 5 次/500ms/10s 总窗口仅约 8 秒）。
+     */
+    @Data
+    public static class Retry {
+        /** 总尝试次数（含首次调用；框架日志显示为 attempt N/(maxAttempts-1)），≥1 */
+        private int maxAttempts = 8;
+        /** 首次退避（毫秒），之后按 backoffMultiplier 指数递增 */
+        private long initialBackoffMs = 1000;
+        /** 单次退避上限（毫秒） */
+        private long maxBackoffMs = 45000;
+        /** 退避倍率（≥1） */
+        private double backoffMultiplier = 2.0;
+        /** 单次模型调用超时（毫秒） */
+        private long timeoutMs = 300000;
     }
 
     /**

@@ -17,7 +17,7 @@ export const StartNodeRegistry: FlowNodeRegistry = {
     nodePanelVisible: false,
     defaultPorts: [{ type: 'output' }],
     size: {
-      width: 360,
+      width: 300,
       height: 211,
     },
   },

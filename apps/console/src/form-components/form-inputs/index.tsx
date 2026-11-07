@@ -14,7 +14,9 @@ import { orderInputKeys } from './order';
 
 export { orderInputKeys };
 
-export function FormInputs({ order }: { /** 渲染顺序（契约声明顺序）；缺省按 data.inputs.properties 键序 */ order?: string[] } = {}) {
+export function FormInputs({
+  order,
+}: { /** 渲染顺序（契约声明顺序）；缺省按 data.inputs.properties 键序 */ order?: string[] } = {}) {
   const { readonly } = useNodeRenderContext();
 
   return (

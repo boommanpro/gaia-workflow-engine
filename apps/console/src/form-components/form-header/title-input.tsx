@@ -17,8 +17,10 @@ export function TitleInput(props: {
   readonly: boolean;
   titleEdit: boolean;
   updateTitleEdit: (setEdit: boolean) => void;
+  /** 侧栏态：单击即进入编辑（画布卡片保留双击，避免误触拖拽冲突） */
+  singleClickEdit?: boolean;
 }): JSX.Element {
-  const { readonly, titleEdit, updateTitleEdit } = props;
+  const { readonly, titleEdit, updateTitleEdit, singleClickEdit } = props;
   const ref = useRef<any>();
   const titleEditing = titleEdit && !readonly;
   useEffect(() => {
@@ -48,6 +50,7 @@ export function TitleInput(props: {
             ) : (
               <div
                 onDoubleClick={() => !readonly && updateTitleEdit(true)}
+                onClick={() => !readonly && singleClickEdit && updateTitleEdit(true)}
                 style={{ cursor: readonly ? 'default' : 'pointer' }}
               >
                 <Text ellipsis={{ showTooltip: true }}>{value}</Text>

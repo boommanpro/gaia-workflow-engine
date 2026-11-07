@@ -11,7 +11,8 @@ import { useCurrentEntity, useService } from '@flowgram.ai/free-layout-editor';
 import { WorkflowRuntimeService } from '../../../plugins/runtime-plugin/runtime-service';
 import { NodeStatusRender } from './render';
 
-const useNodeReport = () => {
+/** 当前节点的运行报告（试运行状态）：状态条与节点头状态点共用（2026-11-05 起导出） */
+export const useNodeReport = () => {
   const node = useCurrentEntity();
   const [report, setReport] = useState<NodeReport>();
 

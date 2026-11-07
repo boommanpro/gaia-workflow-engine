@@ -34,7 +34,7 @@ export const LoopNodeRegistry: FlowNodeRegistry = {
      * 子画布默认大小设置
      */
     size: {
-      width: 424,
+      width: 364,
       height: 244,
     },
     // autoResizeDisable: true,

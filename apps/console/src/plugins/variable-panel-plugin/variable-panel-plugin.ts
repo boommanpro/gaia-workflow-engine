@@ -12,7 +12,11 @@ import {
 import { IJsonSchema, JsonSchemaUtils } from '@flowgram.ai/form-materials';
 
 import iconVariable from '../../assets/icon-variable.png';
-import { VariablePanelLayer } from './variable-panel-layer';
+
+/**
+ * 面板 UI 已迁至 components/variable-dock（panel-manager bottom 区，2026-11-05 方案 A）；
+ * 本插件只保留全局变量作用域初始化与 Schema 读取入口。
+ */
 
 const fetchMockVariableFromRemote = async () => {
   await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -35,8 +39,6 @@ export const createVariablePanelPlugin = definePluginCreator<{ initialData?: IJs
     });
   },
   onInit(ctx, opts) {
-    ctx.playground.registerLayer(VariablePanelLayer);
-
     const globalScope = ctx.get(GlobalScope);
 
     if (opts.initialData) {

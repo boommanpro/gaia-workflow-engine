@@ -17,11 +17,15 @@ import {
   WorkflowNodeJSON,
 } from '@flowgram.ai/free-layout-editor';
 
+import { getEditorPrefs } from '../editor-prefs';
+
 /**
  * Drag the end of the line to create an add panel (feature optional)
  * 拖拽线条结束需要创建一个添加面板 （功能可选）
  */
 export const onDragLineEnd = async (ctx: FreeLayoutPluginContext, params: onDragLineEndParams) => {
+  // 节点添加方式偏好（gaia.editor.prefs.addDragLine）：拖线创建可关
+  if (!getEditorPrefs().addDragLine) return;
   // get services from context - 从上下文获取服务
   const nodePanelService = ctx.get(WorkflowNodePanelService);
   const document = ctx.document;

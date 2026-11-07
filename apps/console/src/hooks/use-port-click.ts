@@ -21,6 +21,8 @@ import {
   WorkflowPortEntity,
 } from '@flowgram.ai/free-layout-editor';
 
+import { getEditorPrefs } from '../editor-prefs';
+
 /**
  * click port to trigger node select panel
  * 点击端口后唤起节点选择面板
@@ -34,6 +36,8 @@ export const usePortClick = () => {
 
   const onPortClick = useCallback(async (e: React.MouseEvent, port: WorkflowPortEntity) => {
     if (port.portType === 'input') return;
+    // 节点添加方式偏好（gaia.editor.prefs.addPortPlus）：端口「+」创建可关
+    if (!getEditorPrefs().addPortPlus) return;
     const mousePos = playground.config.getPosFromMouseEvent(e);
     const containerNode = port.node.parent;
     // open node selection panel - 打开节点选择面板

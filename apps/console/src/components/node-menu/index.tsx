@@ -24,9 +24,9 @@ import { CopyShortcut } from '../../shortcuts/copy';
 import { useLanguage, t } from '../../i18n';
 
 interface NodeMenuProps {
-    node: WorkflowNodeEntity;
-    updateTitleEdit?: (setEditing: boolean) => void;
-    deleteNode: () => void;
+  node: WorkflowNodeEntity;
+  updateTitleEdit?: (setEditing: boolean) => void;
+  deleteNode: () => void;
 }
 
 export const NodeMenu: FC<NodeMenuProps> = ({ node, deleteNode, updateTitleEdit }) => {
@@ -80,6 +80,29 @@ export const NodeMenu: FC<NodeMenuProps> = ({ node, deleteNode, updateTitleEdit 
     [clientContext, node]
   );
 
+  /** 导出该节点实例 JSON（2026-11-06）：侧边栏页签退役后实例 JSON 的唯一出口 */
+  const handleExportJson = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      try {
+        const json = JSON.stringify(node.toJSON(), null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${node.id}.json`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        // 导出失败只静默记录：菜单动作不应打断画布交互
+        console.warn('[node-menu] export json failed', err);
+      }
+    },
+    [node]
+  );
+
   const handleDelete = useCallback(
     (e: React.MouseEvent) => {
       deleteNode();
@@ -111,16 +134,24 @@ export const NodeMenu: FC<NodeMenuProps> = ({ node, deleteNode, updateTitleEdit 
       position="bottomRight"
       render={
         <Dropdown.Menu>
-          {canMoveOut && <Dropdown.Item onClick={handleMoveOut}>{t('nodeMenu.moveOut')}</Dropdown.Item>}
+          {canMoveOut && (
+            <Dropdown.Item onClick={handleMoveOut}>{t('nodeMenu.moveOut')}</Dropdown.Item>
+          )}
           <Dropdown.Item onClick={handleCopy} disabled={registry.meta!.copyDisable === true}>
             {t('nodeMenu.createCopy')}
           </Dropdown.Item>
+          <Dropdown.Item onClick={handleExportJson}>{t('nodeMenu.exportJson')}</Dropdown.Item>
           {registry.meta.isContainer && (
             <Dropdown.Item onClick={handleAutoLayout}>{t('nodeMenu.autoLayout')}</Dropdown.Item>
           )}
+          {/* 2026-11-06 修复反向逻辑：原 `!!(canDelete?.() || deleteDisable)` 在 canDelete
+              返回真值时反而禁用。语义应为：目录声明不可删，或 canDelete 明确返回 false 才禁用 */}
           <Dropdown.Item
             onClick={handleDelete}
-            disabled={!!(registry.canDelete?.(clientContext, node) || registry.meta!.deleteDisable)}
+            disabled={
+              registry.meta!.deleteDisable === true ||
+              registry.canDelete?.(clientContext, node) === false
+            }
           >
             {t('nodeMenu.delete')}
           </Dropdown.Item>

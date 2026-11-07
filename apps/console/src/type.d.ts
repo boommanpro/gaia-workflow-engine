@@ -18,7 +18,6 @@ interface Window {
     };
     props?: any;
   };
-}
 
-// Allow importing .tsx files with explicit extension
-declare module '*.tsx'
+
+}

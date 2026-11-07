@@ -34,6 +34,7 @@ import {
 } from '../plugins';
 import { defaultFormMeta } from '../nodes/default-form-meta';
 import { WorkflowNodeType } from '../nodes';
+import { variableDockPanelFactory } from '../components/variable-dock';
 import { testRunPanelFactory } from '../components/testrun/testrun-panel';
 import { nodeFormPanelFactory } from '../components/sidebar';
 import { SelectorBoxPopover } from '../components/selector-box-popover';
@@ -111,6 +112,9 @@ export function useEditorProps(
           type,
           meta: {
             defaultExpanded: true,
+            // 全部节点可折叠：紧凑密度（偏好）= 全局折叠为「芯片+标题」，
+            // 折叠态由 FlowGram 原生渲染，端口保留、可正常连线（2026-11-05 修复）
+            expandable: true,
           },
           formMeta: defaultFormMeta,
         };
@@ -452,6 +456,8 @@ export function useEditorProps(
             testRunPanelFactory,
             runHistoryPanelFactory,
             singleNodeTestPanelFactory,
+            // 变量 Dock（bottom 区，2026-11-05 方案 A）：替代旧 world 层浮动变量面板
+            variableDockPanelFactory,
           ],
         }),
       ],

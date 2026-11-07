@@ -72,25 +72,25 @@ public final class WorkflowLayoutEngine {
      * 前端改尺寸而不同步本表会测试失败。
      */
     static final Map<String, int[]> NODE_SIZES = new TreeMap<>(Map.ofEntries(
-        Map.entry("start", new int[]{360, 211}),
-        Map.entry("end", new int[]{360, 211}),
-        Map.entry("llm", new int[]{360, 390}),
-        Map.entry("http", new int[]{360, 390}),
-        Map.entry("code", new int[]{360, 390}),
-        Map.entry("variable", new int[]{360, 390}),
-        Map.entry("string-format", new int[]{360, 390}),
-        Map.entry("condition", new int[]{360, 210}),
-        Map.entry("branches", new int[]{360, 210}),
-        Map.entry("workflow", new int[]{360, 280}),
-        Map.entry("loop", new int[]{424, 244}),
-        Map.entry("break", new int[]{360, 54}),
-        Map.entry("continue", new int[]{360, 54}),
+        Map.entry("start", new int[]{300, 211}),
+        Map.entry("end", new int[]{300, 211}),
+        Map.entry("llm", new int[]{300, 390}),
+        Map.entry("http", new int[]{300, 390}),
+        Map.entry("code", new int[]{300, 390}),
+        Map.entry("variable", new int[]{300, 390}),
+        Map.entry("string-format", new int[]{300, 390}),
+        Map.entry("condition", new int[]{300, 210}),
+        Map.entry("branches", new int[]{300, 210}),
+        Map.entry("workflow", new int[]{300, 280}),
+        Map.entry("loop", new int[]{364, 244}),
+        Map.entry("break", new int[]{300, 54}),
+        Map.entry("continue", new int[]{300, 54}),
         Map.entry("block-start", new int[]{100, 100}),
         Map.entry("block-end", new int[]{100, 100}),
         Map.entry("comment", new int[]{240, 150}),
         Map.entry("group", new int[]{560, 400})));
     /** 未知类型兜底：按最大常规节点算，宁可稀疏不可重叠 */
-    private static final int[] DEFAULT_SIZE = {360, 390};
+    private static final int[] DEFAULT_SIZE = {300, 390};
 
     private static volatile boolean elkRegistered = false;
 

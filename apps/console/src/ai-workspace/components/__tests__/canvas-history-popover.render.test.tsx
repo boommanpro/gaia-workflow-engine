@@ -1,10 +1,10 @@
 /**
- * 统一历史时间线渲染契约（2026-11-03 改版）：
- *  · 快照与落版版本渲染在同一列表（不再是「本会话版本 / 落版版本」两个分区）
- *  · 快照行不出现 vN 序号（避免与版本号 v1.x 两套编号打架）
- *  · 「仅版本」过滤后快照隐藏、版本里程碑保留
- *  · 全列表不存在「设为生效」直切入口（线上切换只留编辑器「发布生效」确认链）
- *  · 版本里程碑有「载入 / 对比」动作，meta 正确标注来源（会话落版 / 手动保存）
+ * 版本历史时间线渲染契约（2026-11-04 收敛：只展示版本里程碑）：
+ *  · 快照（回滚 / 修改节点等前端变动记录）不再进入历史 UI——即使 store 里有
+ *  · 无过滤 chips（快照层移除后无过滤需求）
+ *  · 全列表不存在「设为生效」直切入口
+ *  · 里程碑有「载入 / 对比」动作，meta 正确标注来源（会话落版 / 手动保存 / 初始创建）
+ *  · 「当前」按内容键判定：画布内容（忽略节点坐标）与哪个版本相同，哪个标「当前」且无载入按钮
  *  · 未落版（无 workflowCode）显示引导文案
  *
  * 直连 CanvasHistoryTimeline（纯内容组件），绕开 Semi Popover 的 portal 点击。
@@ -33,10 +33,17 @@ import type { GaiaWorkflowVersion } from '../../../services/workflow-api';
 let container: HTMLElement;
 let root: Root;
 
-/** 造两条快照：AI 生成（1 节点）→ 手动编辑（加 1 节点 1 边，成为当前态）。
- *  注意 source='ai' 的变更会被 store 挂起到 run 结束（captureAiRunSnapshot），
- *  种子里用 'system' 让快照即时落账。 */
-function seedSnapshots() {
+/** 画布基线内容：两个节点一条边（v1.1 与画布一致的版本就用它） */
+const rawV11 = {
+  nodes: [
+    { id: 'n1', type: 'start', meta: { position: { x: 0, y: 0 } } },
+    { id: 'n2', type: 'llm', meta: { position: { x: 200, y: 0 } } },
+  ],
+  edges: [{ id: 'e1', source: 'n1', target: 'n2' }],
+};
+
+/** 画布放上 v1.1 的内容，同时留下几条快照（模拟手动编辑/回滚轨迹） */
+function seedCanvasWithSnapshots() {
   workflowDocumentStore.clear({ wipePersisted: true });
   workflowDocumentStore.replace(
     WorkflowDocument.fromJSON({
@@ -45,16 +52,11 @@ function seedSnapshots() {
     }),
     { kind: 'replace', source: 'system', reason: 'ai-generate' }
   );
-  workflowDocumentStore.replace(
-    WorkflowDocument.fromJSON({
-      nodes: [
-        { id: 'n1', type: 'start', meta: { position: { x: 0, y: 0 } } },
-        { id: 'n2', type: 'llm', meta: { position: { x: 200, y: 0 } } },
-      ],
-      edges: [{ id: 'e1', source: 'n1', target: 'n2' }],
-    }),
-    { kind: 'replace', source: 'user', reason: 'user-edit' }
-  );
+  workflowDocumentStore.replace(WorkflowDocument.fromJSON(rawV11), {
+    kind: 'replace',
+    source: 'user',
+    reason: 'user-edit',
+  });
 }
 
 const versionFixtures: GaiaWorkflowVersion[] = [
@@ -104,8 +106,8 @@ beforeEach(() => {
   container = document.createElement('div');
   document.body.appendChild(container);
   root = createRoot(container);
-  seedSnapshots();
-  sessionRuntime.reset('history-timeline-test');
+  seedCanvasWithSnapshots();
+  sessionRuntime.reset('history-versions-only-test');
 });
 
 afterEach(() => {
@@ -113,54 +115,50 @@ afterEach(() => {
   container.remove();
 });
 
-describe('统一历史时间线（2026-11-03 改版契约）', () => {
-  it('快照与版本混排同一列表，快照来源标签可读', () => {
+describe('版本历史时间线（2026-11-04 只留版本里程碑契约）', () => {
+  it('快照不进 UI：store 里有快照轨迹，列表只渲染版本里程碑', () => {
     renderTimeline();
-    // 快照区：两条来源标签 + 当前标记
-    expect(text()).toContain('AI 生成');
-    expect(text()).toContain('手动编辑');
-    expect(text()).toContain('当前');
-    // 版本里程碑：版本号 + 描述 + 生效中
+    // 里程碑在
     expect(text()).toContain('v1.2');
     expect(text()).toContain('接入知识库');
     expect(text()).toContain('生效中');
+    // 快照来源标签（前端变动记录）一律不出现
+    expect(text()).not.toContain('手动编辑');
+    expect(text()).not.toContain('AI 生成');
+    expect(text()).not.toContain('回滚');
+    // 过滤 chips 已无意义，不再渲染
+    expect(buttons('全部').length).toBe(0);
+    expect(buttons('仅版本').length).toBe(0);
   });
 
   it('全列表不存在「设为生效」直切入口', () => {
     renderTimeline();
     expect(text()).not.toContain('设为生效');
-    // 旧的两分区标题也不应再出现
-    expect(text()).not.toContain('本会话版本');
-    expect(text()).not.toContain('落版版本');
   });
 
-  it('版本里程碑：载入 / 对比动作 + 来源 meta（会话落版 / 手动保存）', () => {
-    const loaded: number[] = [];
-    renderTimeline({ onLoadVersion: (id: number) => loaded.push(id) });
-    // 「载入」共 3 处：旧快照 1 条 + 非查看态版本 2 条（含生效版本身——会话画布可能已偏离）；
-    // DOM 顺序为快照在前、版本在后（v1.2 → v1.1）
-    expect(buttons('载入').length).toBe(3);
-    // 点 v1.1（最后一个载入按钮）→ 回调收到版本 id
-    act(() => {
-      buttons('载入')[2].click();
-    });
-    expect(loaded).toEqual([1]);
-    // 每个版本都有对比入口
-    expect(buttons('对比上一版').length).toBeGreaterThanOrEqual(2);
+  it('里程碑：载入 / 对比动作 + 来源 meta（会话落版 / 手动保存）', () => {
+    renderTimeline();
+    // v1.2 内容未知（无 workflowData → 键为 null ≠ 画布）→ 有载入；v1.1 见下一条用例
+    expect(buttons('载入').length).toBeGreaterThanOrEqual(1);
+    expect(buttons('对比上一版').length).toBe(2);
     expect(text()).toContain('会话落版'); // sourceSession 有值
     expect(text()).toContain('手动保存'); // createdBy=user
   });
 
-  it('「仅版本」过滤后快照隐藏、版本保留', () => {
-    renderTimeline();
-    const chip = buttons('仅版本')[0];
-    expect(chip).toBeTruthy();
-    act(() => {
-      chip.click();
-    });
-    expect(text()).not.toContain('手动编辑');
-    expect(text()).not.toContain('AI 生成');
-    expect(text()).toContain('v1.2');
+  it('「当前」按内容键判定：画布=v1.1 内容 → v1.1 标当前且无载入按钮（键含坐标，同内容才命中）', () => {
+    const versionsWithDsl: GaiaWorkflowVersion[] = [
+      versionFixtures[0],
+      { ...versionFixtures[1], workflowData: JSON.stringify(rawV11) },
+    ];
+    renderTimeline({ versions: versionsWithDsl });
+    const curMarks = Array.from(container.querySelectorAll('span')).filter(
+      (s) => s.textContent === '当前' && !s.closest('button')
+    );
+    expect(curMarks.length).toBe(1);
+    // v1.1 = 画布当前内容 → 不提供载入；v1.2 仍可载入（唯一载入按钮）
+    expect(buttons('载入').length).toBe(1);
+    expect(text()).toContain('v1.1');
+    expect(text()).toContain('稳定版');
   });
 
   it('未落版（无 workflowCode）：显示引导文案', () => {
@@ -173,46 +171,20 @@ describe('统一历史时间线（2026-11-03 改版契约）', () => {
     expect(text()).toContain('不影响线上版本');
   });
 
-  it('载入不留行：与里程碑同内容的 import 快照隐藏，里程碑标「当前」', () => {
-    // 造一条 reason='import' 的快照，内容与 v1.1 的 DSL 完全一致（= 载入 v1.1 后的状态）
-    const rawV11 = {
-      nodes: [
-        { id: 'n1', type: 'start', meta: { position: { x: 0, y: 0 } } },
-        { id: 'n2', type: 'llm', meta: { position: { x: 200, y: 0 } } },
-        { id: 'n3', type: 'end', meta: { position: { x: 400, y: 0 } } },
+  it('里程碑来源 meta：createdBy=system 的初始版显示「初始创建」', () => {
+    renderTimeline({
+      versions: [
+        {
+          id: 9,
+          workflowCode: 'wf_demo',
+          versionNumber: 'v1.0',
+          createdBy: 'system',
+          createdAt: '2026-10-20 09:00:00',
+          isCurrent: 0,
+        },
       ],
-      edges: [
-        { id: 'e1', source: 'n1', target: 'n2' },
-        { id: 'e2', source: 'n2', target: 'n3' },
-      ],
-    };
-    workflowDocumentStore.clear({ wipePersisted: true });
-    workflowDocumentStore.replace(WorkflowDocument.fromJSON(rawV11), {
-      kind: 'replace',
-      source: 'system',
-      reason: 'import',
     });
-    const versionsWithDsl: GaiaWorkflowVersion[] = [
-      {
-        ...versionFixtures[0],
-        workflowData: JSON.stringify({ nodes: [{ id: 'nx', type: 'start' }], edges: [] }),
-      },
-      { ...versionFixtures[1], workflowData: JSON.stringify(rawV11) },
-    ];
-    renderTimeline({ versions: versionsWithDsl });
-    // import 快照行被隐藏：来源标签「载入」不再出现（只看非按钮内的 span，排除按钮文案）
-    const labelSpans = Array.from(container.querySelectorAll('span')).filter(
-      (s) => s.textContent === '载入' && !s.closest('button')
-    );
-    expect(labelSpans.length).toBe(0);
-    // 「当前」标记挂到 v1.1 里程碑上（唯一），且 v1.1 不再提供「载入」按钮（画布已在它上面）
-    const curMarks = Array.from(container.querySelectorAll('span')).filter(
-      (s) => s.textContent === '当前' && !s.closest('button')
-    );
-    expect(curMarks.length).toBe(1);
-    // v1.2 内容不同：快照不隐藏它的对照——它仍有载入按钮（唯一的载入按钮）
-    expect(buttons('载入').length).toBe(1);
-    expect(text()).toContain('v1.2');
-    expect(text()).toContain('v1.1');
+    expect(text()).toContain('初始创建');
+    expect(text()).not.toContain('编辑器落版');
   });
 });

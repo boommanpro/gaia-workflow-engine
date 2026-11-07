@@ -14,6 +14,9 @@ importers:
       '@douyinfe/semi-ui':
         specifier: ^2.80.0
         version: 2.102.0(@floating-ui/dom@1.8.0)(@tiptap/suggestion@3.29.2(@floating-ui/dom@1.8.0)(@tiptap/core@3.29.2(@tiptap/pm@3.29.2))(@tiptap/pm@3.29.2))(@types/react-dom@18.0.0)(@types/react@18.3.31)(react-dom@18.0.0(react@18.0.0))(react@18.0.0)(supports-color@5.5.0)
+      '@flowgram.ai/editor':
+        specifier: 1.0.12
+        version: 1.0.12(react-dom@18.0.0(react@18.0.0))(react@18.0.0)
       '@flowgram.ai/form-core':
         specifier: 1.0.12
         version: 1.0.12(react-dom@18.0.0(react@18.0.0))(react@18.0.0)
@@ -41,6 +44,9 @@ importers:
       '@flowgram.ai/free-stack-plugin':
         specifier: 1.0.12
         version: 1.0.12(react-dom@18.0.0(react@18.0.0))(react@18.0.0)(styled-components@5.0.0(@babel/core@7.29.7(supports-color@5.5.0))(react-dom@18.0.0(react@18.0.0))(react-is@16.13.1)(react@18.0.0))
+      '@flowgram.ai/history':
+        specifier: 1.0.12
+        version: 1.0.12(react-dom@18.0.0(react@18.0.0))(react@18.0.0)
       '@flowgram.ai/i18n':
         specifier: 1.0.12
         version: 1.0.12(react-dom@18.0.0(react@18.0.0))(react@18.0.0)

@@ -120,6 +120,10 @@
     "title": {
       "type": "string"
     },
+    "description": {
+      "type": "string",
+      "description": "节点描述（可选）。画布卡片/侧栏展示用，执行器不读；为空时前端不渲染该行（2026-11-05 起可空）"
+    },
     "inputsValues": {
       "type": "object",
       "additionalProperties": {

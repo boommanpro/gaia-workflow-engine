@@ -3,20 +3,22 @@
  * SPDX-License-Identifier: MIT
  */
 
+import { useParams } from 'react-router-dom';
 import { useState, useEffect, useCallback } from 'react';
+
 import { PanelFactory, usePanelManager } from '@flowgram.ai/panel-manager-plugin';
 import { useService } from '@flowgram.ai/free-layout-editor';
-import { useParams } from 'react-router-dom';
-import { IconButton, Tag } from '@douyinfe/semi-ui';
-import { IconUploadError, IconClose } from '@douyinfe/semi-icons';
+import { IconButton, Tag, Tooltip } from '@douyinfe/semi-ui';
+import { IconClose } from '@douyinfe/semi-icons';
 
-import { WorkflowRuntimeService } from '../../plugins/runtime-plugin/runtime-service';
 import {
   workflowApi,
   type WorkflowRunRecord,
   type WorkflowNodeRunRecord,
 } from '../../services/workflow-api';
+import { WorkflowRuntimeService } from '../../plugins/runtime-plugin/runtime-service';
 import { useLanguage, t, getCurrentLocale } from '../../i18n';
+import { IconRunHistory } from '../../assets/icon-run-history';
 
 import styles from './index.module.less';
 
@@ -206,12 +208,20 @@ export const RunHistoryPanel = () => {
           <Tag size="small" color={statusColor(node.status)}>
             {node.status || '-'}
           </Tag>
-          <span style={{ fontSize: 12, fontWeight: 600, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <span
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              flex: 1,
+              minWidth: 0,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
             {label}
           </span>
-          {node.nodeType && (
-            <span style={{ fontSize: 11, opacity: 0.55 }}>{node.nodeType}</span>
-          )}
+          {node.nodeType && <span style={{ fontSize: 11, opacity: 0.55 }}>{node.nodeType}</span>}
           <span style={{ fontSize: 11, opacity: 0.55 }}>{formatDuration(node.timeCostMs)}</span>
         </div>
         {expanded && (
@@ -221,9 +231,13 @@ export const RunHistoryPanel = () => {
                 {node.errorMessage}
               </div>
             )}
-            <div style={{ fontSize: 10.5, opacity: 0.6, marginTop: 2 }}>{t('runHistory.nodeInputs')}</div>
+            <div style={{ fontSize: 10.5, opacity: 0.6, marginTop: 2 }}>
+              {t('runHistory.nodeInputs')}
+            </div>
             <pre className={styles.jsonContent}>{formatJson(parseJsonText(node.inputsJson))}</pre>
-            <div style={{ fontSize: 10.5, opacity: 0.6, marginTop: 2 }}>{t('runHistory.nodeOutputs')}</div>
+            <div style={{ fontSize: 10.5, opacity: 0.6, marginTop: 2 }}>
+              {t('runHistory.nodeOutputs')}
+            </div>
             <pre className={styles.jsonContent}>{formatJson(parseJsonText(node.outputJson))}</pre>
           </div>
         )}
@@ -260,11 +274,19 @@ export const RunHistoryPanel = () => {
             </>
           )}
           <div style={{ fontSize: 10.5, opacity: 0.6 }}>{t('runHistory.inputs')}</div>
-          <pre className={styles.jsonContent}>{formatJson(parseJsonText(selectedRun.inputsJson))}</pre>
-          <div style={{ fontSize: 10.5, opacity: 0.6, marginTop: 4 }}>{t('runHistory.outputs')}</div>
-          <pre className={styles.jsonContent}>{formatJson(parseJsonText(selectedRun.outputsJson))}</pre>
+          <pre className={styles.jsonContent}>
+            {formatJson(parseJsonText(selectedRun.inputsJson))}
+          </pre>
+          <div style={{ fontSize: 10.5, opacity: 0.6, marginTop: 4 }}>
+            {t('runHistory.outputs')}
+          </div>
+          <pre className={styles.jsonContent}>
+            {formatJson(parseJsonText(selectedRun.outputsJson))}
+          </pre>
 
-          <div style={{ fontSize: 10.5, opacity: 0.6, margin: '8px 0 4px' }}>{t('runHistory.nodes')}</div>
+          <div style={{ fontSize: 10.5, opacity: 0.6, margin: '8px 0 4px' }}>
+            {t('runHistory.nodes')}
+          </div>
           {nodes.length === 0 ? (
             <div style={{ fontSize: 11.5, opacity: 0.55 }}>{t('runHistory.noRecords')}</div>
           ) : (
@@ -304,15 +326,21 @@ export const runHistoryPanelFactory: PanelFactory<void> = {
   render: () => <RunHistoryPanel />,
 };
 
+/** 工具栏入口。2026-11-06 图标定稿：自绘「运行日志」线性 SVG（Lucide scroll-text 几何），
+ *  替换 IconPulse；顺带补上此前缺失的 Tooltip / aria-label。 */
 export const RunHistoryButton = () => {
   const panelManager = usePanelManager();
+  useLanguage();
 
   return (
-    <IconButton
-      type="tertiary"
-      theme="borderless"
-      icon={<IconUploadError />}
-      onClick={() => panelManager.open(RUN_HISTORY_PANEL, 'bottom')}
-    />
+    <Tooltip content={t('runHistory.title')}>
+      <IconButton
+        type="tertiary"
+        theme="borderless"
+        icon={IconRunHistory}
+        aria-label={t('runHistory.title')}
+        onClick={() => panelManager.open(RUN_HISTORY_PANEL, 'bottom')}
+      />
+    </Tooltip>
   );
 };
