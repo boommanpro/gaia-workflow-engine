@@ -75,7 +75,7 @@ export function Body() {
       {({ field }) => (
         <div style={{ marginTop: 5 }}>
           <FormItem name="Body" vertical type="object">
-            <Select
+            <Select<string>
               value={field.value}
               onChange={(value) => {
                 field.onChange(value as string);

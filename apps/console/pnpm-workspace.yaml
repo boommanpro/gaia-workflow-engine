@@ -1,0 +1,6 @@
+# pnpm 10+ 默认阻止依赖执行 install 脚本，需显式放行（否则每次 run 前置安装被判定失败并告警）：
+# - esbuild：postinstall 校验平台二进制可用性，缺失时报错更清晰
+# - core-js：postinstall 仅打印 funding 提示，无副作用
+onlyBuiltDependencies:
+  - esbuild
+  - core-js

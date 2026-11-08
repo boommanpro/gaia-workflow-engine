@@ -136,7 +136,7 @@ export const NodeStatusRender: FC<NodeStatusRenderProps> = ({ report }) => {
               {index + 1}
             </Button>
           ))}
-          <Select
+          <Select<number>
             value={currentSnapshotIndex >= displayCount ? currentSnapshotIndex : undefined}
             onChange={(value) => setCurrentSnapshotIndex(value as number)}
             className={classnames(styles.snapshotSelect, {

@@ -291,7 +291,7 @@ const ToolDefinitionTab: React.FC = () => {
         <span style={{ fontSize: 13, color: '#666', flexShrink: 0 }}>
           {t('agent.config.filterGroup')}：
         </span>
-        <Select
+        <Select<string>
           multiple
           value={groupFilter}
           onChange={(v) => setGroupFilter((v as string[]) || [])}

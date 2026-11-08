@@ -743,7 +743,7 @@ export const TestCasePanel: FC<TestCasePanelProps> = ({
             value={name}
             onChange={setName}
           />
-          <Select
+          <Select<string>
             size="small"
             placeholder={t('testCase.targetPlaceholder')}
             showClear
@@ -779,7 +779,7 @@ export const TestCasePanel: FC<TestCasePanelProps> = ({
                   )
                 }
               />
-              <Select
+              <Select<string>
                 size="small"
                 style={{ width: 100 }}
                 value={row.op}

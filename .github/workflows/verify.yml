@@ -55,3 +55,8 @@ jobs:
       - name: Run tests
         run: pnpm test
         working-directory: apps/console
+
+      # 类型检查基线已清零（2026-11-08），此后 ts-check 失败即卡合并
+      - name: Type check
+        run: pnpm ts-check
+        working-directory: apps/console
