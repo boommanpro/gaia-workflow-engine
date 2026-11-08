@@ -156,17 +156,33 @@ public class GaiaWorkflowVersionController {
     }
 
     /**
-     * 更新版本：workflowData 有变更时同样过校验（防 PUT 直改绕过门禁）。
+     * 更新版本：仅放行元数据（描述等）。NC-08「正式版本不可原地改正文」——
+     * workflowData 一经落库即冻结，内容变更必须走 apply 生成新版本或 set-current 指针回拨。
+     * 2026-11-08 收口 W6 规范债：此前 PUT 直改任意版本正文（含生效版本）绕过发布门禁。
      */
     @PutMapping("/update")
     public ResponseEntity<?> updateVersion(@RequestBody GaiaWorkflowVersion version) {
-        if (version.getWorkflowData() != null) {
-            List<WorkflowDslValidator.Issue> issues =
-                WorkflowDslValidator.validate(version.getWorkflowData());
-            if (WorkflowDslValidator.hasErrors(issues)) {
-                return reject(issues);
-            }
+        if (version.getId() == null) {
+            Map<String, Object> body = new HashMap<>();
+            body.put("success", false);
+            body.put("error", "缺少版本 id，拒绝更新");
+            return ResponseEntity.badRequest().body(body);
         }
+        GaiaWorkflowVersion existing = workflowVersionService.getById(version.getId());
+        if (existing == null) {
+            Map<String, Object> body = new HashMap<>();
+            body.put("success", false);
+            body.put("error", "版本不存在：" + version.getId());
+            return ResponseEntity.badRequest().body(body);
+        }
+        if (version.getWorkflowData() != null
+            && !version.getWorkflowData().equals(existing.getWorkflowData())) {
+            Map<String, Object> body = new HashMap<>();
+            body.put("success", false);
+            body.put("error", "已发布版本正文不可原地修改（NC-08）：请通过发布生成新版本，或 set-current 回拨生效指针");
+            return ResponseEntity.unprocessableEntity().body(body);
+        }
+        version.setWorkflowData(null);
         return ResponseEntity.ok(workflowVersionService.updateById(version));
     }
 
