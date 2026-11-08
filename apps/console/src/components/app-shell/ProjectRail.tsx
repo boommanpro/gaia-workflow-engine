@@ -10,6 +10,12 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Toast } from '@douyinfe/semi-ui';
 
+import {
+  loadExpandedFolders,
+  loadUnfiledOpen,
+  saveExpandedFolders,
+  saveUnfiledOpen,
+} from '../../utils/project-rail-persistence';
 import { useLanguage, t } from '../../i18n';
 import { CHAT } from '../../chat/theme';
 import { SessionList } from '../../agent/SessionList';
@@ -150,9 +156,18 @@ export const ProjectRail: React.FC<ProjectRailProps> = ({ onSelect, onNewTask })
   const { folders, createFolder, renameFolder, deleteFolder, sessions, currentSessionKey } =
     useAgent();
 
-  // 展开的项目（手风琴，可多个同时展开）；未分组区独立开关
-  const [expanded, setExpanded] = useState<Set<number>>(() => new Set());
-  const [unfiledOpen, setUnfiledOpen] = useState(false);
+  // 展开的项目（手风琴，可多个同时展开）；未分组区独立开关。
+  // 初始值从 localStorage 恢复：/chat 与 /workflows 是两份独立侧栏实例，
+  // 路由切换即重建、局部 state 归零，不恢复则用户展开的分组会被意外折叠
+  const [expanded, setExpanded] = useState<Set<number>>(loadExpandedFolders);
+  const [unfiledOpen, setUnfiledOpen] = useState(loadUnfiledOpen);
+  // 展开态写回 localStorage，侧栏重建 / 刷新后原样恢复
+  useEffect(() => {
+    saveExpandedFolders(expanded);
+  }, [expanded]);
+  useEffect(() => {
+    saveUnfiledOpen(unfiledOpen);
+  }, [unfiledOpen]);
   const toggleFolder = useCallback((id: number) => {
     setExpanded((prev) => {
       const next = new Set(prev);
