@@ -92,7 +92,7 @@
   显示（校验已放行，徽标仍显示 Unknown——flowgram 变量树不暴露 length，属 node_modules 渲染层残余）。
 
 - 2026-10-25（30 对话全节点覆盖评测，入口 `scripts/e2e-conversations/`，记录见
-  [docs/node-coverage-30-conversations-2026-10-25.md](../../docs/node-coverage-30-conversations-2026-10-25.md) 执行记录一节）：
+  `docs/node-coverage-30-conversations-2026-10-25.md` 执行记录一节；该文档已随 docs 目录移除，git 历史可检索）：
   引擎侧修复——HttpNode Accept-Encoding 收敛 gzip（raw deflate ZipException）、DraftRunService 补
   WorkflowDslValidator 门禁（end 零入度假成功封堵）、JSONNull Jackson 序列化（/status 500）、
   TaskInfo/NodeReport 并发容器（report 轮询 CME）、LoopNode 空体 fail fast、`<loopId>_locals` 引用白名单；
@@ -177,7 +177,7 @@
   未验证：浏览器端到端（真实画布选变量/模板徽标）、wf_087b971f1357 全链路回归、存量草稿物化规模统计。
 
 - 2026-10-29（用户实测「AI 生成画布打开就一坨」，调研与决策记录
-  [docs/canvas-auto-layout-elk-2026-10-29.md](../../docs/canvas-auto-layout-elk-2026-10-29.md)，方案 A 用户确认）：
+  `docs/canvas-auto-layout-elk-2026-10-29.md`（已随 docs 目录移除，git 历史可检索），方案 A 用户确认）：
   画布布局收口到后端 ELK layered——旧 BFS 分层步长（X=320/Y=200、碰撞盒 240×120）小于画布真实节点尺寸
   （宽 360、llm/http/code 高 390），重叠是数学必然；且 `autoLayoutIfUntouched` 的宽高比 ≥6 门槛让宽扁乱图
   永远漏网。改动：
@@ -487,6 +487,6 @@
 
 ## 验证记录的边界
 
-[首批实施记录](../../docs/node-catalog-p1-implementation.md) 记录前端 90 项测试及构建通过，后端相关测试通过，前端类型检查未通过。未执行浏览器端到端、真实模型评测、全量后端测试和数据库迁移。本次不把旧记录作为重新验收结果。
+首批实施记录（`docs/node-catalog-p1-implementation.md`，已随 docs 目录移除，git 历史可检索）记录前端 90 项测试及构建通过，后端相关测试通过，前端类型检查未通过。未执行浏览器端到端、真实模型评测、全量后端测试和数据库迁移。本次不把旧记录作为重新验收结果。
 
 后续更新本文件时附代码入口、执行命令及日期；未完成项只有在代码与测试都有证据时才能移入已接入。

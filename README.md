@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/images/logos/logo-3-lettermark.svg" width="120" alt="Gaia" />
+<img src="assets/logo.svg" width="120" alt="Gaia" />
 
 # Gaia
 
