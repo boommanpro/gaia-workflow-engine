@@ -31,12 +31,12 @@
 
 ## 命令入口
 
-在 apps/console 中运行：
+在 apps/console 中运行（包管理器统一 pnpm，2026-11-08 起）：
 
 ```bash
-npm test -- src/agent/node-templates/__tests__
-npm run ts-check
-npm run build
+pnpm test -- src/agent/node-templates/__tests__
+pnpm ts-check
+pnpm build
 ```
 
 在 apps/api/gaia-workflow 中运行：
