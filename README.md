@@ -32,29 +32,24 @@
 - **可扩展插件** — 小地图、自动布局、吸附线、节点面板等。
 - **多分支节点** — 多分支 + 组合条件（and/or）与 else 兜底，支持复杂分支逻辑。
 
-## 截图
+## 演示视频
 
-### 工作台与工作流
+**一句话，生成能跑的工作流。** 76 秒真实录制——AI 对话、画布编排与试运行均为实际 API 调用，无剪辑造假：
 
-| 页面 | 预览 |
-|------|------|
-| **首页** — 国际化产品介绍页 | ![首页](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/images/screenshot-home.png) |
-| **在线演示** — 可交互工作流画布（可拖拽、可新增节点、不可运行） | ![在线演示](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/images/screenshot-demo.png) |
-| **文档** — 快速开始、环境准备、部署方案 | ![文档](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/images/screenshot-docs.png) |
-| **编辑器** — 可视化工作流编辑器，含版本管理 | ![编辑器](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/images/screenshot-editor.png) |
-| **管理后台 · 工作流** — 工作流管理控制台 | ![管理工作流](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/images/screenshot-admin-workflows.png) |
-| **管理后台 · 模板** — 模板管理控制台 | ![管理模板](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/images/screenshot-admin-templates.png) |
-| **发布日志** — 版本历史时间线 | ![发布日志](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/images/screenshot-releases.png) |
+https://github.com/boommanpro/gaia-workflow-engine/blob/main/docs/videos/readme-demo.mp4
 
-### AI Agent
+<details>
+<summary><b>时间轴看点</b></summary>
 
-| 页面 | 预览 |
-|------|------|
-| **AI Agent 对话** — 侧边栏对话式生成工作流，CreatePlan 分步规划 + 步骤执行卡片 | ![AI Agent 对话](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/agent/Snipaste_2026-08-07_19-20-20.jpg) |
-| **调试信息面板** — 原始请求/响应、SSE Event、Context 详情、Raw JSON，点击消息跳转定位 | ![调试信息面板](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/agent/Snipaste_2026-08-07_19-20-42.jpg) |
-| **Agent 配置中心 · 模型** — API Host/Key、模型参数、Embedding 向量检索（BGE） | ![Agent 模型配置](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/agent/Snipaste_2026-08-07_19-21-14.jpg) |
-| **Agent 配置中心 · 提示词** — 默认系统提示词 + 工具集定义（navigate/query/manage/canvas） | ![Agent 提示词配置](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/agent/Snipaste_2026-08-07_19-21-29.jpg) |
-| **Agent 执行工作流** — 在画布上自动创建节点与连线，逐步测试并执行 | ![Agent 执行工作流](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/agent/Snipaste_2026-08-07_19-23-25.jpg) |
+- **0:00** 编辑器画布 —— AI 生成的工作流全景：开始 → 条件分支 → 生成文案 → 结束
+- **0:18** 对话生成 —— 新建任务，像聊天一样描述需求，AI 规划五步清单
+- **0:46** 自动编排 —— 建节点、连线、三次单测全部通过（加速回放）
+- **0:55** Trajectory —— 每一次工具调用、每一步执行轨迹，完整可查
+- **1:01** 试运行 —— 输入 85，"及格"分支生效，判定结果直接返回
+
+</details>
+
+**在线体验：** [首页](https://boommanpro.github.io/gaia-workflow-engine/) · [管理后台](https://boommanpro.github.io/gaia-workflow-engine/#/admin/workflows) · [发布日志](https://boommanpro.github.io/gaia-workflow-engine/#/releases)
 
 ## 快速开始
 

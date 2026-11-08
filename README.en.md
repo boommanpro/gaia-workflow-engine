@@ -32,29 +32,24 @@ A modern visual rule engine platform for orchestrating complex AI workflows. Des
 - **Extensible Plugins** — Minimap, auto-layout, snap lines, node panel, and more.
 - **Multi-condition Node** — Synced from official flowgram.ai for complex branching logic.
 
-## Screenshots
+## Demo Video
 
-### Workbench & Workflows
+**One sentence to a running workflow.** 76 seconds, recorded for real — the AI conversation, canvas orchestration, and test run are all live API calls, no staged editing:
 
-| Page | Preview |
-|------|---------|
-| **Home** — Internationalized product landing page | ![Home](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/images/screenshot-home.png) |
-| **Live Demo** — Interactive workflow canvas (draggable, add nodes, no run) | ![Live Demo](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/images/screenshot-demo.png) |
-| **Docs** — Quick start, prerequisites, deployment options | ![Docs](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/images/screenshot-docs.png) |
-| **Editor** — Visual workflow editor with version management | ![Editor](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/images/screenshot-editor.png) |
-| **Admin · Workflows** — Workflow management console | ![Admin Workflows](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/images/screenshot-admin-workflows.png) |
-| **Admin · Templates** — Template management console | ![Admin Templates](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/images/screenshot-admin-templates.png) |
-| **Release Log** — Version history timeline | ![Releases](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/images/screenshot-releases.png) |
+https://github.com/boommanpro/gaia-workflow-engine/blob/main/docs/videos/readme-demo.mp4
 
-### AI Agent
+<details>
+<summary><b>Timeline highlights</b></summary>
 
-| Page | Preview |
-|------|---------|
-| **AI Agent Chat** — Sidebar conversational workflow generation with CreatePlan + step cards | ![AI Agent Chat](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/agent/Snipaste_2026-08-07_19-20-20.jpg) |
-| **Debug Panel** — Raw request/response, SSE event stream, context, Raw JSON; click messages to jump | ![Debug Panel](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/agent/Snipaste_2026-08-07_19-20-42.jpg) |
-| **Agent Config · Models** — API Host/Key, model params, BGE Embedding vector search | ![Agent Config · Models](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/agent/Snipaste_2026-08-07_19-21-14.jpg) |
-| **Agent Config · Prompts** — Default system prompt + tool definitions (navigate/query/manage/canvas) | ![Agent Config · Prompts](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/agent/Snipaste_2026-08-07_19-21-29.jpg) |
-| **Agent Running Workflow** — Auto-creates nodes & edges on canvas, tests and executes step-by-step | ![Agent Running Workflow](https://raw.githubusercontent.com/boommanpro/gaia-workflow-engine/main/docs/agent/Snipaste_2026-08-07_19-23-25.jpg) |
+- **0:00** Editor canvas — a full view of the AI-generated workflow: Start → Condition → Copywriting → End
+- **0:18** Conversational build — new task, describe it like chatting; the AI plans a five-step checklist
+- **0:46** Auto orchestration — nodes created, edges wired, three unit tests all passing (sped-up replay)
+- **0:55** Trajectory — every tool call and execution step, fully traceable
+- **1:01** Test run — input 85, the "pass" branch fires, the verdict returns instantly
+
+</details>
+
+**Try it live:** [Home](https://boommanpro.github.io/gaia-workflow-engine/) · [Admin Console](https://boommanpro.github.io/gaia-workflow-engine/#/admin/workflows) · [Release Log](https://boommanpro.github.io/gaia-workflow-engine/#/releases)
 
 ## Quick Start
 
