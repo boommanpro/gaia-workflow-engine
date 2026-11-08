@@ -22,7 +22,7 @@ import {
 import { createFreeGroupPlugin } from '@flowgram.ai/free-group-plugin';
 import { createContainerNodePlugin } from '@flowgram.ai/free-container-plugin';
 
-import { trackAndRestoreViewport } from '../utils/viewport-restore';
+import { restoreViewportIfSameContent, startViewportTracking } from '../utils/viewport-restore';
 import { getApiBaseUrl } from '../utils/apiConfig';
 import { canContainNode, onDragLineEnd } from '../utils';
 import { FlowDocumentJSON, FlowNodeMeta, FlowNodeRegistry } from '../typings';
@@ -61,6 +61,33 @@ const flushCanvasChange = debounce(() => {
   if (!ctx || ctx.document.disposed) return;
   canvasSync.onCanvasChange(types);
 }, 600);
+
+/**
+ * 首帧视口收敛（收敛 = 恢复用户视口或重新适配全图）。
+ *
+ * 同一条管线只收敛一次（守卫挂管线实例上，重挂风暴/StrictMode 重放各自重置）：
+ *  · 已恢复用户视口（__didRestoreViewport）→ 不再 fitView，尊重用户缩放；
+ *  · 没有可恢复的视口（首次进入 / 内容已变 / 未 attach store 的预览画布）→ fitView。
+ */
+function convergeViewportOnce(ctx: FreeLayoutPluginContext, readonly: boolean): void {
+  const flag = ctx as { __didInitialFitView?: boolean };
+  if (flag.__didInitialFitView) return;
+  flag.__didInitialFitView = true;
+  if ((ctx as { __didRestoreViewport?: boolean }).__didRestoreViewport) return;
+  // ctx.tools.autoLayout(); // init auto layout
+  ctx.tools.fitView(false);
+  if (readonly) {
+    // 只读=列表卡片里的缩略预览：卡片首帧尺寸往往还没稳定（图片/字体回流），
+    // 立即 fit 会算错比例，导致节点跑到可视区外。延迟再适配一次。
+    setTimeout(() => {
+      try {
+        ctx.tools.fitView(false);
+      } catch {
+        /* 编辑器可能已卸载 */
+      }
+    }, 180);
+  }
+}
 
 export function useEditorProps(
   initialData: FlowDocumentJSON,
@@ -281,37 +308,34 @@ export function useEditorProps(
         bind(CustomService).toSelf().inSingletonScope();
       },
       /**
-       * Playground init
+       * Playground init（render 期，图层/UI 均未就绪——只做无副作用的订阅）
        */
       onInit(ctx) {
-        trackAndRestoreViewport(ctx);
+        // 持续追踪用户视口进快照（按内容指纹分桶，见 utils/viewport-restore）。
+        // 恢复动作不能在这里做：onZoom 事件此刻到不了渲染层（见 onLoad 注释）。
+        startViewportTracking(ctx);
         console.log('--- Playground init ---');
       },
       /**
-       * Playground render
+       * 画布数据加载完成（document.load() 落定，节点 bounds 已就绪，图层与 UI 已订阅）。
+       *
+       * 首帧视口收敛的主时机：先按内容指纹恢复用户视口（此刻 updateConfig 触发的
+       * onZoom 能正常到达渲染层），无可恢复才 fitView。
+       * 之前的实现把恢复放在 onInit、fitView 只挂 onAllLayersRendered——前者事件
+       * 到不了渲染层，后者二次挂载实测可能 30s 不触发甚至不触发，首页「在线演示」
+       * 往返后画布便停在初始 zoom=1，视觉上被放大 3 倍（2026-11-08）。
+       */
+      onLoad(ctx) {
+        (ctx as { __didRestoreViewport?: boolean }).__didRestoreViewport =
+          restoreViewportIfSameContent(ctx);
+        convergeViewportOnce(ctx, readonly);
+      },
+      /**
+       * Playground render（兜底：onLoad 若因版本差异缺失，这里仍会收敛；
+       * 同一守卫防重复。本回调任意图层完成首帧就触发，连发时只认第一次）
        */
       onAllLayersRendered(ctx) {
-        // 本回调是「任意图层完成首帧」就触发一次（图层多、StrictMode 重放时实测
-        // 连发 9 次），且编辑器整体重挂（remountKey）会换新管线 —— 守卫必须挂在
-        // 管线实例（ctx）上：同一条管线只认第一朵火焰，新管线仍有自己的首帧收敛。
-        // 收敛动作走「恢复用户视口或重新适配」：重挂风暴期间内容未变时恢复用户
-        // 刚调好的缩放，而不是打回全图（2026-10-26 首次放大闪回）。
-        const flag = ctx as any;
-        if (flag.__didInitialFitView) return;
-        flag.__didInitialFitView = true;
-        // ctx.tools.autoLayout(); // init auto layout
-        ctx.tools.fitView(false);
-        if (readonly) {
-          // 只读=列表卡片里的缩略预览：卡片首帧尺寸往往还没稳定（图片/字体回流），
-          // 立即 fit 会算错比例，导致节点跑到可视区外。延迟再适配一次。
-          setTimeout(() => {
-            try {
-              ctx.tools.fitView(false);
-            } catch {
-              /* 编辑器可能已卸载 */
-            }
-          }, 180);
-        }
+        convergeViewportOnce(ctx, readonly);
       },
       /**
        * Playground dispose

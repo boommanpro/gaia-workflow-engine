@@ -1,16 +1,18 @@
 /**
- * 视野保持契约回归（2026-10-26 首次放大闪回）：
+ * 视野保持契约回归（2026-10-26 首次放大闪回；2026-11-08 拆分订阅/恢复两时机）：
  * 重挂风暴期间，内容指纹未变时必须恢复用户视口；内容变了才重新 fitView。
+ * 订阅在 onInit（startViewportTracking），恢复在 onLoad（restoreViewportIfSameContent）。
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { WorkflowDocument } from '../../document/workflow-document';
-import { workflowDocumentStore } from '../../document/store';
 import {
   contentStructureKey,
   restoreOrFitView,
-  trackAndRestoreViewport,
+  restoreViewportIfSameContent,
+  startViewportTracking,
 } from '../viewport-restore';
+import { WorkflowDocument } from '../../document/workflow-document';
+import { workflowDocumentStore } from '../../document/store';
 
 function makeCtx(zoom = 1, scrollX = 0, scrollY = 0) {
   const calls: { updateConfig: any[]; fitView: boolean[] } = { updateConfig: [], fitView: [] };
@@ -52,14 +54,21 @@ function makeCtx(zoom = 1, scrollX = 0, scrollY = 0) {
 }
 
 function storeSet(nodes: any[]): void {
-  workflowDocumentStore.replace(
-    WorkflowDocument.fromJSON({ nodes, edges: [] } as any),
-    { kind: 'replace', source: 'ai', reason: 'ai-edit' }
-  );
+  workflowDocumentStore.replace(WorkflowDocument.fromJSON({ nodes, edges: [] } as any), {
+    kind: 'replace',
+    source: 'ai',
+    reason: 'ai-edit',
+  });
 }
 
-const graphA = [{ id: 'a_1', type: 'start', meta: {}, data: {} }, { id: 'b_1', type: 'end', meta: {}, data: {} }];
-const graphB = [{ id: 'a_1', type: 'start', meta: {}, data: {} }, { id: 'c_1', type: 'end', meta: {}, data: {} }];
+const graphA = [
+  { id: 'a_1', type: 'start', meta: {}, data: {} },
+  { id: 'b_1', type: 'end', meta: {}, data: {} },
+];
+const graphB = [
+  { id: 'a_1', type: 'start', meta: {}, data: {} },
+  { id: 'c_1', type: 'end', meta: {}, data: {} },
+];
 
 describe('viewport-restore（首次放大闪回回归）', () => {
   beforeEach(() => {
@@ -68,38 +77,41 @@ describe('viewport-restore（首次放大闪回回归）', () => {
 
   it('无快照时初始化不恢复视口', () => {
     const { ctx, calls } = makeCtx();
-    expect(trackAndRestoreViewport(ctx)).toBe(false);
+    startViewportTracking(ctx);
+    expect(restoreViewportIfSameContent(ctx)).toBe(false);
     expect(calls.updateConfig).toHaveLength(0);
   });
 
   it('用户缩放后重挂：内容未变 → 新管线原样恢复缩放/滚动', () => {
     // 用户在旧管线上把画布调到 zoom 1.5 / 滚动 (120, 80)
     const { ctx: dying } = makeCtx();
-    trackAndRestoreViewport(dying);
+    startViewportTracking(dying);
     (dying.playground as any).__fireZoom();
     (dying.playground as any).__fireScroll();
 
-    // 重挂：新管线视口被打回 1/0/0，onInit 恢复用户视口
+    // 重挂：新管线视口被打回 1/0/0，onInit 订阅、onLoad 恢复用户视口
     const { ctx: fresh, calls, cfg } = makeCtx();
-    expect(trackAndRestoreViewport(fresh)).toBe(true);
+    startViewportTracking(fresh);
+    expect(restoreViewportIfSameContent(fresh)).toBe(true);
     expect(calls.updateConfig[0]).toEqual({ zoom: 1.5, scrollX: 120, scrollY: 80 });
     expect(cfg.zoom).toBe(1.5);
   });
 
   it('内容结构变了（切版本/AI 改结构）→ 不恢复旧视口', () => {
     const { ctx: dying } = makeCtx();
-    trackAndRestoreViewport(dying);
+    startViewportTracking(dying);
     (dying.playground as any).__fireZoom();
 
     storeSet(graphB); // 节点集变化（如切版本）
     const { ctx: fresh, calls } = makeCtx();
-    expect(trackAndRestoreViewport(fresh)).toBe(false);
+    startViewportTracking(fresh);
+    expect(restoreViewportIfSameContent(fresh)).toBe(false);
     expect(calls.updateConfig).toHaveLength(0);
   });
 
   it('restoreOrFitView：内容未变恢复视口，内容变了走 fitView(false)', () => {
     const { ctx: dying } = makeCtx();
-    trackAndRestoreViewport(dying);
+    startViewportTracking(dying);
     (dying.playground as any).__fireZoom();
 
     const same = makeCtx();
@@ -113,7 +125,10 @@ describe('viewport-restore（首次放大闪回回归）', () => {
   });
 
   it('contentStructureKey：与节点/边集合相关，与顺序无关', () => {
-    const k1 = contentStructureKey({ nodes: graphA, edges: [{ sourceNodeID: 'a_1', targetNodeID: 'b_1' }] });
+    const k1 = contentStructureKey({
+      nodes: graphA,
+      edges: [{ sourceNodeID: 'a_1', targetNodeID: 'b_1' }],
+    });
     const k2 = contentStructureKey({
       nodes: [...graphA].reverse(),
       edges: [{ sourceNodeID: 'a_1', targetNodeID: 'b_1' }],

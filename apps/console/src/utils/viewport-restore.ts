@@ -5,16 +5,19 @@
  * 8 次 onInit），每条新管线初始化时视口都被打回 zoom=1/scroll=0 —— 用户在重挂
  * 间隙刚做好的缩放会「闪一下回到原位」（2026-10-26 首次放大闪回）。
  *
- * 机制：
+ * 机制（2026-11-08 拆分为两个时机）：
  *  · 管线 onInit 时订阅其 onZoom/onScroll，用户视口一变就更新快照（持续追踪，
  *    不依赖销毁时点——僵尸管线/空壳 StrictMode 管线不会发出事件，不会污染快照）；
- *  · 新管线 onInit 时，若工作流内容指纹（节点 id 集 + 边集，取自全局 store，
- *    不受管线销毁顺序影响）与快照一致，则**原样恢复**用户视口；
+ *  · 画布 onLoad（document.load() 落定）时，若工作流内容指纹（节点 id 集 + 边集，
+ *    取自全局 store，不受管线销毁顺序影响）与快照一致，则**原样恢复**用户视口；
  *  · 内容变了（首次进入 / 切版本 / AI 增删节点）由调用方另行 fitView。
  * 恢复与拟合均为瞬时（easing=false），无滑移动画。
  *
- * 注意：本应用的 onAllLayersRendered 不可靠（实测可能 30s 后才触发甚至不触发），
- * 视口恢复因此挂在必然触发的 onInit 上，不要移回渲染回调。
+ * 时机约束：恢复必须发生在 onLoad 而不是 onInit——onInit 处在 render 期，
+ * 画布图层与 UI 订阅者尚未就绪，updateConfig 触发的 onZoom 到不了渲染层，
+ * 画布会停留在初始 zoom=1（2026-11-08 首页「在线演示」往返后画布放大 3 倍）。
+ * 另：本应用的 onAllLayersRendered 不可靠（实测可能 30s 后才触发甚至不触发），
+ * 不要把它作为收敛的唯一时机。
  */
 import { workflowDocumentStore } from '../document';
 
@@ -47,9 +50,14 @@ function rememberSnapshot(key: string, snapshot: ViewportSnapshot): void {
 export function contentStructureKey(doc: unknown): string {
   try {
     const json = (typeof (doc as any)?.toJSON === 'function' ? (doc as any).toJSON() : doc) as any;
-    const nodes = (json?.nodes || []).map((n: any) => String(n.id)).sort().join(',');
+    const nodes = (json?.nodes || [])
+      .map((n: any) => String(n.id))
+      .sort()
+      .join(',');
     const edges = (json?.edges || [])
-      .map((e: any) => `${e?.sourceNodeID ?? e?.from?.id ?? ''}->${e?.targetNodeID ?? e?.to?.id ?? ''}`)
+      .map(
+        (e: any) => `${e?.sourceNodeID ?? e?.from?.id ?? ''}->${e?.targetNodeID ?? e?.to?.id ?? ''}`
+      )
       .sort()
       .join(',');
     return `${nodes}|${edges}`;
@@ -68,14 +76,18 @@ function currentKey(): string {
 }
 
 /**
- * 管线初始化时调用：订阅视口变化持续更新快照，并按内容指纹决定是否恢复。
- * 返回 true 表示本次恢复了保存的视口。
+ * 管线初始化时调用：只订阅视口变化持续更新快照。
+ *
+ * 只做订阅、不做恢复——onInit 发生在 render 期，此时画布图层与 UI 订阅者
+ * （ZoomControls 等）均未就绪：即便 updateConfig 写对了 zoom，onZoom 事件也
+ * 到不了渲染层，画布会停在初始 zoom=1（2026-11-08 首页往返画布放大）。
+ * 恢复动作交给 onLoad 时机（restoreViewportIfSameContent）。
  */
-export function trackAndRestoreViewport(ctx: any): boolean {
+export function startViewportTracking(ctx: any): void {
   try {
     const playground = ctx?.playground;
     const cfg = playground?.config;
-    if (!playground || !cfg) return false;
+    if (!playground || !cfg) return;
 
     // 同一条管线只订阅一次；Zoom/Scroll 事件即用户视口的最新值
     if (!(ctx as any).__vpTracking) {
@@ -90,7 +102,20 @@ export function trackAndRestoreViewport(ctx: any): boolean {
       playground.onZoom?.(record);
       playground.onScroll?.(record);
     }
+  } catch {
+    /* fall through */
+  }
+}
 
+/**
+ * 画布数据加载完成后（onLoad 时机）调用：按内容指纹恢复用户视口。
+ * 此刻图层已渲染、UI 已订阅，恢复触发的 onZoom 能正常到达渲染层。
+ * 返回 true 表示本次恢复了保存的视口。
+ */
+export function restoreViewportIfSameContent(ctx: any): boolean {
+  try {
+    const cfg = ctx?.playground?.config;
+    if (!cfg) return false;
     const key = currentKey();
     const saved = savedMap.get(key);
     if (saved) {
