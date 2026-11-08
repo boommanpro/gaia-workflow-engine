@@ -6,6 +6,8 @@
 /* eslint-disable no-console */
 import { useMemo } from 'react';
 
+// 编辑器装配前应用上游 flowgram 1.0.12 的 console 噪音静音补丁（幂等）
+
 import { debounce } from 'lodash-es';
 import { createPanelManagerPlugin } from '@flowgram.ai/panel-manager-plugin';
 import { createMinimapPlugin } from '@flowgram.ai/minimap-plugin';
@@ -29,6 +31,7 @@ import { FlowDocumentJSON, FlowNodeMeta, FlowNodeRegistry } from '../typings';
 import { shortcuts } from '../shortcuts';
 import { CustomService } from '../services';
 import { WorkflowRuntimeService } from '../plugins/runtime-plugin/runtime-service';
+import { applyFlowgramCompatPatches } from '../plugins/flowgram-compat';
 import {
   createContextMenuPlugin,
   createRuntimePlugin,
@@ -94,6 +97,8 @@ export function useEditorProps(
   nodeRegistries: FlowNodeRegistry[],
   readonly = false
 ): FreeLayoutProps {
+  // 幂等：三个编辑器入口（正式/精简/模板）共用本 hook，补丁只应用一次
+  applyFlowgramCompatPatches();
   return useMemo<FreeLayoutProps>(
     () => ({
       /**

@@ -17,7 +17,10 @@ server:
 
 mybatis-plus:
   configuration:
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    # StdOutImpl 会把全部 SQL（含参数与结果行）直打 stdout 灌满控制台（agent 事件行的 JSON 全量转储）；
+    # 切 Slf4j 走日志框架，默认 INFO 静默，排查时按包开 debug：
+    # logging.level.cn.boommanpro.gaia.workflow.infra.manage.mapper: debug
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
   global-config:
     db-config:
       logic-delete-field: isDeleted
