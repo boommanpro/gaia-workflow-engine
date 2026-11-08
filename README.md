@@ -36,7 +36,7 @@
 
 **一句话，生成能跑的工作流。** 76 秒真实录制——AI 对话、画布编排与试运行均为实际 API 调用，无剪辑造假：
 
-https://github.com/boommanpro/gaia-workflow-engine/blob/main/docs/videos/readme-demo.mp4
+https://github.com/user-attachments/assets/2530ba1e-3ac2-49c3-835f-87ed9f77b44c
 
 <details>
 <summary><b>时间轴看点</b></summary>

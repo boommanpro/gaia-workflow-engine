@@ -36,7 +36,7 @@ A modern visual rule engine platform for orchestrating complex AI workflows. Des
 
 **One sentence to a running workflow.** 76 seconds, recorded for real — the AI conversation, canvas orchestration, and test run are all live API calls, no staged editing:
 
-https://github.com/boommanpro/gaia-workflow-engine/blob/main/docs/videos/readme-demo.mp4
+https://github.com/user-attachments/assets/2530ba1e-3ac2-49c3-835f-87ed9f77b44c
 
 <details>
 <summary><b>Timeline highlights</b></summary>
