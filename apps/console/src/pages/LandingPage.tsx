@@ -1,23 +1,26 @@
 /**
  * 产品首页（DeepSeek/OpenAI 风）：Tab 化的入口页。
  *
- *  对话      —— 发起对话 → 创建 API（默认 tab）
- *  在线演示  —— 可交互工作流画布（只读）
- *  发布日志  —— 版本历史时间线
+ *  对话      —— 发起对话 → 创建 API（默认 tab，地址栏不带 hash）
+ *  在线演示  —— 可交互工作流画布（只读）  → /#demo
+ *  发布日志  —— 版本历史时间线            → /#releases
+ *
+ * tab 状态落在 URL hash 上：可收藏、可分享、可前进后退（URL 即状态）。
  *
  * 输入即发起一段新对话 → 创建会话并跳转到 /c/:key（AI 工作区），
  * 由工作区自动发送首条消息。这就是「以对话为核心创建 API」的入口。
  *
  * 布局：flex column + 内容区 flex:1，内容不足一屏时 footer 贴底。
  */
+import { useLocation, useNavigate } from 'react-router-dom';
 import React, { useCallback, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAgent } from '../agent';
+
 import { useLanguage, t } from '../i18n';
-import { setInitialPrompt } from '../agent/initialPrompt';
-import ContentTopNav from '../components/ContentTopNav';
 import WorkflowDemoCanvas from '../components/WorkflowDemoCanvas';
 import ReleaseTimeline from '../components/ReleaseTimeline';
+import ContentTopNav from '../components/ContentTopNav';
+import { setInitialPrompt } from '../agent/initialPrompt';
+import { useAgent } from '../agent';
 
 const ACCENT = '#4d53e8';
 
@@ -34,11 +37,25 @@ const TABS: { key: TabKey; labelKey: string }[] = [
   { key: 'releases', labelKey: 'landing.tabReleases' },
 ];
 
+/** hash → tab（'#demo' / '#releases'；其余一律归到默认对话 tab） */
+const tabFromHash = (hash: string): TabKey => {
+  const key = hash.replace(/^#/, '');
+  return key === 'demo' || key === 'releases' ? key : 'chat';
+};
+
 export const LandingPage: React.FC = () => {
   useLanguage();
   const navigate = useNavigate();
+  // URL 即状态：tab 落在地址栏 hash 上（/#demo、/#releases），可收藏、可分享、可前进后退；
+  // 对话 tab 是默认态不带 hash，保持首页地址干净
+  const location = useLocation();
+  const tab = tabFromHash(location.hash);
+  const switchTab = (key: string) => {
+    const next = key as TabKey;
+    if (next === tab) return;
+    navigate(next === 'chat' ? { hash: '' } : { hash: `#${next}` });
+  };
   const { createSession } = useAgent();
-  const [tab, setTab] = useState<TabKey>('chat');
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [images, setImages] = useState<string[]>([]);
@@ -124,7 +141,7 @@ export const LandingPage: React.FC = () => {
         showCta={false}
         tabs={TABS}
         activeTab={tab}
-        onTabChange={(key) => setTab(key as TabKey)}
+        onTabChange={switchTab}
       />
 
       {/* 内容区：flex:1，撑满剩余空间让 footer 贴底 */}
@@ -177,7 +194,15 @@ export const LandingPage: React.FC = () => {
                         aria-label={t('landing.removeImage')}
                         title={t('landing.removeImage')}
                       >
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                        <svg
+                          width="10"
+                          height="10"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="3"
+                          strokeLinecap="round"
+                        >
                           <path d="M5 5l14 14M19 5L5 19" />
                         </svg>
                       </button>
@@ -191,8 +216,12 @@ export const LandingPage: React.FC = () => {
                 onChange={(e) => setText(e.target.value)}
                 onKeyDown={onKeyDown}
                 onPaste={onPaste}
-                onCompositionStart={() => { isComposingRef.current = true; }}
-                onCompositionEnd={() => { isComposingRef.current = false; }}
+                onCompositionStart={() => {
+                  isComposingRef.current = true;
+                }}
+                onCompositionEnd={() => {
+                  isComposingRef.current = false;
+                }}
                 placeholder={t('landing.placeholder')}
                 rows={10}
                 className="w-full resize-none border-0 bg-transparent px-2 py-2 text-[17px] leading-relaxed outline-none"
@@ -208,7 +237,17 @@ export const LandingPage: React.FC = () => {
                     title={t('landing.attach')}
                     aria-label={t('landing.attach')}
                   >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden
+                    >
                       <rect x="3" y="3" width="18" height="18" rx="3" />
                       <circle cx="9" cy="9" r="1.6" />
                       <path d="M21 15l-5-5L5 21" />
@@ -218,7 +257,8 @@ export const LandingPage: React.FC = () => {
                   {/* 历史对话入口已移除：会话统一在 /chat 工作区侧栏管理 */}
 
                   <span className="text-[12px] text-[#aaa]">
-                    {images.length > 0 ? `${images.length}/${MAX_IMAGES}` : t('landing.examples')} · Enter ↵
+                    {images.length > 0 ? `${images.length}/${MAX_IMAGES}` : t('landing.examples')} ·
+                    Enter ↵
                   </span>
                 </div>
                 <button
@@ -263,7 +303,10 @@ export const LandingPage: React.FC = () => {
         {tab === 'demo' && (
           <div className="mx-auto w-full px-5 py-5 sm:px-8">
             <div className="mb-4 text-center">
-              <h2 className="text-[26px] font-bold sm:text-[34px]" style={{ letterSpacing: '-0.02em' }}>
+              <h2
+                className="text-[26px] font-bold sm:text-[34px]"
+                style={{ letterSpacing: '-0.02em' }}
+              >
                 {t('landing.demoTitle')}
               </h2>
               <p className="mt-2 text-[15px] text-[#666]">{t('landing.demoSubtitle')}</p>
@@ -278,7 +321,10 @@ export const LandingPage: React.FC = () => {
         {tab === 'releases' && (
           <div className="mx-auto w-full max-w-[1120px] px-6 py-10 sm:px-10">
             <div className="mb-8 border-b pb-6" style={{ borderColor: '#eee' }}>
-              <h2 className="text-[26px] font-bold sm:text-[32px]" style={{ letterSpacing: '-0.02em' }}>
+              <h2
+                className="text-[26px] font-bold sm:text-[32px]"
+                style={{ letterSpacing: '-0.02em' }}
+              >
                 {t('releases.title')}
               </h2>
               <p className="mt-2 text-[15px] text-[#666]">{t('releases.subtitle')}</p>
