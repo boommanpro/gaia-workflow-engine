@@ -34,21 +34,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # pnpm 版本从 apps/console/package.json 的 packageManager 字段读取
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 18
-          cache: 'npm'
-          cache-dependency-path: apps/console/package-lock.json
+          cache: 'pnpm'
+          cache-dependency-path: apps/console/pnpm-lock.yaml
 
       - name: Install Dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
         working-directory: apps/console
 
       # eslint 默认只在 error 时非零退出；积压的 prettier/import-order 告警不阻塞，清零后再加 --max-warnings=0
       - name: Lint
-        run: npm run lint
+        run: pnpm lint
         working-directory: apps/console
 
       - name: Run tests
-        run: npm test
+        run: pnpm test
         working-directory: apps/console

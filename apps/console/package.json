@@ -4,6 +4,7 @@
   "description": "Console - Visual workflow editor powered by flowgram.ai",
   "keywords": [],
   "license": "MIT",
+  "packageManager": "pnpm@11.28.5",
   "main": "./src/index.ts",
   "files": [
     "src/",
@@ -76,8 +77,6 @@
     "build": "node_modules/.bin/cross-env NODE_ENV=production NODE_OPTIONS=--max-old-space-size=6144 rsbuild build",
     "build:prod": "node_modules/.bin/cross-env NODE_ENV=production ENV_FILE=.env.production rsbuild build",
     "build:electron": "node_modules/.bin/cross-env NODE_ENV=production ENV_FILE=.env.electron rsbuild build",
-    "build:fast": "exit 0",
-    "build:watch": "exit 0",
     "clean": "rimraf dist",
     "dev": "node_modules/.bin/cross-env NODE_ENV=development NODE_OPTIONS=--max-old-space-size=6144 rsbuild dev --open",
     "prod": "node_modules/.bin/cross-env NODE_ENV=production rsbuild dev --open",
@@ -86,8 +85,6 @@
     "ts-check": "tsc --noEmit",
     "start": "node_modules/.bin/cross-env NODE_ENV=development rsbuild dev --open",
     "test": "vitest run",
-    "test:cov": "exit",
-    "watch": "exit 0",
     "build:gh-pages": "node_modules/.bin/cross-env NODE_ENV=production ENV_FILE=.env.github  rsbuild build",
     "test:watch": "vitest",
     "e2e": "playwright test"

@@ -63,8 +63,7 @@ npm-debug.log
 yarn-error.log
 yarn.lock
 package-lock.json
-# 新 console 项目使用 npm，需要提交 package-lock.json
-!apps/console/package-lock.json
+# console 统一使用 pnpm（pnpm-lock.yaml 入库，CI 与本地一致）
 
 # 编译输出
 *.class
@@ -203,4 +202,5 @@ eggs/
 pip-wheel-metadata/
 wheels/
 # ----- ↑ 以上为 ZCode 默认排除规则（自定义规则请写在本行下方，不会被同步/恢复改动）-----
+.eslintcache
 # 自定义规则写在下方（本行提示可删除）

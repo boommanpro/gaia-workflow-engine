@@ -16,19 +16,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # pnpm 版本从 apps/console/package.json 的 packageManager 字段读取
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 18
-          cache: 'npm'
-          cache-dependency-path: apps/console/package-lock.json
+          cache: 'pnpm'
+          cache-dependency-path: apps/console/pnpm-lock.yaml
 
       # 构建新的单体 React 前端应用（Gaia）
       - name: Install Dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
         working-directory: apps/console
 
       - name: Build for GitHub Pages
-        run: npm run build:gh-pages
+        run: pnpm build:gh-pages
         working-directory: apps/console
 
       # 部署到 gh-pages 分支（仓库 Pages 已配置为从此分支部署）
