@@ -195,3 +195,6 @@ test-results/
 
 # ESLint 本地缓存
 .eslintcache
+
+# 本地调研/基准文档目录（用户决策：docs 内容不入库、不同步远程）
+docs/
