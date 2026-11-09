@@ -35,6 +35,7 @@ export default defineConfig({
       'process.env.REACT_APP_SERVER_DOMAIN': JSON.stringify(process.env.REACT_APP_SERVER_DOMAIN ),
       'process.env.REACT_APP_SERVER_PORT': JSON.stringify(process.env.REACT_APP_SERVER_PORT ),
       'process.env.REACT_APP_SERVER_PROTOCOL': JSON.stringify(process.env.REACT_APP_SERVER_PROTOCOL ),
+      'process.env.REACT_APP_API_BASE_URL': JSON.stringify(process.env.REACT_APP_API_BASE_URL ),
       'process.env.ASSET_PREFIX': JSON.stringify(process.env.ASSET_PREFIX || ''),
     },
   },

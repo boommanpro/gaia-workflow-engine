@@ -1,0 +1,36 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/gaia-workflow/Dockerfile
+    environment:
+      # Required only when an externally hosted Agent must call Gaia's MCP endpoint.
+      GAIA_MCP_PUBLIC_URL: ${GAIA_MCP_PUBLIC_URL:-}
+      # The default development configuration logs SQL parameters to stdout.
+      # Disable it in the deployment so database-backed credentials never reach
+      # container logs.
+      MYBATIS_PLUS_CONFIGURATION_LOG_IMPL: org.apache.ibatis.logging.nologging.NoLoggingImpl
+    volumes:
+      - gaia_data:/data
+    networks:
+      - gaia_internal
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/console/Dockerfile
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${GAIA_HTTP_PORT:-8080}:8080"
+    networks:
+      - gaia_internal
+    restart: unless-stopped
+
+volumes:
+  gaia_data:
+
+networks:
+  gaia_internal:

@@ -17,8 +17,6 @@ import { t } from '../i18n';
 import { useHealthCheck } from '../hooks/useHealthCheck';
 
 const ACCENT = 'var(--g-accent)';
-const DEFAULT_BASE_URL = 'http://127.0.0.1:48080/api';
-
 export const ConnectionStatus: React.FC = () => {
   const { status } = useHealthCheck();
   const [open, setOpen] = useState(false);
@@ -41,7 +39,7 @@ export const ConnectionStatus: React.FC = () => {
 
   const handleReset = () => {
     localStorage.removeItem('apiBaseUrl');
-    setUrl(DEFAULT_BASE_URL);
+    setUrl(getApiBaseUrl());
   };
 
   // 服务端正常时完全不显示，保持界面干净

@@ -17,7 +17,12 @@ export const getApiBaseUrl = (): string => {
     return '/api';
   }
 
-  // 3. 生产环境默认本地后端
+  // 3. Production keeps the existing standalone default unless a deployment
+  //    injects an explicit build-time base URL (Docker Compose uses /api).
+  const buildTimeApiBaseUrl = process.env.REACT_APP_API_BASE_URL;
+  if (buildTimeApiBaseUrl) {
+    return buildTimeApiBaseUrl;
+  }
   return 'http://127.0.0.1:48080/api';
 };
 

@@ -1,0 +1,16 @@
+.git
+.github
+.idea
+.vscode
+**/node_modules
+**/target
+**/dist
+.env
+.env.*
+!apps/console/.env.development
+!apps/console/.env.electron
+*.db
+*.db-*
+*.log
+test-results
+coverage
