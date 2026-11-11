@@ -6,9 +6,9 @@ services:
     environment:
       # Required only when an externally hosted Agent must call Gaia's MCP endpoint.
       GAIA_MCP_PUBLIC_URL: ${GAIA_MCP_PUBLIC_URL:-}
-      # The default development configuration logs SQL parameters to stdout.
-      # Disable it in the deployment so database-backed credentials never reach
-      # container logs.
+      # 默认 Slf4jImpl 在 INFO 级别静默，仅按包开 debug 才输出 SQL 参数；
+      # 部署环境显式降为 NoLoggingImpl 作为防御纵深——即便误开 debug，
+      # 数据库中的模型凭据也不会进入容器日志。
       MYBATIS_PLUS_CONFIGURATION_LOG_IMPL: org.apache.ibatis.logging.nologging.NoLoggingImpl
     volumes:
       - gaia_data:/data
