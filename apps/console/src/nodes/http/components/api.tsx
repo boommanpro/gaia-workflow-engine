@@ -19,7 +19,7 @@ export function Api() {
         <div style={{ display: 'flex', gap: 5 }}>
           <Field<string> name="api.method" defaultValue="GET">
             {({ field }) => (
-              <Select
+              <Select<string>
                 value={field.value}
                 onChange={(value) => {
                   field.onChange(value as string);

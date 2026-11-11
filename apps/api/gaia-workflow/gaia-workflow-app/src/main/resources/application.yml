@@ -17,7 +17,10 @@ server:
 
 mybatis-plus:
   configuration:
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    # StdOutImpl 会把全部 SQL（含参数与结果行）直打 stdout 灌满控制台（agent 事件行的 JSON 全量转储）；
+    # 切 Slf4j 走日志框架，默认 INFO 静默，排查时按包开 debug：
+    # logging.level.cn.boommanpro.gaia.workflow.infra.manage.mapper: debug
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
   global-config:
     db-config:
       logic-delete-field: isDeleted
@@ -26,18 +29,31 @@ mybatis-plus:
 
 agent:
   llm:
-    # 平台默认模型（会话 Agent 与 llm 节点凭据兜底）：dmxapi 免费 glm-4-flash。
-    # 凭证不入库（首次部署二选一，改完即生效）：
-    #   ① 环境变量 GAIA_LLM_API_KEY（启动前设置，会随 seedModelConfig 灌入数据库）；
-    #   ② 部署后登录管理后台 manage/agent-config → llm_config 在线填写（推荐，即时生效）。
-    # 不设置则 llm 凭证为空：llm 节点/对话引擎在首次调用时报「缺少 apiKey 配置」并带修复指引。
-    api-host: https://www.dmxapi.cn/v1
+    # 平台默认模型（会话 Agent 与 llm 节点凭据兜底）：火山方舟 Coding Plan（字节 coding plan，
+    # 套餐内 deepseek-v4-pro）。三个口径差异（2026-11-05 实测）：
+    #   ① coding plan 模型只能走 /api/coding/v3 专用端点，标准 /api/v3 报 InvalidEndpointOrModel.NotFound；
+    #   ② 规格来自 ListArkCodingPlanModel：ContextWindow 1M / MaxInput 393k / MaxCompletion 393k；
+    #   ③ 思考型模型（默认输出 reasoning_content），thinking 档位参数兼容（thinking_budget 可下发）。
+    # 凭据只从环境变量 GAIA_LLM_API_KEY 注入，默认空（凭证不入库）；模型管理页全局默认（DB model.active → llm_model 条目）在线覆盖此兜底
+    api-host: https://ark.cn-beijing.volces.com/api/coding/v3
     api-key: ${GAIA_LLM_API_KEY:}
-    model: glm-4-flash
+    model: deepseek-v4-pro
     temperature: 0.5
+    # 思考型模型：reasoning 计入 completion（max_tokens 需容纳 thinking=high 预算 24576 + 正文余量）
+    max-tokens: 32768
     # 平台默认上下文窗口（token）：条目级模型可在模型管理页单独配 context_window 覆盖；
     # 历史压缩线 = 窗口 × 阈值%（阈值全局可配：DB model.compaction → run.compaction-threshold-percent）
-    context-window: 32768
+    context-window: 1048576
+    # 模型调用重试（单一指数退避曲线，不区分错误类型）：免费活动模型 429 全局限流
+    # （free_campaign_global_limit，限流窗与所有活动用户共享）只能拉长曲线硬扛——
+    # 旧硬编码 5 次/500ms/10s 总窗口仅约 8 秒，实测两轮 Retries exhausted 4/4（会话 96ba4201）；
+    # 默认 8 次、1s→45s，累计退避约 2 分钟。换付费模型后可调回更紧凑的值
+    retry:
+      max-attempts: 8            # 总尝试次数（含首次，框架日志显示为 attempt N/7）
+      initial-backoff-ms: 1000   # 首次退避，之后按倍率指数递增
+      max-backoff-ms: 45000      # 单次退避上限
+      backoff-multiplier: 2.0    # 退避倍率
+      timeout-ms: 300000         # 单次模型调用超时（5 分钟）
   # 跨 run 历史压缩触发线（相对窗口的百分比，10-95）：模型管理页全局设置在线覆盖（DB model.compaction）
   run:
     compaction-threshold-percent: 80

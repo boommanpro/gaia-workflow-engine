@@ -27,7 +27,9 @@ export const createRuntimePlugin = definePluginCreator<RuntimePluginOptions, Plu
   },
   onInit(ctx, options) {
     if (options.mode === 'server') {
-      const serverClient = ctx.get<WorkflowRuntimeServerClient>(WorkflowRuntimeClient);
+      // onBind 里 rebind(WorkflowRuntimeClient).to(WorkflowRuntimeServerClient)，
+      // 标识符类型仍是 WorkflowRuntimeClient，按 DI 约定显式收窄到服务端实现
+      const serverClient = ctx.get(WorkflowRuntimeClient) as WorkflowRuntimeServerClient;
       serverClient.init(options.serverConfig);
     }
   },

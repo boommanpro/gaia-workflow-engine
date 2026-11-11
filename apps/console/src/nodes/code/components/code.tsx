@@ -28,7 +28,7 @@ export function Code() {
       <FormItem name="language" type="string">
         <Field<string> name="script.language">
           {({ field }) => (
-            <Select
+            <Select<string>
               optionList={languageOptions}
               value={field.value}
               onChange={(value) => field.onChange(value as string)}

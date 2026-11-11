@@ -62,8 +62,7 @@ npm-debug.log
 yarn-error.log
 yarn.lock
 package-lock.json
-# 新 console 项目使用 npm，需要提交 package-lock.json
-!apps/console/package-lock.json
+# console 统一使用 pnpm（pnpm-lock.yaml 入库，CI 与本地一致）
 
 # 编译输出
 *.class
@@ -177,6 +176,10 @@ Thumbs.db
 # 本地 AI 工具状态目录（会话记忆/计划等，不入库）
 .workbuddy/
 .zcode/
+.claude/
+
+# skills CLI 安装锁文件（本地 skill 版本记录，不入库）
+skills-lock.json
 
 # AgentScope Service 运行时工作区（会话/事件/记忆落盘，不入库）
 .agentscope/
@@ -189,3 +192,9 @@ scripts/agent-v2/backups/
 
 # Playwright 测试运行产物
 test-results/
+
+# ESLint 本地缓存
+.eslintcache
+
+# 本地调研/基准文档目录（用户决策：docs 内容不入库、不同步远程）
+docs/

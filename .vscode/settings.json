@@ -1,6 +1,4 @@
 {
-  "eslint.nodePath": "config/eslint-config/node_modules/eslint",
-  "prettier.prettierPath": "config/eslint-config/node_modules/prettier",
   "editor.tabSize": 2,
   "editor.insertSpaces": true,
   "editor.formatOnSave": true,
@@ -87,7 +85,6 @@
   "eslint.lintTask.enable": true,
   "javascript.validate.enable": false,
   "typescript.validate.enable": true,
-  "typescript.tsdk": "config/ts-config/node_modules/typescript/lib",
   "typescript.tsserver.maxTsServerMemory": 8192,
   // "typescript.tsserver.experimental.enableProjectDiagnostics": true,
   "typescript.tsserver.watchOptions": {

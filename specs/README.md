@@ -28,7 +28,7 @@ specs/
 - spec.md 是已批准的要求；每条标注立即适用或目标约束，不能将规范存在当成实现完成。
 - status.md 记录实现证据，不复制规范正文或长期保存易漂移的字段枚举。
 - changes 下按变更建目录；不为已批准的目录接入重新虚构待批准提案。
-- docs 下保留调研、设计论证和历史实施记录；docs/diagrams/specs 是图形数据，不是开发规格。
+- 历史调研与实施记录不再保留在仓库（docs 目录已于 2026-11-08 移除），需要时从 git 历史检索；代码注释中的文档名引用按历史出处理解。
 - 运行时节点定义继续位于后端 resources/node-catalog 和 node-schemas；没有批准迁移前不再新增平行 contracts 目录。
 
 ## 冲突处理
@@ -55,4 +55,4 @@ specs/
 - https://github.github.io/spec-kit/guides/evolving-specs.html
 - https://github.github.io/spec-kit/quickstart.html
 
-历史背景：[完整架构设计](../docs/gaia-node-contract-architecture-design-2026-10-24.md)、[首批实施记录](../docs/node-catalog-p1-implementation.md)。
+历史背景：节点契约完整架构设计（2026-10-24）与首批实施记录原存于 docs/ 目录（gaia-node-contract-architecture-design-2026-10-24.md、node-catalog-p1-implementation.md），该目录已于 2026-11-08 整体移除，需要时从 git 历史检索。

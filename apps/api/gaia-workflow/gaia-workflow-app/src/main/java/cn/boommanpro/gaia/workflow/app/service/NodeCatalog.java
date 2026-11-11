@@ -5,7 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.networknt.schema.Schema;
 import com.networknt.schema.SchemaRegistry;
-import com.networknt.schema.SpecificationVersion;
+import com.networknt.schema.dialect.Dialect;
+import com.networknt.schema.dialect.Dialects;
+import com.networknt.schema.keyword.NonValidationKeyword;
 
 import java.io.InputStream;
 import java.util.Collections;
@@ -20,7 +22,15 @@ public final class NodeCatalog {
 
     NodeCatalog(ClassLoader loader) {
         ObjectMapper mapper = new ObjectMapper();
-        SchemaRegistry registry = SchemaRegistry.withDefaultDialect(SpecificationVersion.DRAFT_7);
+        // NC-02：x-gaia-* 为本项目契约扩展键（不参与校验语义），显式注册为
+        // NonValidationKeyword——否则 networknt 启动编译 schema 时按「未知关键字」打 WARN。
+        // 基于 draft-7 标准 dialect 派生，不改动任何标准关键字（不降校验强度）。
+        SchemaRegistry registry = SchemaRegistry.withDefaultDialect(
+            Dialect.builder(Dialects.getDraft7())
+                .keyword(new NonValidationKeyword("x-gaia-form-inputs"))
+                .keyword(new NonValidationKeyword("x-gaia-outputs"))
+                .build(),
+            builder -> { });
         JsonNode index = read(loader, mapper, "node-catalog/index.json");
         JsonNode defaults = read(loader, mapper, "node-catalog/defaults.json");
         if (index.path("catalogVersion").asInt() != 1 || !index.path("nodes").isArray()

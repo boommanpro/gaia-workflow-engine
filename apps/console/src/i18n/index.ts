@@ -15,6 +15,7 @@
  * languages with the singleton so flowgram.ai internals keep working.
  */
 import { useEffect, useState } from 'react';
+
 import { I18n } from '@flowgram.ai/i18n';
 
 import { zhCN } from './locales/zh-CN';
@@ -29,9 +30,9 @@ const LANG_TO_LOCALE: Record<Language, string> = {
 
 const LOCALE_TO_LANG: Record<string, Language> = {
   'zh-CN': 'zh',
-  'zh': 'zh',
+  zh: 'zh',
   'en-US': 'en',
-  'en': 'en',
+  en: 'en',
 };
 
 const STORAGE_KEY = 'gaia.language';
@@ -82,8 +83,7 @@ export const t = (key: string, options?: Record<string, any>): string => {
 };
 
 /** Get the current language as the short `zh` / `en` form. */
-export const getCurrentLanguage = (): Language =>
-  LOCALE_TO_LANG[currentLocale] ?? 'zh';
+export const getCurrentLanguage = (): Language => LOCALE_TO_LANG[currentLocale] ?? 'zh';
 
 /** Get the current full locale string (`zh-CN` / `en-US`). */
 export const getCurrentLocale = (): string => currentLocale || 'zh-CN';
@@ -120,7 +120,15 @@ export const useLanguage = (): Language => {
     const disposable = I18n.onLanguageChange(() => {
       // Sync local locale tracker with the singleton.
       currentLocale = I18n.locale;
-      setLang(getCurrentLanguage());
+      // I18n.locale 赋相同值也会 fire（i18n-js setter 行为）：flowgram Provider
+      // 在 render 期初始化 locale 时会同步触发本回调，此时 setState 属于
+      // 「render 期跨组件更新」，React 必告警（函数式相同值 bail-out 在 lanes
+      // 非空时也不拦截）。推迟到微任务提交——render 同步结束后才执行，
+      // 语言真实切换时仅晚一拍渲染，行为不变。
+      const next = getCurrentLanguage();
+      queueMicrotask(() => {
+        setLang((prev) => (prev === next ? prev : next));
+      });
     });
     return () => disposable.dispose();
   }, []);

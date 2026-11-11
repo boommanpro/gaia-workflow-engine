@@ -372,7 +372,7 @@ export const ModelManagement: React.FC = () => {
           平台默认：{items.find((i) => i.id === activeModelId)?.displayName || '内置模型'}
         </span>
         <span style={{ fontSize: 13, color: '#666' }}>思考档位（全局）：</span>
-        <Select
+        <Select<string>
           value={globalThinking}
           style={{ width: 140 }}
           size="small"
@@ -388,7 +388,7 @@ export const ModelManagement: React.FC = () => {
           optionList={THINKING_OPTIONS.filter((o) => o.value !== '')}
         />
         <span style={{ fontSize: 13, color: '#666' }}>历史压缩阈值（全局）：</span>
-        <Select
+        <Select<number>
           value={compactionThreshold}
           style={{ width: 100 }}
           size="small"
@@ -462,7 +462,7 @@ export const ModelManagement: React.FC = () => {
                 <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>
                   厂商（决定思考参数映射）
                 </div>
-                <Select
+                <Select<string>
                   value={editing.vendor}
                   style={{ width: '100%' }}
                   onChange={(v) =>
@@ -511,7 +511,7 @@ export const ModelManagement: React.FC = () => {
             <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
               <div style={{ width: 220 }}>
                 <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>思考档位覆盖</div>
-                <Select
+                <Select<string>
                   value={editing.thinkingOverride}
                   style={{ width: '100%' }}
                   onChange={(v) => setEditing({ ...editing, thinkingOverride: v as string })}
