@@ -118,6 +118,55 @@ Agent chat requires an OpenAI-compatible LLM endpoint (vLLM / Ollama / LM Studio
 - The default engine is the built-in AgentScope (Harness ReAct loop; depends on [io.agentscope:agentscope-harness](https://central.sonatype.com/artifact/io.agentscope/agentscope-harness), publicly available on Maven Central).
 - Alternatively switch to the Volcengine Ark Managed Agents engine: fill in apiKey / environmentId / model ID in the "Ark Managed" section of the Model Settings page, then flip the default engine to Ark.
 
+### Docker Compose deployment
+
+Prerequisite: Docker Engine with Docker Compose v2. Copy the non-secret example configuration, then build and start the stack:
+
+```bash
+cp .env.example .env
+docker compose up --build -d
+```
+
+On Windows PowerShell, use `Copy-Item .env.example .env`. Open <http://localhost:8080>; the health endpoint is <http://localhost:8080/api/health>. Only the Nginx `web` service publishes a host port. `api:48080` is reachable only on the Compose network. After the first start, configure an OpenAI-compatible model endpoint, model name, and API key in **Admin → Config → Model Settings**. Do not place those credentials in `.env.example` or commit them.
+
+Useful operations:
+
+```bash
+# Status and logs
+docker compose ps
+docker compose logs -f web api
+
+# Stop while retaining the named SQLite volume
+docker compose down
+
+# Rebuild after a source or image update
+docker compose up --build -d
+
+# Delete all local SQLite data only when that is intentional
+docker compose down -v
+```
+
+The SQLite file is `/data/gaia_workflow.db` in the `api` container and is persisted by the named `gaia_data` volume. A normal `docker compose down` does not remove it; after recreating containers, verify it with `docker compose exec api ls -l /data/gaia_workflow.db`. SQLite supports one API writer only: do not horizontally scale this Compose deployment to multiple API instances that write to the same database.
+
+The Docker frontend image injects same-origin `/api` at build time without changing the existing backend-address default for standalone or desktop deployments. Nginx preserves the `/api/` prefix and proxies API/SSE traffic with HTTP/1.1, buffering and caching disabled, so no permissive CORS policy is required. It also forwards `/mcp/` for managed-Agent callbacks and falls back to `index.html` for SPA routes.
+
+#### Built-in vs. managed Agents
+
+Local Compose supports the built-in Agent path by default; it does not make a managed Agent work out of the box. `host.docker.internal:48080` is not a production callback address and is not the default. If an externally hosted execution engine (such as AgentScope Service) must call Gaia's MCP endpoint, the deployer must supply a publicly reachable HTTPS base URL:
+
+```dotenv
+GAIA_MCP_PUBLIC_URL=https://gaia.example.com
+```
+
+The public reverse proxy or ingress must route `/mcp/` (and `/api/` for the UI) at that address to this stack's Nginx `web` service. Leave the value empty when Compose is local and only the built-in Agent is used. If a managed-Agent provider configuration has already been saved in the admin UI, its `mcpPublicUrl` overrides the application setting and must be updated to the same HTTPS address.
+
+Troubleshooting:
+
+- **Frontend 502:** run `docker compose ps`, wait for `api` to become `healthy`, then inspect `docker compose logs api` for startup or migration errors.
+- **SSE disconnects:** use the Nginx `web` entrypoint and ensure any upstream proxy does not buffer responses or impose a short read timeout. The supplied `/api/` proxy disables buffering and uses a one-hour timeout.
+- **SQLite permission errors:** do not replace the ownership of mounted `/data`; inspect it with `docker compose exec api ls -ld /data`. The image runs as the non-root `gaia` user.
+- **Missing model configuration:** save the OpenAI-compatible endpoint, model name, and API key in Admin model settings. They are persisted in SQLite and must not be added to the image or example environment file.
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -132,7 +181,7 @@ Agent chat requires an OpenAI-compatible LLM endpoint (vLLM / Ollama / LM Studio
 - Separate frontend/backend deployment, for environments with an existing gateway and service mesh
 - Single-jar all-in-one deployment, for small to medium deployments
 - Frontend on GitHub Pages with a configurable backend address
-- Containers: no official image yet; build your own from the jar above
+- Containers: official Docker Compose deployment (Nginx frontend entrypoint + Spring Boot API)
 
 ## Documentation
 

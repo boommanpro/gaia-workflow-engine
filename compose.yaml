@@ -1,0 +1,36 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/gaia-workflow/Dockerfile
+    environment:
+      # Required only when an externally hosted Agent must call Gaia's MCP endpoint.
+      GAIA_MCP_PUBLIC_URL: ${GAIA_MCP_PUBLIC_URL:-}
+      # 默认 Slf4jImpl 在 INFO 级别静默，仅按包开 debug 才输出 SQL 参数；
+      # 部署环境显式降为 NoLoggingImpl 作为防御纵深——即便误开 debug，
+      # 数据库中的模型凭据也不会进入容器日志。
+      MYBATIS_PLUS_CONFIGURATION_LOG_IMPL: org.apache.ibatis.logging.nologging.NoLoggingImpl
+    volumes:
+      - gaia_data:/data
+    networks:
+      - gaia_internal
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/console/Dockerfile
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${GAIA_HTTP_PORT:-8080}:8080"
+    networks:
+      - gaia_internal
+    restart: unless-stopped
+
+volumes:
+  gaia_data:
+
+networks:
+  gaia_internal:

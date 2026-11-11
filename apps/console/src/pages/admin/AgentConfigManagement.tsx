@@ -1292,7 +1292,7 @@ const ModelConfigTab: React.FC<ModelConfigTabProps> = ({
                 />
                 <Typography.Text type="tertiary" style={{ fontSize: 11 }}>
                   Service 数据面容器回连本服务 MCP 端点的地址（Docker Desktop 用
-                  host.docker.internal）。
+                  host.docker.internal）。生产部署请填写可公开访问的 HTTPS 地址。
                 </Typography.Text>
               </div>
               <div>

@@ -1,6 +1,8 @@
-# pnpm 10+ 默认阻止依赖执行 install 脚本，需显式放行（否则每次 run 前置安装被判定失败并告警）：
+# pnpm 10+ 默认阻止依赖执行 install 脚本，需显式放行；pnpm 11 起旧 onlyBuiltDependencies
+# 键被静默忽略，必须使用 allowBuilds（strictDepBuilds 默认 true，未放行会以
+# ERR_PNPM_IGNORED_BUILDS 非零退出，阻塞 Docker 构建）：
 # - esbuild：postinstall 校验平台二进制可用性，缺失时报错更清晰
 # - core-js：postinstall 仅打印 funding 提示，无副作用
-onlyBuiltDependencies:
-  - esbuild
-  - core-js
+allowBuilds:
+  esbuild: true
+  core-js: true

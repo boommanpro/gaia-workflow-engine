@@ -81,7 +81,9 @@ agent:
     admin-password: ""
     tenant: default
     namespace: default
-    mcp-public-url: http://host.docker.internal:48080  # 数据面回连 Gaia MCP 的基址
+    # Docker Compose 会显式传入空值；外部托管 Agent 必须改为其可访问的 HTTPS 公网地址。
+    # 保留 Docker Desktop 的既有非 Compose 回退，避免改变独立部署的现有行为。
+    mcp-public-url: ${GAIA_MCP_PUBLIC_URL:http://host.docker.internal:48080}
     model: dashscope:qwen-max
     connect-timeout-ms: 10000
     read-timeout-ms: 60000
