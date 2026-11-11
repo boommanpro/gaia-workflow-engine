@@ -213,10 +213,10 @@ export const ArtifactPanel: React.FC<{ onCollapse?: () => void }> = ({ onCollaps
       scope: cur?.folderId != null ? 'work' : 'chat',
       folderId: cur?.folderId ?? null,
       inheritDsl: true,
+      navigateToDraft: true,
     });
-    navigate('/chat');
     Toast.success(t('workspace.forkQueued'));
-  }, [currentSessionKey, sessions, createSession, navigate]);
+  }, [currentSessionKey, sessions, createSession]);
 
   const formatTime = (iso?: string) => {
     if (!iso) return '';

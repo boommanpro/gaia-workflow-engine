@@ -59,6 +59,10 @@ interface AgentContextValue {
     inheritWorkflowCode: string | null;
     carryDraft?: boolean;
   } | null;
+  /** 新任务草稿发起前的真实会话；用于忽略状态提交期间对该旧 URL 的过期同步。 */
+  draftRouteOriginKey: string | null;
+  /** 草稿路由与草稿状态已对齐，过期 URL 同步保护可以撤销。 */
+  settleDraftRouteTransition: () => void;
   updateDraftSetup: (patch: {
     folderId?: number | null;
     inheritWorkflowCode?: string | null;
@@ -97,6 +101,8 @@ interface AgentContextValue {
       folderId?: number | null;
       inheritWorkflowCode?: string | null;
       inheritDsl?: boolean;
+      /** 创建新任务后由 Provider 先导航到草稿路由，再提交会话状态，避免路由/状态互相抢写。 */
+      navigateToDraft?: boolean;
     }
   ) => Promise<string>;
   switchSession: (sessionKey: string) => Promise<void>;
@@ -167,6 +173,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     inheritWorkflowCode: string | null;
     carryDraft?: boolean;
   } | null>(null);
+  const [draftRouteOriginKey, setDraftRouteOriginKey] = useState<string | null>(null);
   /** 订阅重启信号：草稿会话物化为真实会话时递增，强制 SSE 订阅 effect 重跑 */
   const [sessionEpoch, setSessionEpoch] = useState(0);
 
@@ -298,8 +305,12 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       .listSessions()
       .then((list) => {
         setSessions(list || []);
-        if (list && list.length > 0) {
-          setCurrentSessionKey(list[0].sessionKey);
+        // 初始化请求可在用户已经切入草稿后才返回。仅在尚未有会话选择时才设默认值，
+        // 否则会把 draft- 草稿覆盖回列表第一条真实会话。
+        if (list && list.length > 0 && !currentSessionKeyRef.current) {
+          const defaultSessionKey = list[0].sessionKey;
+          currentSessionKeyRef.current = defaultSessionKey;
+          setCurrentSessionKey(defaultSessionKey);
         }
       })
       .catch(() => {});
@@ -529,6 +540,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         folderId?: number | null;
         inheritWorkflowCode?: string | null;
         inheritDsl?: boolean;
+        navigateToDraft?: boolean;
       }
     ) => {
       // 新建对话只生成本地草稿 key，不请求后端；首条消息发送时（postMessage）才真正创建会话。
@@ -553,11 +565,20 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         inheritWorkflowCode: inheritCode,
         inheritDslJson,
       });
+      // Router 导航先于草稿状态提交：AiWorkspace 在新路由上可由 state 标记识别为本次
+      // 创建，避免旧会话 URL 的同步 effect 抢在新路由生效前把草稿切回去。
+      if (opts?.navigateToDraft) {
+        setDraftRouteOriginKey(currentSessionKeyRef.current);
+        navigateRef.current(`/chat/${key}`, { state: { newTaskDraft: true } });
+      }
       setDraftSetup({
         folderId: opts?.folderId ?? null,
         inheritWorkflowCode: inheritDslJson != null ? inheritCode ?? '' : inheritCode,
         carryDraft: inheritDslJson != null,
       });
+      // 初始化的 listSessions 请求可能恰好在本轮渲染前完成；ref 需先于 effect 同步更新，
+      // 以免其默认会话覆盖刚创建的本地草稿。
+      currentSessionKeyRef.current = key;
       setCurrentSessionKey(key);
       sessionRuntime.reset(key);
       setDockOpen(true);
@@ -595,6 +616,10 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
     },
     []
   );
+
+  const settleDraftRouteTransition = useCallback(() => {
+    setDraftRouteOriginKey(null);
+  }, []);
 
   const switchSession = useCallback(async (sessionKey: string) => {
     const prevKey = currentSessionKeyRef.current;
@@ -654,6 +679,8 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
         sessionRuntime.dispatch({ type: 'history-begin' });
       }
     }
+    currentSessionKeyRef.current = sessionKey;
+    setDraftRouteOriginKey(null);
     setCurrentSessionKey(sessionKey);
     setDockOpen(true);
   }, []);
@@ -734,6 +761,7 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
           // 清场（此前乐观消息 + 流式标志被抹掉，欢迎页闪回、输入框中途恢复）。
           sessionRuntime.adopt(sessionKey);
           setCurrentSessionKey(sessionKey);
+          setDraftRouteOriginKey(null);
           // 审计 A14：草稿期选的模型此刻才真正落到服务端会话
           const draftModel = draftModelPick.take(sessionKey);
           if (draftModel !== undefined) {
@@ -1160,6 +1188,8 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       createSession,
       updateDraftSetup,
       draftSetup,
+      draftRouteOriginKey,
+      settleDraftRouteTransition,
       switchSession,
       renameSession,
       deleteSession,
@@ -1188,6 +1218,8 @@ export function AgentProvider({ children }: { children: React.ReactNode }) {
       createSession,
       updateDraftSetup,
       draftSetup,
+      draftRouteOriginKey,
+      settleDraftRouteTransition,
       switchSession,
       renameSession,
       deleteSession,
