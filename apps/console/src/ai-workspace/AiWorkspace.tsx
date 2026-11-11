@@ -35,13 +35,23 @@ export const AiWorkspace: React.FC = () => {
   const { sessionKey: routeSessionKey } = useParams<{ sessionKey?: string }>();
   // 查询串随路由归一保留：?replay=（回放模式）等参数不能在 /chat → /chat/<key> 时被丢掉，
   // 否则刷新页面后回放失效、退回真实后端（e2e 刷新一致性场景的前提）
-  const search = useLocation().search;
+  const location = useLocation();
+  const search = location.search;
+  const isNewTaskDraftNavigation = location.state?.newTaskDraft === true;
 
   /** 会话 URL 前缀（统一任务模式只有一套地址空间） */
   const sessionBase = '/chat';
 
-  const { sessions, currentSessionKey, switchSession, sendMessage, draftSetup, updateDraftSetup } =
-    useAgent();
+  const {
+    sessions,
+    currentSessionKey,
+    switchSession,
+    sendMessage,
+    draftSetup,
+    draftRouteOriginKey,
+    settleDraftRouteTransition,
+    updateDraftSetup,
+  } = useAgent();
   const messages = useRuntime((s) => s.messages);
   const historyLoading = useRuntime((s) => s.historyLoading);
   const streaming = useRunStreaming();
@@ -84,8 +94,11 @@ export const AiWorkspace: React.FC = () => {
     if (!routeSessionKey) return;
     if (routeSessionKey === currentSessionKey) return;
     if (routeSessionKey.startsWith('draft-')) return;
+    // 创建草稿时，Provider 先提交新路由再提交草稿 state；当前 effect 可能拿到
+    // 草稿 key 与发起前 URL 的组合。那是过期 render，不应把草稿立即切回原会话。
+    if (currentSessionKey?.startsWith('draft-') && routeSessionKey === draftRouteOriginKey) return;
     void switchSession(routeSessionKey);
-  }, [routeSessionKey, currentSessionKey, sessions, switchSession]);
+  }, [routeSessionKey, currentSessionKey, draftRouteOriginKey, sessions, switchSession]);
 
   // 停在 /chat 上时归一到当前会话，让「当前对话」永远有地址
   useEffect(() => {
@@ -98,9 +111,27 @@ export const AiWorkspace: React.FC = () => {
   // 避免浏览器从编辑器「后退」落在一个不存在的草稿地址上，会话恢复错位。
   useEffect(() => {
     if (!routeSessionKey?.startsWith('draft-')) return;
+    // AppRail 刚创建的草稿会先改 URL，Context state 随后的 render 才会进入 draft- key。
+    // 此间 currentSessionKey 仍是旧真实会话；不能把它当作草稿物化结果。待草稿状态
+    // 与路由对齐后，仅清掉临时导航标记，后续真正物化为真实 key 时仍可正常替换地址。
+    if (isNewTaskDraftNavigation) {
+      if (currentSessionKey !== routeSessionKey) return;
+      // 保护只覆盖创建草稿的过渡帧；一旦 URL 与草稿状态对齐，立刻撤销，
+      // 否则用户从草稿点回发起前会话时会被误当作过期同步。
+      settleDraftRouteTransition();
+      navigate(`${sessionBase}/${routeSessionKey}${search}`, { replace: true, state: null });
+      return;
+    }
     if (!currentSessionKey || currentSessionKey.startsWith('draft-')) return;
     navigate(`${sessionBase}/${currentSessionKey}${search}`, { replace: true });
-  }, [routeSessionKey, currentSessionKey, navigate, search]);
+  }, [
+    routeSessionKey,
+    currentSessionKey,
+    isNewTaskDraftNavigation,
+    settleDraftRouteTransition,
+    navigate,
+    search,
+  ]);
 
   // 首页对话入口带过来的「首条消息」：等 URL 落到目标会话后消费一次并自动发送。
   // 依赖只挂 routeSessionKey，避免 sendMessage/messages 变化导致 effect 重跑把定时器清掉；

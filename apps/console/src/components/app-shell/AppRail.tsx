@@ -73,11 +73,11 @@ export const AppRail: React.FC = () => {
     if (!ref) ref = sessions[0] || null;
     const resolvedFolder = folderId != null ? folderId : ref?.folderId ?? null;
     const inheritCode = ref ? getWorkflowOfSession(ref.sessionKey) : null;
-    if (location.pathname !== '/chat') navigate('/chat');
     void createSession(undefined, {
       scope: resolvedFolder != null ? 'work' : 'chat',
       folderId: resolvedFolder,
       inheritWorkflowCode: inheritCode,
+      navigateToDraft: true,
     });
   };
 
