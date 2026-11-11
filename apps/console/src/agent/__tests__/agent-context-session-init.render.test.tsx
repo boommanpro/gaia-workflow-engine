@@ -1,10 +1,12 @@
 /**
  * 初始化会话列表与新建草稿可以并发：慢返回的列表不能覆盖用户刚创建的 draft- 会话。
  */
-import { act, useEffect } from 'react';
+import { useEffect } from 'react';
 
 import { describe, expect, it, vi } from 'vitest';
+import { act } from 'react-dom/test-utils';
 import { createRoot, type Root } from 'react-dom/client';
+// React 18.0.0 尚无 react 命名导出的 act（18.3.0 才加入），与仓库其他测试保持一致。
 
 const apiState = vi.hoisted(() => {
   let resolveSessions!: (sessions: any[]) => void;

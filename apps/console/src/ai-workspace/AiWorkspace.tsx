@@ -51,8 +51,7 @@ export const AiWorkspace: React.FC = () => {
     draftRouteOriginKey,
     settleDraftRouteTransition,
     updateDraftSetup,
-  } =
-    useAgent();
+  } = useAgent();
   const messages = useRuntime((s) => s.messages);
   const historyLoading = useRuntime((s) => s.historyLoading);
   const streaming = useRunStreaming();

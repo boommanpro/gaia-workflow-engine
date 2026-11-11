@@ -2,10 +2,10 @@
  * 新建任务路由契约：不能先导航到裸/chat。
  * 处于已有会话时，AiWorkspace会将裸/chat归一回当前会话；必须直接带上草稿key。
  */
-import { act } from 'react';
-
 import { describe, expect, it, vi } from 'vitest';
+import { act } from 'react-dom/test-utils';
 import { createRoot, type Root } from 'react-dom/client';
+// React 18.0.0 尚无 react 命名导出的 act（18.3.0 才加入），与仓库其他测试保持一致。
 
 const agentState = vi.hoisted(() => ({
   currentSessionKey: 'session-current' as string | null,
