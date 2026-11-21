@@ -1,0 +1,6 @@
+# pnpm 10+/11 默认阻止依赖执行 install 脚本，需显式放行（与 apps/console 同模式）：
+# - electron：postinstall 下载平台运行时二进制（走 .npmrc 中的 npmmirror 镜像）
+# - esbuild：vitest 底层依赖，校验平台二进制可用性
+allowBuilds:
+  electron: true
+  esbuild: true

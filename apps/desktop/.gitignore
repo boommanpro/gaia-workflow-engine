@@ -1,0 +1,7 @@
+node_modules/
+out/
+frontend-dist/
+backend/
+test-results/
+playwright-report/
+*.log

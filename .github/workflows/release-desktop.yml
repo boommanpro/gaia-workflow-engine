@@ -1,0 +1,76 @@
+name: Release Desktop
+
+# tag 推送（v*）自动构建 macOS 桌面版并发布 GitHub Release（dmg/zip 双架构产物）；
+# 也可手动 dispatch 指定已存在的 tag 补发布。构建流程与 apps/desktop/README.md 一致：
+# console build:electron → mvn package → electron-builder（arm64 + x64）。
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '发布 tag（须已存在，产物挂到该 tag 的 Release）'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & Release (macOS)
+    runs-on: macos-14 # Apple Silicon runner；x64 产物交叉打包
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          # 21：代码节点运行时编译硬编码 -source 21，与 verify.yml 口径一致
+          java-version: '21'
+          cache: maven
+
+      # pnpm 版本从 apps/desktop/package.json 的 packageManager 字段读取
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: apps/desktop/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+          cache-dependency-path: |
+            apps/console/pnpm-lock.yaml
+            apps/desktop/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: |
+          pnpm --dir apps/console install --frozen-lockfile
+          pnpm --dir apps/desktop install --frozen-lockfile
+
+      - name: Desktop unit tests
+        run: pnpm --dir apps/desktop test
+
+      - name: Build & package (frontend + jar + dmg/zip)
+        run: pnpm --dir apps/desktop run build:mac
+
+      - name: Upload artifacts to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag || github.ref_name }}
+          generate_release_notes: true
+          body: |
+            ## macOS 桌面版（Electron）
+
+            双击 dmg 拖入 Applications 即用。内嵌后端 jar 自动拉起（需 JDK 21+）；关闭窗口后应用与后端后台常驻（菜单栏 Gaia 图标 / Dock 可唤回，支持「开机自启动（后台）」）。
+
+            - `Gaia-*-mac-arm64.dmg` — Apple Silicon（M1/M2/M3/M4）
+            - `Gaia-*-mac-x64.dmg` — Intel Mac
+
+            未签名包首次打开：右键 Gaia.app → 打开，或执行 `xattr -cr /Applications/Gaia.app`。数据独立存放于 `~/Library/Application Support/Gaia/`，与 Web 部署实例互不影响。
+          files: |
+            apps/desktop/out/*.dmg
+            apps/desktop/out/*.zip

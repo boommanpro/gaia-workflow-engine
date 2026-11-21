@@ -1,9 +1,11 @@
-import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 
+import ReactDOM from 'react-dom/client';
+
 import './index.css';
-import App from './App';
+import { routeBasename } from './utils/public-path';
 import { initThemeMode } from './chat/theme';
+import App from './App';
 import { bootstrapReplay } from './agent/replay/replay-driver';
 
 // 首屏渲染前应用主题，避免闪白
@@ -15,9 +17,9 @@ if (rootElement) {
   rootElement.style.height = '100%';
 }
 
-// 从 ASSET_PREFIX 推导路由 basename（用于 GitHub Pages 子路径部署）
-const assetPrefix: string = process.env.ASSET_PREFIX || '';
-const basename = assetPrefix.replace(/\/+$/, '');
+// 路由 basename 只取绝对路径前缀（GitHub Pages 子路径）；相对前缀 './'
+// （electron app:// 等静态形态）不是路由前缀，见 routeBasename 注释
+const basename = routeBasename(process.env.ASSET_PREFIX || '');
 
 const root = ReactDOM.createRoot(rootElement!);
 // 回放模式（?replay=<fixture>）必须在 AgentProvider 首个请求发出前激活，

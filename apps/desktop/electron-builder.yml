@@ -1,0 +1,40 @@
+# electron-builder 配置 —— macOS（arm64 + x64）
+# 设计要点：
+# · asar 只装主进程/preload（零 npm 运行时依赖，体积最小）
+# · 前端 dist 与后端 jar 放 extraResources（app.asar.unpacked 之外的实体文件），
+#   app:// 协议按 process.resourcesPath 直接读磁盘，避免 asar 内 file:// 语义问题
+appId: cn.boommanpro.gaia.desktop
+productName: Gaia
+copyright: Copyright © 2026 boommanpro
+directories:
+  output: out
+  buildResources: build
+files:
+  - main/**/*
+  - preload/**/*
+  - build/tray-template.png   # 菜单栏模板图（构建期生成，见 scripts/make-icon.sh）
+  - package.json
+asar: true
+extraResources:
+  - from: frontend-dist
+    to: frontend
+  - from: backend/gaia-workflow-app.jar
+    to: backend/gaia-workflow-app.jar
+electronDownload:
+  mirror: https://npmmirror.com/mirrors/electron/
+mac:
+  category: public.app-category.developer-tools
+  icon: build/icon.icns
+  artifactName: Gaia-${version}-mac-${arch}.${ext}
+  darkModeSupport: true
+  # 未配置开发者证书：本地分发包不签名（用户首次打开需右键->打开或 xattr -cr，见 README）
+  identity: null
+  hardenedRuntime: false
+  gatekeeperAssess: false
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+    - target: zip
+      arch: [arm64, x64]
+dmg:
+  title: Gaia ${version}

@@ -18,14 +18,23 @@ const ASSET_PREFIX: string = process.env.ASSET_PREFIX || './';
 export const publicPath = (asset: string): string => {
   const prefix = ASSET_PREFIX.endsWith('/') ? ASSET_PREFIX : `${ASSET_PREFIX}/`;
   const name = asset.startsWith('/') ? asset.slice(1) : asset;
-  // 相对前缀 './' 在非根路由页面（如 /admin/workflows）下会被浏览器错误解析，
-  // 在 http/https 环境下改用根绝对路径 '/' 确保任何路由下都能正确访问。
-  // electron 的 file:// 协议保持相对路径。
+  // 相对前缀 './' 在非根路由页面（如 /chat/new）下会被解析成 /chat/logo.svg 而 404
+  // （http 与 electron app:// 下均如此），因此除 file:// 外一律用根绝对路径。
+  // file:// 没有站点根概念，只能保持文档相对路径。
   if (prefix === './') {
-    if (typeof window !== 'undefined' && /^https?:/.test(window.location.protocol)) {
-      return `/${name}`;
+    if (typeof window !== 'undefined' && window.location.protocol === 'file:') {
+      return `./${name}`;
     }
-    return `./${name}`;
+    return `/${name}`;
   }
   return `${prefix}${name}`;
 };
+
+/**
+ * 从 ASSET_PREFIX 推导 BrowserRouter 的 basename。
+ * 只有以 / 开头的绝对前缀才是路由前缀（GitHub Pages 的 '/gaia-workflow-engine/'）；
+ * 相对前缀（'./'，electron app:// 等静态形态）不是路由的一部分，必须映射为 ''，
+ * 否则 './' 会被归一成 basename '.'，导致所有路由失配、页面渲染为空。
+ */
+export const routeBasename = (assetPrefix: string): string =>
+  assetPrefix.startsWith('/') ? assetPrefix.replace(/\/+$/, '') : '';

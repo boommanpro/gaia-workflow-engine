@@ -111,6 +111,18 @@ java -jar gaia-workflow-app/target/gaia-workflow-app-0.0.1-SNAPSHOT.jar
 
 API 服务运行在 48080 端口。SQLite 数据库文件 `gaia_workflow.db` 创建于进程工作目录，首次启动自动建库建表并写入默认配置。
 
+### macOS 桌面版（Electron）
+
+无需手动起前后端：桌面版把 console 前端打进 Electron 壳，并**内嵌后端 jar 自动拉起**（运行机器需 JDK 21+）。在仓库根执行：
+
+```bash
+cd apps/desktop
+pnpm install
+pnpm build:mac        # 产出 out/Gaia-<version>-mac-{arm64,x64}.dmg 与 .zip
+```
+
+双击 dmg 拖入 Applications 即用。关闭窗口后应用与后端继续在后台运行（菜单栏 Gaia 图标 / Dock 可唤回，支持「开机自启动（后台）」）；首次打开未签名包需 `xattr -cr /Applications/Gaia.app` 或右键→打开；SQLite 数据独立存放在 `~/Library/Application Support/Gaia/data/`，与仓库/部署实例互不影响。细节见 [apps/desktop/README](./apps/desktop/README.md)。
+
 ### LLM 配置（必需）
 
 Agent 对话需要一个 OpenAI 兼容的 LLM 端点（vLLM / Ollama / LM Studio / 各类网关均可）。启动后在浏览器进入 **管理 → 配置 → 模型配置**，填写 API Host / API Key / 模型名并保存。配置写入 `agent_config` 表，即时生效，无需重启。

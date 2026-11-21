@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Gaia 菜单栏模板图（Tray Template Image）：白色 G 字形的黑色实心版，
+       SF Pro 粗体直接排版（macOS 模板图按 alpha 通道自动染黑/白）。
+       生成方式：scripts/make-icon.sh（Electron 离屏渲染 32px）。 -->
+  <text x="32" y="33"
+        font-family="-apple-system, 'SF Pro Display', 'PingFang SC', 'Helvetica Neue', sans-serif"
+        font-size="66" font-weight="700"
+        text-anchor="middle" dominant-baseline="central"
+        fill="#000000">G</text>
+</svg>

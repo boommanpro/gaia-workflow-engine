@@ -113,6 +113,8 @@ hs_err_pid*
 # React
 build/
 dist/
+# 例外：apps/desktop/build 是 electron-builder 构建资源目录（应用图标），需要入库
+!apps/desktop/build/
 *.min.js
 *.min.css
 

@@ -1,0 +1,30 @@
+{
+  "name": "gaia-desktop",
+  "version": "1.3.0",
+  "description": "Gaia macOS 桌面版 —— Electron 壳 + 内嵌 Spring Boot 后端自动拉起",
+  "license": "MIT",
+  "private": true,
+  "main": "main/main.js",
+  "scripts": {
+    "prepare:frontend": "bash scripts/prepare-frontend.sh",
+    "prepare:backend": "bash scripts/prepare-backend.sh",
+    "prepare:assets": "bash scripts/prepare-frontend.sh && bash scripts/prepare-backend.sh",
+    "start": "electron .",
+    "dev": "node scripts/dev.js",
+    "build:mac": "pnpm run prepare:assets && electron-builder --mac --arm64 --x64",
+    "build:mac:arm64": "pnpm run prepare:assets && electron-builder --mac --arm64",
+    "build:mac:x64": "pnpm run prepare:assets && electron-builder --mac --x64",
+    "verify:packaged": "node scripts/verify-packaged-app.cjs",
+    "test": "vitest run",
+    "e2e": "playwright test",
+    "icon": "bash scripts/make-icon.sh"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "electron": "^45.4.1",
+    "electron-builder": "^26.18.0",
+    "playwright": "^1.65.1",
+    "vitest": "^3.2.4"
+  },
+  "packageManager": "pnpm@11.28.5"
+}
