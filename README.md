@@ -172,6 +172,33 @@ GAIA_MCP_PUBLIC_URL=https://gaia.example.com
 
 公网反向代理或入口必须将该地址的 `/mcp/`（以及使用界面所需的 `/api/`）转发到本 Compose 的 Nginx `web` 服务。仅在本机运行 Compose、使用内置 Agent 时保持该值为空即可。若已在管理界面保存过托管 Agent 的 provider 配置，界面中的 `mcpPublicUrl` 会优先于应用配置，应同步更新为该 HTTPS 地址。
 
+### 外部 Coding Agent 接入（MCP）
+
+DeepSeek、Claude Code、Cherry Studio 等任何支持 streamable-http 的 MCP 客户端，都可以直接在 Gaia 里构建工作流。URL 自带会话键（自定义即可，首次连接自动创建「外部构建」会话）：
+
+```
+http://127.0.0.1:48080/mcp/gaia/ext-deepseek-01
+```
+
+- **实时观看**：构建期间在 Gaia console 会话列表打开该会话（`/chat/ext-deepseek-01`），画布按每次工具调用增量渲染；agent 的 `ask_user` 提问也在该页作答。
+- **工具面**：与内置 Agent 完全同一份（`get` 查节点契约、`node`/`edge` 增量建流、`run` 试跑、`test_case` 测试等），先 `get(target=knowledge, nodeType=...)` 查契约再构建。
+- **落版边界**：外部 agent 只产出会话草稿，由人在会话页确认「保存为版本」。
+- **鉴权**（可选）：设置环境变量 `GAIA_API_KEY`（逗号分隔可配多个）后，`/mcp/gaia/**` 要求匹配的 `X-API-Key` 头；未设置则放行（本地单机信任模式）。
+
+curl 直调示例（MCP 即普通 HTTP POST + JSON）：
+
+```bash
+# initialize（返回观看引导，并自动创建会话）
+curl -s -X POST http://127.0.0.1:48080/mcp/gaia/ext-deepseek-01 \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","clientInfo":{"name":"DeepSeek Coder"}}}'
+
+# 添加 start 节点（SSE /api/agent/session/ext-deepseek-01/events 可实时收到 tool_call/document 事件）
+curl -s -X POST http://127.0.0.1:48080/mcp/gaia/ext-deepseek-01 \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"node","arguments":{"action":"add","type":"start"}}}'
+```
+
 常见故障：
 
 - 前端显示 502：先运行 `docker compose ps`，确认 `api` 为 `healthy`，再用 `docker compose logs api` 查看启动/迁移错误。

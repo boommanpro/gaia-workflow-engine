@@ -29,6 +29,7 @@
 - 2026-11-06：工具栏/侧栏/节点菜单交互更新；测试用例面板重设计 + AI 三端点。用户决策记录：画布节点交互重设计（芯片紧凑/n8n 方块/双击全面板）暂缓不做。
 - 2026-11-07：交互审计 53 项修复（弹窗遮罩竞态/数据守卫/会话与编辑器交互）；测试用例 run workflowCode 分支存量 500 修复（Lombok 实体 toString 误当 JSON 解析）；侧栏精简头；面板统计/操作分两行防跳动；runAll/runOne 补错误反馈与 loading 态。
 - 2026-11-08：W6 规范债收口（见已接入末条）；ts-check 29 个既有错误清零并纳入 CI verify（Semi Select 显式泛型实例化 `<Select<T>>`、runtime client DI rebind 显式断言）；运行时 console 扫描收口——后端启动+运行期 WARN/ERROR 清零（networknt x-gaia-* 扩展键注册 NonValidationKeyword、mybatis log-impl StdOutImpl→Slf4jImpl 消 SQL 全量转储），前端 7 路由加载与编辑器/chat 交互 0 告警（useLanguage 订阅微任务化消除 render-phase 跨组件更新、flowgram sortAll stub 警告精确静音补丁 plugins/flowgram-compat.ts）；包管理收口 pnpm（onlyBuiltDependencies 放行 esbuild/core-js）；docs 目录整体移除、checklist 命令 npm→pnpm、本文件瘦身（逐日日志压缩为事实索引）。
+- 2026-11-21：外部 agent 建流能力（变更归档 2026-11-21-external-agent-builder）——外部 coding agent（MCP 客户端）作为第三驱动方接入 `/mcp/gaia/{sessionKey}`，与内置 agent 共用同一工具/草稿/事件/校验/落版链路；initialize 懒创建 engine=external_mcp 会话；离线 tools/call 补 tool_call/tool_result/document 事件（托管 Agent 离线路径同受益）；实例级 key（GAIA_API_KEY）默认不鉴权。AI 不落库边界不变。
 
 ## 未完成及注意事项
 

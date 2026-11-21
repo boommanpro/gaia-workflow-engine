@@ -579,6 +579,8 @@ export const enUS: I18nLanguage = {
       'Ask me to create workflows, query data, or manipulate nodes on the canvas',
     'agent.noSession': 'No sessions',
     'agent.unnamedSession': 'Untitled session',
+    'agent.externalBadge': 'External',
+    'agent.externalBuilding': 'External agent building',
     'agent.doubleClickToRename': 'Double-click to rename',
     'agent.toolCall': 'Tool call',
     'agent.toolResult': 'Result',

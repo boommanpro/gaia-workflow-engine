@@ -16,6 +16,20 @@ public class AgentProperties {
     private Ark ark = new Ark();
     private AsService asService = new AsService();
     private Run run = new Run();
+    private Security security = new Security();
+
+    /**
+     * 对外端点鉴权（实例级）。与工作流级 key（gaia_workflow_api 表，/api/v1/wf）互补：
+     * 这里管控制面（/mcp/gaia/** 等对外暴露端点）的 X-API-Key。
+     */
+    @Data
+    public static class Security {
+        /**
+         * 实例级 API Key，逗号分隔可配多个（env GAIA_API_KEY）。空 = 不鉴权
+         * （本地/desktop 单机信任模式）；配置后 /mcp/gaia/** 必须携带匹配的 X-API-Key。
+         */
+        private String apiKeys = "";
+    }
 
     @Data
     public static class Llm {

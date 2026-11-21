@@ -222,6 +222,20 @@ export const AiWorkspace: React.FC = () => {
                 方舟托管
               </Tag>
             )}
+            {currentSession?.engine === 'external_mcp' && (
+              <Tag
+                size="small"
+                shape="circle"
+                style={{
+                  flexShrink: 0,
+                  background: '#eff6ff',
+                  border: '1px solid #bfdbfe',
+                  color: '#1d4ed8',
+                }}
+              >
+                {t('agent.externalBadge')}
+              </Tag>
+            )}
           </>
         }
         actions={

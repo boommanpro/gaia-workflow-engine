@@ -297,6 +297,24 @@ export const SessionList: React.FC<SessionListProps> = ({
                       {s.title || t('agent.unnamedSession')}
                     </span>
 
+                    {s.engine === 'external_mcp' && (
+                      <span
+                        style={{
+                          flexShrink: 0,
+                          fontSize: 10,
+                          lineHeight: '16px',
+                          padding: '0 5px',
+                          borderRadius: 8,
+                          background: '#eff6ff',
+                          border: '1px solid #bfdbfe',
+                          color: '#1d4ed8',
+                        }}
+                        title={t('agent.externalBuilding')}
+                      >
+                        {t('agent.externalBadge')}
+                      </span>
+                    )}
+
                     {when && (
                       <span
                         className="row-when"

@@ -37,7 +37,7 @@ import java.util.concurrent.atomic.AtomicReference;
  *   <li>会话映射：本地 sessionKey ↔ Service agent-sessions UUID（{@link AgentServiceSessionService}）</li>
  *   <li>按会话同步托管 Agent：MCP URL 编入会话键（{@link AgentServiceProvisioningService}）</li>
  *   <li>事件翻译：Session API 事件 → Gaia 统一事件（{@link AgentServiceEventTranslator}）</li>
- *   <li>工具执行：数据面经 MCP 回连 {@link AgentServiceMcpController}，live 上下文经
+ *   <li>工具执行：数据面经 MCP 回连 {@link cn.boommanpro.gaia.workflow.app.agent.mcp.server.GaiaMcpServerController}，live 上下文经
  *       {@link AssToolContextBridge} 桥接（画布事件实时推前端）</li>
  * </ul>
  *

@@ -5,6 +5,7 @@ import cn.boommanpro.gaia.workflow.infra.manage.entity.GaiaWorkflowLog;
 import cn.boommanpro.gaia.workflow.infra.manage.service.GaiaWorkflowApiService;
 import cn.boommanpro.gaia.workflow.infra.manage.service.GaiaWorkflowLogService;
 import cn.hutool.json.JSONUtil;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -20,12 +21,19 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * 对外 API 调用鉴权拦截器：校验 {@code X-API-Key} 头。
- * 命中 /api/v1/wf/** 时校验，校验通过后把 GaiaWorkflowApi 挂到 request attribute 供控制器复用。
+ * 对外端点鉴权拦截器：校验 {@code X-API-Key} 头，两类覆盖面——
  *
- * 鉴权失败的请求不会进入控制器，因此在这里补一条 FAILED 调用日志——
+ * <ul>
+ *   <li>/api/v1/wf/{code}（工作流级）：gaia_workflow_api 表按工作流校验，
+ *       通过后把 GaiaWorkflowApi 挂到 request attribute 供控制器复用</li>
+ *   <li>/mcp/gaia/**（实例级）：agent.security.api-keys（env GAIA_API_KEY）静态 key
+ *       校验——对外 MCP 控制面。未配置任何 key 时放行（本地/desktop 单机信任模式）</li>
+ * </ul>
+ *
+ * 鉴权失败的请求不会进入控制器，因此 /api/v1/wf 在这里补一条 FAILED 调用日志——
  * 否则看板的「失败分布」里永远看不到最常见的 401，指标会失真。
  */
+@Slf4j
 @Component
 public class ApiKeyAuthInterceptor implements HandlerInterceptor {
 
@@ -35,7 +43,11 @@ public class ApiKeyAuthInterceptor implements HandlerInterceptor {
     @Autowired
     private GaiaWorkflowLogService logService;
 
+    @Autowired
+    private AgentProperties agentProperties;
+
     private static final Pattern PATH_PATTERN = Pattern.compile("/api/v1/wf/([^/]+)$");
+    private static final Pattern MCP_PATH_PATTERN = Pattern.compile("^/mcp/gaia/[^/]+$");
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
@@ -44,6 +56,9 @@ public class ApiKeyAuthInterceptor implements HandlerInterceptor {
             return true;
         }
         String uri = request.getRequestURI();
+        if (MCP_PATH_PATTERN.matcher(uri).find()) {
+            return instanceKeyAuth(request, response);
+        }
         Matcher matcher = PATH_PATTERN.matcher(uri);
         if (!matcher.find()) {
             return true;
@@ -64,6 +79,30 @@ public class ApiKeyAuthInterceptor implements HandlerInterceptor {
         }
         recordAuthFailure(workflowCode, reason, apiKey);
         writeUnauthorized(response, reason);
+        return false;
+    }
+
+    /**
+     * 实例级 key 校验（/mcp/gaia/** 控制面）。未配置任何 key = 本地信任模式直接放行；
+     * 配置后 X-API-Key 必须命中其一。MCP 面没有 workflowCode 维度，不计入工作流调用看板。
+     */
+    private boolean instanceKeyAuth(HttpServletRequest request, HttpServletResponse response) throws Exception {
+        String configured = agentProperties.getSecurity() != null
+            ? agentProperties.getSecurity().getApiKeys() : null;
+        if (configured == null || configured.trim().isEmpty()) {
+            return true;
+        }
+        String apiKey = request.getHeader("X-API-Key");
+        if (apiKey != null && !apiKey.isEmpty()) {
+            for (String candidate : configured.split(",")) {
+                if (apiKey.equals(candidate.trim())) {
+                    return true;
+                }
+            }
+        }
+        log.warn("[api-key] MCP 端点鉴权失败 uri={} keyPrefix={}",
+            request.getRequestURI(), prefix(apiKey));
+        writeUnauthorized(response, "API Key 缺失或无效（对外 MCP 端点需配置 agent.security.api-keys 中的实例级 X-API-Key）");
         return false;
     }
 

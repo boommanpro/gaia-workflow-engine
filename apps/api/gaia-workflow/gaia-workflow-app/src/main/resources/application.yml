@@ -28,6 +28,11 @@ mybatis-plus:
       logic-not-delete-value: 0
 
 agent:
+  # 对外控制面鉴权（实例级）：逗号分隔多个 key，校验 /mcp/gaia/** 的 X-API-Key（外部
+  # coding agent 经 MCP 建流走这里）。空 = 不鉴权（本地/desktop 单机信任模式）；
+  # 部署到服务器对外暴露时配置 GAIA_API_KEY 环境变量启用
+  security:
+    api-keys: ${GAIA_API_KEY:}
   llm:
     # 平台默认模型（会话 Agent 与 llm 节点凭据兜底）：火山方舟 Coding Plan（字节 coding plan，
     # 套餐内 deepseek-v4-pro）。三个口径差异（2026-11-05 实测）：

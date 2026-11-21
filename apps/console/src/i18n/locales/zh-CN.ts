@@ -555,6 +555,8 @@ export const zhCN: I18nLanguage = {
     'agent.welcomeDesc': '你可以让我创建工作流、查询数据、或在画布上操作节点',
     'agent.noSession': '暂无会话',
     'agent.unnamedSession': '未命名会话',
+    'agent.externalBadge': '外部',
+    'agent.externalBuilding': '外部 Agent 构建中',
     'agent.doubleClickToRename': '双击重命名',
     'agent.toolCall': '工具调用',
     'agent.toolResult': '结果',
