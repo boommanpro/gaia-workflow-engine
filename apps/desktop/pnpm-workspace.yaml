@@ -1,6 +1,9 @@
-# pnpm 10+/11 默认阻止依赖执行 install 脚本，需显式放行（与 apps/console 同模式）：
+# pnpm 10+/11 默认阻止依赖执行 install 脚本，需显式放行（与 apps/console 同模式）；
+# 未放行时 strictDepBuilds 使 install 以 ERR_PNPM_IGNORED_BUILDS 非零退出（CI 实测）：
 # - electron：postinstall 下载平台运行时二进制（走 .npmrc 中的 npmmirror 镜像）
 # - esbuild：vitest 底层依赖，校验平台二进制可用性
+# - electron-winstaller：electron-builder 传递依赖（Windows 打包用），postinstall 下载工具链
 allowBuilds:
   electron: true
   esbuild: true
+  electron-winstaller: true
