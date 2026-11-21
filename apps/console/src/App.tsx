@@ -7,6 +7,8 @@ import { LandingPage } from './pages/LandingPage';
 import { Home } from './pages/Home';
 import { WorkflowsLayout } from './pages/admin/WorkflowsLayout';
 import { WorkflowManagement } from './pages/admin/WorkflowManagement';
+import { AutomationsLayout } from './pages/admin/AutomationsLayout';
+import { AutomationsManagement } from './pages/admin/AutomationsManagement';
 import { TemplateManagement } from './pages/admin/TemplateManagement';
 import { AgentConfigManagement } from './pages/admin/AgentConfigManagement';
 import { AdminLayout } from './pages/admin/AdminLayout';
@@ -115,6 +117,7 @@ const LegacyWorkRedirect = () => {
  *   /                    产品宣传首页（大输入框直通对话 + 管理入口）
  *   /chat, /chat/:sessionKey     对话主页（任务即会话，项目分组的入口在左栏 AppRail）
  *   /workflows                   工作流管理（应用态一级页面：打开编辑器 / 更多低频操作）
+ *   /automations                 定时任务中心（应用态一级页面：定时场景自动调用工作流）
  *   /manage/*                    设置二级区（模板管理 / Agent 配置中心；左下角「设置」进入）
  *   /editor/:workflowCode        专家模式 · 画布主位（工具页，无内嵌对话）
  *
@@ -144,6 +147,11 @@ function App() {
             {/* 工作流管理（应用态一级页面） */}
             <Route path="/workflows" element={<WorkflowsLayout />}>
               <Route index element={<WorkflowManagement />} />
+            </Route>
+
+            {/* 定时任务中心（应用态一级页面：定时场景自动调用工作流） */}
+            <Route path="/automations" element={<AutomationsLayout />}>
+              <Route index element={<AutomationsManagement />} />
             </Route>
 
             {/* 旧地址重定向 */}

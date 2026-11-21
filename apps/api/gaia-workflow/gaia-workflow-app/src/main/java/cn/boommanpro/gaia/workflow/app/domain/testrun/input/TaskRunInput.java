@@ -16,4 +16,8 @@ public class TaskRunInput {
     private Map<String, Object> inputs;
     /** 可选：编辑器试运行时携带工作流编码（运行历史按它归档；缺省从 schema 兜底解析） */
     private String workflowCode;
+    /** 可选：触发通道（editor=编辑器试运行默认 / schedule=定时任务）；空按 editor 归档 */
+    private String triggerChannel;
+    /** 可选：定时任务 ID（triggerChannel=schedule 时落 workflow_run.schedule_id） */
+    private Long scheduleId;
 }

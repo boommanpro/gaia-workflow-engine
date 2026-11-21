@@ -42,11 +42,14 @@ public class WorkflowRunHistoryService {
         this.nodeRunService = nodeRunService;
     }
 
-    /** 试运行结束：一次写入 run 行 + N 行节点明细（durationMs = 运行耗时） */
+    /** 试运行结束：一次写入 run 行 + N 行节点明细（durationMs = 运行耗时）。
+     *  触发通道从 TaskRunInput 透传（schedule=定时任务），缺省 editor。 */
     public void recordEditorRun(String taskId, String workflowCode, TaskInfo taskInfo,
                                 TaskRunInput input, long durationMs) {
         try {
             LocalDateTime now = LocalDateTime.now();
+            String channel = input != null && input.getTriggerChannel() != null && !input.getTriggerChannel().isBlank()
+                ? input.getTriggerChannel() : "editor";
 
             WorkflowRun run = new WorkflowRun();
             run.setTaskId(taskId);
@@ -56,7 +59,8 @@ public class WorkflowRunHistoryService {
             run.setInputsJson(safeJson(input != null ? input.getInputs() : null));
             run.setOutputsJson(safeJson(taskInfo.getOutputs()));
             run.setDurationMs(durationMs);
-            run.setTriggerChannel("editor");
+            run.setTriggerChannel(channel);
+            run.setScheduleId(input != null ? input.getScheduleId() : null);
             run.setStartedAt(now.minusNanos(durationMs * 1_000_000));
             run.setFinishedAt(now);
             run.setCreatedAt(now);
@@ -73,12 +77,18 @@ public class WorkflowRunHistoryService {
         }
     }
 
-    /** 运行列表（按工作流过滤 + 分页，倒序） */
-    public Page<WorkflowRun> listRuns(String workflowCode, int page, int size) {
+    /** 运行列表（按工作流/触发通道/定时任务过滤 + 分页，倒序；过滤项均可空） */
+    public Page<WorkflowRun> listRuns(String workflowCode, String triggerChannel, Long scheduleId, int page, int size) {
         QueryWrapper<WorkflowRun> wrapper = new QueryWrapper<WorkflowRun>()
             .orderByDesc("id");
         if (workflowCode != null && !workflowCode.isBlank()) {
             wrapper.eq("workflow_code", workflowCode);
+        }
+        if (triggerChannel != null && !triggerChannel.isBlank()) {
+            wrapper.eq("trigger_channel", triggerChannel);
+        }
+        if (scheduleId != null) {
+            wrapper.eq("schedule_id", scheduleId);
         }
         return runService.page(new Page<>(Math.max(1, page), Math.min(100, Math.max(1, size))), wrapper);
     }

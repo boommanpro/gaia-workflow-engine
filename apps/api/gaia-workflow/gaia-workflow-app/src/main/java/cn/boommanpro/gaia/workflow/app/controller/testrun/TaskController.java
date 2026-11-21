@@ -45,15 +45,17 @@ public class TaskController {
 
     /**
      * 运行历史列表（第一档 B：持久化后的试运行记录，重启不丢）。
-     * 可选 workflowCode 过滤，倒序分页。
+     * 可选 workflowCode / triggerChannel / scheduleId 过滤，倒序分页。
      */
     @GetMapping("runs")
     public com.baomidou.mybatisplus.extension.plugins.pagination.Page<
         cn.boommanpro.gaia.workflow.infra.manage.entity.WorkflowRun> listRuns(
             @RequestParam(required = false) String workflowCode,
+            @RequestParam(required = false) String triggerChannel,
+            @RequestParam(required = false) Long scheduleId,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return runHistoryService.listRuns(workflowCode, page, size);
+        return runHistoryService.listRuns(workflowCode, triggerChannel, scheduleId, page, size);
     }
 
     /**

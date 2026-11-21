@@ -80,7 +80,16 @@ export interface SubflowOption {
   description?: string;
   currentVersionId?: number;
   /** 工作流入参 schema（来自 start 节点 outputs） */
-  inputs?: { type?: string; properties?: Record<string, { type?: string; title?: string }> };
+  inputs?: {
+    type?: string;
+    properties?: Record<string, {
+      type?: string;
+      title?: string;
+      description?: string;
+      /** start 节点定义的默认值（定时任务未填参数时兜底） */
+      default?: unknown;
+    }>;
+  };
   /** 工作流出参 schema（来自 end 节点 inputs） */
   outputs?: { type?: string; properties?: Record<string, { type?: string; title?: string }> };
 }
@@ -134,6 +143,47 @@ export interface WorkflowNodeRunRecord {
 export interface WorkflowRunDetailResponse {
   run: WorkflowRunRecord;
   nodes: WorkflowNodeRunRecord[];
+}
+
+/** 定时任务行（GET /schedule/list）：附目标工作流名与生效版本标记 */
+export interface WorkflowScheduleRecord {
+  id: number;
+  scheduleName: string;
+  workflowCode: string;
+  workflowName?: string | null;
+  workflowHasCurrent: boolean;
+  cronExpression: string;
+  timezone: string;
+  status: 'enabled' | 'disabled' | string;
+  misfirePolicy: 'skip' | 'run_once' | string;
+  inputs: Record<string, unknown>;
+  nextFireTime?: string | null;
+  lastFireTime?: string | null;
+  lastRunTaskId?: string | null;
+  lastRunStatus?: string | null;
+  lastError?: string | null;
+  missCount?: number | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+/** 定时任务保存载荷（create / update/{id}） */
+export interface ScheduleSavePayload {
+  scheduleName: string;
+  workflowCode: string;
+  cronExpression: string;
+  timezone?: string;
+  misfirePolicy?: string;
+  inputs?: Record<string, unknown>;
+}
+
+/** cron 预览响应（GET /schedule/preview） */
+export interface CronPreview {
+  valid: boolean;
+  error?: string;
+  normalized?: string;
+  timezone?: string;
+  times?: string[];
 }
 
 export interface GaiaWorkflowLog {
@@ -337,6 +387,49 @@ export const workflowApi = {
     if (params.status) q.set('status', params.status);
     q.set('limit', String(params.limit ?? 50));
     return request<RecentCall[]>(`/workflow-api/recent-calls?${q.toString()}`);
+  },
+
+  // ---------- 定时任务（/automations 页） ----------
+  /** 定时任务列表（附目标工作流名与生效版本标记） */
+  listSchedules: () => request<WorkflowScheduleRecord[]>('/schedule/list'),
+  /** 新建定时任务（cron 由后端规范化并计算 next_fire_time） */
+  createSchedule: (payload: ScheduleSavePayload) =>
+    request<{ success: boolean; message: string; id?: number }>('/schedule/create', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  /** 编辑定时任务（全量覆盖式） */
+  updateSchedule: (id: number, payload: ScheduleSavePayload) =>
+    request<{ success: boolean; message: string }>(`/schedule/update/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+  /** 删除定时任务（运行历史保留） */
+  deleteSchedule: (id: number) =>
+    request<{ success: boolean; message: string }>(`/schedule/delete/${id}`, {
+      method: 'DELETE',
+    }),
+  /** 启用/停用切换 */
+  toggleSchedule: (id: number) =>
+    request<{ success: boolean; message: string }>(`/schedule/toggle/${id}`, {
+      method: 'PUT',
+    }),
+  /** 立即运行一次（不影响定时节奏） */
+  runScheduleNow: (id: number) =>
+    request<{ success: boolean; message: string; taskId?: string }>(`/schedule/run/${id}`, {
+      method: 'POST',
+    }),
+  /** cron 预览：校验表达式并返回未来 N 次触发时间（权威计算在后端） */
+  previewCron: (cron: string, timezone?: string, count = 5) => {
+    const qs = new URLSearchParams({ cron, timezone: timezone ?? 'Asia/Shanghai', count: String(count) });
+    return request<CronPreview>(`/schedule/preview?${qs.toString()}`);
+  },
+  /** 单个定时任务的运行历史（workflow_run 按 schedule_id 过滤） */
+  listScheduleRuns: async (id: number, page = 1, size = 20): Promise<WorkflowRunRecord[]> => {
+    const res = await request<{ records?: WorkflowRunRecord[]; total?: number }>(
+      `/schedule/${id}/runs?page=${page}&size=${size}`
+    );
+    return res?.records ?? [];
   },
 
   // Health check

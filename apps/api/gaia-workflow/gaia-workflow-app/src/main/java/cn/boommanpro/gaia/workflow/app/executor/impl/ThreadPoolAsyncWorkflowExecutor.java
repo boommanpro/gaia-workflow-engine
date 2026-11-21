@@ -142,8 +142,8 @@ public class ThreadPoolAsyncWorkflowExecutor implements AsyncWorkflowExecutor, A
 
             } catch (Exception e) {
                 logger.error("异步执行工作流失败", e);
-                // 处理执行异常
-                processExecutionException(taskId, taskInfo, e);
+                // 处理执行异常（携带原始 input：定时任务的 channel/scheduleId 不在早失败路径丢失）
+                processExecutionException(taskId, taskInfo, input, e);
                 taskRepository.updateTask(taskId, taskInfo);
             }
         });
@@ -348,9 +348,10 @@ public class ThreadPoolAsyncWorkflowExecutor implements AsyncWorkflowExecutor, A
      *
      * @param taskId   任务ID
      * @param taskInfo 任务信息
+     * @param input    原始输入（保留 triggerChannel/scheduleId 供运行历史归档）
      * @param e        异常
      */
-    private void processExecutionException(String taskId, TaskInfo taskInfo, Exception e) {
+    private void processExecutionException(String taskId, TaskInfo taskInfo, TaskRunInput input, Exception e) {
         try {
             logger.error("工作流执行异常, taskId: {}", taskId, e);
             taskInfo.getWorkflowStatus().setStatus(NodeStatus.FAIL.getValue());
@@ -364,11 +365,14 @@ public class ThreadPoolAsyncWorkflowExecutor implements AsyncWorkflowExecutor, A
             }
             messages.getError().add(new ErrorMessage("workflow", e.getMessage()));
 
-            // 记录测试调用日志（包含错误信息）
-            recordTestCallLog(taskId, taskInfo, new TaskRunInput() {{
-                setSchema(taskInfo.getSchema());
-                setInputs(taskInfo.getInputs());
-            }}, null, 0L, e);
+            // 记录测试调用日志（包含错误信息；input 缺失时兜底构造，channel 按默认 editor 归档）
+            TaskRunInput recordInput = input;
+            if (recordInput == null) {
+                recordInput = new TaskRunInput();
+                recordInput.setSchema(taskInfo.getSchema());
+                recordInput.setInputs(taskInfo.getInputs());
+            }
+            recordTestCallLog(taskId, taskInfo, recordInput, null, 0L, e);
         } catch (Exception ex) {
             logger.error("处理执行异常失败, taskId: {}", taskId, ex);
         }

@@ -388,6 +388,7 @@ CREATE TABLE IF NOT EXISTS workflow_run (
     node_count INTEGER,
     duration_ms BIGINT,
     trigger_channel VARCHAR(32) DEFAULT 'editor',
+    schedule_id BIGINT,
     started_at TEXT,
     finished_at TEXT,
     created_at TEXT
@@ -409,3 +410,26 @@ CREATE TABLE IF NOT EXISTS workflow_node_run (
     created_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_workflow_node_run_task ON workflow_node_run(run_task_id);
+
+-- 定时任务（调度配置）：一条记录 = 「到点以固定入参运行某工作流当前生效版本」的自动化。
+-- next_fire_time 由 cron 预计算（该时区墙钟时间），调度扫描只做 next_fire_time <= now 判定 +
+-- CAS 抢占（UPDATE ... WHERE next_fire_time = 旧值），错过处理见 misfire_policy。
+CREATE TABLE IF NOT EXISTS workflow_schedule (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    schedule_name VARCHAR(128) NOT NULL,
+    workflow_code VARCHAR(64) NOT NULL,
+    cron_expression VARCHAR(64) NOT NULL,
+    timezone VARCHAR(64) DEFAULT 'Asia/Shanghai',
+    inputs_json TEXT,
+    status VARCHAR(16) DEFAULT 'enabled',
+    misfire_policy VARCHAR(16) DEFAULT 'skip',
+    next_fire_time TEXT,
+    last_fire_time TEXT,
+    last_run_task_id VARCHAR(64),
+    last_run_status VARCHAR(32),
+    last_error TEXT,
+    miss_count INTEGER DEFAULT 0,
+    created_at TEXT,
+    updated_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_workflow_schedule_due ON workflow_schedule(status, next_fire_time);

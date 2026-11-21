@@ -50,12 +50,30 @@ const IconWorkflow: React.FC<{ size?: number }> = ({ size = 16 }) => (
   </svg>
 );
 
+/** 定时任务：时钟 */
+const IconSchedule: React.FC<{ size?: number }> = ({ size = 16 }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.7"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7v5l3.2 2" />
+  </svg>
+);
+
 export const AppRail: React.FC = () => {
   useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
   const { createSession, sessions, currentSessionKey } = useAgent();
   const workflowsActive = location.pathname.startsWith('/workflows');
+  const automationsActive = location.pathname.startsWith('/automations');
 
   /**
    * 新建任务：建一个 draft- 草稿会话并跳到对话页。默认携带上一次对话的上下文——
@@ -133,6 +151,17 @@ export const AppRail: React.FC = () => {
           <IconWorkflow />
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {t('admin.workflows')}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate('/automations')}
+          style={navBtnStyle(automationsActive)}
+          {...navHoverHandlers(automationsActive)}
+        >
+          <IconSchedule />
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {t('admin.automations')}
           </span>
         </button>
       </nav>

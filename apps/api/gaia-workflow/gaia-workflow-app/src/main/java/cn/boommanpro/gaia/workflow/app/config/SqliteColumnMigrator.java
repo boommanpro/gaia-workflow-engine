@@ -31,6 +31,10 @@ public class SqliteColumnMigrator implements ApplicationRunner {
         REQUIRED_COLUMNS.put("gaia_workflow_version", new LinkedHashMap<>() {{
             put("source_session", "VARCHAR(64)");
         }});
+        // 定时任务运行记录归属（workflow_run.schedule_id → workflow_schedule.id）
+        REQUIRED_COLUMNS.put("workflow_run", new LinkedHashMap<>() {{
+            put("schedule_id", "BIGINT");
+        }});
     }
 
     private final DataSource dataSource;

@@ -45,6 +45,10 @@ public class WorkflowRun {
     @TableField("trigger_channel")
     private String triggerChannel;
 
+    /** 定时任务 ID（trigger_channel=schedule 时指向 workflow_schedule.id） */
+    @TableField("schedule_id")
+    private Long scheduleId;
+
     @TableField("started_at")
     private LocalDateTime startedAt;
 

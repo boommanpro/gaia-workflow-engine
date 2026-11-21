@@ -158,10 +158,11 @@ const groupRunsByDay = (runs: WorkflowRunRecord[]): RunDayGroup[] => {
   return [...groups.values()];
 };
 
-/** 触发来源标签：后端目前只有 editor，未知值原样展示 */
+/** 触发来源标签：editor=编辑器试运行 / schedule=定时任务触发，未知值原样展示 */
 const triggerLabel = (channel?: string | null): string | null => {
   if (!channel) return null;
   if (channel === 'editor') return t('runHistory.triggerEditor');
+  if (channel === 'schedule') return t('runHistory.triggerSchedule');
   return channel;
 };
 
