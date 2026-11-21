@@ -19,7 +19,7 @@ permissions:
 jobs:
   release:
     name: Build & Release (macOS)
-    runs-on: macos-14 # Apple Silicon runner；x64 产物交叉打包
+    runs-on: macos-latest # Apple Silicon runner；x64 产物交叉打包（macos-14 镜像已退役，实例测会被秒取消）
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
