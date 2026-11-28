@@ -2,7 +2,8 @@
 .DS_Store
 Thumbs.db
 ehthumbs.db
-Icon?
+# macOS 自定义文件夹图标（Icon\r）。锚定根目录：大小写不敏感文件系统上 Icon? 会误伤 icons/ 等目录名
+/Icon?
 .directory
 *.nib
 *._*
