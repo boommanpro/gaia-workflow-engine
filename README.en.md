@@ -4,26 +4,26 @@
 
 # Gaia
 
-Visual AI Workflow Editor
+**Drag your ideas into a workflow — or just tell the AI what you need**
 
-Built on [flowgram.ai](https://github.com/bytedance/flowgram.ai) · React + Spring Boot + SQLite
+Open-source visual AI workflow engine · Canvas editing × Chat-driven building × Runs locally
+
+Built on [flowgram.ai](https://github.com/bytedance/flowgram.ai) · [MIT](./LICENSE)
 
 [![Stars](https://img.shields.io/github/stars/boommanpro/gaia-workflow-engine?style=flat&color=orange)](https://github.com/boommanpro/gaia-workflow-engine/stargazers)
 [![Release](https://img.shields.io/github/v/release/boommanpro/gaia-workflow-engine?style=flat)](https://github.com/boommanpro/gaia-workflow-engine/releases)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat)](./LICENSE)
 [![Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-green?style=flat)](https://boommanpro.github.io/gaia-workflow-engine/)
 
-[简体中文](./README.md) · [Release Log](https://boommanpro.github.io/gaia-workflow-engine/#/releases) · [Issues](https://github.com/boommanpro/gaia-workflow-engine/issues) · [Discussions](https://github.com/boommanpro/gaia-workflow-engine/discussions)
+[简体中文](./README.md) · [Live Demo](https://boommanpro.github.io/gaia-workflow-engine/) · [Docs](https://boommanpro.github.io/gaia-workflow-engine/#docs) · [Release Log](https://boommanpro.github.io/gaia-workflow-engine/#/releases) · [Issues](https://github.com/boommanpro/gaia-workflow-engine/issues) · [Discussions](https://github.com/boommanpro/gaia-workflow-engine/discussions)
 
 </div>
 
-Arrange AI workflows on an infinite canvas with drag and drop: LLM calls, conditional branches, loops, HTTP requests, code execution. Or describe what you need in the sidebar chat and let the AI plan the steps, create the nodes and edges, and run the workflow on the canvas right away.
+---
 
-The backend is a Spring Boot monolith with built-in SQLite storage and the AgentScope execution engine, packaged as a single executable jar.
+## <img src="assets/icons/play.svg" width="22" valign="middle" alt="" /> What Gaia does, in 76 seconds
 
-## Demo
-
-A 76-second end-to-end run: describe the task in chat, let the AI generate the workflow, unit-test nodes, then run the whole flow. Everything is recorded from real API calls.
+Describe what you need in the sidebar chat and the AI plans the steps, creates the nodes and wires them up; hit run and the result appears right on the canvas. Recorded from real API calls:
 
 https://github.com/user-attachments/assets/2530ba1e-3ac2-49c3-835f-87ed9f77b44c
 
@@ -40,66 +40,108 @@ https://github.com/user-attachments/assets/2530ba1e-3ac2-49c3-835f-87ed9f77b44c
 
 </details>
 
-Try it live: [Home](https://boommanpro.github.io/gaia-workflow-engine/) · [Admin Console](https://boommanpro.github.io/gaia-workflow-engine/#/admin/workflows) · [Release Log](https://boommanpro.github.io/gaia-workflow-engine/#/releases)
+## <img src="assets/icons/sparkles.svg" width="22" valign="middle" alt="" /> Highlights
 
-## Features
+**<img src="assets/icons/hand.svg" width="20" valign="middle" alt="" /> Drag-and-drop orchestration**
+An infinite canvas you can zoom, drag and connect. LLM calls, code execution, HTTP requests, branches, loops — the building blocks are all in the node panel.
 
-### Canvas & Nodes
+**<img src="assets/icons/message-square.svg" width="20" valign="middle" alt="" /> Describe it, and the AI builds it**
+Don't feel like dragging? Describe what you need in the sidebar chat; the AI plans the steps, creates the nodes and wires them up — every move visible in real time, interruptible at any point.
 
-- Infinite zoomable canvas with drag-and-drop editing; loops, branches, and conditional logic
-- Multi-branch node with and/or condition groups and an else fallback
-- Built-in nodes: LLM call, code execution, HTTP request, string formatting, variable management
-- Per-node unit tests and full-workflow runs, with live input/output and execution history
-- Canvas plugins: minimap, auto-layout, snap lines
+**<img src="assets/icons/flask-conical.svg" width="20" valign="middle" alt="" /> Test before you ship**
+Run any node in isolation, or the whole flow with one click. Inputs, outputs, execution history and token usage are all visible live.
 
-### Chat Generation
+**<img src="assets/icons/alarm-clock.svg" width="20" valign="middle" alt="" /> Scheduled automation**
+Set a cron expression or a simple rule and the workflow runs itself daily or hourly. Missed triggers can be configured to skip or catch up once, with full run history to look back on.
 
-- Generate workflows from the sidebar chat: CreatePlan step-by-step planning, Canvas tool creates nodes and edges
-- HTTP / Query nodes can run lookups during the conversation
-- Live preview of token usage and plan progress
-- Sessions are renameable; every Trajectory is fully traceable
+**<img src="assets/icons/history.svg" width="20" valign="middle" alt="" /> Every save is a version**
+Versions are recorded automatically. Diff any two and switch the active one with a click — change boldly, roll back anytime.
 
-### Configuration & Operations
+**<img src="assets/icons/lock.svg" width="20" valign="middle" alt="" /> Your data stays yours**
+Single-file SQLite storage keeps everything on your own machine or server. You pick the model endpoint too (vLLM / Ollama / LM Studio / any OpenAI-compatible gateway).
 
-- Agent config center: model parameters, system prompt, knowledge base, tool definitions
-- Switchable execution engine: built-in AgentScope, or Volcengine Ark Managed Agents
-- Every save creates a version, with diff between versions and one-click switch
-- Workflow templates: spin up new workflows from a template
-- Observability API (`/api/agent/metrics/*`): tool calls, session runs, LLM call ledger, context usage stats
+**<img src="assets/icons/bot.svg" width="20" valign="middle" alt="" /> Your coding agent can build too**
+Gaia ships a built-in MCP server: Claude Code, DeepSeek, Cherry Studio — any streamable-http agent can build workflows inside Gaia while you watch it work on the canvas.
 
-## Quick Start
+## <img src="assets/icons/users.svg" width="22" valign="middle" alt="" /> Who is it for
 
-### Prerequisites
+| If you… | Gaia gives you… |
+|---|---|
+| Keep repeating "export data → feed it to the AI → reformat the output" | The whole pipeline on a canvas, re-runnable in one click |
+| Want to build a small AI tool for your team | Canvas + config center — no frontend code required |
+| Like cloud orchestration products but care about data privacy | Local SQLite, your own model endpoint, MIT-licensed and hackable |
+| Play with coding agents and want their work to last | MCP integration: the agent builds, you approve, the workflow stays |
 
-| Dependency | Version |
-|------------|---------|
-| Node.js    | >= 18   |
-| JDK        | >= 21 (code nodes are compiled at runtime with `-source 21`; run the service on JDK 21) |
-| Maven      | 3.x     |
+## <img src="assets/icons/rocket.svg" width="22" valign="middle" alt="" /> Quick Start
 
-> The project itself builds for Java 17 (`maven.compiler.release=17`), but code nodes are compiled on the fly by the running service through the system JDK, so the **runtime** requires JDK 21 or above.
+| Option | Best for | Time to start |
+|---|---|---|
+| [Live demo](https://boommanpro.github.io/gaia-workflow-engine/) | Zero-install browsing | 10 seconds |
+| macOS desktop app | Everyday use on your own machine | ~5 min |
+| Docker Compose | Servers, shared by a team | ~10 min |
+| Run from source | Development | Needs JDK 21+ / Node 18+ |
 
-### Frontend
+> Whichever option you pick, the last step is the same: fill in an OpenAI-compatible endpoint (API Host / API Key / model name) under **Admin → Config → Model Settings** and save — it takes effect immediately, no restart. The default execution engine is the built-in AgentScope; you can switch to Volcengine Ark Managed Agents on the same page.
+
+### macOS desktop app (easiest)
+
+Frontend and backend packaged into one app — install and go:
 
 ```bash
-git clone https://github.com/boommanpro/gaia-workflow-engine.git
-cd gaia-workflow-engine/apps/console
+cd apps/desktop
+pnpm install
+pnpm build:mac   # produces out/Gaia-<version>-mac-{arm64,x64}.dmg and .zip
+```
+
+Double-click the dmg and drag Gaia into Applications. The machine needs JDK 21+; for the unsigned build, right-click → Open on first launch, or run `xattr -cr /Applications/Gaia.app`. Data lives separately in `~/Library/Application Support/Gaia/data/`; after closing the window the app keeps running in the background (menu-bar icon brings it back, with optional launch-at-startup in the background). See [apps/desktop/README](./apps/desktop/README.md) for details.
+
+### Docker Compose (recommended for servers)
+
+```bash
+cp .env.example .env
+docker compose up --build -d
+```
+
+Open <http://localhost:8080> (health check at `/api/health`). Data is persisted in a named volume, so `docker compose down` keeps it.
+
+<details>
+<summary>Docker operations cheat sheet</summary>
+
+```bash
+docker compose ps                # status
+docker compose logs -f web api   # logs
+docker compose up --build -d     # rebuild after an update
+docker compose down              # stop (data kept)
+```
+
+- The SQLite file is `/data/gaia_workflow.db` in the `api` container, persisted by a named volume; only run `docker compose down -v` when you are sure the data is no longer needed
+- SQLite supports a single writer only — do not scale this stack to multiple API replicas writing to the same database
+- If an externally hosted engine (e.g. AgentScope Service) must call back into Gaia, set `GAIA_MCP_PUBLIC_URL=https://your.public.domain` and route `/mcp/` (plus `/api/` for the UI) to this stack's web service; leave it empty for local runs with the built-in agent
+- Troubleshooting: for 502s check `docker compose ps` for a healthy api; for SSE dropouts make sure the upstream proxy does not buffer; for SQLite permission errors do not change the ownership of `/data` (the image writes as a non-root user)
+
+</details>
+
+### Run from source (development)
+
+<details>
+<summary>Expand</summary>
+
+Requirements: Node.js ≥ 18 · JDK ≥ 21 (runtime) · Maven 3.x
+
+```bash
+# Frontend (port 3000)
+cd apps/console
 npm install
 npm run dev
-```
 
-Then visit <http://localhost:3000>.
-
-### Backend
-
-```bash
+# Backend (port 48080) — on a fresh clone, install the base/infra artifacts locally first
 cd apps/api/gaia-workflow
-mvn install -DskipTests     # required on fresh clone: installs base/infra artifacts locally
+mvn install -DskipTests
 cd gaia-workflow-app
-mvn spring-boot:run         # dev mode, port 48080
+mvn spring-boot:run
 ```
 
-> Multi-module note: running `gaia-workflow-app` alone resolves base/infra `SNAPSHOT` artifacts from the local Maven repository. After cloning (or whenever base/infra change), run `mvn install -DskipTests` from the aggregator directory `apps/api/gaia-workflow` first.
+The SQLite database `gaia_workflow.db` is created in the process working directory; first startup initializes the schema and seeds default configuration. The project builds for Java 17, but code nodes are compiled at runtime with `-source 21`, so the **runtime** requires JDK 21+.
 
 For production, package an executable jar:
 
@@ -109,97 +151,82 @@ mvn package -DskipTests
 java -jar gaia-workflow-app/target/gaia-workflow-app-0.0.1-SNAPSHOT.jar
 ```
 
-The API server runs on port 48080. The SQLite database file `gaia_workflow.db` is created in the process working directory; first startup initializes the schema and seeds default configuration automatically.
+</details>
 
-### LLM Configuration (required)
+## <img src="assets/icons/layout-grid.svg" width="22" valign="middle" alt="" /> Feature Overview
 
-Agent chat requires an OpenAI-compatible LLM endpoint (vLLM / Ollama / LM Studio / any gateway). After startup, open **Admin → Config → Model Settings** in the browser, fill in API Host / API Key / model name, and save. The config is stored in the `agent_config` table and takes effect immediately without restart.
+**Canvas**
+- Infinite zoomable canvas with minimap, auto-layout, snap lines and more
+- Nodes: LLM call · code execution · HTTP request · string formatting · variable management · multi-branch conditions (and/or groups + else fallback) · loops
+- Per-node unit tests plus full-workflow runs, with live input/output and execution history
 
-- The default engine is the built-in AgentScope (Harness ReAct loop; depends on [io.agentscope:agentscope-harness](https://central.sonatype.com/artifact/io.agentscope/agentscope-harness), publicly available on Maven Central).
-- Alternatively switch to the Volcengine Ark Managed Agents engine: fill in apiKey / environmentId / model ID in the "Ark Managed" section of the Model Settings page, then flip the default engine to Ark.
+**AI building**
+- Sidebar chat: CreatePlan step-by-step planning, Canvas tool creates nodes and edges
+- Run HTTP / Query lookups right in the conversation; live token usage and plan progress
+- Every tool call is fully traceable via Trajectory; sessions are renameable
 
-### Docker Compose deployment
+**Configuration & operations**
+- Agent config center: model parameters, system prompt, knowledge base, tool definitions
+- Switchable execution engine: built-in AgentScope, or Volcengine Ark Managed Agents
+- One-click workflow templates; Scheduled Task Center: cron / simple mode, missed-trigger policy (skip / catch up once), run history with scheduled-trigger markers
+- Observability API (`/api/agent/metrics/*`): tool calls, session runs, LLM call ledger and context usage stats
 
-Prerequisite: Docker Engine with Docker Compose v2. Copy the non-secret example configuration, then build and start the stack:
+## <img src="assets/icons/plug.svg" width="22" valign="middle" alt="" /> Let external agents build for you
+
+Gaia exposes an MCP control plane with session keys built into the URL. Any streamable-http MCP client works; the session key is yours to choose (an "external build" session is created automatically on first connect):
+
+```
+http://127.0.0.1:48080/mcp/gaia/my-first-session
+```
+
+- **Watch it live**: while the agent builds, open the session with the same key in the console (`/chat/<session-key>`); the canvas renders incrementally with every tool call, and the agent's `ask_user` questions are answered right on the page
+- **Same toolset** as the built-in agent: look up node contracts, build incrementally, run tests, manage test cases
+- **You own the save**: the agent only produces a session draft — turning it into a version is your call. The AI does the work, you make the final cut
+- **Optional auth**: set the `GAIA_API_KEY` environment variable (comma-separated for multiple keys) and `/mcp/gaia/**` requires a matching `X-API-Key` header; without it, requests are allowed (trust mode for local single-machine setups)
+
+<details>
+<summary>curl examples (MCP is plain HTTP POST + JSON)</summary>
 
 ```bash
-cp .env.example .env
-docker compose up --build -d
+# initialize (returns viewing guidance and creates the session)
+curl -s -X POST http://127.0.0.1:48080/mcp/gaia/ext-deepseek-01 \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","clientInfo":{"name":"DeepSeek Coder"}}}'
+
+# add a start node (SSE /api/agent/session/ext-deepseek-01/events streams tool_call/document events live)
+curl -s -X POST http://127.0.0.1:48080/mcp/gaia/ext-deepseek-01 \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"node","arguments":{"action":"add","type":"start"}}}'
 ```
 
-On Windows PowerShell, use `Copy-Item .env.example .env`. Open <http://localhost:8080>; the health endpoint is <http://localhost:8080/api/health>. Only the Nginx `web` service publishes a host port. `api:48080` is reachable only on the Compose network. After the first start, configure an OpenAI-compatible model endpoint, model name, and API key in **Admin → Config → Model Settings**. Do not place those credentials in `.env.example` or commit them.
+</details>
 
-Useful operations:
-
-```bash
-# Status and logs
-docker compose ps
-docker compose logs -f web api
-
-# Stop while retaining the named SQLite volume
-docker compose down
-
-# Rebuild after a source or image update
-docker compose up --build -d
-
-# Delete all local SQLite data only when that is intentional
-docker compose down -v
-```
-
-The SQLite file is `/data/gaia_workflow.db` in the `api` container and is persisted by the named `gaia_data` volume. A normal `docker compose down` does not remove it; after recreating containers, verify it with `docker compose exec api ls -l /data/gaia_workflow.db`. SQLite supports one API writer only: do not horizontally scale this Compose deployment to multiple API instances that write to the same database.
-
-The Docker frontend image injects same-origin `/api` at build time without changing the existing backend-address default for standalone or desktop deployments. Nginx preserves the `/api/` prefix and proxies API/SSE traffic with HTTP/1.1, buffering and caching disabled, so no permissive CORS policy is required. It also forwards `/mcp/` for managed-Agent callbacks and falls back to `index.html` for SPA routes.
-
-#### Built-in vs. managed Agents
-
-Local Compose supports the built-in Agent path by default; it does not make a managed Agent work out of the box. `host.docker.internal:48080` is not a production callback address and is not the default. If an externally hosted execution engine (such as AgentScope Service) must call Gaia's MCP endpoint, the deployer must supply a publicly reachable HTTPS base URL:
-
-```dotenv
-GAIA_MCP_PUBLIC_URL=https://gaia.example.com
-```
-
-The public reverse proxy or ingress must route `/mcp/` (and `/api/` for the UI) at that address to this stack's Nginx `web` service. Leave the value empty when Compose is local and only the built-in Agent is used. If a managed-Agent provider configuration has already been saved in the admin UI, its `mcpPublicUrl` overrides the application setting and must be updated to the same HTTPS address.
-
-Troubleshooting:
-
-- **Frontend 502:** run `docker compose ps`, wait for `api` to become `healthy`, then inspect `docker compose logs api` for startup or migration errors.
-- **SSE disconnects:** use the Nginx `web` entrypoint and ensure any upstream proxy does not buffer responses or impose a short read timeout. The supplied `/api/` proxy disables buffering and uses a one-hour timeout.
-- **SQLite permission errors:** do not replace the ownership of mounted `/data`; inspect it with `docker compose exec api ls -ld /data`. The image runs as the non-root `gaia` user.
-- **Missing model configuration:** save the OpenAI-compatible endpoint, model name, and API key in Admin model settings. They are persisted in SQLite and must not be added to the image or example environment file.
-
-## Tech Stack
+## <img src="assets/icons/layers.svg" width="22" valign="middle" alt="" /> Tech Stack
 
 | Layer | Technology |
-|-------|------------|
-| Frontend | React 18 · TypeScript · flowgram.ai 1.0.12 |
+|------|------|
+| Frontend | React 18 · TypeScript · [flowgram.ai](https://flowgram.ai/guide/) 1.0.12 |
 | Backend | Spring Boot · MyBatis Plus · Java 17 (build) / 21 (runtime) |
-| Database | SQLite |
-| Build | rsbuild (frontend) · Maven (backend) |
+| Storage | Single-file SQLite |
+| Delivery | Single jar · Docker Compose · macOS desktop app · GitHub Pages frontend |
 
-## Deployment Options
-
-- Separate frontend/backend deployment, for environments with an existing gateway and service mesh
-- Single-jar all-in-one deployment, for small to medium deployments
-- Frontend on GitHub Pages with a configurable backend address
-- Containers: official Docker Compose deployment (Nginx frontend entrypoint + Spring Boot API)
-
-## Documentation
+## <img src="assets/icons/book-open.svg" width="22" valign="middle" alt="" /> Documentation
 
 - Project docs: <https://boommanpro.github.io/gaia-workflow-engine/#docs>
 - flowgram.ai framework docs: <https://flowgram.ai/guide/>
 
-## Contributing
+## <img src="assets/icons/git-pull-request.svg" width="22" valign="middle" alt="" /> Contributing
 
 Issues and PRs are welcome. Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/):
 
 1. Fork the repo and create a feature branch
 2. Commit your changes and open a Pull Request
 
-## License
+## <img src="assets/icons/scale.svg" width="22" valign="middle" alt="" /> License
 
 [MIT](./LICENSE)
 
-## Star History
+## <img src="assets/icons/trending-up.svg" width="22" valign="middle" alt="" /> Star History
 
 <a href="https://www.star-history.com/?repos=boommanpro%2Fgaia-workflow-engine&type=date&legend=top-left">
  <picture>
